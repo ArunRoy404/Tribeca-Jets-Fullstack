@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
-import { paginationSchema } from '../../../common/dto/pagination.dto.js';
+import {
+  paginationSchema,
+  sortableBy,
+} from '../../../common/dto/pagination.dto.js';
 import {
   ClientType,
   LeadSource,
@@ -72,7 +75,17 @@ export const updateClientSchema = clientBaseSchema
 export type UpdateClientInput = z.infer<typeof updateClientSchema>;
 export class UpdateClientDto extends createZodDto(updateClientSchema) {}
 
+/** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
+export const CLIENT_SORTABLE_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'lastName',
+  'firstName',
+  'leadStage',
+] as const;
+
 export const queryClientsSchema = paginationSchema.extend({
+  sortBy: sortableBy(CLIENT_SORTABLE_FIELDS),
   type: z.enum(ClientType).optional(),
   leadStage: z.enum(LeadStage).optional(),
   leadSource: z.enum(LeadSource).optional(),

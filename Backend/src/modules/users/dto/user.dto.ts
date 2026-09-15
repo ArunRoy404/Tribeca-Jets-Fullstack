@@ -1,15 +1,12 @@
 import { z } from 'zod';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
-import { paginationSchema } from '../../../common/dto/pagination.dto.js';
+import {
+  paginationSchema,
+  sortableBy,
+} from '../../../common/dto/pagination.dto.js';
 import { UserRole, UserStatus } from '../../../generated/prisma/enums.js';
 
-/**
- * Columns a caller may sort by.
- *
- * A closed list, not a free string: passing caller input straight into Prisma's
- * `orderBy` lets anyone sort by an unindexed column and table-scan the users
- * table, and leaks which columns exist.
- */
+/** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
 export const USER_SORTABLE_FIELDS = [
   'createdAt',
   'updatedAt',
@@ -51,7 +48,7 @@ export const queryUsersSchema = paginationSchema.extend({
   role: z.enum(UserRole).optional(),
   /** Filter to one status. Omit for all statuses. */
   status: z.enum(UserStatus).optional(),
-  sortBy: z.enum(USER_SORTABLE_FIELDS).default('createdAt'),
+  sortBy: sortableBy(USER_SORTABLE_FIELDS),
   /**
    * Include soft-deleted accounts. Administrators only — enforced in the
    * service, since a query param must never widen visibility on its own.

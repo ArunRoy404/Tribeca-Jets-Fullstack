@@ -17,6 +17,11 @@ import {
 } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import {
+  equalsAny,
+  orderByField,
+  searchAcross,
+} from '../../common/database/filters.js';
+import {
   ASSIGNABLE_ROLES,
   PERMISSION_LABELS,
   Permission,
@@ -138,24 +143,17 @@ export class UsersService {
     const where: Prisma.UserWhereInput = {
       ...(showDeleted ? {} : { deletedAt: null }),
       ...this.visibilityScope(user),
-      ...(query.role ? { role: query.role } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { firstName: { contains: query.search, mode: 'insensitive' } },
-              { lastName: { contains: query.search, mode: 'insensitive' } },
-              { email: { contains: query.search, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
+      ...equalsAny(query, ['role', 'status']),
+      ...searchAcross(query.search, ['firstName', 'lastName', 'email']),
     };
 
     const [rows, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
         select: USER_SELECT,
-        orderBy: { [query.sortBy]: query.sortOrder },
+        // `sortBy` is narrowed to USER_SORTABLE_FIELDS by the DTO, so no
+        // caller-supplied string can reach the ORDER BY clause.
+        orderBy: orderByField(query.sortBy, query.sortOrder),
         skip,
         take,
       }),

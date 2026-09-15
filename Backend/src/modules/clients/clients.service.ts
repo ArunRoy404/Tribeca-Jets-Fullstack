@@ -7,6 +7,11 @@ import {
   type Paginated,
 } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
+import {
+  equalsAny,
+  orderByField,
+  searchAcross,
+} from '../../common/database/filters.js';
 import { UserRole } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type {
@@ -35,14 +40,6 @@ const CLIENT_LIST_SELECT = {
   createdById: true,
   updatedById: true,
 } satisfies Prisma.ClientSelect;
-
-const SORTABLE_FIELDS = new Set([
-  'createdAt',
-  'updatedAt',
-  'lastName',
-  'firstName',
-  'leadStage',
-]);
 
 @Injectable()
 export class ClientsService {
@@ -74,37 +71,26 @@ export class ClientsService {
     const where: Prisma.ClientWhereInput = {
       deletedAt: null,
       ...this.visibilityScope(user),
-      ...(query.type ? { type: query.type } : {}),
-      ...(query.leadStage ? { leadStage: query.leadStage } : {}),
-      ...(query.leadSource ? { leadSource: query.leadSource } : {}),
-      ...(query.assignedBrokerId
-        ? { assignedBrokerId: query.assignedBrokerId }
-        : {}),
+      ...equalsAny(query, ['type', 'leadStage', 'leadSource', 'assignedBrokerId']),
+      // Not an equality filter: `labels` is an array column, so this asks
+      // whether the label is among them.
       ...(query.label ? { labels: { has: query.label } } : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { firstName: { contains: query.search, mode: 'insensitive' } },
-              { lastName: { contains: query.search, mode: 'insensitive' } },
-              { companyName: { contains: query.search, mode: 'insensitive' } },
-              { email: { contains: query.search, mode: 'insensitive' } },
-              { phone: { contains: query.search, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
+      ...searchAcross(query.search, [
+        'firstName',
+        'lastName',
+        'companyName',
+        'email',
+        'phone',
+      ]),
     };
-
-    // Allowlisted to keep a caller-supplied string out of the ORDER BY clause.
-    const sortBy =
-      query.sortBy && SORTABLE_FIELDS.has(query.sortBy)
-        ? query.sortBy
-        : 'createdAt';
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.client.findMany({
         where,
         select: CLIENT_LIST_SELECT,
-        orderBy: { [sortBy]: query.sortOrder },
+        // `sortBy` is narrowed to CLIENT_SORTABLE_FIELDS by the DTO, so no
+        // caller-supplied string can reach the ORDER BY clause.
+        orderBy: orderByField(query.sortBy, query.sortOrder),
         skip,
         take,
       }),
