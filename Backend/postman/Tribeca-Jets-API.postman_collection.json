@@ -1844,7 +1844,7 @@
                     "reset-password"
                   ]
                 },
-                "description": "Completes the reset.\n\nRequires a **verified** challenge \u2014 posting here without running step 02 fails.\n\n**Revokes every existing session on success.** If the reset happened because the account was compromised, leaving the attacker signed in would defeat the exercise. A notification email is sent to the account holder.\n\n**Password policy:** at least 10 characters with one lowercase, one uppercase and one digit, and different from the current password.",
+                "description": "Completes the reset.\n\nRequires a **verified** challenge \u2014 posting here without running step 02 fails.\n\n**Revokes every existing session on success.** If the reset happened because the account was compromised, leaving the attacker signed in would defeat the exercise. A notification email is sent to the account holder.\n\n**Password policy:** at least 10 characters with one lowercase, one uppercase and one digit, and different from the current password.\n\n**This is also how an invitation is accepted.** An invited account has no password anyone knows, so setting one here is the act of accepting: a row still in `INVITED` becomes `ACTIVE` in the same transaction, and the user can sign in immediately.\n\nThe promotion is deliberately narrow. Only `INVITED` is touched \u2014 a `SUSPENDED` account that resets its password stays suspended and still cannot sign in. Status after activation is an administrative decision, and a password reset must never be a way around it. (A suspended account cannot even start a reset: `01 \u00b7 Request reset code` hands it the same decoy challenge an unknown address gets.)",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  //\n  // Both fields read the same variable. They have to match exactly, so a\n  // literal here would be two places to edit for one change \u2014 and the\n  // mismatch would surface as a confusing 400 rather than a typo.\n  \"newPassword\": \"{{newPassword}}\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"{{newPassword}}\"\n}",
@@ -3567,7 +3567,7 @@
                 "invite"
               ]
             },
-            "description": "Creates an account in `INVITED` status.\n\n**No password is accepted here, by design.** The account is created with a random, discarded password that is never usable, and the invitee sets a real one through the normal password-reset flow. So a credential is never chosen by, transmitted to, or known by the person doing the inviting.\n\n**Email delivery follows the SMTP config.** With SMTP configured an invitation goes out and `invitation.emailSent` is `true`. Without it, `emailSent` is `false` and `invitation.notice` explains what to tell the invitee instead \u2014 rather than failing silently and leaving them waiting for mail that never sent.\n\nRe-inviting a previously removed account revives that row rather than creating a duplicate, so its audit history stays attached.\n\nRequires `Manage Users`.",
+            "description": "Creates an account in `INVITED` status.\n\n**How the account activates.** `INVITED` is a pending state, not a disabled one, and nothing an administrator can send will move it. The invitee opens the sign-in page, uses \u201cForgot password?\u201d with this address, and sets a password \u2014 that act *is* accepting the invitation, and the account becomes `ACTIVE` in the same transaction. Until then they cannot sign in, and `06 \u00b7 Update team member` refuses any status change on the row. To withdraw an invitation, remove the user.\n\n**No password is accepted here, by design.** The account is created with a random, discarded password that is never usable, and the invitee sets a real one through the normal password-reset flow. So a credential is never chosen by, transmitted to, or known by the person doing the inviting.\n\n**Email delivery follows the SMTP config.** With SMTP configured an invitation goes out and `invitation.emailSent` is `true`. Without it, `emailSent` is `false` and `invitation.notice` explains what to tell the invitee instead \u2014 rather than failing silently and leaving them waiting for mail that never sent.\n\nRe-inviting a previously removed account revives that row rather than creating a duplicate, so its audit history stays attached.\n\nRequires `Manage Users`.",
             "body": {
               "mode": "raw",
               "raw": "{\n  // required \u00b7 valid email, stored lowercase.\n  // This is the login identity and cannot be changed later.\n  // Already in use by a live account \u2192 409.\n  \"email\": \"{{inviteEmail}}\",\n\n  // required \u00b7 1-100 chars\n  \"firstName\": \"Avery\",\n\n  // required \u00b7 1-100 chars\n  \"lastName\": \"Newman\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0163\",\n\n  // optional \u00b7 default \"BROKER\"\n  // Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\"\n  // \"SUPER_ADMIN\" is deliberately NOT assignable: it would let an\n  // admin mint an account immune to their own administration.\n  \"role\": \"BROKER\"\n}",
@@ -3865,10 +3865,10 @@
                 }
               ]
             },
-            "description": "Partial update. Send only the fields you are changing; at least one is required (an empty body returns 400).\n\n**Deliberately absent:** `email` (the login identity and the anchor of the audit trail) and `password` (never set by an administrator).\n\n**Refusals that protect the system from its own administrators:**\n\n| Attempt | Result |\n|---|---|\n| Change your own role | 400 |\n| Set your own status to anything but `ACTIVE` | 400 |\n| Modify the `SUPER_ADMIN` owner (unless you are it) | 403 |\n| Demote or suspend the last active administrator | 400 |\n\nThe last-administrator check counts against the live database rather than the request, because two admins demoting each other concurrently would each individually look safe.\n\nRole and status changes are written to the audit log as `user.access_changed` with before/after values.\n\nRequires `Manage Users`.",
+            "description": "Partial update. Send only the fields you are changing; at least one is required (an empty body returns 400).\n\n**Deliberately absent:** `email` (the login identity and the anchor of the audit trail) and `password` (never set by an administrator).\n\n### Status is `ACTIVE` or `SUSPENDED` \u2014 never `INVITED`\n\n`INVITED` is not a decision anyone makes. An account is created in it by `05 \u00b7 Invite team member` and leaves it exactly once, on its own, when the invitee sets a password through `01 \u00b7 Auth / 04 \u00b7 Password reset`. Two rules follow, and both are enforced:\n\n| Attempt | Result |\n|---|---|\n| Send `\"status\": \"INVITED\"` | 400 \u2014 the enum accepts only `ACTIVE` and `SUSPENDED` |\n| Send any status for an account still in `INVITED` | 400 \u2014 withdraw the invitation with `07 \u00b7 Remove team member` instead |\n\nSuspending a pending invitation would strand the row: the invitee cannot sign in, and completing the reset would no longer activate them, so nothing could move the account again.\n\nOnce the account is `ACTIVE`, suspending and reactivating it is an ordinary administrative decision \u2014 and a password reset never undoes it. A suspended user who resets their password stays suspended.\n\n### Refusals that protect the system from its own administrators\n\n| Attempt | Result |\n|---|---|\n| Change your own role | 400 |\n| Set your own status to anything but `ACTIVE` | 400 |\n| Modify the `SUPER_ADMIN` owner (unless you are it) | 403 |\n| Demote or suspend the last active administrator | 400 |\n\nThe last-administrator check counts against the live database rather than the request, because two admins demoting each other concurrently would each individually look safe.\n\nRole and status changes are written to the audit log as `user.access_changed` with before/after values.\n\nRequires `Manage Users`.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  // all fields optional \u00b7 send at least one, or 400\n\n  // 1-100 chars\n  \"firstName\": \"Avery\",\n\n  // 1-100 chars\n  \"lastName\": \"Newman\",\n\n  // max 40 chars \u00b7 send null to clear it\n  \"phone\": \"+1 555 0199\",\n\n  // Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\"\n  // \"SUPER_ADMIN\" is not assignable. Cannot be your own role.\n  \"role\": \"SENIOR_BROKER\",\n\n  // Allowed (case-sensitive): \"ACTIVE\" | \"INVITED\" | \"SUSPENDED\"\n  // SUSPENDED revokes access; the row and its history are kept.\n  // Cannot be used on your own account.\n  \"status\": \"ACTIVE\",\n\n  // boolean \u00b7 turns the two-factor sign-in challenge on or off\n  // for this account. This is the toggle behind the security\n  // setting; two-factor is not mandatory system-wide.\n  \"twoFactorEnabled\": false\n}",
+              "raw": "{\n  // all fields optional \u00b7 send at least one, or 400\n\n  // 1-100 chars\n  \"firstName\": \"Avery\",\n\n  // 1-100 chars\n  \"lastName\": \"Newman\",\n\n  // max 40 chars \u00b7 send null to clear it\n  \"phone\": \"+1 555 0199\",\n\n  // Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\"\n  // \"SUPER_ADMIN\" is not assignable. Cannot be your own role.\n  \"role\": \"SENIOR_BROKER\",\n\n  // \"status\" is deliberately absent from this body.\n  //\n  // Allowed (case-sensitive): \"ACTIVE\" | \"SUSPENDED\" \u2014 and nothing else.\n  // \"INVITED\" is NOT settable: an account is born in it and leaves it\n  // exactly once, when the invitee sets a password. See the saved\n  // examples \"200 \u00b7 Account suspended\" and \"400 \u00b7 Invitation is still\n  // pending\".\n  //\n  // This request targets {{invitedUserId}}, whose invitation is still\n  // outstanding, so sending a status here would return 400 by design.\n\n  // boolean \u00b7 turns the two-factor sign-in challenge on or off\n  // for this account. This is the toggle behind the security\n  // setting; two-factor is not mandatory system-wide.\n  \"twoFactorEnabled\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3918,6 +3918,48 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"edf1ef4d-e7e5-4b03-aa8d-f25f1cbcb992\",\n    \"email\": \"avery.new+1789461289@tribecajets.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Newman\",\n    \"phone\": \"+1 555 0199\",\n    \"role\": \"SENIOR_BROKER\",\n    \"status\": \"ACTIVE\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": null,\n    \"createdAt\": \"2026-09-15T08:34:49.596Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T08:34:49.616Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"permissionLevel\": \"High\"\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Account suspended",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"SUSPENDED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b32c645a-88b9-40e5-8669-7d1e40d94671\",\n    \"email\": \"avery.newman@tribecajets.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Newman\",\n    \"phone\": null,\n    \"role\": \"BROKER\",\n    \"status\": \"SUSPENDED\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-09-15T09:10:44.118Z\",\n    \"createdAt\": \"2026-09-15T09:13:09.235Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:13:09.445Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"permissionLevel\": \"Medium\"\n  }\n}"
             },
             {
               "name": "400 \u00b7 Empty patch",
@@ -4086,6 +4128,90 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"The owner account cannot be modified\",\n  \"path\": \"/api/users/bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n  \"timestamp\": \"2026-09-15T08:34:49.734Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Invitation is still pending",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"SUSPENDED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"This invitation has not been accepted yet, so its status cannot be changed. The account activates itself when the user sets their password.\",\n  \"path\": \"/api/users/b32c645a-88b9-40e5-8669-7d1e40d94671\",\n  \"timestamp\": \"2026-09-15T09:13:09.252Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 \"INVITED\" is not a settable status",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"INVITED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"status\": \"Invalid option: expected one of \\\"ACTIVE\\\"|\\\"SUSPENDED\\\"\"\n  },\n  \"path\": \"/api/users/b32c645a-88b9-40e5-8669-7d1e40d94671\",\n  \"timestamp\": \"2026-09-15T09:13:09.261Z\"\n}"
             }
           ]
         },
