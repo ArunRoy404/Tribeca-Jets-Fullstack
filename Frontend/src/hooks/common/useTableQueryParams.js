@@ -97,7 +97,62 @@ export function useTableQueryParams(schema, { pageKey = "page" } = {}) {
     router.replace(pathname, { scroll: false });
   }, [pathname, router]);
 
-  return { values, setValues, reset };
+  /**
+   * What actually goes to the API — and, because it is also the query key,
+   * what a refetch is keyed on.
+   *
+   * Two things are dropped. Fields marked `local` never leave the browser (a
+   * tab id is view state, and including it would refetch the table every time
+   * someone switched tabs). Empty values are omitted rather than sent as `""`,
+   * which the API rejects as an invalid enum.
+   *
+   * Built here rather than in each module's hook because every module was
+   * writing the same memo, and the `local` distinction is the kind of thing
+   * that gets forgotten once per table.
+   */
+  const queryParams = useMemo(() => {
+    const params = {};
+    for (const [key, field] of Object.entries(schema)) {
+      if (field.local) continue;
+      const value = values[key];
+      if (value === undefined || value === null || value === "") continue;
+      params[key] = value;
+    }
+    return params;
+  }, [schema, values]);
+
+  /**
+   * One `setX` per field, derived from the schema.
+   *
+   * These were hand-written per module — a dozen near-identical `useCallback`
+   * wrappers whose only job was to name the field they set. Generating them
+   * means a new filter needs a schema entry and nothing else.
+   */
+  const setters = useMemo(() => {
+    const result = {};
+    for (const key of Object.keys(schema)) {
+      const name = `set${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+      result[name] = (value) => setValues({ [key]: value });
+    }
+    return result;
+  }, [schema, setValues]);
+
+  /**
+   * Page movement, clamped.
+   *
+   * `pageCount` comes from the server's `meta.totalPages`. Clamping here rather
+   * than at each call site is why containers no longer carry their own
+   * `Math.max(page - 1, 1)`, which was easy to write as `Math.min` by mistake.
+   */
+  const goToPage = useCallback(
+    (page, pageCount = Number.MAX_SAFE_INTEGER) => {
+      const clamped = Math.min(Math.max(Number(page) || 1, 1), Math.max(pageCount, 1));
+      setValues({ [pageKey]: clamped });
+    },
+    [setValues, pageKey],
+  );
+
+  return { values, setValues, reset, queryParams, setters, goToPage };
 }
 
 /**
@@ -166,4 +221,73 @@ export function stringParam(maxLength = 200) {
     const trimmed = raw.trim();
     return trimmed ? trimmed.slice(0, maxLength) : undefined;
   };
+}
+
+// ---------------------------------------------------------------------------
+// Field builders
+//
+// Every table repeats the same page/limit/sort/search fields. Declaring them
+// here means a module's schema states only what is actually specific to it:
+// its filters and its sortable columns.
+// ---------------------------------------------------------------------------
+
+/**
+ * Rows per page when the URL does not say.
+ *
+ * Must match `DEFAULT_PAGE_SIZE` in the API's `common/dto/pagination.dto.ts`,
+ * so an unparameterised request and a freshly loaded table agree on what page
+ * 1 contains.
+ */
+export const DEFAULT_PAGE_SIZE = 10;
+
+/**
+ * Choices in the rows-per-page dropdown.
+ *
+ * 100 is the API's hard cap (`MAX_PAGE_SIZE`); anything above it is refused
+ * there, so it is the last option rather than a larger round number.
+ */
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+/**
+ * The page, limit, sortBy and sortOrder fields every list screen needs.
+ *
+ * @param sortBy   Sortable columns, matching the API's allowlist exactly. A
+ *                 value the API would reject must not survive the URL either.
+ * @param defaults `{ sortBy, sortOrder, limit }` starting values.
+ */
+export function paginationFields(sortBy, { sortBy: defaultSortBy = "createdAt", sortOrder = "desc", limit = DEFAULT_PAGE_SIZE } = {}) {
+  return {
+    page: {
+      default: 1,
+      // Clamped rather than passed through: `?page=-5` must show page 1, not
+      // produce a 400 from the API.
+      parse: intParam(1, 10_000),
+    },
+    limit: {
+      default: limit,
+      // Capped at the API's own ceiling, so `?limit=99999` degrades to the
+      // largest page the server would actually serve.
+      parse: intParam(1, PAGE_SIZE_OPTIONS[PAGE_SIZE_OPTIONS.length - 1]),
+      // A different page size renumbers every page, so page 4 of 10-per-page
+      // is not page 4 of 100-per-page.
+      resetsPage: true,
+    },
+    sortBy: { default: defaultSortBy, parse: enumParam(sortBy), resetsPage: true },
+    sortOrder: { default: sortOrder, parse: enumParam(["asc", "desc"]), resetsPage: true },
+  };
+}
+
+/** A debounced free-text search field. Pair with `useDebouncedParam`. */
+export function searchField(maxLength = 200) {
+  return { default: "", parse: stringParam(maxLength), resetsPage: true };
+}
+
+/**
+ * A dropdown filter over a fixed set, where empty means "all".
+ *
+ * `allowed` is the wire vocabulary (`SENIOR_BROKER`), not display labels — the
+ * URL carries what the API carries, and the label mapping happens at render.
+ */
+export function filterField(allowed) {
+  return { default: "", parse: enumParam(allowed), resetsPage: true };
 }

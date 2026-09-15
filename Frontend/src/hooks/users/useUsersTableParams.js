@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
 import {
   enumParam,
-  intParam,
-  stringParam,
+  filterField,
+  paginationFields,
+  searchField,
   useTableQueryParams,
 } from "@/hooks/common/useTableQueryParams";
 import { FILTERABLE_ROLES, FILTERABLE_STATUSES } from "@/lib/user";
@@ -14,15 +14,31 @@ export const USERS_TABS = { MEMBERS: "members", ROLES: "roles" };
 
 const TAB_VALUES = Object.values(USERS_TABS);
 
+/** Mirrors `USER_SORTABLE_FIELDS` on the API. A value it rejects is rejected here. */
+const SORTABLE = [
+  "createdAt",
+  "updatedAt",
+  "firstName",
+  "lastName",
+  "email",
+  "role",
+  "status",
+  "lastLoginAt",
+];
+
 /**
  * The URL schema for the Users & Roles screen.
  *
- * Every value here round-trips through the query string, so a link reproduces
- * the exact view — tab, page, filters and all — and the browser's back button
- * steps through it.
+ * Every value round-trips through the query string, so a link reproduces the
+ * exact view — tab, page, page size, filters and all — and back steps through
+ * it.
+ *
+ * Only the module-specific parts are declared here; paging, sorting and search
+ * come from the shared builders, so this is the whole difference between this
+ * table and the next one.
  *
  * Defined once, outside the hook, so its identity is stable and does not
- * re-trigger the memo on every render.
+ * re-trigger the memos on every render.
  */
 const SCHEMA = {
   tab: {
@@ -31,99 +47,26 @@ const SCHEMA = {
     // Switching tabs abandons the table's paging entirely, so it resets the
     // page like any other view change.
     resetsPage: true,
+    // View state, not a query: the roles tab must not refetch the table.
+    local: true,
   },
-  page: {
-    default: 1,
-    // Clamped rather than passed through: `?page=-5` must show page 1, not
-    // produce a 400 from the API.
-    parse: intParam(1, 10_000),
-  },
-  limit: {
-    default: 10,
-    // 100 is the API's hard cap; asking for more is refused there.
-    parse: intParam(1, 100),
-    resetsPage: true,
-  },
-  search: {
-    default: "",
-    parse: stringParam(200),
-    resetsPage: true,
-  },
-  role: {
-    default: "",
-    // Case-sensitive against the wire vocabulary: `?role=broker` is a bug
-    // worth falling back to "all roles" rather than silently correcting.
-    parse: enumParam(FILTERABLE_ROLES),
-    resetsPage: true,
-  },
-  status: {
-    default: "",
-    parse: enumParam(FILTERABLE_STATUSES),
-    resetsPage: true,
-  },
-  sortBy: {
-    default: "createdAt",
-    parse: enumParam([
-      "createdAt",
-      "updatedAt",
-      "firstName",
-      "lastName",
-      "email",
-      "role",
-      "status",
-      "lastLoginAt",
-    ]),
-    resetsPage: true,
-  },
-  sortOrder: {
-    default: "desc",
-    parse: enumParam(["asc", "desc"]),
-    resetsPage: true,
-  },
+  ...paginationFields(SORTABLE),
+  search: searchField(),
+  role: filterField(FILTERABLE_ROLES),
+  status: filterField(FILTERABLE_STATUSES),
 };
 
 export function useUsersTableParams() {
-  const { values, setValues, reset } = useTableQueryParams(SCHEMA);
-
-  /**
-   * What actually goes to the API.
-   *
-   * Empty filters are dropped rather than sent as `""`, which the API would
-   * reject as an invalid enum. This is also the query key, so it must contain
-   * only the fields that affect the response — putting `tab` in here would
-   * refetch the table every time someone looked at the roles tab.
-   */
-  const queryParams = useMemo(() => {
-    const params = {
-      page: values.page,
-      limit: values.limit,
-      sortBy: values.sortBy,
-      sortOrder: values.sortOrder,
-    };
-    if (values.search) params.search = values.search;
-    if (values.role) params.role = values.role;
-    if (values.status) params.status = values.status;
-    return params;
-  }, [values.page, values.limit, values.sortBy, values.sortOrder, values.search, values.role, values.status]);
-
-  const setTab = useCallback((tab) => setValues({ tab }), [setValues]);
-  const setPage = useCallback((page) => setValues({ page }), [setValues]);
-  const setSearch = useCallback((search) => setValues({ search }), [setValues]);
-  const setRole = useCallback((role) => setValues({ role }), [setValues]);
-  const setStatus = useCallback((status) => setValues({ status }), [setValues]);
-
-  const hasFilters = Boolean(values.search || values.role || values.status);
+  const { values, setValues, reset, queryParams, setters, goToPage } =
+    useTableQueryParams(SCHEMA);
 
   return {
     ...values,
+    ...setters,
     queryParams,
-    setTab,
-    setPage,
-    setSearch,
-    setRole,
-    setStatus,
+    goToPage,
     setValues,
-    hasFilters,
+    hasFilters: Boolean(values.search || values.role || values.status),
     clearFilters: reset,
   };
 }
