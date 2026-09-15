@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Edit, Send } from "lucide-react";
+import { ArrowLeft, Edit, Send, Trash2 } from "lucide-react";
 import StatusBadge from "@/components/common/StatusBadge";
 import SimpleStatsRow from "@/components/common/SimpleStatsRow";
 import { Button } from "@/components/ui/button";
 
-export default function OperatorDetailHeader({ operator, onEdit, onRequestQuote }) {
+export default function OperatorDetailHeader({ operator, onEdit, onRequestQuote, onRemove }) {
   if (!operator) return null;
 
   const stats = [
@@ -65,6 +65,17 @@ export default function OperatorDetailHeader({ operator, onEdit, onRequestQuote 
           >
             <Send className="size-4" />
             Request Quote
+          </Button>
+
+          {/* Soft delete — the operator moves to the Archived tab and every
+              trip, quote and payment referencing it keeps working. */}
+          <Button
+            variant="outline"
+            className="h-10 text-[13px] gap-2 font-medium text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive flex-1 sm:flex-none"
+            onClick={() => onRemove?.(operator)}
+          >
+            <Trash2 className="size-4" />
+            Remove
           </Button>
         </div>
       </div>

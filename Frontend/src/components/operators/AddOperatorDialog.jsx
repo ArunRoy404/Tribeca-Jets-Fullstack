@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Edit, X } from "lucide-react";
 import { useOperatorsStore } from "@/store/useOperatorsStore";
+import { useCreateOperator, useUpdateOperator } from "@/hooks/operators";
+import {
+  FILTERABLE_OPERATOR_STATUSES,
+  formatOperatorStatus,
+} from "@/lib/operator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,9 +34,9 @@ function SectionHeader({ title }) {
   );
 }
 
-const initialForm = {
+const EMPTY_FORM = {
   name: "",
-  status: "Active",
+  status: "ACTIVE",
   homeBase: "",
   website: "",
   generalEmail: "",
@@ -42,49 +47,83 @@ const initialForm = {
   aircraftTypesInput: "",
   serviceRoutesInput: "",
   reliability: "4.8",
-  safety: "4.9",
-  responseSpeed: "Fast",
-  cancellationPolicy: "48 hours Notice",
+  safety: "",
+  responseSpeed: "",
+  cancellationPolicy: "",
   sourcingNotes: "",
 };
+
+/**
+ * Values the row mapper renders as an em dash are display text, not data —
+ * they must not be written back into an input as the literal "—".
+ */
+function fieldValue(value) {
+  return !value || value === "\u2014" ? "" : String(value);
+}
+
+function initialForm(operator) {
+  if (!operator) return EMPTY_FORM;
+  const list = (value) =>
+    Array.isArray(value) ? value.join(", ") : fieldValue(value);
+
+  return {
+    name: operator.name || "",
+    // The API speaks enum constants; `rawStatus` is the unmapped one.
+    status: operator.rawStatus || "ACTIVE",
+    homeBase: fieldValue(operator.homeBase),
+    website: fieldValue(operator.website),
+    generalEmail: fieldValue(operator.generalEmail),
+    generalPhone: fieldValue(operator.generalPhone),
+    primaryContact: fieldValue(operator.primaryContact),
+    email: fieldValue(operator.email),
+    phone: fieldValue(operator.phone),
+    aircraftTypesInput: list(operator.aircraftTypes),
+    serviceRoutesInput: list(operator.serviceRoutes),
+    reliability:
+      operator.rawReliability === null || operator.rawReliability === undefined
+        ? ""
+        : String(operator.rawReliability),
+    safety: fieldValue(operator.safety),
+    responseSpeed: fieldValue(operator.responseSpeed),
+    cancellationPolicy: fieldValue(operator.cancellationPolicy),
+    sourcingNotes: operator.sourcingNotes || "",
+  };
+}
 
 export default function AddOperatorDialog() {
   const addModalOpen = useOperatorsStore((s) => s.addModalOpen);
   const editingOperator = useOperatorsStore((s) => s.editingOperator);
   const closeAddModal = useOperatorsStore((s) => s.closeAddModal);
-  const addOperator = useOperatorsStore((s) => s.addOperator);
-  const updateOperator = useOperatorsStore((s) => s.updateOperator);
 
-  const [formData, setFormData] = useState(initialForm);
+  return (
+    <Dialog open={addModalOpen} onOpenChange={(next) => !next && closeAddModal()}>
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-4">
+        {/*
+          Keyed so the form remounts with fresh state whenever the dialog opens
+          on a different operator — React's own answer to "reset state when a
+          prop changes". An effect calling setState renders once with the
+          previous operator's values before correcting itself.
+        */}
+        {addModalOpen && (
+          <OperatorForm
+            key={editingOperator?.id ?? "new"}
+            editingOperator={editingOperator}
+            onDone={closeAddModal}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-  useEffect(() => {
-    if (editingOperator) {
-      setFormData({
-        name: editingOperator.name || "",
-        status: editingOperator.status || "Active",
-        homeBase: editingOperator.homeBase || "",
-        website: editingOperator.website || "",
-        generalEmail: editingOperator.generalEmail || editingOperator.email || "",
-        generalPhone: editingOperator.generalPhone || editingOperator.phone || "",
-        primaryContact: editingOperator.primaryContact || "",
-        email: editingOperator.email || "",
-        phone: editingOperator.phone || "",
-        aircraftTypesInput: Array.isArray(editingOperator.aircraftTypes)
-          ? editingOperator.aircraftTypes.join(", ")
-          : editingOperator.aircraftTypes || "",
-        serviceRoutesInput: Array.isArray(editingOperator.serviceRoutes)
-          ? editingOperator.serviceRoutes.join(", ")
-          : editingOperator.serviceRoutes || "",
-        reliability: String(editingOperator.reliability || "4.8"),
-        safety: String(editingOperator.safety || "4.9"),
-        responseSpeed: editingOperator.responseSpeed || "Fast",
-        cancellationPolicy: editingOperator.cancellationPolicy || "48 hours Notice",
-        sourcingNotes: editingOperator.sourcingNotes || "",
-      });
-    } else {
-      setFormData(initialForm);
-    }
-  }, [editingOperator, addModalOpen]);
+function OperatorForm({ editingOperator, onDone }) {
+  const create = useCreateOperator();
+  const update = useUpdateOperator();
+  const mutation = editingOperator ? update : create;
+  const fieldErrors = mutation?.error?.fieldErrors ?? {};
+
+  const [formData, setFormData] = useState(() => initialForm(editingOperator));
+  const closeAddModal = onDone;
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -102,37 +141,54 @@ export default function AddOperatorDialog() {
       ? formData.serviceRoutesInput.split(",").map((r) => r.trim()).filter(Boolean)
       : [];
 
+    const editing = Boolean(editingOperator);
+    const optional = (value) => {
+      const trimmed = (value ?? "").trim();
+      if (trimmed) return trimmed;
+      // Absent means "leave it alone", null means "clear it" — the API
+      // distinguishes the two, so a create omits and an edit nulls.
+      return editing ? null : undefined;
+    };
+
     const payload = {
       name: formData.name.trim(),
       status: formData.status,
-      homeBase: formData.homeBase.trim() || "Teterboro, NJ",
-      website: formData.website.trim(),
-      generalEmail: formData.generalEmail.trim(),
-      generalPhone: formData.generalPhone.trim(),
-      primaryContact: formData.primaryContact.trim() || "Operations Dispatch",
-      email: formData.email.trim() || formData.generalEmail.trim() || "ops@operator.com",
-      phone: formData.phone.trim() || formData.generalPhone.trim() || "+1 (555) 0100",
+      homeBase: optional(formData.homeBase),
+      website: optional(formData.website),
+      generalEmail: optional(formData.generalEmail),
+      generalPhone: optional(formData.generalPhone),
+      primaryContact: optional(formData.primaryContact),
+      contactEmail: optional(formData.email),
+      contactPhone: optional(formData.phone),
+      // Replaced wholesale, not merged: the field holds the complete list.
       aircraftTypes,
       serviceRoutes,
-      reliability: parseFloat(formData.reliability) || 4.8,
-      safety: formData.safety,
-      responseSpeed: formData.responseSpeed,
-      cancellationPolicy: formData.cancellationPolicy,
-      sourcingNotes: formData.sourcingNotes.trim(),
+      reliabilityRating: formData.reliability
+        ? Number.parseFloat(formData.reliability)
+        : editing
+          ? null
+          : undefined,
+      safetyRating: optional(formData.safety),
+      responseSpeed: optional(formData.responseSpeed),
+      cancellationPolicy: optional(formData.cancellationPolicy),
+      sourcingNotes: optional(formData.sourcingNotes),
     };
 
-    if (editingOperator) {
-      updateOperator(editingOperator.id, payload);
-    } else {
-      addOperator(payload);
+    if (editing) {
+      update.mutate(
+        { id: editingOperator.id, ...payload },
+        { onSuccess: closeAddModal },
+      );
+      return;
     }
+    create.mutate(payload, { onSuccess: closeAddModal });
+    return;
 
     closeAddModal();
   };
 
   return (
-    <Dialog open={addModalOpen} onOpenChange={(open) => !open && closeAddModal()}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-4">
+    <>
         <DialogHeader className="flex flex-col items-start gap-1 pb-2 border-b border-border">
           <DialogTitle className="font-montserrat font-bold text-[20px] text-foreground">
             {editingOperator ? "Edit Operator" : "Add Operator"}
@@ -178,11 +234,12 @@ export default function AddOperatorDialog() {
                 placeholder="Cleveland, OH"
                 value={formData.homeBase}
                 onChange={(e) => handleChange("homeBase", e.target.value)}
+                required
                 className="h-10 text-[13px] font-montserrat"
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Website" optional>
+            <FieldWrapper label="Website (Optional)" optional>
               <Input
                 placeholder="www.flexjet.com"
                 value={formData.website}
@@ -193,7 +250,7 @@ export default function AddOperatorDialog() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <FieldWrapper label="General email">
+            <FieldWrapper label="General email (Optional)">
               <Input
                 type="email"
                 placeholder="ops@flexjet.com"
@@ -203,7 +260,7 @@ export default function AddOperatorDialog() {
               />
             </FieldWrapper>
 
-            <FieldWrapper label="General phone">
+            <FieldWrapper label="General phone (Optional)">
               <Input
                 placeholder="+1 (212) 555-0100"
                 value={formData.generalPhone}
@@ -222,6 +279,7 @@ export default function AddOperatorDialog() {
                 placeholder="James Miller"
                 value={formData.primaryContact}
                 onChange={(e) => handleChange("primaryContact", e.target.value)}
+                required
                 className="h-10 text-[13px] font-montserrat"
               />
             </FieldWrapper>
@@ -232,11 +290,12 @@ export default function AddOperatorDialog() {
                 placeholder="jmiller@flexjet.com"
                 value={formData.email}
                 onChange={(e) => handleChange("email", e.target.value)}
+                required
                 className="h-10 text-[13px] font-montserrat"
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Contact Phone">
+            <FieldWrapper label="Contact Phone (Optional)">
               <Input
                 placeholder="+1 (212) 555-0184"
                 value={formData.phone}
@@ -250,7 +309,7 @@ export default function AddOperatorDialog() {
           <SectionHeader title="Fleet & Coverage" />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <FieldWrapper label="Aircraft types (comma separated)">
+            <FieldWrapper label="Aircraft types (comma separated) (Optional)">
               <Input
                 placeholder="Challenger 350, Global 7500"
                 value={formData.aircraftTypesInput}
@@ -259,7 +318,7 @@ export default function AddOperatorDialog() {
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Service routes (comma separated)">
+            <FieldWrapper label="Service routes (comma separated) (Optional)">
               <Input
                 placeholder="KTEB ↔ KMIA, KJFK ↔ EGLL"
                 value={formData.serviceRoutesInput}
@@ -273,7 +332,7 @@ export default function AddOperatorDialog() {
           <SectionHeader title="Performance & Terms" />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-            <FieldWrapper label="Reliability (0-5)">
+            <FieldWrapper label="Reliability (0-5) (Optional)">
               <Input
                 placeholder="4.8"
                 value={formData.reliability}
@@ -282,16 +341,16 @@ export default function AddOperatorDialog() {
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Safety (0-5)">
+            <FieldWrapper label="Safety Rating (Optional)">
               <Input
-                placeholder="4.9"
+                placeholder="e.g. ARG/US Platinum"
                 value={formData.safety}
                 onChange={(e) => handleChange("safety", e.target.value)}
                 className="h-10 text-[13px] font-montserrat"
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Response speed">
+            <FieldWrapper label="Response speed (Optional)">
               <Input
                 placeholder="Fast"
                 value={formData.responseSpeed}
@@ -301,7 +360,7 @@ export default function AddOperatorDialog() {
             </FieldWrapper>
           </div>
 
-          <FieldWrapper label="Cancellation policy">
+          <FieldWrapper label="Cancellation policy (Optional)">
             <Input
               placeholder="48 hours Notice"
               value={formData.cancellationPolicy}
@@ -310,7 +369,7 @@ export default function AddOperatorDialog() {
             />
           </FieldWrapper>
 
-          <FieldWrapper label="Notes" optional>
+          <FieldWrapper label="Notes (Optional)" optional>
             <textarea
               rows={3}
               value={formData.sourcingNotes}
@@ -336,11 +395,14 @@ export default function AddOperatorDialog() {
               className="bg-[#252832] hover:bg-[#252832]/90 text-white h-9 px-4 font-medium text-[13px] gap-1.5"
             >
               {editingOperator ? <Edit className="size-3.5" /> : <Plus className="size-3.5" />}
-              {editingOperator ? "Save Changes" : "Add Operator"}
+              {mutation?.isPending
+                ? "Saving…"
+                : editingOperator
+                  ? "Save Changes"
+                  : "Add Operator"}
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

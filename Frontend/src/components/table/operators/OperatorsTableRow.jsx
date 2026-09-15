@@ -4,6 +4,7 @@ import { Star } from "lucide-react";
 import StatusBadge from "@/components/common/StatusBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import { Checkbox } from "@/components/ui/checkbox";
+import RestoredBadge from "@/components/common/RestoredBadge";
 import { TableCell, TableRow } from "@/components/ui/table";
 
 export default function OperatorsTableRow({
@@ -12,6 +13,7 @@ export default function OperatorsTableRow({
   onToggleRow,
   getRowActions,
   onSelectOperator,
+  archived = false,
 }) {
   return (
     <TableRow key={op?.id} className="border-border cursor-pointer" onClick={() => onSelectOperator?.(op?.id)}>
@@ -19,7 +21,13 @@ export default function OperatorsTableRow({
         <Checkbox checked={selected} onCheckedChange={() => onToggleRow?.(op?.id)} />
       </TableCell>
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-left">
-        {op?.name}
+        <span className="inline-flex items-center gap-2">
+          {op?.name}
+          {/* A record that was removed and brought back says so, for good. */}
+          {op?.isRestored ? (
+            <RestoredBadge at={op?.restoredAtLabel} by={op?.restoredByName} />
+          ) : null}
+        </span>
       </TableCell>
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center whitespace-nowrap">
         {op?.homeBase}
@@ -46,10 +54,10 @@ export default function OperatorsTableRow({
         </div>
       </TableCell>
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-purple text-center">
-        {op?.totalTrips}
+        {archived ? op?.deletedAtLabel : op?.totalTrips}
       </TableCell>
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-success text-center whitespace-nowrap">
-        {op?.totalPaid}
+        {archived ? op?.deletedByName : op?.totalPaid}
       </TableCell>
       <TableCell className="p-[10px] text-center">
         <div className="flex justify-center">

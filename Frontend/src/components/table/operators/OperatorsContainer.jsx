@@ -1,45 +1,84 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Edit2, Send } from "lucide-react";
+import { Eye, Edit2, Send, RotateCcw, Trash2 } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
 import { useOperatorsStore } from "@/store/useOperatorsStore";
 import TablePagination from "@/components/table/common/TablePagination";
+import TableStatus from "@/components/table/common/TableStatus";
+import BulkDeleteDialog from "@/components/common/BulkDeleteDialog";
 import OperatorsToolbar from "./OperatorsToolbar";
 import OperatorsCardsContainer from "./OperatorsCardsContainer";
 import OperatorsTable from "./OperatorsTable";
 import AddOperatorDialog from "@/components/operators/AddOperatorDialog";
+import DeleteOperatorDialog from "@/components/operators/DeleteOperatorDialog";
 import RequestOperatorQuoteDialog from "@/components/operator-sourcing/RequestOperatorQuoteDialog";
+import {
+  useOperators,
+  useOperatorsTableParams,
+  useRemoveOperators,
+  useRestoreOperator,
+} from "@/hooks/operators";
+import { ARCHIVE_TABS } from "@/lib/archive";
+import { toOperatorRow } from "@/lib/operator";
 
 export default function OperatorsContainer({ revealDelay = 0 }) {
   const router = useRouter();
 
-  const search = useOperatorsStore((s) => s.search);
-  const setSearch = useOperatorsStore((s) => s.setSearch);
-  const statusFilter = useOperatorsStore((s) => s.statusFilter);
-  const setStatusFilter = useOperatorsStore((s) => s.setStatusFilter);
-  const page = useOperatorsStore((s) => s.page);
-  const nextPage = useOperatorsStore((s) => s.nextPage);
-  const prevPage = useOperatorsStore((s) => s.prevPage);
+  // The URL is the state. Every filter below reads and writes it, so the view
+  // survives a reload and the back button steps through it.
+  const params = useOperatorsTableParams();
+  const operatorsQuery = useOperators(params?.queryParams);
+
   const openAddModal = useOperatorsStore((s) => s.openAddModal);
   const openEditModal = useOperatorsStore((s) => s.openEditModal);
   const openQuoteModal = useOperatorsStore((s) => s.openQuoteModal);
+  const openDeleteModal = useOperatorsStore((s) => s.openDeleteModal);
 
-  const getPageOperators = useOperatorsStore((s) => s.getPageOperators);
-  const getPageCount = useOperatorsStore((s) => s.getPageCount);
-  const getFilteredCount = useOperatorsStore((s) => s.getFilteredCount);
-
-  const pageOperators = getPageOperators?.();
-  const pageCount = getPageCount?.();
-  const filteredCount = getFilteredCount?.();
+  const rows = useMemo(
+    () => (operatorsQuery?.data?.data ?? []).map(toOperatorRow),
+    [operatorsQuery?.data?.data],
+  );
+  const meta = operatorsQuery?.data?.meta;
+  const pageCount = Math.max(meta?.totalPages ?? 1, 1);
+  const isEmpty =
+    !operatorsQuery?.isPending && !operatorsQuery?.error && rows.length === 0;
 
   const [selected, setSelected] = useState(() => new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const { mutate: removeMany, isPending: isRemovingMany } = useRemoveOperators();
+  const { mutate: restoreOperator } = useRestoreOperator();
+
+  const isArchived = params?.tab === ARCHIVE_TABS.ARCHIVED;
+
+  // The selection holds ids; the dialog lists the rows behind them. Derived
+  // from the current page, so a row removed underneath us simply drops out
+  // rather than being confirmed by name and then not found.
+  const selectedRows = useMemo(
+    () => rows.filter((row) => selected.has(row?.id)),
+    [rows, selected],
+  );
+
+  const handleBulkDelete = () => {
+    const ids = selectedRows.map((row) => row?.id).filter(Boolean);
+    if (!ids.length) return;
+    removeMany(ids, {
+      onSuccess: () => {
+        setBulkOpen(false);
+        // Clearing matters: the ids are gone, and leaving them selected would
+        // keep the button offering to remove rows that no longer exist.
+        setSelected(new Set());
+      },
+    });
+  };
+
   const toggleRow = (id) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
 
@@ -47,58 +86,125 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
     router?.push(`/dashboard/operators/${id}`);
   };
 
-  const getRowActions = (op) => [
-    { label: "View Details", icon: <Eye />, onSelect: () => handleOpenDetails(op?.id) },
-    { label: "Edit Operator", icon: <Edit2 />, onSelect: () => openEditModal?.(op) },
-    { label: "Request Quote", icon: <Send />, onSelect: () => openQuoteModal?.(op) },
-  ];
+  const getRowActions = (op) =>
+    isArchived
+      ? [
+          { label: "View Details", icon: <Eye />, onSelect: () => handleOpenDetails(op?.id) },
+          {
+            label: "Restore Operator",
+            icon: <RotateCcw />,
+            onSelect: () => restoreOperator?.(op),
+          },
+        ]
+      : [
+          { label: "View Details", icon: <Eye />, onSelect: () => handleOpenDetails(op?.id) },
+          { label: "Edit Operator", icon: <Edit2 />, onSelect: () => openEditModal?.(op) },
+          // Sourcing a quote from an archived operator is not a thing anyone
+          // means to do, so it is absent rather than disabled.
+          { label: "Request Quote", icon: <Send />, onSelect: () => openQuoteModal?.(op) },
+          "separator",
+          {
+            label: "Remove Operator",
+            icon: <Trash2 />,
+            variant: "destructive",
+            onSelect: () => openDeleteModal?.(op),
+          },
+        ];
 
   return (
     <Reveal delay={revealDelay} className="w-full">
       <CommonCard variant="default" className="p-0 rounded-md overflow-hidden border-border w-full">
         <OperatorsToolbar
-          search={search}
-          setSearch={setSearch}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
+          search={params?.search}
+          setSearch={params?.setSearch}
+          statusFilter={params?.status}
+          setStatusFilter={params?.setStatus}
+          limit={params?.limit}
+          setLimit={params?.setLimit}
           onAddOperator={openAddModal}
+          selectedCount={selectedRows.length}
+          onBulkDelete={() => setBulkOpen(true)}
+          tab={params?.tab}
+          setTab={params?.setTab}
         />
 
-        <div className="relative w-full lg:hidden">
-          <OperatorsCardsContainer
-            operators={pageOperators}
-            selected={selected}
-            onToggleRow={toggleRow}
-            getRowActions={getRowActions}
-            onSelectOperator={handleOpenDetails}
+        {operatorsQuery?.isPending || operatorsQuery?.error || isEmpty ? (
+          <TableStatus
+            isLoading={operatorsQuery?.isPending}
+            error={operatorsQuery?.error}
+            isEmpty={isEmpty}
+            emptyMessage={
+              isArchived ? "Nothing archived" : "No operators match these filters"
+            }
+            emptyHint={
+              isArchived
+                ? "Removed operators appear here and can be restored."
+                : params?.hasFilters
+                  ? "Try clearing the search or status filter."
+                  : "Add the first operator to get started."
+            }
+            onRetry={operatorsQuery?.refetch}
           />
-        </div>
+        ) : (
+          <>
+            <div className="relative w-full lg:hidden">
+              <OperatorsCardsContainer
+                operators={rows}
+                selected={selected}
+                onToggleRow={toggleRow}
+                getRowActions={getRowActions}
+                onSelectOperator={handleOpenDetails}
+              />
+            </div>
 
-        <OperatorsTable
-          pageOperators={pageOperators}
-          selected={selected}
-          onSelectAll={() =>
-            setSelected((prev) =>
-              prev.size === pageOperators?.length ? new Set() : new Set(pageOperators?.map((op) => op?.id))
-            )
-          }
-          onToggleRow={toggleRow}
-          getRowActions={getRowActions}
-          onSelectOperator={handleOpenDetails}
+            <OperatorsTable
+              archived={isArchived}
+              pageOperators={rows}
+              selected={selected}
+              onSelectAll={() =>
+                setSelected((prev) =>
+                  prev.size === rows.length ? new Set() : new Set(rows.map((op) => op?.id)),
+                )
+              }
+              onToggleRow={toggleRow}
+              getRowActions={getRowActions}
+              onSelectOperator={handleOpenDetails}
+            />
+          </>
+        )}
+
+        {/* Hidden until the first page lands, so the pager never shows
+            "0 operators · Page 1 of 1" during the initial load. */}
+        {meta ? (
+          <div className="relative w-full">
+            <TablePagination
+              totalCount={meta?.total ?? 0}
+              itemLabel={isArchived ? "archived operators" : "operators"}
+              page={meta?.page ?? 1}
+              pageCount={pageCount}
+              onPrev={() => params?.goToPage?.((meta?.page ?? 1) - 1, pageCount)}
+              onNext={() => params?.goToPage?.((meta?.page ?? 1) + 1, pageCount)}
+              onPageChange={(next) => params?.goToPage?.(next, pageCount)}
+            />
+          </div>
+        ) : null}
+
+        <BulkDeleteDialog
+          open={bulkOpen}
+          onOpenChange={setBulkOpen}
+          items={selectedRows.map((item) => ({
+            id: item?.id,
+            primary: item?.name,
+            secondary: item?.homeBase,
+          }))}
+          itemLabel="operators"
+          note="These operators will be removed from the list. Trips, quotes and payments that reference them keep working."
+          onConfirm={handleBulkDelete}
+          isPending={isRemovingMany}
         />
-
-        <div className="relative w-full">
-          <TablePagination
-            totalCount={filteredCount}
-            itemLabel="operators"
-            page={page}
-            pageCount={pageCount}
-            onPrev={prevPage}
-            onNext={nextPage}
-          />
-        </div>
 
         <AddOperatorDialog />
+        <DeleteOperatorDialog />
         <RequestOperatorQuoteDialog />
       </CommonCard>
     </Reveal>
