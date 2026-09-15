@@ -1,6 +1,7 @@
 "use client";
 
 import UsersTableRow from "./UsersTableRow";
+import TableStatus from "@/components/table/common/TableStatus";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const columns = [
@@ -17,7 +18,14 @@ const columns = [
   "Action",
 ];
 
-export default function UsersTable({ pageItems, getRowActions, onSelectUser }) {
+export default function UsersTable({
+  pageItems,
+  getRowActions,
+  onSelectUser,
+  isLoading,
+  error,
+}) {
+  const hasRows = Boolean(pageItems?.length);
   return (
     <div className="relative w-full overflow-x-auto hidden lg:block">
       <Table className="min-w-[1000px]">
@@ -42,10 +50,15 @@ export default function UsersTable({ pageItems, getRowActions, onSelectUser }) {
               onSelectUser={onSelectUser}
             />
           ))}
-          {pageItems?.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={columns?.length} className="p-8 text-center font-montserrat text-[13px] text-muted-foreground">
-                No team members found matching search filters.
+          {!hasRows && (
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={columns?.length} className="p-0">
+                <TableStatus
+                  isLoading={isLoading}
+                  error={error}
+                  isEmpty={!isLoading && !error}
+                  emptyMessage="No team members found"
+                />
               </TableCell>
             </TableRow>
           )}

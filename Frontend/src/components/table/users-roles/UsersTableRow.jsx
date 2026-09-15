@@ -22,14 +22,14 @@ export default function UsersTableRow({ item, getRowActions, onSelectUser }) {
         <span
           className={cn(
             "font-montserrat font-medium text-[11px] px-2 py-0.5 rounded-md border whitespace-nowrap",
-            item?.role === "Admin"
+            item?.role === "ADMIN" || item?.role === "SUPER_ADMIN"
               ? "bg-[#eef2ff] text-[#6366f1] border-[#c7d2fe]/60"
-              : item?.role === "Assistant"
+              : item?.role === "ASSISTANT"
               ? "bg-[#dcfce7] text-[#16a34a] border-[#bbf7d0]/60"
               : "bg-[#e0f2fe] text-[#0284c7] border-[#bae6fd]/60"
           )}
         >
-          {item?.role}
+          {item?.roleLabel}
         </span>
       </TableCell>
       <TableCell className="p-[12px] font-montserrat font-medium text-[11px] text-foreground">
