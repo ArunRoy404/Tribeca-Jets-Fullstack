@@ -1,0 +1,3041 @@
+{
+  "info": {
+    "name": "Tribeca Jets Command Center API",
+    "description": "Auth and CRM endpoints for the Tribeca Jets Command Center.\n\n## Authentication\n\nSessions live entirely in **httpOnly cookies**. No token is ever returned in a\nresponse body, so there is nothing to paste into an Authorization header \u2014 and\nno Bearer auth is configured on this collection on purpose.\n\nPostman keeps cookies in its own jar, so once you run **01 \u00b7 Auth \u2192 01 \u00b7 Login**\nthe rest of the collection is authenticated.\n\n> Using Postman on the **web**? Install the Postman Desktop Agent first, or the\n> cookie jar stays empty and every authenticated request returns 401.\n\n| Cookie | httpOnly | Path | Purpose |\n|---|---|---|---|\n| `tj_access` | yes | `/` | 15-minute access token |\n| `tj_refresh` | yes | `/api/auth` | 7-day (30 with Remember me) refresh token |\n| `tj_csrf` | **no** | `/` | Read by JS, echoed in `X-CSRF-Token` |\n| `tj_2fa` | yes | `/api/auth` | In-flight two-factor challenge |\n| `tj_pwreset` | yes | `/api/auth` | In-flight password-reset challenge |\n\n## CSRF\n\nCookies are attached automatically by the client, so every **POST / PATCH /\nDELETE** must also send `X-CSRF-Token`. The collection captures the readable\n`tj_csrf` cookie into `{{csrfToken}}` after any response that sets one, and the\nwrite requests reference it. Run a login first and this is invisible.\n\n## The 6-digit codes\n\nTwo-factor and password-reset codes are emailed. **While SMTP is unconfigured**\n(and outside production) the API also returns the code in a `devCode` object, so\nthe OTP flows work with no mailbox:\n\n```json\n\"devCode\": {\n  \"code\": \"481920\",\n  \"notice\": \"SMTP is not configured, so no email was sent...\"\n}\n```\n\nThe relevant requests copy that into `{{otpCode}}` automatically. Set\n`SMTP_HOST`, `SMTP_USER` and `SMTP_PASSWORD` and `devCode` disappears \u2014 real\nemail is sent instead, and you paste the code into `{{otpCode}}` yourself.\nProduction refuses to boot without SMTP, so this can never leak from a real\ndeployment.\n\n## Two-factor is per account\n\n`user.twoFactorEnabled` is a per-account setting the Settings screen toggles,\nnot a global switch. `POST /auth/login` returns `requiresTwoFactor` and the\nfrontend branches on it \u2014 accounts with 2FA off go straight to the dashboard.\n\n## Response shape\n\nSuccess is always `{ success: true, data, meta? }`; `meta` appears on list\nendpoints. Errors are always:\n\n```json\n{ \"success\": false, \"statusCode\": 400, \"message\": \"Validation failed\",\n  \"errors\": { \"email\": \"Invalid email address\" },\n  \"path\": \"/api/auth/login\", \"timestamp\": \"...\" }\n```\n\nEvery request below carries saved examples for its success case **and each of\nits error cases** \u2014 all captured from the live API, not hand-written.\n\n## Variable scoping\n\nEnvironments carry only `baseUrl`. Runtime values (`csrfToken`, `otpCode`,\n`clientId`) are **collection** variables. Adding a same-named key to an\nenvironment would shadow whatever the scripts write, and `{{csrfToken}}` would\nsilently resolve to empty \u2014 making every write 403.\n\n## Running the whole collection\n\nFolders execute top to bottom and are ordered so a full pass works: sign-in\nestablishes the session, Clients exercises CRUD, password reset comes after\n(completing it revokes every session), sign-out is near the end, and the\nregression folder asserts an unauthenticated caller is rejected.\n\n```bash\nnpm run test:api\n```\n\n## Seeded accounts (development)\n\n| Email | Password | Role | 2FA |\n|---|---|---|---|\n| admin@tribecajets.com | ChangeMe123! | SUPER_ADMIN | off |\n| broker@tribecajets.com | ChangeMe123! | BROKER | off |\n| security@tribecajets.com | ChangeMe123! | ADMIN | **on** |\n| reset-demo@tribecajets.com | ChangeMe123! | BROKER | off |\n\n`reset-demo` exists purely as the password-reset target. Re-run `npm run db:seed`\nto restore its password after exercising folder 04.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000/api",
+      "type": "string"
+    },
+    {
+      "key": "csrfToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otpCode",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Capture the readable CSRF cookie so writes can echo it in X-CSRF-Token.",
+          "// Parsed from Set-Cookie rather than pm.cookies: the cookie jar is not",
+          "// reliably populated in Newman, and reading it back can clobber a good",
+          "// value on responses that set no CSRF cookie.",
+          "const setCookies = pm.response.headers.all()",
+          "  .filter(h => h.key.toLowerCase() === 'set-cookie')",
+          "  .map(h => h.value);",
+          "const csrfCookie = setCookies.map(v => /tj_csrf=([^;]+)/.exec(v)).find(Boolean);",
+          "if (csrfCookie) {",
+          "  pm.collectionVariables.set('csrfToken', csrfCookie[1]);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 \u00b7 System",
+      "description": "Public probes. No authentication.",
+      "item": [
+        {
+          "name": "01 \u00b7 Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness and readiness probe for nginx, PM2 and uptime monitoring. Public.\n\n`services.storage` reports which driver actually resolved (`s3` or `local`) and `services.ai` whether an AI key is configured \u2014 so a misconfigured credential set is visible without reading logs."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Healthy",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "health"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"status\": \"ok\",\n    \"environment\": \"development\",\n    \"timestamp\": \"2026-09-15T04:14:26.795Z\",\n    \"uptimeSeconds\": 37,\n    \"services\": {\n      \"database\": \"up\",\n      \"redis\": \"up\",\n      \"storage\": \"local\",\n      \"ai\": \"not_configured\"\n    }\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('service is up', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const d = pm.response.json().data;",
+                  "  pm.expect(d.services.database).to.eql('up');",
+                  "  pm.expect(d.services.redis).to.eql('up');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 \u00b7 Auth",
+      "description": "Every `/auth/*` route, grouped by the frontend screen that calls it.\n\n| Frontend route | Sub-folder | Endpoint |\n|---|---|---|\n| `/sign-in` | 01 \u00b7 Sign in | `POST /auth/login` |\n| `/sign-in/two-factor` | 02 \u00b7 Two-factor | `POST /auth/two-factor/verify` \u00b7 `/resend` |\n| `/sign-in/complete` | \u2014 | no API call; the session already exists |\n| `/forgot-password` | 04 \u00b7 Password reset | `POST /auth/forgot-password` |\n| `/forgot-password/verify` | 04 \u00b7 Password reset | `POST /auth/forgot-password/verify` \u00b7 `/resend` |\n| `/reset-password` | 04 \u00b7 Password reset | `POST /auth/reset-password` |\n| `/reset-password/success` | \u2014 | no API call |\n| every authenticated page | 03 \u00b7 Session | `GET /auth/me`, `POST /auth/refresh` |\n| sign-out control | 05 \u00b7 Sign out | `POST /auth/logout` |\n\n**Not yet built:** the two-factor screen offers *\"Trouble signing in? Use a backup code instead\"*, but no backup-code endpoint exists. Either drop that line from the UI or scope the feature (generate at enrolment, store hashed, single-use, regenerate from Settings).\n\nAlso settings-module work, deliberately outside auth: the toggle that flips `twoFactorEnabled`, and change-password for a signed-in user.",
+      "item": [
+        {
+          "name": "01 \u00b7 Sign in",
+          "description": "`POST /auth/login`. Returns `requiresTwoFactor` \u2014 branch on it rather than always routing to the two-factor screen.",
+          "item": [
+            {
+              "name": "01 \u00b7 Login",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Signs in with email and password.\n\n**Two outcomes, driven by the account's `twoFactorEnabled` setting** (toggled from the Settings screen, not globally configured):\n\n| `requiresTwoFactor` | What happened |\n|---|---|\n| `false` | Session is live. `tj_access`, `tj_refresh`, `tj_csrf` are set and `user` is returned. |\n| `true` | Only `tj_2fa` is set. **No session exists yet** \u2014 a correct password alone never authenticates. |\n\nThe frontend must branch on this flag rather than always routing to the two-factor screen.\n\n**`devCode`** appears only while SMTP is unconfigured outside production, carrying the generated code so the flow works without a mailbox. Configure `SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD` and it disappears; production refuses to boot without them.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Signed in (no two-factor)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": false,\n    \"user\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"email\": \"admin@tribecajets.com\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"phone\": null,\n      \"role\": \"SUPER_ADMIN\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T04:14:26.886Z\",\n      \"createdAt\": \"2026-09-15T03:40:49.368Z\"\n    }\n  }\n}"
+                },
+                {
+                  "name": "200 \u00b7 Two-factor required",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // This account has two-factor enabled, so the response returns\n  // requiresTwoFactor: true and NO session cookies are set.\n  \"email\": \"security@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"se******@tribecajets.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"302150\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+                },
+                {
+                  "name": "401 \u00b7 Invalid credentials",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.214Z\"\n}"
+                },
+                {
+                  "name": "400 \u00b7 Validation failed",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"email\": \"A valid email address is required\",\n    \"password\": \"Password is required\"\n  },\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.216Z\"\n}"
+                },
+                {
+                  "name": "429 \u00b7 Rate limited (5 per 15 min per IP)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "Too Many Requests",
+                  "code": 429,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 429,\n  \"message\": \"Too many requests. Please try again later.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:28.068Z\"\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('signed in without a second factor', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const d = pm.response.json().data;",
+                      "  pm.expect(d.requiresTwoFactor).to.eql(false);",
+                      "  pm.expect(d.user.email).to.be.a('string');",
+                      "});",
+                      "",
+                      "pm.test('no token is exposed to the client', () => {",
+                      "  // The point of httpOnly cookies: nothing usable in the body.",
+                      "  pm.expect(pm.response.text()).to.not.include('tj_access');",
+                      "});",
+                      "",
+                      "// Capture the readable CSRF cookie so writes can echo it in X-CSRF-Token.",
+                      "// Parsed from Set-Cookie rather than pm.cookies: the cookie jar is not",
+                      "// reliably populated in Newman, and reading it back can clobber a good",
+                      "// value on responses that set no CSRF cookie.",
+                      "const setCookies = pm.response.headers.all()",
+                      "  .filter(h => h.key.toLowerCase() === 'set-cookie')",
+                      "  .map(h => h.value);",
+                      "const csrfCookie = setCookies.map(v => /tj_csrf=([^;]+)/.exec(v)).find(Boolean);",
+                      "if (csrfCookie) {",
+                      "  pm.collectionVariables.set('csrfToken', csrfCookie[1]);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "02 \u00b7 Login (two-factor account)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Same endpoint as `01 \u00b7 Login`, kept separate so the two-factor path is easy to exercise.\n\nSets only the `tj_2fa` challenge cookie and returns a masked email. The test script copies `devCode.code` into `{{otpCode}}`, so `03 \u00b7 Verify two-factor code` can run immediately.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // This account has two-factor enabled, so the response returns\n  // requiresTwoFactor: true and NO session cookies are set.\n  \"email\": \"security@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Two-factor required",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // This account has two-factor enabled, so the response returns\n  // requiresTwoFactor: true and NO session cookies are set.\n  \"email\": \"security@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"se******@tribecajets.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"302150\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+                },
+                {
+                  "name": "401 \u00b7 Invalid credentials",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // This account has two-factor enabled, so the response returns\n  // requiresTwoFactor: true and NO session cookies are set.\n  \"email\": \"security@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.214Z\"\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('challenge issued, session withheld', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const d = pm.response.json().data;",
+                      "  pm.expect(d.requiresTwoFactor).to.eql(true);",
+                      "  pm.expect(d.email).to.match(/\\*/); // masked",
+                      "});",
+                      "",
+                      "// While SMTP is unconfigured the API returns the code in `devCode`, so the",
+                      "// OTP screens are testable without a mailbox. Store it for the next request.",
+                      "const body = pm.response.code < 400 ? pm.response.json() : null;",
+                      "const dev = body && body.data && body.data.devCode;",
+                      "if (dev && dev.code) {",
+                      "  pm.collectionVariables.set('otpCode', dev.code);",
+                      "  console.log('otpCode captured:', dev.code);",
+                      "} else {",
+                      "  console.log('No devCode in response \u2014 SMTP is configured, so check the inbox');",
+                      "  console.log('and set {{otpCode}} manually.');",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 Two-factor",
+          "description": "Screen `/sign-in/two-factor`. **Resend is ordered before Verify**: resending replaces the challenge, so the reverse order would invalidate the session just established.",
+          "item": [
+            {
+              "name": "01 \u00b7 Resend code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/two-factor/resend",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "two-factor",
+                    "resend"
+                  ]
+                },
+                "description": "Issues a new code and **invalidates the previous one**, so repeated resends never widen the guessing surface.\n\nRequires a live `tj_2fa` cookie. Rate limited to 3 per 15 minutes.\n\nOrdered **before** Verify on purpose: resending replaces the challenge, so running it after a successful verification would invalidate the session you just established.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 New code issued",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/two-factor/resend",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "two-factor",
+                        "resend"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"email\": \"se******@tribecajets.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"243244\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 No challenge in progress",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/two-factor/resend",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "two-factor",
+                        "resend"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"This verification session has expired. Please start again.\",\n  \"path\": \"/api/auth/two-factor/resend\",\n  \"timestamp\": \"2026-09-15T04:14:27.164Z\"\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// While SMTP is unconfigured the API returns the code in `devCode`, so the",
+                      "// OTP screens are testable without a mailbox. Store it for the next request.",
+                      "const body = pm.response.code < 400 ? pm.response.json() : null;",
+                      "const dev = body && body.data && body.data.devCode;",
+                      "if (dev && dev.code) {",
+                      "  pm.collectionVariables.set('otpCode', dev.code);",
+                      "  console.log('otpCode captured:', dev.code);",
+                      "} else {",
+                      "  console.log('No devCode in response \u2014 SMTP is configured, so check the inbox');",
+                      "  console.log('and set {{otpCode}} manually.');",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "02 \u00b7 Verify code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/two-factor/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "two-factor",
+                    "verify"
+                  ]
+                },
+                "description": "Completes sign-in and sets the session cookies.\n\nThe code is single-use and dies after **5 wrong guesses** \u2014 the error message counts down the remaining attempts. Once burned, a new code must be requested; even the correct code stops working.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Verified, session created",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/two-factor/verify",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "two-factor",
+                        "verify"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"06d60ef4-1178-4de1-88ab-77a55b81cc87\",\n      \"email\": \"security@tribecajets.com\",\n      \"firstName\": \"Sam\",\n      \"lastName\": \"Secure\",\n      \"phone\": null,\n      \"role\": \"ADMIN\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": true,\n      \"lastLoginAt\": \"2026-09-15T04:14:27.085Z\",\n      \"createdAt\": \"2026-09-15T04:01:41.369Z\"\n    }\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 Wrong code (attempts remaining)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/two-factor/verify",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "two-factor",
+                        "verify"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Incorrect code. 4 attempts remaining.\",\n  \"path\": \"/api/auth/two-factor/verify\",\n  \"timestamp\": \"2026-09-15T04:14:27.077Z\"\n}"
+                },
+                {
+                  "name": "400 \u00b7 No or expired challenge cookie",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/two-factor/verify",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "two-factor",
+                        "verify"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"This verification session has expired. Please start again.\",\n  \"path\": \"/api/auth/two-factor/verify\",\n  \"timestamp\": \"2026-09-15T04:14:27.159Z\"\n}"
+                },
+                {
+                  "name": "400 \u00b7 Malformed code",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/two-factor/verify",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "two-factor",
+                        "verify"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"code\": \"Enter the 6-digit code\"\n  },\n  \"path\": \"/api/auth/two-factor/verify\",\n  \"timestamp\": \"2026-09-15T04:14:27.162Z\"\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('session established', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  pm.expect(pm.response.json().data.user.email).to.be.a('string');",
+                      "});",
+                      "",
+                      "// Capture the readable CSRF cookie so writes can echo it in X-CSRF-Token.",
+                      "// Parsed from Set-Cookie rather than pm.cookies: the cookie jar is not",
+                      "// reliably populated in Newman, and reading it back can clobber a good",
+                      "// value on responses that set no CSRF cookie.",
+                      "const setCookies = pm.response.headers.all()",
+                      "  .filter(h => h.key.toLowerCase() === 'set-cookie')",
+                      "  .map(h => h.value);",
+                      "const csrfCookie = setCookies.map(v => /tj_csrf=([^;]+)/.exec(v)).find(Boolean);",
+                      "if (csrfCookie) {",
+                      "  pm.collectionVariables.set('csrfToken', csrfCookie[1]);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Session",
+          "description": "Called from every authenticated page. `GET /auth/me` is how the frontend learns who is signed in, since the token is httpOnly and unreadable by JavaScript.",
+          "item": [
+            {
+              "name": "01 \u00b7 Current user",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                },
+                "description": "Returns the signed-in user, plus a time-limited `avatarUrl` resolved from the active storage driver.\n\n**This is how the frontend learns who is signed in.** The session token is httpOnly, so JavaScript cannot decode it \u2014 call this on app load and keep the result in a store.\n\n`twoFactorEnabled` is the value the Settings screen's toggle binds to."
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Current user",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/me",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "me"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"email\": \"admin@tribecajets.com\",\n    \"firstName\": \"Ari\",\n    \"lastName\": \"Admin\",\n    \"phone\": null,\n    \"role\": \"SUPER_ADMIN\",\n    \"status\": \"ACTIVE\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-09-15T04:14:26.886Z\",\n    \"createdAt\": \"2026-09-15T03:40:49.368Z\",\n    \"avatarUrl\": null\n  }\n}"
+                },
+                {
+                  "name": "401 \u00b7 Not signed in",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/me",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "me"
+                      ]
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/me\",\n  \"timestamp\": \"2026-09-15T04:14:26.944Z\"\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('returns the current profile', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  pm.expect(pm.response.json().data.role).to.be.a('string');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "02 \u00b7 Refresh session",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/refresh",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "refresh"
+                  ]
+                },
+                "description": "Rotates the token pair using the `tj_refresh` cookie.\n\nThe old token is revoked and linked to its replacement. **Replaying a revoked token means it leaked**, so every session for that user is revoked rather than just rejecting the one request.\n\nA 30-day \"Remember me\" session keeps its length across rotation.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Rotated",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/refresh",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "refresh"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"email\": \"admin@tribecajets.com\",\n    \"firstName\": \"Ari\",\n    \"lastName\": \"Admin\",\n    \"phone\": null,\n    \"role\": \"SUPER_ADMIN\",\n    \"status\": \"ACTIVE\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-09-15T04:14:26.886Z\",\n    \"createdAt\": \"2026-09-15T03:40:49.368Z\"\n  }\n}"
+                },
+                {
+                  "name": "401 \u00b7 Missing or invalid refresh cookie",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/refresh",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "refresh"
+                      ]
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Missing refresh token\",\n  \"path\": \"/api/auth/refresh\",\n  \"timestamp\": \"2026-09-15T04:14:27.218Z\"\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Capture the readable CSRF cookie so writes can echo it in X-CSRF-Token.",
+                      "// Parsed from Set-Cookie rather than pm.cookies: the cookie jar is not",
+                      "// reliably populated in Newman, and reading it back can clobber a good",
+                      "// value on responses that set no CSRF cookie.",
+                      "const setCookies = pm.response.headers.all()",
+                      "  .filter(h => h.key.toLowerCase() === 'set-cookie')",
+                      "  .map(h => h.value);",
+                      "const csrfCookie = setCookies.map(v => /tj_csrf=([^;]+)/.exec(v)).find(Boolean);",
+                      "if (csrfCookie) {",
+                      "  pm.collectionVariables.set('csrfToken', csrfCookie[1]);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Password reset",
+          "description": "Screens `/forgot-password` \u2192 `/forgot-password/verify` \u2192 `/reset-password`. Run in order; each step unlocks the next via the `tj_pwreset` cookie.\n\n**This folder really changes a password.** It targets the dedicated `reset-demo@tribecajets.com` account so the other folders keep working; `npm run db:seed` restores it.",
+          "item": [
+            {
+              "name": "01 \u00b7 Request reset code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/forgot-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "forgot-password"
+                  ]
+                },
+                "description": "Starts the reset and emails a 6-digit code.\n\n**Always returns 200 and always sets a `tj_pwreset` cookie**, registered address or not. Omitting the cookie for unknown addresses would leak which emails have accounts just as surely as a 404 would.\n\nThe cookie binds the flow to this browser, so a code phished onto another device is unusable.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // required \u00b7 the account's email address\n  // Responds 200 whether or not it is registered, so the endpoint cannot be\n  // used to discover which emails have accounts.\n  //\n  // Points at the dedicated reset-demo account on purpose: completing this\n  // flow really does change the password, and using a working account would\n  // break every other folder on the next run.\n  \"email\": \"reset-demo@tribecajets.com\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Registered address",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 the account's email address\n  // Responds 200 whether or not it is registered, so the endpoint cannot be\n  // used to discover which emails have accounts.\n  //\n  // Points at the dedicated reset-demo account on purpose: completing this\n  // flow really does change the password, and using a working account would\n  // break every other folder on the next run.\n  \"email\": \"reset-demo@tribecajets.com\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/forgot-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "forgot-password"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"If that email is registered, a reset code is on its way.\",\n    \"email\": \"re********@tribecajets.com\",\n    \"expiresInSeconds\": 900,\n    \"devCode\": {\n      \"code\": \"264344\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+                },
+                {
+                  "name": "200 \u00b7 Unregistered address (identical shape)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 the account's email address\n  // Responds 200 whether or not it is registered, so the endpoint cannot be\n  // used to discover which emails have accounts.\n  //\n  // Points at the dedicated reset-demo account on purpose: completing this\n  // flow really does change the password, and using a working account would\n  // break every other folder on the next run.\n  \"email\": \"reset-demo@tribecajets.com\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/forgot-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "forgot-password"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"If that email is registered, a reset code is on its way.\",\n    \"email\": \"no****@nowhere.com\",\n    \"expiresInSeconds\": 900,\n    \"devCode\": {\n      \"code\": null,\n      \"notice\": \"SMTP is not configured. No code was generated because no account matches that email address.\"\n    }\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 Validation failed",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 the account's email address\n  // Responds 200 whether or not it is registered, so the endpoint cannot be\n  // used to discover which emails have accounts.\n  //\n  // Points at the dedicated reset-demo account on purpose: completing this\n  // flow really does change the password, and using a working account would\n  // break every other folder on the next run.\n  \"email\": \"reset-demo@tribecajets.com\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/forgot-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "forgot-password"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"email\": \"A valid email address is required\"\n  },\n  \"path\": \"/api/auth/forgot-password\",\n  \"timestamp\": \"2026-09-15T04:16:26.263Z\"\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('always succeeds', () => pm.response.to.have.status(200));",
+                      "",
+                      "// While SMTP is unconfigured the API returns the code in `devCode`, so the",
+                      "// OTP screens are testable without a mailbox. Store it for the next request.",
+                      "const body = pm.response.code < 400 ? pm.response.json() : null;",
+                      "const dev = body && body.data && body.data.devCode;",
+                      "if (dev && dev.code) {",
+                      "  pm.collectionVariables.set('otpCode', dev.code);",
+                      "  console.log('otpCode captured:', dev.code);",
+                      "} else {",
+                      "  console.log('No devCode in response \u2014 SMTP is configured, so check the inbox');",
+                      "  console.log('and set {{otpCode}} manually.');",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "02 \u00b7 Resend reset code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/forgot-password/resend",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "forgot-password",
+                    "resend"
+                  ]
+                },
+                "description": "Re-issues the code and invalidates the previous one. Rate limited to 3 per 15 minutes.\n\nOrdered **before** Verify on purpose: a resend creates a fresh unverified challenge, so running it between Verify and Set new password would reset the flow and the final step would fail.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 New code issued",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/forgot-password/resend",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "forgot-password",
+                        "resend"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"email\": \"re********@tribecajets.com\",\n    \"expiresInSeconds\": 900,\n    \"devCode\": {\n      \"code\": \"533264\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// While SMTP is unconfigured the API returns the code in `devCode`, so the",
+                      "// OTP screens are testable without a mailbox. Store it for the next request.",
+                      "const body = pm.response.code < 400 ? pm.response.json() : null;",
+                      "const dev = body && body.data && body.data.devCode;",
+                      "if (dev && dev.code) {",
+                      "  pm.collectionVariables.set('otpCode', dev.code);",
+                      "  console.log('otpCode captured:', dev.code);",
+                      "} else {",
+                      "  console.log('No devCode in response \u2014 SMTP is configured, so check the inbox');",
+                      "  console.log('and set {{otpCode}} manually.');",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "03 \u00b7 Verify reset code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/forgot-password/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "forgot-password",
+                    "verify"
+                  ]
+                },
+                "description": "Unlocks the reset step. **Does not change the password** \u2014 that is step 04.\n\nOn success the challenge is re-stamped with a shorter window (`PASSWORD_RESET_WINDOW_MINUTES`, default 15) to choose the new password.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // required \u00b7 exactly 6 digits, from the reset email\n  // Read from the tj_pwreset cookie set by 'Request reset code'.\n  \"code\": \"{{otpCode}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Verified",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 exactly 6 digits, from the reset email\n  // Read from the tj_pwreset cookie set by 'Request reset code'.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/forgot-password/verify",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "forgot-password",
+                        "verify"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"verified\": true,\n    \"expiresInSeconds\": 900\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 Wrong code (attempts remaining)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 exactly 6 digits, from the reset email\n  // Read from the tj_pwreset cookie set by 'Request reset code'.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/forgot-password/verify",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "forgot-password",
+                        "verify"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Incorrect code. 4 attempts remaining.\",\n  \"path\": \"/api/auth/forgot-password/verify\",\n  \"timestamp\": \"2026-09-15T04:16:26.024Z\"\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('code accepted', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  pm.expect(pm.response.json().data.verified).to.eql(true);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "04 \u00b7 Set new password",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/reset-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "reset-password"
+                  ]
+                },
+                "description": "Completes the reset.\n\nRequires a **verified** challenge \u2014 posting here without running step 02 fails.\n\n**Revokes every existing session on success.** If the reset happened because the account was compromised, leaving the attacker signed in would defeat the exercise. A notification email is sent to the account holder.\n\n**Password policy:** at least 10 characters with one lowercase, one uppercase and one digit, and different from the current password.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Password changed",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/reset-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "reset-password"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Your password has been changed. Please sign in.\"\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 Too weak",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/reset-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "reset-password"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"newPassword\": \"Password must be at least 10 characters\"\n  },\n  \"path\": \"/api/auth/reset-password\",\n  \"timestamp\": \"2026-09-15T04:16:26.036Z\"\n}"
+                },
+                {
+                  "name": "400 \u00b7 Passwords do not match",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/reset-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "reset-password"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"confirmPassword\": \"Passwords do not match\"\n  },\n  \"path\": \"/api/auth/reset-password\",\n  \"timestamp\": \"2026-09-15T04:16:26.038Z\"\n}"
+                },
+                {
+                  "name": "400 \u00b7 Same as current password",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/reset-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "reset-password"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your new password must be different from your current password\",\n  \"path\": \"/api/auth/reset-password\",\n  \"timestamp\": \"2026-09-15T04:16:26.088Z\"\n}"
+                },
+                {
+                  "name": "400 \u00b7 Code never verified",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/reset-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "reset-password"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"This verification session has expired. Please start again.\",\n  \"path\": \"/api/auth/reset-password\",\n  \"timestamp\": \"2026-09-15T04:16:26.031Z\"\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('password changed', () => pm.response.to.have.status(200));",
+                      "console.log('All sessions revoked. Sign in again with the new password.');"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Sign out",
+          "description": "Clears every auth cookie and revokes the refresh token server-side. Runs last in this module so the folders above keep their session.",
+          "item": [
+            {
+              "name": "01 \u00b7 Logout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/logout",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "logout"
+                  ]
+                },
+                "description": "Revokes the refresh token server-side and clears every auth cookie. Returns 204 with no body.\n\nPlaced near the end of the collection so a top-to-bottom run keeps its session through the Clients folder.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "204 \u00b7 Signed out",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/logout",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "logout"
+                      ]
+                    }
+                  },
+                  "status": "No Content",
+                  "code": 204,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": ""
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('signed out', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 \u00b7 Regression checks",
+      "description": "Requests that SHOULD fail. Placed straight after Sign out because they assert an unauthenticated caller is rejected.",
+      "item": [
+        {
+          "name": "01 \u00b7 Protected route without a session \u2192 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients"
+              ]
+            },
+            "description": "Run after Logout. Every route is authenticated by default; `@Public()` is opt-in."
+          },
+          "response": [
+            {
+              "name": "401 \u00b7 Unauthorized",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.945Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 Bad credentials \u2192 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Confirms accounts cannot be enumerated through the login endpoint.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Unknown account and wrong password return the identical message, and the\n  // server burns comparable hashing time on both paths \u2014 so neither the\n  // response nor its timing reveals which emails are registered.\n  \"email\": \"nobody@example.com\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "401 \u00b7 Unauthorized",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.214Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('generic failure', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().message).to.eql('Invalid email or password');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Malformed body \u2192 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Zod validation returns `errors` keyed by field name, ready to map onto form fields.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\",   // fails the email format check\n  \"password\": \"\"             // fails the min-length check\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "400 \u00b7 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"email\": \"A valid email address is required\",\n    \"password\": \"Password is required\"\n  },\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.216Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('field errors returned', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().errors).to.have.property('email');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 \u00b7 Clients",
+      "description": "Clients and travel agents \u2014 the dashboard's CRM screens. Opens with its own sign-in so the module runs standalone.",
+      "item": [
+        {
+          "name": "01 \u00b7 Sign in (session setup)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Not a Clients endpoint \u2014 it establishes the session this folder needs so the module runs standalone, and so a top-to-bottom pass still works after `01 \u00b7 Auth \u2192 05 \u00b7 Sign out` has cleared the cookies.\n\nSigns in as SUPER_ADMIN. Swap to `broker@tribecajets.com` to watch row-level scoping shrink the list to that broker's own clients.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Signed in",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": false,\n    \"user\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"email\": \"admin@tribecajets.com\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"phone\": null,\n      \"role\": \"SUPER_ADMIN\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T04:14:26.886Z\",\n      \"createdAt\": \"2026-09-15T03:40:49.368Z\"\n    }\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('session ready', () => pm.response.to.have.status(200));",
+                  "",
+                  "// Capture the readable CSRF cookie so writes can echo it in X-CSRF-Token.",
+                  "// Parsed from Set-Cookie rather than pm.cookies: the cookie jar is not",
+                  "// reliably populated in Newman, and reading it back can clobber a good",
+                  "// value on responses that set no CSRF cookie.",
+                  "const setCookies = pm.response.headers.all()",
+                  "  .filter(h => h.key.toLowerCase() === 'set-cookie')",
+                  "  .map(h => h.value);",
+                  "const csrfCookie = setCookies.map(v => /tj_csrf=([^;]+)/.exec(v)).find(Boolean);",
+                  "if (csrfCookie) {",
+                  "  pm.collectionVariables.set('csrfToken', csrfCookie[1]);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 List clients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clients?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, min 1. Default 1."
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Rows per page, 1-100. Default 20."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Matches first/last name, company, email or phone (case-insensitive).",
+                  "disabled": true
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | lastName | firstName | leadStage. Anything else falls back to createdAt.",
+                  "disabled": true
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Allowed (case-sensitive): asc | desc. Default desc.",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "DIRECT",
+                  "description": "Allowed (case-sensitive): DIRECT | TRAVEL_AGENT",
+                  "disabled": true
+                },
+                {
+                  "key": "leadStage",
+                  "value": "NEW",
+                  "description": "Allowed (case-sensitive): NEW | CONTACTED | QUOTED | NEGOTIATING | BOOKED | LOST",
+                  "disabled": true
+                },
+                {
+                  "key": "leadSource",
+                  "value": "REFERRAL",
+                  "description": "Allowed (case-sensitive): DIRECT | TRAVEL_AGENT | FACEBOOK_GROUP_1 | FACEBOOK_GROUP_2 | REFERRAL | WEBSITE | OTHER",
+                  "disabled": true
+                },
+                {
+                  "key": "assignedBrokerId",
+                  "value": "",
+                  "description": "UUID. Admins only in practice \u2014 brokers are already scoped to themselves.",
+                  "disabled": true
+                },
+                {
+                  "key": "label",
+                  "value": "VIP",
+                  "description": "Exact, case-sensitive match against one of the client's labels.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paginated list of clients and travel agents.\n\n**Row-level scoping:** a `BROKER` receives only the clients assigned to them, applied inside the SQL `WHERE` clause \u2014 so `meta.total` reflects what they can actually see rather than being censored after the fact. Admins see everything.\n\nResponse carries `meta` alongside `data` with the pagination cursor fields.\n\nSee the Params tab for every filter and its exact allowed values."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Page of clients",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients?page=1&limit=2",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"a7562467-f7cb-4088-910b-c66da25cc28e\",\n      \"type\": \"TRAVEL_AGENT\",\n      \"companyName\": \"Whitfield Travel Group\",\n      \"firstName\": \"Dana\",\n      \"lastName\": \"Whitfield\",\n      \"email\": \"dana@whitfieldtravel.com\",\n      \"phone\": null,\n      \"homeAirport\": \"KOPF\",\n      \"leadSource\": \"FACEBOOK_GROUP_1\",\n      \"leadStage\": \"QUOTED\",\n      \"labels\": [\n        \"Agency\"\n      ],\n      \"createdAt\": \"2026-09-15T03:40:49.386Z\",\n      \"updatedAt\": \"2026-09-15T03:40:49.386Z\",\n      \"assignedBroker\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      }\n    },\n    {\n      \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n      \"type\": \"DIRECT\",\n      \"companyName\": null,\n      \"firstName\": \"Marcus\",\n      \"lastName\": \"Chen\",\n      \"email\": \"marcus.chen@example.com\",\n      \"phone\": null,\n      \"homeAirport\": \"KTEB\",\n      \"leadSource\": \"REFERRAL\",\n      \"leadStage\": \"BOOKED\",\n      \"labels\": [\n        \"VIP\"\n      ],\n      \"createdAt\": \"2026-09-15T03:40:49.382Z\",\n      \"updatedAt\": \"2026-09-15T03:40:49.382Z\",\n      \"assignedBroker\": {\n        \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"firstName\": \"Jordan\",\n        \"lastName\": \"Broker\",\n        \"email\": \"broker@tribecajets.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 2,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.945Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns a page of clients', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.data).to.be.an('array');",
+                  "  pm.expect(b.meta.total).to.be.a('number');",
+                  "});",
+                  "",
+                  "const first = pm.response.json().data[0];",
+                  "if (first) { pm.collectionVariables.set('clientId', first.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Get client",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "{{clientId}}"
+              ]
+            },
+            "description": "Full client record including assigned and originating broker.\n\nA record outside the caller's scope returns **404, not 403** \u2014 otherwise a broker could confirm another broker's clients exist by probing IDs."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Client record",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients/{{clientId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "{{clientId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a7562467-f7cb-4088-910b-c66da25cc28e\",\n    \"type\": \"TRAVEL_AGENT\",\n    \"companyName\": \"Whitfield Travel Group\",\n    \"firstName\": \"Dana\",\n    \"lastName\": \"Whitfield\",\n    \"email\": \"dana@whitfieldtravel.com\",\n    \"phone\": null,\n    \"birthday\": null,\n    \"homeAirport\": \"KOPF\",\n    \"leadSource\": \"FACEBOOK_GROUP_1\",\n    \"leadStage\": \"QUOTED\",\n    \"assignedBrokerId\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"originatingBrokerId\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"preferences\": {\n      \"catering\": \"Kosher on request\"\n    },\n    \"notes\": null,\n    \"labels\": [\n      \"Agency\"\n    ],\n    \"createdAt\": \"2026-09-15T03:40:49.386Z\",\n    \"updatedAt\": \"2026-09-15T03:40:49.386Z\",\n    \"deletedAt\": null,\n    \"assignedBroker\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"originatingBroker\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not found or out of scope",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients/{{clientId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "{{clientId}}"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T04:14:26.937Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Create client",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login/refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients"
+              ]
+            },
+            "description": "Creates a client or travel agent.\n\n`type: \"TRAVEL_AGENT\"` additionally requires `companyName`.\n\nA `BROKER` caller always gets the client assigned to themselves regardless of `assignedBrokerId`. `originatingBrokerId` drives commission attribution, defaults to the assignee, and can never be changed later.\n\nEvery enum's allowed values are listed inline in the body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 \u00b7 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b4bb3a88-8606-466a-9eaa-72abb4944780\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Marcus\",\n    \"lastName\": \"Reyes\",\n    \"email\": \"marcus.reyes@example.com\",\n    \"phone\": \"+1 555 0142\",\n    \"homeAirport\": \"KTEB\",\n    \"leadSource\": \"REFERRAL\",\n    \"leadStage\": \"NEW\",\n    \"labels\": [\n      \"VIP\"\n    ],\n    \"createdAt\": \"2026-09-15T04:14:26.920Z\",\n    \"updatedAt\": \"2026-09-15T04:14:26.920Z\",\n    \"assignedBroker\": null\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"firstName\": \"First name is required\",\n    \"email\": \"Invalid email address\",\n    \"companyName\": \"Company name is required for travel agents\"\n  },\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.932Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Missing X-CSRF-Token",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Invalid or missing CSRF token\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.934Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.945Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.collectionVariables.set('clientId', pm.response.json().data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Update client",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login/refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "{{clientId}}"
+              ]
+            },
+            "description": "Partial update \u2014 send only the fields that change.\n\nReassigning `assignedBrokerId` is admin-only; a broker attempting it receives 403. `originatingBrokerId` is not accepted at all.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Every field from Create is accepted, all optional.\n  // originatingBrokerId is NOT updatable \u2014 attribution is fixed at creation.\n\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"QUOTED\",\n\n  \"notes\": \"Requested a quote KTEB to KMIA.\"\n\n  // Reassigning is admin-only; a BROKER sending this receives 403.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Updated",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // Every field from Create is accepted, all optional.\n  // originatingBrokerId is NOT updatable \u2014 attribution is fixed at creation.\n\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"QUOTED\",\n\n  \"notes\": \"Requested a quote KTEB to KMIA.\"\n\n  // Reassigning is admin-only; a BROKER sending this receives 403.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients/{{clientId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "{{clientId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b4bb3a88-8606-466a-9eaa-72abb4944780\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Marcus\",\n    \"lastName\": \"Reyes\",\n    \"email\": \"marcus.reyes@example.com\",\n    \"phone\": \"+1 555 0142\",\n    \"homeAirport\": \"KTEB\",\n    \"leadSource\": \"DIRECT\",\n    \"leadStage\": \"QUOTED\",\n    \"labels\": [],\n    \"createdAt\": \"2026-09-15T04:14:26.920Z\",\n    \"updatedAt\": \"2026-09-15T04:14:26.927Z\",\n    \"assignedBroker\": null\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not found or out of scope",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // Every field from Create is accepted, all optional.\n  // originatingBrokerId is NOT updatable \u2014 attribution is fixed at creation.\n\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"QUOTED\",\n\n  \"notes\": \"Requested a quote KTEB to KMIA.\"\n\n  // Reassigning is admin-only; a BROKER sending this receives 403.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients/{{clientId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "{{clientId}}"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T04:14:26.937Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Delete client (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login/refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "{{clientId}}"
+              ]
+            },
+            "description": "**Admin only** (`SUPER_ADMIN` or `ADMIN`).\n\nSoft delete: the row is retained with `deletedAt` set and simply drops out of queries. Historical business data is never destroyed. Returns 204 with no body."
+          },
+          "response": [
+            {
+              "name": "204 \u00b7 Deleted",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clients/{{clientId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "{{clientId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "403 \u00b7 Broker lacks permission",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clients/{{clientId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "{{clientId}}"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission to perform this action\",\n  \"path\": \"/api/clients/976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n  \"timestamp\": \"2026-09-15T04:14:27.746Z\"\n}"
+            },
+            {
+              "name": "404 \u00b7 Not found",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clients/{{clientId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "{{clientId}}"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T04:14:26.937Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Write without X-CSRF-Token \u2192 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients"
+              ]
+            },
+            "description": "Lives in this folder because it must run **while signed in**. After sign-out it would return 401 before the CSRF guard is ever reached, proving nothing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Identical to '03 \u00b7 Create client' but with NO X-CSRF-Token header.\n  // Must be rejected: cookies ride along automatically, so without this check\n  // any website could trigger authenticated writes on a signed-in user.\n  \"firstName\": \"No\",\n  \"lastName\": \"Csrf\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "403 \u00b7 Forbidden",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Invalid or missing CSRF token\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.934Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected by CSRF guard', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
