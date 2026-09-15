@@ -67,6 +67,38 @@ export class MailService {
     );
   }
 
+  /**
+   * Carries no credential and no link.
+   *
+   * The invited account has no usable password, so the invitee sets one via
+   * the normal password-reset flow. Mailing a temporary password — or a
+   * link that grants access on click — would put a working credential in an
+   * inbox, which is the thing the reset flow exists to avoid.
+   */
+  async sendInvitation(
+    to: string,
+    firstName: string,
+    invitedByName: string,
+  ): Promise<void> {
+    await this.send(
+      to,
+      'You have been invited to Tribeca Jets Command Center',
+      [
+        `Hi ${firstName},`,
+        '',
+        `${invitedByName} has created an account for you at Tribeca Jets Command Center.`,
+        '',
+        'To get started, open the sign-in page, choose "Forgot password?",',
+        `and enter this email address (${to}). You will receive a code to set`,
+        'your own password.',
+        '',
+        'If you were not expecting this invitation, you can ignore this email.',
+        '',
+        '— Tribeca Jets Command Center',
+      ].join('\n'),
+    );
+  }
+
   async sendPasswordResetCode(
     to: string,
     firstName: string,
