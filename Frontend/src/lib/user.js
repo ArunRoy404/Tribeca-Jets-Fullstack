@@ -9,9 +9,91 @@
 const ROLE_LABELS = {
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
+  SENIOR_BROKER: "Senior Broker",
   BROKER: "Broker",
   ASSISTANT: "Assistant",
 };
+
+const STATUS_LABELS = {
+  ACTIVE: "Active",
+  INVITED: "Invited",
+  SUSPENDED: "Suspended",
+};
+
+/**
+ * Roles an administrator can assign.
+ *
+ * `SUPER_ADMIN` is absent deliberately — the API refuses to assign it, so
+ * offering it in a dropdown would only produce a 400. Mirrors
+ * `ASSIGNABLE_ROLES` on the backend.
+ */
+export const ASSIGNABLE_ROLES = [
+  "ADMIN",
+  "SENIOR_BROKER",
+  "BROKER",
+  "ASSISTANT",
+];
+
+/** Every role, for the table's filter. Includes SUPER_ADMIN, which is filterable
+ *  even though it is not assignable. */
+export const FILTERABLE_ROLES = ["SUPER_ADMIN", ...ASSIGNABLE_ROLES];
+
+export const FILTERABLE_STATUSES = ["ACTIVE", "INVITED", "SUSPENDED"];
+
+export function formatUserStatus(status) {
+  if (!status) return "";
+  return STATUS_LABELS[status] ?? status;
+}
+
+/**
+ * `lastLoginAt` is null for an account that has never signed in, which is the
+ * normal state of an invited user rather than missing data.
+ */
+export function formatLastLogin(value) {
+  if (!value) return "Never";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Never";
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * Maps one API user onto the props the users table and cards render.
+ *
+ * `activeLeads`, `activeTrips`, `conversionRate` and `revenue` are columns the
+ * design calls for but nothing can supply yet — they are derived from the trips
+ * and quotes modules, which do not exist. They render as an em dash rather than
+ * a zero, because a confident "0 trips" for every broker is a wrong answer and
+ * "—" is an honest one.
+ */
+export function toTeamMember(user) {
+  return {
+    id: user?.id,
+    name: getFullName(user),
+    email: user?.email,
+    phone: user?.phone ?? null,
+    role: user?.role,
+    roleLabel: formatUserRole(user?.role),
+    permissionLevel: user?.permissionLevel ?? "—",
+    status: formatUserStatus(user?.status),
+    rawStatus: user?.status,
+    lastLogin: formatLastLogin(user?.lastLoginAt),
+    twoFactorEnabled: Boolean(user?.twoFactorEnabled),
+
+    // Audit trail, present on every record in every module.
+    createdAt: user?.createdAt ?? null,
+    updatedAt: user?.updatedAt ?? null,
+
+    // Awaiting the trips and quotes modules.
+    activeLeads: "—",
+    activeTrips: "—",
+    conversionRate: "—",
+    revenue: "—",
+  };
+}
 
 export function formatUserRole(role) {
   if (!role) return "";
