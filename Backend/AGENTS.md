@@ -65,8 +65,14 @@ updatedBy   User?    @relation("<Model>UpdatedBy", fields: [updatedById], refere
   accepting the invitation, and `completePasswordReset` flips the row to
   `ACTIVE` in the same transaction. Nothing else may write it: the update DTO's
   enum excludes it, and the service refuses any status change on a row that is
-  still `INVITED`. Withdraw an invitation by removing the user, never by
-  suspending it — a suspended invitation is a row nobody can move again.
+  still `INVITED`. Suspending a pending invitation would strand it for good —
+  only an `INVITED` row can be promoted by a reset, so a suspended one could
+  never move again.
+
+  **Known gap:** with account removal withdrawn there is now no way to withdraw
+  a mistaken invitation at all. The row stays `INVITED` and keeps its email
+  address reserved. Withdrawing one needs its own deliberate operation; do not
+  solve it by loosening the status guard.
 - **`ACTIVE` / `SUSPENDED`** are an administrator's call, made through
   `PATCH /users/:id` by a `MANAGE_USERS` holder, and nothing else.
 
@@ -78,6 +84,59 @@ inherits this rule.
 
 The frontend mirrors it rather than re-deciding it: the status control is absent
 for a pending invitation and offers only Active/Suspended otherwise.
+
+## Nothing is ever permanently deleted
+
+There is **no hard delete anywhere in this system, and no endpoint that offers
+one.** Removing a record archives it; it can always be brought back. Every
+soft-deletable model therefore carries six columns, not one:
+
+```prisma
+deletedAt    DateTime?
+deletedById  String?   @db.Uuid   // who archived it
+restoredAt   DateTime?
+restoredById String?   @db.Uuid   // who brought it back
+```
+
+`createdBy`/`updatedBy` never capture removal — an archived row's `updatedBy`
+is whoever last *edited* it — which is why `deletedBy` is its own column.
+
+Use the shared pieces in `common/database/archive.ts` rather than rebuilding
+any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
+`ARCHIVE_ACTOR_SELECT`, `archiveData`, `restoreData`.
+
+- **One list endpoint serves both halves.** `?archived=true` returns only
+  archived rows; the default returns only live ones. A separate `/archived`
+  route would duplicate every filter, sort and pagination param, and the two
+  would drift the first time one gained a column.
+- **`archived` uses `z.stringbool()`, never `z.coerce.boolean()`.**
+  `Boolean("false")` is `true`, so the old `includeDeleted` param did the exact
+  opposite of what it was asked on every `?includeDeleted=false`.
+- **Restore clears the deletion stamp and touches nothing else.** A create that
+  quietly revives an archived row is not a restore — it overwrites every stored
+  field with whatever the form sent. Creating and restoring are separate
+  intents and get separate endpoints.
+- **Select the archive actors on the list, not just the detail.** The Archived
+  tab has a "Removed By" column and the live list shows a "Restored" badge.
+- **Users are not soft-deletable at all.** The Users module has no `DELETE`
+  and no `restore`, its query DTO has no `archived` param, and the `users` table
+  carries no archive trail — suspending an account is the way out, which is a
+  status change through `PATCH /users/:id`. `users.deletedAt` survives as a
+  database-level kill switch (auth refuses a stamped row a session) and hides
+  the handful of rows archived before the feature was withdrawn; nothing writes
+  it. Every *other* soft-deletable model follows the six-column rule above.
+
+## Numbers that a form can leave blank
+
+`z.coerce.number()` is a trap on anything a form touches: `Number('')` is **0**,
+so an empty Latitude box arrives as a valid coordinate and an empty rating
+stores 0 out of 5 — both indistinguishable from a deliberate zero.
+
+Use `requiredNumber` / `optionalNumber` / `nullableNumber` from
+`common/dto/numbers.ts`. And keep required-ness honest: the API's required
+fields and the form's `required` attributes and its "(Optional)" labels must
+say the same thing, or the form promises one contract while the server enforces
+another.
 
 ## Service layer rules
 
@@ -108,6 +167,19 @@ the first time.
   `DEFAULT_PAGE_SIZE`, and the ceiling with its `PAGE_SIZE_OPTIONS` — change
   one and you must change the other, or a link built in the UI stops matching
   what the API serves.
+- **Lists open newest-first.** `sortableBy()` defaults to `createdAt` and
+  `paginationSchema` to `sortOrder: 'desc'`, and that pairing is the default for
+  every table. A row someone just created must be the first thing they see —
+  an alphabetical or by-code default buries it wherever the alphabet puts it,
+  which reads as "my save did not work". Override only with a stated reason.
+- **Bulk actions reuse `bulkIdsSchema` and `bulkResult`**
+  (`common/dto/bulk.dto.ts`). Every table has a checkbox column, so every module
+  gets a `POST /<resource>/bulk-delete`. Three rules hold across all of them:
+  **POST, not DELETE** (request bodies on DELETE are dropped by proxies, and a
+  dropped body removes nothing while answering 200); **partial success is
+  success** (ids that match nothing come back in `skipped`, because two people
+  clearing the same rows both deserve to succeed); and **read the rows before
+  updating them**, so the audit entry can name what was removed.
 - **Sortable columns are allowlisted in the DTO, not the service.** Rejecting
   an unknown column at the edge with a 400 beats silently falling back to
   `createdAt`: the fallback hides a broken client, and it leaves the service

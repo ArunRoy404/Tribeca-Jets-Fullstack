@@ -124,6 +124,11 @@ copy is the bug this section exists to prevent.
 | `setPage`, `setRole`, `setStatus`, … | the hook's `setters` (generated from the schema) |
 | moving pages, clamped | the hook's `goToPage(page, pageCount)` |
 | the rows-per-page dropdown | `<PageSizeSelect value onChange />`, in the toolbar beside the filters |
+| the bulk-remove button | `<BulkDeleteButton count itemLabel onClick />`, beside the table's primary action |
+| the bulk-remove confirmation | `<BulkDeleteDialog items itemLabel onConfirm />` |
+| the archived view | an `archived` field in the schema, surfaced as a tab |
+| the restored marker | `<RestoredBadge at by />` |
+| archive field labels | `toArchiveFields(record)` from `@/lib/archive` |
 | page numbers with collapsed gaps | `<TablePagination onPageChange />`, windowed by `buildPageItems` |
 
 - **Mark view-only fields `local: true`.** A tab id belongs in the URL but must
@@ -137,6 +142,31 @@ copy is the bug this section exists to prevent.
 - **Rows-per-page is a URL param like any other**, and changing it resets the
   page — page 4 of 10-per-page is not page 4 of 100-per-page. It belongs in the
   toolbar with the filters, not in the footer.
+- **Tables open newest-first.** `paginationFields()` defaults to `createdAt`
+  descending, matching the API. Do not override it per table without a reason.
+- **A table with checkboxes gets bulk remove.** The button appears only when
+  something is selected — never sitting there disabled — and the dialog
+  **lists the rows by name**: "Delete 12 items?" asks someone to trust a count
+  they cannot check, and a mis-click on select-all looks identical to a
+  deliberate selection. Clear the selection after a successful removal, or the
+  button keeps offering to remove rows that no longer exist.
+- **Every module with soft delete gets an Archived tab.** It is the same list
+  endpoint with `archived: true`, so it reuses the same table, filters and
+  pager. The tab is derived from that one field rather than being separate
+  state — two sources for "which half am I looking at" will disagree.
+- **Users & Roles is the exception: no remove, no Archived tab.** A staff
+  account is never deleted — suspending it is the way out, and that is a status
+  change inside Edit. The module has no remove or restore hook, its service has
+  no `remove`/`restore`, and `toTeamMember` carries no archive fields. Do not
+  "restore consistency" by adding them back.
+- **The Archived tab swaps columns and verbs.** It shows "Removed On" and
+  "Removed By" in place of columns that mean nothing for a removed record, and
+  its only row action is Restore — no Edit, no Remove, no Add button.
+- **A restored record keeps its badge for good.** It is a fact about the
+  record, not a transient state; a table that stops saying it after thirty days
+  quietly changed what it tells you.
+- **There is no permanent delete.** Never add one, and never offer it in a
+  menu.
 - **A pager shows page numbers, not just the current page.** Pass
   `onPageChange` so they are jumps; `buildPageItems` (`src/lib/pagination.js`)
   decides which to render and where the ellipses fall. Never re-derive that
@@ -147,6 +177,18 @@ copy is the bug this section exists to prevent.
   "Fix a module when we reach it, not before" in the root `AGENTS.md`.
 - A new filter should be one schema line and nothing else. If it needs a
   hand-written setter or a bespoke memo, extend the shared hook instead.
+
+## Required fields must agree with the API
+
+A form that marks only one field "(Optional)" while six more are optional is
+lying, and so is a `required` attribute the server does not enforce. Three
+things have to say the same thing: the Zod schema, the input's `required`, and
+the label.
+
+Blank numeric inputs are the sharp edge — an empty box sends `""`, which
+`Number('')` turns into **0**. The API rejects that for required fields and
+treats it as absent for optional ones, but the form should not send it in the
+first place.
 
 ## Pagination is server-side
 

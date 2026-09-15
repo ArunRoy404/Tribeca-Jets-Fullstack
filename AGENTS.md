@@ -26,6 +26,57 @@ The schema is **not** designed up front. Modules land one at a time and earlier 
 
 The schedule is tight. Prefer the direct implementation over the configurable one. Do not build abstraction for modules that do not exist yet.
 
+### Build order follows the dependency graph
+
+**If B references A, A ships first.** Always. Before starting a module, list
+what its records point at; anything not yet built moves ahead of it in the
+queue.
+
+This is not a preference about tidiness. A module built ahead of its
+dependencies has to store `operator: "Jet Aviation"` as a string, and every
+row written that way becomes a migration, a backfill and a set of broken joins
+the day the real table arrives. Connecting modules with real foreign keys is
+already the rule above; building them in dependency order is what makes it
+possible to follow.
+
+Read the frontend's dummy data to find the edges — the fields that name another
+entity (`client`, `operator`, `aircraft`, `tripId`, `origin`/`destination`) are
+the graph.
+
+Where two modules are mutually referential, build the one that can stand alone
+without the other and add the back-reference in the second pass. Never stub a
+foreign key with a string "for now".
+
+### Shared by default — every feature, not just pagination
+
+Pagination is the worked example, not the exception. **Anything a second module
+will need lives in the shared layer**, and modules import it rather than
+carrying their own copy: filtering, sorting, search, soft delete, audit
+columns, status transitions, file upload, notifications, exports, date and
+money handling, permission checks, error shapes, toasts, table state — all of
+it, and whatever comes next.
+
+- **Backend:** `src/common/` (and `src/core/` for infrastructure services).
+- **Frontend:** `src/lib/`, `src/hooks/common/`, `src/components/common/`,
+  `src/components/table/common/`.
+
+The test before writing anything in a module folder: *would the next module
+write this same thing?* If yes, it belongs in the shared layer — put it there
+first, then use it. Do not write the private copy intending to lift it later;
+that is how the two sort allowlists drifted apart.
+
+**Extract on the second copy, not the first.** This does not license building a
+framework for modules that do not exist — that contradicts "prefer the direct
+implementation" above, and both rules are meant. Write it directly the first
+time. The moment a second module needs the same thing, lift it into the shared
+layer and move the first caller over in the same pass. Never leave two copies
+in the tree, and never let a third exist.
+
+**What stays module-private,** deliberately: the `where` and `select` of a
+service (the row-level security boundary has to read clearly at its call site,
+not hide inside a query builder), and a screen's own table, card and dialog
+markup where the design genuinely differs. Everything else is shared.
+
 ### Fix a module when we reach it, not before
 
 When a shared component or hook improves, **only the module currently being
@@ -65,7 +116,11 @@ Read `Frontend/src/dummyData/<module>.js`, the store, the table components and t
 
 - Folders and requests are **serial-numbered** (`01 Auth`, `02 Users`, `01 List users`) so the collection reads in execution order.
 - Every request carries a **full, realistic success example** and **an example for every error it can return** (400 / 401 / 403 / 404 / 409 / 422 / 429), captured from a real run — not hand-written.
-- **JSON bodies carry a comment on the right of each line** explaining the field.
+- **JSON bodies carry a comment to the right of the field**, never above it —
+  a comment per line above doubles the height of every body and buries the JSON
+  it describes. `postman/rewrite_body_comments.py` does this for the whole
+  collection; run it after any builder script. A comment that introduces a
+  *group* of fields stays on its own line.
 - **Every query parameter is described**, including all pagination, sort and filter params, with its default and its bounds.
 - **Enums and fixed-value fields are documented case-sensitively**, listing the exact accepted values.
 - Verify with `newman` before calling the collection done. A collection that has not been run is not finished.
