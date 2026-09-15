@@ -1,0 +1,40 @@
+# Local development services. Production on the Hostinger KVM runs the same
+# images, so "works locally" and "works on the VPS" mean the same thing.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: tribeca_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tribeca
+      POSTGRES_PASSWORD: tribeca_dev_password
+      POSTGRES_DB: tribeca_jets
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tribeca -d tribeca_jets']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: tribeca_redis
+    restart: unless-stopped
+    # Persist to disk so queued reminders survive a restart.
+    command: redis-server --appendonly yes
+    ports:
+      - '6380:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:
