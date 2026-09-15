@@ -67,3 +67,50 @@ Before adding a new table, list, or filterable view: create its `dummyData/*.js`
 
 - **Always use optional chaining (`?.`) when referencing object properties, arrays, store states, and function callbacks** (e.g. `items?.map()`, `priorities?.length`, `stat?.label`, `onActionClick?.()`, `agent?.name`), ensuring runtime safety against undefined/null states when data is loading or empty.
 
+
+---
+
+# Data layer: once a module has an API, it is API-backed
+
+The "Dummy data and state" section above describes how a screen is built **before** its backend exists. As each module's API lands, that module graduates and the rules below take over. Both states coexist — `trips` may still be dummy-backed while `users` is live.
+
+When a module graduates:
+
+- **Server data comes from React Query, never from a zustand store.** Delete the store's data array, its filter/pagination getters and its mutating actions. A store may keep genuinely client-only state (which dialog is open, which row is selected) — nothing that the server owns.
+- **Its `dummyData/*.js` file goes away** with the store's dependency on it. Do not leave a stale copy "for reference".
+- Read the module's `src/hooks/<module>/README.md` if there is one; `src/hooks/auth/` is the reference implementation for everything below.
+
+## Services and hooks
+
+- One service per module: `src/services/<module>.service.js`, exporting plain functions that call the shared `request()` from `src/lib/axios.js`. A service does nothing but shape the request and return `data` — no toasts, no navigation, no cache access.
+- One hook per operation, one file per hook, under `src/hooks/<module>/`, re-exported from that folder's `index.js`.
+- **Query hooks return the query object itself. Mutation hooks return the mutation itself.** Never a hand-built `{ data, loading, error }` shape — the component destructures what it needs.
+- **Timing never appears in a hook.** `staleTime`, `gcTime`, retry and refetch behaviour come from the presets in `src/config/query.config.js`, which read `NEXT_PUBLIC_QUERY_*` env vars. A raw number in a hook is a bug.
+- Query keys come from `src/lib/queryKeys.js`. Never inline an array literal as a key.
+
+## Hooks own the side effects; components stay clean
+
+**All of it lives in the hook** — success and error toasts, cache invalidation, redirects, session teardown. A component calls `mutate(values)` and renders state. If you find yourself writing `onSuccess` inside a component, the logic belongs in the hook instead.
+
+Invalidation goes through the module-level query client (`src/lib/queryClient.js`) so any hook file can invalidate any other module's keys without prop-drilling a client.
+
+## URL is the source of truth for table state
+
+**Every tab, page, filter, sort and search term lives in the URL query string.** Not in a store, not in `useState`.
+
+This is not cosmetic. A pasted or reloaded URL must reproduce exactly what the user was looking at — same tab, same page, same filters — and back/forward must step through those states.
+
+Use the shared `useTableQueryParams` hook (`src/hooks/common/useTableQueryParams.js`); do not hand-roll `useSearchParams` juggling per table.
+
+- **Defaults are omitted from the URL.** Page 1 with no filters is a bare `/dashboard/users`, not `?page=1&role=ALL`. Reading a missing param yields the default.
+- **Changing any filter, search term or tab resets `page` to 1.** Landing on page 4 of a 1-page result set is a bug.
+- **Filter/tab changes use `replace`, not `push`**, so back does not walk through every keystroke. Only a genuine navigation pushes.
+- **Search input is debounced before it reaches the URL** (the field itself stays controlled and instant).
+- URL values are **untrusted input**: validate and clamp every one before it reaches a request. A hand-edited `?page=-5&limit=99999` must degrade to the default, not 500 the API.
+- The wire vocabulary is the backend's enum casing (`SENIOR_BROKER`), and that is what goes in the URL. Display labels are mapped at render time.
+
+## Pagination is server-side
+
+The API owns paging. Read `meta` from the response (`page`, `limit`, `total`, `totalPages`, `hasNext`, `hasPrevious`) and drive the pager from it. Never fetch a full list and slice it in the browser, and never compute `totalPages` on the client.
+
+Use `placeholderData: keepPreviousData` so the table does not blank out between pages.
