@@ -124,3 +124,115 @@ that line or scope the feature.
 | broker@tribecajets.com | ChangeMe123! | BROKER | off |
 | security@tribecajets.com | ChangeMe123! | ADMIN | **on** |
 | reset-demo@tribecajets.com | ChangeMe123! | BROKER | off |
+
+## Running the whole collection
+
+```bash
+npx prisma db seed                       # restores known passwords and fixtures
+npx newman run postman/Tribeca-Jets-API.postman_collection.json \
+  -e postman/Local.postman_environment.json
+```
+
+**Re-seed before each full run.** The password-reset folder actually changes
+`reset-demo@tribecajets.com`'s password, so a second consecutive run without a
+re-seed fails on "new password must differ from the current one" — the API
+behaving correctly, not a broken collection. That account exists precisely so
+the reset flow never disturbs the accounts the other folders depend on.
+
+**Set `RATE_LIMIT_MULTIPLIER=20` in `.env` for local runs.** A full pass signs
+in eight times against a login limit of five per fifteen minutes, so it cannot
+otherwise complete. The multiplier is pinned to 1 in production — the app
+refuses to boot otherwise — so this relaxes nothing that ships.
+
+## Structure
+
+```
+00 · System            health check
+01 · Auth              every auth endpoint, and nothing else has one
+02 · Clients
+03 · Users
+```
+
+**Auth endpoints appear in exactly one folder.** `01 · Auth / 01 · Sign in`
+carries one request per role — Owner, Senior Broker, Broker, Assistant, and the
+two-factor Admin last — so every account the collection uses is documented
+together.
+
+Module folders contain no login request. Each gets its session from a
+**folder-level pre-request script** that signs in once per run and switches
+accounts when a nested folder needs a different one. A side effect is that
+every folder now runs standalone; previously `Users` only worked because it
+carried its own copy of the login endpoint.
+
+`02 · Two-factor` depends on the sign-in folder's last request having started a
+challenge, which is why the two-factor account is listed last. Any sign-in
+after it replaces the challenge cookie and the verify step fails.
+
+## Variables
+
+A value gets a variable when it is **reused**; a value used in one place stays a
+literal, because an indirection that resolves in exactly one spot is harder to
+read, not easier.
+
+**Pinned — edit these to point at another environment or dataset:**
+
+| Variable | Why it is shared |
+|---|---|
+| `baseUrl` | every request |
+| `ownerEmail` | its own sign-in request, plus the Clients and Users session scripts |
+| `password` | all five sign-ins, and every folder session script |
+| `newPassword` | sent twice in one body (`newPassword` + `confirmPassword` must match exactly) |
+
+**Captured at runtime — leave empty:**
+
+| Variable | Set by | Used by |
+|---|---|---|
+| `csrfToken` | any sign-in (parsed from `Set-Cookie`) | every write's `X-CSRF-Token` |
+| `otpCode` | sign-in / forgot-password `devCode` | the matching verify request |
+| `clientId` | first id from the clients list, then replaced by any client this run creates | get / update / delete |
+| `userId` | first `BROKER` id from the team list | get team member |
+| `invitedUserId` | the invite response | update / remove |
+| `inviteEmail` | generated per run | the invite body |
+
+Two of these deserve a note. **`clientId` and `invitedUserId` are deliberately
+repointed at records the run creates**, so update and delete never mutate seeded
+data — which is what made the collection safe to re-run. And **the session
+scripts read `ownerEmail` and `password` from these variables** rather than
+carrying their own copies, so a credential can never disagree with the request
+that documents it.
+
+## Bodies
+
+Every raw body is marked `language: json`, so Postman renders it with
+highlighting and the inline field comments stay readable. A raw body without
+that option renders as plain text and the documentation in it becomes a wall of
+grey.
+
+## What is deliberately not here
+
+**No refusal-only requests.** There is no "call this without a CSRF token and
+watch it 403" entry, because that failure is already saved as an example on
+`Create client` and `Invite team member` — the requests that actually produce
+it. A separate entry would restate one response as a second endpoint.
+
+Every 400 / 401 / 403 / 404 / 409 the API returns is captured, on the request
+that returns it. 75 examples across 25 requests.
+
+## Regenerating
+
+Examples are captured from a live API rather than hand-written, because
+hand-written examples drift silently and keep claiming a shape the API stopped
+returning. After changing the users module, run both in order:
+
+```bash
+python3 postman/build_users_folder.py   # rebuilds the Users folder
+python3 postman/reorganize.py           # re-applies the structure above
+```
+
+The order matters: the first emits a self-contained folder, the second strips
+its login request and attaches the session script.
+
+Both re-seed, purge accounts left behind by earlier runs, and assert each
+captured status matches the name it is filed under — so an example cannot
+silently record the wrong response. That assertion has already caught two
+mislabelled captures.

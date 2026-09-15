@@ -8,22 +8,62 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:4000/api",
-      "type": "string"
+      "type": "string",
+      "description": "API root. The only value to change when pointing at another environment."
+    },
+    {
+      "key": "ownerEmail",
+      "value": "admin@tribecajets.com",
+      "type": "string",
+      "description": "The seeded SUPER_ADMIN. Used by its sign-in request and by the folder session scripts in Clients and Users."
+    },
+    {
+      "key": "password",
+      "value": "ChangeMe123!",
+      "type": "string",
+      "description": "Shared by every seeded account, and by every folder session script."
+    },
+    {
+      "key": "newPassword",
+      "value": "BrandNewPass9",
+      "type": "string",
+      "description": "Set by the password-reset flow. Sent twice in one body \u2014 newPassword and confirmPassword must match exactly \u2014 so a literal would be two places to edit for one change."
     },
     {
       "key": "csrfToken",
       "value": "",
-      "type": "string"
+      "type": "string",
+      "description": "Captured from the tj_csrf cookie after any sign-in. Echoed as X-CSRF-Token on every write."
     },
     {
       "key": "otpCode",
       "value": "",
-      "type": "string"
+      "type": "string",
+      "description": "Captured from devCode on sign-in and on forgot-password, then spent by the matching verify request."
     },
     {
       "key": "clientId",
       "value": "",
-      "type": "string"
+      "type": "string",
+      "description": "First id from the clients list, replaced by the id of any client this run creates so updates and deletes never touch seeded data."
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string",
+      "description": "First BROKER id from the team list, for the detail request."
+    },
+    {
+      "key": "invitedUserId",
+      "value": "",
+      "type": "string",
+      "description": "Id of the account invited during this run. Update and remove target it, so the folder never mutates a seeded account."
+    },
+    {
+      "key": "inviteEmail",
+      "value": "",
+      "type": "string",
+      "description": "Generated per run so a repeat run does not 409 on an address that already exists."
     }
   ],
   "event": [
@@ -122,10 +162,33 @@
       "item": [
         {
           "name": "01 \u00b7 Sign in",
-          "description": "`POST /auth/login`. Returns `requiresTwoFactor` \u2014 branch on it rather than always routing to the two-factor screen.",
+          "description": "One sign-in per role, so every account the collection uses is documented in one place and the rest of the collection never repeats an auth endpoint.\n\nAll five share the password `ChangeMe123!`. Each stores `csrfToken` for manual use; the module folders get their own session from a pre-request script and do not depend on running these first.\n\n`02 \u00b7 Admin \u00b7 two-factor` is the odd one out \u2014 it returns a challenge rather than a session, and needs `02 \u00b7 Two-factor / 02 \u00b7 Verify code` to complete.",
           "item": [
             {
-              "name": "01 \u00b7 Login",
+              "name": "01 \u00b7 Owner \u00b7 SUPER_ADMIN",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Every folder below gets its session from a pre-request script, but a",
+                      "// login run by hand should still leave the collection usable.",
+                      "const csrf = pm.cookies.get('tj_csrf');",
+                      "if (csrf) pm.collectionVariables.set('csrfToken', csrf);",
+                      "",
+                      "const body = pm.response.json();",
+                      "if (body.data && body.data.devCode) {",
+                      "    pm.collectionVariables.set('otpCode', body.data.devCode.code);",
+                      "}",
+                      "",
+                      "pm.test('accepted', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "POST",
                 "header": [
@@ -144,10 +207,10 @@
                     "login"
                   ]
                 },
-                "description": "Signs in with email and password.\n\n**Two outcomes, driven by the account's `twoFactorEnabled` setting** (toggled from the Settings screen, not globally configured):\n\n| `requiresTwoFactor` | What happened |\n|---|---|\n| `false` | Session is live. `tj_access`, `tj_refresh`, `tj_csrf` are set and `user` is returned. |\n| `true` | Only `tj_2fa` is set. **No session exists yet** \u2014 a correct password alone never authenticates. |\n\nThe frontend must branch on this flag rather than always routing to the two-factor screen.\n\n**`devCode`** appears only while SMTP is unconfigured outside production, carrying the generated code so the flow works without a mailbox. Configure `SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD` and it disappears; production refuses to boot without them.",
+                "description": "The seeded owner. Holds every permission, and is the one account that cannot be demoted, suspended or removed \u2014 so the system can never be locked out of its own administration.\n\nUse this for the Users and Clients folders.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  // Held in the ownerEmail variable: the Clients and Users folders\n  // sign in as this account too, and two copies would drift.\n  \"email\": \"{{ownerEmail}}\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -157,7 +220,7 @@
               },
               "response": [
                 {
-                  "name": "200 \u00b7 Signed in (no two-factor)",
+                  "name": "200 \u00b7 Signed in",
                   "originalRequest": {
                     "method": "POST",
                     "header": [
@@ -168,7 +231,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                      "raw": "{\n  \"email\": \"admin@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -196,10 +259,10 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": false,\n    \"user\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"email\": \"admin@tribecajets.com\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"phone\": null,\n      \"role\": \"SUPER_ADMIN\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T04:14:26.886Z\",\n      \"createdAt\": \"2026-09-15T03:40:49.368Z\"\n    }\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": false,\n    \"user\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"email\": \"admin@tribecajets.com\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"phone\": null,\n      \"role\": \"SUPER_ADMIN\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T08:34:52.477Z\",\n      \"createdAt\": \"2026-09-15T03:40:49.368Z\"\n    }\n  }\n}"
                 },
                 {
-                  "name": "200 \u00b7 Two-factor required",
+                  "name": "401 \u00b7 Wrong password",
                   "originalRequest": {
                     "method": "POST",
                     "header": [
@@ -210,49 +273,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // This account has two-factor enabled, so the response returns\n  // requiresTwoFactor: true and NO session cookies are set.\n  \"email\": \"security@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
-                      "options": {
-                        "raw": {
-                          "language": "json"
-                        }
-                      }
-                    },
-                    "url": {
-                      "raw": "{{baseUrl}}/auth/login",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "auth",
-                        "login"
-                      ]
-                    }
-                  },
-                  "status": "OK",
-                  "code": 200,
-                  "_postman_previewlanguage": "json",
-                  "header": [
-                    {
-                      "key": "Content-Type",
-                      "value": "application/json; charset=utf-8"
-                    }
-                  ],
-                  "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"se******@tribecajets.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"302150\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
-                },
-                {
-                  "name": "401 \u00b7 Invalid credentials",
-                  "originalRequest": {
-                    "method": "POST",
-                    "header": [
-                      {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                      }
-                    ],
-                    "body": {
-                      "mode": "raw",
-                      "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                      "raw": "{\n  \"email\": \"admin@tribecajets.com\",\n  \"password\": \"WrongPassword1!\"\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -280,10 +301,10 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.214Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T08:34:52.568Z\"\n}"
                 },
                 {
-                  "name": "400 \u00b7 Validation failed",
+                  "name": "401 \u00b7 No such account (identical to a wrong password)",
                   "originalRequest": {
                     "method": "POST",
                     "header": [
@@ -294,7 +315,49 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
+                      "raw": "{\n  \"email\": \"nobody@tribecajets.com\",\n  \"password\": \"ChangeMe123!\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T08:34:52.652Z\"\n}"
+                },
+                {
+                  "name": "400 \u00b7 Malformed body",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"\"\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -322,87 +385,35 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"email\": \"A valid email address is required\",\n    \"password\": \"Password is required\"\n  },\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.216Z\"\n}"
-                },
-                {
-                  "name": "429 \u00b7 Rate limited (5 per 15 min per IP)",
-                  "originalRequest": {
-                    "method": "POST",
-                    "header": [
-                      {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                      }
-                    ],
-                    "body": {
-                      "mode": "raw",
-                      "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
-                      "options": {
-                        "raw": {
-                          "language": "json"
-                        }
-                      }
-                    },
-                    "url": {
-                      "raw": "{{baseUrl}}/auth/login",
-                      "host": [
-                        "{{baseUrl}}"
-                      ],
-                      "path": [
-                        "auth",
-                        "login"
-                      ]
-                    }
-                  },
-                  "status": "Too Many Requests",
-                  "code": 429,
-                  "_postman_previewlanguage": "json",
-                  "header": [
-                    {
-                      "key": "Content-Type",
-                      "value": "application/json; charset=utf-8"
-                    }
-                  ],
-                  "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 429,\n  \"message\": \"Too many requests. Please try again later.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:28.068Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"email\": \"A valid email address is required\",\n    \"password\": \"Password is required\"\n  },\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T08:34:52.688Z\"\n}"
                 }
-              ],
+              ]
+            },
+            {
+              "name": "02 \u00b7 Senior Broker",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('signed in without a second factor', () => {",
-                      "  pm.response.to.have.status(200);",
-                      "  const d = pm.response.json().data;",
-                      "  pm.expect(d.requiresTwoFactor).to.eql(false);",
-                      "  pm.expect(d.user.email).to.be.a('string');",
-                      "});",
+                      "// Every folder below gets its session from a pre-request script, but a",
+                      "// login run by hand should still leave the collection usable.",
+                      "const csrf = pm.cookies.get('tj_csrf');",
+                      "if (csrf) pm.collectionVariables.set('csrfToken', csrf);",
                       "",
-                      "pm.test('no token is exposed to the client', () => {",
-                      "  // The point of httpOnly cookies: nothing usable in the body.",
-                      "  pm.expect(pm.response.text()).to.not.include('tj_access');",
-                      "});",
+                      "const body = pm.response.json();",
+                      "if (body.data && body.data.devCode) {",
+                      "    pm.collectionVariables.set('otpCode', body.data.devCode.code);",
+                      "}",
                       "",
-                      "// Capture the readable CSRF cookie so writes can echo it in X-CSRF-Token.",
-                      "// Parsed from Set-Cookie rather than pm.cookies: the cookie jar is not",
-                      "// reliably populated in Newman, and reading it back can clobber a good",
-                      "// value on responses that set no CSRF cookie.",
-                      "const setCookies = pm.response.headers.all()",
-                      "  .filter(h => h.key.toLowerCase() === 'set-cookie')",
-                      "  .map(h => h.value);",
-                      "const csrfCookie = setCookies.map(v => /tj_csrf=([^;]+)/.exec(v)).find(Boolean);",
-                      "if (csrfCookie) {",
-                      "  pm.collectionVariables.set('csrfToken', csrfCookie[1]);",
-                      "}"
+                      "pm.test('accepted', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
                     ]
                   }
                 }
-              ]
-            },
-            {
-              "name": "02 \u00b7 Login (two-factor account)",
+              ],
               "request": {
                 "method": "POST",
                 "header": [
@@ -421,10 +432,10 @@
                     "login"
                   ]
                 },
-                "description": "Same endpoint as `01 \u00b7 Login`, kept separate so the two-factor path is easy to exercise.\n\nSets only the `tj_2fa` challenge cookie and returns a masked email. The test script copies `devCode.code` into `{{otpCode}}`, so `03 \u00b7 Verify two-factor code` can run immediately.",
+                "description": "Full trip management, operator sourcing and team-wide financial visibility \u2014 but **no Manage Users**. Sign in here to see the Users folder's writes refuse with 403 while its reads still work.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // This account has two-factor enabled, so the response returns\n  // requiresTwoFactor: true and NO session cookies are set.\n  \"email\": \"security@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
+                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  \"email\": \"senior@tribecajets.com\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -434,7 +445,7 @@
               },
               "response": [
                 {
-                  "name": "200 \u00b7 Two-factor required",
+                  "name": "200 \u00b7 Signed in",
                   "originalRequest": {
                     "method": "POST",
                     "header": [
@@ -445,7 +456,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // This account has two-factor enabled, so the response returns\n  // requiresTwoFactor: true and NO session cookies are set.\n  \"email\": \"security@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
+                      "raw": "{\n  \"email\": \"senior@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -473,10 +484,67 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"se******@tribecajets.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"302150\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
-                },
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": false,\n    \"user\": {\n      \"id\": \"482fb573-5160-46f9-aa78-39d6d96641c5\",\n      \"email\": \"senior@tribecajets.com\",\n      \"firstName\": \"Sasha\",\n      \"lastName\": \"Senior\",\n      \"phone\": null,\n      \"role\": \"SENIOR_BROKER\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T08:34:52.772Z\",\n      \"createdAt\": \"2026-09-15T06:22:21.597Z\"\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "03 \u00b7 Broker",
+              "event": [
                 {
-                  "name": "401 \u00b7 Invalid credentials",
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Every folder below gets its session from a pre-request script, but a",
+                      "// login run by hand should still leave the collection usable.",
+                      "const csrf = pm.cookies.get('tj_csrf');",
+                      "if (csrf) pm.collectionVariables.set('csrfToken', csrf);",
+                      "",
+                      "const body = pm.response.json();",
+                      "if (body.data && body.data.devCode) {",
+                      "    pm.collectionVariables.set('otpCode', body.data.devCode.code);",
+                      "}",
+                      "",
+                      "pm.test('accepted', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Sees only their own clients and trips. The narrowest role that still does day-to-day work, so it is the useful one for testing row-level scoping: the Clients list returns a different `meta.total` here than it does for the owner.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  \"email\": \"broker@tribecajets.com\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Signed in",
                   "originalRequest": {
                     "method": "POST",
                     "header": [
@@ -487,7 +555,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // This account has two-factor enabled, so the response returns\n  // requiresTwoFactor: true and NO session cookies are set.\n  \"email\": \"security@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
+                      "raw": "{\n  \"email\": \"broker@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -505,8 +573,8 @@
                       ]
                     }
                   },
-                  "status": "Unauthorized",
-                  "code": 401,
+                  "status": "OK",
+                  "code": 200,
                   "_postman_previewlanguage": "json",
                   "header": [
                     {
@@ -515,35 +583,205 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.214Z\"\n}"
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": false,\n    \"user\": {\n      \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"email\": \"broker@tribecajets.com\",\n      \"firstName\": \"Jordan\",\n      \"lastName\": \"Broker\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T08:34:52.867Z\",\n      \"createdAt\": \"2026-09-15T03:40:49.375Z\"\n    }\n  }\n}"
                 }
-              ],
+              ]
+            },
+            {
+              "name": "04 \u00b7 Assistant",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('challenge issued, session withheld', () => {",
-                      "  pm.response.to.have.status(200);",
-                      "  const d = pm.response.json().data;",
-                      "  pm.expect(d.requiresTwoFactor).to.eql(true);",
-                      "  pm.expect(d.email).to.match(/\\*/); // masked",
-                      "});",
+                      "// Every folder below gets its session from a pre-request script, but a",
+                      "// login run by hand should still leave the collection usable.",
+                      "const csrf = pm.cookies.get('tj_csrf');",
+                      "if (csrf) pm.collectionVariables.set('csrfToken', csrf);",
                       "",
-                      "// While SMTP is unconfigured the API returns the code in `devCode`, so the",
-                      "// OTP screens are testable without a mailbox. Store it for the next request.",
-                      "const body = pm.response.code < 400 ? pm.response.json() : null;",
-                      "const dev = body && body.data && body.data.devCode;",
-                      "if (dev && dev.code) {",
-                      "  pm.collectionVariables.set('otpCode', dev.code);",
-                      "  console.log('otpCode captured:', dev.code);",
-                      "} else {",
-                      "  console.log('No devCode in response \u2014 SMTP is configured, so check the inbox');",
-                      "  console.log('and set {{otpCode}} manually.');",
-                      "}"
+                      "const body = pm.response.json();",
+                      "if (body.data && body.data.devCode) {",
+                      "    pm.collectionVariables.set('otpCode', body.data.devCode.code);",
+                      "}",
+                      "",
+                      "pm.test('accepted', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
                     ]
                   }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Read-mostly. Holds `OPERATOR_SOURCING` at `READ` scope, which is why write routes guarded with `@RequireWritePermissions` refuse it even though it holds the permission.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  \"email\": \"assistant@tribecajets.com\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Signed in",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"email\": \"assistant@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": false,\n    \"user\": {\n      \"id\": \"8f82d942-d948-41b8-a54e-efb1a5580d3e\",\n      \"email\": \"assistant@tribecajets.com\",\n      \"firstName\": \"Avery\",\n      \"lastName\": \"Assist\",\n      \"phone\": null,\n      \"role\": \"ASSISTANT\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T08:34:52.955Z\",\n      \"createdAt\": \"2026-09-15T06:22:21.600Z\"\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "05 \u00b7 Admin \u00b7 two-factor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Every folder below gets its session from a pre-request script, but a",
+                      "// login run by hand should still leave the collection usable.",
+                      "const csrf = pm.cookies.get('tj_csrf');",
+                      "if (csrf) pm.collectionVariables.set('csrfToken', csrf);",
+                      "",
+                      "const body = pm.response.json();",
+                      "if (body.data && body.data.devCode) {",
+                      "    pm.collectionVariables.set('otpCode', body.data.devCode.code);",
+                      "}",
+                      "",
+                      "pm.test('accepted', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "**Listed last deliberately.** This starts a challenge that `02 \u00b7 Two-factor` completes, and any sign-in after it would replace that challenge and break the verify step.\n\nAn administrator with **two-factor enabled**, so this returns `requiresTwoFactor: true` and *no session yet* \u2014 `02 \u00b7 Two-factor / 02 \u00b7 Verify code` must follow before anything else will authenticate.\n\nWithout SMTP configured the code comes back in `devCode`, and the test script stores it in `otpCode` for the verify step. It never appears once SMTP is set.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  \"email\": \"security@tribecajets.com\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Two-factor required",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"email\": \"security@tribecajets.com\",\n  \"password\": \"ChangeMe123!\",\n  \"rememberMe\": false\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"se******@tribecajets.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"701614\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
                 }
               ]
             }
@@ -1609,7 +1847,7 @@
                 "description": "Completes the reset.\n\nRequires a **verified** challenge \u2014 posting here without running step 02 fails.\n\n**Revokes every existing session on success.** If the reset happened because the account was compromised, leaving the attacker signed in would defeat the exercise. A notification email is sent to the account holder.\n\n**Password policy:** at least 10 characters with one lowercase, one uppercase and one digit, and different from the current password.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                  "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  //\n  // Both fields read the same variable. They have to match exactly, so a\n  // literal here would be two places to edit for one change \u2014 and the\n  // mismatch would surface as a confusing 400 rather than a typo.\n  \"newPassword\": \"{{newPassword}}\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"{{newPassword}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1940,335 +2178,11 @@
       ]
     },
     {
-      "name": "02 \u00b7 Regression checks",
-      "description": "Requests that SHOULD fail. Placed straight after Sign out because they assert an unauthenticated caller is rejected.",
-      "item": [
-        {
-          "name": "01 \u00b7 Protected route without a session \u2192 401",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/clients",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "clients"
-              ]
-            },
-            "description": "Run after Logout. Every route is authenticated by default; `@Public()` is opt-in."
-          },
-          "response": [
-            {
-              "name": "401 \u00b7 Unauthorized",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/clients",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "clients"
-                  ]
-                }
-              },
-              "status": "Unauthorized",
-              "code": 401,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.945Z\"\n}"
-            }
-          ],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('rejected', () => pm.response.to.have.status(401));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "02 \u00b7 Bad credentials \u2192 401",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            },
-            "description": "Confirms accounts cannot be enumerated through the login endpoint.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // Unknown account and wrong password return the identical message, and the\n  // server burns comparable hashing time on both paths \u2014 so neither the\n  // response nor its timing reveals which emails are registered.\n  \"email\": \"nobody@example.com\",\n  \"password\": \"wrong-password\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [
-            {
-              "name": "401 \u00b7 Unauthorized",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "login"
-                  ]
-                }
-              },
-              "status": "Unauthorized",
-              "code": 401,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.214Z\"\n}"
-            }
-          ],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('generic failure', () => {",
-                  "  pm.response.to.have.status(401);",
-                  "  pm.expect(pm.response.json().message).to.eql('Invalid email or password');",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "03 \u00b7 Malformed body \u2192 400",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            },
-            "description": "Zod validation returns `errors` keyed by field name, ready to map onto form fields.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"not-an-email\",   // fails the email format check\n  \"password\": \"\"             // fails the min-length check\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [
-            {
-              "name": "400 \u00b7 Validation failed",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/auth/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "login"
-                  ]
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"email\": \"A valid email address is required\",\n    \"password\": \"Password is required\"\n  },\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T04:14:27.216Z\"\n}"
-            }
-          ],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('field errors returned', () => {",
-                  "  pm.response.to.have.status(400);",
-                  "  pm.expect(pm.response.json().errors).to.have.property('email');",
-                  "});"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
       "name": "03 \u00b7 Clients",
-      "description": "Clients and travel agents \u2014 the dashboard's CRM screens. Opens with its own sign-in so the module runs standalone.",
+      "description": "Clients and travel agents.\n\nSigned in automatically as the owner by this folder's pre-request script, so it runs standalone. To watch row-level scoping, sign in as `04 \u00b7 Broker` from the Auth folder and re-run `01 \u00b7 List clients`: `meta.total` drops to the clients assigned to them.",
       "item": [
         {
-          "name": "01 \u00b7 Sign in (session setup)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            },
-            "description": "Not a Clients endpoint \u2014 it establishes the session this folder needs so the module runs standalone, and so a top-to-bottom pass still works after `01 \u00b7 Auth \u2192 05 \u00b7 Sign out` has cleared the cookies.\n\nSigns in as SUPER_ADMIN. Swap to `broker@tribecajets.com` to watch row-level scoping shrink the list to that broker's own clients.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [
-            {
-              "name": "200 \u00b7 Signed in",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  // required \u00b7 registered email address, case-insensitive\n  \"email\": \"admin@tribecajets.com\",\n\n  // required \u00b7 the account password\n  \"password\": \"ChangeMe123!\",\n\n  // optional \u00b7 default false\n  // true  \u2192 refresh cookie lives 30 days (\"Remember me\" ticked)\n  // false \u2192 refresh cookie lives 7 days\n  \"rememberMe\": false\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/auth/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "auth",
-                    "login"
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": false,\n    \"user\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"email\": \"admin@tribecajets.com\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"phone\": null,\n      \"role\": \"SUPER_ADMIN\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T04:14:26.886Z\",\n      \"createdAt\": \"2026-09-15T03:40:49.368Z\"\n    }\n  }\n}"
-            }
-          ],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('session ready', () => pm.response.to.have.status(200));",
-                  "",
-                  "// Capture the readable CSRF cookie so writes can echo it in X-CSRF-Token.",
-                  "// Parsed from Set-Cookie rather than pm.cookies: the cookie jar is not",
-                  "// reliably populated in Newman, and reading it back can clobber a good",
-                  "// value on responses that set no CSRF cookie.",
-                  "const setCookies = pm.response.headers.all()",
-                  "  .filter(h => h.key.toLowerCase() === 'set-cookie')",
-                  "  .map(h => h.value);",
-                  "const csrfCookie = setCookies.map(v => /tj_csrf=([^;]+)/.exec(v)).find(Boolean);",
-                  "if (csrfCookie) {",
-                  "  pm.collectionVariables.set('csrfToken', csrfCookie[1]);",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "02 \u00b7 List clients",
+          "name": "01 \u00b7 List clients",
           "request": {
             "method": "GET",
             "header": [],
@@ -2420,7 +2334,7 @@
           ]
         },
         {
-          "name": "03 \u00b7 Get client",
+          "name": "02 \u00b7 Get client",
           "request": {
             "method": "GET",
             "header": [],
@@ -2496,7 +2410,7 @@
           ]
         },
         {
-          "name": "04 \u00b7 Create client",
+          "name": "03 \u00b7 Create client",
           "request": {
             "method": "POST",
             "header": [
@@ -2712,7 +2626,7 @@
           ]
         },
         {
-          "name": "05 \u00b7 Update client",
+          "name": "04 \u00b7 Update client",
           "request": {
             "method": "PATCH",
             "header": [
@@ -2835,7 +2749,7 @@
           ]
         },
         {
-          "name": "06 \u00b7 Delete client (soft)",
+          "name": "05 \u00b7 Delete client (soft)",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2958,30 +2872,705 @@
               "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T04:14:26.937Z\"\n}"
             }
           ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 \u00b7 Users",
+      "description": "Team directory, invitations, role and status administration, and the permission matrix behind the Roles & Permissions tab.\n\n**Two layers of authorization apply.**\n\n1. *Capability* \u2014 `Manage Users` is held only by `SUPER_ADMIN` and `ADMIN`. Without it, every write here returns **403**.\n2. *Projection* \u2014 `GET /users` is open to any signed-in user, because every module needs a staff picker (the client form's Assigned Broker dropdown is the first). Callers without `Manage Users` get a reduced response: names and roles only, no status, no login history, and only `ACTIVE` accounts.\n\n**A row the caller may not see returns 404, never 403.** A 403 would confirm the account exists and turn any id into an existence oracle.\n\nRun `01 \u00b7 Sign in` first \u2014 it captures `csrfToken` for every write below.",
+      "item": [
+        {
+          "name": "01 \u00b7 List team members",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Feed the detail request below. Picks a BROKER rather than the",
+                  "// first row, so the id is never the signed-in administrator \u2014",
+                  "// self-targeted writes are refused by design and would look",
+                  "// like a broken collection.",
+                  "const rows = pm.response.json().data || [];",
+                  "const target = rows.find(u => u.role === 'BROKER') || rows[0];",
+                  "if (target) pm.collectionVariables.set('userId', target.id);",
+                  "pm.test('returns a page with meta', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json()).to.have.property('meta');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users?page=1&limit=20&sortBy=createdAt&sortOrder=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number. Integer, min 1. Default 1. Out of range \u2192 400."
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Rows per page. Integer 1-100. Default 20. Capped so nobody can pull the whole table in one request; >100 \u2192 400."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | firstName | lastName | email | role | status | lastLoginAt. Default createdAt. A closed list \u2014 anything else returns 400 rather than reaching the database."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Allowed (case-sensitive): asc | desc. Default desc."
+                },
+                {
+                  "key": "search",
+                  "value": "walsh",
+                  "disabled": true,
+                  "description": "Case-insensitive substring match on firstName, lastName or email. Omit for no search."
+                },
+                {
+                  "key": "role",
+                  "value": "BROKER",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): SUPER_ADMIN | ADMIN | SENIOR_BROKER | BROKER | ASSISTANT. Omit for all roles."
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): ACTIVE | INVITED | SUSPENDED. Omit for all statuses. Callers without Manage Users always see ACTIVE only, whatever is passed here."
+                },
+                {
+                  "key": "includeDeleted",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): true | false. Default false. Includes soft-deleted accounts \u2014 honoured only for callers holding Manage Users; silently ignored for everyone else, since a query param must never widen visibility."
+                }
+              ]
+            },
+            "description": "Paginated staff directory.\n\n**Response envelope**\n\n```\n{ success, data: [...], meta }\n```\n\n`meta` carries `page`, `limit`, `total`, `totalPages`, `hasNext`, `hasPrevious`. Paging is entirely server-side \u2014 `total` counts what this caller may actually see, not the table size.\n\n**Two different response shapes**, depending on the caller:\n\n- *With* `Manage Users`: full record including `status`, `lastLoginAt`, `twoFactorEnabled`, `phone`, `invitedAt`, `permissionLevel`.\n- *Without*: `id`, `email`, `firstName`, `lastName`, `role`, `avatarKey` only \u2014 enough to populate a staff picker, nothing more. Compare the two 200 examples.\n\nSee the Params tab for every filter and its exact case-sensitive values."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Page of team members",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users?page=1&limit=5&sortBy=createdAt&sortOrder=desc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"bf738ff2-0334-43e7-86a2-3222b41f49b0\",\n      \"email\": \"newhire@tribecajets.com\",\n      \"firstName\": \"Nina\",\n      \"lastName\": \"Newhire\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"INVITED\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": null,\n      \"createdAt\": \"2026-09-15T06:22:21.612Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T08:34:49.066Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    },\n    {\n      \"id\": \"473ebf79-80bf-442a-9fc5-f135ffb3aced\",\n      \"email\": \"tom@tribecajets.com\",\n      \"firstName\": \"Tom\",\n      \"lastName\": \"Walsh\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"SUSPENDED\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": null,\n      \"createdAt\": \"2026-09-15T06:22:21.608Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T08:34:49.063Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    },\n    {\n      \"id\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n      \"email\": \"mark@tribecajets.com\",\n      \"firstName\": \"Mark\",\n      \"lastName\": \"Evans\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T06:24:20.777Z\",\n      \"createdAt\": \"2026-09-15T06:22:21.605Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T08:34:49.061Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    },\n    {\n      \"id\": \"35ae9d28-bbea-4ebf-9bfd-fb5333a4e22a\",\n      \"email\": \"barry@tribecajets.com\",\n      \"firstName\": \"Barry\",\n      \"lastName\": \"Wilson\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": null,\n      \"createdAt\": \"2026-09-15T06:22:21.603Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T08:34:49.059Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    },\n    {\n      \"id\": \"8f82d942-d948-41b8-a54e-efb1a5580d3e\",\n      \"email\": \"assistant@tribecajets.com\",\n      \"firstName\": \"Avery\",\n      \"lastName\": \"Assist\",\n      \"phone\": null,\n      \"role\": \"ASSISTANT\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T08:26:24.060Z\",\n      \"createdAt\": \"2026-09-15T06:22:21.600Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T08:34:49.056Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Low\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 5,\n    \"total\": 10,\n    \"totalPages\": 2,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Filtered by role and status",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users?page=1&limit=20&role=BROKER&status=ACTIVE",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n      \"email\": \"mark@tribecajets.com\",\n      \"firstName\": \"Mark\",\n      \"lastName\": \"Evans\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T06:24:20.777Z\",\n      \"createdAt\": \"2026-09-15T06:22:21.605Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T08:34:49.061Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    },\n    {\n      \"id\": \"35ae9d28-bbea-4ebf-9bfd-fb5333a4e22a\",\n      \"email\": \"barry@tribecajets.com\",\n      \"firstName\": \"Barry\",\n      \"lastName\": \"Wilson\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": null,\n      \"createdAt\": \"2026-09-15T06:22:21.603Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T08:34:49.059Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    },\n    {\n      \"id\": \"c5cca6f3-5cef-4467-b476-7891538d53e6\",\n      \"email\": \"reset-demo@tribecajets.com\",\n      \"firstName\": \"Riley\",\n      \"lastName\": \"Reset\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T06:08:31.164Z\",\n      \"createdAt\": \"2026-09-15T04:16:18.914Z\",\n      \"createdById\": null,\n      \"updatedAt\": \"2026-09-15T08:34:49.048Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    },\n    {\n      \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"email\": \"broker@tribecajets.com\",\n      \"firstName\": \"Jordan\",\n      \"lastName\": \"Broker\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"ACTIVE\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": \"2026-09-15T08:34:49.341Z\",\n      \"createdAt\": \"2026-09-15T03:40:49.375Z\",\n      \"createdById\": null,\n      \"updatedAt\": \"2026-09-15T08:34:49.342Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 4,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Search by name or email",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users?search=walsh",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"473ebf79-80bf-442a-9fc5-f135ffb3aced\",\n      \"email\": \"tom@tribecajets.com\",\n      \"firstName\": \"Tom\",\n      \"lastName\": \"Walsh\",\n      \"phone\": null,\n      \"role\": \"BROKER\",\n      \"status\": \"SUSPENDED\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": null,\n      \"createdAt\": \"2026-09-15T06:22:21.608Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T08:34:49.063Z\",\n      \"updatedById\": null,\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 20,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Reduced projection (caller without Manage Users)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users?limit=3",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n      \"email\": \"mark@tribecajets.com\",\n      \"firstName\": \"Mark\",\n      \"lastName\": \"Evans\",\n      \"role\": \"BROKER\",\n      \"avatarKey\": null\n    },\n    {\n      \"id\": \"35ae9d28-bbea-4ebf-9bfd-fb5333a4e22a\",\n      \"email\": \"barry@tribecajets.com\",\n      \"firstName\": \"Barry\",\n      \"lastName\": \"Wilson\",\n      \"role\": \"BROKER\",\n      \"avatarKey\": null\n    },\n    {\n      \"id\": \"8f82d942-d948-41b8-a54e-efb1a5580d3e\",\n      \"email\": \"assistant@tribecajets.com\",\n      \"firstName\": \"Avery\",\n      \"lastName\": \"Assist\",\n      \"role\": \"ASSISTANT\",\n      \"avatarKey\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 8,\n    \"totalPages\": 3,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 sortBy not in the allowed list",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users?sortBy=passwordHash",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"firstName\\\"|\\\"lastName\\\"|\\\"email\\\"|\\\"role\\\"|\\\"status\\\"|\\\"lastLoginAt\\\"\"\n  },\n  \"path\": \"/api/users?sortBy=passwordHash\",\n  \"timestamp\": \"2026-09-15T08:34:49.509Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 page/limit out of bounds",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users?page=0&limit=500",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"page\": \"Too small: expected number to be >=1\",\n    \"limit\": \"Too big: expected number to be <=100\"\n  },\n  \"path\": \"/api/users?page=0&limit=500\",\n  \"timestamp\": \"2026-09-15T08:34:49.511Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/users\",\n  \"timestamp\": \"2026-09-15T08:34:49.512Z\"\n}"
+            }
+          ]
         },
         {
-          "name": "07 \u00b7 Write without X-CSRF-Token \u2192 403",
+          "name": "02 \u00b7 Team stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "stats"
+              ]
+            },
+            "description": "Counts for the tiles above the users table: `total`, `active`, `invited`, `suspended`, plus a breakdown by role (`admins` folds `SUPER_ADMIN` and `ADMIN` together, matching how the UI presents them).\n\nScoped like the list: a caller without `Manage Users` counts only active accounts.\n\nNo parameters."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Headcount tiles",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 10,\n    \"active\": 8,\n    \"invited\": 1,\n    \"suspended\": 1,\n    \"admins\": 2,\n    \"seniorBrokers\": 1,\n    \"brokers\": 6,\n    \"assistants\": 1\n  }\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/users/stats\",\n  \"timestamp\": \"2026-09-15T08:34:49.522Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Roles & permission matrix",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "roles"
+              ]
+            },
+            "description": "Everything the Roles & Permissions tab renders, generated from the server-side matrix \u2014 so the table an administrator reads is the ruleset the API actually enforces, not a frontend copy that drifts.\n\n**`roles[]`** \u2014 one entry per role with `permissionLevel`, `description`, live `userCount`, `assignable` (false for `SUPER_ADMIN`, which is never offered in the UI), and the role's full permission map.\n\n**`matrix[]`** \u2014 one entry per permission with its display `label` and a `scopes` object keyed by role.\n\n**`scopes[]`** \u2014 the scope vocabulary, in increasing order of reach:\n\n| Scope | Meaning |\n|---|---|\n| `NONE` | No access. The guard rejects the request. |\n| `READ` | May view, may not modify. |\n| `ASSIGNED` | Only rows assigned to this user. |\n| `OWN` | Only rows this user owns or originated. |\n| `ALL` | Every row. |\n\nScopes rather than booleans, because the matrix has \"Own Only\", \"Assigned\" and \"View\" cells that a boolean cannot express.\n\nAvailable to every signed-in user: the frontend hides controls the caller cannot use. That is a courtesy \u2014 the guard on each route is the actual enforcement.\n\nNo parameters."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Roles and permission matrix",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/roles",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "roles"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"roles\": [\n      {\n        \"role\": \"SUPER_ADMIN\",\n        \"label\": \"SUPER_ADMIN\",\n        \"permissionLevel\": \"Owner\",\n        \"description\": \"Owner account. Full administration, and cannot be demoted, suspended or removed.\",\n        \"userCount\": 1,\n        \"assignable\": false,\n        \"permissions\": {\n          \"VIEW_DASHBOARD\": \"ALL\",\n          \"VIEW_TRIPS\": \"ALL\",\n          \"MANAGE_TRIPS\": \"ALL\",\n          \"DELETE_TRIPS\": \"ALL\",\n          \"VIEW_FINANCIALS\": \"ALL\",\n          \"EXPORT_DATA\": \"ALL\",\n          \"MANAGE_USERS\": \"ALL\",\n          \"OPERATOR_SOURCING\": \"ALL\",\n          \"VIEW_CLIENTS\": \"ALL\",\n          \"MANAGE_CLIENTS\": \"ALL\"\n        }\n      },\n      {\n        \"role\": \"ADMIN\",\n        \"label\": \"ADMIN\",\n        \"permissionLevel\": \"Admin\",\n        \"description\": \"Full system administration, user management, and financial exports.\",\n        \"userCount\": 1,\n        \"assignable\": true,\n        \"permissions\": {\n          \"VIEW_DASHBOARD\": \"ALL\",\n          \"VIEW_TRIPS\": \"ALL\",\n          \"MANAGE_TRIPS\": \"ALL\",\n          \"DELETE_TRIPS\": \"ALL\",\n          \"VIEW_FINANCIALS\": \"ALL\",\n          \"EXPORT_DATA\": \"ALL\",\n          \"MANAGE_USERS\": \"ALL\",\n          \"OPERATOR_SOURCING\": \"ALL\",\n          \"VIEW_CLIENTS\": \"ALL\",\n          \"MANAGE_CLIENTS\": \"ALL\"\n        }\n      },\n      {\n        \"role\": \"SENIOR_BROKER\",\n        \"label\": \"SENIOR_BROKER\",\n        \"permissionLevel\": \"High\",\n        \"description\": \"Full trip management, operator sourcing, and team financial visibility.\",\n        \"userCount\": 1,\n        \"assignable\": true,\n        \"permissions\": {\n          \"VIEW_DASHBOARD\": \"ALL\",\n          \"VIEW_TRIPS\": \"ALL\",\n          \"MANAGE_TRIPS\": \"ALL\",\n          \"DELETE_TRIPS\": \"NONE\",\n          \"VIEW_FINANCIALS\": \"ALL\",\n          \"EXPORT_DATA\": \"ALL\",\n          \"MANAGE_USERS\": \"NONE\",\n          \"OPERATOR_SOURCING\": \"ALL\",\n          \"VIEW_CLIENTS\": \"ALL\",\n          \"MANAGE_CLIENTS\": \"ALL\"\n        }\n      },\n      {\n        \"role\": \"BROKER\",\n        \"label\": \"BROKER\",\n        \"permissionLevel\": \"Medium\",\n        \"description\": \"Create and manage own trips, leads, quotes, and operator queries.\",\n        \"userCount\": 6,\n        \"assignable\": true,\n        \"permissions\": {\n          \"VIEW_DASHBOARD\": \"ALL\",\n          \"VIEW_TRIPS\": \"OWN\",\n          \"MANAGE_TRIPS\": \"OWN\",\n          \"DELETE_TRIPS\": \"NONE\",\n          \"VIEW_FINANCIALS\": \"OWN\",\n          \"EXPORT_DATA\": \"NONE\",\n          \"MANAGE_USERS\": \"NONE\",\n          \"OPERATOR_SOURCING\": \"ALL\",\n          \"VIEW_CLIENTS\": \"ASSIGNED\",\n          \"MANAGE_CLIENTS\": \"ASSIGNED\"\n        }\n      },\n      {\n        \"role\": \"ASSISTANT\",\n        \"label\": \"ASSISTANT\",\n        \"permissionLevel\": \"Low\",\n        \"description\": \"View assigned trips, flight tracking, and support operational workflows.\",\n        \"userCount\": 1,\n        \"assignable\": true,\n        \"permissions\": {\n          \"VIEW_DASHBOARD\": \"ALL\",\n          \"VIEW_TRIPS\": \"ASSIGNED\",\n          \"MANAGE_TRIPS\": \"NONE\",\n          \"DELETE_TRIPS\": \"NONE\",\n          \"VIEW_FINANCIALS\": \"NONE\",\n          \"EXPORT_DATA\": \"NONE\",\n          \"MANAGE_USERS\": \"NONE\",\n          \"OPERATOR_SOURCING\": \"READ\",\n          \"VIEW_CLIENTS\": \"ASSIGNED\",\n          \"MANAGE_CLIENTS\": \"NONE\"\n        }\n      }\n    ],\n    \"matrix\": [\n      {\n        \"permission\": \"VIEW_DASHBOARD\",\n        \"label\": \"View Dashboard\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"ALL\",\n          \"BROKER\": \"ALL\",\n          \"ASSISTANT\": \"ALL\"\n        }\n      },\n      {\n        \"permission\": \"VIEW_TRIPS\",\n        \"label\": \"View All Trips\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"ALL\",\n          \"BROKER\": \"OWN\",\n          \"ASSISTANT\": \"ASSIGNED\"\n        }\n      },\n      {\n        \"permission\": \"MANAGE_TRIPS\",\n        \"label\": \"Create/Edit Trips\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"ALL\",\n          \"BROKER\": \"OWN\",\n          \"ASSISTANT\": \"NONE\"\n        }\n      },\n      {\n        \"permission\": \"DELETE_TRIPS\",\n        \"label\": \"Delete Trips\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"NONE\",\n          \"BROKER\": \"NONE\",\n          \"ASSISTANT\": \"NONE\"\n        }\n      },\n      {\n        \"permission\": \"VIEW_FINANCIALS\",\n        \"label\": \"View Financials\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"ALL\",\n          \"BROKER\": \"OWN\",\n          \"ASSISTANT\": \"NONE\"\n        }\n      },\n      {\n        \"permission\": \"EXPORT_DATA\",\n        \"label\": \"Export Data\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"ALL\",\n          \"BROKER\": \"NONE\",\n          \"ASSISTANT\": \"NONE\"\n        }\n      },\n      {\n        \"permission\": \"MANAGE_USERS\",\n        \"label\": \"Manage Users\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"NONE\",\n          \"BROKER\": \"NONE\",\n          \"ASSISTANT\": \"NONE\"\n        }\n      },\n      {\n        \"permission\": \"OPERATOR_SOURCING\",\n        \"label\": \"Operator Sourcing\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"ALL\",\n          \"BROKER\": \"ALL\",\n          \"ASSISTANT\": \"READ\"\n        }\n      },\n      {\n        \"permission\": \"VIEW_CLIENTS\",\n        \"label\": \"View Clients\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"ALL\",\n          \"BROKER\": \"ASSIGNED\",\n          \"ASSISTANT\": \"ASSIGNED\"\n        }\n      },\n      {\n        \"permission\": \"MANAGE_CLIENTS\",\n        \"label\": \"Create/Edit Clients\",\n        \"scopes\": {\n          \"SUPER_ADMIN\": \"ALL\",\n          \"ADMIN\": \"ALL\",\n          \"SENIOR_BROKER\": \"ALL\",\n          \"BROKER\": \"ASSIGNED\",\n          \"ASSISTANT\": \"NONE\"\n        }\n      }\n    ],\n    \"scopes\": [\n      \"NONE\",\n      \"READ\",\n      \"ASSIGNED\",\n      \"OWN\",\n      \"ALL\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/roles",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "roles"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/users/roles\",\n  \"timestamp\": \"2026-09-15T08:34:49.527Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Get team member",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{userId}}",
+                  "description": "UUID of the team member. Anything that is not a well-formed UUID returns 400 before any lookup happens."
+                }
+              ]
+            },
+            "description": "One team member, with `invitedBy` and a `_count` of the clients assigned to and originated by them.\n\nSubject to the same projection rule as the list: without `Manage Users` you get the reduced shape.\n\n**404, not 403**, for an account outside your visibility \u2014 see the captured example. A 403 would confirm the row exists."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 One team member",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n    \"email\": \"mark@tribecajets.com\",\n    \"firstName\": \"Mark\",\n    \"lastName\": \"Evans\",\n    \"phone\": null,\n    \"role\": \"BROKER\",\n    \"status\": \"ACTIVE\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-09-15T06:24:20.777Z\",\n    \"createdAt\": \"2026-09-15T06:22:21.605Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T08:34:49.061Z\",\n    \"updatedById\": null,\n    \"deletedAt\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": null,\n    \"_count\": {\n      \"assignedClients\": 0,\n      \"originatedClients\": 0\n    },\n    \"permissionLevel\": \"Medium\"\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Outside the caller's visibility (never 403)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"User not found\",\n  \"path\": \"/api/users/473ebf79-80bf-442a-9fc5-f135ffb3aced\",\n  \"timestamp\": \"2026-09-15T08:34:49.543Z\"\n}"
+            },
+            {
+              "name": "404 \u00b7 No such user",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"User not found\",\n  \"path\": \"/api/users/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T08:34:49.547Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Malformed id",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed (uuid is expected)\",\n  \"path\": \"/api/users/not-a-uuid\",\n  \"timestamp\": \"2026-09-15T08:34:49.549Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Invite team member",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A fresh address per run. A fixed one would 409 on every run",
+                  "// after the first, making a working collection look broken.",
+                  "pm.collectionVariables.set('inviteEmail',",
+                  "    `avery.new+${Date.now()}@tribecajets.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The update and remove requests below operate on this",
+                  "// throwaway account, so running the folder never mutates a",
+                  "// seeded one.",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('invitedUserId',",
+                  "        pm.response.json().data.user.id);",
+                  "}",
+                  "pm.test('invitation created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/clients",
+              "raw": "{{baseUrl}}/users/invite",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "clients"
+                "users",
+                "invite"
               ]
             },
-            "description": "Lives in this folder because it must run **while signed in**. After sign-out it would return 401 before the CSRF guard is ever reached, proving nothing.",
+            "description": "Creates an account in `INVITED` status.\n\n**No password is accepted here, by design.** The account is created with a random, discarded password that is never usable, and the invitee sets a real one through the normal password-reset flow. So a credential is never chosen by, transmitted to, or known by the person doing the inviting.\n\n**Email delivery follows the SMTP config.** With SMTP configured an invitation goes out and `invitation.emailSent` is `true`. Without it, `emailSent` is `false` and `invitation.notice` explains what to tell the invitee instead \u2014 rather than failing silently and leaving them waiting for mail that never sent.\n\nRe-inviting a previously removed account revives that row rather than creating a duplicate, so its audit history stays attached.\n\nRequires `Manage Users`.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Identical to '03 \u00b7 Create client' but with NO X-CSRF-Token header.\n  // Must be rejected: cookies ride along automatically, so without this check\n  // any website could trigger authenticated writes on a signed-in user.\n  \"firstName\": \"No\",\n  \"lastName\": \"Csrf\"\n}",
+              "raw": "{\n  // required \u00b7 valid email, stored lowercase.\n  // This is the login identity and cannot be changed later.\n  // Already in use by a live account \u2192 409.\n  \"email\": \"{{inviteEmail}}\",\n\n  // required \u00b7 1-100 chars\n  \"firstName\": \"Avery\",\n\n  // required \u00b7 1-100 chars\n  \"lastName\": \"Newman\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0163\",\n\n  // optional \u00b7 default \"BROKER\"\n  // Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\"\n  // \"SUPER_ADMIN\" is deliberately NOT assignable: it would let an\n  // admin mint an account immune to their own administration.\n  \"role\": \"BROKER\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2991,7 +3580,7 @@
           },
           "response": [
             {
-              "name": "403 \u00b7 Forbidden",
+              "name": "201 \u00b7 Invitation created",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -3000,13 +3589,191 @@
                     "value": "application/json"
                   }
                 ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"avery.new+1789461289@tribecajets.com\",\n  \"firstName\": \"Avery\",\n  \"lastName\": \"Newman\",\n  \"phone\": \"+1 555 0163\",\n  \"role\": \"BROKER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": {
-                  "raw": "{{baseUrl}}/clients",
+                  "raw": "{{baseUrl}}/users/invite",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
-                    "clients"
+                    "users",
+                    "invite"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"edf1ef4d-e7e5-4b03-aa8d-f25f1cbcb992\",\n      \"email\": \"avery.new+1789461289@tribecajets.com\",\n      \"firstName\": \"Avery\",\n      \"lastName\": \"Newman\",\n      \"phone\": \"+1 555 0163\",\n      \"role\": \"BROKER\",\n      \"status\": \"INVITED\",\n      \"avatarKey\": null,\n      \"twoFactorEnabled\": false,\n      \"lastLoginAt\": null,\n      \"createdAt\": \"2026-09-15T08:34:49.596Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T08:34:49.596Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"permissionLevel\": \"Medium\"\n    },\n    \"invitation\": {\n      \"emailSent\": false,\n      \"notice\": \"SMTP is not configured, so no invitation email was sent. Ask the user to open the sign-in page and use \\\"Forgot password?\\\" with this email address to set their password.\"\n    }\n  }\n}"
+            },
+            {
+              "name": "409 \u00b7 Email already in use",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"avery.new+1789461289@tribecajets.com\",\n  \"firstName\": \"Avery\",\n  \"lastName\": \"Newman\",\n  \"phone\": \"+1 555 0163\",\n  \"role\": \"BROKER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/invite",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "invite"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An account with that email already exists\",\n  \"path\": \"/api/users/invite\",\n  \"timestamp\": \"2026-09-15T08:34:49.603Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"not-an-email\",\n  \"firstName\": \"\",\n  \"lastName\": \"X\",\n  \"role\": \"BROKER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/invite",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "invite"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"email\": \"Invalid email address\",\n    \"firstName\": \"First name is required\"\n  },\n  \"path\": \"/api/users/invite\",\n  \"timestamp\": \"2026-09-15T08:34:49.606Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 SUPER_ADMIN is not assignable",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"x@tribecajets.com\",\n  \"firstName\": \"X\",\n  \"lastName\": \"Y\",\n  \"role\": \"SUPER_ADMIN\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/invite",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "invite"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"role\": \"Invalid option: expected one of \\\"ADMIN\\\"|\\\"SENIOR_BROKER\\\"|\\\"BROKER\\\"|\\\"ASSISTANT\\\"\"\n  },\n  \"path\": \"/api/users/invite\",\n  \"timestamp\": \"2026-09-15T08:34:49.609Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Role lacks Manage Users",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"avery.new+1789461289@tribecajets.com\",\n  \"firstName\": \"Avery\",\n  \"lastName\": \"Newman\",\n  \"phone\": \"+1 555 0163\",\n  \"role\": \"BROKER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/invite",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "invite"
                   ]
                 }
               },
@@ -3020,20 +3787,557 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Invalid or missing CSRF token\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.934Z\"\n}"
-            }
-          ],
-          "event": [
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Users)\",\n  \"path\": \"/api/users/invite\",\n  \"timestamp\": \"2026-09-15T08:34:49.611Z\"\n}"
+            },
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('rejected by CSRF guard', () => pm.response.to.have.status(403));"
-                ]
-              }
+              "name": "403 \u00b7 Missing X-CSRF-Token",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"avery.new+1789461289@tribecajets.com\",\n  \"firstName\": \"Avery\",\n  \"lastName\": \"Newman\",\n  \"phone\": \"+1 555 0163\",\n  \"role\": \"BROKER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/invite",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "invite"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Invalid or missing CSRF token\",\n  \"path\": \"/api/users/invite\",\n  \"timestamp\": \"2026-09-15T08:34:49.613Z\"\n}"
             }
           ]
+        },
+        {
+          "name": "06 \u00b7 Update team member",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{invitedUserId}}",
+                  "description": "UUID of the team member to update. Populated by `06 \u00b7 Invite team member`, so running this folder in order never mutates a seeded account."
+                }
+              ]
+            },
+            "description": "Partial update. Send only the fields you are changing; at least one is required (an empty body returns 400).\n\n**Deliberately absent:** `email` (the login identity and the anchor of the audit trail) and `password` (never set by an administrator).\n\n**Refusals that protect the system from its own administrators:**\n\n| Attempt | Result |\n|---|---|\n| Change your own role | 400 |\n| Set your own status to anything but `ACTIVE` | 400 |\n| Modify the `SUPER_ADMIN` owner (unless you are it) | 403 |\n| Demote or suspend the last active administrator | 400 |\n\nThe last-administrator check counts against the live database rather than the request, because two admins demoting each other concurrently would each individually look safe.\n\nRole and status changes are written to the audit log as `user.access_changed` with before/after values.\n\nRequires `Manage Users`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // all fields optional \u00b7 send at least one, or 400\n\n  // 1-100 chars\n  \"firstName\": \"Avery\",\n\n  // 1-100 chars\n  \"lastName\": \"Newman\",\n\n  // max 40 chars \u00b7 send null to clear it\n  \"phone\": \"+1 555 0199\",\n\n  // Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\"\n  // \"SUPER_ADMIN\" is not assignable. Cannot be your own role.\n  \"role\": \"SENIOR_BROKER\",\n\n  // Allowed (case-sensitive): \"ACTIVE\" | \"INVITED\" | \"SUSPENDED\"\n  // SUSPENDED revokes access; the row and its history are kept.\n  // Cannot be used on your own account.\n  \"status\": \"ACTIVE\",\n\n  // boolean \u00b7 turns the two-factor sign-in challenge on or off\n  // for this account. This is the toggle behind the security\n  // setting; two-factor is not mandatory system-wide.\n  \"twoFactorEnabled\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Updated",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"SENIOR_BROKER\",\n  \"status\": \"ACTIVE\",\n  \"phone\": \"+1 555 0199\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"edf1ef4d-e7e5-4b03-aa8d-f25f1cbcb992\",\n    \"email\": \"avery.new+1789461289@tribecajets.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Newman\",\n    \"phone\": \"+1 555 0199\",\n    \"role\": \"SENIOR_BROKER\",\n    \"status\": \"ACTIVE\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": null,\n    \"createdAt\": \"2026-09-15T08:34:49.596Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T08:34:49.616Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"permissionLevel\": \"High\"\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Empty patch",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/users/edf1ef4d-e7e5-4b03-aa8d-f25f1cbcb992\",\n  \"timestamp\": \"2026-09-15T08:34:49.621Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Enum is case-sensitive",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"senior_broker\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"role\": \"Invalid option: expected one of \\\"ADMIN\\\"|\\\"SENIOR_BROKER\\\"|\\\"BROKER\\\"|\\\"ASSISTANT\\\"\"\n  },\n  \"path\": \"/api/users/edf1ef4d-e7e5-4b03-aa8d-f25f1cbcb992\",\n  \"timestamp\": \"2026-09-15T08:34:49.623Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Cannot change your own role",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"BROKER\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"You cannot change your own role. Ask another administrator.\",\n  \"path\": \"/api/users/bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n  \"timestamp\": \"2026-09-15T08:34:49.629Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 The owner account is immutable",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"SUSPENDED\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"The owner account cannot be modified\",\n  \"path\": \"/api/users/bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n  \"timestamp\": \"2026-09-15T08:34:49.734Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Remove team member (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{invitedUserId}}",
+                  "description": "UUID of the team member to remove. Populated by `06 \u00b7 Invite team member`."
+                }
+              ]
+            },
+            "description": "**Soft delete.** Sets `deletedAt` and `status = SUSPENDED`; the row, its audit history and everything referencing it are retained. Historical data is never destroyed.\n\n**Every session is revoked in the same transaction.** Marking the row deleted without killing the refresh tokens would leave the removed user signed in for the remaining lifetime of their access token \u2014 up to 15 minutes of access after being removed.\n\nReturns **204 No Content** with an empty body.\n\nRefused for your own account (400) and for the `SUPER_ADMIN` owner (403). Removing the last active administrator is refused (400).\n\nRequires `Manage Users`."
+          },
+          "response": [
+            {
+              "name": "204 \u00b7 Removed (soft)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "404 \u00b7 Already removed",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"User not found\",\n  \"path\": \"/api/users/edf1ef4d-e7e5-4b03-aa8d-f25f1cbcb992\",\n  \"timestamp\": \"2026-09-15T08:34:49.743Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Cannot remove your own account",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"You cannot remove your own account\",\n  \"path\": \"/api/users/bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n  \"timestamp\": \"2026-09-15T08:34:49.745Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 The owner account cannot be removed",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"The owner account cannot be modified\",\n  \"path\": \"/api/users/bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n  \"timestamp\": \"2026-09-15T08:34:49.748Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Role lacks Manage Users",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/users/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Users)\",\n  \"path\": \"/api/users/473ebf79-80bf-442a-9fc5-f135ffb3aced\",\n  \"timestamp\": \"2026-09-15T08:34:49.750Z\"\n}"
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
         }
       ]
     }
