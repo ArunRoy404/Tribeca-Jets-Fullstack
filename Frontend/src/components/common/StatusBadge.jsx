@@ -24,6 +24,12 @@ const STATUS_TONES = {
   Approved: "success",
   Rejected: "destructive",
   "Vendor Pending": "pending",
+  // Team members (users & roles)
+  Invited: "pending",
+  Suspended: "destructive",
+  // Permission levels shown on the roles cards and the table's Permission column
+  Owner: "purple",
+  Admin: "infoStrong",
   // Leads & Agents
   Active: "success",
   Qualified: "info",
