@@ -33,6 +33,19 @@ export const assignableRoleSchema = z.enum([
   UserRole.ASSISTANT,
 ]);
 
+/**
+ * The statuses an administrator may actually set.
+ *
+ * INVITED is absent: it is not a decision, it is the state an account is born
+ * in and leaves exactly once, by the invitee accepting the invitation. Letting
+ * it be set by hand would mean an administrator could push a live account back
+ * into a pending state it has no way to leave a second time.
+ */
+export const manageableStatusSchema = z.enum([
+  UserStatus.ACTIVE,
+  UserStatus.SUSPENDED,
+]);
+
 export const queryUsersSchema = paginationSchema.extend({
   /** Filter to one role. Omit for all roles. */
   role: z.enum(UserRole).optional(),
@@ -72,7 +85,8 @@ export class InviteUserDto extends createZodDto(inviteUserSchema) {}
  * Every field optional — this is a PATCH.
  *
  * Note what is absent: `email` cannot be changed (it is the login identity and
- * the audit trail's anchor), and `password` is never set by an administrator.
+ * the audit trail's anchor), `password` is never set by an administrator, and
+ * `status` accepts only ACTIVE or SUSPENDED.
  */
 export const updateUserSchema = z
   .object({
@@ -80,7 +94,8 @@ export const updateUserSchema = z
     lastName: z.string().trim().min(1).max(100).optional(),
     phone: z.string().trim().max(40).nullable().optional(),
     role: assignableRoleSchema.optional(),
-    status: z.enum(UserStatus).optional(),
+    /** ACTIVE or SUSPENDED only — see `manageableStatusSchema`. */
+    status: manageableStatusSchema.optional(),
     twoFactorEnabled: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {

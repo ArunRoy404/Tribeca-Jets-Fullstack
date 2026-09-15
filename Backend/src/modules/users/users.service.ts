@@ -285,6 +285,26 @@ export class UsersService {
     }
   }
 
+  /**
+   * An invited account's status is not an administrator's to set.
+   *
+   * It leaves INVITED exactly once, when the invitee accepts by setting their
+   * password. Suspending a pending invitation instead of withdrawing it would
+   * strand the row: the invitee cannot sign in, and completing the reset would
+   * no longer activate them, so nothing could ever move the account again.
+   * Remove the invitation instead — that is what `DELETE /users/:id` is for.
+   */
+  private assertStatusChangeAllowed(
+    target: { status: UserStatus },
+    dto: UpdateUserInput,
+  ): void {
+    if (dto.status === undefined || target.status !== UserStatus.INVITED) return;
+
+    throw new BadRequestException(
+      'This invitation has not been accepted yet, so its status cannot be changed. The account activates itself when the user sets their password.',
+    );
+  }
+
   private assertNotSelfDemotion(
     actor: AuthenticatedUser,
     targetId: string,
@@ -426,7 +446,7 @@ export class UsersService {
       return {
         emailSent: false,
         notice:
-          'SMTP is not configured, so no invitation email was sent. Ask the user to open the sign-in page and use "Forgot password?" with this email address to set their password.',
+          'SMTP is not configured, so no invitation email was sent. Ask the user to open the sign-in page and use "Forgot password?" with this email address — setting their password accepts the invitation and activates the account.',
       };
     }
     return { emailSent: true, notice: null };
@@ -440,6 +460,7 @@ export class UsersService {
     if (!target) throw new NotFoundException('User not found');
 
     this.assertMayAdminister(actor, target, 'update');
+    this.assertStatusChangeAllowed(target, dto);
     this.assertNotSelfDemotion(actor, id, dto);
     await this.assertNotLastAdministrator(id, {
       role: dto.role,
