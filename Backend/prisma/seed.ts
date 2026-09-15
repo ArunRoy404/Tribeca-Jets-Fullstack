@@ -47,6 +47,36 @@ async function main(): Promise<void> {
     },
   });
 
+  // Dedicated target for password-reset testing, so exercising that flow (from
+  // the Postman collection or by hand) never disturbs the accounts the sign-in
+  // and scoping tests depend on. Its password is force-reset on every seed run.
+  await prisma.user.upsert({
+    where: { email: 'reset-demo@tribecajets.com' },
+    update: { passwordHash: password },
+    create: {
+      email: 'reset-demo@tribecajets.com',
+      passwordHash: password,
+      firstName: 'Riley',
+      lastName: 'Reset',
+      role: UserRole.BROKER,
+    },
+  });
+
+  // Two-factor is off for the accounts above so the common path stays quick to
+  // test; this one exercises the challenge flow.
+  await prisma.user.upsert({
+    where: { email: 'security@tribecajets.com' },
+    update: { twoFactorEnabled: true },
+    create: {
+      email: 'security@tribecajets.com',
+      passwordHash: password,
+      firstName: 'Sam',
+      lastName: 'Secure',
+      role: UserRole.ADMIN,
+      twoFactorEnabled: true,
+    },
+  });
+
   // Two clients on different brokers, so row-level scoping is observable:
   // signing in as the broker must return exactly one of these.
   const clients = [
@@ -92,6 +122,8 @@ async function main(): Promise<void> {
   console.log('Seed complete.');
   console.log('  admin@tribecajets.com  / ChangeMe123!  (SUPER_ADMIN)');
   console.log('  broker@tribecajets.com / ChangeMe123!  (BROKER)');
+  console.log('  security@tribecajets.com / ChangeMe123!  (ADMIN, 2FA on)');
+  console.log('  reset-demo@tribecajets.com / ChangeMe123!  (BROKER, password-reset target)');
 }
 
 main()

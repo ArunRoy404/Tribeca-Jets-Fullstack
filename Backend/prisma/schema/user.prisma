@@ -20,8 +20,9 @@ model User {
 
   lastLoginAt DateTime?
 
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  verificationCodes VerificationCode[]
 
   /// Clients where this user owns the relationship.
   assignedClients    Client[] @relation("ClientAssignedBroker")
