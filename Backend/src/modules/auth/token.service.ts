@@ -5,8 +5,10 @@ import type { CookieOptions, Response } from 'express';
 import {
   ACCESS_TOKEN_COOKIE,
   CSRF_COOKIE,
+  PASSWORD_RESET_COOKIE,
   REFRESH_COOKIE_PATH,
   REFRESH_TOKEN_COOKIE,
+  TWO_FACTOR_COOKIE,
 } from '../../common/constants/auth.constants.js';
 import { AppConfigService } from '../../config/config.service.js';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
@@ -17,6 +19,14 @@ export interface SessionContext {
   ipAddress?: string | null;
   userAgent?: string | null;
 }
+
+/** Which flow cookie a challenge belongs to. */
+export type ChallengeKind = 'twoFactor' | 'passwordReset';
+
+const CHALLENGE_COOKIES: Record<ChallengeKind, string> = {
+  twoFactor: TWO_FACTOR_COOKIE,
+  passwordReset: PASSWORD_RESET_COOKIE,
+};
 
 /**
  * Owns token issuing, rotation, revocation and the cookies that carry them.
@@ -65,15 +75,22 @@ export class TokenService {
     });
   }
 
+  private refreshTtlMs(rememberMe: boolean): number {
+    return parseDuration(
+      rememberMe
+        ? this.config.auth.refreshTtlRemembered
+        : this.config.auth.refreshTtl,
+    );
+  }
+
   private async issueRefreshToken(
     userId: string,
     context: SessionContext,
+    rememberMe: boolean,
     replacesTokenId?: string,
   ): Promise<string> {
     const token = randomBytes(48).toString('base64url');
-    const expiresAt = new Date(
-      Date.now() + parseDuration(this.config.auth.refreshTtl),
-    );
+    const expiresAt = new Date(Date.now() + this.refreshTtlMs(rememberMe));
 
     const created = await this.prisma.refreshToken.create({
       data: {
@@ -101,13 +118,16 @@ export class TokenService {
     res: Response,
     user: AuthenticatedUser,
     context: SessionContext,
+    rememberMe = false,
   ): Promise<void> {
     const [accessToken, refreshToken] = await Promise.all([
       this.issueAccessToken(user),
-      this.issueRefreshToken(user.id, context),
+      this.issueRefreshToken(user.id, context, rememberMe),
     ]);
 
-    this.writeCookies(res, accessToken, refreshToken);
+    this.writeCookies(res, accessToken, refreshToken, rememberMe);
+    // The sign-in flow is over; drop any challenge cookie still hanging around.
+    this.clearChallenge(res, 'twoFactor');
   }
 
   /**
@@ -160,12 +180,18 @@ export class TokenService {
       role: stored.user.role,
     };
 
+    // Preserve the original session length across rotation, so "Remember me"
+    // is not silently downgraded on the first refresh.
+    const rememberMe =
+      stored.expiresAt.getTime() - stored.createdAt.getTime() >
+      parseDuration(this.config.auth.refreshTtl) * 1.5;
+
     const [accessToken, refreshToken] = await Promise.all([
       this.issueAccessToken(user),
-      this.issueRefreshToken(user.id, context, stored.id),
+      this.issueRefreshToken(user.id, context, rememberMe, stored.id),
     ]);
 
-    this.writeCookies(res, accessToken, refreshToken);
+    this.writeCookies(res, accessToken, refreshToken, rememberMe);
     return user;
   }
 
@@ -190,8 +216,10 @@ export class TokenService {
     res: Response,
     accessToken: string,
     refreshToken: string,
+    rememberMe: boolean,
   ): void {
     const base = this.baseCookieOptions();
+    const refreshMaxAge = this.refreshTtlMs(rememberMe);
 
     res.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
       ...base,
@@ -203,7 +231,7 @@ export class TokenService {
     res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
       ...base,
       path: REFRESH_COOKIE_PATH,
-      maxAge: parseDuration(this.config.auth.refreshTtl),
+      maxAge: refreshMaxAge,
     });
 
     // Readable by JS on purpose — the frontend echoes it in X-CSRF-Token.
@@ -211,7 +239,31 @@ export class TokenService {
       ...base,
       httpOnly: false,
       path: '/',
-      maxAge: parseDuration(this.config.auth.refreshTtl),
+      maxAge: refreshMaxAge,
+    });
+  }
+
+  /**
+   * Stores an in-flight challenge token. httpOnly, short-lived and scoped to
+   * the auth routes: it authorises a step in a flow, not a session.
+   */
+  setChallenge(
+    res: Response,
+    kind: ChallengeKind,
+    token: string,
+    ttlMs: number,
+  ): void {
+    res.cookie(CHALLENGE_COOKIES[kind], token, {
+      ...this.baseCookieOptions(),
+      path: REFRESH_COOKIE_PATH,
+      maxAge: ttlMs,
+    });
+  }
+
+  clearChallenge(res: Response, kind: ChallengeKind): void {
+    res.clearCookie(CHALLENGE_COOKIES[kind], {
+      ...this.baseCookieOptions(),
+      path: REFRESH_COOKIE_PATH,
     });
   }
 
