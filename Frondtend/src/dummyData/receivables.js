@@ -1,0 +1,55 @@
+export const receivablesStats = [
+  { label: "TOTAL OUTSTANDING", value: "$73,100", tone: "destructive" },
+  { label: "TOTAL COLLECTED", value: "$84,000", tone: "success" },
+  { label: "OVERDUE INVOICES", value: "0", tone: "destructive" },
+  { label: "TOTAL INVOICED", value: "$152,000", tone: "foreground" },
+];
+
+export const receivablesStatusFilterOptions = [
+  "All Status",
+  "Paid",
+  "Partially Paid",
+  "Overdue",
+  "Due",
+  "Pending",
+  "Cancelled",
+];
+
+export const receivablesData = [
+  {
+    id: "REC-1001",
+    client: "Sophia Morgan",
+    tripId: "TJ-1051",
+    invoice: "INV-2026-122",
+    amount: "$68,000",
+    amountRaw: 68000,
+    fet: "$5,100",
+    fetRaw: 5100,
+    paid: "$0",
+    paidRaw: 0,
+    balance: "$73,100",
+    balanceRaw: 73100,
+    due: "Aug 22, 2026",
+    status: "Due",
+    broker: "Mark",
+    method: "Wire Transfer",
+  },
+  {
+    id: "REC-1002",
+    client: "Daniel Brooks",
+    tripId: "TJ-1052",
+    invoice: "INV-2026-123",
+    amount: "$84,000",
+    amountRaw: 84000,
+    fet: "$6,300",
+    fetRaw: 6300,
+    paid: "$84,000",
+    paidRaw: 84000,
+    balance: "$0",
+    balanceRaw: 0,
+    due: "-",
+    status: "Paid",
+    broker: "Barry",
+    method: "Credit Card",
+  },
+];
