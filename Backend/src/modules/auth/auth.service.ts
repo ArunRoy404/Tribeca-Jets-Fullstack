@@ -10,7 +10,7 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { MailService } from '../../core/mail/mail.service.js';
 import { AppConfigService } from '../../config/config.service.js';
-import { VerificationPurpose } from '../../generated/prisma/enums.js';
+import { UserStatus, VerificationPurpose } from '../../generated/prisma/enums.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import type { LoginInput } from './dto/login.dto.js';
 import type { SessionContext } from './token.service.js';
@@ -120,11 +120,11 @@ export class AuthService {
       throw invalid;
     }
 
-    if (user.status !== 'ACTIVE') {
+    if (user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException(
-        user.status === 'SUSPENDED'
-          ? 'This account has been suspended'
-          : 'This account has not been activated yet',
+        user.status === UserStatus.SUSPENDED
+          ? 'This account has been suspended. Contact an administrator.'
+          : 'This invitation has not been accepted yet. Use "Forgot password?" to set your password and activate the account.',
       );
     }
 
@@ -389,6 +389,16 @@ export class AuthService {
    * Every existing session is revoked: if the reset was triggered because the
    * account was compromised, leaving the attacker's session alive would defeat
    * the entire exercise.
+   *
+   * This is also where an invitation is redeemed. An invited account has no
+   * password anyone knows, so setting one through this flow *is* the act of
+   * accepting the invitation, and the account becomes ACTIVE. Nothing else
+   * flips INVITED, which is why an invitee was previously locked out for good.
+   *
+   * The promotion is deliberately narrow: only INVITED is touched. A SUSPENDED
+   * account that resets its password stays suspended — status after activation
+   * is an administrative decision, and a password reset must never be a way
+   * around it.
    */
   async completePasswordReset(
     challengeToken: string | undefined,
@@ -402,7 +412,13 @@ export class AuthService {
 
     const user = await this.prisma.user.findFirstOrThrow({
       where: { id: userId },
-      select: { id: true, email: true, firstName: true, passwordHash: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        passwordHash: true,
+        status: true,
+      },
     });
 
     if (await argon2.verify(user.passwordHash, newPassword)) {
@@ -412,11 +428,15 @@ export class AuthService {
     }
 
     const passwordHash = await AuthService.hashPassword(newPassword);
+    const redeemsInvitation = user.status === UserStatus.INVITED;
 
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: userId },
-        data: { passwordHash },
+        data: {
+          passwordHash,
+          ...(redeemsInvitation ? { status: UserStatus.ACTIVE } : {}),
+        },
       }),
       this.prisma.refreshToken.updateMany({
         where: { userId, revokedAt: null },
@@ -438,6 +458,20 @@ export class AuthService {
       ipAddress: context.ipAddress,
       userAgent: context.userAgent,
     });
+
+    // A separate entry, because "this account went live" is a different
+    // question from "this password changed" and administrators ask both.
+    if (redeemsInvitation) {
+      await this.audit.record({
+        actorId: userId,
+        action: 'user.invitation_accepted',
+        entityType: 'User',
+        entityId: userId,
+        metadata: { from: UserStatus.INVITED, to: UserStatus.ACTIVE },
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      });
+    }
   }
 
   /**
