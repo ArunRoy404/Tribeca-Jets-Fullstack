@@ -56,6 +56,29 @@ updatedBy   User?    @relation("<Model>UpdatedBy", fields: [updatedById], refere
   `20260915142333_add_created_by_updated_by_audit_columns`, which carries the
   old invitedBy values across rather than losing them.
 
+## Account status is administrative, and `INVITED` is not a decision
+
+`UserStatus` has three values but only two are settable by a person:
+
+- **`INVITED`** is where an account is born, and it leaves exactly once — on its
+  own, when the invitee sets a password through the reset flow. That act *is*
+  accepting the invitation, and `completePasswordReset` flips the row to
+  `ACTIVE` in the same transaction. Nothing else may write it: the update DTO's
+  enum excludes it, and the service refuses any status change on a row that is
+  still `INVITED`. Withdraw an invitation by removing the user, never by
+  suspending it — a suspended invitation is a row nobody can move again.
+- **`ACTIVE` / `SUSPENDED`** are an administrator's call, made through
+  `PATCH /users/:id` by a `MANAGE_USERS` holder, and nothing else.
+
+**A password reset must never be a route around a suspension.** The promotion
+above is narrow by design — it fires only when the current status is `INVITED`.
+A suspended user who completes a reset stays suspended, including when the code
+was issued before the suspension landed. Any future flow that sets a password
+inherits this rule.
+
+The frontend mirrors it rather than re-deciding it: the status control is absent
+for a pending invitation and offers only Active/Suspended otherwise.
+
 ## Service layer rules
 
 - Soft delete (`deletedAt`), never a hard `delete`. Every query filters `deletedAt: null`.

@@ -50,6 +50,17 @@ Read `Frontend/src/dummyData/<module>.js`, the store, the table components and t
 - **Enums and fixed-value fields are documented case-sensitively**, listing the exact accepted values.
 - Verify with `newman` before calling the collection done. A collection that has not been run is not finished.
 
+## Keep these files current
+
+When an instruction lands that will still be true next week — a product rule, a
+constraint, a correction of something you did wrong — **write it into the
+relevant `AGENTS.md` in the same pass as the code**, without being asked twice.
+Rules that live only in a chat log are rules the next session will break.
+
+Judge by durability, not by emphasis. "Make the button blue" is a task. "Status
+is never changed by a password reset" is a rule. When it is genuinely one task,
+leave these files alone — a document that records everything is not read.
+
 ## Communication
 
 - Report what is actually true: if a check was skipped, say so; if tests fail, show the output.
