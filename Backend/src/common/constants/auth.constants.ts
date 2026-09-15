@@ -29,3 +29,6 @@ export const REFRESH_COOKIE_PATH = '/api/auth';
 export const IS_PUBLIC_KEY = 'isPublic';
 export const ROLES_KEY = 'roles';
 export const RATE_LIMIT_KEY = 'rateLimit';
+
+/** Metadata key for @RequirePermissions, read by PermissionsGuard. */
+export const PERMISSIONS_KEY = 'permissions';
