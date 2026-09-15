@@ -1,3 +1,4 @@
+
 /**
  * Display helpers for the authenticated user.
  *
@@ -101,6 +102,9 @@ export function toTeamMember(user) {
     // Audit trail, present on every record in every module.
     createdAt: user?.createdAt ?? null,
     updatedAt: user?.updatedAt ?? null,
+
+    // No archive trail here, unlike the other modules: staff accounts are
+    // never removed, so there is nothing to have been restored from.
 
     // Awaiting the trips and quotes modules.
     activeLeads: "—",

@@ -4,7 +4,7 @@ import UsersTableRow from "./UsersTableRow";
 import TableStatus from "@/components/table/common/TableStatus";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const columns = [
+const COLUMNS = [
   "User",
   "Email",
   "Role",
@@ -25,6 +25,7 @@ export default function UsersTable({
   isLoading,
   error,
 }) {
+  const columns = COLUMNS;
   const hasRows = Boolean(pageItems?.length);
   return (
     <div className="relative w-full overflow-x-auto hidden lg:block">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Eye, Edit, Trash2 } from "lucide-react";
+import { Eye, Edit } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
 import TablePagination from "@/components/table/common/TablePagination";
@@ -10,7 +10,6 @@ import UsersCardsContainer from "./UsersCardsContainer";
 import UsersTable from "./UsersTable";
 import RolesPermissionsTab from "@/components/users-roles/RolesPermissionsTab";
 import InviteUserDialog from "@/components/users-roles/InviteUserDialog";
-import DeleteUserDialog from "@/components/users-roles/DeleteUserDialog";
 import { useUsers, useUsersTableParams, USERS_TABS } from "@/hooks/users";
 import { useUsersRolesStore } from "@/store/useUsersRolesStore";
 import { toTeamMember } from "@/lib/user";
@@ -28,7 +27,6 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
   const selectUser = useUsersRolesStore((s) => s.selectUser);
   const openInviteModal = useUsersRolesStore((s) => s.openInviteModal);
   const openEditUserModal = useUsersRolesStore((s) => s.openEditUserModal);
-  const openDeleteModal = useUsersRolesStore((s) => s.openDeleteModal);
 
   const rows = useMemo(
     () => (usersQuery?.data?.data ?? []).map(toTeamMember),
@@ -37,6 +35,8 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
   const meta = usersQuery?.data?.meta;
   const pageCount = Math.max(meta?.totalPages ?? 1, 1);
 
+  // No remove action: a staff account is never deleted. Suspending it is the
+  // way out, and that is a status change inside Edit.
   const getRowActions = (item) => [
     {
       label: "View Details",
@@ -47,13 +47,6 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
       label: "Edit User",
       icon: <Edit />,
       onSelect: () => openEditUserModal?.(item),
-    },
-    "separator",
-    {
-      label: "Remove User",
-      icon: <Trash2 />,
-      variant: "destructive",
-      onSelect: () => openDeleteModal?.(item),
     },
   ];
 
@@ -117,7 +110,6 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
         )}
 
         <InviteUserDialog />
-        <DeleteUserDialog />
       </CommonCard>
     </Reveal>
   );

@@ -13,8 +13,12 @@ for the conventions; this folder adds the table-state ones.
 | `useRoles()` | roles + permission matrix, from the server's own rules |
 | `useInviteUser()` | mutation |
 | `useUpdateUser()` | mutation |
-| `useRemoveUser()` | mutation |
 | `useUsersTableParams()` | URL-backed tab, page, filters, sort |
+
+There is no remove or restore hook, and no Archived tab. A staff account is
+never deleted — suspending it is the way out, which is a status change through
+`useUpdateUser`. This module is the one exception to the archive/restore
+pattern every other module follows.
 
 Query hooks return the query object; mutation hooks return the mutation. No
 hook returns a hand-built `{ data, loading, error }` shape.

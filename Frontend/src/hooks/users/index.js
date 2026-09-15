@@ -10,5 +10,4 @@ export { useUserStats } from "./useUserStats";
 export { useRoles } from "./useRoles";
 export { useInviteUser } from "./useInviteUser";
 export { useUpdateUser } from "./useUpdateUser";
-export { useRemoveUser } from "./useRemoveUser";
 export { useUsersTableParams, USERS_TABS } from "./useUsersTableParams";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, UserCheck, UserX } from "lucide-react";
+import { Pencil, UserCheck, UserX } from "lucide-react";
 import { useUsersRolesStore } from "@/store/useUsersRolesStore";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,6 @@ export default function UserDetailSheet() {
   const selectedId = useUsersRolesStore((s) => s.selectedUserId);
   const close = useUsersRolesStore((s) => s.closeUserDetail);
   const openEditUserModal = useUsersRolesStore((s) => s.openEditUserModal);
-  const openDeleteModal = useUsersRolesStore((s) => s.openDeleteModal);
 
   // Fetched rather than read from the table's page, so the sheet shows the
   // full record — invited-by, client counts — that the list projection omits.
@@ -173,17 +172,6 @@ export default function UserDetailSheet() {
                     {isSuspended ? "Reactivate" : "Suspend"}
                   </Button>
                 )}
-                <Button
-                  variant="destructive"
-                  className="gap-2 px-4"
-                  onClick={() => {
-                    close();
-                    openDeleteModal(item);
-                  }}
-                >
-                  <Trash2 className="size-4" />
-                  Remove
-                </Button>
               </div>
             </div>
           </>

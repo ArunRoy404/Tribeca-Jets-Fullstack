@@ -10,7 +10,10 @@ import {
 import { FILTERABLE_ROLES, FILTERABLE_STATUSES } from "@/lib/user";
 
 /** Tab ids. Kept short because they appear in the URL. */
-export const USERS_TABS = { MEMBERS: "members", ROLES: "roles" };
+export const USERS_TABS = {
+  MEMBERS: "members",
+  ROLES: "roles",
+};
 
 const TAB_VALUES = Object.values(USERS_TABS);
 

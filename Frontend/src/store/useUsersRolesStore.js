@@ -22,18 +22,10 @@ export const useUsersRolesStore = create((set) => ({
   /** The user being edited, or null when inviting someone new. */
   editingUser: null,
 
-  deleteModalOpen: false,
-  /** Held whole, not by id: the row must stay nameable in the confirmation
-   *  dialog even after the list refetches and drops it. */
-  deleteTarget: null,
-
   selectUser: (id) => set({ selectedUserId: id }),
   closeUserDetail: () => set({ selectedUserId: null }),
 
   openInviteModal: () => set({ inviteModalOpen: true, editingUser: null }),
   openEditUserModal: (user) => set({ inviteModalOpen: true, editingUser: user }),
   closeInviteModal: () => set({ inviteModalOpen: false, editingUser: null }),
-
-  openDeleteModal: (user) => set({ deleteModalOpen: true, deleteTarget: user }),
-  closeDeleteModal: () => set({ deleteModalOpen: false, deleteTarget: null }),
 }));

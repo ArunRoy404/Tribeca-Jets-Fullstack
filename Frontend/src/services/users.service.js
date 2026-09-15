@@ -42,6 +42,6 @@ export const usersService = {
   update: ({ id, ...payload }) =>
     request({ url: `/users/${id}`, method: "PATCH", data: payload }),
 
-  /** DELETE /users/:id — soft delete; responds 204 with no body. */
-  remove: (id) => request({ url: `/users/${id}`, method: "DELETE" }),
+  // No remove or restore: a staff account is never deleted. Suspending is the
+  // way out, and that goes through `update`.
 };
