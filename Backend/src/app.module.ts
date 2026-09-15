@@ -6,6 +6,7 @@ import { PrismaModule } from './core/prisma/prisma.module.js';
 import { RedisModule } from './core/redis/redis.module.js';
 import { StorageModule } from './core/storage/storage.module.js';
 import { AuditModule } from './core/audit/audit.module.js';
+import { MailModule } from './core/mail/mail.module.js';
 
 import { AuthModule } from './modules/auth/auth.module.js';
 import { ClientsModule } from './modules/clients/clients.module.js';
@@ -29,6 +30,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     RedisModule,
     StorageModule,
     AuditModule,
+    MailModule,
 
     // Feature modules — one per domain, added as each is built.
     HealthModule,
