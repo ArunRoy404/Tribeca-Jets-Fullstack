@@ -1,0 +1,73 @@
+/// Clients and travel agents share one table: they carry the same trip,
+/// quote and payment relationships and differ only by `type` plus which
+/// fields are populated. Splitting them would duplicate every relation.
+model Client {
+  id   String     @id @default(uuid()) @db.Uuid
+  type ClientType @default(DIRECT)
+
+  /// Populated for travel agents and corporate accounts.
+  companyName String?
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+
+  /// Date only — drives VIP birthday reminders on the daily brief.
+  birthday DateTime? @db.Date
+
+  homeAirport String?
+
+  leadSource LeadSource @default(DIRECT)
+  leadStage  LeadStage  @default(NEW)
+
+  /// Currently responsible broker; brokers only see rows where this is them.
+  assignedBrokerId String? @db.Uuid
+  assignedBroker   User?   @relation("ClientAssignedBroker", fields: [assignedBrokerId], references: [id], onDelete: SetNull)
+
+  /// Who first brought the relationship in. Drives commission attribution and
+  /// survives reassignment of `assignedBrokerId`.
+  originatingBrokerId String? @db.Uuid
+  originatingBroker   User?   @relation("ClientOriginatingBroker", fields: [originatingBrokerId], references: [id], onDelete: SetNull)
+
+  /// Travel preferences (pets, catering, FBO, no red-eye, baggage, ...).
+  /// Held as JSON because the scope lists these as an open, still-growing set;
+  /// any preference that gains business rules graduates to a real column.
+  preferences Json @default("{}")
+
+  notes  String?
+  labels String[] @default([])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([assignedBrokerId, deletedAt])
+  @@index([type, leadStage])
+  @@index([email])
+  @@index([lastName, firstName])
+  @@map("clients")
+}
+
+enum ClientType {
+  DIRECT
+  TRAVEL_AGENT
+}
+
+enum LeadSource {
+  DIRECT
+  TRAVEL_AGENT
+  FACEBOOK_GROUP_1
+  FACEBOOK_GROUP_2
+  REFERRAL
+  WEBSITE
+  OTHER
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUOTED
+  NEGOTIATING
+  BOOKED
+  LOST
+}

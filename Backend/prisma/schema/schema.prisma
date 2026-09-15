@@ -1,0 +1,12 @@
+// Datasource + generator only. Models live in sibling .prisma files, one per
+// domain, so an evolving schema stays reviewable instead of becoming one
+// unmergeable 2000-line file.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
