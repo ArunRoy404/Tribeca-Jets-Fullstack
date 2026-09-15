@@ -32,6 +32,8 @@ const CLIENT_LIST_SELECT = {
   assignedBroker: {
     select: { id: true, firstName: true, lastName: true, email: true },
   },
+  createdById: true,
+  updatedById: true,
 } satisfies Prisma.ClientSelect;
 
 const SORTABLE_FIELDS = new Set([
@@ -150,6 +152,12 @@ export class ClientsService {
         // Attribution defaults to the creator and never changes afterwards.
         originatingBrokerId: input.originatingBrokerId ?? assignedBrokerId,
         preferences: preferences as Prisma.InputJsonValue,
+        // Audit columns, set from the session rather than the payload. Kept
+        // distinct from assignedBroker: an admin can create a client for
+        // someone else, and reassigning it later must not rewrite who entered
+        // the record.
+        createdById: user.id,
+        updatedById: user.id,
       },
       select: CLIENT_LIST_SELECT,
     });
@@ -183,6 +191,7 @@ export class ClientsService {
       where: { id },
       data: {
         ...fields,
+        updatedById: user.id,
         ...(preferences
           ? { preferences: preferences as Prisma.InputJsonValue }
           : {}),
@@ -210,7 +219,7 @@ export class ClientsService {
 
     await this.prisma.client.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), updatedById: user.id },
     });
 
     await this.audit.record({
