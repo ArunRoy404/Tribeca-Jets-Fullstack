@@ -39,6 +39,11 @@ export interface AppConfig {
     maxAttempts: number;
   };
 
+  rateLimit: {
+    enabled: boolean;
+    multiplier: number;
+  };
+
   mail: {
     driver: MailDriverName;
     from: string;
@@ -162,6 +167,11 @@ export function buildConfig(env: Env): AppConfig {
       passwordResetTtlMinutes: env.PASSWORD_RESET_CODE_TTL_MINUTES,
       passwordResetWindowMinutes: env.PASSWORD_RESET_WINDOW_MINUTES,
       maxAttempts: env.VERIFICATION_MAX_ATTEMPTS,
+    },
+
+    rateLimit: {
+      enabled: env.RATE_LIMIT_ENABLED,
+      multiplier: env.RATE_LIMIT_MULTIPLIER,
     },
 
     storage: resolveStorage(env),

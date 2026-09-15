@@ -10,6 +10,7 @@ import type { Request } from 'express';
 import { RATE_LIMIT_KEY } from '../constants/auth.constants.js';
 import type { RateLimitOptions } from '../decorators/rate-limit.decorator.js';
 import { RedisService } from '../../core/redis/redis.service.js';
+import { AppConfigService } from '../../config/config.service.js';
 import type { AuthenticatedUser } from '../types/api.types.js';
 
 /**
@@ -23,6 +24,7 @@ export class RateLimitGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly redis: RedisService,
+    private readonly config: AppConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -33,6 +35,12 @@ export class RateLimitGuard implements CanActivate {
 
     if (!options) return true;
 
+    // Both knobs are pinned to their safe values in production by
+    // env.validation, so this can only relax limits in development.
+    const { enabled, multiplier } = this.config.rateLimit;
+    if (!enabled) return true;
+    const limit = options.limit * multiplier;
+
     const request = context.switchToHttp().getRequest<Request>();
     const user = request.user as AuthenticatedUser | undefined;
     // Authenticated callers are limited per account; anonymous ones per IP.
@@ -42,7 +50,7 @@ export class RateLimitGuard implements CanActivate {
 
     const hits = await this.redis.incrementWithTtl(key, options.windowSeconds);
 
-    if (hits > options.limit) {
+    if (hits > limit) {
       const retryAfter = await this.redis.ttl(key);
       throw new HttpException(
         {

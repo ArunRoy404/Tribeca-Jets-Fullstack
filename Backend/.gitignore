@@ -58,3 +58,7 @@ Thumbs.db
 *.swo
 .vscode/*
 !.vscode/extensions.json
+
+# Python bytecode from the Postman collection builders in postman/.
+__pycache__/
+*.py[cod]

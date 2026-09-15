@@ -29,6 +29,7 @@ export class AppConfigService {
   get auth() { return this.get('auth'); }
   get cors() { return this.get('cors'); }
   get verification() { return this.get('verification'); }
+  get rateLimit() { return this.get('rateLimit'); }
   get storage() { return this.get('storage'); }
   get mail() { return this.get('mail'); }
   get ai() { return this.get('ai'); }
