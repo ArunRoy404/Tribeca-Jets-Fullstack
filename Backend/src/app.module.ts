@@ -10,6 +10,8 @@ import { MailModule } from './core/mail/mail.module.js';
 
 import { AuthModule } from './modules/auth/auth.module.js';
 import { ClientsModule } from './modules/clients/clients.module.js';
+import { AirportsModule } from './modules/airports/airports.module.js';
+import { OperatorsModule } from './modules/operators/operators.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -39,6 +41,8 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     AuthModule,
     UsersModule,
     ClientsModule,
+    AirportsModule,
+    OperatorsModule,
   ],
   providers: [
     /**
