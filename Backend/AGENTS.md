@@ -88,11 +88,35 @@ for a pending invitation and offers only Active/Suspended otherwise.
 
 ## List endpoints
 
-Extend `paginationSchema` (`src/common/dto/pagination.dto.ts`) rather than redefining page/limit/search/sortBy/sortOrder. `limit` is capped at 100 so nobody can pull an entire table in one request.
+Every list endpoint is assembled from the shared pieces below. If you are about
+to write paging, sorting or searching by hand, one of these already exists —
+and the second hand-written copy is how the two modules silently drifted apart
+the first time.
 
-- Return via `paginate(items, total, page, limit)` so `meta` is always complete.
-- **Whitelist sortable columns.** Never pass a caller-supplied string into Prisma's `orderBy` — it is an injection surface and an accidental-full-scan surface.
-- Filters are explicit enum-typed query params, never a free-form `filter` object.
+| Need | Use | Lives in |
+|---|---|---|
+| page / limit / search / sortOrder | `paginationSchema.extend({ ...filters })` | `common/dto/pagination.dto.ts` |
+| sortable-column allowlist | `sortableBy(FIELDS)` in the **DTO** | same |
+| skip / take | `toPrismaPagination(query)` | same |
+| `{ success, data, meta }` | `paginate(items, total, page, limit)` | `common/types/api.types.ts` |
+| `?search=` across columns | `searchAcross(query.search, [...])` | `common/database/filters.ts` |
+| optional equality filters | `equalsAny(query, [...])` | same |
+| `orderBy` | `orderByField(query.sortBy, query.sortOrder)` | same |
+
+- **`DEFAULT_PAGE_SIZE` is 10 and `MAX_PAGE_SIZE` is 100**, both in
+  `pagination.dto.ts`. The default is paired with the frontend's
+  `DEFAULT_PAGE_SIZE`, and the ceiling with its `PAGE_SIZE_OPTIONS` — change
+  one and you must change the other, or a link built in the UI stops matching
+  what the API serves.
+- **Sortable columns are allowlisted in the DTO, not the service.** Rejecting
+  an unknown column at the edge with a 400 beats silently falling back to
+  `createdAt`: the fallback hides a broken client, and it leaves the service
+  re-checking something validation should already guarantee.
+- Filters are explicit enum-typed query params, never a free-form `filter`
+  object.
+- The `where` clause is the security boundary, so it stays readable at the call
+  site. Use the helpers for the repetitive parts; do not hide row-level scoping
+  behind a query builder.
 
 ## Errors
 

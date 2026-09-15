@@ -26,6 +26,26 @@ The schema is **not** designed up front. Modules land one at a time and earlier 
 
 The schedule is tight. Prefer the direct implementation over the configurable one. Do not build abstraction for modules that do not exist yet.
 
+### Fix a module when we reach it, not before
+
+When a shared component or hook improves, **only the module currently being
+worked on gets rewired.** Every other screen keeps using the old call signature
+until its own turn comes round. Do not sweep the codebase to make them all
+consistent, and do not treat an untouched module as unfinished work.
+
+Most screens are still dummy-backed and will be rewritten anyway when their API
+lands, so a sweep now is throwaway effort that touches dozens of files nobody
+asked about and buries the actual change in the diff.
+
+This makes **backwards compatibility a requirement of every shared change.**
+A new prop on a shared component is optional, with the old behaviour intact
+when it is absent — never a rename or a removal that forces callers to be
+updated in the same pass. If a change genuinely cannot be made additive, say so
+and ask before spreading it.
+
+Mentioning that other modules still use the old path is fine, once. Fixing them
+uninvited is not.
+
 ## Before building any module, read the frontend first
 
 The frontend was built first and is the specification. Its dummy data, dialogs, filter dropdowns, table columns and tabs define the fields, the enums and the operations the API must support.

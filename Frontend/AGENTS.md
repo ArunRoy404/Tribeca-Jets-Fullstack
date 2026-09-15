@@ -109,6 +109,45 @@ Use the shared `useTableQueryParams` hook (`src/hooks/common/useTableQueryParams
 - URL values are **untrusted input**: validate and clamp every one before it reaches a request. A hand-edited `?page=-5&limit=99999` must degrade to the default, not 500 the API.
 - The wire vocabulary is the backend's enum casing (`SENIOR_BROKER`), and that is what goes in the URL. Display labels are mapped at render time.
 
+## Table state is assembled from shared builders, never hand-written
+
+`useTableQueryParams` is the whole engine; a module's hook declares only what
+is actually specific to it. Everything below already exists — writing a second
+copy is the bug this section exists to prevent.
+
+| Need | Use |
+|---|---|
+| page / limit / sortBy / sortOrder fields | `paginationFields(SORTABLE_COLUMNS)` |
+| a debounced text search field | `searchField()` |
+| a dropdown filter over a fixed set | `filterField(ALLOWED_VALUES)` |
+| the object to send to the API | the hook's `queryParams` |
+| `setPage`, `setRole`, `setStatus`, … | the hook's `setters` (generated from the schema) |
+| moving pages, clamped | the hook's `goToPage(page, pageCount)` |
+| the rows-per-page dropdown | `<PageSizeSelect value onChange />`, in the toolbar beside the filters |
+| page numbers with collapsed gaps | `<TablePagination onPageChange />`, windowed by `buildPageItems` |
+
+- **Mark view-only fields `local: true`.** A tab id belongs in the URL but must
+  never reach the API — it is not part of the query key, and including it
+  refetches the table every time someone switches tabs.
+- **`SORTABLE_COLUMNS` mirrors the API's allowlist exactly.** A value the API
+  would reject with a 400 must not survive the URL either.
+- **`DEFAULT_PAGE_SIZE` is 10 and `PAGE_SIZE_OPTIONS` ends at 100**, the API's
+  hard cap. Both live in `hooks/common/useTableQueryParams.js` and are paired
+  with `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE` on the backend.
+- **Rows-per-page is a URL param like any other**, and changing it resets the
+  page — page 4 of 10-per-page is not page 4 of 100-per-page. It belongs in the
+  toolbar with the filters, not in the footer.
+- **A pager shows page numbers, not just the current page.** Pass
+  `onPageChange` so they are jumps; `buildPageItems` (`src/lib/pagination.js`)
+  decides which to render and where the ellipses fall. Never re-derive that
+  windowing in a component.
+- **`onPageChange` and the page-size control are opt-in, per module.** Tables
+  that are still dummy-backed omit both and keep Prev/Next — that is correct,
+  not an oversight. They get wired up when their own module is built. See
+  "Fix a module when we reach it, not before" in the root `AGENTS.md`.
+- A new filter should be one schema line and nothing else. If it needs a
+  hand-written setter or a bespoke memo, extend the shared hook instead.
+
 ## Pagination is server-side
 
 The API owns paging. Read `meta` from the response (`page`, `limit`, `total`, `totalPages`, `hasNext`, `hasPrevious`) and drive the pager from it. Never fetch a full list and slice it in the browser, and never compute `totalPages` on the client.
