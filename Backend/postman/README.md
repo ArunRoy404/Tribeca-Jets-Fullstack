@@ -236,3 +236,18 @@ Both re-seed, purge accounts left behind by earlier runs, and assert each
 captured status matches the name it is filed under — so an example cannot
 silently record the wrong response. That assertion has already caught two
 mislabelled captures.
+
+## Regenerating
+
+The reference folders are generated, not hand-edited:
+
+```bash
+python3 build_reference_folders.py   # rebuilds 05 · Airports and 06 · Operators
+python3 add_restore_requests.py      # patches restore into Clients
+python3 rewrite_body_comments.py     # moves JSON body comments to the right
+```
+
+Run them in that order — the rewriter operates on the whole collection, so a
+builder run after it would leave its two folders in the old top-comment style.
+
+Then verify: `npx newman run postman/Tribeca-Jets-API.postman_collection.json -e postman/Local.postman_environment.json`

@@ -64,6 +64,26 @@
       "value": "",
       "type": "string",
       "description": "Generated per run so a repeat run does not 409 on an address that already exists."
+    },
+    {
+      "key": "airportId",
+      "value": "",
+      "description": "First airport id from `05 \u00b7 Airports / 01 \u00b7 List airports`. Set by that request's test script."
+    },
+    {
+      "key": "operatorId",
+      "value": "",
+      "description": "First operator id from `06 \u00b7 Operators / 01 \u00b7 List operators`. Set by that request's test script."
+    },
+    {
+      "key": "newAirportId",
+      "value": "",
+      "description": "The airport created by `05 \u00b7 Airports / 05 \u00b7 Add airport`. Update and remove act on this, never on a seeded row."
+    },
+    {
+      "key": "newOperatorId",
+      "value": "",
+      "description": "The operator created by `06 \u00b7 Operators / 04 \u00b7 Add operator`. Update and remove act on this, never on a seeded row."
     }
   ],
   "event": [
@@ -210,7 +230,7 @@
                 "description": "The seeded owner. Holds every permission, and is the one account that cannot be demoted, suspended or removed \u2014 so the system can never be locked out of its own administration.\n\nUse this for the Users and Clients folders.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  // Held in the ownerEmail variable: the Clients and Users folders\n  // sign in as this account too, and two copies would drift.\n  \"email\": \"{{ownerEmail}}\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
+                  "raw": "{\n  \"email\": \"{{ownerEmail}}\",   // required \u00b7 valid email, case-insensitive \u00b7 Held in the ownerEmail variable: the Clients and Users folders sign in as this account too, and two copies would drift.\n\n  \"password\": \"{{password}}\",  // required \u00b7 every seeded account shares this password, so it lives in the password variable rather than in five bodies\n\n  \"rememberMe\": false          // optional \u00b7 default false \u00b7 true extends the refresh cookie from 7 days to 30\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -435,7 +455,7 @@
                 "description": "Full trip management, operator sourcing and team-wide financial visibility \u2014 but **no Manage Users**. Sign in here to see the Users folder's writes refuse with 403 while its reads still work.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  \"email\": \"senior@tribecajets.com\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
+                  "raw": "{\n  \"email\": \"senior@tribecajets.com\",  // required \u00b7 valid email, case-insensitive\n\n  \"password\": \"{{password}}\",         // required \u00b7 every seeded account shares this password, so it lives in the password variable rather than in five bodies\n\n  \"rememberMe\": false                 // optional \u00b7 default false \u00b7 true extends the refresh cookie from 7 days to 30\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -534,7 +554,7 @@
                 "description": "Sees only their own clients and trips. The narrowest role that still does day-to-day work, so it is the useful one for testing row-level scoping: the Clients list returns a different `meta.total` here than it does for the owner.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  \"email\": \"broker@tribecajets.com\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
+                  "raw": "{\n  \"email\": \"broker@tribecajets.com\",  // required \u00b7 valid email, case-insensitive\n\n  \"password\": \"{{password}}\",         // required \u00b7 every seeded account shares this password, so it lives in the password variable rather than in five bodies\n\n  \"rememberMe\": false                 // optional \u00b7 default false \u00b7 true extends the refresh cookie from 7 days to 30\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -633,7 +653,7 @@
                 "description": "Read-mostly. Holds `OPERATOR_SOURCING` at `READ` scope, which is why write routes guarded with `@RequireWritePermissions` refuse it even though it holds the permission.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  \"email\": \"assistant@tribecajets.com\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
+                  "raw": "{\n  \"email\": \"assistant@tribecajets.com\",  // required \u00b7 valid email, case-insensitive\n\n  \"password\": \"{{password}}\",            // required \u00b7 every seeded account shares this password, so it lives in the password variable rather than in five bodies\n\n  \"rememberMe\": false                    // optional \u00b7 default false \u00b7 true extends the refresh cookie from 7 days to 30\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -732,7 +752,7 @@
                 "description": "**Listed last deliberately.** This starts a challenge that `02 \u00b7 Two-factor` completes, and any sign-in after it would replace that challenge and break the verify step.\n\nAn administrator with **two-factor enabled**, so this returns `requiresTwoFactor: true` and *no session yet* \u2014 `02 \u00b7 Two-factor / 02 \u00b7 Verify code` must follow before anything else will authenticate.\n\nWithout SMTP configured the code comes back in `devCode`, and the test script stores it in `otpCode` for the verify step. It never appears once SMTP is set.\n\n**Sets three cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 valid email, case-insensitive\n  \"email\": \"security@tribecajets.com\",\n\n  // required \u00b7 every seeded account shares this password,\n  // so it lives in the password variable rather than in five bodies\n  \"password\": \"{{password}}\",\n\n  // optional \u00b7 default false\n  // true extends the refresh cookie from 7 days to 30\n  \"rememberMe\": false\n}",
+                  "raw": "{\n  \"email\": \"security@tribecajets.com\",  // required \u00b7 valid email, case-insensitive\n\n  \"password\": \"{{password}}\",           // required \u00b7 every seeded account shares this password, so it lives in the password variable rather than in five bodies\n\n  \"rememberMe\": false                   // optional \u00b7 default false \u00b7 true extends the refresh cookie from 7 days to 30\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -957,7 +977,7 @@
                 "description": "Completes sign-in and sets the session cookies.\n\nThe code is single-use and dies after **5 wrong guesses** \u2014 the error message counts down the remaining attempts. Once burned, a new code must be requested; even the correct code stops working.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                  "raw": "{\n  \"code\": \"{{otpCode}}\"  // required \u00b7 exactly 6 digits, as a string (leading zeros matter) The challenge itself travels in the httpOnly tj_2fa cookie, so there is no challenge field here \u2014 matching the frontend screen.\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -978,7 +998,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "raw": "{\n  \"code\": \"{{otpCode}}\"  // required \u00b7 exactly 6 digits, as a string (leading zeros matter) The challenge itself travels in the httpOnly tj_2fa cookie, so there is no challenge field here \u2014 matching the frontend screen.\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1021,7 +1041,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "raw": "{\n  \"code\": \"{{otpCode}}\"  // required \u00b7 exactly 6 digits, as a string (leading zeros matter) The challenge itself travels in the httpOnly tj_2fa cookie, so there is no challenge field here \u2014 matching the frontend screen.\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1064,7 +1084,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "raw": "{\n  \"code\": \"{{otpCode}}\"  // required \u00b7 exactly 6 digits, as a string (leading zeros matter) The challenge itself travels in the httpOnly tj_2fa cookie, so there is no challenge field here \u2014 matching the frontend screen.\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1107,7 +1127,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 exactly 6 digits, as a string (leading zeros matter)\n  // The challenge itself travels in the httpOnly tj_2fa cookie, so there is\n  // no challenge field here \u2014 matching the frontend screen.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "raw": "{\n  \"code\": \"{{otpCode}}\"  // required \u00b7 exactly 6 digits, as a string (leading zeros matter) The challenge itself travels in the httpOnly tj_2fa cookie, so there is no challenge field here \u2014 matching the frontend screen.\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1430,7 +1450,7 @@
                 "description": "Starts the reset and emails a 6-digit code.\n\n**Always returns 200 and always sets a `tj_pwreset` cookie**, registered address or not. Omitting the cookie for unknown addresses would leak which emails have accounts just as surely as a 404 would.\n\nThe cookie binds the flow to this browser, so a code phished onto another device is unusable.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 the account's email address\n  // Responds 200 whether or not it is registered, so the endpoint cannot be\n  // used to discover which emails have accounts.\n  //\n  // Points at the dedicated reset-demo account on purpose: completing this\n  // flow really does change the password, and using a working account would\n  // break every other folder on the next run.\n  \"email\": \"reset-demo@tribecajets.com\"\n}",
+                  "raw": "{\n  \"email\": \"reset-demo@tribecajets.com\"  // required \u00b7 the account's email address \u00b7 Responds 200 whether or not it is registered, so the endpoint cannot be used to discover which emails have accounts. Points at the dedicated reset-demo account on purpose: completing this flow really does change the password, and using a working account would break every other folder on the next run.\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1451,7 +1471,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 the account's email address\n  // Responds 200 whether or not it is registered, so the endpoint cannot be\n  // used to discover which emails have accounts.\n  //\n  // Points at the dedicated reset-demo account on purpose: completing this\n  // flow really does change the password, and using a working account would\n  // break every other folder on the next run.\n  \"email\": \"reset-demo@tribecajets.com\"\n}",
+                      "raw": "{\n  \"email\": \"reset-demo@tribecajets.com\"  // required \u00b7 the account's email address \u00b7 Responds 200 whether or not it is registered, so the endpoint cannot be used to discover which emails have accounts. Points at the dedicated reset-demo account on purpose: completing this flow really does change the password, and using a working account would break every other folder on the next run.\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1493,7 +1513,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 the account's email address\n  // Responds 200 whether or not it is registered, so the endpoint cannot be\n  // used to discover which emails have accounts.\n  //\n  // Points at the dedicated reset-demo account on purpose: completing this\n  // flow really does change the password, and using a working account would\n  // break every other folder on the next run.\n  \"email\": \"reset-demo@tribecajets.com\"\n}",
+                      "raw": "{\n  \"email\": \"reset-demo@tribecajets.com\"  // required \u00b7 the account's email address \u00b7 Responds 200 whether or not it is registered, so the endpoint cannot be used to discover which emails have accounts. Points at the dedicated reset-demo account on purpose: completing this flow really does change the password, and using a working account would break every other folder on the next run.\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1535,7 +1555,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 the account's email address\n  // Responds 200 whether or not it is registered, so the endpoint cannot be\n  // used to discover which emails have accounts.\n  //\n  // Points at the dedicated reset-demo account on purpose: completing this\n  // flow really does change the password, and using a working account would\n  // break every other folder on the next run.\n  \"email\": \"reset-demo@tribecajets.com\"\n}",
+                      "raw": "{\n  \"email\": \"reset-demo@tribecajets.com\"  // required \u00b7 the account's email address \u00b7 Responds 200 whether or not it is registered, so the endpoint cannot be used to discover which emails have accounts. Points at the dedicated reset-demo account on purpose: completing this flow really does change the password, and using a working account would break every other folder on the next run.\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1713,7 +1733,7 @@
                 "description": "Unlocks the reset step. **Does not change the password** \u2014 that is step 04.\n\nOn success the challenge is re-stamped with a shorter window (`PASSWORD_RESET_WINDOW_MINUTES`, default 15) to choose the new password.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 exactly 6 digits, from the reset email\n  // Read from the tj_pwreset cookie set by 'Request reset code'.\n  \"code\": \"{{otpCode}}\"\n}",
+                  "raw": "{\n  \"code\": \"{{otpCode}}\"  // required \u00b7 exactly 6 digits, from the reset email Read from the tj_pwreset cookie set by 'Request reset code'.\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1734,7 +1754,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 exactly 6 digits, from the reset email\n  // Read from the tj_pwreset cookie set by 'Request reset code'.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "raw": "{\n  \"code\": \"{{otpCode}}\"  // required \u00b7 exactly 6 digits, from the reset email Read from the tj_pwreset cookie set by 'Request reset code'.\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1777,7 +1797,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 exactly 6 digits, from the reset email\n  // Read from the tj_pwreset cookie set by 'Request reset code'.\n  \"code\": \"{{otpCode}}\"\n}",
+                      "raw": "{\n  \"code\": \"{{otpCode}}\"  // required \u00b7 exactly 6 digits, from the reset email Read from the tj_pwreset cookie set by 'Request reset code'.\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1847,7 +1867,7 @@
                 "description": "Completes the reset.\n\nRequires a **verified** challenge \u2014 posting here without running step 02 fails.\n\n**Revokes every existing session on success.** If the reset happened because the account was compromised, leaving the attacker signed in would defeat the exercise. A notification email is sent to the account holder.\n\n**Password policy:** at least 10 characters with one lowercase, one uppercase and one digit, and different from the current password.\n\n**This is also how an invitation is accepted.** An invited account has no password anyone knows, so setting one here is the act of accepting: a row still in `INVITED` becomes `ACTIVE` in the same transaction, and the user can sign in immediately.\n\nThe promotion is deliberately narrow. Only `INVITED` is touched \u2014 a `SUSPENDED` account that resets its password stays suspended and still cannot sign in. Status after activation is an administrative decision, and a password reset must never be a way around it. (A suspended account cannot even start a reset: `01 \u00b7 Request reset code` hands it the same decoy challenge an unknown address gets.)",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  //\n  // Both fields read the same variable. They have to match exactly, so a\n  // literal here would be two places to edit for one change \u2014 and the\n  // mismatch would surface as a confusing 400 rather than a typo.\n  \"newPassword\": \"{{newPassword}}\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"{{newPassword}}\"\n}",
+                  "raw": "{\n  \"newPassword\": \"{{newPassword}}\",     // required \u00b7 min 10 chars, and must contain at least one lowercase letter, one uppercase letter and one digit. Must differ from the current password. Both fields read the same variable. They have to match exactly, so a literal here would be two places to edit for one change \u2014 and the mismatch would surface as a confusing 400 rather than a typo.\n\n  \"confirmPassword\": \"{{newPassword}}\"  // required \u00b7 must match newPassword exactly\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1868,7 +1888,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "raw": "{\n  \"newPassword\": \"BrandNewPass9\",     // required \u00b7 min 10 chars, and must contain at least one lowercase letter, one uppercase letter and one digit. Must differ from the current password.\n\n  \"confirmPassword\": \"BrandNewPass9\"  // required \u00b7 must match newPassword exactly\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1910,7 +1930,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "raw": "{\n  \"newPassword\": \"BrandNewPass9\",     // required \u00b7 min 10 chars, and must contain at least one lowercase letter, one uppercase letter and one digit. Must differ from the current password.\n\n  \"confirmPassword\": \"BrandNewPass9\"  // required \u00b7 must match newPassword exactly\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1952,7 +1972,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "raw": "{\n  \"newPassword\": \"BrandNewPass9\",     // required \u00b7 min 10 chars, and must contain at least one lowercase letter, one uppercase letter and one digit. Must differ from the current password.\n\n  \"confirmPassword\": \"BrandNewPass9\"  // required \u00b7 must match newPassword exactly\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -1994,7 +2014,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "raw": "{\n  \"newPassword\": \"BrandNewPass9\",     // required \u00b7 min 10 chars, and must contain at least one lowercase letter, one uppercase letter and one digit. Must differ from the current password.\n\n  \"confirmPassword\": \"BrandNewPass9\"  // required \u00b7 must match newPassword exactly\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -2036,7 +2056,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  // required \u00b7 min 10 chars, and must contain at least one\n  //            lowercase letter, one uppercase letter and one digit.\n  //            Must differ from the current password.\n  \"newPassword\": \"BrandNewPass9\",\n\n  // required \u00b7 must match newPassword exactly\n  \"confirmPassword\": \"BrandNewPass9\"\n}",
+                      "raw": "{\n  \"newPassword\": \"BrandNewPass9\",     // required \u00b7 min 10 chars, and must contain at least one lowercase letter, one uppercase letter and one digit. Must differ from the current password.\n\n  \"confirmPassword\": \"BrandNewPass9\"  // required \u00b7 must match newPassword exactly\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -2252,6 +2272,12 @@
                   "value": "VIP",
                   "description": "Exact, case-sensitive match against one of the client's labels.",
                   "disabled": true
+                },
+                {
+                  "key": "archived",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): true | false. Default false \u2014 only live rows. `true` returns ONLY archived ones, which is what the Archived tab reads. Replaces the old `includeDeleted`, which used a coercion where the string \"false\" evaluated to true \u2014 so asking to exclude removed rows included them."
                 }
               ]
             },
@@ -2469,7 +2495,7 @@
             "description": "Creates a client or travel agent.\n\n`type: \"TRAVEL_AGENT\"` additionally requires `companyName`.\n\nA `BROKER` caller always gets the client assigned to themselves regardless of `assignedBrokerId`. `originatingBrokerId` drives commission attribution, defaults to the assignee, and can never be changed later.\n\nEvery enum's allowed values are listed inline in the body.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+              "raw": "{\n  \"type\": \"DIRECT\",                            // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  \"firstName\": \"Marcus\",                       // required \u00b7 max 100 chars\n\n  \"lastName\": \"Reyes\",                         // required \u00b7 max 100 chars\n\n  \"email\": \"marcus.reyes@example.com\",         // optional \u00b7 valid email, stored lowercase\n\n  \"phone\": \"+1 555 0142\",                      // optional \u00b7 max 40 chars, free-form\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  \"homeAirport\": \"KTEB\",                       // optional \u00b7 ICAO/IATA code, max 10 chars\n\n  \"leadSource\": \"REFERRAL\",                    // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\" | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n\n  \"leadStage\": \"NEW\",                          // optional \u00b7 default \"NEW\" \u00b7 Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  \"labels\": [\"VIP\"],                           // optional \u00b7 max 25 entries, 50 chars each\n\n  \"preferences\": {                             // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  \"notes\": \"Prefers late-morning departures.\"  // optional \u00b7 max 5000 chars\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2490,7 +2516,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+                  "raw": "{\n  \"type\": \"DIRECT\",                            // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  \"firstName\": \"Marcus\",                       // required \u00b7 max 100 chars\n\n  \"lastName\": \"Reyes\",                         // required \u00b7 max 100 chars\n\n  \"email\": \"marcus.reyes@example.com\",         // optional \u00b7 valid email, stored lowercase\n\n  \"phone\": \"+1 555 0142\",                      // optional \u00b7 max 40 chars, free-form\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  \"homeAirport\": \"KTEB\",                       // optional \u00b7 ICAO/IATA code, max 10 chars\n\n  \"leadSource\": \"REFERRAL\",                    // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\" | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n\n  \"leadStage\": \"NEW\",                          // optional \u00b7 default \"NEW\" \u00b7 Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  \"labels\": [\"VIP\"],                           // optional \u00b7 max 25 entries, 50 chars each\n\n  \"preferences\": {                             // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  \"notes\": \"Prefers late-morning departures.\"  // optional \u00b7 max 5000 chars\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2531,7 +2557,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+                  "raw": "{\n  \"type\": \"DIRECT\",                            // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  \"firstName\": \"Marcus\",                       // required \u00b7 max 100 chars\n\n  \"lastName\": \"Reyes\",                         // required \u00b7 max 100 chars\n\n  \"email\": \"marcus.reyes@example.com\",         // optional \u00b7 valid email, stored lowercase\n\n  \"phone\": \"+1 555 0142\",                      // optional \u00b7 max 40 chars, free-form\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  \"homeAirport\": \"KTEB\",                       // optional \u00b7 ICAO/IATA code, max 10 chars\n\n  \"leadSource\": \"REFERRAL\",                    // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\" | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n\n  \"leadStage\": \"NEW\",                          // optional \u00b7 default \"NEW\" \u00b7 Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  \"labels\": [\"VIP\"],                           // optional \u00b7 max 25 entries, 50 chars each\n\n  \"preferences\": {                             // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  \"notes\": \"Prefers late-morning departures.\"  // optional \u00b7 max 5000 chars\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2572,7 +2598,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+                  "raw": "{\n  \"type\": \"DIRECT\",                            // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  \"firstName\": \"Marcus\",                       // required \u00b7 max 100 chars\n\n  \"lastName\": \"Reyes\",                         // required \u00b7 max 100 chars\n\n  \"email\": \"marcus.reyes@example.com\",         // optional \u00b7 valid email, stored lowercase\n\n  \"phone\": \"+1 555 0142\",                      // optional \u00b7 max 40 chars, free-form\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  \"homeAirport\": \"KTEB\",                       // optional \u00b7 ICAO/IATA code, max 10 chars\n\n  \"leadSource\": \"REFERRAL\",                    // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\" | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n\n  \"leadStage\": \"NEW\",                          // optional \u00b7 default \"NEW\" \u00b7 Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  \"labels\": [\"VIP\"],                           // optional \u00b7 max 25 entries, 50 chars each\n\n  \"preferences\": {                             // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  \"notes\": \"Prefers late-morning departures.\"  // optional \u00b7 max 5000 chars\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2613,7 +2639,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n  \"type\": \"DIRECT\",\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  // required \u00b7 max 100 chars\n  \"firstName\": \"Marcus\",\n\n  // required \u00b7 max 100 chars\n  \"lastName\": \"Reyes\",\n\n  // optional \u00b7 valid email, stored lowercase\n  \"email\": \"marcus.reyes@example.com\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0142\",\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 ICAO/IATA code, max 10 chars\n  \"homeAirport\": \"KTEB\",\n\n  // optional \u00b7 default \"DIRECT\"\n  // Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\"\n  //                         | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n  \"leadSource\": \"REFERRAL\",\n\n  // optional \u00b7 default \"NEW\"\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"NEW\",\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 max 25 entries, 50 chars each\n  \"labels\": [\"VIP\"],\n\n  // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n  \"preferences\": {\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  // optional \u00b7 max 5000 chars\n  \"notes\": \"Prefers late-morning departures.\"\n}",
+                  "raw": "{\n  \"type\": \"DIRECT\",                            // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  \"firstName\": \"Marcus\",                       // required \u00b7 max 100 chars\n\n  \"lastName\": \"Reyes\",                         // required \u00b7 max 100 chars\n\n  \"email\": \"marcus.reyes@example.com\",         // optional \u00b7 valid email, stored lowercase\n\n  \"phone\": \"+1 555 0142\",                      // optional \u00b7 max 40 chars, free-form\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  \"homeAirport\": \"KTEB\",                       // optional \u00b7 ICAO/IATA code, max 10 chars\n\n  \"leadSource\": \"REFERRAL\",                    // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\" | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n\n  \"leadStage\": \"NEW\",                          // optional \u00b7 default \"NEW\" \u00b7 Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  \"labels\": [\"VIP\"],                           // optional \u00b7 max 25 entries, 50 chars each\n\n  \"preferences\": {                             // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  \"notes\": \"Prefers late-morning departures.\"  // optional \u00b7 max 5000 chars\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2686,7 +2712,7 @@
             "description": "Partial update \u2014 send only the fields that change.\n\nReassigning `assignedBrokerId` is admin-only; a broker attempting it receives 403. `originatingBrokerId` is not accepted at all.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  // Every field from Create is accepted, all optional.\n  // originatingBrokerId is NOT updatable \u2014 attribution is fixed at creation.\n\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"QUOTED\",\n\n  \"notes\": \"Requested a quote KTEB to KMIA.\"\n\n  // Reassigning is admin-only; a BROKER sending this receives 403.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "raw": "{\n  // Every field from Create is accepted, all optional.\n  // originatingBrokerId is NOT updatable \u2014 attribution is fixed at creation.\n\n  \"leadStage\": \"QUOTED\",  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  \"notes\": \"Requested a quote KTEB to KMIA.\"\n\n  // Reassigning is admin-only; a BROKER sending this receives 403.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2707,7 +2733,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // Every field from Create is accepted, all optional.\n  // originatingBrokerId is NOT updatable \u2014 attribution is fixed at creation.\n\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"QUOTED\",\n\n  \"notes\": \"Requested a quote KTEB to KMIA.\"\n\n  // Reassigning is admin-only; a BROKER sending this receives 403.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+                  "raw": "{\n  // Every field from Create is accepted, all optional.\n  // originatingBrokerId is NOT updatable \u2014 attribution is fixed at creation.\n\n  \"leadStage\": \"QUOTED\",  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  \"notes\": \"Requested a quote KTEB to KMIA.\"\n\n  // Reassigning is admin-only; a BROKER sending this receives 403.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2749,7 +2775,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  // Every field from Create is accepted, all optional.\n  // originatingBrokerId is NOT updatable \u2014 attribution is fixed at creation.\n\n  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\"\n  //                         | \"BOOKED\" | \"LOST\"\n  \"leadStage\": \"QUOTED\",\n\n  \"notes\": \"Requested a quote KTEB to KMIA.\"\n\n  // Reassigning is admin-only; a BROKER sending this receives 403.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+                  "raw": "{\n  // Every field from Create is accepted, all optional.\n  // originatingBrokerId is NOT updatable \u2014 attribution is fixed at creation.\n\n  \"leadStage\": \"QUOTED\",  // Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  \"notes\": \"Requested a quote KTEB to KMIA.\"\n\n  // Reassigning is admin-only; a BROKER sending this receives 403.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2903,6 +2929,69 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T04:14:26.937Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Restore client",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clients/:id/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                ":id",
+                "restore"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{clientId}}",
+                  "description": "UUID of the archived record."
+                }
+              ]
+            },
+            "description": "Brings an archived client back, exactly as it was \u2014 clears the deletion stamp and touches nothing else.\n\nScoped like every other client read: a broker may restore only a client that was theirs, and anything outside their scope is a 404 rather than a 403, so an id cannot be used to probe for records.\n\nThere is **no permanent delete** anywhere in this API."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients/:id/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    ":id",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"42bab11c-c238-4ee1-8cb1-1ac58c7cdc09\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Marcus\",\n    \"lastName\": \"Reyes\",\n    \"email\": \"marcus.reyes@example.com\",\n    \"phone\": \"+1 555 0142\",\n    \"homeAirport\": \"KTEB\",\n    \"leadSource\": \"DIRECT\",\n    \"leadStage\": \"QUOTED\",\n    \"labels\": [],\n    \"createdAt\": \"2026-09-15T10:43:40.012Z\",\n    \"updatedAt\": \"2026-09-15T10:49:10.962Z\",\n    \"assignedBroker\": null,\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-15T10:49:10.960Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
             }
           ]
         }
@@ -3061,12 +3150,6 @@
                   "value": "ACTIVE",
                   "disabled": true,
                   "description": "Allowed (case-sensitive): ACTIVE | INVITED | SUSPENDED. Omit for all statuses. Callers without Manage Users always see ACTIVE only, whatever is passed here."
-                },
-                {
-                  "key": "includeDeleted",
-                  "value": "false",
-                  "disabled": true,
-                  "description": "Allowed (case-sensitive): true | false. Default false. Includes soft-deleted accounts \u2014 honoured only for callers holding Manage Users; silently ignored for everyone else, since a query param must never widen visibility."
                 }
               ]
             },
@@ -3603,7 +3686,7 @@
             "description": "Creates an account in `INVITED` status.\n\n**How the account activates.** `INVITED` is a pending state, not a disabled one, and nothing an administrator can send will move it. The invitee opens the sign-in page, uses \u201cForgot password?\u201d with this address, and sets a password \u2014 that act *is* accepting the invitation, and the account becomes `ACTIVE` in the same transaction. Until then they cannot sign in, and `06 \u00b7 Update team member` refuses any status change on the row. To withdraw an invitation, remove the user.\n\n**No password is accepted here, by design.** The account is created with a random, discarded password that is never usable, and the invitee sets a real one through the normal password-reset flow. So a credential is never chosen by, transmitted to, or known by the person doing the inviting.\n\n**Email delivery follows the SMTP config.** With SMTP configured an invitation goes out and `invitation.emailSent` is `true`. Without it, `emailSent` is `false` and `invitation.notice` explains what to tell the invitee instead \u2014 rather than failing silently and leaving them waiting for mail that never sent.\n\nRe-inviting a previously removed account revives that row rather than creating a duplicate, so its audit history stays attached.\n\nRequires `Manage Users`.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  // required \u00b7 valid email, stored lowercase.\n  // This is the login identity and cannot be changed later.\n  // Already in use by a live account \u2192 409.\n  \"email\": \"{{inviteEmail}}\",\n\n  // required \u00b7 1-100 chars\n  \"firstName\": \"Avery\",\n\n  // required \u00b7 1-100 chars\n  \"lastName\": \"Newman\",\n\n  // optional \u00b7 max 40 chars, free-form\n  \"phone\": \"+1 555 0163\",\n\n  // optional \u00b7 default \"BROKER\"\n  // Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\"\n  // \"SUPER_ADMIN\" is deliberately NOT assignable: it would let an\n  // admin mint an account immune to their own administration.\n  \"role\": \"BROKER\"\n}",
+              "raw": "{\n  \"email\": \"{{inviteEmail}}\",  // required \u00b7 valid email, stored lowercase. This is the login identity and cannot be changed later. Already in use by a live account \u2192 409.\n\n  \"firstName\": \"Avery\",        // required \u00b7 1-100 chars\n\n  \"lastName\": \"Newman\",        // required \u00b7 1-100 chars\n\n  \"phone\": \"+1 555 0163\",      // optional \u00b7 max 40 chars, free-form\n\n  \"role\": \"BROKER\"             // optional \u00b7 default \"BROKER\" \u00b7 Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\" \"SUPER_ADMIN\" is deliberately NOT assignable: it would let an admin mint an account immune to their own administration.\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3901,7 +3984,7 @@
             "description": "Partial update. Send only the fields you are changing; at least one is required (an empty body returns 400).\n\n**Deliberately absent:** `email` (the login identity and the anchor of the audit trail) and `password` (never set by an administrator).\n\n### Status is `ACTIVE` or `SUSPENDED` \u2014 never `INVITED`\n\n`INVITED` is not a decision anyone makes. An account is created in it by `05 \u00b7 Invite team member` and leaves it exactly once, on its own, when the invitee sets a password through `01 \u00b7 Auth / 04 \u00b7 Password reset`. Two rules follow, and both are enforced:\n\n| Attempt | Result |\n|---|---|\n| Send `\"status\": \"INVITED\"` | 400 \u2014 the enum accepts only `ACTIVE` and `SUSPENDED` |\n| Send any status for an account still in `INVITED` | 400 \u2014 withdraw the invitation with `07 \u00b7 Remove team member` instead |\n\nSuspending a pending invitation would strand the row: the invitee cannot sign in, and completing the reset would no longer activate them, so nothing could move the account again.\n\nOnce the account is `ACTIVE`, suspending and reactivating it is an ordinary administrative decision \u2014 and a password reset never undoes it. A suspended user who resets their password stays suspended.\n\n### Refusals that protect the system from its own administrators\n\n| Attempt | Result |\n|---|---|\n| Change your own role | 400 |\n| Set your own status to anything but `ACTIVE` | 400 |\n| Modify the `SUPER_ADMIN` owner (unless you are it) | 403 |\n| Demote or suspend the last active administrator | 400 |\n\nThe last-administrator check counts against the live database rather than the request, because two admins demoting each other concurrently would each individually look safe.\n\nRole and status changes are written to the audit log as `user.access_changed` with before/after values.\n\nRequires `Manage Users`.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  // all fields optional \u00b7 send at least one, or 400\n\n  // 1-100 chars\n  \"firstName\": \"Avery\",\n\n  // 1-100 chars\n  \"lastName\": \"Newman\",\n\n  // max 40 chars \u00b7 send null to clear it\n  \"phone\": \"+1 555 0199\",\n\n  // Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\"\n  // \"SUPER_ADMIN\" is not assignable. Cannot be your own role.\n  \"role\": \"SENIOR_BROKER\",\n\n  // \"status\" is deliberately absent from this body.\n  //\n  // Allowed (case-sensitive): \"ACTIVE\" | \"SUSPENDED\" \u2014 and nothing else.\n  // \"INVITED\" is NOT settable: an account is born in it and leaves it\n  // exactly once, when the invitee sets a password. See the saved\n  // examples \"200 \u00b7 Account suspended\" and \"400 \u00b7 Invitation is still\n  // pending\".\n  //\n  // This request targets {{invitedUserId}}, whose invitation is still\n  // outstanding, so sending a status here would return 400 by design.\n\n  // boolean \u00b7 turns the two-factor sign-in challenge on or off\n  // for this account. This is the toggle behind the security\n  // setting; two-factor is not mandatory system-wide.\n  \"twoFactorEnabled\": false\n}",
+              "raw": "{\n  // all fields optional \u00b7 send at least one, or 400\n\n  \"firstName\": \"Avery\",      // 1-100 chars\n\n  \"lastName\": \"Newman\",      // 1-100 chars\n\n  \"phone\": \"+1 555 0199\",    // max 40 chars \u00b7 send null to clear it\n\n  \"role\": \"SENIOR_BROKER\",   // Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\" \"SUPER_ADMIN\" is not assignable. Cannot be your own role.\n\n  // \"status\" is deliberately absent from this body.\n  //\n  // Allowed (case-sensitive): \"ACTIVE\" | \"SUSPENDED\" \u2014 and nothing else.\n  // \"INVITED\" is NOT settable: an account is born in it and leaves it\n  // exactly once, when the invitee sets a password. See the saved\n  // examples \"200 \u00b7 Account suspended\" and \"400 \u00b7 Invitation is still\n  // pending\".\n  //\n  // This request targets {{invitedUserId}}, whose invitation is still\n  // outstanding, so sending a status here would return 400 by design.\n\n  \"twoFactorEnabled\": false  // boolean \u00b7 turns the two-factor sign-in challenge on or off for this account. This is the toggle behind the security setting; two-factor is not mandatory system-wide.\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4247,9 +4330,822 @@
               "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"status\": \"Invalid option: expected one of \\\"ACTIVE\\\"|\\\"SUSPENDED\\\"\"\n  },\n  \"path\": \"/api/users/b32c645a-88b9-40e5-8669-7d1e40d94671\",\n  \"timestamp\": \"2026-09-15T09:13:09.261Z\"\n}"
             }
           ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 \u00b7 Airports",
+      "description": "Airports are **shared reference data**: every signed-in caller sees the same rows, because unlike a client, nobody owns an airport. There is no row-level scoping here \u2014 only whether you may edit the master list.\n\n### Who may write\n\n| Role | Read | Create / Edit / Remove |\n|---|---|---|\n| SUPER_ADMIN, ADMIN, SENIOR_BROKER | \u2713 | \u2713 |\n| BROKER, ASSISTANT | \u2713 | 403 |\n\nBrokers and assistants hold `MANAGE_AIRPORTS` at **READ** scope. They must be able to read the table \u2014 a broker cannot build a trip without picking an airport \u2014 but an airport is an objective fact about the world, not desk opinion, and a wrong runway length silently makes a trip unbookable.\n\nThis folder runs as the seeded owner.",
+      "item": [
+        {
+          "name": "01 \u00b7 List airports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/airports?page=1&limit=10&search=&sortOrder=desc&country=&sortBy=createdAt&archived=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, 1-based. Integer \u22651. Default 1. Out of range returns an empty `data` with a truthful `meta`."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Rows per page. Integer 1-100. Default 10, matching the rows-per-page dropdown in the UI. >100 or <1 \u2192 400."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Case-insensitive substring. Trimmed, max 200 chars."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Allowed (case-sensitive): asc | desc. Default desc \u2014 tables open newest-first."
+                },
+                {
+                  "key": "country",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Exact match on the stored country string, case-sensitive (`USA`, not `usa`). Options come from `03 \u00b7 Countries`. Omit for all countries."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | icao | iata | name | city | country | longestRunwayFt. Default createdAt, paired with sortOrder desc, so a newly added airport is the first row. A closed list \u2014 anything else returns 400 rather than reaching the database."
+                },
+                {
+                  "key": "archived",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): true | false. Default false \u2014 only live rows. `true` returns ONLY archived ones, which is what the Archived tab reads. One endpoint serves both halves of the table; a separate /archived route would duplicate every filter and sort param and the two would drift."
+                }
+              ]
+            },
+            "description": "Paginated list. Search covers **ICAO, IATA, name, city and country** in one term.\n\n`latitude` and `longitude` come back as JSON numbers, not the `{s,e,d}` shape a raw Prisma Decimal would serialise to.\n\nSee the Params tab for every filter, its default and its bounds."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Page of airports",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e37fbbb6-9de9-4187-a3bd-2244cb1159a3\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"aaaa\",\n      \"city\": \"dddd\",\n      \"state\": \"SSSS\",\n      \"country\": \"USA\",\n      \"latitude\": 48.9694,\n      \"longitude\": 2.4414,\n      \"longestRunwayFt\": 9843,\n      \"assignedFbo\": \"Jetex Paris Le Bourget\",\n      \"notes\": \"Premier private aviation airport serving Paris.\",\n      \"createdAt\": \"2026-09-15T09:44:55.276Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T10:18:54.352Z\",\n      \"updatedById\": \"89ebbaa1-dbbe-4190-8fda-337fe16d0947\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"78be496a-f938-4a77-87a0-1bdd815ee80d\",\n      \"icao\": \"EGLL\",\n      \"iata\": \"LHR\",\n      \"name\": \"London Heathrow Airport\",\n      \"city\": \"London\",\n      \"state\": \"ENG\",\n      \"country\": \"United Kingdom\",\n      \"latitude\": 51.47,\n      \"longitude\": -0.4543,\n      \"longestRunwayFt\": 7011,\n      \"assignedFbo\": \"Jet Aviation Bedford\",\n      \"notes\": \"Slot controlled. 24/7 UK Border Force available.\",\n      \"createdAt\": \"2026-09-15T09:44:55.272Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:46:05.529Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"0fc4304d-2332-433d-b7d2-4d901bb8aab2\",\n      \"icao\": \"KJFK\",\n      \"iata\": \"JFK\",\n      \"name\": \"John F. Kennedy Intl\",\n      \"city\": \"New York\",\n      \"state\": \"NY\",\n      \"country\": \"USA\",\n      \"latitude\": 40.6413,\n      \"longitude\": -73.7781,\n      \"longestRunwayFt\": 14511,\n      \"assignedFbo\": \"Sheltair Aviation\",\n      \"notes\": \"Slot controlled during afternoon peak hours.\",\n      \"createdAt\": \"2026-09-15T09:44:55.267Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.267Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"5a24fd04-08fb-4838-a4ea-5a57df616628\",\n      \"icao\": \"KLAX\",\n      \"iata\": \"LAX\",\n      \"name\": \"Los Angeles International\",\n      \"city\": \"Los Angeles\",\n      \"state\": \"CA\",\n      \"country\": \"USA\",\n      \"latitude\": 33.9416,\n      \"longitude\": -118.4085,\n      \"longestRunwayFt\": 12091,\n      \"assignedFbo\": \"Atlantic Aviation\",\n      \"notes\": \"Major West Coast international gateway.\",\n      \"createdAt\": \"2026-09-15T09:44:55.263Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.263Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"1ab27851-bacb-4f60-84cb-c36b93ba5e8a\",\n      \"icao\": \"KASE\",\n      \"iata\": \"ASE\",\n      \"name\": \"Aspen/Pitkin County\",\n      \"city\": \"Aspen\",\n      \"state\": \"CO\",\n      \"country\": \"USA\",\n      \"latitude\": 39.2232,\n      \"longitude\": -106.8688,\n      \"longestRunwayFt\": 8006,\n      \"assignedFbo\": \"Atlantic Aviation\",\n      \"notes\": \"High altitude mountain airport with strict curfew.\",\n      \"createdAt\": \"2026-09-15T09:44:55.258Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.258Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n      \"icao\": \"KVNY\",\n      \"iata\": \"VNY\",\n      \"name\": \"Van Nuys Airport\",\n      \"city\": \"Los Angeles\",\n      \"state\": \"CA\",\n      \"country\": \"USA\",\n      \"latitude\": 34.2098,\n      \"longitude\": -118.4899,\n      \"longestRunwayFt\": 8001,\n      \"assignedFbo\": \"Castle & Cooke Aviation\",\n      \"notes\": \"World's busiest dedicated general aviation airport.\",\n      \"createdAt\": \"2026-09-15T09:44:55.253Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.253Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"756b0f77-adf9-4a73-a011-d58e0d5b98f6\",\n      \"icao\": \"KLAS\",\n      \"iata\": \"LAS\",\n      \"name\": \"Harry Reid International\",\n      \"city\": \"Las Vegas\",\n      \"state\": \"NV\",\n      \"country\": \"USA\",\n      \"latitude\": 36.084,\n      \"longitude\": -115.1537,\n      \"longestRunwayFt\": 14515,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"High traffic during major conventions and events.\",\n      \"createdAt\": \"2026-09-15T09:44:55.249Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.249Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n      \"icao\": \"KMIA\",\n      \"iata\": \"MIA\",\n      \"name\": \"Miami International\",\n      \"city\": \"Miami\",\n      \"state\": \"FL\",\n      \"country\": \"USA\",\n      \"latitude\": 25.7959,\n      \"longitude\": -80.287,\n      \"longestRunwayFt\": 13016,\n      \"assignedFbo\": \"Signature Aviation\",\n      \"notes\": \"Heavy commercial and cargo traffic; prefer KOPF for light jets.\",\n      \"createdAt\": \"2026-09-15T09:44:55.244Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.244Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"6d8f3898-07be-4808-b285-9e62be79c61a\",\n      \"icao\": \"KPBI\",\n      \"iata\": \"PBI\",\n      \"name\": \"Palm Beach International\",\n      \"city\": \"West Palm Beach\",\n      \"state\": \"FL\",\n      \"country\": \"USA\",\n      \"latitude\": 26.6832,\n      \"longitude\": -80.0956,\n      \"longestRunwayFt\": 10008,\n      \"assignedFbo\": \"Atlantic Aviation\",\n      \"notes\": \"Key winter hub for South Florida private aviation traffic.\",\n      \"createdAt\": \"2026-09-15T09:44:55.238Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.238Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n      \"icao\": \"KTEB\",\n      \"iata\": \"TEB\",\n      \"name\": \"Teterboro Airport\",\n      \"city\": \"Teterboro\",\n      \"state\": \"NJ\",\n      \"country\": \"USA\",\n      \"latitude\": 40.8508,\n      \"longitude\": -74.0613,\n      \"longestRunwayFt\": 7000,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"Primary departure airport for NYC clients.\",\n      \"createdAt\": \"2026-09-15T09:44:55.231Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.231Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 10,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Unsortable column",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"icao\\\"|\\\"iata\\\"|\\\"name\\\"|\\\"city\\\"|\\\"country\\\"|\\\"longestRunwayFt\\\"\"\n  },\n  \"path\": \"/api/airports?sortBy=notes\",\n  \"timestamp\": \"2026-09-15T09:45:29.034Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Limit above the cap",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"limit\": \"Too big: expected number to be <=100\"\n  },\n  \"path\": \"/api/airports?limit=250\",\n  \"timestamp\": \"2026-09-15T09:45:29.042Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-09-15T09:45:29.068Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The detail, update and delete requests below need a real id.",
+                  "// Taking it from this list keeps the folder runnable end to end",
+                  "// without anyone pasting a airport id by hand.",
+                  "pm.test('list returned rows', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const rows = pm.response.json().data;",
+                  "    pm.expect(rows).to.be.an('array').that.is.not.empty;",
+                  "    pm.collectionVariables.set('airportId', rows[0].id);",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "07 \u00b7 Remove team member (soft)",
+          "name": "02 \u00b7 Airport stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/airports/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports",
+                "stats"
+              ]
+            },
+            "description": "The four tiles above the table.\n\n`domestic` counts rows whose country equals `homeCountry`, and `international` is the remainder. `homeCountry` is returned explicitly rather than assumed by the UI, because \"domestic\" is meaningless without saying relative to where.\n\n`withAssignedFbo` ignores rows saved with a blank FBO, not only null ones."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Stats",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 10,\n    \"domestic\": 8,\n    \"international\": 2,\n    \"withAssignedFbo\": 10,\n    \"homeCountry\": \"USA\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Countries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/airports/countries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports",
+                "countries"
+              ]
+            },
+            "description": "Distinct countries across live airports, alphabetical \u2014 the option list for the `country` filter.\n\nServed from the data rather than hardcoded in the UI, which previously offered five countries chosen at design time: wrong the moment anyone adds a sixth, and offering dead options if one is removed."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Countries",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/countries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "countries"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    \"France\",\n    \"USA\",\n    \"United Kingdom\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Get airport",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/airports/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{airportId}}",
+                  "description": "UUID. Populated by `01 \u00b7 List airports`, so this folder runs end to end unattended."
+                }
+              ]
+            },
+            "description": "Full record including the `createdBy` / `updatedBy` audit trail.\n\nA removed airport returns **404**, not a tombstone."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Airport",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e37fbbb6-9de9-4187-a3bd-2244cb1159a3\",\n    \"icao\": \"LFPB\",\n    \"iata\": \"LBG\",\n    \"name\": \"aaaa\",\n    \"city\": \"dddd\",\n    \"state\": \"SSSS\",\n    \"country\": \"USA\",\n    \"latitude\": 48.9694,\n    \"longitude\": 2.4414,\n    \"longestRunwayFt\": 9843,\n    \"assignedFbo\": \"Jetex Paris Le Bourget\",\n    \"notes\": \"Premier private aviation airport serving Paris.\",\n    \"createdAt\": \"2026-09-15T09:44:55.276Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T10:18:54.352Z\",\n    \"updatedById\": \"89ebbaa1-dbbe-4190-8fda-337fe16d0947\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"89ebbaa1-dbbe-4190-8fda-337fe16d0947\",\n      \"firstName\": \"Arun\",\n      \"lastName\": \"Roy\",\n      \"email\": \"roy@tribeca.com\"\n    },\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Airport not found\",\n  \"path\": \"/api/airports/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T09:45:29.061Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Add airport",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"icao\": \"{{newAirportIcao}}\",                      // required \u00b7 4 letters or digits, stored upper-case. Unique across live AND removed rows \u2192 duplicate returns 409.\n\n  \"iata\": \"BED\",                                     // optional \u00b7 3 letters or digits, stored upper-case. Many airports have none, so it is not required and not unique.\n\n  \"name\": \"Laurence G Hanscom Field\",                // required \u00b7 1-200 chars\n\n  \"city\": \"Bedford\",                                 // required \u00b7 1-120 chars\n\n  \"state\": \"MA\",                                     // optional \u00b7 max 60 chars. State or region; most countries outside the US do not use one.\n\n  \"country\": \"USA\",                                  // required \u00b7 1-100 chars. Exact string the country filter matches on.\n\n  \"latitude\": 42.4700,                               // optional \u00b7 signed decimal degrees. latitude -90..90, longitude -180..180. Stored as DECIMAL(9,6) and returned as a JSON number.\n  \"longitude\": -71.2890,\n\n  \"longestRunwayFt\": 7011,                           // optional \u00b7 integer feet, 0-30000. Decides which aircraft can operate here.\n\n  \"assignedFbo\": \"Signature Flight Support\",         // optional \u00b7 max 200 chars. The FBO the desk defaults to here.\n\n  \"notes\": \"Boston-area business aviation gateway.\"  // optional \u00b7 max 2000 chars. Curfews, slots, customs hours.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/airports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports"
+              ]
+            },
+            "description": "Creates an airport. Requires `Manage Airports` at write scope \u2014 brokers and assistants receive 403.\n\n**ICAO is normalised and unique.** It is upper-cased on the way in, so `kteb` and `KTEB` are the same airport and cannot both exist.\n\n**Adding a removed airport restores it** rather than returning 409. A soft delete keeps the code occupied, so refusing would strand the caller: they can see no KBED in the list and cannot create one either. The revived row keeps its original audit history instead of starting a second record for the same physical airport, and the audit entry reads `airport.restored`. The 409 below is for a code held by a **live** airport."
+          },
+          "response": [
+            {
+              "name": "201 \u00b7 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"icao\": \"{{newAirportIcao}}\",                      // required \u00b7 4 letters or digits, stored upper-case. Unique across live AND removed rows \u2192 duplicate returns 409.\n\n  \"iata\": \"BED\",                                     // optional \u00b7 3 letters or digits, stored upper-case. Many airports have none, so it is not required and not unique.\n\n  \"name\": \"Laurence G Hanscom Field\",                // required \u00b7 1-200 chars\n\n  \"city\": \"Bedford\",                                 // required \u00b7 1-120 chars\n\n  \"state\": \"MA\",                                     // optional \u00b7 max 60 chars. State or region; most countries outside the US do not use one.\n\n  \"country\": \"USA\",                                  // required \u00b7 1-100 chars. Exact string the country filter matches on.\n\n  \"latitude\": 42.4700,                               // optional \u00b7 signed decimal degrees. latitude -90..90, longitude -180..180. Stored as DECIMAL(9,6) and returned as a JSON number.\n  \"longitude\": -71.2890,\n\n  \"longestRunwayFt\": 7011,                           // optional \u00b7 integer feet, 0-30000. Decides which aircraft can operate here.\n\n  \"assignedFbo\": \"Signature Flight Support\",         // optional \u00b7 max 200 chars. The FBO the desk defaults to here.\n\n  \"notes\": \"Boston-area business aviation gateway.\"  // optional \u00b7 max 2000 chars. Curfews, slots, customs hours.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"5bf354d0-668a-44e4-af6e-0a658dbf7a72\",\n    \"icao\": \"KBED\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Signature Flight Support\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-09-15T09:45:29.100Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:45:29.100Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null\n  }\n}"
+            },
+            {
+              "name": "409 \u00b7 ICAO already in use",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"icao\": \"KTEB\",\n  \"name\": \"Dup\",\n  \"city\": \"X\",\n  \"country\": \"USA\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An airport with ICAO KTEB already exists\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-09-15T09:45:29.087Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"icao\": \"TOOLONG\",\n  \"name\": \"\",\n  \"city\": \"X\",\n  \"country\": \"USA\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"icao\": \"ICAO must be 4 letters or digits, e.g. KTEB\",\n    \"name\": \"Airport name is required\"\n  },\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-09-15T09:45:29.077Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Role may read but not write",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"icao\": \"{{newAirportIcao}}\",                      // required \u00b7 4 letters or digits, stored upper-case. Unique across live AND removed rows \u2192 duplicate returns 409.\n\n  \"iata\": \"BED\",                                     // optional \u00b7 3 letters or digits, stored upper-case. Many airports have none, so it is not required and not unique.\n\n  \"name\": \"Laurence G Hanscom Field\",                // required \u00b7 1-200 chars\n\n  \"city\": \"Bedford\",                                 // required \u00b7 1-120 chars\n\n  \"state\": \"MA\",                                     // optional \u00b7 max 60 chars. State or region; most countries outside the US do not use one.\n\n  \"country\": \"USA\",                                  // required \u00b7 1-100 chars. Exact string the country filter matches on.\n\n  \"latitude\": 42.4700,                               // optional \u00b7 signed decimal degrees. latitude -90..90, longitude -180..180. Stored as DECIMAL(9,6) and returned as a JSON number.\n  \"longitude\": -71.2890,\n\n  \"longestRunwayFt\": 7011,                           // optional \u00b7 integer feet, 0-30000. Decides which aircraft can operate here.\n\n  \"assignedFbo\": \"Signature Flight Support\",         // optional \u00b7 max 200 chars. The FBO the desk defaults to here.\n\n  \"notes\": \"Boston-area business aviation gateway.\"  // optional \u00b7 max 2000 chars. Curfews, slots, customs hours.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Airports)\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-09-15T09:45:29.052Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A code this run has not used before. See 05 \u00b7 Add airport:",
+                  "// an archived ICAO stays reserved, so a fixed one would 409 on",
+                  "// the second run rather than exercising the endpoint.",
+                  "const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
+                  "let code = 'Q';",
+                  "for (let i = 0; i < 3; i++) {",
+                  "    code += letters[Math.floor(Math.random() * letters.length)];",
+                  "}",
+                  "pm.collectionVariables.set('newAirportIcao', code);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The update and delete requests below operate on this new airport,",
+                  "// so running the folder never touches seeded reference data.",
+                  "pm.test('created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.collectionVariables.set('newAirportId', pm.response.json().data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Update airport",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // All fields optional \u00b7 send at least one, or 400.\n  // Every field from Create is accepted, including \"icao\": it is a\n  // correctable data-entry mistake, not an identity, and nothing\n  // references the code as a foreign key yet. A new code still has to\n  // be unique.\n  //\n  // Nullable fields accept null to clear them: iata, state, latitude,\n  // longitude, longestRunwayFt, assignedFbo, notes.\n\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Jet Aviation Bedford\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/airports/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{newAirportId}}",
+                  "description": "UUID of the airport to update. Populated by `05 \u00b7 Add airport`, so a folder run never edits a seeded airport."
+                }
+              ]
+            },
+            "description": "Partial update. Send only what changes; an empty body returns 400."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Updated",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // All fields optional \u00b7 send at least one, or 400.\n  // Every field from Create is accepted, including \"icao\": it is a\n  // correctable data-entry mistake, not an identity, and nothing\n  // references the code as a foreign key yet. A new code still has to\n  // be unique.\n  //\n  // Nullable fields accept null to clear them: iata, state, latitude,\n  // longitude, longestRunwayFt, assignedFbo, notes.\n\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Jet Aviation Bedford\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"5bf354d0-668a-44e4-af6e-0a658dbf7a72\",\n    \"icao\": \"KBED\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Jet Aviation Bedford\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-09-15T09:45:29.100Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:45:29.130Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Empty patch",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/airports/5bf354d0-668a-44e4-af6e-0a658dbf7a72\",\n  \"timestamp\": \"2026-09-15T09:45:29.143Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Remove airport (soft)",
           "request": {
             "method": "DELETE",
             "header": [
@@ -4260,37 +5156,37 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/users/:id",
+              "raw": "{{baseUrl}}/airports/:id",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "users",
+                "airports",
                 ":id"
               ],
               "variable": [
                 {
                   "key": "id",
-                  "value": "{{invitedUserId}}",
-                  "description": "UUID of the team member to remove. Populated by `06 \u00b7 Invite team member`."
+                  "value": "{{newAirportId}}",
+                  "description": "UUID of the airport to remove \u2014 the one `05 \u00b7 Add airport` just created, so the folder cleans up after itself instead of deleting seeded reference data."
                 }
               ]
             },
-            "description": "**Soft delete.** Sets `deletedAt` and `status = SUSPENDED`; the row, its audit history and everything referencing it are retained. Historical data is never destroyed.\n\n**Every session is revoked in the same transaction.** Marking the row deleted without killing the refresh tokens would leave the removed user signed in for the remaining lifetime of their access token \u2014 up to 15 minutes of access after being removed.\n\nReturns **204 No Content** with an empty body.\n\nRefused for your own account (400) and for the `SUPER_ADMIN` owner (403). Removing the last active administrator is refused (400).\n\nRequires `Manage Users`."
+            "description": "Soft delete \u2014 `deletedAt` is stamped and the row stays.\n\nTrips and itineraries will reference airports, so destroying one would orphan the history of every flight through it. The ICAO stays taken; see `05 \u00b7 Add airport`."
           },
           "response": [
             {
-              "name": "204 \u00b7 Removed (soft)",
+              "name": "204 \u00b7 Removed",
               "originalRequest": {
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/users/:id",
+                  "raw": "{{baseUrl}}/airports/:id",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
-                    "users",
+                    "airports",
                     ":id"
                   ]
                 }
@@ -4306,19 +5202,636 @@
               ],
               "cookie": [],
               "body": ""
+            }
+          ]
+        },
+        {
+          "name": "08 \u00b7 Restore airport",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/airports/:id/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports",
+                ":id",
+                "restore"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{newAirportId}}",
+                  "description": "UUID of the archived airport, from `05 \u00b7 Add airport`."
+                }
+              ]
             },
+            "description": "Brings an archived airport back **exactly as it was** \u2014 clears the deletion stamp and touches nothing else.\n\nThis is the only way to restore. `05 \u00b7 Add airport` refuses an archived ICAO rather than reviving it, because re-running a create form would overwrite eleven stored fields with whatever was typed into it.\n\nNo conflict check is needed: ICAO is unique across live *and* archived rows, so nothing can have taken the code while this row held it.\n\nA row that is not archived returns 404 \u2014 restoring something that was never removed is meaningless, and a 403 would confirm the id exists."
+          },
+          "response": [
             {
-              "name": "404 \u00b7 Already removed",
+              "name": "200 \u00b7 Restored",
               "originalRequest": {
-                "method": "DELETE",
+                "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/users/:id",
+                  "raw": "{{baseUrl}}/airports/:id/restore",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
-                    "users",
+                    "airports",
+                    ":id",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"1af65f00-8c3d-41c0-a2df-9ccb9eb96c90\",\n    \"icao\": \"QXYZ\",\n    \"iata\": \"QXY\",\n    \"name\": \"Example Field\",\n    \"city\": \"Example\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Signature Flight Support\",\n    \"notes\": \"Example record.\",\n    \"createdAt\": \"2026-09-15T10:43:14.806Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T10:43:14.833Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-15T10:43:14.832Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\"\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not archived",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived airport not found\",\n  \"path\": \"/api/airports/1af65f00-8c3d-41c0-a2df-9ccb9eb96c90/restore\",\n  \"timestamp\": \"2026-09-15T10:43:14.843Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "09 \u00b7 Remove several airports (soft)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/airports/bulk-delete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports",
+                "bulk-delete"
+              ]
+            },
+            "description": "Removes every id in one statement, for the table's checkbox column.\n\n**POST, not DELETE.** Request bodies on DELETE are unevenly supported by proxies and HTTP clients; a silently dropped body would remove nothing and still answer 200.\n\n**Partial success is success.** Ids matching nothing \u2014 already removed, or never there \u2014 come back in `skipped` rather than failing the batch. Two people clearing the same rows is ordinary, and refusing the second one would make their click do nothing at all.\n\nSoft delete, like `07`: re-adding an ICAO restores that airport."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Removed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 3,\n    \"deleted\": 3,\n    \"skipped\": []\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Already removed (partial)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 3,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"55604a70-8b94-408d-a1a9-622a31f48562\",\n      \"f006044a-a4a3-4bd1-a251-ccf7625a89e2\",\n      \"8a1e463e-8299-44bf-a909-a356201406b1\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Nothing selected",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-09-15T10:12:40.948Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Role may read but not write",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Airports)\",\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-09-15T10:12:40.957Z\"\n}"
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 \u00b7 Operators",
+      "description": "Charter operators \u2014 the companies that actually fly the aircraft. **Shared master data**, the same rows for every signed-in caller, with no row-level scoping.\n\n### Who may write\n\n| Role | Read | Create / Edit / Remove |\n|---|---|---|\n| SUPER_ADMIN, ADMIN, SENIOR_BROKER, BROKER | \u2713 | \u2713 |\n| ASSISTANT | \u2713 | 403 |\n\nBrokers may write here but not in `05 \u00b7 Airports`: a broker who sources a new operator adds it themselves, which matches the `Operator Sourcing` permission they already hold at full scope. Assistants hold `MANAGE_OPERATORS` at **READ**.\n\n### Fields the UI shows that nothing can supply yet\n\n`totalTrips`, `totalPaid` and `totalFleet` are aggregates over trips, operator payments and aircraft \u2014 none of which exist. They return **null**, not 0, so the UI can render an honest em dash: a confident \"0 trips\" against an operator the desk has flown twice is a wrong answer. Same reason `fleet`, `tripHistory` and `payments` come back as empty arrays on the detail response.\n\nThis folder runs as the seeded owner.",
+      "item": [
+        {
+          "name": "01 \u00b7 List operators",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/operators?page=1&limit=10&search=&sortOrder=desc&status=&sortBy=createdAt&archived=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, 1-based. Integer \u22651. Default 1. Out of range returns an empty `data` with a truthful `meta`."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Rows per page. Integer 1-100. Default 10, matching the rows-per-page dropdown in the UI. >100 or <1 \u2192 400."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Case-insensitive substring. Trimmed, max 200 chars."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Allowed (case-sensitive): asc | desc. Default desc \u2014 tables open newest-first."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): ACTIVE | PREFERRED | INACTIVE. Omit for all statuses. Lower-case returns 400 rather than being silently corrected."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | name | status | reliabilityRating. Default createdAt, paired with sortOrder desc, so a newly added operator is the first row. A closed list \u2014 anything else returns 400 rather than reaching the database."
+                },
+                {
+                  "key": "archived",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): true | false. Default false \u2014 only live rows. `true` returns ONLY archived ones, for the Archived tab."
+                }
+              ]
+            },
+            "description": "Paginated list. Search covers **name, home base, primary contact and both email addresses** in one term.\n\nSee the Params tab for every filter, its default and its bounds."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Page of operators",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"homeBase\": \"Van Nuys, CA\",\n      \"website\": \"www.claylacy.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"Dana Ruiz\",\n      \"contactEmail\": \"druiz@claylacy.com\",\n      \"contactPhone\": \"+1 (800) 423-2904\",\n      \"aircraftTypes\": [\n        \"Citation X\"\n      ],\n      \"serviceRoutes\": [\n        \"KVNY \\u2194 KLAS\"\n      ],\n      \"reliabilityRating\": 4.2,\n      \"safetyRating\": \"IS-BAO Stage 2\",\n      \"responseSpeed\": \"< 45 min\",\n      \"cancellationPolicy\": \"Standard domestic terms.\",\n      \"paymentTerms\": \"Net 30\",\n      \"sourcingNotes\": \"Dormant since the West Coast desk moved to NetJets.\",\n      \"createdAt\": \"2026-09-15T09:44:55.295Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:52:06.284Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    },\n    {\n      \"id\": \"245d1d7b-6cca-4da7-ba2a-fa7964abac91\",\n      \"name\": \"NetJets\",\n      \"status\": \"PREFERRED\",\n      \"homeBase\": \"Columbus, OH\",\n      \"website\": \"www.netjets.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"Jennifer Vance\",\n      \"contactEmail\": \"jvance@netjets.com\",\n      \"contactPhone\": \"+1 (877) 356-5825\",\n      \"aircraftTypes\": [\n        \"Citation Latitude\",\n        \"Challenger 650\",\n        \"Global 6000\"\n      ],\n      \"serviceRoutes\": [\n        \"KCMH \\u2194 KTEB\",\n        \"KTEB \\u2194 KPBI\",\n        \"KLAX \\u2194 KSFO\"\n      ],\n      \"reliabilityRating\": 4.9,\n      \"safetyRating\": \"ARG/US Platinum\",\n      \"responseSpeed\": \"< 10 min\",\n      \"cancellationPolicy\": \"NetJets broker agreement terms with 48-hour cancellation grace period.\",\n      \"paymentTerms\": \"Net 30\",\n      \"sourcingNotes\": \"Largest private jet operator globally. Instant guaranteed availability.\",\n      \"createdAt\": \"2026-09-15T09:44:55.292Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.292Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    },\n    {\n      \"id\": \"da27b81e-9266-4b81-acbb-e8a095aa8f48\",\n      \"name\": \"ExecuJet\",\n      \"status\": \"ACTIVE\",\n      \"homeBase\": \"Zurich, CH\",\n      \"website\": \"www.execujet.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"Mark Hughes\",\n      \"contactEmail\": \"mhughes@execujet.com\",\n      \"contactPhone\": \"+41 44 804 1616\",\n      \"aircraftTypes\": [\n        \"Gulfstream G550\",\n        \"Falcon 7X\"\n      ],\n      \"serviceRoutes\": [\n        \"LSZH \\u2194 LFMN\",\n        \"LSGG \\u2194 EGLL\"\n      ],\n      \"reliabilityRating\": 4.6,\n      \"safetyRating\": \"IS-BAO Stage 3\",\n      \"responseSpeed\": \"< 30 min\",\n      \"cancellationPolicy\": \"Standard European business aviation contract.\",\n      \"paymentTerms\": \"Due upon receipt\",\n      \"sourcingNotes\": \"Premier European charter operator with heavy jet capabilities.\",\n      \"createdAt\": \"2026-09-15T09:44:55.288Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.288Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    },\n    {\n      \"id\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n      \"name\": \"VistaJet\",\n      \"status\": \"ACTIVE\",\n      \"homeBase\": \"Luton, UK\",\n      \"website\": \"www.vistajet.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"Sarah Blake\",\n      \"contactEmail\": \"sblake@vistajet.com\",\n      \"contactPhone\": \"+44 20 7946 0912\",\n      \"aircraftTypes\": [\n        \"Global 7500\",\n        \"Global 6000\"\n      ],\n      \"serviceRoutes\": [\n        \"EGLL \\u2194 KJFK\",\n        \"EGGW \\u2194 OMDB\",\n        \"LFMN \\u2194 KTEB\"\n      ],\n      \"reliabilityRating\": 4.7,\n      \"safetyRating\": \"Wyvern Wingman\",\n      \"responseSpeed\": \"< 20 min\",\n      \"cancellationPolicy\": \"Standard international charter terms. 10% non-refundable deposit.\",\n      \"paymentTerms\": \"Net 15\",\n      \"sourcingNotes\": \"Excellent global coverage with distinctive silver and red stripe fleet.\",\n      \"createdAt\": \"2026-09-15T09:44:55.284Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.284Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    },\n    {\n      \"id\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n      \"name\": \"FlexJet\",\n      \"status\": \"PREFERRED\",\n      \"homeBase\": \"Cleveland, OH\",\n      \"website\": \"www.flexjet.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"James Miller\",\n      \"contactEmail\": \"jmiller@flexjet.com\",\n      \"contactPhone\": \"+1 (212) 555-0184\",\n      \"aircraftTypes\": [\n        \"Global 7500\",\n        \"Challenger 350\"\n      ],\n      \"serviceRoutes\": [\n        \"KTEB \\u2194 KMIA\",\n        \"KJFK \\u2194 EGLL\",\n        \"KLAX \\u2194 KLAS\"\n      ],\n      \"reliabilityRating\": 4.8,\n      \"safetyRating\": \"ARG/US Platinum\",\n      \"responseSpeed\": \"< 15 min\",\n      \"cancellationPolicy\": \"Full refund up to 72 hours prior to departure. 50% fee within 48-72h. 100% fee within 24h.\",\n      \"paymentTerms\": \"Net 30\",\n      \"sourcingNotes\": \"Preferred long-range partner with direct dispatch line. High reliability on transcontinental routes.\",\n      \"createdAt\": \"2026-09-15T09:44:55.280Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.280Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 5,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Enum is case-sensitive",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"status\": \"Invalid option: expected one of \\\"ACTIVE\\\"|\\\"PREFERRED\\\"|\\\"INACTIVE\\\"\"\n  },\n  \"path\": \"/api/operators?status=preferred\",\n  \"timestamp\": \"2026-09-15T09:45:29.208Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The detail, update and delete requests below need a real id.",
+                  "// Taking it from this list keeps the folder runnable end to end",
+                  "// without anyone pasting a operator id by hand.",
+                  "pm.test('list returned rows', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const rows = pm.response.json().data;",
+                  "    pm.expect(rows).to.be.an('array').that.is.not.empty;",
+                  "    pm.collectionVariables.set('operatorId', rows[0].id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 Operator stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/operators/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators",
+                "stats"
+              ]
+            },
+            "description": "The four tiles above the table. `totalFleet` is null until the Aircraft module exists \u2014 see this folder's description."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Stats",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 5,\n    \"active\": 2,\n    \"preferred\": 2,\n    \"inactive\": 1,\n    \"totalFleet\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Get operator",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/operators/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{operatorId}}",
+                  "description": "UUID. Populated by `01 \u00b7 List operators`, so this folder runs end to end unattended."
+                }
+              ]
+            },
+            "description": "Full record plus the audit trail, and the three empty arrays the detail page's Fleet, Trips and Payments tabs bind to.\n\nThey are empty arrays rather than omitted keys so those tabs render their own empty state instead of crashing on undefined."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Operator",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"name\": \"Clay Lacy Aviation\",\n    \"status\": \"INACTIVE\",\n    \"homeBase\": \"Van Nuys, CA\",\n    \"website\": \"www.claylacy.com\",\n    \"generalEmail\": null,\n    \"generalPhone\": null,\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"druiz@claylacy.com\",\n    \"contactPhone\": \"+1 (800) 423-2904\",\n    \"aircraftTypes\": [\n      \"Citation X\"\n    ],\n    \"serviceRoutes\": [\n      \"KVNY \\u2194 KLAS\"\n    ],\n    \"reliabilityRating\": 4.2,\n    \"safetyRating\": \"IS-BAO Stage 2\",\n    \"responseSpeed\": \"< 45 min\",\n    \"cancellationPolicy\": \"Standard domestic terms.\",\n    \"paymentTerms\": \"Net 30\",\n    \"sourcingNotes\": \"Dormant since the West Coast desk moved to NetJets.\",\n    \"createdAt\": \"2026-09-15T09:44:55.295Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:52:06.284Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": null,\n    \"totalPaid\": null,\n    \"fleet\": [],\n    \"tripHistory\": [],\n    \"payments\": []\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
                     ":id"
                   ]
                 }
@@ -4333,21 +5846,113 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"User not found\",\n  \"path\": \"/api/users/edf1ef4d-e7e5-4b03-aa8d-f25f1cbcb992\",\n  \"timestamp\": \"2026-09-15T08:34:49.743Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Operator not found\",\n  \"path\": \"/api/operators/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T09:45:29.227Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Add operator",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Solairus Aviation\",                                    // required \u00b7 1-200 chars\n\n  \"status\": \"ACTIVE\",                                             // optional \u00b7 default \"ACTIVE\" \u00b7 Allowed (case-sensitive): \"ACTIVE\" | \"PREFERRED\" | \"INACTIVE\"\n\n  \"homeBase\": \"Petaluma, CA\",                                     // optional \u00b7 max 120 chars. Free text city, not an airport code \u2014 several operators list a city with no single airport.\n\n  \"website\": \"www.solairus.com\",                                  // optional \u00b7 max 200 chars\n\n  \"generalEmail\": \"charter@solairus.com\",                         // optional \u00b7 the company switchboard, valid when staff change\n  \"generalPhone\": \"+1 (707) 762-8000\",\n\n  \"primaryContact\": \"Dana Ruiz\",                                  // optional \u00b7 the named account manager and their direct line\n  \"contactEmail\": \"druiz@solairus.com\",\n  \"contactPhone\": \"+1 (707) 762-8011\",\n\n  \"aircraftTypes\": [\"Gulfstream G450\", \"Citation X\"],             // optional \u00b7 arrays of strings, max 40 items, each 1-80 chars. Rendered as chips on the operator card.\n  \"serviceRoutes\": [\"KSFO \\u2194 KTEB\", \"KVNY \\u2194 KLAS\"],\n\n  \"reliabilityRating\": 4.5,                                       // optional \u00b7 number 0-5, one decimal as the card renders it\n\n  \"safetyRating\": \"ARG/US Gold\",                                  // optional \u00b7 max 120 chars. A CERTIFICATION, not a number: \"ARG/US Platinum\", \"Wyvern Wingman\", \"IS-BAO Stage 3\".\n\n  \"responseSpeed\": \"< 25 min\",                                    // optional \u00b7 max 60 chars. Typical quote turnaround, as the desk says it.\n\n  \"paymentTerms\": \"Net 30\",                                       // optional \u00b7 max 120 chars. \"Net 30\", \"Due upon receipt\".\n\n  \"cancellationPolicy\": \"50% fee within 48 hours of departure.\",  // optional \u00b7 max 2000 chars\n  \"sourcingNotes\": \"Strong West Coast coverage; quick to quote on short notice.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
+            "url": {
+              "raw": "{{baseUrl}}/operators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators"
+              ]
+            },
+            "description": "Creates an operator. Requires `Manage Operators` at write scope \u2014 assistants receive 403.\n\nName is deliberately **not** unique: two genuinely different operators can share a trading name, and refusing the second would be wrong. Duplicates are a data-quality question for the desk, not a constraint."
+          },
+          "response": [
             {
-              "name": "400 \u00b7 Cannot remove your own account",
+              "name": "201 \u00b7 Created",
               "originalRequest": {
-                "method": "DELETE",
-                "header": [],
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Solairus Aviation\",                                    // required \u00b7 1-200 chars\n\n  \"status\": \"ACTIVE\",                                             // optional \u00b7 default \"ACTIVE\" \u00b7 Allowed (case-sensitive): \"ACTIVE\" | \"PREFERRED\" | \"INACTIVE\"\n\n  \"homeBase\": \"Petaluma, CA\",                                     // optional \u00b7 max 120 chars. Free text city, not an airport code \u2014 several operators list a city with no single airport.\n\n  \"website\": \"www.solairus.com\",                                  // optional \u00b7 max 200 chars\n\n  \"generalEmail\": \"charter@solairus.com\",                         // optional \u00b7 the company switchboard, valid when staff change\n  \"generalPhone\": \"+1 (707) 762-8000\",\n\n  \"primaryContact\": \"Dana Ruiz\",                                  // optional \u00b7 the named account manager and their direct line\n  \"contactEmail\": \"druiz@solairus.com\",\n  \"contactPhone\": \"+1 (707) 762-8011\",\n\n  \"aircraftTypes\": [\"Gulfstream G450\", \"Citation X\"],             // optional \u00b7 arrays of strings, max 40 items, each 1-80 chars. Rendered as chips on the operator card.\n  \"serviceRoutes\": [\"KSFO \\u2194 KTEB\", \"KVNY \\u2194 KLAS\"],\n\n  \"reliabilityRating\": 4.5,                                       // optional \u00b7 number 0-5, one decimal as the card renders it\n\n  \"safetyRating\": \"ARG/US Gold\",                                  // optional \u00b7 max 120 chars. A CERTIFICATION, not a number: \"ARG/US Platinum\", \"Wyvern Wingman\", \"IS-BAO Stage 3\".\n\n  \"responseSpeed\": \"< 25 min\",                                    // optional \u00b7 max 60 chars. Typical quote turnaround, as the desk says it.\n\n  \"paymentTerms\": \"Net 30\",                                       // optional \u00b7 max 120 chars. \"Net 30\", \"Due upon receipt\".\n\n  \"cancellationPolicy\": \"50% fee within 48 hours of departure.\",  // optional \u00b7 max 2000 chars\n  \"sourcingNotes\": \"Strong West Coast coverage; quick to quote on short notice.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": {
-                  "raw": "{{baseUrl}}/users/:id",
+                  "raw": "{{baseUrl}}/operators",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
-                    "users",
-                    ":id"
+                    "operators"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"08ae5c03-afc2-4618-9243-2f01a9e6162d\",\n    \"name\": \"Solairus Aviation\",\n    \"status\": \"ACTIVE\",\n    \"homeBase\": \"Petaluma, CA\",\n    \"website\": \"www.solairus.com\",\n    \"generalEmail\": \"charter@solairus.com\",\n    \"generalPhone\": \"+1 (707) 762-8000\",\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"druiz@solairus.com\",\n    \"contactPhone\": \"+1 (707) 762-8011\",\n    \"aircraftTypes\": [\n      \"Gulfstream G450\",\n      \"Citation X\"\n    ],\n    \"serviceRoutes\": [\n      \"KSFO \\u2194 KTEB\",\n      \"KVNY \\u2194 KLAS\"\n    ],\n    \"reliabilityRating\": 4.5,\n    \"safetyRating\": \"ARG/US Gold\",\n    \"responseSpeed\": \"< 25 min\",\n    \"cancellationPolicy\": \"50% fee within 48 hours of departure.\",\n    \"paymentTerms\": \"Net 30\",\n    \"sourcingNotes\": \"Strong West Coast coverage; quick to quote on short notice.\",\n    \"createdAt\": \"2026-09-15T09:45:29.246Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:45:29.246Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"totalTrips\": null,\n    \"totalPaid\": null\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"\",\n  \"status\": \"Active\",\n  \"contactEmail\": \"not-an-email\",\n  \"reliabilityRating\": 9\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/operators",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators"
                   ]
                 }
               },
@@ -4361,21 +5966,34 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"You cannot remove your own account\",\n  \"path\": \"/api/users/bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n  \"timestamp\": \"2026-09-15T08:34:49.745Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"name\": \"Operator name is required\",\n    \"status\": \"Invalid option: expected one of \\\"ACTIVE\\\"|\\\"PREFERRED\\\"|\\\"INACTIVE\\\"\",\n    \"contactEmail\": \"Invalid email address\",\n    \"reliabilityRating\": \"Too big: expected number to be <=5\"\n  },\n  \"path\": \"/api/operators\",\n  \"timestamp\": \"2026-09-15T09:45:29.236Z\"\n}"
             },
             {
-              "name": "403 \u00b7 The owner account cannot be removed",
+              "name": "403 \u00b7 Role may read but not write",
               "originalRequest": {
-                "method": "DELETE",
-                "header": [],
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Nope Air\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": {
-                  "raw": "{{baseUrl}}/users/:id",
+                  "raw": "{{baseUrl}}/operators",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
-                    "users",
-                    ":id"
+                    "operators"
                   ]
                 }
               },
@@ -4389,21 +6007,344 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"The owner account cannot be modified\",\n  \"path\": \"/api/users/bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n  \"timestamp\": \"2026-09-15T08:34:49.748Z\"\n}"
-            },
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Operators)\",\n  \"path\": \"/api/operators\",\n  \"timestamp\": \"2026-09-15T09:45:29.218Z\"\n}"
+            }
+          ],
+          "event": [
             {
-              "name": "403 \u00b7 Role lacks Manage Users",
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The update and delete requests below operate on this new operator,",
+                  "// so running the folder never touches seeded reference data.",
+                  "pm.test('created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.collectionVariables.set('newOperatorId', pm.response.json().data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Update operator",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // All fields optional \u00b7 send at least one, or 400.\n  // Every field from Create is accepted; nullable ones accept null to clear.\n  //\n  // Arrays are REPLACED, not merged: the UI edits them as one\n  // comma-separated field, so what the user typed is the complete\n  // list and a merge would make removing a chip impossible.\n\n  \"status\": \"PREFERRED\",    // Allowed (case-sensitive): \"ACTIVE\" | \"PREFERRED\" | \"INACTIVE\"\n\n  \"reliabilityRating\": 4.7  // number 0-5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operators/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{newOperatorId}}",
+                  "description": "UUID of the operator to update. Populated by `04 \u00b7 Add operator`, so a folder run never edits a seeded operator."
+                }
+              ]
+            },
+            "description": "Partial update. Send only what changes; an empty body returns 400.\n\nA status change is written to the audit log with its before and after values."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Updated",
               "originalRequest": {
-                "method": "DELETE",
-                "header": [],
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  // All fields optional \u00b7 send at least one, or 400.\n  // Every field from Create is accepted; nullable ones accept null to clear.\n  //\n  // Arrays are REPLACED, not merged: the UI edits them as one\n  // comma-separated field, so what the user typed is the complete\n  // list and a merge would make removing a chip impossible.\n\n  \"status\": \"PREFERRED\",    // Allowed (case-sensitive): \"ACTIVE\" | \"PREFERRED\" | \"INACTIVE\"\n\n  \"reliabilityRating\": 4.7  // number 0-5\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": {
-                  "raw": "{{baseUrl}}/users/:id",
+                  "raw": "{{baseUrl}}/operators/:id",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
-                    "users",
+                    "operators",
                     ":id"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"08ae5c03-afc2-4618-9243-2f01a9e6162d\",\n    \"name\": \"Solairus Aviation\",\n    \"status\": \"PREFERRED\",\n    \"homeBase\": \"Petaluma, CA\",\n    \"website\": \"www.solairus.com\",\n    \"generalEmail\": \"charter@solairus.com\",\n    \"generalPhone\": \"+1 (707) 762-8000\",\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"druiz@solairus.com\",\n    \"contactPhone\": \"+1 (707) 762-8011\",\n    \"aircraftTypes\": [\n      \"Gulfstream G450\",\n      \"Citation X\"\n    ],\n    \"serviceRoutes\": [\n      \"KSFO \\u2194 KTEB\",\n      \"KVNY \\u2194 KLAS\"\n    ],\n    \"reliabilityRating\": 4.7,\n    \"safetyRating\": \"ARG/US Gold\",\n    \"responseSpeed\": \"< 25 min\",\n    \"cancellationPolicy\": \"50% fee within 48 hours of departure.\",\n    \"paymentTerms\": \"Net 30\",\n    \"sourcingNotes\": \"Strong West Coast coverage; quick to quote on short notice.\",\n    \"createdAt\": \"2026-09-15T09:45:29.246Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:45:29.278Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"totalTrips\": null,\n    \"totalPaid\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Remove operator (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operators/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{newOperatorId}}",
+                  "description": "UUID of the operator to remove \u2014 the one `04 \u00b7 Add operator` just created, so the folder cleans up after itself instead of deleting seeded master data."
+                }
+              ]
+            },
+            "description": "Soft delete \u2014 `deletedAt` is stamped and the row stays.\n\nTrips, quotes and operator payments will all reference operators, so destroying one would orphan the history of every flight it operated."
+          },
+          "response": [
+            {
+              "name": "204 \u00b7 Removed",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Restore operator",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operators/:id/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators",
+                ":id",
+                "restore"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{newOperatorId}}",
+                  "description": "UUID of the archived operator, from `04 \u00b7 Add operator`."
+                }
+              ]
+            },
+            "description": "Brings an archived operator back exactly as it was. Same contract as `05 \u00b7 Airports / 08` \u2014 see there for why create never restores."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"222665b8-1c91-44c6-811b-05d707b645ff\",\n    \"name\": \"Example Air\",\n    \"status\": \"ACTIVE\",\n    \"homeBase\": \"Example, CA\",\n    \"website\": null,\n    \"generalEmail\": null,\n    \"generalPhone\": null,\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"dana@example.com\",\n    \"contactPhone\": null,\n    \"aircraftTypes\": [],\n    \"serviceRoutes\": [],\n    \"reliabilityRating\": null,\n    \"safetyRating\": null,\n    \"responseSpeed\": null,\n    \"cancellationPolicy\": null,\n    \"paymentTerms\": null,\n    \"sourcingNotes\": null,\n    \"createdAt\": \"2026-09-15T10:43:14.862Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T10:43:14.897Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-15T10:43:14.896Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"totalTrips\": null,\n    \"totalPaid\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "08 \u00b7 Remove several operators (soft)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operators/bulk-delete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators",
+                "bulk-delete"
+              ]
+            },
+            "description": "Removes every id in one statement, for the table's checkbox column.\n\nPOST rather than DELETE-with-body, and partial success reported rather than failing the batch \u2014 see `05 \u00b7 Airports / 08` for why on both counts."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Removed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/operators/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
+            },
+            {
+              "name": "403 \u00b7 Role may read but not write",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/operators/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    "bulk-delete"
                   ]
                 }
               },
@@ -4417,7 +6358,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Users)\",\n  \"path\": \"/api/users/473ebf79-80bf-442a-9fc5-f135ffb3aced\",\n  \"timestamp\": \"2026-09-15T08:34:49.750Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Operators)\",\n  \"path\": \"/api/operators/bulk-delete\",\n  \"timestamp\": \"2026-09-15T10:12:40.993Z\"\n}"
             }
           ]
         }

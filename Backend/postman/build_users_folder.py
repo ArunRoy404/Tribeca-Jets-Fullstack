@@ -182,7 +182,7 @@ def capture():
 
     out: dict[str, list] = {k: [] for k in
                             ["signin", "list", "stats", "roles", "detail", "invite",
-                             "update", "remove", "denied", "deny_login", "deny_list"]}
+                             "update", "denied", "deny_login", "deny_list"]}
 
     # --- sign in ----------------------------------------------------------
     fresh = Session()
@@ -337,26 +337,6 @@ def capture():
     out["update"].append(
         example("403 · The owner account is immutable", s, b, method="PATCH", url="/users/:id", req_body={"status": "SUSPENDED"})
     )
-
-    # --- remove -----------------------------------------------------------
-    s, b = admin.call(f"/users/{invited_id}", "DELETE")
-    out["remove"].append(example("204 · Removed (soft)", s, b, method="DELETE", url="/users/:id"))
-
-    s, b = admin.call(f"/users/{invited_id}", "DELETE")
-    out["remove"].append(example("404 · Already removed", s, b, method="DELETE", url="/users/:id"))
-
-    s, b = admin.call(f"/users/{self_id}", "DELETE")
-    out["remove"].append(
-        example("400 · Cannot remove your own account", s, b, method="DELETE", url="/users/:id")
-    )
-
-    s, b = security.call(f"/users/{self_id}", "DELETE")
-    out["remove"].append(
-        example("403 · The owner account cannot be removed", s, b, method="DELETE", url="/users/:id")
-    )
-
-    s, b = broker.call(f"/users/{suspended_id}", "DELETE")
-    out["remove"].append(example("403 · Role lacks Manage Users", s, b, method="DELETE", url="/users/:id"))
 
     # --- authorization sub-folder ----------------------------------------
     deny = Session()
@@ -619,9 +599,8 @@ def build_folder(captured):
                         "script": {
                             "type": "text/javascript",
                             "exec": [
-                                "// The update and remove requests below operate on this",
-                                "// throwaway account, so running the folder never mutates a",
-                                "// seeded one.",
+                                "// The update request below operates on this throwaway",
+                                "// account, so running the folder never mutates a seeded one.",
                                 "if (pm.response.code === 201) {",
                                 "    pm.collectionVariables.set('invitedUserId',",
                                 "        pm.response.json().data.user.id);",
@@ -649,8 +628,8 @@ def build_folder(captured):
                         "`emailSent` is `false` and `invitation.notice` explains what to tell "
                         "the invitee instead — rather than failing silently and leaving them "
                         "waiting for mail that never sent.\n\n"
-                        "Re-inviting a previously removed account revives that row rather than "
-                        "creating a duplicate, so its audit history stays attached.\n\n"
+                        "The address must be free: any existing account with that email is a "
+                        "409, archived rows included, so an address is never handed out twice.\n\n"
                         "Requires `Manage Users`."
                     ),
                     "body": {
@@ -734,33 +713,6 @@ def build_folder(captured):
                     },
                 },
                 "response": captured["update"],
-            },
-            {
-                "name": "08 · Remove team member (soft)",
-                "request": {
-                    "method": "DELETE",
-                    "header": [CSRF_HEADER],
-                    "url": {
-                        "raw": "{{baseUrl}}/users/:id",
-                        "host": ["{{baseUrl}}"],
-                        "path": ["users", ":id"],
-                        "variable": [{"key": "id", "value": "{{invitedUserId}}", "description": "UUID of the team member to remove. Populated by `06 · Invite team member`."}],
-                    },
-                    "description": (
-                        "**Soft delete.** Sets `deletedAt` and `status = SUSPENDED`; the row, "
-                        "its audit history and everything referencing it are retained. "
-                        "Historical data is never destroyed.\n\n"
-                        "**Every session is revoked in the same transaction.** Marking the row "
-                        "deleted without killing the refresh tokens would leave the removed "
-                        "user signed in for the remaining lifetime of their access token — "
-                        "up to 15 minutes of access after being removed.\n\n"
-                        "Returns **204 No Content** with an empty body.\n\n"
-                        "Refused for your own account (400) and for the `SUPER_ADMIN` owner "
-                        "(403). Removing the last active administrator is refused (400).\n\n"
-                        "Requires `Manage Users`."
-                    ),
-                },
-                "response": captured["remove"],
             },
             {
                 "name": "09 · Authorization checks",
