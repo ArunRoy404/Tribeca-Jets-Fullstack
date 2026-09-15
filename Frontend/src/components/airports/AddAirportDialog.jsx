@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Edit, X } from "lucide-react";
 import { useAirportsStore } from "@/store/useAirportsStore";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import FormField from "@/components/trips/FormField";
+import { useCreateAirport, useUpdateAirport } from "@/hooks/airports";
 
 const FIELD_CLASS = "h-12 px-4 rounded-sm text-base font-medium";
 const LABEL_CLASS = "text-[14px] text-foreground mb-1.5";
 
-const initialForm = {
+const EMPTY_FORM = {
   icao: "",
   iata: "",
   name: "",
@@ -20,79 +21,129 @@ const initialForm = {
   country: "USA",
   latitude: "",
   longitude: "",
+  longestRunwayFt: "",
   assignedFbo: "",
+  notes: "",
 };
+
+/**
+ * Optional text fields are sent as null when cleared and omitted when never
+ * filled in, because the API distinguishes the two: absent means "leave it
+ * alone", null means "clear it".
+ */
+function optional(value, { editing }) {
+  const trimmed = (value ?? "").trim();
+  if (trimmed) return trimmed;
+  return editing ? null : undefined;
+}
+
+function optionalNumber(value, { editing }) {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return editing ? null : undefined;
+  const number = Number(trimmed);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function initialForm(airport) {
+  if (!airport) return EMPTY_FORM;
+  return {
+    icao: airport.icao || "",
+    iata: airport.iata || "",
+    name: airport.name || "",
+    city: airport.city || "",
+    state: airport.state || "",
+    country: airport.country || "USA",
+    latitude: airport.latitude ?? "",
+    longitude: airport.longitude ?? "",
+    longestRunwayFt: airport.longestRunwayFt ?? "",
+    // The row renders an em dash for an airport with no FBO; that is a display
+    // value, not one to put back into the field.
+    assignedFbo: airport.assignedFbo && airport.assignedFbo !== "\u2014" ? airport.assignedFbo : "",
+    notes: airport.notes || "",
+  };
+}
 
 export default function AddAirportDialog() {
   const open = useAirportsStore((s) => s.addModalOpen);
   const editingAirport = useAirportsStore((s) => s.editingAirport);
   const closeModal = useAirportsStore((s) => s.closeAddModal);
-  const addAirport = useAirportsStore((s) => s.addAirport);
-  const updateAirport = useAirportsStore((s) => s.updateAirport);
 
-  const [formData, setFormData] = useState(initialForm);
+  return (
+    <Dialog open={open} onOpenChange={(next) => !next && closeModal()}>
+      <DialogContent className="sm:max-w-3xl rounded-2xl p-6 gap-5 max-h-[90vh] overflow-y-auto">
+        {/*
+          Keyed so the form remounts with fresh state whenever the dialog opens
+          on a different airport. React's own answer to "reset state when a prop
+          changes" — an effect calling setState would work, but it renders once
+          with the previous airport's values before correcting itself.
+        */}
+        {open && (
+          <AirportForm
+            key={editingAirport?.id ?? "new"}
+            editingAirport={editingAirport}
+            onDone={closeModal}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-  useEffect(() => {
-    if (editingAirport) {
-      setFormData({
-        icao: editingAirport.icao || "",
-        iata: editingAirport.iata || "",
-        name: editingAirport.name || "",
-        city: editingAirport.city || "",
-        state: editingAirport.state || "",
-        country: editingAirport.country || "USA",
-        latitude: editingAirport.latitude || "",
-        longitude: editingAirport.longitude || "",
-        assignedFbo: editingAirport.assignedFbo || "",
-      });
-    } else {
-      setFormData(initialForm);
-    }
-  }, [editingAirport, open]);
+function AirportForm({ editingAirport, onDone }) {
+  const create = useCreateAirport();
+  const update = useUpdateAirport();
+
+  const editing = Boolean(editingAirport);
+  const mutation = editing ? update : create;
+  const fieldErrors = mutation?.error?.fieldErrors ?? {};
+
+  const [formData, setFormData] = useState(() => initialForm(editingAirport));
+
+  const handleClose = onDone;
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleClose = () => {
-    setFormData(initialForm);
-    closeModal();
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
+    // Mirrors the API exactly: ICAO, name, city, country, both coordinates and
+    // the runway length. IATA, state, FBO and notes are genuinely optional —
+    // many airports have no IATA code and most countries have no state, so
+    // requiring them would only produce invented data.
     if (!formData.icao.trim() || !formData.name.trim()) return;
 
     const payload = {
       icao: formData.icao.trim().toUpperCase(),
-      iata: formData.iata.trim().toUpperCase(),
+      iata: optional(formData.iata.toUpperCase(), { editing }),
       name: formData.name.trim(),
       city: formData.city.trim(),
-      state: formData.state.trim().toUpperCase(),
+      state: optional(formData.state.toUpperCase(), { editing }),
       country: formData.country.trim(),
-      latitude: formData.latitude.trim() || "40.8508",
-      longitude: formData.longitude.trim() || "-74.0613",
-      assignedFbo: formData.assignedFbo.trim() || "Signature Flight Support",
-      notes: editingAirport?.notes || "Primary departure airport for NYC clients.",
+      latitude: optionalNumber(String(formData.latitude), { editing }),
+      longitude: optionalNumber(String(formData.longitude), { editing }),
+      longestRunwayFt: optionalNumber(String(formData.longestRunwayFt), { editing }),
+      assignedFbo: optional(formData.assignedFbo, { editing }),
+      // Previously stamped with a hardcoded sentence when left blank, which
+      // wrote "Primary departure airport for NYC clients." onto airports
+      // nowhere near New York.
+      notes: optional(formData.notes, { editing }),
     };
 
-    if (editingAirport) {
-      updateAirport(editingAirport.id, payload);
-    } else {
-      addAirport(payload);
+    if (editing) {
+      update.mutate({ id: editingAirport.id, ...payload }, { onSuccess: handleClose });
+      return;
     }
-
-    handleClose();
+    create.mutate(payload, { onSuccess: handleClose });
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent className="sm:max-w-3xl rounded-2xl p-6 gap-5 max-h-[90vh] overflow-y-auto">
+    <>
         {/* Header */}
         <div className="border-b border-secondary flex items-start justify-between gap-4 pb-4 w-full">
           <div className="flex flex-col gap-1.5">
             <DialogTitle className="font-montserrat font-bold text-[20px] text-black-text leading-none">
-              {editingAirport ? "Edit Airport" : "Add Airport"}
+              {editing ? "Edit Airport" : "Add Airport"}
             </DialogTitle>
             <p className="font-montserrat font-medium text-[14px] text-muted-foreground">
               {editingAirport
@@ -105,7 +156,7 @@ export default function AddAirportDialog() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
           {/* Row 1: ICAO & IATA */}
           <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
-            <FormField label="ICAO" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
+            <FormField label="ICAO" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full" error={fieldErrors?.icao}>
               <Input
                 className={FIELD_CLASS}
                 placeholder="e.g. KTEB"
@@ -114,7 +165,7 @@ export default function AddAirportDialog() {
                 required
               />
             </FormField>
-            <FormField label="IATA" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
+            <FormField label="IATA (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full" error={fieldErrors?.iata}>
               <Input
                 className={FIELD_CLASS}
                 placeholder="e.g. TEB"
@@ -125,7 +176,7 @@ export default function AddAirportDialog() {
           </div>
 
           {/* Row 2: Airport Name */}
-          <FormField label="Airport Name" labelClassName={LABEL_CLASS} className="w-full">
+          <FormField label="Airport Name" labelClassName={LABEL_CLASS} className="w-full" error={fieldErrors?.name}>
             <Input
               className={FIELD_CLASS}
               placeholder="Teterboro Airport"
@@ -146,7 +197,7 @@ export default function AddAirportDialog() {
                 required
               />
             </FormField>
-            <FormField label="State" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
+            <FormField label="State (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
               <Input
                 className={FIELD_CLASS}
                 placeholder="Type..."
@@ -173,6 +224,7 @@ export default function AddAirportDialog() {
                 placeholder="40.8508"
                 value={formData.latitude}
                 onChange={(e) => handleChange("latitude", e.target.value)}
+                required
               />
             </FormField>
             <FormField label="Longitude" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
@@ -181,19 +233,51 @@ export default function AddAirportDialog() {
                 placeholder="-74.0613"
                 value={formData.longitude}
                 onChange={(e) => handleChange("longitude", e.target.value)}
+                required
               />
             </FormField>
           </div>
 
-          {/* Row 5: FBO */}
-          <FormField label="FBO" labelClassName={LABEL_CLASS} className="w-full">
+          {/* Row 5: FBO & longest runway */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
+            <FormField label="FBO (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full" error={fieldErrors?.assignedFbo}>
+              <Input
+                className={FIELD_CLASS}
+                placeholder="Type..."
+                value={formData.assignedFbo}
+                onChange={(e) => handleChange("assignedFbo", e.target.value)}
+              />
+            </FormField>
+            {/* The table has had a "Longest Runway" column all along with no
+                field behind it, so it rendered blank for every airport. */}
+            <FormField label="Longest Runway (ft)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full" error={fieldErrors?.longestRunwayFt}>
+              <Input
+                className={FIELD_CLASS}
+                placeholder="7000"
+                inputMode="numeric"
+                value={formData.longestRunwayFt}
+                onChange={(e) => handleChange("longestRunwayFt", e.target.value)}
+                required
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Notes (Optional)" labelClassName={LABEL_CLASS} className="w-full" error={fieldErrors?.notes}>
             <Input
               className={FIELD_CLASS}
-              placeholder="Type..."
-              value={formData.assignedFbo}
-              onChange={(e) => handleChange("assignedFbo", e.target.value)}
+              placeholder="Curfews, slot restrictions, customs hours..."
+              value={formData.notes}
+              onChange={(e) => handleChange("notes", e.target.value)}
             />
           </FormField>
+
+          {/* Server-side refusals — a duplicate ICAO, a role without write
+              access — arrive as a message rather than a field error. */}
+          {mutation?.error && !Object.keys(fieldErrors).length && (
+            <p className="font-montserrat text-[12px] text-destructive">
+              {mutation.error.message}
+            </p>
+          )}
 
           {/* Footer Buttons */}
           <div className="border-t border-secondary flex gap-2 items-center pt-4 w-full">
@@ -201,13 +285,16 @@ export default function AddAirportDialog() {
               <X className="size-4" />
               Cancel
             </Button>
-            <Button type="submit" className="gap-2 px-4">
-              {editingAirport ? <Edit className="size-4" /> : <Plus className="size-4" />}
-              {editingAirport ? "Save Changes" : "Add Airport"}
+            <Button type="submit" className="gap-2 px-4" disabled={mutation?.isPending}>
+              {editing ? <Edit className="size-4" /> : <Plus className="size-4" />}
+              {mutation?.isPending
+                ? "Saving…"
+                : editingAirport
+                  ? "Save Changes"
+                  : "Add Airport"}
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

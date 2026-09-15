@@ -69,7 +69,7 @@ export default function AirportDetailsSidebar() {
                 </div>
                 <div className="flex flex-col gap-1 w-full">
                   <span className="font-montserrat text-[12px] text-muted-foreground">State</span>
-                  <span className="font-montserrat font-bold text-[14px] text-foreground">{airport.state || "-"}</span>
+                  <span className="font-montserrat font-bold text-[14px] text-foreground">{airport.state || "—"}</span>
                 </div>
               </div>
 
