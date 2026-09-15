@@ -9,6 +9,7 @@ import type { Env } from './env.validation.js';
  */
 
 export type StorageDriver = 's3' | 'local';
+export type MailDriverName = 'smtp' | 'log';
 
 export interface AppConfig {
   nodeEnv: Env['NODE_ENV'];
@@ -26,8 +27,27 @@ export interface AppConfig {
     refreshSecret: string;
     accessTtl: string;
     refreshTtl: string;
+    refreshTtlRemembered: string;
     cookieDomain?: string;
     cookieSecure: boolean;
+  };
+
+  verification: {
+    twoFactorTtlMinutes: number;
+    passwordResetTtlMinutes: number;
+    passwordResetWindowMinutes: number;
+    maxAttempts: number;
+  };
+
+  mail: {
+    driver: MailDriverName;
+    from: string;
+    smtp?: {
+      host: string;
+      port: number;
+      user: string;
+      password: string;
+    };
   };
 
   cors: { origins: string[] };
@@ -84,6 +104,32 @@ function resolveStorage(env: Env): AppConfig['storage'] {
   };
 }
 
+/** SMTP only when a complete credential set is present. */
+function resolveMail(env: Env): AppConfig['mail'] {
+  const hasSmtpCredentials = Boolean(
+    env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASSWORD,
+  );
+
+  const useSmtp =
+    env.MAIL_DRIVER === 'smtp' ||
+    (env.MAIL_DRIVER === 'auto' && hasSmtpCredentials);
+
+  if (!useSmtp) {
+    return { driver: 'log', from: env.MAIL_FROM };
+  }
+
+  return {
+    driver: 'smtp',
+    from: env.MAIL_FROM,
+    smtp: {
+      host: env.SMTP_HOST!,
+      port: env.SMTP_PORT,
+      user: env.SMTP_USER!,
+      password: env.SMTP_PASSWORD!,
+    },
+  };
+}
+
 export function buildConfig(env: Env): AppConfig {
   return {
     nodeEnv: env.NODE_ENV,
@@ -101,6 +147,7 @@ export function buildConfig(env: Env): AppConfig {
       refreshSecret: env.JWT_REFRESH_SECRET,
       accessTtl: env.JWT_ACCESS_TTL,
       refreshTtl: env.JWT_REFRESH_TTL,
+      refreshTtlRemembered: env.JWT_REFRESH_TTL_REMEMBERED,
       cookieDomain: env.COOKIE_DOMAIN || undefined,
       cookieSecure: env.COOKIE_SECURE,
     },
@@ -110,7 +157,15 @@ export function buildConfig(env: Env): AppConfig {
       origins: Array.from(new Set([env.WEB_APP_URL, ...env.CORS_ORIGINS])),
     },
 
+    verification: {
+      twoFactorTtlMinutes: env.TWO_FACTOR_CODE_TTL_MINUTES,
+      passwordResetTtlMinutes: env.PASSWORD_RESET_CODE_TTL_MINUTES,
+      passwordResetWindowMinutes: env.PASSWORD_RESET_WINDOW_MINUTES,
+      maxAttempts: env.VERIFICATION_MAX_ATTEMPTS,
+    },
+
     storage: resolveStorage(env),
+    mail: resolveMail(env),
 
     ai: {
       provider: env.AI_PROVIDER,
