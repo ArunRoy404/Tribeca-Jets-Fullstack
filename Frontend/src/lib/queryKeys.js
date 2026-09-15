@@ -28,4 +28,23 @@ export const queryKeys = {
     list: (filters) => ["clients", "list", filters ?? {}],
     detail: (id) => ["clients", "detail", id],
   },
+
+  airports: {
+    all: ["airports"],
+    list: (params) => ["airports", "list", params ?? {}],
+    detail: (id) => ["airports", "detail", id],
+    stats: ["airports", "stats"],
+    /**
+     * The country filter's options. Outside `list` because it changes only
+     * when an airport is added or removed, not when the table is filtered.
+     */
+    countries: ["airports", "countries"],
+  },
+
+  operators: {
+    all: ["operators"],
+    list: (params) => ["operators", "list", params ?? {}],
+    detail: (id) => ["operators", "detail", id],
+    stats: ["operators", "stats"],
+  },
 };

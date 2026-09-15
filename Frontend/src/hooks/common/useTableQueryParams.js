@@ -251,6 +251,12 @@ export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 /**
  * The page, limit, sortBy and sortOrder fields every list screen needs.
  *
+ * **Tables open newest-first** — `createdAt` descending — and that default is
+ * not a per-table choice. A row someone just added has to be the first thing
+ * they see; an alphabetical or by-code default buries it wherever the alphabet
+ * happens to put it, which reads as "my save did not work". Override only for
+ * a table with a genuine reason to open differently, and say what it is.
+ *
  * @param sortBy   Sortable columns, matching the API's allowlist exactly. A
  *                 value the API would reject must not survive the URL either.
  * @param defaults `{ sortBy, sortOrder, limit }` starting values.
