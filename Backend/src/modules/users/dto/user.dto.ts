@@ -43,17 +43,14 @@ export const manageableStatusSchema = z.enum([
   UserStatus.SUSPENDED,
 ]);
 
+// No `archived` param here, unlike every other module: accounts are never
+// removed, so there is no archived half of this list to ask for.
 export const queryUsersSchema = paginationSchema.extend({
   /** Filter to one role. Omit for all roles. */
   role: z.enum(UserRole).optional(),
   /** Filter to one status. Omit for all statuses. */
   status: z.enum(UserStatus).optional(),
   sortBy: sortableBy(USER_SORTABLE_FIELDS),
-  /**
-   * Include soft-deleted accounts. Administrators only — enforced in the
-   * service, since a query param must never widen visibility on its own.
-   */
-  includeDeleted: z.coerce.boolean().default(false),
 });
 
 export type QueryUsersInput = z.infer<typeof queryUsersSchema>;

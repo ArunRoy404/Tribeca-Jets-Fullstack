@@ -1,10 +1,7 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
-  HttpCode,
-  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -13,10 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
+import { RequireWritePermissions } from '../../common/decorators/permissions.decorator.js';
 import { Permission } from '../../common/authorization/permissions.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UsersService } from './users.service.js';
@@ -109,20 +103,5 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ) {
     return this.users.update(user, id, dto);
-  }
-
-  @Delete(':id')
-  @RequireWritePermissions(Permission.MANAGE_USERS)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({
-    summary: 'Remove a team member',
-    description:
-      'Soft delete: the row and its history are retained and every session is revoked immediately. The owner account and your own account cannot be removed.',
-  })
-  remove(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<void> {
-    return this.users.remove(user, id);
   }
 }

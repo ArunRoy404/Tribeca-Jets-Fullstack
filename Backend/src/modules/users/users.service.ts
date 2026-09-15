@@ -61,7 +61,6 @@ const USER_SELECT = {
   createdById: true,
   updatedAt: true,
   updatedById: true,
-  deletedAt: true,
 } satisfies Prisma.UserSelect;
 
 /** Who made the record, and who last touched it. */
@@ -134,14 +133,13 @@ export class UsersService {
     query: QueryUsersInput,
   ): Promise<Paginated<unknown>> {
     const { skip, take } = toPrismaPagination(query);
-    const canManage = scopeFor(user.role, Permission.MANAGE_USERS) === Scope.ALL;
 
-    // `includeDeleted` is a request, not a grant. Honour it only for callers
-    // who may manage users; everyone else silently gets live accounts.
-    const showDeleted = query.includeDeleted && canManage;
-
+    // Accounts are never removed — suspending is the way out — so the only
+    // rows `deletedAt` still hides are legacy ones archived before the feature
+    // was withdrawn. Auth checks the same column, so a stamped row also cannot
+    // sign in.
     const where: Prisma.UserWhereInput = {
-      ...(showDeleted ? {} : { deletedAt: null }),
+      deletedAt: null,
       ...this.visibilityScope(user),
       ...equalsAny(query, ['role', 'status']),
       ...searchAcross(query.search, ['firstName', 'lastName', 'email']),
@@ -272,14 +270,9 @@ export class UsersService {
   private assertMayAdminister(
     actor: AuthenticatedUser,
     target: { id: string; role: UserRole },
-    action: 'update' | 'delete',
   ): void {
     if (target.role === UserRole.SUPER_ADMIN && actor.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException('The owner account cannot be modified');
-    }
-
-    if (target.id === actor.id && action === 'delete') {
-      throw new BadRequestException('You cannot remove your own account');
     }
   }
 
@@ -287,10 +280,13 @@ export class UsersService {
    * An invited account's status is not an administrator's to set.
    *
    * It leaves INVITED exactly once, when the invitee accepts by setting their
-   * password. Suspending a pending invitation instead of withdrawing it would
-   * strand the row: the invitee cannot sign in, and completing the reset would
-   * no longer activate them, so nothing could ever move the account again.
-   * Remove the invitation instead — that is what `DELETE /users/:id` is for.
+   * password. Suspending a pending invitation would strand the row for good:
+   * the invitee cannot sign in, and `completePasswordReset` only promotes an
+   * account that is still INVITED, so nothing could ever move it again.
+   *
+   * Note that with account removal withdrawn, a mistaken invitation currently
+   * has no way out at all — it stays INVITED and keeps its email address
+   * reserved. Withdrawing an invitation needs its own deliberate operation.
    */
   private assertStatusChangeAllowed(
     target: { status: UserStatus },
@@ -367,12 +363,17 @@ export class UsersService {
   }
 
   async invite(actor: AuthenticatedUser, dto: InviteUserInput) {
+    /**
+     * Email is unique across the whole table, archived rows included, so the
+     * check ignores `deletedAt`: nothing archives a user any more, and the few
+     * legacy archived rows must still not have their address handed out twice.
+     */
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      select: { id: true, deletedAt: true },
+      select: { id: true },
     });
 
-    if (existing && !existing.deletedAt) {
+    if (existing) {
       throw new ConflictException('An account with that email already exists');
     }
 
@@ -386,35 +387,20 @@ export class UsersService {
       type: argon2.argon2id,
     });
 
-    // A previously soft-deleted account is revived rather than duplicated:
-    // email is unique, and its audit history should stay attached.
-    const user = existing
-      ? await this.prisma.user.update({
-          where: { id: existing.id },
-          data: {
-            ...dto,
-            passwordHash: placeholder,
-            status: UserStatus.INVITED,
-            deletedAt: null,
-            createdById: actor.id,
-            updatedById: actor.id,
-          },
-          select: USER_SELECT,
-        })
-      : await this.prisma.user.create({
-          data: {
-            ...dto,
-            passwordHash: placeholder,
-            status: UserStatus.INVITED,
-            createdById: actor.id,
-            updatedById: actor.id,
-          },
-          select: USER_SELECT,
-        });
+    const user = await this.prisma.user.create({
+      data: {
+        ...dto,
+        passwordHash: placeholder,
+        status: UserStatus.INVITED,
+        createdById: actor.id,
+        updatedById: actor.id,
+      },
+      select: USER_SELECT,
+    });
 
     await this.audit.record({
       actorId: actor.id,
-      action: existing ? 'user.reinvited' : 'user.invited',
+      action: 'user.invited',
       entityType: 'User',
       entityId: user.id,
       metadata: { email: user.email, role: user.role },
@@ -457,7 +443,7 @@ export class UsersService {
     });
     if (!target) throw new NotFoundException('User not found');
 
-    this.assertMayAdminister(actor, target, 'update');
+    this.assertMayAdminister(actor, target);
     this.assertStatusChangeAllowed(target, dto);
     this.assertNotSelfDemotion(actor, id, dto);
     await this.assertNotLastAdministrator(id, {
@@ -492,45 +478,5 @@ export class UsersService {
     });
 
     return { ...user, permissionLevel: ROLE_PERMISSION_LEVEL[user.role] };
-  }
-
-  /**
-   * Soft delete, and revoke every session in the same breath.
-   *
-   * Marking the row deleted without killing the refresh tokens would leave the
-   * removed user signed in for the remaining lifetime of their access token.
-   */
-  async remove(actor: AuthenticatedUser, id: string): Promise<void> {
-    const target = await this.prisma.user.findFirst({
-      where: { id, deletedAt: null },
-      select: { id: true, role: true, email: true },
-    });
-    if (!target) throw new NotFoundException('User not found');
-
-    this.assertMayAdminister(actor, target, 'delete');
-    await this.assertNotLastAdministrator(id, { status: UserStatus.SUSPENDED });
-
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id },
-        data: {
-          deletedAt: new Date(),
-          status: UserStatus.SUSPENDED,
-          updatedById: actor.id,
-        },
-      }),
-      this.prisma.refreshToken.updateMany({
-        where: { userId: id, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
-
-    await this.audit.record({
-      actorId: actor.id,
-      action: 'user.removed',
-      entityType: 'User',
-      entityId: id,
-      metadata: { email: target.email, role: target.role },
-    });
   }
 }
