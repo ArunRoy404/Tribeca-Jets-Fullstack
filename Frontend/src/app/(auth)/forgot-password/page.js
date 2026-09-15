@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import AuthCard from "@/components/auth/AuthCard";
 import AuthCardHeader from "@/components/auth/AuthCardHeader";
@@ -8,13 +7,14 @@ import CommonInput from "@/components/common/CommonInput";
 import StaggerContainer from "@/components/common/StaggerContainer";
 import StaggerItem from "@/components/common/StaggerItem";
 import { Button } from "@/components/ui/button";
+import { useForgotPassword } from "@/hooks/auth";
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
+  const { mutate: requestReset, isPending, error } = useForgotPassword();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    router.push("/forgot-password/verify");
+    requestReset({ email: new FormData(e.currentTarget).get("email") });
   };
 
   return (
@@ -22,14 +22,23 @@ export default function ForgotPasswordPage() {
       <StaggerContainer className="contents">
         <AuthCardHeader
           title="Forgot Password?"
-          description="If you need help resetting your password, we can help by sending you a link to reset it."
+          description="Enter your email address and we’ll send you a 6-digit code to reset your password."
         />
 
         <StaggerItem as={motion.form} onSubmit={handleSubmit} className="flex w-full flex-col gap-6">
-          <CommonInput label="Email address" name="email" type="email" placeholder="you@tribecajets.com" />
+          <CommonInput
+            label="Email address"
+            name="email"
+            type="email"
+            placeholder="you@tribecajets.com"
+            autoComplete="email"
+            required
+            disabled={isPending}
+            error={error?.fieldErrors?.email}
+          />
 
-          <Button type="submit" size="cta" className="w-full">
-            Continue
+          <Button type="submit" size="cta" className="w-full" disabled={isPending}>
+            {isPending ? "Sending code…" : "Continue"}
           </Button>
         </StaggerItem>
       </StaggerContainer>
