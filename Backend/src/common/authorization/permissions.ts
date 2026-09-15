@@ -24,6 +24,8 @@ export const Permission = {
   OPERATOR_SOURCING: 'OPERATOR_SOURCING',
   VIEW_CLIENTS: 'VIEW_CLIENTS',
   MANAGE_CLIENTS: 'MANAGE_CLIENTS',
+  MANAGE_AIRPORTS: 'MANAGE_AIRPORTS',
+  MANAGE_OPERATORS: 'MANAGE_OPERATORS',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -136,6 +138,34 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.BROKER]: ASSIGNED,
     [UserRole.ASSISTANT]: NONE,
   },
+  /**
+   * Reference data: shared by the whole desk and owned by nobody, so there is
+   * no row-level scope to express — only whether you may edit the master list.
+   *
+   * READ is doing real work in both rows below. Everyone needs to *read* these
+   * tables (a broker cannot build a trip without picking an airport), so a
+   * second VIEW_ permission would be a permission that is never denied. `READ`
+   * on the manage permission says exactly that: yours to read, not to change.
+   */
+  [Permission.MANAGE_AIRPORTS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    // Airports are objective facts about the world, not desk opinion. A wrong
+    // runway length silently makes a trip unbookable, so editing the list is
+    // deliberately narrower than editing an operator.
+    [UserRole.BROKER]: READ,
+    [UserRole.ASSISTANT]: READ,
+  },
+  [Permission.MANAGE_OPERATORS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    // A broker who sources a new operator adds it themselves; matching
+    // OPERATOR_SOURCING, which already grants them ALL.
+    [UserRole.BROKER]: ALL,
+    [UserRole.ASSISTANT]: READ,
+  },
 };
 
 /** How far `role` may reach for `permission`. */
@@ -214,4 +244,6 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.OPERATOR_SOURCING]: 'Operator Sourcing',
   [Permission.VIEW_CLIENTS]: 'View Clients',
   [Permission.MANAGE_CLIENTS]: 'Create/Edit Clients',
+  [Permission.MANAGE_AIRPORTS]: 'Manage Airports',
+  [Permission.MANAGE_OPERATORS]: 'Manage Operators',
 };

@@ -42,6 +42,13 @@ export const paginationSchema = z.object({
  * also means the service can trust `query.sortBy` instead of re-checking it,
  * which is where the two modules had drifted into doing this differently.
  *
+ * **The default is always `createdAt`, paired with `sortOrder: 'desc'`** from
+ * `paginationSchema` — newest first. A row someone just created must be the
+ * first thing they see; alphabetical or by-code defaults bury it wherever the
+ * alphabet happens to put it, which reads as "my save did not work". Pass
+ * `fallback` only when a table has a genuine reason to open differently, and
+ * say what it is.
+ *
  * @example sortBy: sortableBy(['createdAt', 'email'])
  */
 export function sortableBy<const T extends readonly [string, ...string[]]>(
