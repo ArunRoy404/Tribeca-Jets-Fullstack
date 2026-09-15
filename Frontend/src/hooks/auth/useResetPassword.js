@@ -11,8 +11,16 @@ import { useAuthStore } from "@/store/useAuthStore";
  * Sets the new password on `/reset-password`.
  * Call with `{ newPassword, confirmPassword }`.
  *
- * The API revokes every session on success, so the cache is cleared here too —
- * anything still held would belong to a session that no longer exists.
+ * The API revokes every session on success — including any the user still had
+ * open — so the cache is cleared for the same reason: anything still held
+ * belongs to a session that no longer exists.
+ *
+ * Lands on the success screen rather than sign-in directly, so the outcome is
+ * confirmed on a page the user can read at their own pace; its CTA carries
+ * them on to sign-in.
+ *
+ * `replace`, not `push`: the reset screen must not be reachable with the back
+ * button once its challenge has been consumed.
  */
 export function useResetPassword() {
   const router = useRouter();
@@ -26,9 +34,9 @@ export function useResetPassword() {
 
       toastSuccess(
         data?.message ?? "Your password has been changed.",
-        "All other sessions were signed out.",
+        "All sessions were signed out. Please sign in with your new password.",
       );
-      router.push("/reset-password/success");
+      router.replace("/reset-password/success");
     },
     onError: (error) => toastApiError(error, "Could not reset your password"),
   });

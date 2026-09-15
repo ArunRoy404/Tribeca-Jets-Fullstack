@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -23,8 +23,26 @@ export function useAuthFlowGuard(expectedFlow, redirectTo) {
 
   const isActive = flow === expectedFlow;
 
+  /**
+   * Completing a step clears the flow, which would otherwise look identical to
+   * never having had one — and bounce the user backwards at the exact moment
+   * the mutation is navigating them forwards.
+   *
+   * Once the flow has been active on this screen the guard stands down, so the
+   * success navigation wins the race.
+   */
+  const wasActive = useRef(false);
+
   useEffect(() => {
-    if (!isActive) router.replace(redirectTo);
+    if (isActive) {
+      wasActive.current = true;
+      return;
+    }
+    // The flow ended after this screen had it: a completed step, not a missing
+    // one. Stand down so the success navigation wins.
+    if (wasActive.current) return;
+
+    router.replace(redirectTo);
   }, [isActive, redirectTo, router]);
 
   return { isActive, challengeEmail, expiresInSeconds };
