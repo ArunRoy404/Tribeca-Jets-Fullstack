@@ -76,7 +76,11 @@ export default function TopNav({ user }) {
       </div>
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         <NotificationPopover />
-        <UserMenu name={user?.name} role={user?.role} avatarUrl={user?.avatarUrl} />
+        {/* Below `md` the sidebar footer carries the profile instead, so the
+            two never appear together. */}
+        <div className="hidden md:flex">
+          <UserMenu name={user?.name} role={user?.role} avatarUrl={user?.avatarUrl} />
+        </div>
       </div>
     </header>
   );

@@ -16,10 +16,23 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useCurrentUser, useLogout } from "@/hooks/auth";
+import { toDisplayUser } from "@/lib/user";
 
-export function NavUser({ user }) {
+/**
+ * Profile block in the sidebar footer.
+ *
+ * Self-sufficient: it reads the session itself rather than taking a `user`
+ * prop, so no parent has to thread identity down. `useCurrentUser` is deduped
+ * by React Query, so this and the top-nav menu share one request.
+ */
+export function NavUser() {
   const { isMobile, state } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
+
+  const { data: currentUser, isLoading } = useCurrentUser();
+  const { mutate: logout, isPending: isLoggingOut } = useLogout();
+  const user = toDisplayUser(currentUser, { isLoading });
 
   return (
     <SidebarMenu>
@@ -35,12 +48,16 @@ export function NavUser({ user }) {
               />
             }
           >
-            <UserAvatar name={user.name} size="sm" className="shrink-0" />
+            <UserAvatar name={user?.name} size="sm" className="shrink-0" />
             {!isCollapsed && (
               <>
                 <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate font-montserrat text-xs font-medium text-white">{user.name}</span>
-                  <span className="truncate font-montserrat text-[10px] text-sidebar-foreground">{user.role}</span>
+                  <span className="truncate font-montserrat text-xs font-medium text-white">
+                    {user?.name}
+                  </span>
+                  <span className="truncate font-montserrat text-[10px] text-sidebar-foreground">
+                    {user?.role}
+                  </span>
                 </div>
                 <ChevronsUpDown className="ml-auto size-4" />
               </>
@@ -58,9 +75,13 @@ export function NavUser({ user }) {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => logout?.()}
+              disabled={isLoggingOut}
+              className="text-destructive"
+            >
               <LogOut />
-              Log out
+              {isLoggingOut ? "Signing out…" : "Log out"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
