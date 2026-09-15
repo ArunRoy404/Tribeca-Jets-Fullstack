@@ -12,6 +12,13 @@ import {
   orderByField,
   searchAcross,
 } from '../../common/database/filters.js';
+import {
+  ARCHIVE_ACTOR_SELECT,
+  ARCHIVE_SELECT,
+  archiveData,
+  archiveFilter,
+  restoreData,
+} from '../../common/database/archive.js';
 import { UserRole } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type {
@@ -39,6 +46,10 @@ const CLIENT_LIST_SELECT = {
   },
   createdById: true,
   updatedById: true,
+  // The Archived tab needs who removed it and when, and the live list needs
+  // `restoredAt` for the badge — same four columns as every other module.
+  ...ARCHIVE_SELECT,
+  ...ARCHIVE_ACTOR_SELECT,
 } satisfies Prisma.ClientSelect;
 
 @Injectable()
@@ -69,7 +80,7 @@ export class ClientsService {
     const { skip, take } = toPrismaPagination(query);
 
     const where: Prisma.ClientWhereInput = {
-      deletedAt: null,
+      ...archiveFilter(query.archived),
       ...this.visibilityScope(user),
       ...equalsAny(query, ['type', 'leadStage', 'leadSource', 'assignedBrokerId']),
       // Not an equality filter: `labels` is an array column, so this asks
@@ -200,12 +211,43 @@ export class ClientsService {
    * Soft delete. Historical business data is never destroyed (scope §6.19,
    * and Ari's explicit requirement that losing history is unacceptable).
    */
+  /**
+   * Brings an archived client back, exactly as it was.
+   *
+   * Scoped like every other client read: a broker may only restore a client
+   * that was theirs, and anything outside their scope is a 404 rather than a
+   * 403, so an id cannot be used to probe for records.
+   */
+  async restore(user: AuthenticatedUser, id: string) {
+    const target = await this.prisma.client.findFirst({
+      where: { id, deletedAt: { not: null }, ...this.visibilityScope(user) },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    if (!target) throw new NotFoundException('Archived client not found');
+
+    const client = await this.prisma.client.update({
+      where: { id },
+      data: { ...restoreData(user.id), updatedById: user.id },
+      select: CLIENT_LIST_SELECT,
+    });
+
+    await this.audit.record({
+      actorId: user.id,
+      action: 'client.restored',
+      entityType: 'Client',
+      entityId: id,
+      metadata: { name: `${target.firstName} ${target.lastName}`.trim() },
+    });
+
+    return client;
+  }
+
   async remove(user: AuthenticatedUser, id: string): Promise<void> {
     await this.findOne(user, id);
 
     await this.prisma.client.update({
       where: { id },
-      data: { deletedAt: new Date(), updatedById: user.id },
+      data: { ...archiveData(user.id), updatedById: user.id },
     });
 
     await this.audit.record({

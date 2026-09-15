@@ -68,6 +68,19 @@ export class ClientsController {
     return this.clients.update(user, id, dto);
   }
 
+  @Post(':id/restore')
+  @ApiOperation({
+    summary: 'Restore an archived client',
+    description:
+      'Clears the deletion stamp and nothing else, so every field comes back untouched. A row that is not archived returns 404.\n\nScoped like every other client read: a broker may restore only a client that was theirs.',
+  })
+  restore(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.clients.restore(user, id);
+  }
+
   @Delete(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)

@@ -4,6 +4,7 @@ import {
   paginationSchema,
   sortableBy,
 } from '../../../common/dto/pagination.dto.js';
+import { archiveQuerySchema } from '../../../common/database/archive.js';
 import {
   ClientType,
   LeadSource,
@@ -84,14 +85,16 @@ export const CLIENT_SORTABLE_FIELDS = [
   'leadStage',
 ] as const;
 
-export const queryClientsSchema = paginationSchema.extend({
-  sortBy: sortableBy(CLIENT_SORTABLE_FIELDS),
-  type: z.enum(ClientType).optional(),
-  leadStage: z.enum(LeadStage).optional(),
-  leadSource: z.enum(LeadSource).optional(),
-  assignedBrokerId: z.uuid().optional(),
-  label: z.string().max(50).optional(),
-});
+export const queryClientsSchema = paginationSchema
+  .extend({
+    sortBy: sortableBy(CLIENT_SORTABLE_FIELDS),
+    type: z.enum(ClientType).optional(),
+    leadStage: z.enum(LeadStage).optional(),
+    leadSource: z.enum(LeadSource).optional(),
+    assignedBrokerId: z.uuid().optional(),
+    label: z.string().max(50).optional(),
+  })
+  .merge(archiveQuerySchema);
 
 export type QueryClientsInput = z.infer<typeof queryClientsSchema>;
 export class QueryClientsDto extends createZodDto(queryClientsSchema) {}
