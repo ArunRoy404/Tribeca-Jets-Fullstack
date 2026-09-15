@@ -2202,8 +2202,8 @@
                 },
                 {
                   "key": "limit",
-                  "value": "20",
-                  "description": "Rows per page, 1-100. Default 20."
+                  "value": "10",
+                  "description": "Rows per page. Integer 1-100. Default 10, matching the rows-per-page dropdown in the UI. Capped so nobody can pull the whole table in one request; >100 or <1 \u2192 400."
                 },
                 {
                   "key": "search",
@@ -2214,7 +2214,7 @@
                 {
                   "key": "sortBy",
                   "value": "createdAt",
-                  "description": "Allowed (case-sensitive): createdAt | updatedAt | lastName | firstName | leadStage. Anything else falls back to createdAt.",
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | lastName | firstName | leadStage. Default createdAt. A closed list \u2014 anything else returns 400 rather than reaching the database.",
                   "disabled": true
                 },
                 {
@@ -2255,7 +2255,7 @@
                 }
               ]
             },
-            "description": "Paginated list of clients and travel agents.\n\n**Row-level scoping:** a `BROKER` receives only the clients assigned to them, applied inside the SQL `WHERE` clause \u2014 so `meta.total` reflects what they can actually see rather than being censored after the fact. Admins see everything.\n\nResponse carries `meta` alongside `data` with the pagination cursor fields.\n\nSee the Params tab for every filter and its exact allowed values."
+            "description": "Paginated list of clients and travel agents.\n\n**Row-level scoping:** a `BROKER` receives only the clients assigned to them, applied inside the SQL `WHERE` clause \u2014 so `meta.total` reflects what they can actually see rather than being censored after the fact. Admins see everything.\n\nResponse carries `meta` alongside `data` with the pagination cursor fields.\n\nSee the Params tab for every filter and its exact allowed values.\n\n**`sortBy` is a closed list.** A column outside it returns 400 rather than falling back to `createdAt` silently \u2014 sorting by an unindexed column is a table scan, and accepting the name would confirm which columns exist."
           },
           "response": [
             {
@@ -2284,6 +2284,39 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"a7562467-f7cb-4088-910b-c66da25cc28e\",\n      \"type\": \"TRAVEL_AGENT\",\n      \"companyName\": \"Whitfield Travel Group\",\n      \"firstName\": \"Dana\",\n      \"lastName\": \"Whitfield\",\n      \"email\": \"dana@whitfieldtravel.com\",\n      \"phone\": null,\n      \"homeAirport\": \"KOPF\",\n      \"leadSource\": \"FACEBOOK_GROUP_1\",\n      \"leadStage\": \"QUOTED\",\n      \"labels\": [\n        \"Agency\"\n      ],\n      \"createdAt\": \"2026-09-15T03:40:49.386Z\",\n      \"updatedAt\": \"2026-09-15T03:40:49.386Z\",\n      \"assignedBroker\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      }\n    },\n    {\n      \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n      \"type\": \"DIRECT\",\n      \"companyName\": null,\n      \"firstName\": \"Marcus\",\n      \"lastName\": \"Chen\",\n      \"email\": \"marcus.chen@example.com\",\n      \"phone\": null,\n      \"homeAirport\": \"KTEB\",\n      \"leadSource\": \"REFERRAL\",\n      \"leadStage\": \"BOOKED\",\n      \"labels\": [\n        \"VIP\"\n      ],\n      \"createdAt\": \"2026-09-15T03:40:49.382Z\",\n      \"updatedAt\": \"2026-09-15T03:40:49.382Z\",\n      \"assignedBroker\": {\n        \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"firstName\": \"Jordan\",\n        \"lastName\": \"Broker\",\n        \"email\": \"broker@tribecajets.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 2,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Unsortable column",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients?sortBy=email",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ],
+                  "query": [
+                    {
+                      "key": "sortBy",
+                      "value": "email"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"lastName\\\"|\\\"firstName\\\"|\\\"leadStage\\\"\"\n  },\n  \"path\": \"/api/clients?sortBy=email\",\n  \"timestamp\": \"2026-09-15T09:25:30.193Z\"\n}"
             },
             {
               "name": "401 \u00b7 Not signed in",
@@ -2998,8 +3031,8 @@
                 },
                 {
                   "key": "limit",
-                  "value": "20",
-                  "description": "Rows per page. Integer 1-100. Default 20. Capped so nobody can pull the whole table in one request; >100 \u2192 400."
+                  "value": "10",
+                  "description": "Rows per page. Integer 1-100. Default 10, matching the rows-per-page dropdown in the UI. Capped so nobody can pull the whole table in one request; >100 or <1 \u2192 400."
                 },
                 {
                   "key": "sortBy",
