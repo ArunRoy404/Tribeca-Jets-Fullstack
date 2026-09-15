@@ -17,7 +17,7 @@ model VerificationCode {
   purpose VerificationPurpose
 
   /// SHA-256 of the 6-digit code.
-  codeHash String
+  codeHash      String
   /// SHA-256 of the opaque challenge token carried in the cookie.
   challengeHash String @unique
 

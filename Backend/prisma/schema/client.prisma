@@ -37,8 +37,18 @@ model Client {
   notes  String?
   labels String[] @default([])
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  // ---- Audit trail (every model carries these four) ------------------------
+  // Distinct from assignedBroker/originatingBroker, which are business
+  // relationships: an admin can create a client assigned to someone else, and
+  // reassigning it later must not rewrite who first entered the record.
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("ClientCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("ClientUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
   deletedAt DateTime?
 
   @@index([assignedBrokerId, deletedAt])
