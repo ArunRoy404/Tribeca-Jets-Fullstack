@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import SearchInput from "@/components/table/common/SearchInput";
 import FilterDropdown from "@/components/table/common/FilterDropdown";
 import FilterTabs from "@/components/table/common/FilterTabs";
+import PageSizeSelect from "@/components/table/common/PageSizeSelect";
 import { useDebouncedParam } from "@/hooks/common/useTableQueryParams";
 import { USERS_TABS } from "@/hooks/users";
 import {
@@ -41,6 +42,8 @@ export default function UsersToolbar({
   setRoleFilter,
   statusFilter,
   setStatusFilter,
+  limit,
+  setLimit,
   onInviteUser,
 }) {
   const isRolesTab = activeTab === USERS_TABS.ROLES;
@@ -109,6 +112,10 @@ export default function UsersToolbar({
             options={statusOptions}
             onChange={(label) => setStatusFilter?.(statusLabelToValue[label] ?? "")}
           />
+          {/* Rows-per-page sits with the filters rather than in the footer:
+              it is the same kind of control — it narrows what the table shows
+              — and it is reachable without scrolling past the rows. */}
+          <PageSizeSelect value={limit} onChange={setLimit} />
         </div>
       )}
     </div>

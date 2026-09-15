@@ -35,6 +35,7 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
     [usersQuery?.data?.data],
   );
   const meta = usersQuery?.data?.meta;
+  const pageCount = Math.max(meta?.totalPages ?? 1, 1);
 
   const getRowActions = (item) => [
     {
@@ -68,6 +69,8 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
           setRoleFilter={params?.setRole}
           statusFilter={params?.status}
           setStatusFilter={params?.setStatus}
+          limit={params?.limit}
+          setLimit={params?.setLimit}
           onInviteUser={openInviteModal}
         />
 
@@ -101,9 +104,12 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
                   totalCount={meta?.total ?? 0}
                   itemLabel="team members"
                   page={meta?.page ?? 1}
-                  pageCount={Math.max(meta?.totalPages ?? 1, 1)}
-                  onPrev={() => params?.setPage?.(Math.max((meta?.page ?? 1) - 1, 1))}
-                  onNext={() => params?.setPage?.((meta?.page ?? 1) + 1)}
+                  pageCount={pageCount}
+                  // Clamping lives in `goToPage`, so the footer just says which
+                  // direction it wants to move.
+                  onPrev={() => params?.goToPage?.((meta?.page ?? 1) - 1, pageCount)}
+                  onNext={() => params?.goToPage?.((meta?.page ?? 1) + 1, pageCount)}
+                  onPageChange={(next) => params?.goToPage?.(next, pageCount)}
                 />
               </div>
             ) : null}
