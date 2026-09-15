@@ -1,0 +1,90 @@
+# nginx reverse proxy for the Hostinger KVM VPS.
+#
+# Both apps sit under one parent domain so the session cookie set with
+# Domain=.tribecajetscommandcenter.com is valid for both. Splitting them across
+# unrelated domains would force SameSite=None and weaken CSRF protection.
+#
+#   tribecajetscommandcenter.com      -> Next.js  (port 3000)
+#   api.tribecajetscommandcenter.com  -> NestJS   (port 4000)
+#
+# Install:
+#   sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/tribeca
+#   sudo ln -s /etc/nginx/sites-available/tribeca /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#   sudo certbot --nginx -d tribecajetscommandcenter.com -d api.tribecajetscommandcenter.com
+
+# Edge rate limiting, in front of the app's own per-route limits.
+limit_req_zone $binary_remote_addr zone=api_general:10m rate=30r/s;
+limit_req_zone $binary_remote_addr zone=api_auth:10m rate=1r/s;
+
+upstream tribeca_api {
+    server 127.0.0.1:4000;
+    keepalive 32;
+}
+
+upstream tribeca_web {
+    server 127.0.0.1:3000;
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    server_name tribecajetscommandcenter.com api.tribecajetscommandcenter.com;
+    return 301 https://$host$request_uri;
+}
+
+# ---- API -------------------------------------------------------------------
+server {
+    listen 443 ssl http2;
+    server_name api.tribecajetscommandcenter.com;
+
+    # certbot fills these in
+    # ssl_certificate     /etc/letsencrypt/live/api.tribecajetscommandcenter.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/api.tribecajetscommandcenter.com/privkey.pem;
+
+    # Passport/ID uploads and spreadsheet imports.
+    client_max_body_size 25M;
+
+    # Tighter limit on auth endpoints: credential stuffing is the main threat.
+    location /api/auth/ {
+        limit_req zone=api_auth burst=10 nodelay;
+        proxy_pass http://tribeca_api;
+        include /etc/nginx/proxy_params;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    location / {
+        limit_req zone=api_general burst=50 nodelay;
+        proxy_pass http://tribeca_api;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        # The app sets `trust proxy`; without these, every client shares one IP
+        # and the per-IP rate limits become a single global bucket.
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+}
+
+# ---- Web app ---------------------------------------------------------------
+server {
+    listen 443 ssl http2;
+    server_name tribecajetscommandcenter.com;
+
+    # ssl_certificate     /etc/letsencrypt/live/tribecajetscommandcenter.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/tribecajetscommandcenter.com/privkey.pem;
+
+    location / {
+        proxy_pass http://tribeca_web;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
