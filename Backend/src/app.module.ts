@@ -1,0 +1,56 @@
+import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+
+import { AppConfigModule } from './config/config.module.js';
+import { PrismaModule } from './core/prisma/prisma.module.js';
+import { RedisModule } from './core/redis/redis.module.js';
+import { StorageModule } from './core/storage/storage.module.js';
+import { AuditModule } from './core/audit/audit.module.js';
+
+import { AuthModule } from './modules/auth/auth.module.js';
+import { ClientsModule } from './modules/clients/clients.module.js';
+import { HealthModule } from './modules/health/health.module.js';
+
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
+import { CsrfGuard } from './common/guards/csrf.guard.js';
+import { RolesGuard } from './common/guards/roles.guard.js';
+import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
+import { ZodValidationPipe } from './common/pipes/zod-validation.pipe.js';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
+
+@Module({
+  imports: [
+    // Config first: every other module reads validated env from it.
+    AppConfigModule,
+
+    // Infrastructure (all @Global).
+    PrismaModule,
+    RedisModule,
+    StorageModule,
+    AuditModule,
+
+    // Feature modules — one per domain, added as each is built.
+    HealthModule,
+    AuthModule,
+    ClientsModule,
+  ],
+  providers: [
+    /**
+     * Guard order matters and is the security posture of the whole API:
+     *   1. JwtAuthGuard   — authenticated by default; opt out with @Public()
+     *   2. CsrfGuard      — cookie sessions need CSRF protection on writes
+     *   3. RolesGuard     — coarse role checks from @Roles()
+     *   4. RateLimitGuard — per-route limits from @RateLimit()
+     */
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: CsrfGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: RateLimitGuard },
+
+    { provide: APP_PIPE, useClass: ZodValidationPipe },
+    { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+  ],
+})
+export class AppModule {}

@@ -1,0 +1,30 @@
+/// Append-only activity trail backing the cross-cutting communication/activity
+/// timeline (scope §8) and the dashboard activity feed.
+///
+/// `actorId` is nullable and uses SetNull so deleting a user never destroys
+/// history — an audit log that can be erased by deleting its actor is not an
+/// audit log.
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  actorId String? @db.Uuid
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  action     String
+  entityType String
+  entityId   String?
+
+  /// Free-form context (changed fields, amounts, recipients). Deliberately
+  /// schemaless: the set of logged events grows constantly.
+  metadata Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

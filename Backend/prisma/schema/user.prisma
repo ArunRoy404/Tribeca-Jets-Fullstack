@@ -1,0 +1,76 @@
+/// Staff accounts. Clients authenticate through the separate client portal and
+/// are NOT users — see client.prisma.
+model User {
+  id           String  @id @default(uuid()) @db.Uuid
+  email        String  @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+
+  role   UserRole   @default(BROKER)
+  status UserStatus @default(ACTIVE)
+
+  /// Storage key (not a URL) — resolved by StorageService at read time so the
+  /// same record works on both the S3 and local drivers.
+  avatarKey String?
+
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+
+  lastLoginAt DateTime?
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  /// Clients where this user owns the relationship.
+  assignedClients    Client[] @relation("ClientAssignedBroker")
+  /// Clients this user originally brought in; drives commission attribution
+  /// and is deliberately independent of the current assignee.
+  originatedClients  Client[] @relation("ClientOriginatingBroker")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([role, status])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  BROKER
+  ASSISTANT
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+/// One row per issued refresh token, so sessions can be revoked server-side.
+/// Only the hash is stored: a database leak must not yield usable sessions.
+model RefreshToken {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String @db.Uuid
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String @unique
+
+  /// Rotation lineage. On refresh the old token is revoked and points at its
+  /// replacement, so reuse of a revoked token is detectable as theft.
+  replacedByTokenId String?
+
+  userAgent String?
+  ipAddress String?
+
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
