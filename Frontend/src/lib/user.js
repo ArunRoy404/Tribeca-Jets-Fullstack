@@ -40,6 +40,21 @@ export const FILTERABLE_ROLES = ["SUPER_ADMIN", ...ASSIGNABLE_ROLES];
 
 export const FILTERABLE_STATUSES = ["ACTIVE", "INVITED", "SUSPENDED"];
 
+/**
+ * Statuses an administrator can actually set.
+ *
+ * `INVITED` is filterable but not settable: an account leaves that state on its
+ * own, when the invitee sets a password through "Forgot password?". Offering it
+ * as a choice would produce a 400, and pushing a live account back to pending is
+ * not a state anything could undo. Mirrors `manageableStatusSchema` on the API.
+ */
+export const MANAGEABLE_STATUSES = ["ACTIVE", "SUSPENDED"];
+
+/** True while an invitation is still outstanding — nothing may set its status. */
+export function isPendingInvite(status) {
+  return status === "INVITED";
+}
+
 export function formatUserStatus(status) {
   if (!status) return "";
   return STATUS_LABELS[status] ?? status;

@@ -9,7 +9,7 @@ import DetailField from "@/components/common/DetailField";
 import SectionCard from "@/components/common/SectionCard";
 import TableStatus from "@/components/table/common/TableStatus";
 import { useUpdateUser, useUser } from "@/hooks/users";
-import { formatLastLogin, toTeamMember } from "@/lib/user";
+import { formatLastLogin, isPendingInvite, toTeamMember } from "@/lib/user";
 
 /** Renders a createdBy/updatedBy actor, which is null for seeded records. */
 function actorName(actor) {
@@ -34,6 +34,10 @@ export default function UserDetailSheet() {
 
   const item = data ? toTeamMember(data) : null;
   const isSuspended = item?.rawStatus === "SUSPENDED";
+
+  // A pending invitation has no status anyone may set — it activates itself
+  // when the invitee sets a password. Withdrawing it is Remove, not Suspend.
+  const isInvited = isPendingInvite(item?.rawStatus);
 
   const toggleAccess = () => {
     if (!item?.id) return;
@@ -72,6 +76,12 @@ export default function UserDetailSheet() {
                 <p className="font-montserrat font-normal text-[12px] text-muted-foreground">
                   {item.email}
                 </p>
+                {isInvited && (
+                  <p className="font-montserrat font-normal text-[12px] text-muted-foreground">
+                    Invitation pending — the account activates when they set
+                    their password.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -150,16 +160,19 @@ export default function UserDetailSheet() {
               <div className="flex items-center gap-2">
                 {/* One control, both directions: a suspended account needs a
                     way back, and a separate "Reactivate" button that is
-                    disabled most of the time reads worse than a toggle. */}
-                <Button
-                  variant="outline"
-                  className="gap-2 px-4"
-                  onClick={toggleAccess}
-                  disabled={isUpdating}
-                >
-                  {isSuspended ? <UserCheck className="size-4" /> : <UserX className="size-4" />}
-                  {isSuspended ? "Reactivate" : "Suspend"}
-                </Button>
+                    disabled most of the time reads worse than a toggle.
+                    Absent entirely while the invitation is pending. */}
+                {!isInvited && (
+                  <Button
+                    variant="outline"
+                    className="gap-2 px-4"
+                    onClick={toggleAccess}
+                    disabled={isUpdating}
+                  >
+                    {isSuspended ? <UserCheck className="size-4" /> : <UserX className="size-4" />}
+                    {isSuspended ? "Reactivate" : "Suspend"}
+                  </Button>
+                )}
                 <Button
                   variant="destructive"
                   className="gap-2 px-4"

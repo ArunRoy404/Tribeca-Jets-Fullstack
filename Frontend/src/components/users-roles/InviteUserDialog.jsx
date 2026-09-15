@@ -11,9 +11,10 @@ import PickerSelect from "@/components/trips/PickerSelect";
 import { useInviteUser, useUpdateUser } from "@/hooks/users";
 import {
   ASSIGNABLE_ROLES,
-  FILTERABLE_STATUSES,
+  MANAGEABLE_STATUSES,
   formatUserRole,
   formatUserStatus,
+  isPendingInvite,
 } from "@/lib/user";
 
 const FIELD_CLASS = "h-13 px-4 rounded-sm text-base font-medium";
@@ -23,9 +24,9 @@ const ROLE_LABELS = ASSIGNABLE_ROLES.map(formatUserRole);
 const ROLE_BY_LABEL = Object.fromEntries(
   ASSIGNABLE_ROLES.map((role) => [formatUserRole(role), role]),
 );
-const STATUS_LABELS = FILTERABLE_STATUSES.map(formatUserStatus);
+const STATUS_LABELS = MANAGEABLE_STATUSES.map(formatUserStatus);
 const STATUS_BY_LABEL = Object.fromEntries(
-  FILTERABLE_STATUSES.map((status) => [formatUserStatus(status), status]),
+  MANAGEABLE_STATUSES.map((status) => [formatUserStatus(status), status]),
 );
 
 const EMPTY_FORM = {
@@ -96,6 +97,12 @@ function UserForm({ editingUser, onDone }) {
   const update = useUpdateUser();
 
   const isEditing = Boolean(editingUser);
+
+  // An outstanding invitation has no status to set: the account activates
+  // itself when the invitee chooses a password. The API refuses the change, so
+  // the control is absent rather than present-and-failing.
+  const isInvited = isPendingInvite(editingUser?.rawStatus);
+
   const mutation = isEditing ? update : invite;
   const fieldErrors = mutation?.error?.fieldErrors ?? {};
 
@@ -125,7 +132,8 @@ function UserForm({ editingUser, onDone }) {
           lastName: form.lastName,
           phone: form.phone || null,
           role: form.role,
-          status: form.status,
+          // Omitted entirely for a pending invitation — see `isInvited`.
+          ...(isInvited ? {} : { status: form.status }),
         }).filter(([key, value]) => value !== (original[key] ?? "")),
       );
       if (!Object.keys(changed).length) {
@@ -234,7 +242,7 @@ function UserForm({ editingUser, onDone }) {
             />
           </FormField>
 
-          {isEditing && (
+          {isEditing && !isInvited && (
             <FormField
               label="Status"
               labelClassName={LABEL_CLASS}
@@ -252,6 +260,19 @@ function UserForm({ editingUser, onDone }) {
             </FormField>
           )}
         </div>
+
+        {isInvited && (
+          <div className="flex gap-2 items-start rounded-sm border border-border bg-secondary/40 p-3">
+            <Info className="size-4 shrink-0 text-purple mt-0.5" />
+            <p className="font-montserrat text-[12px] text-muted-foreground leading-relaxed">
+              This invitation is still{" "}
+              <span className="font-semibold text-foreground">pending</span>, so
+              its status cannot be changed here. The account becomes{" "}
+              <span className="font-semibold text-foreground">Active</span> the
+              moment they set their password. To withdraw it, remove the user.
+            </p>
+          </div>
+        )}
 
         {!isEditing && (
           <div className="flex gap-2 items-start rounded-sm border border-border bg-secondary/40 p-3">
