@@ -75,7 +75,10 @@ describe('API (e2e)', () => {
     expect(access).toContain('HttpOnly');
     expect(refresh).toContain('HttpOnly');
     expect(JSON.stringify(res.body)).not.toContain('tj_access');
-    expect(res.body.data.email).toBe('admin@tribecajets.com');
+    // Login reports whether a second factor is still required; the profile is
+    // nested under `user` so the two cases have one consistent shape.
+    expect(res.body.data.requiresTwoFactor).toBe(false);
+    expect(res.body.data.user.email).toBe('admin@tribecajets.com');
   });
 
   it('authenticates a follow-up request using only the cookie', async () => {
