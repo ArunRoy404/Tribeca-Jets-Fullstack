@@ -32,6 +32,23 @@ model User {
   createdClients    Client[] @relation("ClientCreatedBy")
   updatedClients    Client[] @relation("ClientUpdatedBy")
 
+  /// Reference data this user entered or last touched. Audit back-references
+  /// only — airports and operators are shared and belong to nobody.
+  createdAirports  Airport[]  @relation("AirportCreatedBy")
+  updatedAirports  Airport[]  @relation("AirportUpdatedBy")
+  createdOperators Operator[] @relation("OperatorCreatedBy")
+  updatedOperators Operator[] @relation("OperatorUpdatedBy")
+
+  /// Who archived a record, and who brought it back. Separate from created/
+  /// updated because "removed this" is the one mutation those two never
+  /// capture — an archived row's `updatedBy` is whoever last edited it.
+  deletedClients    Client[]   @relation("ClientDeletedBy")
+  restoredClients   Client[]   @relation("ClientRestoredBy")
+  deletedAirports   Airport[]  @relation("AirportDeletedBy")
+  restoredAirports  Airport[]  @relation("AirportRestoredBy")
+  deletedOperators  Operator[] @relation("OperatorDeletedBy")
+  restoredOperators Operator[] @relation("OperatorRestoredBy")
+
   // ---- Audit trail (every model carries these four) ------------------------
   //
   // For a user, "created by" is who invited them: an invitation is how a staff
@@ -50,6 +67,12 @@ model User {
   updatedBy    User?    @relation("UserUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   updatedUsers User[]   @relation("UserUpdatedBy")
 
+  /// A staff account is never removed — suspending is the way out — so this
+  /// model carries no archive trail, unlike every other soft-deletable model.
+  ///
+  /// `deletedAt` itself stays: auth refuses a stamped row a session, which
+  /// makes it a database-level kill switch, and it is what keeps the handful of
+  /// rows archived before the feature was withdrawn out of every list.
   deletedAt DateTime?
 
   @@index([role, status])

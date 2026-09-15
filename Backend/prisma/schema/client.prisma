@@ -49,7 +49,20 @@ model Client {
   updatedById String?  @db.Uuid
   updatedBy   User?    @relation("ClientUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  deletedAt DateTime?
+  /// ---- Archive trail ------------------------------------------------------
+  /// Soft delete is the only delete: nothing in this system is destroyed, so
+  /// these three answer "who archived this, and did anyone bring it back".
+  ///
+  /// `restoredAt` survives a later archive on purpose — the columns hold the
+  /// most recent event of each kind, and the full back-and-forth lives in the
+  /// audit log rather than in a widening set of columns.
+  deletedAt   DateTime?
+  deletedById String?   @db.Uuid
+  deletedBy   User?     @relation("ClientDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("ClientRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
 
   @@index([assignedBrokerId, deletedAt])
   @@index([type, leadStage])
