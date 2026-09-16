@@ -126,9 +126,17 @@ export class OperatorsService {
     );
   }
 
+  /**
+   * Archived rows included, deliberately.
+   *
+   * The Archived tab links to this page, so filtering them out here made every
+   * archived operator's detail a 404 — the row was listed and then refused.
+   * The payload carries the archive trail, so the page can say it is archived
+   * and offer Restore rather than pretending it is live.
+   */
   async findOne(id: string) {
     const row = await this.prisma.operator.findFirst({
-      where: { id, deletedAt: null },
+      where: { id },
       select: OPERATOR_DETAIL_SELECT,
     });
     if (!row) throw new NotFoundException('Operator not found');

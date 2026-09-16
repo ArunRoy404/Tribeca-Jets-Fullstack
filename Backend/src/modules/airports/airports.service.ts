@@ -129,9 +129,14 @@ export class AirportsService {
     );
   }
 
+  /**
+   * Archived rows included, deliberately — see the note on the operators
+   * equivalent. The Archived tab links here, so excluding them turned every
+   * archived airport's detail into a 404.
+   */
   async findOne(id: string) {
     const row = await this.prisma.airport.findFirst({
-      where: { id, deletedAt: null },
+      where: { id },
       select: AIRPORT_DETAIL_SELECT,
     });
     if (!row) throw new NotFoundException('Airport not found');
