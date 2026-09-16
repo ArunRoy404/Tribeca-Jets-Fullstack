@@ -1,7 +1,12 @@
 "use client";
 
 import { use } from "react";
-import ClientDetailHeader from "@/components/clients/ClientDetailHeader";
+import DetailHeader from "@/components/common/DetailHeader";
+import CommonCard from "@/components/common/CommonCard";
+import ClientHeaderTitle from "@/components/clients/ClientHeaderTitle";
+import ClientHeaderActions from "@/components/clients/ClientHeaderActions";
+import ClientStatsRow from "@/components/clients/ClientStatsRow";
+import ClientSummaryBar from "@/components/clients/ClientSummaryBar";
 import ClientDetailSidebar from "@/components/clients/ClientDetailSidebar";
 import ClientOverviewTab from "@/components/clients/ClientOverviewTab";
 import ClientTripsTab from "@/components/clients/ClientTripsTab";
@@ -11,7 +16,6 @@ import ClientActivityTab from "@/components/clients/ClientActivityTab";
 import AddClientDialog from "@/components/clients/AddClientDialog";
 import ScheduleFollowUpDialog from "@/components/clients/ScheduleFollowUpDialog";
 import ArchiveClientDialog from "@/components/clients/ArchiveClientDialog";
-import Reveal from "@/components/common/Reveal";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import NotFoundState from "@/components/common/NotFoundState";
 import TableStatus from "@/components/table/common/TableStatus";
@@ -27,6 +31,7 @@ export default function ClientDetailPage({ params }) {
   const setActiveTab = useClientsStore((s) => s.setActiveTab);
   const openEditModal = useClientsStore((s) => s.openEditModal);
   const openFollowUpModal = useClientsStore((s) => s.openFollowUpModal);
+  const openArchiveModal = useClientsStore((s) => s.openArchiveModal);
 
   const { data, isPending, error, refetch } = useClient(rawId);
   const client = data ? toClientRow(data) : null;
@@ -39,71 +44,98 @@ export default function ClientDetailPage({ params }) {
     );
   }
 
-  // An archived client loads like any other — the Archived tab links here, so
-  // refusing it would list a row and then deny it. Only an unknown id 404s,
-  // which lands in `error` above.
   if (!client) {
     return <NotFoundState itemType="Client" backUrl="/dashboard/clients" backLabel="Back to Clients" />;
   }
 
-  // No counts: they are aggregates over trips, quotes and payments, none of
-  // which exist yet. A hardcoded "6" reads as fact.
   const tabs = [
     { id: "overview", label: "Overview" },
-    { id: "trips", label: "Trips" },
-    { id: "quotes", label: "Quotes" },
-    { id: "payments", label: "Payments" },
-    { id: "activity", label: "Activity" },
+    { id: "trips", label: "Trips", count: 6 },
+    { id: "quotes", label: "Quotes", count: 3 },
+    { id: "payments", label: "Payments", count: 4 },
+    { id: "activity", label: "Activity", count: 8 },
   ];
 
   return (
-    <>
-      <div className="flex flex-col gap-6 p-4 sm:p-6 pb-12 w-full max-w-7xl mx-auto">
-        <Reveal>
-          <ClientDetailHeader client={client} />
-        </Reveal>
+    <div className="flex flex-col w-full bg-page-bg min-h-screen">
+      {/* Top Header connected with navbar */}
+      <DetailHeader
+        className="px-4 sm:px-6 py-4"
+        titleContent={<ClientHeaderTitle client={client} />}
+        actions={
+          <ClientHeaderActions
+            onEdit={() => openEditModal(client)}
+            onFollowUp={() => openFollowUpModal(client?.id || client)}
+            onArchive={() => openArchiveModal(client)}
+          />
+        }
+      />
 
-        {/* Main Content Split Grid */}
-        <div className="flex flex-col lg:flex-row items-start gap-6 w-full pt-2">
-          {/* Left Sidebar Column */}
-          <Reveal className="w-full lg:w-auto">
-            <ClientDetailSidebar
-              client={client}
-              onEditNotes={() => openEditModal(client)}
-            />
-          </Reveal>
-
-          {/* Right Main Area with Tabbed Content */}
-          <Reveal className="flex-1 w-full min-w-0">
-            <div className="flex flex-col gap-5 w-full">
-              {/* Tab Navigation Header Bar */}
-              <DetailTabNav
-                tabs={tabs}
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-              />
-
-              {/* Tab Content Display */}
-              <div className="w-full pt-2">
-                {activeTab === "overview" && (
-                  <ClientOverviewTab
-                    client={client}
-                    onScheduleFollowUp={() => openFollowUpModal(client)}
-                  />
-                )}
-                {activeTab === "trips" && <ClientTripsTab />}
-                {activeTab === "quotes" && <ClientQuotesTab />}
-                {activeTab === "payments" && <ClientPaymentsTab />}
-                {activeTab === "activity" && <ClientActivityTab />}
-              </div>
-            </div>
-          </Reveal>
-        </div>
+      {/* 4 Stat Summary KPI Tiles */}
+      <div className="px-4 md:px-6 pt-4 sm:pt-6">
+        <ClientStatsRow client={client} />
       </div>
 
+      {/* Main Details Wrapper using CommonCard */}
+      <CommonCard className="m-4 md:m-6 border border-border overflow-hidden bg-white">
+        {/* Single Row Flight Context Summary Bar */}
+        <ClientSummaryBar client={client} />
+
+        {/* 2-Column Section Layout inside CommonCard */}
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start p-4 sm:p-6">
+          {/* Left Sidebar Column */}
+          <ClientDetailSidebar
+            client={client}
+            onEditNotes={() => openEditModal(client)}
+          />
+
+          {/* Right Main Area with Tabbed Content */}
+          <div className="flex flex-col gap-5 w-full min-w-0">
+            {/* Tab Navigation Header Bar */}
+            <DetailTabNav
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+            />
+
+            {/* Tab Content Display */}
+            <div className="w-full pt-1">
+              {activeTab === "overview" && (
+                <ClientOverviewTab
+                  client={client}
+                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                  onSwitchToActivity={() => setActiveTab("activity")}
+                />
+              )}
+              {activeTab === "trips" && (
+                <ClientTripsTab
+                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                />
+              )}
+              {activeTab === "quotes" && (
+                <ClientQuotesTab
+                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                />
+              )}
+              {activeTab === "payments" && (
+                <ClientPaymentsTab
+                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                />
+              )}
+              {activeTab === "activity" && (
+                <ClientActivityTab
+                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </CommonCard>
+
+      {/* Modals & Dialogs */}
       <AddClientDialog />
       <ScheduleFollowUpDialog />
       <ArchiveClientDialog />
-    </>
+    </div>
   );
 }
