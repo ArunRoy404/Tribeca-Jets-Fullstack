@@ -26,6 +26,7 @@ export const Permission = {
   MANAGE_CLIENTS: 'MANAGE_CLIENTS',
   MANAGE_AIRPORTS: 'MANAGE_AIRPORTS',
   MANAGE_OPERATORS: 'MANAGE_OPERATORS',
+  MANAGE_AIRCRAFT: 'MANAGE_AIRCRAFT',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -166,6 +167,19 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: READ,
   },
+  /**
+   * The fleet follows the operators row above, because the two are catalogued
+   * in the same conversation: a broker sourcing a tail nobody has entered yet
+   * adds the operator and the airframe together, and a permission that let
+   * them do one but not the other would just produce operators with no fleet.
+   */
+  [Permission.MANAGE_AIRCRAFT]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: ALL,
+    [UserRole.ASSISTANT]: READ,
+  },
 };
 
 /** How far `role` may reach for `permission`. */
@@ -246,4 +260,5 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.MANAGE_CLIENTS]: 'Create/Edit Clients',
   [Permission.MANAGE_AIRPORTS]: 'Manage Airports',
   [Permission.MANAGE_OPERATORS]: 'Manage Operators',
+  [Permission.MANAGE_AIRCRAFT]: 'Manage Aircraft',
 };
