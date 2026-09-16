@@ -47,6 +47,15 @@ Where two modules are mutually referential, build the one that can stand alone
 without the other and add the back-reference in the second pass. Never stub a
 foreign key with a string "for now".
 
+**The second pass is not optional, and it is part of shipping the new module.**
+A dependency that returns `fleet: []` or `totalFleet: null` while its dependant
+does not exist is telling the truth. The day that module ships, the same empty
+array becomes a *wrong answer* — the operator detail page says "No Aircraft in
+Fleet" about an operator whose tails are in the database. So when a module
+lands, go back through every module that points at it and fill in what they
+were standing in for. Grep the dependencies for the empty arrays and nulls
+their services return before calling the new module done.
+
 ### Shared by default — every feature, not just pagination
 
 Pagination is the worked example, not the exception. **Anything a second module

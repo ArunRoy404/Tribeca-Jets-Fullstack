@@ -135,6 +135,18 @@ any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
   be created by a broker but removed only by an administrator — enforce it in
   the service with `scopeFor(...) !== Scope.ALL`, which keeps the bulk routes
   and the single route on one rule instead of two.
+- **Validate a foreign key only when it is actually changing.** Edit forms
+  resend every field, so re-checking unconditionally means a record whose
+  dependency was archived later can no longer be edited at all — changing an
+  aircraft's notes returned "That operator does not exist" about the operator
+  it already had. Compare against the stored value first. And say *archived*
+  when it is archived: that is a different problem from a mistyped id, and the
+  fix is different too.
+- **A restore returns 200, not 201.** `@Post(':id/restore')` needs an explicit
+  `@HttpCode(HttpStatus.OK)`, because Nest gives every POST a 201 and a restore
+  creates nothing — it clears a deletion stamp on a row that existed all along.
+  All four modules drifted into 201 while the Postman collection documented
+  200; the collection was right.
 - **Bulk delete gets a matching bulk restore.** Same `bulkIdsSchema`, same
   `bulkResult`, same partial-success rule — `POST /<resource>/bulk-restore`.
   Read `affected` rather than `deleted`, which is kept only as an alias for the
@@ -146,6 +158,19 @@ any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
   database-level kill switch (auth refuses a stamped row a session) and hides
   the handful of rows archived before the feature was withdrawn; nothing writes
   it. Every *other* soft-deletable model follows the six-column rule above.
+
+## The permission matrix ships with the session
+
+`GET /auth/me` returns `permissions` — the caller's row of the matrix, as
+`{ PERMISSION: Scope }` — so the frontend can stop offering actions the guard
+will refuse. A role seeing Edit and Remove on every row and collecting a 403
+toast reads as a broken app rather than a permission boundary.
+
+**This is not an enforcement point and never can be.** It travels to a browser,
+where anyone can edit it. Every route still checks the same matrix server-side.
+Shipping it from here rather than letting the frontend re-derive it from `role`
+is the whole point: a second copy of the matrix in JavaScript drifts the first
+time a scope changes, and it drifts silently.
 
 ## Numbers that a form can leave blank
 

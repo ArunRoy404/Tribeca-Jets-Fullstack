@@ -197,6 +197,31 @@ copy is the bug this section exists to prevent.
 - A new filter should be one schema line and nothing else. If it needs a
   hand-written setter or a bespoke memo, extend the shared hook instead.
 
+## Do not offer an action the caller's role cannot perform
+
+`usePermissions()` (`src/hooks/common/usePermissions.js`) reads the matrix row
+the API ships with `/auth/me`. Use `canWrite(Permission.X)` to decide whether
+to render a write control — Add, Edit, Remove, Restore, bulk actions and the
+checkbox column that feeds them.
+
+- **Hide, do not disable.** A greyed-out button invites a click and explains
+  nothing. An assistant should see the record and the View action, not four
+  controls that answer 403.
+- **A checkbox column goes with its bulk action.** If the role cannot act on a
+  selection, the column is not rendered at all — selection with no button is a
+  control that does nothing, the same bug the Archived tab had.
+- **Never re-derive the matrix from `role`.** The server owns it and sends it;
+  a second copy in JavaScript drifts silently the first time a scope changes.
+  `src/lib/permissions.js` holds the permission *names* and nothing else.
+- **This is never the security boundary.** It renders buttons. Every route
+  re-checks the same matrix server-side, because anything sent to a browser can
+  be edited in one.
+- While the session is loading every answer is `false`, so a control appears a
+  moment late rather than appearing and being taken away.
+
+Per "fix a module when we reach it", only the module being worked on gets
+wired up. Aircraft is done; the others follow on their own turn.
+
 ## Required fields must agree with the API
 
 A form that marks only one field "(Optional)" while six more are optional is

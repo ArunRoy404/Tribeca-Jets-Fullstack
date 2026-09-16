@@ -30,8 +30,8 @@ set of broken joins the day the real table arrives.
 | 3 | **Airports** | ✅ Done | — |
 | 4 | **Operators** | ✅ Done | — |
 | 5 | **Clients** | ✅ Done | Users (broker), Airports (home base) |
-| 6 | **Aircraft** | ⬅ **Next** | Operators (owner), Airports (home base) |
-| 7 | **Leads & Agents** | Not started | Users, Clients |
+| 6 | **Aircraft** | ✅ Done | Operators (owner), Airports (home base) |
+| 7 | **Leads & Agents** | ⬅ **Next** | Users, Clients |
 | 8 | **Trip Requests** *(Open Requests)* | Not started | Clients, Airports, Users |
 | 9 | **Operator Sourcing** | Not started | Trip Requests, Operators, Aircraft |
 | 10 | **Quotes** | Not started | Trip Requests, Sourcing, Clients, Aircraft |
@@ -53,9 +53,10 @@ set of broken joins the day the real table arrives.
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
 | 27 | **AI Assistant** | Stub only | All |
 
-**Why Aircraft is next:** it is the only remaining module whose every
-dependency has already shipped. Operator (owner) and Airport (home base) are
-both done, so it can be built with real foreign keys on day one.
+**Why Leads & Agents is next:** with Aircraft done, it is the module whose
+dependencies (Users, Clients) are both shipped. Its open question — whether
+converting a lead writes a Client and a Trip Request together — has to be
+settled before it starts.
 
 **Why Dashboard is last** even though it is the first screen a user sees: it
 aggregates from every other module. Building it early means writing the same
@@ -184,15 +185,57 @@ so they can edit their own book but not delete from it; the rule lives in
 
 ## What each remaining module is
 
-### 6. Aircraft — *next*
+### 6. Aircraft ✅
 
-The individual airframes: tail number, type, category (Light / Midsize / Super
-Midsize / Heavy / Ultra Long Range / Turboprop / VIP Airliner), seats, year,
-status, home base, and the operator who owns it.
+The individual airframes: tail number, model, category, seats, range, year,
+performance and dimensions, amenities, maintenance dates, home base, and the
+operator who holds the certificate.
 
-Depends on **Operator** (owner) and **Airport** (home base) — both shipped.
-Quotes, Trips, Empty Legs and Flight Tracking all reference aircraft, so it
-gates a large part of the remaining queue.
+**The tail number is the identity**, unique across live *and* archived rows and
+upper-cased on the way in — `n780ex` and `N780EX` are one airframe. Unlike an
+archived airport ICAO, re-adding an archived tail is refused rather than
+silently reviving it: an archived tail is usually a real aircraft someone wants
+back *with its history*, not a code to recycle, so the 409 points at Restore.
+
+**Two axes for "not flying", and they are different.** `status: INACTIVE` means
+the tail has left the fleet — still listed, still searchable, history intact.
+Archiving is for a row that should not have been entered at all. The remove
+dialog says so, because deleting a real aircraft to mean "we stopped offering
+it" hides history the desk will need.
+
+**Speeds are free text, everything else is numeric.** Jets are quoted in Mach
+and turboprops in knots, so one numeric column cannot hold both without a
+second column saying which unit it is in — and a number rendered under the
+wrong unit is worse than the string. Range, ceiling, weights, distances and
+capacities all have one settled unit, so they are real numbers.
+
+**Maintenance is three dates, and the badge is derived.** The tab shows Last
+Inspection, Last Annual and Next Due; Completed / Scheduled / **Overdue** is
+computed from the date against today, never stored. A stored status goes stale
+the day it passes, and an overdue inspection still reading "Scheduled" is the
+kind of wrong answer this project exists to avoid.
+
+**The fleet finder** (scope §6.8) is the point of the module, not a filter bar:
+`minPassengers`, `minRangeNm` and cabin preferences answer "what can carry nine
+people to Aspen with a galley". All three are *at least* bounds — more seats or
+more range still answers the question — and a tail whose figure is missing is
+excluded rather than assumed to fit. Cabin preferences must **all** match: a
+feature the client asked for is a requirement, so an aircraft missing one is a
+wrong answer, not a weaker match. The filter's options come from
+`GET /aircraft/amenities`, derived from the rows, so it can never offer a
+feature nothing has.
+
+Quotes, Trips, Empty Legs and Flight Tracking all reference aircraft, so this
+unblocks a large part of the remaining queue.
+
+> **Deferred: aircraft images.** The scope lists images on the Aircraft record
+> (§ data model) and in the passenger itinerary (§6.11). They are not built,
+> because **this project has no file-upload pipeline at all** — `multer` is not
+> installed and no endpoint anywhere accepts a file; `avatarKey` is only ever
+> read. Building the first one inside Aircraft would either be thrown away or
+> become an accidental framework. It belongs with **Document Vault (#22)**,
+> which needs the same pipeline for contracts, operator documents and quote
+> PDFs. A column that nothing can write would be worse than the gap.
 
 ### 7. Leads & Agents
 
