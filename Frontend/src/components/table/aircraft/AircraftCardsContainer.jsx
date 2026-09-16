@@ -8,6 +8,8 @@ export default function AircraftCardsContainer({
   onToggleRow,
   getRowActions,
   onSelectAircraft,
+  archived = false,
+  selectable = true,
 }) {
   return (
     <div className="flex flex-col gap-3 p-3 w-full">
@@ -19,6 +21,8 @@ export default function AircraftCardsContainer({
           onToggleSelect={() => onToggleRow?.(ac?.id)}
           actions={getRowActions?.(ac)}
           onClick={() => onSelectAircraft?.(ac?.id)}
+          archived={archived}
+          selectable={selectable}
         />
       ))}
       {aircraft?.length === 0 && (

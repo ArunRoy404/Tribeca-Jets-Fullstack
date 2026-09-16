@@ -1,4 +1,5 @@
 import { toArchiveFields } from "@/lib/archive";
+import { toAircraftRow } from "@/lib/aircraft";
 
 /**
  * Display helpers for operators.
@@ -75,11 +76,16 @@ export function toOperatorRow(operator) {
     // live row should carry the "Restored" badge.
     ...toArchiveFields(operator),
 
-    // Awaiting the trips, payments and aircraft modules.
+    // Awaiting the trips and payments modules.
     totalTrips: operator?.totalTrips ?? "—",
     totalPaid: operator?.totalPaid ?? "—",
-    fleet: operator?.fleet ?? [],
     tripHistory: operator?.tripHistory ?? [],
     payments: operator?.payments ?? [],
+
+    // The fleet is real now that Aircraft has shipped. Mapped through the
+    // aircraft module's own mapper rather than a second vocabulary here, so
+    // the Fleet tab and the aircraft table format a tail identically.
+    fleet: (operator?.fleet ?? []).map(toAircraftRow),
+    fleetSize: operator?.fleetSize ?? (operator?.fleet ?? []).length,
   };
 }

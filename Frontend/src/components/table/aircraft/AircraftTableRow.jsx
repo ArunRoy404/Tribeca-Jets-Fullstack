@@ -2,6 +2,7 @@
 
 import StatusBadge from "@/components/common/StatusBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
+import RestoredBadge from "@/components/common/RestoredBadge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TableCell, TableRow } from "@/components/ui/table";
 
@@ -11,14 +12,24 @@ export default function AircraftTableRow({
   onToggleRow,
   getRowActions,
   onSelectAircraft,
+  archived = false,
+  selectable = true,
 }) {
   return (
     <TableRow key={ac?.id} className="border-border cursor-pointer" onClick={() => onSelectAircraft?.(ac?.id)}>
-      <TableCell className="p-[10px]" onClick={(e) => e.stopPropagation()}>
-        <Checkbox checked={selected} onCheckedChange={() => onToggleRow?.(ac?.id)} />
-      </TableCell>
+      {selectable ? (
+        <TableCell className="p-[10px]" onClick={(e) => e.stopPropagation()}>
+          <Checkbox checked={selected} onCheckedChange={() => onToggleRow?.(ac?.id)} />
+        </TableCell>
+      ) : null}
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-purple text-left">
-        {ac?.tailNumber || ac?.tail}
+        <span className="inline-flex items-center gap-2">
+          {ac?.tailNumber}
+          {/* A record that was removed and brought back says so, for good. */}
+          {ac?.isRestored ? (
+            <RestoredBadge at={ac?.restoredAtLabel} by={ac?.restoredByName} />
+          ) : null}
+        </span>
       </TableCell>
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center whitespace-nowrap">
         {ac?.model}
@@ -29,17 +40,19 @@ export default function AircraftTableRow({
       <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-purple text-center whitespace-nowrap">
         {ac?.operator}
       </TableCell>
+      {/* Every value below is already formatted by `toAircraftRow`, em dash
+          included — no `||` fallback here, or the table starts inventing. */}
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center">
-        {ac?.capacity || ac?.pax} Pax
+        {ac?.maxPassengers}
       </TableCell>
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center whitespace-nowrap">
-        {ac?.rangeNm || ac?.range} NM
+        {ac?.range}
       </TableCell>
       <TableCell className="p-[10px] font-montserrat font-medium text-[12px] text-foreground text-center whitespace-nowrap">
-        {ac?.homeBase}
+        {archived ? ac?.deletedAtLabel : ac?.homeBase}
       </TableCell>
-      <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-purple text-center">
-        {ac?.trips}
+      <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-purple text-center whitespace-nowrap">
+        {archived ? ac?.deletedByName : ac?.totalTrips}
       </TableCell>
       <TableCell className="p-[10px] text-center">
         <div className="flex justify-center">
