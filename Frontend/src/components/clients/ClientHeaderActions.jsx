@@ -15,7 +15,7 @@ export default function ClientHeaderActions({ onEdit, onFollowUp, onArchive }) {
   const router = useRouter();
 
   return (
-    <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+    <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 w-full sm:w-auto">
       <Button
         variant="outline"
         className="h-9 sm:h-10 text-[12px] sm:text-[13px] gap-2 font-medium flex-1 sm:flex-none cursor-pointer"

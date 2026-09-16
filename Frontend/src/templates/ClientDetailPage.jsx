@@ -48,12 +48,13 @@ export default function ClientDetailPage({ params }) {
     return <NotFoundState itemType="Client" backUrl="/dashboard/clients" backLabel="Back to Clients" />;
   }
 
+  // Tab badge counts will be wired to meta.total once Trips, Quotes, Payments, and Activity APIs are connected
   const tabs = [
     { id: "overview", label: "Overview" },
-    { id: "trips", label: "Trips", count: 6 },
-    { id: "quotes", label: "Quotes", count: 3 },
-    { id: "payments", label: "Payments", count: 4 },
-    { id: "activity", label: "Activity", count: 8 },
+    { id: "trips", label: "Trips" },
+    { id: "quotes", label: "Quotes" },
+    { id: "payments", label: "Payments" },
+    { id: "activity", label: "Activity" },
   ];
 
   return (
@@ -61,6 +62,8 @@ export default function ClientDetailPage({ params }) {
       {/* Top Header connected with navbar */}
       <DetailHeader
         className="px-4 sm:px-6 py-4"
+        backUrl="/dashboard/clients"
+        backLabel="Back to Clients"
         titleContent={<ClientHeaderTitle client={client} />}
         actions={
           <ClientHeaderActions
