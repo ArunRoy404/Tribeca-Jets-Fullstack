@@ -6,8 +6,10 @@ import {
 } from '../../../common/dto/pagination.dto.js';
 import { archiveQuerySchema } from '../../../common/database/archive.js';
 import {
+  ClientPriority,
   ClientStatus,
   ClientType,
+  FollowUpMethod,
   LeadSource,
   LeadStage,
 } from '../../../generated/prisma/enums.js';
@@ -61,6 +63,18 @@ const clientBaseSchema = z.object({
   assignedBrokerId: z.uuid().optional(),
   originatingBrokerId: z.uuid().optional(),
   preferences: preferencesSchema.default({}),
+  /**
+   * How urgently the desk is working this lead — a separate axis from
+   * `leadStage`. A brand-new enquiry can be the most important thing on the
+   * desk, and a long-negotiated one routine.
+   */
+  priority: z.enum(ClientPriority).default(ClientPriority.MEDIUM),
+  /**
+   * How the next follow-up should happen. Nullable because it is genuinely
+   * unknown until somebody decides — never defaulted to CALL, which would put
+   * a method on the reminder that nobody chose.
+   */
+  followUpMethod: z.enum(FollowUpMethod).nullable().optional(),
   /** Nullable so the form can clear a scheduled follow-up. */
   nextFollowUpAt: z.coerce.date().nullable().optional(),
   followUpNote: z.string().trim().max(1_000).nullable().optional(),
@@ -113,6 +127,8 @@ export const queryClientsSchema = paginationSchema
     followUp: z.enum(FOLLOW_UP_WINDOWS).optional(),
     leadStage: z.enum(LeadStage).optional(),
     leadSource: z.enum(LeadSource).optional(),
+    /** How urgently the desk is working this lead. */
+    priority: z.enum(ClientPriority).optional(),
     assignedBrokerId: z.uuid().optional(),
     label: z.string().max(50).optional(),
   })

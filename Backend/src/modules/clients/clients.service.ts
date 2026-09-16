@@ -30,7 +30,11 @@ import {
   Scope,
   scopeFor,
 } from '../../common/authorization/permissions.js';
-import { ClientStatus, UserRole } from '../../generated/prisma/enums.js';
+import {
+  ClientStatus,
+  LeadStage,
+  UserRole,
+} from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type {
   CreateClientInput,
@@ -49,6 +53,8 @@ const CLIENT_LIST_SELECT = {
   status: true,
   /** The related row, so the table can show "KTEB" and link to the airport. */
   homeAirport: { select: { id: true, icao: true, name: true, city: true } },
+  priority: true,
+  followUpMethod: true,
   nextFollowUpAt: true,
   followUpNote: true,
   leadSource: true,
@@ -134,6 +140,7 @@ export class ClientsService {
         'status',
         'leadStage',
         'leadSource',
+        'priority',
         'assignedBrokerId',
       ]),
       ...followUpFilter(query.followUp),
@@ -355,6 +362,112 @@ export class ClientsService {
   }
 
   /**
+   * The Agents roster: every broker, with the lead numbers behind them.
+   *
+   * "Agents" on that screen means the desk's own brokers, not travel agents —
+   * travel agents are Clients of type TRAVEL_AGENT and live in the client
+   * directory. The roster is therefore a *view over Users*, not a table of its
+   * own, which is why there is no create form: staff are invited through Users
+   * & Roles, where the permission matrix and the suspend rules already live.
+   *
+   * Aggregated in three grouped queries rather than one per broker, so the
+   * roster costs the same whether the desk has four brokers or forty.
+   */
+  async brokerPerformance(user: AuthenticatedUser) {
+    const scope = this.visibilityScope(user);
+
+    const brokers = await this.prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        role: {
+          in: [UserRole.BROKER, UserRole.SENIOR_BROKER, UserRole.ADMIN],
+        },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        avatarKey: true,
+        maxActiveLeads: true,
+        defaultFollowUpMethod: true,
+      },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    });
+
+    const live: Prisma.ClientWhereInput = { deletedAt: null, ...scope };
+    const now = new Date();
+
+    const [leadRows, wonRows, followUpRows] = await this.prisma.$transaction([
+      this.prisma.client.groupBy({
+        by: ['assignedBrokerId'],
+        where: { ...live, status: ClientStatus.LEAD },
+        _count: { _all: true },
+      }),
+      this.prisma.client.groupBy({
+        by: ['assignedBrokerId'],
+        where: { ...live, leadStage: LeadStage.WON },
+        _count: { _all: true },
+      }),
+      this.prisma.client.groupBy({
+        by: ['assignedBrokerId'],
+        where: { ...live, nextFollowUpAt: { lte: now } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const countsFor = (
+      rows: { assignedBrokerId: string | null; _count: { _all: number } }[],
+    ) =>
+      new Map(
+        rows
+          .filter((row) => row.assignedBrokerId !== null)
+          .map((row) => [row.assignedBrokerId as string, row._count._all]),
+      );
+
+    const activeLeads = countsFor(leadRows);
+    const convertedLeads = countsFor(wonRows);
+    const followUpsDue = countsFor(followUpRows);
+
+    return brokers.map((broker) => {
+      const active = activeLeads.get(broker.id) ?? 0;
+      const converted = convertedLeads.get(broker.id) ?? 0;
+      const handled = active + converted;
+
+      return {
+        ...broker,
+        activeLeads: active,
+        convertedLeads: converted,
+        followUpsDue: followUpsDue.get(broker.id) ?? 0,
+        /**
+         * Null, not 0%, when a broker has handled nothing yet. A new broker
+         * showing "0% conversion" is a wrong answer that follows them around;
+         * an em dash says the truth, which is that there is nothing to
+         * measure. Whole percent — 66.7% invites comparisons the sample size
+         * cannot support.
+         */
+        conversionRate:
+          handled === 0 ? null : Math.round((converted / handled) * 100),
+        /**
+         * Load against the broker's own cap. Null when no cap is set rather
+         * than inventing one: "Medium" measured against a number nobody chose
+         * is an opinion dressed as a metric.
+         */
+        capacityUsed:
+          broker.maxActiveLeads && broker.maxActiveLeads > 0
+            ? Math.round((active / broker.maxActiveLeads) * 100)
+            : null,
+        // An aggregate over trips, which do not exist yet. Null so the roster
+        // renders an em dash rather than claiming a broker has flown nobody.
+        activeTrips: null,
+      };
+    });
+  }
+
+  /**
    * The four tiles above the clients table.
    *
    * Scoped like the list, so a broker's tiles count their own book rather than
@@ -373,13 +486,19 @@ export class ClientsService {
 
     const startOfYear = new Date(new Date().getFullYear(), 0, 1);
 
-    const [total, active, vip, followUpsDue, addedThisYear] =
+    const [total, active, vip, leads, followUpsDue, addedThisYear] =
       await this.prisma.$transaction([
         this.prisma.client.count({ where: base }),
         this.prisma.client.count({
           where: { ...base, status: ClientStatus.ACTIVE },
         }),
         this.prisma.client.count({ where: { ...base, status: ClientStatus.VIP } }),
+        // The Leads screen's own total. Counted here rather than by the leads
+        // tile calling the list endpoint for a `meta.total` it would throw
+        // away — and it keeps the whole stats row on one round trip.
+        this.prisma.client.count({
+          where: { ...base, status: ClientStatus.LEAD },
+        }),
         // Overdue and due-today together: both are "deal with this now".
         this.prisma.client.count({
           where: { ...base, nextFollowUpAt: { lt: startOfTomorrow } },
@@ -393,6 +512,7 @@ export class ClientsService {
       total,
       active,
       vip,
+      leads,
       activeAndVip: active + vip,
       followUpsDue,
       addedThisYear,

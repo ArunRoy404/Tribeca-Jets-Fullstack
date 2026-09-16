@@ -56,6 +56,24 @@ export class ClientsController {
     return this.clients.stats(user);
   }
 
+  /**
+   * Before `:id`, like `stats` — Nest matches routes in order.
+   *
+   * Lives on clients rather than users because every number on it is lead
+   * data. The roster is a view over Users; the performance is the client
+   * module's to compute.
+   */
+  @Get('broker-performance')
+  @RequirePermissions(Permission.VIEW_CLIENTS)
+  @ApiOperation({
+    summary: 'The Agents roster — brokers with their lead numbers',
+    description:
+      '"Agents" here means the desk\'s own brokers. Travel agents are clients of type TRAVEL_AGENT and live in the client directory.\n\nScoped like the client list, so a broker\'s view of the roster counts their own book. `conversionRate` and `capacityUsed` are **null** rather than 0 when there is nothing to measure — a new broker showing "0% conversion" is a wrong answer that follows them around. `activeTrips` is null until the Trips module exists.\n\nThere is no create form: staff are invited through Users & Roles, where the permission matrix and the suspend rules live.',
+  })
+  brokerPerformance(@CurrentUser() user: AuthenticatedUser) {
+    return this.clients.brokerPerformance(user);
+  }
+
   @Get(':id')
   @RequirePermissions(Permission.VIEW_CLIENTS)
   @ApiOperation({ summary: 'Get one client' })
