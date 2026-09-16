@@ -19,6 +19,7 @@ import {
   TWO_FACTOR_COOKIE,
 } from '../../common/constants/auth.constants.js';
 import { StorageService } from '../../core/storage/storage.service.js';
+import { permissionsFor } from '../../common/authorization/permissions.js';
 import { AuthService } from './auth.service.js';
 import { TokenService, type SessionContext } from './token.service.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -199,13 +200,27 @@ export class AuthController {
   @ApiOperation({
     summary: 'Current user',
     description:
-      'How the frontend learns who is signed in — the session token is httpOnly and unreadable by JavaScript.',
+      'How the frontend learns who is signed in — the session token is httpOnly and unreadable by JavaScript. Carries `permissions`, the caller\'s row of the permission matrix, so the UI can hide actions their role cannot perform.',
   })
   async me(@CurrentUser('id') userId: string) {
     const profile = await this.auth.getProfile(userId);
     return {
       ...profile,
       avatarUrl: await this.storage.signedUrlOrNull(profile.avatarKey),
+      /**
+       * The caller's row of the permission matrix, as `{ PERMISSION: Scope }`.
+       *
+       * Sent so the UI can stop offering actions the guard will refuse — an
+       * assistant seeing Edit and Remove on every aircraft, then getting a 403
+       * toast, reads as a broken app rather than a permission boundary.
+       *
+       * This is **not** the enforcement point and never can be: it travels to
+       * the browser, where anyone can edit it. Every route still checks the
+       * same matrix server-side. Shipping it from here rather than letting the
+       * frontend re-derive it from `role` is the whole point — a second copy
+       * of the matrix in JavaScript would drift the first time a scope changed.
+       */
+      permissions: permissionsFor(profile.role),
     };
   }
 
