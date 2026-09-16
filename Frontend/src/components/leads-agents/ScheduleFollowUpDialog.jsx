@@ -1,169 +1,132 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Calendar, X } from "lucide-react";
+import { useState } from "react";
+import { CalendarClock, X } from "lucide-react";
 import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
+import { useUpdateClient } from "@/hooks/clients";
+import { FOLLOW_UP_METHODS, formatFollowUpMethod } from "@/lib/lead";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import DatePicker from "@/components/common/DatePicker";
 
-const followUpOptions = ["Call", "Email", "WhatsApp", "Other"];
+const SELECT_CLASS =
+  "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
 
+/** A lead is a client, so the follow-up is stored on the client record. */
 export default function ScheduleFollowUpDialog() {
-  const open = useLeadsAgentsStore((s) => s.scheduleFollowUpModalOpen);
-  const targetLead = useLeadsAgentsStore((s) => s.followUpTargetLead);
-  const closeModal = useLeadsAgentsStore((s) => s.closeScheduleFollowUpModal);
-  const scheduleFollowUp = useLeadsAgentsStore((s) => s.scheduleFollowUp);
-
-  const [date, setDate] = useState("2026-08-12");
-  const [time, setTime] = useState("10:00 AM");
-  const [method, setMethod] = useState("Call");
-  const [reminder, setReminder] = useState("1 day before");
-  const [notes, setNotes] = useState("");
-
-  useEffect(() => {
-    if (targetLead) {
-      setDate(targetLead.nextFollowUp || "2026-08-12");
-      setTime(targetLead.followUpTime || "10:00 AM");
-      setMethod(targetLead.followUpMethod || "Call");
-      setReminder("1 day before");
-      setNotes("");
-    }
-  }, [targetLead, open]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!targetLead) return;
-
-    scheduleFollowUp(targetLead.id, {
-      date,
-      time,
-      method,
-      reminder,
-      notes,
-      broker: targetLead.broker || "Barry",
-    });
-    closeModal();
-  };
-
-  if (!targetLead && !open) return null;
+  const open = useLeadsAgentsStore((s) => s.followUpModalOpen);
+  const lead = useLeadsAgentsStore((s) => s.followUpTargetLead);
+  const closeModal = useLeadsAgentsStore((s) => s.closeFollowUpModal);
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && closeModal()}>
-      <DialogContent className="sm:max-w-160 p-6 flex flex-col gap-4">
-        <DialogHeader className="flex flex-col items-start gap-1 pb-2 border-b border-border">
-          <DialogTitle className="font-montserrat font-bold text-[20px] text-foreground">
-            Schedule Follow-up
-          </DialogTitle>
-          <DialogDescription className="font-montserrat text-[13px] text-muted-foreground">
-            {targetLead ? `${targetLead.name} · ${targetLead.company || "Client"}` : "Follow-up"}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <div className="flex flex-col gap-1.5 w-full">
-              <label className="font-montserrat text-[13px] font-medium text-foreground">Date</label>
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-10 text-[13px] font-montserrat"
-                required
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5 w-full">
-              <label className="font-montserrat text-[13px] font-medium text-foreground">Time</label>
-              <Input
-                placeholder="10:00 AM"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="h-10 text-[13px] font-montserrat"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5 w-full">
-            <label className="font-montserrat text-[13px] font-medium text-foreground">
-              Follow-up Method
-            </label>
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              {followUpOptions.map((opt) => {
-                const isActive = method === opt;
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setMethod(opt)}
-                    className={cn(
-                      "px-5 py-2 rounded-md font-montserrat text-[13px] font-medium transition-all cursor-pointer border",
-                      isActive
-                        ? "bg-[#252832] text-white border-[#252832]"
-                        : "bg-[#f3f4f8] text-[#252832] border-[#ddddde] hover:bg-white"
-                    )}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5 w-full">
-            <label className="font-montserrat text-[13px] font-medium text-foreground">Reminder</label>
-            <select
-              value={reminder}
-              onChange={(e) => setReminder(e.target.value)}
-              className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
-            >
-              <option value="1 day before">1 day before</option>
-              <option value="2 hours before">2 hours before</option>
-              <option value="1 hour before">1 hour before</option>
-              <option value="At time of event">At time of event</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5 w-full">
-            <label className="font-montserrat text-[13px] font-medium text-foreground">Notes</label>
-            <Textarea
-              placeholder="What to discuss or prepare…"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="min-h-24 text-[13px] font-montserrat resize-none"
-            />
-          </div>
-
-          <div className="flex items-center justify-start gap-3 pt-3 border-t border-border/40 w-full">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 px-4 font-medium text-[13px] gap-1.5"
-              onClick={closeModal}
-            >
-              <X className="size-3.5" />
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="bg-[#252832] hover:bg-[#252832]/90 text-white h-9 px-5 font-medium text-[13px] gap-1.5 cursor-pointer"
-            >
-              <Calendar className="size-3.5" />
-              Schedule Follow-up
-            </Button>
-          </div>
-        </form>
+    <Dialog open={open} onOpenChange={(next) => !next && closeModal()}>
+      <DialogContent className="sm:max-w-130 p-6 flex flex-col gap-4">
+        {open && lead ? (
+          <FollowUpForm key={lead.id} lead={lead} onDone={closeModal} />
+        ) : null}
       </DialogContent>
     </Dialog>
   );
 }
 
+function FollowUpForm({ lead, onDone }) {
+  const { mutate: updateClient, isPending } = useUpdateClient();
+  const [date, setDate] = useState(
+    lead?.rawNextFollowUpAt ? String(lead.rawNextFollowUpAt).slice(0, 10) : "",
+  );
+  const [method, setMethod] = useState(lead?.rawFollowUpMethod ?? "");
+  const [note, setNote] = useState(lead?.followUpNote ?? "");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    updateClient(
+      {
+        id: lead.id,
+        // Clearing the date clears the reminder — null, not an empty string,
+        // which the API would reject as an invalid date.
+        nextFollowUpAt: date ? new Date(`${date}T00:00`).toISOString() : null,
+        followUpMethod: method || null,
+        followUpNote: note.trim() || null,
+      },
+      { onSuccess: onDone },
+    );
+  };
+
+  return (
+    <>
+      <DialogHeader className="flex flex-col items-start gap-1 pb-2 border-b border-border">
+        <DialogTitle className="font-montserrat font-bold text-[18px] text-foreground">
+          Schedule Follow-up
+        </DialogTitle>
+        <DialogDescription className="font-montserrat text-[13px] text-muted-foreground">
+          For <span className="font-bold text-foreground">{lead?.name}</span>.
+          Clearing the date removes the reminder.
+        </DialogDescription>
+      </DialogHeader>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+          <div className="flex flex-col gap-1.5">
+            <label className="font-montserrat text-[12px] font-medium text-foreground">Date</label>
+            <DatePicker value={date} onChange={setDate} placeholder="Choose Date" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="font-montserrat text-[12px] font-medium text-foreground">Method</label>
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+              className={SELECT_CLASS}
+            >
+              <option value="">Not decided</option>
+              {FOLLOW_UP_METHODS.map((value) => (
+                <option key={value} value={value}>
+                  {formatFollowUpMethod(value)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="font-montserrat text-[12px] font-medium text-foreground">
+            Note <span className="text-muted-foreground font-normal">(Optional)</span>
+          </label>
+          <textarea
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="What to cover on the next contact."
+            className="w-full p-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-purple resize-none"
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-2 w-full border-t border-border">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 px-4 font-medium text-[13px] gap-2"
+            onClick={onDone}
+            disabled={isPending}
+          >
+            <X className="size-4" />
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            className="bg-[#252832] hover:bg-[#252832]/90 text-white h-10 px-5 font-medium text-[13px] gap-2"
+            disabled={isPending}
+          >
+            <CalendarClock className="size-4" />
+            {isPending ? "Saving…" : "Save Follow-up"}
+          </Button>
+        </div>
+      </form>
+    </>
+  );
+}

@@ -2,20 +2,26 @@
 
 import LeadCard from "./LeadCard";
 
-export default function LeadsCardsContainer({ items, getRowActions, onSelectLead }) {
+export default function LeadsCardsContainer({
+  leads,
+  getRowActions,
+  onSelectLead,
+  archived = false,
+}) {
   return (
-    <div className="flex flex-col gap-3 w-full">
-      {items?.map((item) => (
+    <div className="flex flex-col gap-3 p-3 w-full">
+      {leads?.map((lead) => (
         <LeadCard
-          key={item?.id}
-          item={item}
-          actions={getRowActions?.(item)}
-          onClick={() => onSelectLead?.(item?.id)}
+          key={lead?.id}
+          lead={lead}
+          actions={getRowActions?.(lead)}
+          onClick={() => onSelectLead?.(lead?.id)}
+          archived={archived}
         />
       ))}
-      {items?.length === 0 && (
+      {leads?.length === 0 && (
         <p className="p-6 text-center font-montserrat text-[12px] text-muted-foreground w-full">
-          No leads found matching search filters.
+          No leads match the current filters.
         </p>
       )}
     </div>

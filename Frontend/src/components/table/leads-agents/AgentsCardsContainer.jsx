@@ -2,20 +2,20 @@
 
 import AgentCard from "./AgentCard";
 
-export default function AgentsCardsContainer({ items, getRowActions, onSelectAgent }) {
+export default function AgentsCardsContainer({ agents, getRowActions, onSelectAgent }) {
   return (
-    <div className="flex flex-col gap-3 w-full">
-      {items?.map((item) => (
+    <div className="flex flex-col gap-3 p-3 w-full">
+      {agents?.map((agent) => (
         <AgentCard
-          key={item?.id}
-          item={item}
-          actions={getRowActions?.(item)}
-          onClick={() => onSelectAgent?.(item?.id)}
+          key={agent?.id}
+          agent={agent}
+          actions={getRowActions?.(agent)}
+          onClick={() => onSelectAgent?.(agent?.id)}
         />
       ))}
-      {items?.length === 0 && (
+      {agents?.length === 0 && (
         <p className="p-6 text-center font-montserrat text-[12px] text-muted-foreground w-full">
-          No agents found matching search filters.
+          No agents match the current filters.
         </p>
       )}
     </div>

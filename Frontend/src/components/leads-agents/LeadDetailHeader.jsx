@@ -1,104 +1,118 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Mail, Phone, Calendar, UserPlus, UserCheck, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Edit, CalendarClock, UserCheck, CheckCircle2, Trash2 } from "lucide-react";
 import StatusBadge from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { archiveEventLabel } from "@/lib/archive";
+import { OPEN_LEAD_STAGES } from "@/lib/lead";
 
 export default function LeadDetailHeader({
   lead,
+  onEdit,
   onFollowUp,
   onConvert,
   onAssignBroker,
-  onDelete,
+  onArchive,
+  mayWrite = true,
 }) {
   if (!lead) return null;
 
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-6 bg-white rounded-lg border border-border shadow-xs w-full">
-      <div className="flex items-start sm:items-center gap-3.5">
-        <Link
-          href="/dashboard/leads-agents"
-          className="size-10 rounded-full bg-secondary hover:bg-secondary/80 border border-border flex items-center justify-center text-foreground transition-colors shrink-0 cursor-pointer"
-        >
-          <ArrowLeft className="size-5" />
-        </Link>
+  const removedLine = lead.isArchived
+    ? archiveEventLabel("Removed", lead.deletedAtLabel, lead.deletedByName)
+    : null;
+  const restoredLine = lead.restoredAt
+    ? archiveEventLabel(
+        lead.isArchived ? "Previously restored" : "Restored",
+        lead.restoredAtLabel,
+        lead.restoredByName,
+      )
+    : null;
 
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="font-montserrat font-bold text-[20px] text-foreground leading-tight">
+  // Converting a lead that is already Won or Lost is not a thing anyone means
+  // to do, so the button is absent rather than disabled.
+  const canConvert = OPEN_LEAD_STAGES.includes(lead.rawStage);
+
+  return (
+    <div className="flex flex-col gap-6 w-full">
+      <Link
+        href="/dashboard/leads-agents"
+        className="inline-flex items-center gap-1.5 font-montserrat text-[12px] font-medium text-muted-foreground hover:text-foreground transition-colors w-fit"
+      >
+        <ArrowLeft className="size-3.5" />
+        Back to Leads
+      </Link>
+
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-5 bg-white rounded-xl border border-border shadow-card w-full">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="font-montserrat font-bold text-[22px] text-foreground leading-tight">
               {lead.name}
             </h1>
-            <StatusBadge status={lead.status} bordered />
-            <StatusBadge status={lead.priority} bordered />
+            {lead.stage ? <StatusBadge status={lead.stage} bordered /> : null}
+            {lead.priority ? <StatusBadge status={lead.priority} bordered /> : null}
           </div>
-
-          <div className="flex flex-wrap items-center gap-2 font-montserrat text-[12px] text-muted-foreground">
-            {lead.company && (
-              <>
-                <span className="font-medium text-foreground">{lead.company}</span>
-                <span>•</span>
-              </>
-            )}
-            {lead.route && (
-              <>
-                <span className="font-semibold text-purple">{lead.route}</span>
-                <span>•</span>
-              </>
-            )}
-            <span>Broker: {lead.broker}</span>
-            <span>•</span>
-            <span className="inline-flex items-center gap-1">
-              <Mail className="size-3.5 text-muted-foreground" />
-              <span>{lead.email}</span>
-            </span>
-            <span>•</span>
-            <span className="inline-flex items-center gap-1">
-              <Phone className="size-3.5 text-muted-foreground" />
-              <span>{lead.phone}</span>
-            </span>
-          </div>
+          <p className="font-montserrat text-[13px] text-muted-foreground">
+            {[lead.company !== "—" ? lead.company : null, lead.email, lead.phone]
+              .filter((part) => part && part !== "—")
+              .join(" · ") || "No contact details on file"}
+          </p>
+          {removedLine ? (
+            <p className="font-montserrat text-[12px] text-destructive">{removedLine}</p>
+          ) : null}
+          {restoredLine ? (
+            <p className="font-montserrat text-[12px] text-muted-foreground">{restoredLine}</p>
+          ) : null}
         </div>
-      </div>
 
-      {/* Top Header Action Buttons matching Figma */}
-      <div className="flex items-center gap-2 sm:self-center self-start shrink-0 flex-wrap">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onFollowUp}
-          className="h-9 px-3.5 font-montserrat text-[13px] font-medium gap-1.5 cursor-pointer"
-        >
-          <Calendar className="size-3.5" />
-          <span>Follow-up</span>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onConvert}
-          className="h-9 px-3.5 font-montserrat text-[13px] font-medium gap-1.5 cursor-pointer"
-        >
-          <UserCheck className="size-3.5" />
-          <span>Convert to Client</span>
-        </Button>
-        <Button
-          type="button"
-          onClick={onAssignBroker}
-          className="h-9 px-4 font-montserrat text-[13px] font-medium bg-[#252832] hover:bg-[#252832]/90 text-white gap-1.5 cursor-pointer"
-        >
-          <UserPlus className="size-3.5" />
-          <span>Assign Broker</span>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onDelete}
-          className="h-9 px-2.5 font-montserrat text-[13px] font-medium text-destructive hover:bg-destructive/10 cursor-pointer"
-        >
-          <MoreHorizontal className="size-4" />
-        </Button>
+        {/* Every control here is a write. A read-only role gets the record and
+            no buttons, rather than four that answer 403. */}
+        {!mayWrite || lead.isArchived ? null : (
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="h-10 text-[13px] gap-2 font-medium"
+              onClick={onEdit}
+            >
+              <Edit className="size-4" />
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              className="h-10 text-[13px] gap-2 font-medium"
+              onClick={onFollowUp}
+            >
+              <CalendarClock className="size-4" />
+              Follow-up
+            </Button>
+            <Button
+              variant="outline"
+              className="h-10 text-[13px] gap-2 font-medium"
+              onClick={onAssignBroker}
+            >
+              <UserCheck className="size-4" />
+              Assign
+            </Button>
+            {canConvert ? (
+              <Button
+                className="bg-[#252832] hover:bg-[#252832]/90 text-white h-10 text-[13px] gap-2 font-medium"
+                onClick={onConvert}
+              >
+                <CheckCircle2 className="size-4" />
+                Convert
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              className="h-10 text-[13px] gap-2 font-medium text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+              onClick={onArchive}
+            >
+              <Trash2 className="size-4" />
+              Remove
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

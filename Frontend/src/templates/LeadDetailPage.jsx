@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useMemo } from "react";
 import LeadDetailHeader from "@/components/leads-agents/LeadDetailHeader";
 import LeadDetailStats from "@/components/leads-agents/LeadDetailStats";
 import LeadOverviewCards from "@/components/leads-agents/LeadOverviewCards";
@@ -8,25 +8,63 @@ import LeadSidebarCards from "@/components/leads-agents/LeadSidebarCards";
 import ScheduleFollowUpDialog from "@/components/leads-agents/ScheduleFollowUpDialog";
 import AssignBrokerDialog from "@/components/leads-agents/AssignBrokerDialog";
 import ConvertLeadDialog from "@/components/leads-agents/ConvertLeadDialog";
-import DeleteLeadDialog from "@/components/leads-agents/DeleteLeadDialog";
+import ArchiveLeadDialog from "@/components/leads-agents/ArchiveLeadDialog";
+import AddLeadDialog from "@/components/leads-agents/AddLeadDialog";
 import Reveal from "@/components/common/Reveal";
 import NotFoundState from "@/components/common/NotFoundState";
+import TableStatus from "@/components/table/common/TableStatus";
 import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
+import { useClient } from "@/hooks/clients";
+import { useTripRequests } from "@/hooks/trip-requests";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
+import { toLeadRow, toTripRequestRow } from "@/lib/lead";
 
 export default function LeadDetailPage({ params }) {
   const unwrappedParams = use(params);
   const rawId = decodeURIComponent(unwrappedParams?.leadId || "");
 
-  const getLeadById = useLeadsAgentsStore((s) => s.getLeadById);
-  const openScheduleFollowUpModal = useLeadsAgentsStore((s) => s.openScheduleFollowUpModal);
+  const openFollowUpModal = useLeadsAgentsStore((s) => s.openFollowUpModal);
   const openAssignBrokerModal = useLeadsAgentsStore((s) => s.openAssignBrokerModal);
   const openConvertLeadModal = useLeadsAgentsStore((s) => s.openConvertLeadModal);
-  const openDeleteLeadModal = useLeadsAgentsStore((s) => s.openDeleteLeadModal);
+  const openArchiveLeadModal = useLeadsAgentsStore((s) => s.openArchiveLeadModal);
+  const openEditLeadModal = useLeadsAgentsStore((s) => s.openEditLeadModal);
 
-  const lead = getLeadById(rawId);
+  const { canWrite } = usePermissions();
+  const mayWrite = canWrite(Permission.MANAGE_CLIENTS);
 
+  // A lead is a client — there is no separate leads endpoint.
+  const { data, isPending, error, refetch } = useClient(rawId);
+  // Their enquiries, which are trip requests against this client.
+  const { data: requestsData } = useTripRequests(
+    { clientId: rawId, limit: 50 },
+    { enabled: Boolean(rawId) },
+  );
+
+  const requests = useMemo(
+    () => (requestsData?.data ?? []).map(toTripRequestRow),
+    [requestsData?.data],
+  );
+  // The newest enquiry drives the header's route and value.
+  const lead = data ? toLeadRow(data, requestsData?.data?.[0] ?? null) : null;
+
+  if (isPending || error) {
+    return (
+      <div className="p-4 sm:p-6">
+        <TableStatus isLoading={isPending} error={error} onRetry={refetch} />
+      </div>
+    );
+  }
+
+  // An archived lead loads like any other — the Archived tab links here.
   if (!lead) {
-    return <NotFoundState itemType="Lead" backUrl="/dashboard/leads-agents" backLabel="Back to Leads" />;
+    return (
+      <NotFoundState
+        itemType="Lead"
+        backUrl="/dashboard/leads-agents"
+        backLabel="Back to Leads"
+      />
+    );
   }
 
   return (
@@ -35,45 +73,34 @@ export default function LeadDetailPage({ params }) {
         <Reveal>
           <LeadDetailHeader
             lead={lead}
-            onFollowUp={() => openScheduleFollowUpModal(lead)}
+            mayWrite={mayWrite}
+            onEdit={() => openEditLeadModal(lead)}
+            onFollowUp={() => openFollowUpModal(lead)}
             onConvert={() => openConvertLeadModal(lead)}
             onAssignBroker={() => openAssignBrokerModal(lead)}
-            onDelete={() => openDeleteLeadModal(lead)}
+            onArchive={() => openArchiveLeadModal(lead)}
           />
         </Reveal>
 
-        {/* 6 KPI Metric Stats */}
         <Reveal>
           <LeadDetailStats lead={lead} />
         </Reveal>
 
-        {/* Main Details Section */}
-        <div className="flex flex-col gap-6 w-full rounded-lg border border-border bg-white/80 backdrop-blur-md p-4 sm:p-6 shadow-card">
-          <div className="flex items-center gap-2 border-b border-border pb-3">
-            <h2 className="font-montserrat font-bold text-[16px] text-purple">
-              Overview of {lead?.name}
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full items-start">
-            <Reveal className="w-full">
-              <LeadOverviewCards lead={lead} />
-            </Reveal>
-            <Reveal className="w-full">
-              <LeadSidebarCards
-                lead={lead}
-                onFollowUp={() => openScheduleFollowUpModal(lead)}
-              />
-            </Reveal>
-          </div>
+        <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+          <Reveal className="flex-1 w-full min-w-0">
+            <LeadOverviewCards lead={lead} requests={requests} />
+          </Reveal>
+          <Reveal className="w-full lg:w-96 shrink-0">
+            <LeadSidebarCards lead={lead} />
+          </Reveal>
         </div>
       </div>
 
-      {/* Modals */}
+      <AddLeadDialog />
       <ScheduleFollowUpDialog />
       <AssignBrokerDialog />
       <ConvertLeadDialog />
-      <DeleteLeadDialog />
+      <ArchiveLeadDialog />
     </>
   );
 }
