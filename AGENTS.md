@@ -103,6 +103,34 @@ The frontend was built first and is the specification. Its dummy data, dialogs, 
 
 Read `Frontend/src/dummyData/<module>.js`, the store, the table components and the dialogs **before** writing the schema or DTOs. Where the UI and your schema disagree, that is a real finding — surface it rather than quietly picking one.
 
+## Never display a number the data did not supply
+
+**When a module is wired to its API, its dummy data is deleted in the same
+pass** — the file in `src/dummyData/`, the imports, the store's copy of it, and
+every placeholder value left behind in the components. A module is not done
+while a screen can still render something that did not come from the server.
+
+**Never invent a value to stand in for missing data.** No `||` fallback to a
+plausible-looking literal, no pre-filled default in a form, no derived score.
+If the API returns null, render an em dash, "Not rated" or "Not on file" — an
+honest blank is always better than a confident wrong number.
+
+This is not a style rule. The operators Overview tab ran the *safety
+certification* text through `parseFloat`, got `NaN`, and fell back to `4.9` —
+so every operator in the system displayed a 4.9/5 safety rating, in stars, that
+no one had ever given them. The Add form pre-filled reliability with `"4.8"`,
+so every operator created carried a rating nobody assigned. Both looked like
+real data and neither was. On a charter desk, an invented safety score is the
+kind of thing that gets someone hurt.
+
+Two corollaries:
+
+- **Render a field as what it is.** `safetyRating` is a certification string
+  ("ARG/US Platinum") and `responseSpeed` is free text ("< 15 min"); only
+  `reliabilityRating` is a 0-5 number. A star row is for scores.
+- **A placeholder attribute is fine** — it is a format hint, greyed, and never
+  submitted. A `value` or a default is not.
+
 ## Contract rules that apply to both sides
 
 - **Enum values are the backend's `SCREAMING_SNAKE_CASE`**, on the wire and in the database. The frontend maps them to display labels at the edge; it never invents its own vocabulary (no `"Senior Broker"` on the wire when the enum says `SENIOR_BROKER`).

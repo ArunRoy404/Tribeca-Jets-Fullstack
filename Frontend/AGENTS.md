@@ -78,6 +78,16 @@ When a module graduates:
 
 - **Server data comes from React Query, never from a zustand store.** Delete the store's data array, its filter/pagination getters and its mutating actions. A store may keep genuinely client-only state (which dialog is open, which row is selected) — nothing that the server owns.
 - **Its `dummyData/*.js` file goes away** with the store's dependency on it. Do not leave a stale copy "for reference".
+- **Every leftover placeholder in its components goes with it.** The dummy file
+  is the obvious half; the dangerous half is what stayed behind in the JSX —
+  `value={x || "4.8"}`, a form defaulting a rating, a score derived from a
+  string with `parseFloat`. Grep the module for `|| "` and for literal numbers
+  after wiring it up, and delete what you find.
+- **Missing data renders as missing.** Em dash, "Not rated", "Not on file" —
+  never a plausible-looking stand-in. The mapper is the single place that turns
+  null into "—", so components read the mapped value directly and add no
+  fallback of their own. See the rule in the root `AGENTS.md` for what this
+  cost us on operators.
 - Read the module's `src/hooks/<module>/README.md` if there is one; `src/hooks/auth/` is the reference implementation for everything below.
 
 ## Services and hooks
