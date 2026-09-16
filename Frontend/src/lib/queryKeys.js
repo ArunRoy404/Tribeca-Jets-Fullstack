@@ -28,6 +28,19 @@ export const queryKeys = {
     list: (params) => ["clients", "list", params ?? {}],
     detail: (id) => ["clients", "detail", id],
     stats: ["clients", "stats"],
+    /**
+     * The Agents roster. Under the clients prefix because every number on it
+     * is lead data — creating or reassigning a lead moves it, so invalidating
+     * clients must refresh it.
+     */
+    brokerPerformance: ["clients", "broker-performance"],
+  },
+
+  tripRequests: {
+    all: ["trip-requests"],
+    list: (params) => ["trip-requests", "list", params ?? {}],
+    detail: (id) => ["trip-requests", "detail", id],
+    stats: ["trip-requests", "stats"],
   },
 
   airports: {

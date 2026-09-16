@@ -6,6 +6,7 @@
 export { useClients } from "./useClients";
 export { useClient } from "./useClient";
 export { useClientStats } from "./useClientStats";
+export { useBrokerPerformance } from "./useBrokerPerformance";
 export { useCreateClient } from "./useCreateClient";
 export { useUpdateClient } from "./useUpdateClient";
 export { useRemoveClient } from "./useRemoveClient";

@@ -16,6 +16,15 @@ export const clientsService = {
    */
   list: (params) => requestWithMeta({ url: "/clients", method: "GET", params }),
 
+  /**
+   * GET /clients/broker-performance — the Agents roster.
+   *
+   * "Agents" means the desk's own brokers, with their lead numbers. Travel
+   * agents are clients of type TRAVEL_AGENT and live in the client directory.
+   */
+  brokerPerformance: () =>
+    request({ url: "/clients/broker-performance", method: "GET" }),
+
   /** GET /clients/stats — the tiles above the table, scoped like the list. */
   stats: () => request({ url: "/clients/stats", method: "GET" }),
 
