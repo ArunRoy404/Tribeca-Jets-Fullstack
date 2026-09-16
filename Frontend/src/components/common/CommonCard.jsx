@@ -33,7 +33,7 @@ export default function CommonCard({
       />
       <div className="absolute inset-0 bg-gradient-to-r from-white/75 to-[#e5eeff]/75 pointer-events-none" />
 
-      <div className="relative w-full z-10 flex flex-col flex-1">
+      <div className="relative w-full z-0 flex flex-col flex-1">
         {children}
       </div>
     </div>

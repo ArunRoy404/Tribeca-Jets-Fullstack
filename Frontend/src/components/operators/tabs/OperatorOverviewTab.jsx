@@ -4,6 +4,22 @@ import { Star } from "lucide-react";
 import SectionCard from "@/components/common/SectionCard";
 import DetailField from "@/components/common/DetailField";
 
+const NONE = "—";
+
+/** True when the mapper had nothing to show for a field. */
+function isBlank(value) {
+  return value === null || value === undefined || value === "" || value === NONE;
+}
+
+/**
+ * Stars for a real 0-5 score.
+ *
+ * Only `reliabilityRating` is one. `safetyRating` is a certification
+ * ("ARG/US Platinum") and `responseSpeed` is turnaround text ("< 15 min") —
+ * both were previously run through `parseFloat`, which is `NaN` for text, so
+ * every operator rendered a fabricated 4.9 safety score and a 4.5 response
+ * score. They are shown as what they are instead.
+ */
 function StarRating({ value = 0, max = 5 }) {
   const numStars = Math.round(Number(value) || 0);
   return (
@@ -22,30 +38,46 @@ function StarRating({ value = 0, max = 5 }) {
   );
 }
 
+/** One row of the ratings card: a label above whatever the value actually is. */
+function CredentialRow({ label, children, bordered = true }) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 ${
+        bordered ? "pb-3 border-b border-border" : ""
+      }`}
+    >
+      <span className="font-montserrat text-[12px] text-muted-foreground uppercase font-medium">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 export default function OperatorOverviewTab({ operator }) {
   if (!operator) return null;
 
-  const reliabilityVal = parseFloat(operator.reliability) || 4.8;
-  const safetyVal = parseFloat(operator.safety) || 4.9;
-  const responseSpeedVal = operator.responseSpeed === "Fast" ? 4.2 : 4.5;
+  // `rawReliability` is the number straight off the API — null when nobody has
+  // rated this operator. An unrated operator shows "Not rated", never a score.
+  const rated = operator.rawReliability !== null && operator.rawReliability !== undefined;
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
-      {/* Left Column: Contact, Routes, Cancellation, Notes */}
+      {/* Left Column: Contact, Routes, Terms, Notes */}
       <div className="flex-1 flex flex-col gap-6 w-full min-w-0">
         {/* Contact Information */}
         <SectionCard title="CONTACT INFORMATION">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <DetailField label="Primary Contact" value={operator.primaryContact || "-"} />
-            <DetailField label="Dispatch Phone" value={operator.phone || operator.generalPhone || "-"} />
-            <DetailField label="Email" value={operator.email || operator.generalEmail || "-"} />
-            <DetailField label="Website" value={operator.website || "-"} />
+            <DetailField label="Primary Contact" value={operator.primaryContact} />
+            <DetailField label="Dispatch Phone" value={operator.phone} />
+            <DetailField label="Email" value={operator.email} />
+            <DetailField label="Website" value={operator.website || NONE} />
           </div>
         </SectionCard>
 
         {/* Service Routes */}
         <SectionCard title="SERVICE ROUTES">
-          {operator.serviceRoutes && operator.serviceRoutes.length > 0 ? (
+          {operator.serviceRoutes?.length > 0 ? (
             <div className="flex flex-wrap gap-2 w-full">
               {operator.serviceRoutes.map((route) => (
                 <span
@@ -57,67 +89,67 @@ export default function OperatorOverviewTab({ operator }) {
               ))}
             </div>
           ) : (
-            <p className="font-montserrat text-[14px] text-muted-foreground">No service routes on file</p>
+            <p className="font-montserrat text-[14px] text-muted-foreground">
+              No service routes on file
+            </p>
           )}
         </SectionCard>
 
-        {/* Cancellation Policy */}
-        <SectionCard title="CANCELLATION POLICY">
-          <p className="font-montserrat font-medium text-[14px] text-foreground leading-relaxed">
-            {operator.cancellationPolicy || "---"}
-          </p>
+        {/* What the desk is agreeing to when it books this operator. */}
+        <SectionCard title="COMMERCIAL TERMS">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <DetailField label="Cancellation Policy" value={operator.cancellationPolicy} />
+            <DetailField label="Payment Terms" value={operator.paymentTerms} />
+          </div>
         </SectionCard>
 
         {/* Notes */}
         <SectionCard title="NOTES">
           <p className="font-montserrat font-medium text-[14px] text-foreground leading-relaxed">
-            {operator.sourcingNotes || "----"}
+            {operator.sourcingNotes || "No notes on file"}
           </p>
         </SectionCard>
       </div>
 
-      {/* Right Column: Ratings (Figma node 452:39140) */}
+      {/* Right Column: only one of these is a score. */}
       <div className="w-full lg:w-96 shrink-0 flex flex-col gap-6">
-        <SectionCard title="RATINGS">
+        <SectionCard title="RATINGS & CREDENTIALS">
           <div className="flex flex-col gap-5 w-full">
-            {/* Reliability Rating */}
-            <div className="flex items-center justify-between gap-3 pb-3 border-b border-border">
-              <div className="flex flex-col gap-1.5">
-                <span className="font-montserrat text-[12px] text-muted-foreground uppercase font-medium">
-                  Reliability
+            <CredentialRow label="Reliability">
+              {rated ? (
+                <div className="flex items-center gap-2.5">
+                  <StarRating value={operator.rawReliability} />
+                  <span className="font-montserrat font-bold text-[16px] text-foreground">
+                    {operator.reliability}/5
+                  </span>
+                </div>
+              ) : (
+                <span className="font-montserrat text-[14px] text-muted-foreground">
+                  Not rated
                 </span>
-                <StarRating value={reliabilityVal} />
-              </div>
-              <span className="font-montserrat font-bold text-[16px] text-foreground">
-                {reliabilityVal}/5
-              </span>
-            </div>
+              )}
+            </CredentialRow>
 
-            {/* Safety Rating */}
-            <div className="flex items-center justify-between gap-3 pb-3 border-b border-border">
-              <div className="flex flex-col gap-1.5">
-                <span className="font-montserrat text-[12px] text-muted-foreground uppercase font-medium">
-                  Safety
-                </span>
-                <StarRating value={safetyVal} />
-              </div>
-              <span className="font-montserrat font-bold text-[16px] text-foreground">
-                {safetyVal}/5
+            {/* A certification, not a score — shown verbatim. */}
+            <CredentialRow label="Safety">
+              <span className="font-montserrat font-bold text-[14px] text-foreground text-right">
+                {isBlank(operator.safety) ? (
+                  <span className="font-medium text-muted-foreground">Not on file</span>
+                ) : (
+                  operator.safety
+                )}
               </span>
-            </div>
+            </CredentialRow>
 
-            {/* Response Speed Rating */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex flex-col gap-1.5">
-                <span className="font-montserrat text-[12px] text-muted-foreground uppercase font-medium">
-                  Response Speed
-                </span>
-                <StarRating value={responseSpeedVal} />
-              </div>
-              <span className="font-montserrat font-bold text-[16px] text-foreground">
-                {responseSpeedVal}/5
+            <CredentialRow label="Response Speed" bordered={false}>
+              <span className="font-montserrat font-bold text-[14px] text-foreground text-right">
+                {isBlank(operator.responseSpeed) ? (
+                  <span className="font-medium text-muted-foreground">Not on file</span>
+                ) : (
+                  operator.responseSpeed
+                )}
               </span>
-            </div>
+            </CredentialRow>
           </div>
         </SectionCard>
       </div>

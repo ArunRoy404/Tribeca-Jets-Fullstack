@@ -2,6 +2,7 @@
 
 import { Trash2, X } from "lucide-react";
 import { useAirportsStore } from "@/store/useAirportsStore";
+import { useRemoveAirport } from "@/hooks/airports";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -9,16 +10,15 @@ export default function DeleteAirportDialog() {
   const open = useAirportsStore((s) => s.deleteModalOpen);
   const deletingAirport = useAirportsStore((s) => s.deletingAirport);
   const closeModal = useAirportsStore((s) => s.closeDeleteModal);
-  const deleteAirport = useAirportsStore((s) => s.deleteAirport);
+  const { mutate: removeAirport, isPending } = useRemoveAirport();
 
   const airportName = deletingAirport
     ? `${deletingAirport.name} (${deletingAirport.icao})`
     : "this airport";
 
   const handleDelete = () => {
-    if (deletingAirport) {
-      deleteAirport(deletingAirport.id);
-    }
+    if (!deletingAirport) return;
+    removeAirport(deletingAirport, { onSuccess: closeModal });
   };
 
   return (
@@ -31,12 +31,14 @@ export default function DeleteAirportDialog() {
               <Trash2 className="size-4.5" />
             </div>
             <DialogTitle className="font-montserrat font-bold text-[18px] text-foreground text-left">
-              Delete Airports?
+              Remove Airport?
             </DialogTitle>
           </div>
 
           <DialogDescription className="font-montserrat text-[14px] text-muted-foreground text-left leading-relaxed pt-1">
-            Delete <span className="font-bold text-foreground">{airportName}</span>? This cannot be undone.
+            Remove <span className="font-bold text-foreground">{airportName}</span> from the
+            airport list? Trips and itineraries that reference it keep working, and you
+            can bring it back any time from the Archived tab.
           </DialogDescription>
         </DialogHeader>
 
@@ -58,6 +60,7 @@ export default function DeleteAirportDialog() {
             type="button"
             className="bg-[#252832] hover:bg-[#252832]/90 text-white gap-1.5 px-5 h-10 font-medium text-[13px]"
             onClick={handleDelete}
+            disabled={isPending}
           >
             <Trash2 className="size-4" />
             Delete

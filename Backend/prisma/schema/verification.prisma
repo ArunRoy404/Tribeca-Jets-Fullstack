@@ -1,0 +1,53 @@
+/// One-time codes for the 6-digit flows: two-factor sign-in and password
+/// reset.
+///
+/// The code itself is hashed, never stored in plaintext — a 6-digit code is a
+/// credential, and a database leak must not hand over live codes.
+///
+/// `challengeHash` is the hash of the opaque token held in an httpOnly cookie
+/// for the duration of the flow. The frontend's OTP screens have no hidden
+/// challenge field, so the flow is bound to the browser rather than to a value
+/// the page posts back. This also means a code phished onto another device is
+/// useless without that browser's cookie.
+model VerificationCode {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  purpose VerificationPurpose
+
+  /// SHA-256 of the 6-digit code.
+  codeHash      String
+  /// SHA-256 of the opaque challenge token carried in the cookie.
+  challengeHash String @unique
+
+  /// Wrong guesses. The record is invalidated past MAX_ATTEMPTS so a 6-digit
+  /// code (a million possibilities) cannot be brute forced inside its window.
+  attempts Int @default(0)
+
+  /// Password reset only: the code has been verified and the flow may now set
+  /// a new password. Two-factor consumes the code outright instead.
+  verifiedAt DateTime?
+  consumedAt DateTime?
+  expiresAt  DateTime
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose, consumedAt])
+  @@index([expiresAt])
+  @@map("verification_codes")
+}
+
+enum VerificationPurpose {
+  TWO_FACTOR
+  PASSWORD_RESET
+
+  /// Still present in the database and on one live row, so the schema
+  /// declares it. Dropping the value was the drift that made `migrate diff`
+  /// emit a stray AlterEnum into three unrelated migrations, each of which had
+  /// to be stripped by hand. No code issues it today.
+  INVITATION
+}

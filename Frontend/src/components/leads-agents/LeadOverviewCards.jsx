@@ -1,77 +1,81 @@
 "use client";
 
-import { Activity, Clock } from "lucide-react";
+import Link from "next/link";
+import { Plane } from "lucide-react";
 import SectionCard from "@/components/common/SectionCard";
 import DetailField from "@/components/common/DetailField";
+import StatusBadge from "@/components/common/StatusBadge";
 
-export default function LeadOverviewCards({ lead }) {
+/**
+ * The lead's enquiries — real trip request records, not a fabricated activity
+ * feed.
+ *
+ * The previous version rendered a hardcoded timeline ("Welcome email sent…",
+ * "Proposal generated for TEB → MIA Heavy Jet") that was identical for every
+ * lead. A real activity timeline needs the Communications module, which does
+ * not exist; what does exist is what the client actually asked for.
+ */
+export default function LeadOverviewCards({ lead, requests = [] }) {
   if (!lead) return null;
 
-  const activities = lead.activities || [];
-
   return (
-    <div className="flex flex-col gap-6 w-full min-w-0">
-      {/* Contact Card */}
-      <SectionCard title="Contact" className="bg-white">
+    <div className="flex flex-col gap-6 w-full">
+      <SectionCard title="LEAD DETAILS">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-          <DetailField label="Name" value={lead.name} />
           <DetailField label="Company" value={lead.company} />
-          <DetailField label="Email" value={lead.email} valueClassName="truncate" />
+          <DetailField label="Email" value={lead.email} />
           <DetailField label="Phone" value={lead.phone} />
+          <DetailField label="Source" value={lead.source || "—"} />
+          <DetailField label="Stage" value={lead.stage || "—"} />
+          <DetailField label="Priority" value={lead.priority || "—"} />
         </div>
       </SectionCard>
 
-      {/* Trip Interest Card */}
-      <SectionCard title="Trip Interest" className="bg-white">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-          <DetailField label="Route" value={lead.route || `${lead.origin} → ${lead.destination}`} />
-          <DetailField label="Departure" value={lead.departureDate || "Aug 15, 2026"} />
-          <DetailField label="Return" value={lead.returnDate || "Aug 17, 2026"} />
-          <DetailField label="Passengers" value={lead.passengers || "4 pax"} />
-          <DetailField label="Aircraft" value={lead.aircraftPreference || "Heavy Jet"} />
-          <DetailField
-            label="Notes"
-            value={lead.tripNotes || "Needs catering and ground transport."}
-          />
-        </div>
-      </SectionCard>
-
-      {/* Activity Timeline Card */}
-      <SectionCard title="Activity Timeline" className="bg-white">
-        <div className="flex flex-col gap-3.5 w-full">
-          {activities.map((item) => (
-            <div key={item.id} className="flex items-start gap-3 w-full">
-              <div className="size-8 rounded-full bg-secondary text-foreground flex items-center justify-center shrink-0 border border-border mt-0.5">
-                <Activity className="size-4 text-purple" />
-              </div>
-              <div className="flex flex-col gap-1 min-w-0 flex-1 border-b border-border/40 pb-3">
-                <p className="font-montserrat font-semibold text-[13px] text-foreground leading-snug">
-                  {item.title}
-                </p>
-                <div className="flex items-center gap-1.5 font-montserrat text-[11px] text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="size-3 text-muted-foreground" />
-                    <span>{item.timestamp}</span>
+      <SectionCard title={`ENQUIRIES (${requests.length})`}>
+        {requests.length === 0 ? (
+          <p className="font-montserrat text-[13px] text-muted-foreground">
+            Nothing requested yet. Add a trip request when they tell you where
+            they want to go.
+          </p>
+        ) : (
+          <div className="flex flex-col divide-y divide-secondary w-full">
+            {requests.map((request) => (
+              <div key={request.id} className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-2 font-montserrat font-bold text-[13px] text-foreground">
+                    <Plane className="size-3.5 text-purple shrink-0" />
+                    {request.reference} · {request.route}
                   </span>
-                  {item.author && (
-                    <>
-                      <span>•</span>
-                      <span className="font-medium text-foreground">{item.author}</span>
-                    </>
-                  )}
+                  <StatusBadge status={request.status} bordered />
                 </div>
+                <div className="flex items-center gap-4 flex-wrap font-montserrat text-[12px] text-muted-foreground">
+                  <span>
+                    {request.departureDate}
+                    {request.isRoundTrip ? ` → ${request.returnDate}` : " · one way"}
+                  </span>
+                  <span>{request.passengers} pax</span>
+                  <span className="font-semibold text-foreground">
+                    {request.estimatedValue}
+                  </span>
+                </div>
+                {request.summary ? (
+                  <p className="font-montserrat text-[12px] text-foreground">
+                    {request.summary}
+                  </p>
+                ) : null}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}
+      </SectionCard>
 
-          {activities.length === 0 && (
-            <div className="p-4 text-center text-muted-foreground font-montserrat text-[13px]">
-              No activity logs recorded.
-            </div>
-          )}
-        </div>
+      <SectionCard title="ACTIVITY">
+        {/* Honest, rather than the invented three-event feed this replaced. */}
+        <p className="font-montserrat text-[13px] text-muted-foreground">
+          A full contact timeline arrives with the Communications module. Until
+          then, the audit log records every change made to this record.
+        </p>
       </SectionCard>
     </div>
   );
 }
-

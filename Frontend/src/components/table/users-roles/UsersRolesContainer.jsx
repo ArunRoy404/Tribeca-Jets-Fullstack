@@ -1,42 +1,42 @@
 "use client";
 
-import { Eye, Edit, Trash2 } from "lucide-react";
+import { useMemo } from "react";
+import { Eye, Edit } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
-import { useUsersRolesStore } from "@/store/useUsersRolesStore";
 import TablePagination from "@/components/table/common/TablePagination";
 import UsersToolbar from "./UsersToolbar";
 import UsersCardsContainer from "./UsersCardsContainer";
 import UsersTable from "./UsersTable";
 import RolesPermissionsTab from "@/components/users-roles/RolesPermissionsTab";
 import InviteUserDialog from "@/components/users-roles/InviteUserDialog";
-import DeleteUserDialog from "@/components/users-roles/DeleteUserDialog";
+import { useUsers, useUsersTableParams, USERS_TABS } from "@/hooks/users";
+import { useUsersRolesStore } from "@/store/useUsersRolesStore";
+import { toTeamMember } from "@/lib/user";
 
 export default function UsersRolesContainer({ revealDelay = 0 }) {
-  const activeTab = useUsersRolesStore((s) => s.activeTab);
-  const setActiveTab = useUsersRolesStore((s) => s.setActiveTab);
-  const search = useUsersRolesStore((s) => s.search);
-  const setSearch = useUsersRolesStore((s) => s.setSearch);
-  const roleFilter = useUsersRolesStore((s) => s.roleFilter);
-  const setRoleFilter = useUsersRolesStore((s) => s.setRoleFilter);
-  const statusFilter = useUsersRolesStore((s) => s.statusFilter);
-  const setStatusFilter = useUsersRolesStore((s) => s.setStatusFilter);
-  const page = useUsersRolesStore((s) => s.page);
-  const nextPage = useUsersRolesStore((s) => s.nextPage);
-  const prevPage = useUsersRolesStore((s) => s.prevPage);
+  // The URL is the state. Every filter below reads and writes it, so the view
+  // survives a reload and the back button steps through it.
+  const params = useUsersTableParams();
+  const isRolesTab = params?.tab === USERS_TABS.ROLES;
+
+  // Skipped entirely while the roles tab is open — there is no table to fill,
+  // and fetching it anyway would be a request nobody reads.
+  const usersQuery = useUsers(params?.queryParams, { enabled: !isRolesTab });
+
   const selectUser = useUsersRolesStore((s) => s.selectUser);
   const openInviteModal = useUsersRolesStore((s) => s.openInviteModal);
   const openEditUserModal = useUsersRolesStore((s) => s.openEditUserModal);
-  const openDeleteModal = useUsersRolesStore((s) => s.openDeleteModal);
 
-  const getPageUsers = useUsersRolesStore((s) => s.getPageUsers);
-  const getPageCount = useUsersRolesStore((s) => s.getPageCount);
-  const getFilteredCount = useUsersRolesStore((s) => s.getFilteredCount);
+  const rows = useMemo(
+    () => (usersQuery?.data?.data ?? []).map(toTeamMember),
+    [usersQuery?.data?.data],
+  );
+  const meta = usersQuery?.data?.meta;
+  const pageCount = Math.max(meta?.totalPages ?? 1, 1);
 
-  const pageItems = getPageUsers?.();
-  const pageCount = getPageCount?.();
-  const filteredCount = getFilteredCount?.();
-
+  // No remove action: a staff account is never deleted. Suspending it is the
+  // way out, and that is a status change inside Edit.
   const getRowActions = (item) => [
     {
       label: "View Details",
@@ -48,63 +48,68 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
       icon: <Edit />,
       onSelect: () => openEditUserModal?.(item),
     },
-    "separator",
-    {
-      label: "Remove User",
-      icon: <Trash2 />,
-      variant: "destructive",
-      onSelect: () => openDeleteModal?.(item?.id),
-    },
   ];
 
   return (
     <Reveal delay={revealDelay} className="w-full">
       <CommonCard variant="default" className="p-0 rounded-md overflow-hidden border-border w-full">
         <UsersToolbar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          search={search}
-          setSearch={setSearch}
-          roleFilter={roleFilter}
-          setRoleFilter={setRoleFilter}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
+          activeTab={params?.tab}
+          setActiveTab={params?.setTab}
+          search={params?.search}
+          setSearch={params?.setSearch}
+          roleFilter={params?.role}
+          setRoleFilter={params?.setRole}
+          statusFilter={params?.status}
+          setStatusFilter={params?.setStatus}
+          limit={params?.limit}
+          setLimit={params?.setLimit}
           onInviteUser={openInviteModal}
         />
 
-        {activeTab === "roles" ? (
+        {isRolesTab ? (
           <RolesPermissionsTab />
         ) : (
           <>
             <div className="relative w-full lg:hidden p-3">
               <UsersCardsContainer
-                items={pageItems}
+                items={rows}
                 getRowActions={getRowActions}
                 onSelectUser={selectUser}
+                isLoading={usersQuery?.isPending}
+                error={usersQuery?.error}
               />
             </div>
 
             <UsersTable
-              pageItems={pageItems}
+              pageItems={rows}
               getRowActions={getRowActions}
               onSelectUser={selectUser}
+              isLoading={usersQuery?.isPending}
+              error={usersQuery?.error}
             />
 
-            <div className="relative w-full">
-              <TablePagination
-                totalCount={filteredCount}
-                itemLabel="team members"
-                page={page}
-                pageCount={pageCount}
-                onPrev={prevPage}
-                onNext={nextPage}
-              />
-            </div>
+            {/* Hidden until the first page lands, so the pager never shows
+                "0 team members · Page 1 of 1" during the initial load. */}
+            {meta ? (
+              <div className="relative w-full">
+                <TablePagination
+                  totalCount={meta?.total ?? 0}
+                  itemLabel="team members"
+                  page={meta?.page ?? 1}
+                  pageCount={pageCount}
+                  // Clamping lives in `goToPage`, so the footer just says which
+                  // direction it wants to move.
+                  onPrev={() => params?.goToPage?.((meta?.page ?? 1) - 1, pageCount)}
+                  onNext={() => params?.goToPage?.((meta?.page ?? 1) + 1, pageCount)}
+                  onPageChange={(next) => params?.goToPage?.(next, pageCount)}
+                />
+              </div>
+            ) : null}
           </>
         )}
 
         <InviteUserDialog />
-        <DeleteUserDialog />
       </CommonCard>
     </Reveal>
   );

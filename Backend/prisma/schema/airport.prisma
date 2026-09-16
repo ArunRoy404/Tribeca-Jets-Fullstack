@@ -1,0 +1,80 @@
+/// Airports are shared reference data, not owned by anyone: every trip,
+/// itinerary, empty leg and sourcing request names a departure and an arrival,
+/// so this table is a dependency of most of the product rather than a feature
+/// in its own right.
+model Airport {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The identifier everything else references. Unique and upper-cased on the
+  /// way in, because `kteb` and `KTEB` are the same airport and two rows for
+  /// one airport would silently split a trip's history.
+  icao String  @unique @db.VarChar(4)
+  /// Absent for the many airports that have no IATA code, so not unique here:
+  /// a partial index would be needed to enforce it, and duplicates among the
+  /// codes that do exist are a data-entry problem, not a schema one.
+  iata String? @db.VarChar(3)
+
+  name    String
+  city    String
+  /// Region or state. Optional because most countries outside the US do not
+  /// use one in an address.
+  state   String?
+  country String
+
+  /// Signed decimal degrees. Decimal rather than Float because coordinates are
+  /// compared and displayed exactly; 6 places is roughly 10cm, far beyond what
+  /// an airport reference needs.
+  latitude  Decimal? @db.Decimal(9, 6)
+  longitude Decimal? @db.Decimal(9, 6)
+
+  /// Feet. Decides which aircraft can actually operate here, so the trips
+  /// module will read it — the airports table already has a column for it.
+  longestRunwayFt Int?
+
+  /// The FBO the desk defaults to when building an itinerary here.
+  assignedFbo String?
+
+  /// Operational notes: curfews, slot restrictions, customs hours.
+  notes String?
+
+  /// Clients whose home airport this is. SetNull on the other side, so
+  /// archiving an airport never removes a client.
+  homeClients Client[] @relation("ClientHomeAirport")
+
+  /// Aircraft based here. SetNull on the other side for the same reason:
+  /// archiving an airport must never remove an airframe.
+  basedAircraft Aircraft[] @relation("AircraftHomeBase")
+
+  /// Enquiries routing through here, in each direction.
+  originRequests      TripRequest[] @relation("TripRequestOrigin")
+  destinationRequests TripRequest[] @relation("TripRequestDestination")
+
+  // ---- Audit trail (every model carries these four) ------------------------
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("AirportCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("AirportUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  /// ---- Archive trail ------------------------------------------------------
+  /// Soft delete is the only delete: nothing in this system is destroyed, so
+  /// these three answer "who archived this, and did anyone bring it back".
+  ///
+  /// `restoredAt` survives a later archive on purpose — the columns hold the
+  /// most recent event of each kind, and the full back-and-forth lives in the
+  /// audit log rather than in a widening set of columns.
+  deletedAt   DateTime?
+  deletedById String?   @db.Uuid
+  deletedBy   User?     @relation("AirportDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("AirportRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([country, deletedAt])
+  @@index([iata])
+  @@index([name])
+  @@map("airports")
+}

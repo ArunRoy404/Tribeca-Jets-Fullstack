@@ -13,9 +13,13 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { Roles } from '../../common/decorators/roles.decorator.js';
+import {
+  RequirePermissions,
+  RequireWritePermissions,
+} from '../../common/decorators/permissions.decorator.js';
+import { Permission } from '../../common/authorization/permissions.js';
+import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
-import { UserRole } from '../../generated/prisma/enums.js';
 import { ClientsService } from './clients.service.js';
 import {
   CreateClientDto,
@@ -29,6 +33,7 @@ export class ClientsController {
   constructor(private readonly clients: ClientsService) {}
 
   @Get()
+  @RequirePermissions(Permission.VIEW_CLIENTS)
   @ApiOperation({
     summary: 'List clients and travel agents',
     description: 'Brokers receive only the clients assigned to them.',
@@ -40,7 +45,37 @@ export class ClientsController {
     return this.clients.findAll(user, query);
   }
 
+  @Get('stats')
+  @RequirePermissions(Permission.VIEW_CLIENTS)
+  @ApiOperation({
+    summary: 'Client tiles',
+    description:
+      "Totals for the cards above the table, scoped exactly like the list — a broker's tiles count their own book, never the company's.",
+  })
+  stats(@CurrentUser() user: AuthenticatedUser) {
+    return this.clients.stats(user);
+  }
+
+  /**
+   * Before `:id`, like `stats` — Nest matches routes in order.
+   *
+   * Lives on clients rather than users because every number on it is lead
+   * data. The roster is a view over Users; the performance is the client
+   * module's to compute.
+   */
+  @Get('broker-performance')
+  @RequirePermissions(Permission.VIEW_CLIENTS)
+  @ApiOperation({
+    summary: 'The Agents roster — brokers with their lead numbers',
+    description:
+      '"Agents" here means the desk\'s own brokers. Travel agents are clients of type TRAVEL_AGENT and live in the client directory.\n\nScoped like the client list, so a broker\'s view of the roster counts their own book. `conversionRate` and `capacityUsed` are **null** rather than 0 when there is nothing to measure — a new broker showing "0% conversion" is a wrong answer that follows them around. `activeTrips` is null until the Trips module exists.\n\nThere is no create form: staff are invited through Users & Roles, where the permission matrix and the suspend rules live.',
+  })
+  brokerPerformance(@CurrentUser() user: AuthenticatedUser) {
+    return this.clients.brokerPerformance(user);
+  }
+
   @Get(':id')
+  @RequirePermissions(Permission.VIEW_CLIENTS)
   @ApiOperation({ summary: 'Get one client' })
   findOne(
     @CurrentUser() user: AuthenticatedUser,
@@ -50,6 +85,7 @@ export class ClientsController {
   }
 
   @Post()
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
   @ApiOperation({ summary: 'Create a client or travel agent' })
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -59,6 +95,7 @@ export class ClientsController {
   }
 
   @Patch(':id')
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
   @ApiOperation({ summary: 'Update a client' })
   update(
     @CurrentUser() user: AuthenticatedUser,
@@ -68,8 +105,62 @@ export class ClientsController {
     return this.clients.update(user, id, dto);
   }
 
+  /**
+   * Declared before `:id`, and POST rather than DELETE-with-body: proxies drop
+   * bodies on DELETE, and a dropped body removes nothing while answering 200.
+   */
+  @Post('bulk-delete')
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Remove several clients at once (soft)',
+    description:
+      "For the table's checkbox column. Scoped: a broker can only clear rows from their own book. Ids that match nothing are reported as `skipped` rather than failing the batch.",
+  })
+  removeMany(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BulkIdsDto,
+  ) {
+    return this.clients.removeMany(user, dto.ids);
+  }
+
+  @Post('bulk-restore')
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Restore several archived clients at once',
+    description:
+      "For the Archived tab's checkbox column. Ids that are not archived come back in `skipped`.",
+  })
+  restoreMany(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BulkIdsDto,
+  ) {
+    return this.clients.restoreMany(user, dto.ids);
+  }
+
+  /**
+   * 200, not the 201 that Nest gives a POST by default: a restore
+   * creates nothing. It clears a deletion stamp on a row that has
+   * existed all along, and every other module's restore says the same.
+   */
+  @Post(':id/restore')
+  @HttpCode(HttpStatus.OK)
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @ApiOperation({
+    summary: 'Restore an archived client',
+    description:
+      'Clears the deletion stamp and nothing else, so every field comes back untouched. A row that is not archived returns 404.\n\nScoped like every other client read: a broker may restore only a client that was theirs.',
+  })
+  restore(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.clients.restore(user, id);
+  }
+
   @Delete(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Soft-delete a client',

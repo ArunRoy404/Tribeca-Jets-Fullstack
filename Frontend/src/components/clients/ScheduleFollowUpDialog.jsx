@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Calendar as CalendarIcon, X } from "lucide-react";
 import { useClientsStore } from "@/store/useClientsStore";
+import { useUpdateClient } from "@/hooks/clients";
+import { useUsers } from "@/hooks/users";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/common/DatePicker";
 import TimePicker from "@/components/common/TimePicker";
-import { cn } from "@/lib/utils";
 
 function FieldWrapper({ label, children, optional }) {
   return (
@@ -23,32 +24,46 @@ function FieldWrapper({ label, children, optional }) {
   );
 }
 
+/** Only brokers own clients, so only brokers can be assigned one. */
+const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER"]);
+
 export default function ScheduleFollowUpDialog() {
   const open = useClientsStore((s) => s.followUpModalOpen);
-  const followUpTargetId = useClientsStore((s) => s.followUpTargetId);
+  const client = useClientsStore((s) => s.followUpTarget);
   const closeModal = useClientsStore((s) => s.closeFollowUpModal);
-  const getClientById = useClientsStore((s) => s.getClientById);
-  const updateClient = useClientsStore((s) => s.updateClient);
+  const { mutate: updateClient, isPending } = useUpdateClient();
 
-  const client = followUpTargetId ? getClientById(followUpTargetId) : null;
+  // Real colleagues, not a hardcoded list of first names.
+  const { data: users } = useUsers({ limit: 100 });
+  const brokers = useMemo(
+    () => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)),
+    [users?.data],
+  );
 
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [priority, setPriority] = useState("Medium");
-  const [broker, setBroker] = useState("Barry");
+  const [broker, setBroker] = useState("");
   const [note, setNote] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (client) {
-      updateClient(client.id, {
-        nextFollowUpDate: date || "Aug 12, 2026",
-        nextFollowUpStatus: "Upcoming",
-        followUpNote: note,
-        broker,
-      });
-    }
-    closeModal();
+    if (!client || !date) return;
+
+    // Date and time are two controls but one column. Without a time the
+    // follow-up lands at the start of that day, which is what "due today"
+    // means anyway.
+    const nextFollowUpAt = new Date(`${date}T${time || "00:00"}`);
+    if (Number.isNaN(nextFollowUpAt.getTime())) return;
+
+    updateClient(
+      {
+        id: client.id,
+        nextFollowUpAt: nextFollowUpAt.toISOString(),
+        followUpNote: note || null,
+        ...(broker ? { assignedBrokerId: broker } : {}),
+      },
+      { onSuccess: closeModal },
+    );
   };
 
   return (
@@ -59,7 +74,7 @@ export default function ScheduleFollowUpDialog() {
             Schedule Follow-up
           </DialogTitle>
           <DialogDescription className="font-montserrat text-[13px] text-muted-foreground font-medium">
-            {client?.name || "Hope Sterling"}
+            {client?.name}
           </DialogDescription>
         </DialogHeader>
 
@@ -75,27 +90,6 @@ export default function ScheduleFollowUpDialog() {
             </FieldWrapper>
           </div>
 
-          {/* Row 2: Priority Pill Buttons */}
-          <FieldWrapper label="Priority">
-            <div className="flex items-center gap-2">
-              {["High", "Medium", "Low"].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPriority(p)}
-                  className={cn(
-                    "px-4 py-1.5 rounded-md font-montserrat text-[13px] font-medium border transition-colors cursor-pointer",
-                    priority === p
-                      ? "bg-[#252832] text-white border-[#252832]"
-                      : "bg-white text-foreground border-border hover:bg-muted"
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </FieldWrapper>
-
           {/* Row 3: Assigned Broker */}
           <FieldWrapper label="Assigned Broker">
             <select
@@ -103,10 +97,12 @@ export default function ScheduleFollowUpDialog() {
               onChange={(e) => setBroker(e.target.value)}
               className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
             >
-              <option value="Barry">Barry</option>
-              <option value="Benny">Benny</option>
-              <option value="Mark">Mark</option>
-              <option value="Ari">Ari</option>
+              <option value="">Leave unchanged</option>
+              {brokers.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {`${b.firstName} ${b.lastName}`.trim()}
+                </option>
+              ))}
             </select>
           </FieldWrapper>
 
@@ -134,6 +130,7 @@ export default function ScheduleFollowUpDialog() {
             </Button>
             <Button
               type="submit"
+              disabled={isPending || !date}
               className="bg-[#252832] hover:bg-[#252832]/90 text-white h-9 px-4 font-medium text-[13px] gap-1.5"
             >
               <CalendarIcon className="size-3.5" />

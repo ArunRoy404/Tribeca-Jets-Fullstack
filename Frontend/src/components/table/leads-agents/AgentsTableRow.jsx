@@ -2,67 +2,68 @@
 
 import StatusBadge from "@/components/common/StatusBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
-import { Checkbox } from "@/components/ui/checkbox";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { formatUserRole } from "@/lib/user";
 
-export default function AgentsTableRow({ item, getRowActions, onSelectAgent }) {
-  const initials = (item?.name ?? "")
-    .split(" ")
-    .map((n) => n[0])
-    .join("");
-
+/**
+ * Values arrive formatted by `toAgentRow`. `conversionRate`, `capacityUsed`
+ * and `activeTrips` are em dashes when there is nothing to measure — a broker
+ * with no leads yet, no capacity set, or the Trips module not built. Never 0%.
+ */
+export default function AgentsTableRow({ agent, getRowActions, onSelectAgent }) {
   return (
     <TableRow
-      key={item?.id}
-      className="border-border cursor-pointer hover:bg-purple/5 transition-colors"
-      onClick={() => onSelectAgent?.(item?.id)}
+      className="border-border cursor-pointer"
+      onClick={() => onSelectAgent?.(agent?.id)}
     >
-      <TableCell className="p-[12px] text-center" onClick={(e) => e.stopPropagation()}>
-        <Checkbox className="translate-y-0.5" />
-      </TableCell>
-      <TableCell className="p-[12px] text-left">
-        <div className="flex items-center gap-2.5">
-          <div className="size-8 rounded-full bg-secondary text-foreground flex items-center justify-center font-montserrat font-bold text-[12px] border border-border shrink-0">
-            {initials}
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-montserrat font-semibold text-[12px] text-foreground truncate">
-              {item?.name}
+      <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-left whitespace-nowrap">
+        <div className="flex flex-col">
+          <span>{agent?.name}</span>
+          {agent?.role ? (
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {formatUserRole(agent.role)}
             </span>
-            {item?.company && (
-              <span className="font-montserrat text-[10px] text-muted-foreground truncate">
-                {item?.company}
-              </span>
-            )}
-          </div>
+          ) : null}
         </div>
       </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-medium text-[11px] text-foreground text-center whitespace-nowrap">
-        {item?.email}
+      <TableCell className="p-[10px] font-montserrat text-[12px] text-foreground text-center whitespace-nowrap">
+        {agent?.email}
       </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-medium text-[11px] text-foreground text-center whitespace-nowrap">
-        {item?.phone}
+      <TableCell className="p-[10px] font-montserrat text-[12px] text-foreground text-center whitespace-nowrap">
+        {agent?.phone}
       </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-semibold text-[12px] text-foreground text-center">
-        {item?.activeLeads}
+      <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center">
+        {agent?.activeLeads}
+        {agent?.maxActiveLeads !== "—" ? (
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {" "}
+            / {agent.maxActiveLeads}
+          </span>
+        ) : null}
       </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-semibold text-[12px] text-foreground text-center">
-        {item?.activeTrips}
+      <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center">
+        {agent?.convertedLeads}
       </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-semibold text-[12px] text-foreground text-center">
-        {item?.conversionRate}
+      <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-purple text-center">
+        {agent?.activeTrips}
       </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-semibold text-[12px] text-foreground text-center">
-        {item?.followUpsDue}
+      <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-success text-center">
+        {agent?.conversionRate}
       </TableCell>
-      <TableCell className="p-[12px] text-center">
+      <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center">
+        {agent?.followUpsDue}
+      </TableCell>
+      <TableCell className="p-[10px] text-center">
         <div className="flex justify-center">
-          {item?.status && <StatusBadge status={item?.status} bordered />}
+          {agent?.status ? <StatusBadge status={agent.status} bordered /> : null}
         </div>
       </TableCell>
-      <TableCell className="p-[12px] text-center" onClick={(e) => e.stopPropagation()}>
+      <TableCell
+        className="p-[10px] text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-center">
-          <RowActionsMenu items={getRowActions?.(item)} />
+          <RowActionsMenu items={getRowActions?.(agent)} />
         </div>
       </TableCell>
     </TableRow>

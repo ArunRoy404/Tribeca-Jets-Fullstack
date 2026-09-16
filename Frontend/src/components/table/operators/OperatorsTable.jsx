@@ -4,7 +4,7 @@ import OperatorsTableRow from "./OperatorsTableRow";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const columns = [
+const LIVE_COLUMNS = [
   "Operator",
   "Home Base",
   "Contact",
@@ -16,6 +16,22 @@ const columns = [
   "Action",
 ];
 
+/**
+ * The archived view answers "who removed it and when" rather than "how good
+ * are they", so the trip and payment aggregates give way to those two.
+ */
+const ARCHIVED_COLUMNS = [
+  "Operator",
+  "Home Base",
+  "Contact",
+  "Aircraft Types",
+  "Reliability",
+  "Removed On",
+  "Removed By",
+  "Status",
+  "Action",
+];
+
 export default function OperatorsTable({
   pageOperators,
   selected,
@@ -23,7 +39,9 @@ export default function OperatorsTable({
   onToggleRow,
   getRowActions,
   onSelectOperator,
+  archived = false,
 }) {
+  const columns = archived ? ARCHIVED_COLUMNS : LIVE_COLUMNS;
   return (
     <div className="relative w-full overflow-x-auto hidden lg:block">
       <Table className="min-w-[1100px]">
@@ -51,6 +69,7 @@ export default function OperatorsTable({
               onToggleRow={onToggleRow}
               getRowActions={getRowActions}
               onSelectOperator={onSelectOperator}
+              archived={archived}
             />
           ))}
           {pageOperators?.length === 0 && (

@@ -2,6 +2,7 @@
 
 import { Archive, X } from "lucide-react";
 import { useClientsStore } from "@/store/useClientsStore";
+import { useRemoveClient } from "@/hooks/clients";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -9,9 +10,11 @@ export default function ArchiveClientDialog() {
   const open = useClientsStore((s) => s.archiveModalOpen);
   const client = useClientsStore((s) => s.archiveTargetClient);
   const closeModal = useClientsStore((s) => s.closeArchiveModal);
-  const archiveClient = useClientsStore((s) => s.archiveClient);
+  const { mutate: removeClient, isPending } = useRemoveClient();
 
   if (!client) return null;
+
+  const handleArchive = () => removeClient(client, { onSuccess: closeModal });
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && closeModal()}>
@@ -25,7 +28,7 @@ export default function ArchiveClientDialog() {
               Archive Client?
             </DialogTitle>
             <DialogDescription className="font-montserrat text-[13px] text-muted-foreground leading-relaxed">
-              Archive <span className="font-bold text-foreground">{client.name}</span>? They will be hidden from the active client list but all trip history and data will be preserved.
+              Archive <span className="font-bold text-foreground">{client.name}</span>? They move to the Archived tab and can be restored at any time. Trips, quotes and payments that reference them keep working.
             </DialogDescription>
           </div>
         </div>
@@ -45,7 +48,8 @@ export default function ArchiveClientDialog() {
           <Button
             type="button"
             className="bg-[#252832] hover:bg-[#252832]/90 text-white h-10 px-5 font-medium text-[13px] gap-2"
-            onClick={() => archiveClient(client.id)}
+            onClick={handleArchive}
+            disabled={isPending}
           >
             <Archive className="size-4" />
             Archive

@@ -28,7 +28,8 @@
     "services:up": "docker compose up -d",
     "services:down": "docker compose down",
     "prebuild": "prisma generate",
-    "pretest": "prisma generate"
+    "pretest": "prisma generate",
+    "test:api": "newman run postman/Tribeca-Jets-API.postman_collection.json -e postman/Local.postman_environment.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1132.0",
@@ -49,6 +50,7 @@
     "cookie-parser": "^1.4.7",
     "helmet": "^8.3.0",
     "ioredis": "^6.0.0",
+    "nodemailer": "^10.0.10",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
@@ -62,6 +64,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.1",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^5.0.0",

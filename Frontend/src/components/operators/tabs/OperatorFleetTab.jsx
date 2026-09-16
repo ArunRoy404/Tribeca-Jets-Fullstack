@@ -12,7 +12,7 @@ const columns = [
   "Category",
   "Tail #",
   "Capacity",
-  "Range (NM)",
+  "Range",
   "Year",
   "Trips",
   "Status",
@@ -63,17 +63,17 @@ export default function OperatorFleetTab({ operator }) {
             <div className="grid grid-cols-2 gap-3 w-full text-[12px] font-montserrat">
               <div>
                 <span className="text-muted-foreground text-[10px] block">Category / Tail #</span>
-                <span className="font-bold text-foreground">{ac.type} · {ac.tail}</span>
+                <span className="font-bold text-foreground">{ac.category} · {ac.tailNumber}</span>
               </div>
               <div className="text-right">
                 <span className="text-muted-foreground text-[10px] block">Capacity / Range</span>
-                <span className="font-bold text-foreground">{ac.capacity} · {ac.rangeNm} NM</span>
+                <span className="font-bold text-foreground">{ac.maxPassengers} · {ac.range}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between gap-2 w-full pt-2 border-t border-border text-[12px] font-montserrat">
-              <span className="text-muted-foreground">Year: <strong className="text-foreground">{ac.year}</strong></span>
-              <span className="text-muted-foreground">Trips: <strong className="text-foreground">{ac.trips}</strong></span>
+              <span className="text-muted-foreground">Year: <strong className="text-foreground">{ac.yearBuilt}</strong></span>
+              <span className="text-muted-foreground">Trips: <strong className="text-foreground">{ac.totalTrips}</strong></span>
             </div>
           </div>
         ))}
@@ -100,13 +100,13 @@ export default function OperatorFleetTab({ operator }) {
                     <span>{ac.model}</span>
                   </div>
                 </TableCell>
-                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">{ac.type}</TableCell>
-                <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center">{ac.tail}</TableCell>
-                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">{ac.capacity}</TableCell>
-                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">{ac.rangeNm}</TableCell>
-                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">{ac.year}</TableCell>
+                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">{ac.category}</TableCell>
+                <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center">{ac.tailNumber}</TableCell>
+                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">{ac.maxPassengers}</TableCell>
+                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">{ac.range}</TableCell>
+                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">{ac.yearBuilt}</TableCell>
                 <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-purple text-center">
-                  {ac.trips}
+                  {ac.totalTrips}
                 </TableCell>
                 <TableCell className="p-[10px] text-center">
                   <div className="flex justify-center">

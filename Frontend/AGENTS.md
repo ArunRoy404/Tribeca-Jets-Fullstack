@@ -67,3 +67,175 @@ Before adding a new table, list, or filterable view: create its `dummyData/*.js`
 
 - **Always use optional chaining (`?.`) when referencing object properties, arrays, store states, and function callbacks** (e.g. `items?.map()`, `priorities?.length`, `stat?.label`, `onActionClick?.()`, `agent?.name`), ensuring runtime safety against undefined/null states when data is loading or empty.
 
+
+---
+
+# Data layer: once a module has an API, it is API-backed
+
+The "Dummy data and state" section above describes how a screen is built **before** its backend exists. As each module's API lands, that module graduates and the rules below take over. Both states coexist — `trips` may still be dummy-backed while `users` is live.
+
+When a module graduates:
+
+- **Server data comes from React Query, never from a zustand store.** Delete the store's data array, its filter/pagination getters and its mutating actions. A store may keep genuinely client-only state (which dialog is open, which row is selected) — nothing that the server owns.
+- **Its `dummyData/*.js` file goes away** with the store's dependency on it. Do not leave a stale copy "for reference".
+- **Every leftover placeholder in its components goes with it.** The dummy file
+  is the obvious half; the dangerous half is what stayed behind in the JSX —
+  `value={x || "4.8"}`, a form defaulting a rating, a score derived from a
+  string with `parseFloat`. Grep the module for `|| "` and for literal numbers
+  after wiring it up, and delete what you find.
+- **Missing data renders as missing.** Em dash, "Not rated", "Not on file" —
+  never a plausible-looking stand-in. The mapper is the single place that turns
+  null into "—", so components read the mapped value directly and add no
+  fallback of their own. See the rule in the root `AGENTS.md` for what this
+  cost us on operators.
+- Read the module's `src/hooks/<module>/README.md` if there is one; `src/hooks/auth/` is the reference implementation for everything below.
+
+## Services and hooks
+
+- One service per module: `src/services/<module>.service.js`, exporting plain functions that call the shared `request()` from `src/lib/axios.js`. A service does nothing but shape the request and return `data` — no toasts, no navigation, no cache access.
+- One hook per operation, one file per hook, under `src/hooks/<module>/`, re-exported from that folder's `index.js`.
+- **Query hooks return the query object itself. Mutation hooks return the mutation itself.** Never a hand-built `{ data, loading, error }` shape — the component destructures what it needs.
+- **Timing never appears in a hook.** `staleTime`, `gcTime`, retry and refetch behaviour come from the presets in `src/config/query.config.js`, which read `NEXT_PUBLIC_QUERY_*` env vars. A raw number in a hook is a bug.
+- Query keys come from `src/lib/queryKeys.js`. Never inline an array literal as a key.
+
+## Hooks own the side effects; components stay clean
+
+**All of it lives in the hook** — success and error toasts, cache invalidation, redirects, session teardown. A component calls `mutate(values)` and renders state. If you find yourself writing `onSuccess` inside a component, the logic belongs in the hook instead.
+
+Invalidation goes through the module-level query client (`src/lib/queryClient.js`) so any hook file can invalidate any other module's keys without prop-drilling a client.
+
+## URL is the source of truth for table state
+
+**Every tab, page, filter, sort and search term lives in the URL query string.** Not in a store, not in `useState`.
+
+This is not cosmetic. A pasted or reloaded URL must reproduce exactly what the user was looking at — same tab, same page, same filters — and back/forward must step through those states.
+
+Use the shared `useTableQueryParams` hook (`src/hooks/common/useTableQueryParams.js`); do not hand-roll `useSearchParams` juggling per table.
+
+- **Defaults are omitted from the URL.** Page 1 with no filters is a bare `/dashboard/users`, not `?page=1&role=ALL`. Reading a missing param yields the default.
+- **Changing any filter, search term or tab resets `page` to 1.** Landing on page 4 of a 1-page result set is a bug.
+- **Filter/tab changes use `replace`, not `push`**, so back does not walk through every keystroke. Only a genuine navigation pushes.
+- **Search input is debounced before it reaches the URL** (the field itself stays controlled and instant).
+- URL values are **untrusted input**: validate and clamp every one before it reaches a request. A hand-edited `?page=-5&limit=99999` must degrade to the default, not 500 the API.
+- The wire vocabulary is the backend's enum casing (`SENIOR_BROKER`), and that is what goes in the URL. Display labels are mapped at render time.
+
+## Table state is assembled from shared builders, never hand-written
+
+`useTableQueryParams` is the whole engine; a module's hook declares only what
+is actually specific to it. Everything below already exists — writing a second
+copy is the bug this section exists to prevent.
+
+| Need | Use |
+|---|---|
+| page / limit / sortBy / sortOrder fields | `paginationFields(SORTABLE_COLUMNS)` |
+| a debounced text search field | `searchField()` |
+| a dropdown filter over a fixed set | `filterField(ALLOWED_VALUES)` |
+| the object to send to the API | the hook's `queryParams` |
+| `setPage`, `setRole`, `setStatus`, … | the hook's `setters` (generated from the schema) |
+| moving pages, clamped | the hook's `goToPage(page, pageCount)` |
+| the rows-per-page dropdown | `<PageSizeSelect value onChange />`, in the toolbar beside the filters |
+| the bulk-remove button | `<BulkDeleteButton count itemLabel onClick />`, beside the table's primary action |
+| the bulk-remove confirmation | `<BulkDeleteDialog items itemLabel onConfirm />` |
+| the archived view | an `archived` field in the schema, surfaced as a tab |
+| the restored marker | `<RestoredBadge at by />` |
+| archive field labels | `toArchiveFields(record)` from `@/lib/archive` |
+| page numbers with collapsed gaps | `<TablePagination onPageChange />`, windowed by `buildPageItems` |
+
+- **Mark view-only fields `local: true`.** A tab id belongs in the URL but must
+  never reach the API — it is not part of the query key, and including it
+  refetches the table every time someone switches tabs.
+- **`SORTABLE_COLUMNS` mirrors the API's allowlist exactly.** A value the API
+  would reject with a 400 must not survive the URL either.
+- **`DEFAULT_PAGE_SIZE` is 10 and `PAGE_SIZE_OPTIONS` ends at 100**, the API's
+  hard cap. Both live in `hooks/common/useTableQueryParams.js` and are paired
+  with `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE` on the backend.
+- **Rows-per-page is a URL param like any other**, and changing it resets the
+  page — page 4 of 10-per-page is not page 4 of 100-per-page. It belongs in the
+  toolbar with the filters, not in the footer.
+- **Tables open newest-first.** `paginationFields()` defaults to `createdAt`
+  descending, matching the API. Do not override it per table without a reason.
+- **A table with checkboxes gets bulk remove.** The button appears only when
+  something is selected — never sitting there disabled — and the dialog
+  **lists the rows by name**: "Delete 12 items?" asks someone to trust a count
+  they cannot check, and a mis-click on select-all looks identical to a
+  deliberate selection. Clear the selection after a successful removal, or the
+  button keeps offering to remove rows that no longer exist.
+- **Every module with soft delete gets an Archived tab.** It is the same list
+  endpoint with `archived: true`, so it reuses the same table, filters and
+  pager. The tab is derived from that one field rather than being separate
+  state — two sources for "which half am I looking at" will disagree.
+- **Users & Roles is the exception: no remove, no Archived tab.** A staff
+  account is never deleted — suspending it is the way out, and that is a status
+  change inside Edit. The module has no remove or restore hook, its service has
+  no `remove`/`restore`, and `toTeamMember` carries no archive fields. Do not
+  "restore consistency" by adding them back.
+- **The Archived tab swaps columns and verbs.** It shows "Removed On" and
+  "Removed By" in place of columns that mean nothing for a removed record, and
+  its only row action is Restore — no Edit, no Remove, no Add button.
+- **Whatever the checkbox column offers, both tabs offer.** If a table has
+  selection it needs a bulk action on Archived too — Restore there, Remove on
+  the live list. Checkboxes with no button is a selection that does nothing.
+  Pass `action="restore"` to `BulkDeleteButton`/`BulkDeleteDialog` rather than
+  writing a second button and a second dialog.
+- **A detail view must open for an archived record.** The Archived tab links to
+  it, so a detail endpoint that filters `deletedAt: null` lists a row and then
+  404s it. Load it, say it is archived, and offer Restore instead of Edit and
+  Remove.
+- **A restored record keeps its badge for good.** It is a fact about the
+  record, not a transient state; a table that stops saying it after thirty days
+  quietly changed what it tells you.
+- **There is no permanent delete.** Never add one, and never offer it in a
+  menu.
+- **A pager shows page numbers, not just the current page.** Pass
+  `onPageChange` so they are jumps; `buildPageItems` (`src/lib/pagination.js`)
+  decides which to render and where the ellipses fall. Never re-derive that
+  windowing in a component.
+- **`onPageChange` and the page-size control are opt-in, per module.** Tables
+  that are still dummy-backed omit both and keep Prev/Next — that is correct,
+  not an oversight. They get wired up when their own module is built. See
+  "Fix a module when we reach it, not before" in the root `AGENTS.md`.
+- A new filter should be one schema line and nothing else. If it needs a
+  hand-written setter or a bespoke memo, extend the shared hook instead.
+
+## Do not offer an action the caller's role cannot perform
+
+`usePermissions()` (`src/hooks/common/usePermissions.js`) reads the matrix row
+the API ships with `/auth/me`. Use `canWrite(Permission.X)` to decide whether
+to render a write control — Add, Edit, Remove, Restore, bulk actions and the
+checkbox column that feeds them.
+
+- **Hide, do not disable.** A greyed-out button invites a click and explains
+  nothing. An assistant should see the record and the View action, not four
+  controls that answer 403.
+- **A checkbox column goes with its bulk action.** If the role cannot act on a
+  selection, the column is not rendered at all — selection with no button is a
+  control that does nothing, the same bug the Archived tab had.
+- **Never re-derive the matrix from `role`.** The server owns it and sends it;
+  a second copy in JavaScript drifts silently the first time a scope changes.
+  `src/lib/permissions.js` holds the permission *names* and nothing else.
+- **This is never the security boundary.** It renders buttons. Every route
+  re-checks the same matrix server-side, because anything sent to a browser can
+  be edited in one.
+- While the session is loading every answer is `false`, so a control appears a
+  moment late rather than appearing and being taken away.
+
+Per "fix a module when we reach it", only the module being worked on gets
+wired up. Aircraft is done; the others follow on their own turn.
+
+## Required fields must agree with the API
+
+A form that marks only one field "(Optional)" while six more are optional is
+lying, and so is a `required` attribute the server does not enforce. Three
+things have to say the same thing: the Zod schema, the input's `required`, and
+the label.
+
+Blank numeric inputs are the sharp edge — an empty box sends `""`, which
+`Number('')` turns into **0**. The API rejects that for required fields and
+treats it as absent for optional ones, but the form should not send it in the
+first place.
+
+## Pagination is server-side
+
+The API owns paging. Read `meta` from the response (`page`, `limit`, `total`, `totalPages`, `hasNext`, `hasPrevious`) and drive the pager from it. Never fetch a full list and slice it in the browser, and never compute `totalPages` on the client.
+
+Use `placeholderData: keepPreviousData` so the table does not blank out between pages.

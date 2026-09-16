@@ -5,106 +5,120 @@ import { Building2, ArrowRight } from "lucide-react";
 import SectionCard from "@/components/common/SectionCard";
 import DetailField from "@/components/common/DetailField";
 
+/**
+ * Every value below comes from the record, already formatted by
+ * `toAircraftRow` — an absent one is an em dash.
+ *
+ * This tab used to fall back to "Gulfstream Aerospace", "Mach 0.885",
+ * "51,000 ft", "226 cu ft" and a seven-item amenity list, so every aircraft in
+ * the fleet displayed the specification of one G550 whether or not anybody had
+ * entered it. It also linked to a hardcoded operator id, so "View Operator"
+ * opened the same company from any tail.
+ */
 export default function AircraftOverviewTab({ aircraft }) {
   if (!aircraft) return null;
 
-  const tripStats = aircraft.tripStats || {
-    totalTrips: aircraft.trips || 12,
-    thisYear: aircraft.trips || 12,
-    avgUtilization: "68%",
-  };
-
-  const amenities = aircraft.amenities || [
-    "WiFi",
-    "Satellite Phone",
-    "Full Galley",
-    "Private Lavatory",
-    "Lie-flat Seats",
-    "Entertainment System",
-    "Power Outlets",
-  ];
+  const amenities = aircraft.amenities ?? [];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
-      {/* Left Column (2/3 width) */}
       <div className="flex-1 flex flex-col gap-6 w-full min-w-0">
-        {/* Specifications Card */}
         <SectionCard title="SPECIFICATIONS">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <DetailField label="Manufacturer" value={aircraft.manufacturer || "Gulfstream Aerospace"} />
-            <DetailField label="Model Year" value={aircraft.modelYear || aircraft.year || "2019"} />
-            <DetailField label="Max Passengers" value={aircraft.maxPassengers || aircraft.paxCount || "14"} />
-            <DetailField label="Max Range" value={aircraft.maxRange || `${aircraft.rangeNm} nm`} />
-            <DetailField label="Max Speed" value={aircraft.maxSpeed || "Mach 0.885"} />
-            <DetailField label="Service Ceiling" value={aircraft.serviceCeiling || "51,000 ft"} />
-            <DetailField label="Baggage Capacity" value={aircraft.baggageCapacity || "226 cu ft"} />
-            <DetailField label="Cabin Length" value={aircraft.cabinLength || "50.1 ft"} />
+            <DetailField label="Manufacturer" value={aircraft.manufacturer} />
+            <DetailField label="Year Built" value={aircraft.yearBuilt} />
+            <DetailField label="Max Passengers" value={aircraft.maxPassengers} />
+            <DetailField label="Max Range" value={aircraft.range} />
+            <DetailField label="Max Speed" value={aircraft.maxSpeed} />
+            <DetailField label="Service Ceiling" value={aircraft.serviceCeiling} />
+            <DetailField label="Baggage Capacity" value={aircraft.baggageCapacity} />
+            <DetailField label="Cabin Length" value={aircraft.cabinLength} />
           </div>
         </SectionCard>
 
-        {/* Interior & Amenities Card */}
         <SectionCard title="INTERIOR & AMENITIES">
-          <div className="flex flex-wrap gap-2 w-full">
-            {amenities.map((am) => (
-              <span
-                key={am}
-                className="px-3 py-1.5 rounded-sm bg-secondary border border-border font-montserrat text-[13px] font-bold text-foreground"
-              >
-                {am}
-              </span>
-            ))}
-          </div>
+          {amenities.length ? (
+            <div className="flex flex-wrap gap-2 w-full">
+              {amenities.map((amenity) => (
+                <span
+                  key={amenity}
+                  className="px-3 py-1.5 rounded-sm bg-secondary border border-border font-montserrat text-[13px] font-bold text-foreground"
+                >
+                  {amenity}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="font-montserrat text-[13px] text-muted-foreground">
+              No amenities recorded for this aircraft.
+            </p>
+          )}
         </SectionCard>
 
-        {/* Notes Card */}
         <SectionCard title="NOTES">
-          <p className="font-montserrat font-medium text-[14px] text-foreground leading-relaxed">
-            {aircraft.notes || "WiFi available. Premium interior configuration. Gogo ATG-5000."}
-          </p>
+          {aircraft.notes ? (
+            <p className="font-montserrat font-medium text-[14px] text-foreground leading-relaxed">
+              {aircraft.notes}
+            </p>
+          ) : (
+            <p className="font-montserrat text-[13px] text-muted-foreground">
+              No notes on file.
+            </p>
+          )}
         </SectionCard>
       </div>
 
-      {/* Right Column (1/3 width stacked) */}
       <div className="w-full lg:w-96 shrink-0 flex flex-col gap-6">
-        {/* Operator Card */}
         <SectionCard title="OPERATOR">
-          <div className="flex flex-col gap-3 w-full">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-lg bg-purple/10 border border-purple/20 flex items-center justify-center text-purple shrink-0">
-                <Building2 className="size-5" />
+          {aircraft.operatorId ? (
+            <div className="flex flex-col gap-3 w-full">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-lg bg-purple/10 border border-purple/20 flex items-center justify-center text-purple shrink-0">
+                  <Building2 className="size-5" />
+                </div>
+                <span className="font-montserrat font-bold text-[18px] text-purple">
+                  {aircraft.operator}
+                </span>
               </div>
-              <span className="font-montserrat font-bold text-[18px] text-purple">{aircraft.operator}</span>
-            </div>
-            <Link
-              href={`/dashboard/operators/${aircraft.operatorId || "OP-1003"}`}
-              className="inline-flex items-center gap-1 font-montserrat text-[13px] font-bold text-purple hover:underline pt-1"
-            >
-              <span>View Operator</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-        </SectionCard>
-
-        {/* Sidebar Interior & Amenities Card */}
-        <SectionCard title="INTERIOR & AMENITIES">
-          <div className="flex flex-wrap gap-2 w-full">
-            {amenities.slice(0, 4).map((am) => (
-              <span
-                key={am}
-                className="px-2.5 py-1 rounded-sm bg-secondary border border-border font-montserrat text-[12px] font-semibold text-foreground"
+              {/* The real operator, not a hardcoded id. */}
+              <Link
+                href={`/dashboard/operators/${aircraft.operatorId}`}
+                className="inline-flex items-center gap-1 font-montserrat text-[13px] font-bold text-purple hover:underline pt-1"
               >
-                {am}
-              </span>
-            ))}
-          </div>
+                <span>View Operator</span>
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+          ) : (
+            <p className="font-montserrat text-[13px] text-muted-foreground">
+              Unassigned. Edit the aircraft to link it to an operator.
+            </p>
+          )}
         </SectionCard>
 
-        {/* Trip Stats Card */}
+        <SectionCard title="HOME BASE">
+          {aircraft.homeBaseId ? (
+            <Link
+              href={`/dashboard/airports?search=${aircraft.homeBaseIcao ?? ""}`}
+              className="font-montserrat font-bold text-[15px] text-purple hover:underline"
+            >
+              {aircraft.homeBase}
+            </Link>
+          ) : (
+            <p className="font-montserrat text-[13px] text-muted-foreground">
+              No home base on file.
+            </p>
+          )}
+        </SectionCard>
+
         <SectionCard title="TRIP STATS">
           <div className="flex flex-col gap-3.5 w-full">
-            <DetailField label="Total Trips" value={tripStats.totalTrips} />
-            <DetailField label="This Year" value={tripStats.thisYear} />
-            <DetailField label="Avg Utilization" value={tripStats.avgUtilization} />
+            {/* All three are null until the Trips module exists. They render as
+                an em dash rather than 0, because "0 trips" against a tail the
+                desk has flown is a wrong answer and "—" is an honest one. */}
+            <DetailField label="Total Trips" value={aircraft.totalTrips} />
+            <DetailField label="This Year" value={aircraft.tripsThisYear} />
+            <DetailField label="Avg Utilization" value={aircraft.avgUtilization} />
           </div>
         </SectionCard>
       </div>

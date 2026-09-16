@@ -31,6 +31,8 @@ Seeded logins (development only — change before any real deployment):
 |---|---|---|
 | admin@tribecajets.com | ChangeMe123! | SUPER_ADMIN |
 | broker@tribecajets.com | ChangeMe123! | BROKER |
+| security@tribecajets.com | ChangeMe123! | ADMIN, two-factor **on** |
+| reset-demo@tribecajets.com | ChangeMe123! | BROKER, password-reset target |
 
 > Redis is mapped to **6380**, not 6379, because another project on this
 > machine already holds 6379.
@@ -83,6 +85,41 @@ JavaScript cannot read them, and XSS cannot steal a session.
 - Because cookies are attached automatically by the browser, every
   state-changing request requires the `X-CSRF-Token` header. `GET`/`HEAD`/
   `OPTIONS` and `@Public()` routes are exempt.
+
+### Endpoints, mapped to the frontend screens
+
+| Screen | Endpoint | Notes |
+|---|---|---|
+| `/sign-in` | `POST /auth/login` | Returns `requiresTwoFactor`. When false the session is live; when true only a `tj_2fa` challenge cookie is set |
+| `/sign-in/two-factor` | `POST /auth/two-factor/verify` | Body is `{ code }` only — the challenge lives in the cookie |
+| | `POST /auth/two-factor/resend` | Invalidates the previous code |
+| `/forgot-password` | `POST /auth/forgot-password` | Always 200, always sets a cookie |
+| `/forgot-password/verify` | `POST /auth/forgot-password/verify` | Unlocks the reset step |
+| | `POST /auth/forgot-password/resend` | |
+| `/reset-password` | `POST /auth/reset-password` | `{ newPassword, confirmPassword }`; revokes all sessions |
+| everywhere | `GET /auth/me` | Who is signed in |
+| | `POST /auth/refresh` · `POST /auth/logout` | |
+
+**Two-factor is per-account** (`user.twoFactorEnabled`, default `false`), toggled
+from the Settings screen rather than configured globally. `GET /auth/me` returns
+the current value for that toggle to bind to; the endpoint that flips it belongs
+to the settings module, alongside change-password, and is not built yet.
+
+The current frontend routes to `/sign-in/two-factor` unconditionally — branch on
+`requiresTwoFactor` instead, or accounts with 2FA off will hit a dead screen.
+
+**The codes are emailed, not TOTP.** The two-factor screen's copy says
+"authenticator app" but also offers "Resend code", which only makes sense for
+email — and `/forgot-password/verify` already establishes email-OTP delivery.
+Switching to TOTP later changes `VerificationService`, not the endpoints.
+
+Flow state (`tj_2fa`, `tj_pwreset`) rides in short-lived httpOnly cookies scoped
+to `/api/auth`, because each OTP screen submits only six digits and has no
+hidden challenge field. A side effect worth keeping: a code phished onto another
+device is useless without that browser's cookie.
+
+Codes are stored hashed, single-use, and die after 5 wrong guesses. Completing a
+password reset revokes every existing session.
 
 ### Consuming this from the Next.js app
 
@@ -183,12 +220,42 @@ destroyed, per scope §6.19 — so every list query filters on `deletedAt: null`
 
 ---
 
+## Mail
+
+Same driver pattern as storage. `MAIL_DRIVER=auto` uses SMTP when
+`SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD` are all present, and otherwise prints
+emails to the server log so the OTP flows are testable without a mail account.
+
+**When SMTP is absent, the code comes back in the response** rather than only in
+the log, so the OTP screens are usable from Postman or a browser with no mailbox:
+
+```json
+"devCode": {
+  "code": "481920",
+  "notice": "SMTP is not configured, so no email was sent..."
+}
+```
+
+This is gated on two independent conditions — not production **and** the log mail
+driver. Set `SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD` and the field disappears,
+with real email sent instead.
+
+**Production refuses to boot on the log driver** — two-factor codes and password
+resets would silently never arrive, which is an account-recovery black hole
+rather than a degraded feature. That guard is also why `devCode` cannot reach a
+real deployment.
+
 ## Testing
 
 ```bash
-npm test        # unit
+npm test           # unit
 npm run test:e2e   # requires Docker services + a seeded database
+npm run test:api   # Postman collection via newman (needs the server running)
 ```
+
+A Postman collection lives in [`postman/`](postman/) — see its
+[README](postman/README.md) for the cookie/CSRF setup and where to find the
+6-digit codes in development.
 
 The e2e suite asserts the security posture directly: routes private by
 default, httpOnly cookies issued on login, no token in the response body,

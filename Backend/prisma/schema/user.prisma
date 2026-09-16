@@ -8,8 +8,17 @@ model User {
   lastName     String
   phone        String?
 
-  role   UserRole   @default(BROKER)
-  status UserStatus @default(ACTIVE)
+  role UserRole @default(BROKER)
+
+  /// Lead-desk settings, shown on the Agents roster.
+  ///
+  /// `maxActiveLeads` is what the workload indicator is measured against —
+  /// without it "Medium" is an opinion rather than a ratio. Null means no cap
+  /// has been set, and the roster says so instead of assuming one.
+  maxActiveLeads        Int?
+  /// Prefills the follow-up dialog for leads this broker owns.
+  defaultFollowUpMethod FollowUpMethod?
+  status                UserStatus      @default(ACTIVE)
 
   /// Storage key (not a URL) — resolved by StorageService at read time so the
   /// same record works on both the S3 and local drivers.
@@ -20,17 +29,68 @@ model User {
 
   lastLoginAt DateTime?
 
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  verificationCodes VerificationCode[]
 
   /// Clients where this user owns the relationship.
-  assignedClients    Client[] @relation("ClientAssignedBroker")
+  assignedClients   Client[] @relation("ClientAssignedBroker")
   /// Clients this user originally brought in; drives commission attribution
   /// and is deliberately independent of the current assignee.
-  originatedClients  Client[] @relation("ClientOriginatingBroker")
+  originatedClients Client[] @relation("ClientOriginatingBroker")
+  createdClients    Client[] @relation("ClientCreatedBy")
+  updatedClients    Client[] @relation("ClientUpdatedBy")
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  /// Reference data this user entered or last touched. Audit back-references
+  /// only — airports and operators are shared and belong to nobody.
+  createdAirports      Airport[]     @relation("AirportCreatedBy")
+  updatedAirports      Airport[]     @relation("AirportUpdatedBy")
+  createdOperators     Operator[]    @relation("OperatorCreatedBy")
+  updatedOperators     Operator[]    @relation("OperatorUpdatedBy")
+  createdAircraft      Aircraft[]    @relation("AircraftCreatedBy")
+  updatedAircraft      Aircraft[]    @relation("AircraftUpdatedBy")
+  createdTripRequests  TripRequest[] @relation("TripRequestCreatedBy")
+  updatedTripRequests  TripRequest[] @relation("TripRequestUpdatedBy")
+  assignedTripRequests TripRequest[] @relation("TripRequestAssignedBroker")
+
+  /// Who archived a record, and who brought it back. Separate from created/
+  /// updated because "removed this" is the one mutation those two never
+  /// capture — an archived row's `updatedBy` is whoever last edited it.
+  deletedClients       Client[]      @relation("ClientDeletedBy")
+  restoredClients      Client[]      @relation("ClientRestoredBy")
+  deletedAirports      Airport[]     @relation("AirportDeletedBy")
+  restoredAirports     Airport[]     @relation("AirportRestoredBy")
+  deletedOperators     Operator[]    @relation("OperatorDeletedBy")
+  restoredOperators    Operator[]    @relation("OperatorRestoredBy")
+  deletedAircraft      Aircraft[]    @relation("AircraftDeletedBy")
+  restoredAircraft     Aircraft[]    @relation("AircraftRestoredBy")
+  deletedTripRequests  TripRequest[] @relation("TripRequestDeletedBy")
+  restoredTripRequests TripRequest[] @relation("TripRequestRestoredBy")
+
+  // ---- Audit trail (every model carries these four) ------------------------
+  //
+  // For a user, "created by" is who invited them: an invitation is how a staff
+  // account comes into existence, so a separate invitedBy/invitedAt pair would
+  // be the same two facts under a second name.
+  //
+  // Both are nullable and use SetNull: the seeded owner has no creator, and
+  // removing whoever made a change must never destroy the record of it.
+  createdAt    DateTime @default(now())
+  createdById  String?  @db.Uuid
+  createdBy    User?    @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers User[]   @relation("UserCreatedBy")
+
+  updatedAt    DateTime @updatedAt
+  updatedById  String?  @db.Uuid
+  updatedBy    User?    @relation("UserUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedUsers User[]   @relation("UserUpdatedBy")
+
+  /// A staff account is never removed — suspending is the way out — so this
+  /// model carries no archive trail, unlike every other soft-deletable model.
+  ///
+  /// `deletedAt` itself stays: auth refuses a stamped row a session, which
+  /// makes it a database-level kill switch, and it is what keeps the handful of
+  /// rows archived before the feature was withdrawn out of every list.
   deletedAt DateTime?
 
   @@index([role, status])
@@ -38,13 +98,25 @@ model User {
   @@map("users")
 }
 
+/// Ordered most- to least-privileged. The Roles & Permissions screen shows
+/// four of these; SUPER_ADMIN is deliberately not offered in the UI — it is
+/// the seeded owner account, which cannot be demoted or deleted so the system
+/// can never be locked out of its own administration.
+///
+/// Capabilities are NOT derived from this ordering. They come from the matrix
+/// in src/common/authorization/permissions.ts, which is the single source of
+/// truth and mirrors the Roles & Permissions tab.
 enum UserRole {
   SUPER_ADMIN
   ADMIN
+  SENIOR_BROKER
   BROKER
   ASSISTANT
 }
 
+/// INVITED covers an account that exists but has never signed in — it holds no
+/// usable password until the invitation is accepted. SUSPENDED is a revoked
+/// account: the row and all its history stay, but it cannot authenticate.
 enum UserStatus {
   ACTIVE
   INVITED

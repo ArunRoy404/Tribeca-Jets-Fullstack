@@ -13,11 +13,16 @@ export default function CommonInput({
   name,
   placeholder,
   className,
+  error,
   ...props
 }) {
   const [visible, setVisible] = useState(false);
   const isPassword = type === "password";
   const isTextarea = type === "textarea";
+  const hasError = Boolean(error);
+  // Field-level API errors land here, so a server rejection styles the same
+  // control the client would — one error treatment, not two.
+  const errorId = hasError && name ? `${name}-error` : undefined;
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -28,7 +33,15 @@ export default function CommonInput({
       )}
 
       {isTextarea ? (
-        <Textarea id={name} name={name} placeholder={placeholder} className={className} {...props} />
+        <Textarea
+          id={name}
+          name={name}
+          placeholder={placeholder}
+          className={className}
+          aria-invalid={hasError || undefined}
+          aria-describedby={errorId}
+          {...props}
+        />
       ) : isPassword ? (
         <div className="relative">
           <Input
@@ -37,6 +50,8 @@ export default function CommonInput({
             type={visible ? "text" : "password"}
             placeholder={placeholder}
             className={cn("pr-11", className)}
+            aria-invalid={hasError || undefined}
+            aria-describedby={errorId}
             {...props}
           />
           <button
@@ -49,7 +64,22 @@ export default function CommonInput({
           </button>
         </div>
       ) : (
-        <Input id={name} name={name} type={type} placeholder={placeholder} className={className} {...props} />
+        <Input
+          id={name}
+          name={name}
+          type={type}
+          placeholder={placeholder}
+          className={className}
+          aria-invalid={hasError || undefined}
+          aria-describedby={errorId}
+          {...props}
+        />
+      )}
+
+      {hasError && (
+        <p id={errorId} className="font-montserrat text-sm font-medium text-destructive">
+          {error}
+        </p>
       )}
     </div>
   );

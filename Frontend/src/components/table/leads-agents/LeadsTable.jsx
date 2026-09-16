@@ -1,11 +1,9 @@
 "use client";
 
 import LeadsTableRow from "./LeadsTableRow";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const columns = [
-  "",
+const LIVE_COLUMNS = [
   "Lead Name",
   "Email",
   "Phone",
@@ -14,39 +12,67 @@ const columns = [
   "Priority",
   "Broker",
   "Next Follow-up",
-  "Status",
-  "Next Action",
+  "Stage",
+  "Action",
 ];
 
-export default function LeadsTable({ pageItems, getRowActions, onSelectLead }) {
+/**
+ * The archived view answers "who removed it and when" rather than "what is the
+ * next move", so the follow-up columns give way to those two.
+ */
+const ARCHIVED_COLUMNS = [
+  "Lead Name",
+  "Email",
+  "Phone",
+  "Source",
+  "Route",
+  "Priority",
+  "Removed On",
+  "Removed By",
+  "Stage",
+  "Action",
+];
+
+export default function LeadsTable({
+  pageItems,
+  getRowActions,
+  onSelectLead,
+  archived = false,
+}) {
+  const columns = archived ? ARCHIVED_COLUMNS : LIVE_COLUMNS;
+
   return (
     <div className="relative w-full overflow-x-auto hidden lg:block">
-      <Table className="min-w-[1000px]">
+      <Table className="min-w-[1150px]">
         <TableHeader>
           <TableRow className="bg-black/5 border-border hover:bg-black/5">
-            {columns?.map((col, idx) => (
+            {columns?.map((col) => (
               <TableHead
-                key={col || idx}
-                className="p-[12px] font-montserrat font-medium text-[11px] text-foreground text-center whitespace-nowrap h-auto"
+                key={col}
+                className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center whitespace-nowrap h-auto"
               >
-                {col === "" ? <Checkbox className="translate-y-0.5" /> : col}
+                {col}
               </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {pageItems?.map((item) => (
+          {pageItems?.map((lead) => (
             <LeadsTableRow
-              key={item?.id}
-              item={item}
+              key={lead?.id}
+              lead={lead}
               getRowActions={getRowActions}
               onSelectLead={onSelectLead}
+              archived={archived}
             />
           ))}
           {pageItems?.length === 0 && (
             <TableRow>
-              <TableCell colSpan={columns?.length} className="p-8 text-center font-montserrat text-[13px] text-muted-foreground">
-                No leads found matching search filters.
+              <TableCell
+                colSpan={columns?.length}
+                className="p-6 text-center font-montserrat text-[12px] text-muted-foreground"
+              >
+                No leads match the current filters.
               </TableCell>
             </TableRow>
           )}

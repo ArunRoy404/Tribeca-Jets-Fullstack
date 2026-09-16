@@ -6,14 +6,21 @@ import { PrismaModule } from './core/prisma/prisma.module.js';
 import { RedisModule } from './core/redis/redis.module.js';
 import { StorageModule } from './core/storage/storage.module.js';
 import { AuditModule } from './core/audit/audit.module.js';
+import { MailModule } from './core/mail/mail.module.js';
 
 import { AuthModule } from './modules/auth/auth.module.js';
 import { ClientsModule } from './modules/clients/clients.module.js';
+import { AirportsModule } from './modules/airports/airports.module.js';
+import { OperatorsModule } from './modules/operators/operators.module.js';
+import { AircraftModule } from './modules/aircraft/aircraft.module.js';
+import { TripRequestsModule } from './modules/trip-requests/trip-requests.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { UsersModule } from './modules/users/users.module.js';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { CsrfGuard } from './common/guards/csrf.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
+import { PermissionsGuard } from './common/guards/permissions.guard.js';
 import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe.js';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
@@ -29,23 +36,35 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     RedisModule,
     StorageModule,
     AuditModule,
+    MailModule,
 
     // Feature modules — one per domain, added as each is built.
     HealthModule,
     AuthModule,
+    UsersModule,
     ClientsModule,
+    AirportsModule,
+    OperatorsModule,
+    AircraftModule,
+    TripRequestsModule,
   ],
   providers: [
     /**
      * Guard order matters and is the security posture of the whole API:
      *   1. JwtAuthGuard   — authenticated by default; opt out with @Public()
      *   2. CsrfGuard      — cookie sessions need CSRF protection on writes
-     *   3. RolesGuard     — coarse role checks from @Roles()
-     *   4. RateLimitGuard — per-route limits from @RateLimit()
+     *   3. RolesGuard        — coarse role checks from @Roles()
+     *   4. PermissionsGuard  — capability checks from @RequirePermissions()
+     *   5. RateLimitGuard    — per-route limits from @RateLimit()
+     *
+     * Neither RolesGuard nor PermissionsGuard does row-level filtering; that
+     * belongs in the service layer, which calls scopeFor() and narrows its
+     * own `where` clause. See common/authorization/permissions.ts.
      */
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
 
     { provide: APP_PIPE, useClass: ZodValidationPipe },

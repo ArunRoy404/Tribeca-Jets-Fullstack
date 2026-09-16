@@ -12,11 +12,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const user = {
-  name: "Ari Wohl",
-  role: "Broker",
-};
-
 function AppSidebarContent(props) {
   const { state, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
@@ -33,8 +28,14 @@ function AppSidebarContent(props) {
       <SidebarContent className="gap-0">
         <NavMain />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={user} />
+      {/*
+        Identity lives in exactly one place per breakpoint: here below `md`,
+        and in TopNav's UserMenu from `md` up. Gated with CSS rather than the
+        sidebar's `isMobile`, because that hook reports desktop during SSR and
+        would flash the wrong surface on a phone.
+      */}
+      <SidebarFooter className="md:hidden">
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

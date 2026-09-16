@@ -1,11 +1,32 @@
 # nginx reverse proxy for the Hostinger KVM VPS.
 #
-# Both apps sit under one parent domain so the session cookie set with
-# Domain=.tribecajetscommandcenter.com is valid for both. Splitting them across
-# unrelated domains would force SameSite=None and weaken CSRF protection.
-#
 #   tribecajetscommandcenter.com      -> Next.js  (port 3000)
 #   api.tribecajetscommandcenter.com  -> NestJS   (port 4000)
+#
+# ---------------------------------------------------------------------------
+# Two ways to reach the API, and the frontend supports both
+# ---------------------------------------------------------------------------
+#
+# 1. SAME-ORIGIN (recommended). The browser calls /api/* on the web domain and
+#    never sees the API host at all. Session cookies are plain first-party
+#    cookies: no CORS preflight, no SameSite negotiation, and nothing for a
+#    browser's third-party-cookie rules to block.
+#
+#    Either let Next.js proxy it (set API_PROXY_TARGET, leave
+#    NEXT_PUBLIC_API_URL=/api), or add the `location /api/` block marked
+#    OPTIONAL below to have nginx route it straight to the API — one hop fewer,
+#    same cookie behaviour.
+#
+# 2. CROSS-ORIGIN. Point NEXT_PUBLIC_API_URL at the api. subdomain. The API's
+#    CORS_ORIGINS must then include the web origin, and COOKIE_DOMAIN must be
+#    .tribecajetscommandcenter.com so one cookie covers both hosts.
+#
+# Either way the two hosts must share a parent domain; splitting them across
+# unrelated domains would force SameSite=None and weaken CSRF protection.
+#
+# X-Forwarded-For is preserved across every hop below, which is what keeps the
+# API's per-IP rate limiting meaningful. Without it every request would appear
+# to come from the proxy and one user could lock out everyone.
 #
 # Install:
 #   sudo cp deploy/nginx.conf.example /etc/nginx/sites-available/tribeca
@@ -76,6 +97,20 @@ server {
 
     # ssl_certificate     /etc/letsencrypt/live/tribecajetscommandcenter.com/fullchain.pem;
     # ssl_certificate_key /etc/letsencrypt/live/tribecajetscommandcenter.com/privkey.pem;
+
+    # OPTIONAL (same-origin without the Next.js hop): uncomment to route API
+    # calls straight from nginx to NestJS. Keep NEXT_PUBLIC_API_URL=/api.
+    # location /api/ {
+    #     limit_req zone=api_general burst=50 nodelay;
+    #     client_max_body_size 25M;
+    #     proxy_pass http://tribeca_api;
+    #     proxy_http_version 1.1;
+    #     proxy_set_header Connection "";
+    #     proxy_set_header Host $host;
+    #     proxy_set_header X-Real-IP $remote_addr;
+    #     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #     proxy_set_header X-Forwarded-Proto $scheme;
+    # }
 
     location / {
         proxy_pass http://tribeca_web;

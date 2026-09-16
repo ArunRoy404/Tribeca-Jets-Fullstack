@@ -1,92 +1,128 @@
 "use client";
 
-import { use } from "react";
+import { use, useMemo } from "react";
+import CommonCard from "@/components/common/CommonCard";
 import AgentDetailHeader from "@/components/leads-agents/AgentDetailHeader";
 import AgentDetailStats from "@/components/leads-agents/AgentDetailStats";
-import AgentOverviewCards from "@/components/leads-agents/AgentOverviewCards";
+import AgentPerformanceCards from "@/components/leads-agents/AgentPerformanceCards";
 import AgentAssignedLeadsTable from "@/components/leads-agents/AgentAssignedLeadsTable";
 import AgentAssociatedTrips from "@/components/leads-agents/AgentAssociatedTrips";
 import AgentRecentActivity from "@/components/leads-agents/AgentRecentActivity";
-import AddAgentDialog from "@/components/leads-agents/AddAgentDialog";
-import Reveal from "@/components/common/Reveal";
+import AssignBrokerDialog from "@/components/leads-agents/AssignBrokerDialog";
 import NotFoundState from "@/components/common/NotFoundState";
+import TableStatus from "@/components/table/common/TableStatus";
+import { useBrokerPerformance, useClients } from "@/hooks/clients";
 import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
+import { toAgentRow, toLeadRow } from "@/lib/lead";
+import { useRouter } from "next/navigation";
 
+/**
+ * AgentDetailPage
+ *
+ * One broker/agent, with the leads assigned to them.
+ *
+ * Data binding:
+ * - Agent performance: reads from `useBrokerPerformance()` and finds the row matching `agentId`.
+ * - Assigned leads: queries `useClients({ status: "LEAD", assignedBrokerId: agentId, limit: 50 })`.
+ *
+ * Future API connections:
+ * - Associated trips: GET /api/trips?brokerId={agentId}
+ * - Recent activity: GET /api/audit-logs?userId={agentId}
+ */
 export default function AgentDetailPage({ params }) {
+  const router = useRouter();
   const unwrappedParams = use(params);
   const rawId = decodeURIComponent(unwrappedParams?.agentId || "");
 
-  const getAgentById = useLeadsAgentsStore((s) => s.getAgentById);
-  const assignedLeads = useLeadsAgentsStore((s) => s.assignedLeads);
-  const associatedTrips = useLeadsAgentsStore((s) => s.associatedTrips);
-  const recentActivities = useLeadsAgentsStore((s) => s.recentActivities);
-  const openEditModal = useLeadsAgentsStore((s) => s.openEditModal);
+  const openAssignBrokerModal = useLeadsAgentsStore((s) => s.openAssignBrokerModal);
 
-  const agent = getAgentById(rawId);
+  const { data, isPending, error, refetch } = useBrokerPerformance();
+  const { data: leadsData } = useClients(
+    { status: "LEAD", assignedBrokerId: rawId, limit: 50 },
+    { enabled: Boolean(rawId) },
+  );
 
-  if (!agent) {
-    return <NotFoundState itemType="Agent" backUrl="/dashboard/leads-agents" backLabel="Back to Agents" />;
+  const agent = useMemo(() => {
+    const row = (data ?? []).find((a) => a?.id === rawId);
+    return row ? toAgentRow(row) : null;
+  }, [data, rawId]);
+
+  const leads = useMemo(() => {
+    const rows = leadsData?.data ?? [];
+    return rows.map((client) => toLeadRow(client));
+  }, [leadsData?.data]);
+
+  if (isPending && !data) {
+    return (
+      <div className="p-4 sm:p-6">
+        <TableStatus isLoading={isPending} error={error} onRetry={refetch} />
+      </div>
+    );
   }
 
-  // Leads, trips, activities associated with this agent
-  const agentLeads = assignedLeads?.filter(
-    (l) => l?.agentId === agent?.id || l?.agentId === "AGT-101"
-  );
-  const agentTrips = associatedTrips?.filter(
-    (t) => t?.agentId === agent?.id || t?.agentId === "AGT-101"
-  );
-  const agentActivities = recentActivities?.filter(
-    (a) => a?.agentId === agent?.id || a?.agentId === "AGT-101"
-  );
+  if (!agent) {
+    return (
+      <NotFoundState
+        itemType="Agent"
+        backUrl="/dashboard/leads-agents"
+        backLabel="Back to Agents"
+      />
+    );
+  }
 
   return (
-    <>
-      <div className="flex flex-col gap-6 p-4 sm:p-6 pb-12 w-full max-w-7xl mx-auto">
-        <Reveal>
-          <AgentDetailHeader
-            agent={agent}
-            onEdit={() => openEditModal(agent)}
-            onAssignLead={() => alert(`Assign new lead to ${agent?.name}`)}
-          />
-        </Reveal>
+    <div className="flex flex-col w-full bg-page-bg min-h-screen">
+      {/* Top Header */}
+      <AgentDetailHeader
+        agent={agent}
+        onEdit={() => router.push("/dashboard/users-roles")}
+        onAssignLead={() => openAssignBrokerModal(null)}
+      />
 
-        {/* 6 Metric KPI Stats */}
-        <Reveal>
-          <AgentDetailStats agent={agent} />
-        </Reveal>
-
-        {/* Main Details Panel matching Figma */}
-        <div className="flex flex-col gap-6 w-full rounded-lg border border-border bg-white/80 backdrop-blur-md p-4 sm:p-6 shadow-card">
-          {/* Header Tab Title */}
-          <div className="flex items-center gap-2 border-b border-border pb-3">
-            <h2 className="font-montserrat font-bold text-[16px] text-purple">
-              Overview of {agent?.name}
-            </h2>
-          </div>
-
-          {/* Performance Summary + Contact Information */}
-          <Reveal>
-            <AgentOverviewCards agent={agent} />
-          </Reveal>
-
-          {/* Assigned Leads Table */}
-          <Reveal>
-            <AgentAssignedLeadsTable agent={agent} leads={agentLeads} />
-          </Reveal>
-
-          {/* Bottom Split: Associated Trips & Recent Activity */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full items-start">
-            <Reveal className="w-full">
-              <AgentAssociatedTrips trips={agentTrips} />
-            </Reveal>
-            <Reveal className="w-full">
-              <AgentRecentActivity activities={agentActivities} />
-            </Reveal>
-          </div>
-        </div>
+      {/* 6 Stats KPI Row */}
+      <div className="px-4 md:px-6 pt-4 sm:pt-6">
+        <AgentDetailStats agent={agent} />
       </div>
 
-      <AddAgentDialog />
-    </>
+      {/* Main Details Wrapper using CommonCard */}
+      <CommonCard className="m-4 md:m-6 border border-border overflow-hidden bg-white">
+        {/* Tab Navigation / Header */}
+        <div className="flex items-center px-4 sm:px-6 border-b border-border bg-white">
+          <div className="py-3 px-1 border-b-2 border-purple text-purple font-montserrat font-semibold text-[13px] sm:text-[14px]">
+            Overview of {agent.name}
+          </div>
+        </div>
+
+        {/* Interior Container with light background */}
+        <div className="p-4 sm:p-6 flex flex-col gap-6 bg-secondary/15">
+          {/* Section 1: Overview */}
+          <div className="flex flex-col gap-3 w-full">
+            <h2 className="font-montserrat font-bold text-[14px] text-foreground">
+              Overview
+            </h2>
+            <AgentPerformanceCards agent={agent} />
+          </div>
+
+          {/* Section 2: Assigned Leads */}
+          <div className="w-full">
+            <AgentAssignedLeadsTable
+              leads={leads}
+              meta={leadsData?.meta}
+              agentName={agent.name}
+              onSelectLead={(leadId) => router.push(`/dashboard/leads-agents/leads/${leadId}`)}
+            />
+          </div>
+
+          {/* Section 3: Bottom 2-Column Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start w-full">
+            <AgentAssociatedTrips />
+            <AgentRecentActivity />
+          </div>
+        </div>
+      </CommonCard>
+
+      {/* Dialogs */}
+      <AssignBrokerDialog />
+    </div>
   );
 }

@@ -4,13 +4,27 @@ import AirportsTableRow from "./AirportsTableRow";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const columns = [
+const LIVE_COLUMNS = [
   "ICAO / IATA",
   "Airport Name",
   "City",
   "Country",
   "Longest Runway",
   "Assigned FBO",
+  "Action",
+];
+
+/**
+ * The archived view answers a different question — not "what is this airport"
+ * but "who removed it and when" — so runway and FBO give way to those.
+ */
+const ARCHIVED_COLUMNS = [
+  "ICAO / IATA",
+  "Airport Name",
+  "City",
+  "Country",
+  "Removed On",
+  "Removed By",
   "Action",
 ];
 
@@ -21,7 +35,9 @@ export default function AirportsTable({
   onToggleRow,
   getRowActions,
   onSelectAirport,
+  archived = false,
 }) {
+  const columns = archived ? ARCHIVED_COLUMNS : LIVE_COLUMNS;
   return (
     <div className="relative w-full overflow-x-auto hidden lg:block">
       <Table className="min-w-[1000px]">
@@ -49,6 +65,7 @@ export default function AirportsTable({
               onToggleRow={onToggleRow}
               getRowActions={getRowActions}
               onSelectAirport={onSelectAirport}
+              archived={archived}
             />
           ))}
           {pageAirports?.length === 0 && (

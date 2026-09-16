@@ -1,8 +1,17 @@
 "use client";
 
 import UserCard from "./UserCard";
+import TableStatus from "@/components/table/common/TableStatus";
 
-export default function UsersCardsContainer({ items, getRowActions, onSelectUser }) {
+export default function UsersCardsContainer({
+  items,
+  getRowActions,
+  onSelectUser,
+  isLoading,
+  error,
+}) {
+  const hasRows = Boolean(items?.length);
+
   return (
     <div className="flex flex-col gap-3 w-full">
       {items?.map((item) => (
@@ -13,11 +22,12 @@ export default function UsersCardsContainer({ items, getRowActions, onSelectUser
           onClick={() => onSelectUser?.(item?.id)}
         />
       ))}
-      {items?.length === 0 && (
-        <p className="p-6 text-center font-montserrat text-[12px] text-muted-foreground w-full">
-          No team members found matching search filters.
-        </p>
-      )}
+      <TableStatus
+        isLoading={isLoading}
+        error={error}
+        isEmpty={!hasRows && !isLoading && !error}
+        emptyMessage="No team members found"
+      />
     </div>
   );
 }

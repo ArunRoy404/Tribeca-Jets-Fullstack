@@ -1,5 +1,6 @@
 import { Montserrat, Space_Grotesk, DM_Sans, Outfit } from "next/font/google";
 import "./globals.css";
+import QueryProvider from "@/providers/QueryProvider";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -32,7 +33,9 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${montserrat.variable} ${spaceGrotesk.variable} ${dmSans.variable} ${outfit.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

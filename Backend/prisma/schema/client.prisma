@@ -5,6 +5,15 @@ model Client {
   id   String     @id @default(uuid()) @db.Uuid
   type ClientType @default(DIRECT)
 
+  /// Where the relationship stands, which is a different axis from where the
+  /// deal stands. A VIP can be mid-pipeline and a booked client can go
+  /// dormant, so this never replaces `leadStage` — the table's one Status
+  /// column renders from both.
+  ///
+  /// Defaults to LEAD: a row someone just typed in is a prospect until they
+  /// book something.
+  status ClientStatus @default(LEAD)
+
   /// Populated for travel agents and corporate accounts.
   companyName String?
   firstName   String
@@ -15,7 +24,17 @@ model Client {
   /// Date only — drives VIP birthday reminders on the daily brief.
   birthday DateTime? @db.Date
 
-  homeAirport String?
+  /// A real relation, not the ICAO string it used to be. Airports did not
+  /// exist when this model was first written; they do now, and the project
+  /// rule is that a module connects to what it references rather than storing
+  /// its name. SetNull because archiving an airport must not delete clients.
+  homeAirportId String?  @db.Uuid
+  homeAirport   Airport? @relation("ClientHomeAirport", fields: [homeAirportId], references: [id], onDelete: SetNull)
+
+  /// What this client has asked for. Restrict on the other side: an enquiry
+  /// without a client cannot be followed up, so a client with live requests
+  /// cannot be hard-deleted — and nothing in this system hard-deletes anyway.
+  tripRequests TripRequest[] @relation("TripRequestClient")
 
   leadSource LeadSource @default(DIRECT)
   leadStage  LeadStage  @default(NEW)
@@ -34,18 +53,68 @@ model Client {
   /// any preference that gains business rules graduates to a real column.
   preferences Json @default("{}")
 
+  /// The next scheduled contact. Drives the "Follow-ups Due" tile, the
+  /// Due Today / Overdue / Upcoming filter and the follow-up dialog.
+  /// When the Tasks module lands it should read these rather than replace
+  /// them — a follow-up is a property of the relationship, not a side table.
+  /// How urgently the desk is working this lead. Separate from `leadStage`,
+  /// which says where they are in the funnel: a brand-new enquiry can be the
+  /// most important thing on the desk, and a long-negotiated one routine.
+  priority ClientPriority @default(MEDIUM)
+
+  /// How the next follow-up should happen. The desk works some clients by
+  /// WhatsApp and others only by phone, and getting it wrong wastes the
+  /// contact.
+  followUpMethod FollowUpMethod?
+
+  nextFollowUpAt DateTime?
+  followUpNote   String?
+
   notes  String?
   labels String[] @default([])
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  // ---- Audit trail (every model carries these four) ------------------------
+  // Distinct from assignedBroker/originatingBroker, which are business
+  // relationships: an admin can create a client assigned to someone else, and
+  // reassigning it later must not rewrite who first entered the record.
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("ClientCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("ClientUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  /// ---- Archive trail ------------------------------------------------------
+  /// Soft delete is the only delete: nothing in this system is destroyed, so
+  /// these three answer "who archived this, and did anyone bring it back".
+  ///
+  /// `restoredAt` survives a later archive on purpose — the columns hold the
+  /// most recent event of each kind, and the full back-and-forth lives in the
+  /// audit log rather than in a widening set of columns.
+  deletedAt   DateTime?
+  deletedById String?   @db.Uuid
+  deletedBy   User?     @relation("ClientDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("ClientRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
 
   @@index([assignedBrokerId, deletedAt])
   @@index([type, leadStage])
+  @@index([status, deletedAt])
+  @@index([nextFollowUpAt])
   @@index([email])
   @@index([lastName, firstName])
   @@map("clients")
+}
+
+/// Set by a person, unlike `leadStage`, which moves as the deal moves.
+enum ClientStatus {
+  LEAD
+  ACTIVE
+  VIP
+  INACTIVE
 }
 
 enum ClientType {
@@ -63,11 +132,33 @@ enum LeadSource {
   OTHER
 }
 
+/// The sales funnel, as the Leads screen draws it.
+///
+/// Was NEW/CONTACTED/QUOTED/NEGOTIATING/BOOKED/LOST, which did not match the
+/// UI the desk actually uses. The frontend is the specification here, so
+/// NEGOTIATING became PROPOSAL and BOOKED became WON, and the two missing
+/// steps were added. See the migration for how existing rows were mapped.
 enum LeadStage {
   NEW
   CONTACTED
+  QUALIFIED
+  PROPOSAL
   QUOTED
-  NEGOTIATING
-  BOOKED
+  WON
   LOST
+}
+
+enum ClientPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// How the desk reaches someone. WhatsApp is first-class here because the
+/// scope calls for it throughout.
+enum FollowUpMethod {
+  CALL
+  EMAIL
+  WHATSAPP
+  SMS
 }

@@ -1,0 +1,111 @@
+/// An enquiry, before it becomes a quote or a trip.
+///
+/// Scope §6.4: "capture request details before booking", linked to
+/// client/contact, broker, route, date, passengers, requirements, budget,
+/// notes and status.
+///
+/// This is the record behind the second half of the Add Lead form. A lead is
+/// a *person* — a Client at lead stage — and what they asked for is a
+/// separate row, because one client can ask for three different trips and
+/// because the request outlives the lead stage: it becomes a quote and then a
+/// trip, while the client stays a client.
+model TripRequest {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Human-facing reference ("TR-1042"), because nobody reads a uuid down the
+  /// phone. Assigned by the database so two brokers filing at once cannot
+  /// collide, and never reused.
+  reference Int @unique @default(autoincrement())
+
+  /// Who is asking. Required: an enquiry with nobody attached cannot be
+  /// followed up, quoted or converted. For a travel agent's enquiry this is
+  /// the agent — they are a Client of type TRAVEL_AGENT.
+  clientId String @db.Uuid
+  client   Client @relation("TripRequestClient", fields: [clientId], references: [id], onDelete: Restrict)
+
+  /// The broker working it. Nullable: a request can arrive before the desk
+  /// decides who takes it.
+  assignedBrokerId String? @db.Uuid
+  assignedBroker   User?   @relation("TripRequestAssignedBroker", fields: [assignedBrokerId], references: [id], onDelete: SetNull)
+
+  /// Where the enquiry came from. Deliberately the same enum the client's
+  /// `leadSource` uses — "Direct, Travel Agent, Facebook Group 1/2" is one
+  /// vocabulary in the scope (§6.4), and two copies would drift.
+  source LeadSource        @default(DIRECT)
+  status TripRequestStatus @default(OPEN)
+
+  /// Route. Real airport relations, not codes typed into a box — Airports
+  /// shipped long before this module.
+  originAirportId      String?  @db.Uuid
+  originAirport        Airport? @relation("TripRequestOrigin", fields: [originAirportId], references: [id], onDelete: SetNull)
+  destinationAirportId String?  @db.Uuid
+  destinationAirport   Airport? @relation("TripRequestDestination", fields: [destinationAirportId], references: [id], onDelete: SetNull)
+
+  /// Dates the client asked for. `departureDate` is a day, not a moment — an
+  /// enquiry rarely names a time, and storing midnight UTC in a timestamp
+  /// makes it render as the day before west of Greenwich.
+  ///
+  /// A present `returnDate` is what makes this a round trip; there is no
+  /// separate flag, because two fields that can disagree will.
+  departureDate DateTime? @db.Date
+  returnDate    DateTime? @db.Date
+
+  passengers Int?
+
+  /// What they want to fly on, as a category rather than a tail: at enquiry
+  /// stage nobody has picked an airframe, and "Heavy Jet" is what the client
+  /// actually says.
+  aircraftPreference AircraftCategory?
+
+  /// What the desk expects the trip to be worth, in whole currency units.
+  /// Decimal, never Float — this feeds pipeline totals, and binary floating
+  /// point cannot hold 28000.10 exactly.
+  estimatedValue Decimal? @db.Decimal(12, 2)
+
+  /// One line for the table's Route/Interest column ("NYC → Miami, business
+  /// charter"), written by whoever took the call.
+  summary       String?
+  /// Catering, ground transport, special requests — what the client asked for.
+  requirements  String?
+  /// What the desk says among themselves. Never shown to a client.
+  internalNotes String?
+
+  // ---- Audit trail (every model carries these four) ------------------------
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("TripRequestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("TripRequestUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  /// ---- Archive trail ------------------------------------------------------
+  /// Soft delete is the only delete: nothing in this system is destroyed.
+  deletedAt   DateTime?
+  deletedById String?   @db.Uuid
+  deletedBy   User?     @relation("TripRequestDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("TripRequestRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@index([clientId])
+  @@index([assignedBrokerId, status])
+  @@index([departureDate])
+  @@map("trip_requests")
+}
+
+/// Where an enquiry has got to.
+///
+/// OPEN is untouched; SOURCING means operators are being asked; QUOTED means
+/// the client has a price; CONVERTED means it became a trip; LOST means it
+/// did not. Cancellation by the client is LOST too — the desk's reporting
+/// cares that it did not fly, and why lives in `internalNotes`.
+enum TripRequestStatus {
+  OPEN
+  SOURCING
+  QUOTED
+  CONVERTED
+  LOST
+}

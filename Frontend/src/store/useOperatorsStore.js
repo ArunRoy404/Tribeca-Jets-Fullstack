@@ -1,18 +1,18 @@
 import { create } from "zustand";
-import { operatorsData } from "@/dummyData/operators";
 
-export const OPERATORS_PAGE_SIZE = 6;
-
-function normalizeId(id) {
-  return String(id ?? "").replace("#", "").toUpperCase();
-}
-
-export const useOperatorsStore = create((set, get) => ({
-  operators: operatorsData,
-  search: "",
-  statusFilter: "All",
-  page: 1,
-
+/**
+ * Client-only state for the Operators screens.
+ *
+ * The operators themselves come from the API through `@/hooks/operators`, and
+ * the table's search, status filter and paging live in the URL via
+ * `useOperatorsTableParams`. What is left here is what the server does not own
+ * and a link would not carry: which dialog is open, on which row, and which
+ * detail tab is showing.
+ *
+ * The data array, its filtering and its pagination getters were deleted when
+ * this module graduated — see the data-layer section of `Frontend/AGENTS.md`.
+ */
+export const useOperatorsStore = create((set) => ({
   activeTab: "overview",
 
   addModalOpen: false,
@@ -20,15 +20,10 @@ export const useOperatorsStore = create((set, get) => ({
   quoteModalOpen: false,
   quoteTargetOperator: null,
 
-  setSearch: (search) => set({ search, page: 1 }),
-  setStatusFilter: (statusFilter) => set({ statusFilter, page: 1 }),
-  clearFilters: () => set({ search: "", statusFilter: "All", page: 1 }),
-
-  nextPage: () => {
-    const count = get()?.getPageCount?.();
-    set((state) => ({ page: Math.min(state?.page + 1, count) }));
-  },
-  prevPage: () => set((state) => ({ page: Math.max(state?.page - 1, 1) })),
+  deleteModalOpen: false,
+  /** Held whole, not by id: the row must stay nameable in the confirmation
+   *  dialog even after the list refetches and drops it. */
+  deletingOperator: null,
 
   setActiveTab: (activeTab) => set({ activeTab }),
 
@@ -39,78 +34,6 @@ export const useOperatorsStore = create((set, get) => ({
   openQuoteModal: (operator) => set({ quoteModalOpen: true, quoteTargetOperator: operator }),
   closeQuoteModal: () => set({ quoteModalOpen: false, quoteTargetOperator: null }),
 
-  addOperator: (newOp) =>
-    set((state) => {
-      const id = `OP-${1000 + (state?.operators?.length ?? 0) + 1}`;
-      const operator = {
-        id,
-        reliability: 4.8,
-        totalTrips: 0,
-        totalPaid: "$0",
-        safety: "ARG/US Platinum",
-        responseSpeed: "< 15 min",
-        fleet: [],
-        tripHistory: [],
-        payments: [],
-        serviceRoutes: [],
-        paymentTerms: "Net 30",
-        ...newOp,
-      };
-      return { operators: [operator, ...(state?.operators ?? [])] };
-    }),
-
-  updateOperator: (id, updates) =>
-    set((state) => ({
-      operators: state?.operators?.map((op) =>
-        normalizeId(op?.id) === normalizeId(id) ? { ...op, ...updates } : op
-      ),
-    })),
-
-  deleteOperator: (id) =>
-    set((state) => ({
-      operators: state?.operators?.filter((op) => normalizeId(op?.id) !== normalizeId(id)),
-    })),
-
-  getOperatorById: (id) => {
-    if (!id) return null;
-    const target = normalizeId(id);
-    return get()?.operators?.find((op) => normalizeId(op?.id) === target) || null;
-  },
-
-  getFilteredOperators: () => {
-    const { operators, search, statusFilter } = get();
-    return operators?.filter((op) => {
-      if (statusFilter !== "All" && op?.status?.toLowerCase() !== statusFilter?.toLowerCase()) {
-        return false;
-      }
-      if ((search ?? "").trim()) {
-        const q = search.toLowerCase();
-        const matchesName = op?.name?.toLowerCase()?.includes(q);
-        const matchesBase = op?.homeBase?.toLowerCase()?.includes(q);
-        const matchesContact = op?.primaryContact?.toLowerCase()?.includes(q);
-        const matchesTypes = op?.aircraftTypes?.some((t) => t?.toLowerCase()?.includes(q));
-        if (!matchesName && !matchesBase && !matchesContact && !matchesTypes) {
-          return false;
-        }
-      }
-      return true;
-    });
-  },
-
-  getPageCount: () => {
-    const filtered = get()?.getFilteredOperators?.();
-    return Math.max(1, Math.ceil((filtered?.length ?? 0) / OPERATORS_PAGE_SIZE));
-  },
-
-  getFilteredCount: () => {
-    const filtered = get()?.getFilteredOperators?.();
-    return filtered?.length ?? 0;
-  },
-
-  getPageOperators: () => {
-    const { page } = get();
-    const filtered = get()?.getFilteredOperators?.();
-    const start = (page - 1) * OPERATORS_PAGE_SIZE;
-    return filtered?.slice(start, start + OPERATORS_PAGE_SIZE);
-  },
+  openDeleteModal: (operator) => set({ deleteModalOpen: true, deletingOperator: operator }),
+  closeDeleteModal: () => set({ deleteModalOpen: false, deletingOperator: null }),
 }));

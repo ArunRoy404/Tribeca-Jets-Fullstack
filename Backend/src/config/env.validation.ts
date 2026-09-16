@@ -51,6 +51,33 @@ export const envSchema = z
       .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
     JWT_ACCESS_TTL: z.string().default('15m'),
     JWT_REFRESH_TTL: z.string().default('7d'),
+    /** Refresh lifetime when the user ticks "Remember me" on sign-in. */
+    JWT_REFRESH_TTL_REMEMBERED: z.string().default('30d'),
+
+    // ---- One-time codes ----------------------------------------------------
+    TWO_FACTOR_CODE_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
+    PASSWORD_RESET_CODE_TTL_MINUTES: z.coerce.number().int().min(1).max(120).default(15),
+    /** Window to choose a new password after the reset code is verified. */
+    PASSWORD_RESET_WINDOW_MINUTES: z.coerce.number().int().min(1).max(120).default(15),
+    /** Wrong guesses before a code is burned. */
+    VERIFICATION_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
+
+    // ---- Rate limiting -----------------------------------------------------
+    /**
+     * Multiplies every `@RateLimit` allowance. Defaults to 1, so production
+     * behaviour is exactly what the decorators declare.
+     *
+     * Exists because the per-route limits are tuned for real users and are far
+     * too tight for an end-to-end API run: the Postman collection signs in
+     * eight times, against a login limit of five per fifteen minutes, so a
+     * full pass could never succeed. Raise it locally rather than loosening
+     * the limits themselves, which would weaken production.
+     *
+     * Refused above 1 in production — see the superRefine below.
+     */
+    RATE_LIMIT_MULTIPLIER: z.coerce.number().int().min(1).max(1000).default(1),
+    /** Turns rate limiting off entirely. Never permitted in production. */
+    RATE_LIMIT_ENABLED: bool(true),
 
     /**
      * Leave empty in development (host-only cookie on localhost).
@@ -77,6 +104,15 @@ export const envSchema = z
     /** Optional CDN / public base URL that fronts the bucket. */
     S3_PUBLIC_URL: z.string().optional(),
 
+    // ---- Mail --------------------------------------------------------------
+    /** `auto` uses SMTP when credentials are present, else logs in development. */
+    MAIL_DRIVER: z.enum(['auto', 'smtp', 'log']).default('auto'),
+    MAIL_FROM: z.string().default('Tribeca Jets <no-reply@tribecajets.com>'),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().positive().default(587),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASSWORD: z.string().optional(),
+
     // ---- Integrations (all optional; features degrade gracefully) ----------
     OPENAI_API_KEY: z.string().optional(),
     ANTHROPIC_API_KEY: z.string().optional(),
@@ -84,12 +120,42 @@ export const envSchema = z
   })
   .superRefine((env, ctx) => {
     // A production deployment must never fall back to insecure cookies.
+    if (env.NODE_ENV === 'production' && !env.RATE_LIMIT_ENABLED) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['RATE_LIMIT_ENABLED'],
+        message:
+          'Rate limiting cannot be disabled in production. It is the only thing standing between the login route and a credential-stuffing run.',
+      });
+    }
+
+    if (env.NODE_ENV === 'production' && env.RATE_LIMIT_MULTIPLIER !== 1) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['RATE_LIMIT_MULTIPLIER'],
+        message:
+          'RATE_LIMIT_MULTIPLIER is a development convenience and must stay 1 in production.',
+      });
+    }
+
     if (env.NODE_ENV === 'production' && !env.COOKIE_SECURE) {
       ctx.addIssue({
         code: 'custom',
         path: ['COOKIE_SECURE'],
         message: 'COOKIE_SECURE must be true in production (cookies are the session).',
       });
+    }
+
+    if (env.MAIL_DRIVER === 'smtp') {
+      for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD'] as const) {
+        if (!env[key]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} is required when MAIL_DRIVER=smtp`,
+          });
+        }
+      }
     }
 
     // Fail loudly rather than silently writing client passports to local disk

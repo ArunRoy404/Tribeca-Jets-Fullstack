@@ -7,34 +7,66 @@ import AircraftTripsTab from "@/components/aircraft/tabs/AircraftTripsTab";
 import AircraftSpecsTab from "@/components/aircraft/tabs/AircraftSpecsTab";
 import AircraftMaintenanceTab from "@/components/aircraft/tabs/AircraftMaintenanceTab";
 import AddAircraftDialog from "@/components/aircraft/AddAircraftDialog";
-import DeleteAircraftDialog from "@/components/aircraft/DeleteAircraftDialog";
-import SetMaintenanceDialog from "@/components/aircraft/SetMaintenanceDialog";
+import ArchiveAircraftDialog from "@/components/aircraft/ArchiveAircraftDialog";
+import ChangeStatusDialog from "@/components/aircraft/ChangeStatusDialog";
 import Reveal from "@/components/common/Reveal";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import NotFoundState from "@/components/common/NotFoundState";
+import TableStatus from "@/components/table/common/TableStatus";
 import { useAircraftStore } from "@/store/useAircraftStore";
+import { useAircraftDetail, useRestoreAircraft } from "@/hooks/aircraft";
+import { toAircraftRow } from "@/lib/aircraft";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
 
 export default function AircraftDetailPage({ params }) {
   const unwrappedParams = use(params);
   const rawId = decodeURIComponent(unwrappedParams?.aircraftId || "");
 
-  const getAircraftById = useAircraftStore((s) => s.getAircraftById);
   const activeTab = useAircraftStore((s) => s.activeTab);
   const setActiveTab = useAircraftStore((s) => s.setActiveTab);
   const openEditModal = useAircraftStore((s) => s.openEditModal);
-  const openMaintenanceModal = useAircraftStore((s) => s.openMaintenanceModal);
+  const openArchiveModal = useAircraftStore((s) => s.openArchiveModal);
+  const openStatusModal = useAircraftStore((s) => s.openStatusModal);
+  const { mutate: restoreAircraft } = useRestoreAircraft();
 
-  const aircraft = getAircraftById(rawId);
+  // Assistants hold MANAGE_AIRCRAFT at READ scope — they see the aircraft,
+  // not the buttons that would 403.
+  const { canWrite } = usePermissions();
+  const mayWrite = canWrite(Permission.MANAGE_AIRCRAFT);
 
-  if (!aircraft) {
-    return <NotFoundState itemType="Aircraft" backUrl="/dashboard/aircraft" backLabel="Back to Aircraft" />;
+  const { data, isPending, error, refetch } = useAircraftDetail(rawId);
+  const aircraft = data ? toAircraftRow(data) : null;
+
+  if (isPending || error) {
+    return (
+      <div className="p-4 sm:p-6">
+        <TableStatus isLoading={isPending} error={error} onRetry={refetch} />
+      </div>
+    );
   }
 
+  // An archived aircraft loads like any other — the Archived tab links here,
+  // so refusing it would list a row and then deny it. Only an unknown id 404s,
+  // which lands in `error` above.
+  if (!aircraft) {
+    return (
+      <NotFoundState
+        itemType="Aircraft"
+        backUrl="/dashboard/aircraft"
+        backLabel="Back to Aircraft"
+      />
+    );
+  }
+
+  // The Maintenance count is real — it is how many dates are on file. Trip
+  // History carries no count: it is an aggregate over trips, which do not
+  // exist, and a hardcoded number reads as fact.
   const tabs = [
     { id: "overview", label: "Overview" },
-    { id: "trips", label: "Trip History", count: aircraft?.tripHistory?.length || 0 },
+    { id: "trips", label: "Trip History" },
     { id: "specs", label: "Specifications" },
-    { id: "maintenance", label: "Maintenance", count: aircraft?.maintenance?.history?.length || 0 },
+    { id: "maintenance", label: "Maintenance", count: aircraft.maintenance?.length || 0 },
   ];
 
   return (
@@ -44,36 +76,28 @@ export default function AircraftDetailPage({ params }) {
           <AircraftDetailHeader
             aircraft={aircraft}
             onEdit={openEditModal}
-            onToggleMaintenance={openMaintenanceModal}
+            onChangeStatus={openStatusModal}
+            onArchive={openArchiveModal}
+            onRestore={restoreAircraft}
+            mayWrite={mayWrite}
           />
         </Reveal>
 
-        {/* Tab Navigation Header Bar */}
         <Reveal>
-          <DetailTabNav
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
+          <DetailTabNav tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
         </Reveal>
 
-        {/* Tab Content Display */}
         <Reveal className="w-full pt-2">
           {activeTab === "overview" && <AircraftOverviewTab aircraft={aircraft} />}
-          {activeTab === "trips" && <AircraftTripsTab aircraft={aircraft} />}
+          {activeTab === "trips" && <AircraftTripsTab />}
           {activeTab === "specs" && <AircraftSpecsTab aircraft={aircraft} />}
-          {activeTab === "maintenance" && (
-            <AircraftMaintenanceTab
-              aircraft={aircraft}
-              onManage={() => openMaintenanceModal(aircraft)}
-            />
-          )}
+          {activeTab === "maintenance" && <AircraftMaintenanceTab aircraft={aircraft} />}
         </Reveal>
       </div>
 
       <AddAircraftDialog />
-      <DeleteAircraftDialog />
-      <SetMaintenanceDialog />
+      <ArchiveAircraftDialog />
+      <ChangeStatusDialog />
     </>
   );
 }
