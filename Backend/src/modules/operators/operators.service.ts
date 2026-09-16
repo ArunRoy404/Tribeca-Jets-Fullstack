@@ -294,6 +294,44 @@ export class OperatorsService {
   }
 
   /**
+   * Brings several archived operators back at once.
+   *
+   * The mirror of `removeMany`, for the Archived tab's checkbox column, and it
+   * follows the same two rules: read the rows first so the audit entry can name
+   * them, and treat ids that match nothing as `skipped` rather than failing the
+   * batch — two people restoring the same selection should both succeed.
+   */
+  async restoreMany(
+    actor: AuthenticatedUser,
+    ids: string[],
+  ): Promise<BulkResult> {
+    const targets = await this.prisma.operator.findMany({
+      where: { id: { in: ids }, deletedAt: { not: null } },
+      select: { id: true, name: true },
+    });
+
+    if (targets.length > 0) {
+      await this.prisma.operator.updateMany({
+        where: { id: { in: targets.map((row) => row.id) } },
+        data: { ...restoreData(actor.id), updatedById: actor.id },
+      });
+
+      await this.audit.record({
+        actorId: actor.id,
+        action: 'operator.restored_bulk',
+        entityType: 'Operator',
+        entityId: null,
+        metadata: {
+          count: targets.length,
+          operators: targets.map((row) => ({ id: row.id, name: row.name })),
+        },
+      });
+    }
+
+    return bulkResult(ids, targets.map((row) => row.id));
+  }
+
+  /**
    * Soft delete. The row stays because trips, quotes and payments will point
    * at it: destroying an operator would orphan the history of every flight it
    * ever operated.

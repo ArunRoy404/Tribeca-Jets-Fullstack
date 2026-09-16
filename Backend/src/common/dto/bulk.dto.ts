@@ -26,13 +26,22 @@ export class BulkIdsDto extends createZodDto(bulkIdsSchema) {}
 /** What a bulk operation reports back. */
 export interface BulkResult {
   requested: number;
+  /**
+   * How many rows actually moved.
+   *
+   * `deleted` is kept as an alias so existing delete callers and their saved
+   * Postman examples stay valid, but it reads as a lie on a bulk restore —
+   * prefer `affected`, which is true of either direction.
+   */
+  affected: number;
+  /** @deprecated Use `affected`. */
   deleted: number;
-  /** Ids that matched nothing — already removed, or never existed. */
+  /** Ids that matched nothing — already in the target state, or never existed. */
   skipped: string[];
 }
 
 /**
- * Summarises a bulk delete from what was asked for and what was actually found.
+ * Summarises a bulk operation from what was asked for and what was found.
  *
  * Partial success is reported, not treated as failure. Two people clearing the
  * same rows is ordinary, and failing the whole batch because one id was already
@@ -46,6 +55,7 @@ export function bulkResult(
   const found = new Set(foundIds);
   return {
     requested: requestedIds.length,
+    affected: foundIds.length,
     deleted: foundIds.length,
     skipped: requestedIds.filter((id) => !found.has(id)),
   };

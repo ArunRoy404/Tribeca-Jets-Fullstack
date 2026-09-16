@@ -125,6 +125,24 @@ export class AirportsController {
     return this.airports.removeMany(user, dto.ids);
   }
 
+  /**
+   * Also declared before `:id`, and POST for the same reason as bulk-delete.
+   */
+  @Post('bulk-restore')
+  @RequireWritePermissions(Permission.MANAGE_AIRPORTS)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Restore several archived airports at once',
+    description:
+      "For the Archived tab's checkbox column. Ids that are not archived are reported as `skipped` rather than failing the batch, so two people restoring the same selection both succeed.",
+  })
+  restoreMany(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BulkIdsDto,
+  ) {
+    return this.airports.restoreMany(user, dto.ids);
+  }
+
   @Post(':id/restore')
   @RequireWritePermissions(Permission.MANAGE_AIRPORTS)
   @ApiOperation({

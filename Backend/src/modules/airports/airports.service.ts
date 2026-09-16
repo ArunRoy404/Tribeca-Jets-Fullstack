@@ -313,6 +313,46 @@ export class AirportsService {
   }
 
   /**
+   * Brings several archived airports back at once.
+   *
+   * The mirror of `removeMany`, for the Archived tab's checkbox column. Ids
+   * that match nothing come back as `skipped` rather than failing the batch, so
+   * two people restoring the same selection both succeed.
+   *
+   * No ICAO collision is possible here: the unique index spans archived rows
+   * too, so a live airport can never be holding the code of an archived one.
+   */
+  async restoreMany(
+    actor: AuthenticatedUser,
+    ids: string[],
+  ): Promise<BulkResult> {
+    const targets = await this.prisma.airport.findMany({
+      where: { id: { in: ids }, deletedAt: { not: null } },
+      select: { id: true, icao: true, name: true },
+    });
+
+    if (targets.length > 0) {
+      await this.prisma.airport.updateMany({
+        where: { id: { in: targets.map((row) => row.id) } },
+        data: { ...restoreData(actor.id), updatedById: actor.id },
+      });
+
+      await this.audit.record({
+        actorId: actor.id,
+        action: 'airport.restored_bulk',
+        entityType: 'Airport',
+        entityId: null,
+        metadata: {
+          count: targets.length,
+          airports: targets.map((row) => ({ id: row.id, icao: row.icao })),
+        },
+      });
+    }
+
+    return bulkResult(ids, targets.map((row) => row.id));
+  }
+
+  /**
    * Brings an archived airport back, exactly as it was.
    *
    * Clears the deletion stamp and nothing else — every field returns
