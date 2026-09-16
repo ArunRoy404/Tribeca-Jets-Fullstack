@@ -121,7 +121,13 @@ export class ClientsController {
     return this.clients.restoreMany(user, dto.ids);
   }
 
+  /**
+   * 200, not the 201 that Nest gives a POST by default: a restore
+   * creates nothing. It clears a deletion stamp on a row that has
+   * existed all along, and every other module's restore says the same.
+   */
   @Post(':id/restore')
+  @HttpCode(HttpStatus.OK)
   @RequireWritePermissions(Permission.MANAGE_CLIENTS)
   @ApiOperation({
     summary: 'Restore an archived client',

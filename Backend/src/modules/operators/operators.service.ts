@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
+import { AircraftService } from '../aircraft/aircraft.service.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -78,6 +79,9 @@ const OPERATOR_DETAIL_SELECT = {
  * because a confident "0 trips" against an operator the desk has flown twice is
  * a wrong answer, and null lets the UI render an honest em dash. They become
  * real counts when those modules land — see AGENTS.md on build order.
+ *
+ * `fleetSize` is no longer among them: Aircraft has shipped, so it is a real
+ * count on the detail payload below.
  */
 const UNAVAILABLE_AGGREGATES = { totalTrips: null, totalPaid: null } as const;
 
@@ -86,6 +90,10 @@ export class OperatorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    // Aircraft owns its own table; the Fleet tab reads through its service
+    // rather than querying `aircraft` from here. See AGENTS.md — cross-module
+    // reads go through the owning module.
+    private readonly aircraft: AircraftService,
   ) {}
 
   // The caller is not read here: reference data is the same rows for
@@ -141,13 +149,19 @@ export class OperatorsService {
     });
     if (!row) throw new NotFoundException('Operator not found');
 
+    // The Fleet tab shows real airframes now that Aircraft exists. It used to
+    // be an empty array, which stopped being "not built yet" and started being
+    // a wrong answer the moment this operator's tails were in the database.
+    const fleet = await this.aircraft.listForOperator(id);
+
     return {
       ...row,
       ...UNAVAILABLE_AGGREGATES,
-      // The detail page's Fleet, Trips and Payments tabs read these. Empty
-      // arrays rather than omitted keys, so the tabs render their own empty
-      // state instead of crashing on undefined.
-      fleet: [],
+      fleet,
+      fleetSize: fleet.length,
+      // Trips and Payments still have no module behind them. Empty arrays
+      // rather than omitted keys, so those tabs render their own empty state
+      // instead of crashing on undefined.
       tripHistory: [],
       payments: [],
     };
@@ -172,8 +186,11 @@ export class OperatorsService {
       active,
       preferred,
       inactive: total - active - preferred,
-      // "Total Fleet" on the UI counts aircraft, which do not exist yet.
-      totalFleet: null,
+      // "Total Fleet" counts airframes across every operator. A real number
+      // now that Aircraft has shipped; it was null while the table did not
+      // exist, which is the honest stand-in this project uses for an aggregate
+      // nothing can supply.
+      totalFleet: await this.aircraft.countAll(),
     };
   }
 

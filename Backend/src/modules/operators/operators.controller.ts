@@ -61,7 +61,7 @@ export class OperatorsController {
   @ApiOperation({
     summary: 'Get one operator',
     description:
-      'Includes empty `fleet`, `tripHistory` and `payments` arrays: the detail page has tabs for all three, and the modules that fill them do not exist yet.',
+      '`fleet` carries the operator\'s real airframes now that the Aircraft module exists, alongside a `fleetSize` count. `tripHistory` and `payments` are still empty arrays — the detail page has tabs for both and neither module has been built.',
   })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.operators.findOne(id);
@@ -130,7 +130,13 @@ export class OperatorsController {
     return this.operators.restoreMany(user, dto.ids);
   }
 
+  /**
+   * 200, not the 201 that Nest gives a POST by default: a restore
+   * creates nothing. It clears a deletion stamp on a row that has
+   * existed all along, and every other module's restore says the same.
+   */
   @Post(':id/restore')
+  @HttpCode(HttpStatus.OK)
   @RequireWritePermissions(Permission.MANAGE_OPERATORS)
   @ApiOperation({
     summary: 'Restore an archived operator',
