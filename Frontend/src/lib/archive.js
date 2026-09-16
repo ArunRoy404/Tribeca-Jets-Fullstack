@@ -54,6 +54,19 @@ export function formatDate(value) {
 }
 
 /**
+ * One line for an archive event: "Removed 12 Sep 2026, 14:22 by Ari Admin".
+ *
+ * Returns null when there is no timestamp, so a caller can render nothing
+ * rather than an empty row. The actor is dropped when nobody is recorded —
+ * seeded and imported rows have none, and `actorName` renders that as an em
+ * dash, which reads as "by —" if it is pasted into a sentence.
+ */
+export function archiveEventLabel(verb, at, by) {
+  if (!at || at === DASH) return null;
+  return by && by !== DASH ? `${verb} ${at} by ${by}` : `${verb} ${at}`;
+}
+
+/**
  * The archive fields for one record, ready to render.
  *
  * Every module's row mapper spreads this, so the Archived tab and the restored

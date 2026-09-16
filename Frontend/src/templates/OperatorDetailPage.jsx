@@ -15,7 +15,7 @@ import DetailTabNav from "@/components/common/DetailTabNav";
 import NotFoundState from "@/components/common/NotFoundState";
 import TableStatus from "@/components/table/common/TableStatus";
 import { useOperatorsStore } from "@/store/useOperatorsStore";
-import { useOperator } from "@/hooks/operators";
+import { useOperator, useRestoreOperator } from "@/hooks/operators";
 import { toOperatorRow } from "@/lib/operator";
 
 export default function OperatorDetailPage({ params }) {
@@ -29,6 +29,8 @@ export default function OperatorDetailPage({ params }) {
   const openQuoteModal = useOperatorsStore((s) => s.openQuoteModal);
   const openDeleteModal = useOperatorsStore((s) => s.openDeleteModal);
 
+  const { mutate: restoreOperator } = useRestoreOperator();
+
   const { data, isPending, error, refetch } = useOperator(rawId);
   const operator = data ? toOperatorRow(data) : null;
 
@@ -40,8 +42,10 @@ export default function OperatorDetailPage({ params }) {
     );
   }
 
-  // A removed operator returns 404, which lands in `error` above; this covers
-  // the remaining case of a resolved-but-empty response.
+  // An archived operator loads like any other — the Archived tab links here,
+  // so refusing it would list a row and then deny it. Only a genuinely unknown
+  // id 404s, which lands in `error` above; this covers the remaining case of a
+  // resolved-but-empty response.
   if (!operator) {
     return <NotFoundState itemType="Operator" backUrl="/dashboard/operators" backLabel="Back to Operators" />;
   }
@@ -65,6 +69,7 @@ export default function OperatorDetailPage({ params }) {
             onEdit={openEditModal}
             onRequestQuote={openQuoteModal}
             onRemove={openDeleteModal}
+            onRestore={restoreOperator}
           />
         </Reveal>
 

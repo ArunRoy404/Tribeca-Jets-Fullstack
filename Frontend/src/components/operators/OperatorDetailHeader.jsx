@@ -1,13 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Edit, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit, Send, Trash2, RotateCcw } from "lucide-react";
 import StatusBadge from "@/components/common/StatusBadge";
 import SimpleStatsRow from "@/components/common/SimpleStatsRow";
 import { Button } from "@/components/ui/button";
+import { archiveEventLabel } from "@/lib/archive";
 
-export default function OperatorDetailHeader({ operator, onEdit, onRequestQuote, onRemove }) {
+export default function OperatorDetailHeader({
+  operator,
+  onEdit,
+  onRequestQuote,
+  onRemove,
+  onRestore,
+}) {
   if (!operator) return null;
+
+  // Both lines can be present at once: a record that was restored and later
+  // archived again keeps `restoredAt`, and the two together are the history
+  // worth showing. `restoredAt` is read directly rather than through
+  // `isRestored`, which is false while a record is archived.
+  const removedLine = operator.isArchived
+    ? archiveEventLabel("Removed", operator.deletedAtLabel, operator.deletedByName)
+    : null;
+  const restoredLine = operator.restoredAt
+    ? archiveEventLabel(
+        operator.isArchived ? "Previously restored" : "Restored",
+        operator.restoredAtLabel,
+        operator.restoredByName,
+      )
+    : null;
 
   const stats = [
     { label: "RELIABILITY", value: operator.reliability || "4.8", tone: "foreground" },
@@ -45,11 +67,33 @@ export default function OperatorDetailHeader({ operator, onEdit, onRequestQuote,
             <p className="font-montserrat text-[13px] text-muted-foreground">
               {operator.homeBase}
             </p>
+            {/* An archived operator is reachable from the Archived tab, so the
+                page says so plainly rather than looking like a live record. */}
+            {removedLine ? (
+              <p className="font-montserrat text-[12px] text-destructive">
+                {removedLine}
+              </p>
+            ) : null}
+            {restoredLine ? (
+              <p className="font-montserrat text-[12px] text-muted-foreground">
+                {restoredLine}
+              </p>
+            ) : null}
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
+          {operator.isArchived ? (
+            <Button
+              className="bg-[#252832] hover:bg-[#252832]/90 text-white h-10 text-[13px] gap-2 font-medium flex-1 sm:flex-none"
+              onClick={() => onRestore?.(operator)}
+            >
+              <RotateCcw className="size-4" />
+              Restore Operator
+            </Button>
+          ) : (
+          <>
           <Button
             variant="outline"
             className="h-10 text-[13px] gap-2 font-medium flex-1 sm:flex-none"
@@ -77,6 +121,8 @@ export default function OperatorDetailHeader({ operator, onEdit, onRequestQuote,
             <Trash2 className="size-4" />
             Remove
           </Button>
+          </>
+          )}
         </div>
       </div>
 
