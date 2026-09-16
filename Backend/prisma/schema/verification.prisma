@@ -44,4 +44,10 @@ model VerificationCode {
 enum VerificationPurpose {
   TWO_FACTOR
   PASSWORD_RESET
+
+  /// Still present in the database and on one live row, so the schema
+  /// declares it. Dropping the value was the drift that made `migrate diff`
+  /// emit a stray AlterEnum into three unrelated migrations, each of which had
+  /// to be stripped by hand. No code issues it today.
+  INVITATION
 }

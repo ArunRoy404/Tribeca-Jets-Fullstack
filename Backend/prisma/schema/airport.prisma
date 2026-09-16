@@ -37,6 +37,10 @@ model Airport {
   /// Operational notes: curfews, slot restrictions, customs hours.
   notes String?
 
+  /// Clients whose home airport this is. SetNull on the other side, so
+  /// archiving an airport never removes a client.
+  homeClients Client[] @relation("ClientHomeAirport")
+
   // ---- Audit trail (every model carries these four) ------------------------
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

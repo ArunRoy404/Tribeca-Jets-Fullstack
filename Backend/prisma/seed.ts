@@ -176,7 +176,7 @@ async function main(): Promise<void> {
       type: ClientType.DIRECT,
       leadStage: LeadStage.BOOKED,
       leadSource: LeadSource.REFERRAL,
-      homeAirport: 'KTEB',
+      homeAirportIcao: 'KTEB',
       assignedBrokerId: broker.id,
       originatingBrokerId: broker.id,
       preferences: { pets: true, noRedEye: true, preferredFbo: 'Signature' },
@@ -190,23 +190,13 @@ async function main(): Promise<void> {
       type: ClientType.TRAVEL_AGENT,
       leadStage: LeadStage.QUOTED,
       leadSource: LeadSource.FACEBOOK_GROUP_1,
-      homeAirport: 'KOPF',
+      homeAirportIcao: 'KOPF',
       assignedBrokerId: admin.id,
       originatingBrokerId: admin.id,
       preferences: { catering: 'Kosher on request' },
       labels: ['Agency'],
     },
   ];
-
-  for (const client of clients) {
-    const existing = await prisma.client.findFirst({
-      where: { email: client.email },
-      select: { id: true },
-    });
-    if (!existing) {
-      await prisma.client.create({ data: client });
-    }
-  }
 
   // Reference data: the ten airports and four operators the frontend's mock
   // data used, so the tables have realistic rows to page, filter and sort.
@@ -230,6 +220,27 @@ async function main(): Promise<void> {
       where: { icao: airport.icao },
       update: {},
       create: { ...airport, createdById: admin.id, updatedById: admin.id },
+    });
+  }
+
+  // Clients are inserted after airports on purpose: `homeAirportId` is a real
+  // foreign key now, so the row it points at has to exist first.
+  for (const { homeAirportIcao, ...client } of clients) {
+    const existing = await prisma.client.findFirst({
+      where: { email: client.email },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    const homeAirport = homeAirportIcao
+      ? await prisma.airport.findUnique({
+          where: { icao: homeAirportIcao },
+          select: { id: true },
+        })
+      : null;
+
+    await prisma.client.create({
+      data: { ...client, homeAirportId: homeAirport?.id ?? null },
     });
   }
 
