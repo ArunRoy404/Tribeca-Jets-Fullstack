@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 
 const STATUS_TONES = {
   Confirmed: "info",
+  VIP: "warning",
   "Due Today": "destructive",
   Overdue: "destructive",
   "Due Soon": "destructive",
