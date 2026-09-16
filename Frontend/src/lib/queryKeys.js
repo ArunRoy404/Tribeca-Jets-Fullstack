@@ -48,4 +48,17 @@ export const queryKeys = {
     detail: (id) => ["operators", "detail", id],
     stats: ["operators", "stats"],
   },
+
+  aircraft: {
+    all: ["aircraft"],
+    list: (params) => ["aircraft", "list", params ?? {}],
+    detail: (id) => ["aircraft", "detail", id],
+    stats: ["aircraft", "stats"],
+    /**
+     * The cabin-preference filter's options. Outside `list` because they
+     * change only when an aircraft is added or edited, not when the table is
+     * filtered — the same reasoning as the airports country filter.
+     */
+    amenities: ["aircraft", "amenities"],
+  },
 };
