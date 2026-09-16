@@ -118,6 +118,14 @@ any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
   intents and get separate endpoints.
 - **Select the archive actors on the list, not just the detail.** The Archived
   tab has a "Removed By" column and the live list shows a "Restored" badge.
+- **`findOne` must not filter `deletedAt: null`.** The Archived tab links
+  straight to the detail view, so excluding archived rows there lists a record
+  and then 404s it. Return it with its archive trail and let the UI decide what
+  to offer. (The list is the opposite: it filters by `?archived=`.)
+- **Bulk delete gets a matching bulk restore.** Same `bulkIdsSchema`, same
+  `bulkResult`, same partial-success rule — `POST /<resource>/bulk-restore`.
+  Read `affected` rather than `deleted`, which is kept only as an alias for the
+  existing delete callers.
 - **Users are not soft-deletable at all.** The Users module has no `DELETE`
   and no `restore`, its query DTO has no `archived` param, and the `users` table
   carries no archive trail — suspending an account is the way out, which is a

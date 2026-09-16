@@ -162,6 +162,15 @@ copy is the bug this section exists to prevent.
 - **The Archived tab swaps columns and verbs.** It shows "Removed On" and
   "Removed By" in place of columns that mean nothing for a removed record, and
   its only row action is Restore — no Edit, no Remove, no Add button.
+- **Whatever the checkbox column offers, both tabs offer.** If a table has
+  selection it needs a bulk action on Archived too — Restore there, Remove on
+  the live list. Checkboxes with no button is a selection that does nothing.
+  Pass `action="restore"` to `BulkDeleteButton`/`BulkDeleteDialog` rather than
+  writing a second button and a second dialog.
+- **A detail view must open for an archived record.** The Archived tab links to
+  it, so a detail endpoint that filters `deletedAt: null` lists a row and then
+  404s it. Load it, say it is archived, and offer Restore instead of Edit and
+  Remove.
 - **A restored record keeps its badge for good.** It is a fact about the
   record, not a transient state; a table that stops saying it after thirty days
   quietly changed what it tells you.
