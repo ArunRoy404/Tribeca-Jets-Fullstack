@@ -47,6 +47,15 @@ Where two modules are mutually referential, build the one that can stand alone
 without the other and add the back-reference in the second pass. Never stub a
 foreign key with a string "for now".
 
+**Before adding a table, check the record does not already exist.** The
+dependency rule cuts both ways: a module whose entity is already modelled
+should be a *view*, not a second table. "Leads" looked like a new module and
+was not — the scope puts lead source and stage on the client, so a leads table
+would have been a duplicate client directory, drifting apart from the first
+edit and splitting one person's history across two rows. Read the doc's data
+model and the existing schema before the frontend's folder names convince you
+otherwise.
+
 **The second pass is not optional, and it is part of shipping the new module.**
 A dependency that returns `fleet: []` or `totalFleet: null` while its dependant
 does not exist is telling the truth. The day that module ships, the same empty

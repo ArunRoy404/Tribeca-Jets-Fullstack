@@ -31,9 +31,9 @@ set of broken joins the day the real table arrives.
 | 4 | **Operators** | ✅ Done | — |
 | 5 | **Clients** | ✅ Done | Users (broker), Airports (home base) |
 | 6 | **Aircraft** | ✅ Done | Operators (owner), Airports (home base) |
-| 7 | **Leads & Agents** | ⬅ **Next** | Users, Clients |
-| 8 | **Trip Requests** *(Open Requests)* | Not started | Clients, Airports, Users |
-| 9 | **Operator Sourcing** | Not started | Trip Requests, Operators, Aircraft |
+| 7 | **Leads & Agents** | ✅ Done | Users, Clients |
+| 8 | **Trip Requests** *(Open Requests)* | ◐ API done, board pending | Clients, Airports, Users |
+| 9 | **Operator Sourcing** | ⬅ **Next** | Trip Requests, Operators, Aircraft |
 | 10 | **Quotes** | Not started | Trip Requests, Sourcing, Clients, Aircraft |
 | 11 | **Trips** | Not started | Quotes, everything above |
 | 12 | **Itineraries** | Not started | Trips |
@@ -53,21 +53,22 @@ set of broken joins the day the real table arrives.
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
 | 27 | **AI Assistant** | Stub only | All |
 
-**Why Leads & Agents is next:** with Aircraft done, it is the module whose
-dependencies (Users, Clients) are both shipped. Its open question — whether
-converting a lead writes a Client and a Trip Request together — has to be
-settled before it starts.
+**Why Operator Sourcing is next:** it needs Trip Requests, Operators and
+Aircraft, and all three now exist. It is the first module that reads an
+enquiry and does something with it.
+
+**The open question about leads is settled**, and the doc settled it. A lead
+is not a table: §6.3 puts "lead source and lead stage" on the *client*, and
+§6.4 makes the enquiry its own entity. So the Add Lead form writes **two
+records** — a Client at lead stage, and a TripRequest for what they asked for.
 
 **Why Dashboard is last** even though it is the first screen a user sees: it
 aggregates from every other module. Building it early means writing the same
 counts twice — once against dummy data, once for real.
 
-### Two decisions still open
+### One decision still open
 
-1. **Leads vs Trip Requests.** A lead that converts creates both a Client and a
-   Trip Request. Does one form write both rows, or does the broker convert the
-   lead and then raise a request? This blocks module #7.
-2. **MongoDB vs PostgreSQL.** The signed proposal (§13) says MongoDB. The
+1. **MongoDB vs PostgreSQL.** The signed proposal (§13) says MongoDB. The
    project is PostgreSQL, which is the right choice for this data — it is
    relational throughout, and half these modules are joins. Needs a
    client-facing decision, not a technical one.
@@ -237,24 +238,54 @@ unblocks a large part of the remaining queue.
 > which needs the same pipeline for contracts, operator documents and quote
 > PDFs. A column that nothing can write would be worse than the gap.
 
-### 7. Leads & Agents
+### 7. Leads & Agents ✅
 
-Two related screens. **Leads** are enquiries before they become clients —
-source, priority, assigned broker, stage (New → Contacted → Qualified →
-Proposal → Quoted → Won/Lost). **Agents** are the brokers themselves, shown as
-a performance roster.
+Two screens over records that already existed, which is the whole point of
+this module:
 
-The Agents half is largely a different view of Users, not a new table. Worth
-confirming before building a second one.
+**A lead is a Client at lead stage.** The scope puts lead source and lead stage
+on the client (§6.3), so a separate leads table would have duplicated the
+client directory — two rows for one person, drifting apart from the first edit
+and splitting their trip history between them. Clients gained `priority` and
+`followUpMethod`; the funnel was realigned to the screen the desk works from
+(New → Contacted → Qualified → Proposal → Quoted → Won → Lost).
 
-### 8. Trip Requests (Open Requests)
+**Converting is a status change, not a copy.** LEAD → ACTIVE and the stage to
+WON, on the row that already exists. Notes, preferences, follow-ups and every
+enquiry they filed stay attached, because nothing moved.
+
+**An agent is one of the desk's own brokers** — a User, with lead numbers
+attached. Travel agents are something else entirely: clients of type
+`TRAVEL_AGENT`, in the client directory. The roster is therefore read-only and
+has no Add form: staff are invited through Users & Roles, where the permission
+matrix and the suspend rules already live. The Add Agent dialog that duplicated
+the invite form was removed.
+
+`conversionRate` and `capacityUsed` are **null, not 0%**, when there is nothing
+to measure. A new broker showing "0% conversion" is a wrong answer that follows
+them around.
+
+### 8. Trip Requests (Open Requests) — API done
 
 A client asks for a flight: route, dates, passenger count, aircraft
-preference, budget. This is the record that *starts* everything downstream —
-sourcing, quotes and trips all descend from it.
+preference, budget. The record that *starts* everything downstream — sourcing,
+quotes and trips all descend from it.
 
-**It has no screen yet.** The doc's IA lists "Open Trip Requests" as a section
-and there is no page for it. One of five such gaps (see below).
+**The table and API shipped with Leads**, because the Add Lead form writes one.
+It has full CRUD, archive/restore, scoping and stats, and the lead detail page
+lists a client's enquiries.
+
+**What is still missing is the dedicated board.** The doc's IA lists "Open Trip
+Requests" as its own section and the frontend has no page for it — the API
+already supports it (`openOnly=true`, the departure window filter, the pipeline
+tile), so this is a screen to build, not a module to design.
+
+Uses the **trips** permissions rather than its own: a request is the start of a
+trip. `VIEW_TRIPS` to read, `MANAGE_TRIPS` to write, `DELETE_TRIPS`
+(administrators only) to archive — because a broker who stops working an
+enquiry marks it **Lost**, which keeps it in the conversion figures. Removing
+the row would quietly improve everyone's conversion rate, which is the wrong
+incentive to build into a sales tool.
 
 ### 9. Operator Sourcing
 
