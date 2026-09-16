@@ -1,12 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Edit, X, UploadCloud, ArrowRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, Edit, X, ArrowRight } from "lucide-react";
 import { useClientsStore } from "@/store/useClientsStore";
+import { useCreateClient, useUpdateClient } from "@/hooks/clients";
+import { useAirports } from "@/hooks/airports";
+import { useUsers } from "@/hooks/users";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DatePicker from "@/components/common/DatePicker";
+import {
+  CLIENT_LEAD_SOURCES,
+  CLIENT_LEAD_STAGES,
+  FILTERABLE_CLIENT_STATUSES,
+  FILTERABLE_CLIENT_TYPES,
+  formatClientStatus,
+  formatClientType,
+  formatLeadSource,
+  formatLeadStage,
+} from "@/lib/client";
 
 function FieldWrapper({ label, children, optional }) {
   return (
@@ -30,112 +43,175 @@ function SectionHeader({ title }) {
   );
 }
 
+const SELECT_CLASS =
+  "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
+
+const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER"]);
+
+/**
+ * Blank. Nothing is pre-filled with a plausible-looking value — the old form
+ * opened with "Jonathan Reed", a broker and a lead source already chosen, so a
+ * hurried save invented a person.
+ */
+const EMPTY = {
+  firstName: "",
+  lastName: "",
+  companyName: "",
+  email: "",
+  phone: "",
+  type: "DIRECT",
+  status: "LEAD",
+  leadStage: "NEW",
+  leadSource: "DIRECT",
+  assignedBrokerId: "",
+  homeAirportId: "",
+  birthday: "",
+  nextFollowUpAt: "",
+  preferredAirports: "",
+  routeFrom: "",
+  routeTo: "",
+  notes: "",
+};
+
+/** Blank strings are "not provided", never an empty value the API would store. */
+const optional = (value) => {
+  const trimmed = (value ?? "").trim();
+  return trimmed ? trimmed : undefined;
+};
+
+/** Builds the form state for a client, or a blank form when adding. */
+function initialForm(client) {
+  if (!client) return EMPTY;
+  const prefs = client.preferences ?? {};
+  return {
+    ...EMPTY,
+    firstName: client.firstName ?? "",
+    lastName: client.lastName ?? "",
+    companyName: client.companyName ?? "",
+    email: client.email === "—" ? "" : (client.email ?? ""),
+    phone: client.phone === "—" ? "" : (client.phone ?? ""),
+    type: client.rawType ?? "DIRECT",
+    status: client.rawStatus ?? "LEAD",
+    leadStage: client.rawLeadStage ?? "NEW",
+    leadSource: client.rawLeadSource ?? "DIRECT",
+    assignedBrokerId: client.assignedBrokerId ?? "",
+    homeAirportId: client.homeAirportId ?? "",
+    birthday: client.birthday ? client.birthday.slice(0, 10) : "",
+    nextFollowUpAt: client.nextFollowUpAt ? client.nextFollowUpAt.slice(0, 10) : "",
+    preferredAirports: (prefs.preferredAirports ?? []).join(", "),
+    notes: client.notes ?? "",
+  };
+}
+
 export default function AddClientDialog() {
   const open = useClientsStore((s) => s.addModalOpen);
   const editingClient = useClientsStore((s) => s.editingClient);
   const closeModal = useClientsStore((s) => s.closeAddModal);
-  const addClient = useClientsStore((s) => s.addClient);
-  const updateClient = useClientsStore((s) => s.updateClient);
-
-  const [firstName, setFirstName] = useState("Jonathan");
-  const [lastName, setLastName] = useState("Reed");
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-
-  const [clientType, setClientType] = useState("Direct");
-  const [initialStatus, setInitialStatus] = useState("Lead");
-  const [assignedBroker, setAssignedBroker] = useState("Barry");
-  const [leadSource, setLeadSource] = useState("Referral");
-  const [followUpDate, setFollowUpDate] = useState("");
-
-  const [prefAirports, setPrefAirports] = useState("");
-  const [routeFrom, setRouteFrom] = useState("");
-  const [routeTo, setRouteTo] = useState("");
-  const [notes, setNotes] = useState("");
-
-  useEffect(() => {
-    if (editingClient) {
-      const parts = (editingClient.name || "").split(" ");
-      setFirstName(parts[0] || "");
-      setLastName(parts.slice(1).join(" ") || "");
-      setCompany(editingClient.company || "");
-      setEmail(editingClient.email || "");
-      setPhone(editingClient.phone || "");
-      setClientType(editingClient.type || "Direct");
-      setInitialStatus(editingClient.status || "Active");
-      setAssignedBroker(editingClient.broker || "Barry");
-      setLeadSource(editingClient.leadSource || "Referral");
-      setFollowUpDate(editingClient.nextFollowUpDate || "");
-      setPrefAirports(editingClient.prefAirports || "");
-      setNotes(editingClient.notes || "");
-    } else {
-      setFirstName("Jonathan");
-      setLastName("Reed");
-      setCompany("");
-      setEmail("");
-      setPhone("");
-      setClientType("Direct");
-      setInitialStatus("Lead");
-      setAssignedBroker("Barry");
-      setLeadSource("Referral");
-      setFollowUpDate("");
-      setPrefAirports("");
-      setRouteFrom("");
-      setRouteTo("");
-      setNotes("");
-    }
-  }, [editingClient, open]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const fullName = `${firstName} ${lastName}`.trim();
-    const routesStr = routeFrom && routeTo ? `${routeFrom.toUpperCase()} → ${routeTo.toUpperCase()}` : prefAirports;
-
-    const data = {
-      name: fullName,
-      company,
-      type: clientType,
-      email,
-      phone,
-      prefAirports: routesStr || "KTEB → KMIA",
-      broker: assignedBroker,
-      status: initialStatus,
-      leadSource,
-      nextFollowUpDate: followUpDate,
-      notes,
-    };
-
-    if (editingClient) {
-      updateClient(editingClient.id, data);
-    } else {
-      addClient(data);
-    }
-    closeModal();
-  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && closeModal()}>
       <DialogContent className="sm:max-w-180 max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-4">
+        {/*
+          Keyed so the form remounts with fresh state whenever the dialog opens
+          on a different client. An effect calling setState renders once with
+          the previous client's values before correcting itself.
+        */}
+        {open && (
+          <ClientForm
+            key={editingClient?.id ?? "new"}
+            editingClient={editingClient}
+            onDone={closeModal}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ClientForm({ editingClient, onDone }) {
+  const closeModal = onDone;
+  const { mutate: createClient, isPending: isCreating } = useCreateClient();
+  const { mutate: updateClient, isPending: isUpdating } = useUpdateClient();
+  const editing = Boolean(editingClient);
+
+  // Real reference data for both pickers.
+  const { data: airports } = useAirports({ limit: 100, sortBy: "icao", sortOrder: "asc" });
+  const { data: users } = useUsers({ limit: 100 });
+  const brokers = useMemo(
+    () => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)),
+    [users?.data],
+  );
+
+  const [form, setForm] = useState(() => initialForm(editingClient));
+  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const preferredAirports = form.preferredAirports
+      .split(",")
+      .map((code) => code.trim().toUpperCase())
+      .filter(Boolean);
+
+    const route =
+      form.routeFrom && form.routeTo
+        ? `${form.routeFrom.trim().toUpperCase()} → ${form.routeTo.trim().toUpperCase()}`
+        : null;
+
+    const payload = {
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      companyName: optional(form.companyName),
+      email: optional(form.email)?.toLowerCase(),
+      phone: optional(form.phone),
+      type: form.type,
+      status: form.status,
+      leadStage: form.leadStage,
+      leadSource: form.leadSource,
+      assignedBrokerId: optional(form.assignedBrokerId),
+      homeAirportId: form.homeAirportId || null,
+      birthday: optional(form.birthday),
+      nextFollowUpAt: form.nextFollowUpAt
+        ? new Date(`${form.nextFollowUpAt}T00:00`).toISOString()
+        : null,
+      notes: optional(form.notes),
+      preferences: {
+        ...(preferredAirports.length ? { preferredAirports } : {}),
+        ...(route ? { preferredRoutes: [route] } : {}),
+      },
+    };
+
+    if (editing) {
+      updateClient({ id: editingClient.id, ...payload }, { onSuccess: closeModal });
+    } else {
+      createClient(payload, { onSuccess: closeModal });
+    }
+  };
+
+  const isAgency = form.type === "TRAVEL_AGENT";
+
+  return (
+    <>
         <DialogHeader className="flex flex-col items-start gap-1 pb-2 border-b border-border">
           <DialogTitle className="font-montserrat font-bold text-[20px] text-foreground">
-            {editingClient ? "Edit Client Profile" : "Add New Client"}
+            {editing ? "Edit Client Profile" : "Add New Client"}
           </DialogTitle>
           <DialogDescription className="font-montserrat text-[13px] text-muted-foreground">
-            {editingClient ? "Update client profile details in CRM database." : "Create a client record in the CRM database."}
+            {editing
+              ? "Update client profile details in CRM database."
+              : "Create a client record in the CRM database."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
-          {/* Section 1: Contact Information */}
           <SectionHeader title="Contact Information" />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
             <FieldWrapper label="First Name">
               <Input
                 placeholder="Jonathan"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                value={form.firstName}
+                onChange={(e) => set("firstName", e.target.value)}
                 className="h-10 text-[13px] font-montserrat"
                 required
               />
@@ -144,170 +220,197 @@ export default function AddClientDialog() {
             <FieldWrapper label="Last Name">
               <Input
                 placeholder="Reed"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                value={form.lastName}
+                onChange={(e) => set("lastName", e.target.value)}
                 className="h-10 text-[13px] font-montserrat"
                 required
               />
             </FieldWrapper>
           </div>
 
-          <FieldWrapper label="Company / Organization" optional>
+          {/* Required only for a travel agent, which is the rule the API enforces. */}
+          <FieldWrapper label="Company / Organization" optional={!isAgency}>
             <Input
-              placeholder="e.g. Sterling Group (optional)"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
+              placeholder="e.g. Sterling Group"
+              value={form.companyName}
+              onChange={(e) => set("companyName", e.target.value)}
               className="h-10 text-[13px] font-montserrat"
+              required={isAgency}
             />
           </FieldWrapper>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <FieldWrapper label="Email">
+            <FieldWrapper label="Email" optional>
               <Input
                 type="email"
                 placeholder="client@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={form.email}
+                onChange={(e) => set("email", e.target.value)}
                 className="h-10 text-[13px] font-montserrat"
-                required
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Phone">
+            <FieldWrapper label="Phone" optional>
               <Input
                 placeholder="+1 (212) 555-0100"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                value={form.phone}
+                onChange={(e) => set("phone", e.target.value)}
                 className="h-10 text-[13px] font-montserrat"
-                required
               />
             </FieldWrapper>
           </div>
 
-          {/* Section 2: Client Profile */}
           <SectionHeader title="Client Profile" />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
             <FieldWrapper label="Client Type">
               <select
-                value={clientType}
-                onChange={(e) => setClientType(e.target.value)}
-                className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
+                value={form.type}
+                onChange={(e) => set("type", e.target.value)}
+                className={SELECT_CLASS}
               >
-                <option value="Direct">Direct Client</option>
-                <option value="Travel Agent">Travel Agent</option>
-                <option value="Referral">Referral</option>
-                <option value="Corporate">Corporate</option>
+                {FILTERABLE_CLIENT_TYPES.map((v) => (
+                  <option key={v} value={v}>{formatClientType(v)}</option>
+                ))}
               </select>
             </FieldWrapper>
 
-            <FieldWrapper label="Initial Status">
+            <FieldWrapper label="Status">
               <select
-                value={initialStatus}
-                onChange={(e) => setInitialStatus(e.target.value)}
-                className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
+                value={form.status}
+                onChange={(e) => set("status", e.target.value)}
+                className={SELECT_CLASS}
               >
-                <option value="Lead">Lead</option>
-                <option value="Active">Active</option>
-                <option value="VIP">VIP</option>
-                <option value="Quoted">Quoted</option>
-                <option value="Inactive">Inactive</option>
+                {FILTERABLE_CLIENT_STATUSES.map((v) => (
+                  <option key={v} value={v}>{formatClientStatus(v)}</option>
+                ))}
               </select>
             </FieldWrapper>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <FieldWrapper label="Assigned Broker">
+            {/* Where the relationship stands vs where the deal stands — two
+                separate things, so two separate controls. */}
+            <FieldWrapper label="Lead Stage">
               <select
-                value={assignedBroker}
-                onChange={(e) => setAssignedBroker(e.target.value)}
-                className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
+                value={form.leadStage}
+                onChange={(e) => set("leadStage", e.target.value)}
+                className={SELECT_CLASS}
               >
-                <option value="Barry">Barry</option>
-                <option value="Benny">Benny</option>
-                <option value="Mark">Mark</option>
-                <option value="Ari">Ari</option>
+                {CLIENT_LEAD_STAGES.map((v) => (
+                  <option key={v} value={v}>{formatLeadStage(v)}</option>
+                ))}
               </select>
             </FieldWrapper>
 
-            <FieldWrapper label="Follow-up Date">
-              <DatePicker value={followUpDate} onChange={setFollowUpDate} placeholder="Choose Date" />
-            </FieldWrapper>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
             <FieldWrapper label="Lead Source">
               <select
-                value={leadSource}
-                onChange={(e) => setLeadSource(e.target.value)}
-                className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
+                value={form.leadSource}
+                onChange={(e) => set("leadSource", e.target.value)}
+                className={SELECT_CLASS}
               >
-                <option value="Referral">Referral</option>
-                <option value="Web Search">Web Search</option>
-                <option value="Direct">Direct</option>
-                <option value="Corporate">Corporate</option>
+                {CLIENT_LEAD_SOURCES.map((v) => (
+                  <option key={v} value={v}>{formatLeadSource(v)}</option>
+                ))}
               </select>
-            </FieldWrapper>
-
-            <FieldWrapper label="Follow-up Date">
-              <DatePicker value={followUpDate} onChange={setFollowUpDate} placeholder="Choose Date" />
             </FieldWrapper>
           </div>
 
-          {/* Section 3: Travel Preferences */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <FieldWrapper label="Assigned Broker" optional>
+              <select
+                value={form.assignedBrokerId}
+                onChange={(e) => set("assignedBrokerId", e.target.value)}
+                className={SELECT_CLASS}
+              >
+                <option value="">Unassigned</option>
+                {brokers.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {`${b.firstName} ${b.lastName}`.trim()}
+                  </option>
+                ))}
+              </select>
+            </FieldWrapper>
+
+            <FieldWrapper label="Follow-up Date" optional>
+              <DatePicker
+                value={form.nextFollowUpAt}
+                onChange={(v) => set("nextFollowUpAt", v)}
+                placeholder="Choose Date"
+              />
+            </FieldWrapper>
+          </div>
+
           <SectionHeader title="Travel Preferences" />
 
-          <FieldWrapper label="Preferred Airports (comma-separated ICAO codes)">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            {/* A real airport, chosen from the airport database rather than a
+                code typed into a box that matches nothing. */}
+            <FieldWrapper label="Home Airport" optional>
+              <select
+                value={form.homeAirportId}
+                onChange={(e) => set("homeAirportId", e.target.value)}
+                className={SELECT_CLASS}
+              >
+                <option value="">None</option>
+                {(airports?.data ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.icao} — {a.name}
+                  </option>
+                ))}
+              </select>
+            </FieldWrapper>
+
+            <FieldWrapper label="Birthday" optional>
+              <DatePicker
+                value={form.birthday}
+                onChange={(v) => set("birthday", v)}
+                placeholder="Choose Date"
+              />
+            </FieldWrapper>
+          </div>
+
+          <FieldWrapper label="Preferred Airports (comma-separated ICAO codes)" optional>
             <Input
               placeholder="e.g. KTEB, KMIA, KJFK"
-              value={prefAirports}
-              onChange={(e) => setPrefAirports(e.target.value)}
+              value={form.preferredAirports}
+              onChange={(e) => set("preferredAirports", e.target.value)}
               className="h-10 text-[13px] font-montserrat"
             />
           </FieldWrapper>
 
-          <FieldWrapper label="Preferred Routes">
+          <FieldWrapper label="Preferred Route" optional>
             <div className="flex items-center gap-2 w-full">
               <Input
                 placeholder="e.g. KTEB"
-                value={routeFrom}
-                onChange={(e) => setRouteFrom(e.target.value)}
+                value={form.routeFrom}
+                onChange={(e) => set("routeFrom", e.target.value)}
                 className="h-10 text-[13px] font-montserrat flex-1"
               />
               <ArrowRight className="size-4 text-muted-foreground shrink-0" />
               <Input
                 placeholder="e.g. KPBI"
-                value={routeTo}
-                onChange={(e) => setRouteTo(e.target.value)}
+                value={form.routeTo}
+                onChange={(e) => set("routeTo", e.target.value)}
                 className="h-10 text-[13px] font-montserrat flex-1"
               />
             </div>
           </FieldWrapper>
 
-          <FieldWrapper label="Internal Notes">
+          <FieldWrapper label="Internal Notes" optional>
             <textarea
               rows={2}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={form.notes}
+              onChange={(e) => set("notes", e.target.value)}
               placeholder="Internal notes visible to brokers only..."
               className="w-full p-2.5 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-purple resize-none"
             />
           </FieldWrapper>
 
-          {/* Section 4: Attachment */}
-          <SectionHeader title="Attachment" />
+          {/* The attachment drop zone that used to sit here did nothing at all.
+              Client documents belong to the Document Vault module, which owns
+              upload, permissions and retention. */}
 
-          <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors cursor-pointer text-center gap-2">
-            <UploadCloud className="size-8 text-muted-foreground" />
-            <p className="font-montserrat text-[13px] text-foreground">
-              Drag & drop files here or <span className="text-purple font-semibold">Browse File</span>
-            </p>
-            <span className="font-montserrat text-[11px] text-muted-foreground">
-              Support: PDF, JPG, PNG
-            </span>
-          </div>
-
-          {/* Footer Buttons - Left-aligned matching Image 2 */}
           <div className="flex items-center justify-start gap-3 pt-3 border-t border-border/40 w-full">
             <Button
               type="button"
@@ -320,14 +423,14 @@ export default function AddClientDialog() {
             </Button>
             <Button
               type="submit"
+              disabled={isCreating || isUpdating}
               className="bg-[#252832] hover:bg-[#252832]/90 text-white h-9 px-4 font-medium text-[13px] gap-1.5"
             >
-              {editingClient ? <Edit className="size-3.5" /> : <Plus className="size-3.5" />}
-              {editingClient ? "Save Client" : "Add Client"}
+              {editing ? <Edit className="size-3.5" /> : <Plus className="size-3.5" />}
+              {editing ? "Save Client" : "Add Client"}
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

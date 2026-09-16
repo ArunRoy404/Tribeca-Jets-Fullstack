@@ -14,30 +14,46 @@ import ArchiveClientDialog from "@/components/clients/ArchiveClientDialog";
 import Reveal from "@/components/common/Reveal";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import NotFoundState from "@/components/common/NotFoundState";
+import TableStatus from "@/components/table/common/TableStatus";
 import { useClientsStore } from "@/store/useClientsStore";
+import { useClient } from "@/hooks/clients";
+import { toClientRow } from "@/lib/client";
 
 export default function ClientDetailPage({ params }) {
   const unwrappedParams = use(params);
   const rawId = decodeURIComponent(unwrappedParams?.clientId || "");
 
-  const getClientById = useClientsStore((s) => s.getClientById);
   const activeTab = useClientsStore((s) => s.activeTab);
   const setActiveTab = useClientsStore((s) => s.setActiveTab);
   const openEditModal = useClientsStore((s) => s.openEditModal);
   const openFollowUpModal = useClientsStore((s) => s.openFollowUpModal);
 
-  const client = getClientById(rawId);
+  const { data, isPending, error, refetch } = useClient(rawId);
+  const client = data ? toClientRow(data) : null;
 
+  if (isPending || error) {
+    return (
+      <div className="p-4 sm:p-6">
+        <TableStatus isLoading={isPending} error={error} onRetry={refetch} />
+      </div>
+    );
+  }
+
+  // An archived client loads like any other — the Archived tab links here, so
+  // refusing it would list a row and then deny it. Only an unknown id 404s,
+  // which lands in `error` above.
   if (!client) {
     return <NotFoundState itemType="Client" backUrl="/dashboard/clients" backLabel="Back to Clients" />;
   }
 
+  // No counts: they are aggregates over trips, quotes and payments, none of
+  // which exist yet. A hardcoded "6" reads as fact.
   const tabs = [
     { id: "overview", label: "Overview" },
-    { id: "trips", label: "Trips", count: 6 },
-    { id: "quotes", label: "Quotes", count: 3 },
-    { id: "payments", label: "Payments", count: 4 },
-    { id: "activity", label: "Activity", count: 8 },
+    { id: "trips", label: "Trips" },
+    { id: "quotes", label: "Quotes" },
+    { id: "payments", label: "Payments" },
+    { id: "activity", label: "Activity" },
   ];
 
   return (
@@ -72,29 +88,13 @@ export default function ClientDetailPage({ params }) {
                 {activeTab === "overview" && (
                   <ClientOverviewTab
                     client={client}
-                    onScheduleFollowUp={() => openFollowUpModal(client?.id)}
+                    onScheduleFollowUp={() => openFollowUpModal(client)}
                   />
                 )}
-                {activeTab === "trips" && (
-                  <ClientTripsTab
-                    onScheduleFollowUp={() => openFollowUpModal(client?.id)}
-                  />
-                )}
-                {activeTab === "quotes" && (
-                  <ClientQuotesTab
-                    onScheduleFollowUp={() => openFollowUpModal(client?.id)}
-                  />
-                )}
-                {activeTab === "payments" && (
-                  <ClientPaymentsTab
-                    onScheduleFollowUp={() => openFollowUpModal(client?.id)}
-                  />
-                )}
-                {activeTab === "activity" && (
-                  <ClientActivityTab
-                    onScheduleFollowUp={() => openFollowUpModal(client?.id)}
-                  />
-                )}
+                {activeTab === "trips" && <ClientTripsTab />}
+                {activeTab === "quotes" && <ClientQuotesTab />}
+                {activeTab === "payments" && <ClientPaymentsTab />}
+                {activeTab === "activity" && <ClientActivityTab />}
               </div>
             </div>
           </Reveal>

@@ -18,11 +18,12 @@ export default function ClientDetailSidebar({ client, onEditNotes }) {
         <div className="flex flex-col gap-3">
           <DetailField label="Email" value={client.email} valueClassName="font-semibold text-purple truncate" />
           <DetailField label="Phone" value={client.phone} valueClassName="font-semibold" />
-          <DetailField label="Company" value={client.company || "N/A"} valueClassName="font-semibold" />
-          <DetailField label="Client Type" value={client.type || "Direct"} valueClassName="font-semibold" />
-          <DetailField label="Lead Source" value={client.leadSource || "Referral"} valueClassName="font-semibold" />
-          <DetailField label="Broker" value={client.broker || "Barry"} valueClassName="font-semibold" />
-          <DetailField label="Added" value={client.addedDate || "Jan 2026"} valueClassName="font-semibold text-muted-foreground" />
+          <DetailField label="Company" value={client.company} valueClassName="font-semibold" />
+          <DetailField label="Client Type" value={client.type} valueClassName="font-semibold" />
+          <DetailField label="Lead Stage" value={client.leadStage} valueClassName="font-semibold" />
+          <DetailField label="Lead Source" value={client.leadSource} valueClassName="font-semibold" />
+          <DetailField label="Broker" value={client.broker} valueClassName="font-semibold" />
+          <DetailField label="Added" value={client.addedLabel} valueClassName="font-semibold text-muted-foreground" />
         </div>
       </div>
 
@@ -35,37 +36,47 @@ export default function ClientDetailSidebar({ client, onEditNotes }) {
           <div className="flex flex-col gap-1">
             <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Home Airport</span>
             <Badge tone="secondary" className="w-fit font-bold text-[11px]">
-              {client.homeAirport || "KTEB"}
+              {client.homeAirport}
             </Badge>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Preferred Airports</span>
             <div className="flex items-center gap-1.5 flex-wrap">
-              {(client.preferredAirports || ["KTEB", "KMIA"]).map((ap) => (
-                <Badge key={ap} tone="secondary" className="font-bold text-[11px]">
-                  {ap}
-                </Badge>
-              ))}
+              {(client.preferences?.preferredAirports ?? []).length ? (
+                client.preferences.preferredAirports.map((ap) => (
+                  <Badge key={ap} tone="secondary" className="font-bold text-[11px]">
+                    {ap}
+                  </Badge>
+                ))
+              ) : (
+                <span className="font-montserrat text-[12px] text-muted-foreground">None on file</span>
+              )}
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Preferred Routes</span>
             <div className="font-montserrat font-bold text-[12px] text-foreground">
-              {client.prefAirports || "KTEB → KMIA"}
+              {(client.preferences?.preferredRoutes ?? []).join(", ") || (
+                <span className="font-medium text-muted-foreground">None on file</span>
+              )}
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Preferred Aircraft</span>
             <div className="flex flex-col gap-1 text-[12px] font-montserrat">
-              {(client.preferredAircraft || ["Gulfstream G550", "Global 6000"]).map((ac) => (
-                <div key={ac} className="flex items-center gap-1.5 text-muted-foreground">
-                  <Plane className="size-3.5 text-purple shrink-0" />
-                  <span className="font-medium text-foreground">{ac}</span>
-                </div>
-              ))}
+              {(client.preferences?.preferredAircraft ?? []).length ? (
+                client.preferences.preferredAircraft.map((ac) => (
+                  <div key={ac} className="flex items-center gap-1.5 text-muted-foreground">
+                    <Plane className="size-3.5 text-purple shrink-0" />
+                    <span className="font-medium text-foreground">{ac}</span>
+                  </div>
+                ))
+              ) : (
+                <span className="text-muted-foreground">None on file</span>
+              )}
             </div>
           </div>
         </div>

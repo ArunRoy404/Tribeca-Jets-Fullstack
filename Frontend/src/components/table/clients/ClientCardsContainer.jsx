@@ -1,8 +1,15 @@
 "use client";
 
 import ClientCard from "./ClientCard";
+import TableStatus from "@/components/table/common/TableStatus";
 
-export default function ClientCardsContainer({ items, getRowActions, onSelectClient }) {
+export default function ClientCardsContainer({
+  items,
+  getRowActions,
+  onSelectClient,
+  isLoading,
+  error,
+}) {
   return (
     <div className="flex flex-col gap-3 w-full">
       {items?.map((item) => (
@@ -13,10 +20,13 @@ export default function ClientCardsContainer({ items, getRowActions, onSelectCli
           onClick={() => onSelectClient?.(item)}
         />
       ))}
-      {items?.length === 0 && (
-        <p className="p-6 text-center font-montserrat text-[12px] text-muted-foreground w-full">
-          No clients found matching search filters.
-        </p>
+      {!items?.length && (
+        <TableStatus
+          isLoading={isLoading}
+          error={error}
+          isEmpty={!isLoading && !error}
+          emptyMessage="No clients match these filters"
+        />
       )}
     </div>
   );

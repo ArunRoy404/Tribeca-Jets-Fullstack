@@ -34,7 +34,9 @@ export default function ClientCard({ item, actions, onClick }) {
           </div>
           <div className="flex flex-col">
             <h4 className="font-montserrat font-bold text-[14px] text-foreground leading-tight">{item?.name}</h4>
-            {item?.company && <p className="font-montserrat text-[11px] text-muted-foreground">{item?.company}</p>}
+            {item?.companyName ? (
+              <p className="font-montserrat text-[11px] text-muted-foreground">{item.companyName}</p>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -50,32 +52,32 @@ export default function ClientCard({ item, actions, onClick }) {
 
       <div className="grid grid-cols-3 gap-2 w-full items-center">
         <Field label="Type" value={item?.type} valueClassName="text-info font-bold" />
-        <Field label="Pref. Airports" value={item?.prefAirports} />
+        <Field label="Home Airport" value={item?.homeAirport} />
         <Field label="Broker" value={item?.broker} />
       </div>
 
       <div className="flex items-center justify-between border-t border-border/50 pt-2 text-[11px]">
         <div className="flex flex-col">
-          <span className="text-muted-foreground text-[10px]">Last Trip</span>
-          <span className="font-bold text-purple">{item?.lastTripId} • {item?.lastTripDate}</span>
+          <span className="text-muted-foreground text-[10px]">Added</span>
+          <span className="font-bold text-foreground">{item?.addedLabel}</span>
         </div>
-        {item?.nextFollowUpDate && (
+        {item?.nextFollowUpAt ? (
           <div className="flex flex-col items-end">
             <span className="text-muted-foreground text-[10px]">Next Follow-up</span>
             <span
               className={cn(
                 "font-bold",
-                item?.nextFollowUpStatus === "Overdue"
+                item?.followUpWindow === "OVERDUE"
                   ? "text-destructive"
-                  : item?.nextFollowUpStatus === "Due Today"
+                  : item?.followUpWindow === "TODAY"
                   ? "text-warning"
-                  : "text-success"
+                  : "text-success",
               )}
             >
-              • {item?.nextFollowUpDate} ({item?.nextFollowUpStatus})
+              {item?.nextFollowUpLabel} ({item?.followUpWindowLabel})
             </span>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

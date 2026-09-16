@@ -52,8 +52,8 @@ export default function ClientDetailHeader({ client }) {
               <StatusBadge status={client.status} bordered />
             </div>
             <p className="font-montserrat text-[13px] text-muted-foreground flex items-center gap-2 flex-wrap">
-              {client.company && <span>{client.company}</span>}
-              {client.company && <span>•</span>}
+              {client.companyName ? <span>{client.companyName}</span> : null}
+              {client.companyName ? <span>•</span> : null}
               <span>{client.type} Client</span>
               <span>•</span>
               <span>Broker: {client.broker}</span>
@@ -88,7 +88,7 @@ export default function ClientDetailHeader({ client }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 font-montserrat text-[12px]">
-              <DropdownMenuItem onClick={() => openFollowUpModal(client.id)} className="gap-2">
+              <DropdownMenuItem onClick={() => openFollowUpModal(client)} className="gap-2">
                 <Calendar className="size-3.5" />
                 Schedule Follow-up
               </DropdownMenuItem>
@@ -110,62 +110,42 @@ export default function ClientDetailHeader({ client }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
         <div className="p-4 bg-white border border-border rounded-lg shadow-card flex flex-col gap-1">
           <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Total Trips</span>
-          <span className="font-montserrat font-bold text-[22px] text-foreground">{client.totalTrips || 18}</span>
-          <span className="font-montserrat text-[11px] text-muted-foreground">{client.tripsOnRecord || 6} on record</span>
+          {/* Awaiting the trips module — an em dash, never a stand-in figure. */}
+          <span className="font-montserrat font-bold text-[22px] text-muted-foreground">—</span>
+          <span className="font-montserrat text-[11px] text-muted-foreground">once trips are recorded</span>
         </div>
 
         <div className="p-4 bg-white border border-border rounded-lg shadow-card flex flex-col gap-1">
           <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Total Spent</span>
-          <span className="font-montserrat font-bold text-[22px] text-[#00B274]">{client.totalSpent || "$485,000"}</span>
+          {/* Awaiting invoices and payments. */}
+          <span className="font-montserrat font-bold text-[22px] text-muted-foreground">—</span>
           <span className="font-montserrat text-[11px] text-muted-foreground">all time</span>
         </div>
 
         <div className="p-4 bg-white border border-border rounded-lg shadow-card flex flex-col gap-1">
           <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Active Quotes</span>
-          <span className="font-montserrat font-bold text-[22px] text-[#F59E0B]">{client.activeQuotesCount || 1}</span>
+          {/* Awaiting the quotes module. */}
+          <span className="font-montserrat font-bold text-[22px] text-muted-foreground">—</span>
           <span className="font-montserrat text-[11px] text-muted-foreground">awaiting response</span>
         </div>
 
         <div className="p-4 bg-white border border-border rounded-lg shadow-card flex flex-col gap-1">
           <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Next Follow-up</span>
           <span className="font-montserrat font-bold text-[20px] text-[#D97706] truncate">
-            {client.nextFollowUpDate || "Aug 12, 2026"}
+            {client.nextFollowUpLabel}
           </span>
-          <span className="font-montserrat text-[11px] text-muted-foreground">Upcoming</span>
+          <span className="font-montserrat text-[11px] text-muted-foreground">
+            {client.followUpWindowLabel}
+          </span>
         </div>
       </div>
 
-      {/* Top Sub-Header Flight Context Bar matching Figma frame */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 p-3 px-4 bg-white rounded-lg border border-border text-[12px] font-montserrat w-full">
-        <div className="flex flex-col">
-          <span className="text-[10px] text-muted-foreground uppercase font-medium">Client</span>
-          <span className="font-bold text-foreground">Kevin Monroe</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] text-muted-foreground uppercase font-medium">Trip Type</span>
-          <span className="font-bold text-foreground">One Way</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] text-muted-foreground uppercase font-medium">Broker</span>
-          <span className="font-bold text-foreground">Mark</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] text-muted-foreground uppercase font-medium">Operator</span>
-          <span className="font-bold text-foreground">Flexjet</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] text-muted-foreground uppercase font-medium">Aircraft</span>
-          <span className="font-bold text-foreground">Global 7500</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] text-muted-foreground uppercase font-medium">Passengers</span>
-          <span className="font-bold text-foreground">4</span>
-        </div>
-        <div className="flex flex-col col-span-2 sm:col-span-2 lg:col-span-1">
-          <span className="text-[10px] text-muted-foreground uppercase font-medium">Departure / Arrival</span>
-          <span className="font-bold text-foreground truncate">JFK → LHR • Aug 1</span>
-        </div>
-      </div>
+      {/* A "flight context" bar sat here showing a client name, broker,
+          operator, aircraft, passenger count and route — every value a
+          hardcoded string, identical on every client's page and describing a
+          trip rather than the client being viewed. It belongs to the Trip
+          Command Center, against a real trip. */}
+
     </div>
   );
 }
