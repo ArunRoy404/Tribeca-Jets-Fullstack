@@ -9,30 +9,26 @@ import AgentAssignedLeadsTable from "@/components/leads-agents/AgentAssignedLead
 import AgentAssociatedTrips from "@/components/leads-agents/AgentAssociatedTrips";
 import AgentRecentActivity from "@/components/leads-agents/AgentRecentActivity";
 import AssignBrokerDialog from "@/components/leads-agents/AssignBrokerDialog";
+import NotFoundState from "@/components/common/NotFoundState";
 import TableStatus from "@/components/table/common/TableStatus";
 import { useBrokerPerformance, useClients } from "@/hooks/clients";
 import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
 import { toAgentRow, toLeadRow } from "@/lib/lead";
 import { useRouter } from "next/navigation";
 
-const FIGMA_MOCK_AGENT = {
-  id: "agent-barry",
-  name: "Barry Wilson",
-  status: "ACTIVE",
-  role: "SENIOR_BROKER",
-  company: "Sterling Group",
-  email: "barry@tribecajets.com",
-  phone: "+1 (212) 555-0201",
-  activeLeads: 4,
-  qualifiedLeads: 6,
-  convertedLeads: 22,
-  activeTrips: 7,
-  followUpsDue: 3,
-  conversionRate: "68%",
-  capacityUsed: "27%",
-  maxActiveLeads: 15,
-};
-
+/**
+ * AgentDetailPage
+ *
+ * One broker/agent, with the leads assigned to them.
+ *
+ * Data binding:
+ * - Agent performance: reads from `useBrokerPerformance()` and finds the row matching `agentId`.
+ * - Assigned leads: queries `useClients({ status: "LEAD", assignedBrokerId: agentId, limit: 50 })`.
+ *
+ * Future API connections:
+ * - Associated trips: GET /api/trips?brokerId={agentId}
+ * - Recent activity: GET /api/audit-logs?userId={agentId}
+ */
 export default function AgentDetailPage({ params }) {
   const router = useRouter();
   const unwrappedParams = use(params);
@@ -48,24 +44,29 @@ export default function AgentDetailPage({ params }) {
 
   const agent = useMemo(() => {
     const row = (data ?? []).find((a) => a?.id === rawId);
-    if (row) return toAgentRow(row);
-    // Fallback to Figma preview agent for UI testing if row is not in database
-    return { ...FIGMA_MOCK_AGENT, id: rawId || FIGMA_MOCK_AGENT.id };
+    return row ? toAgentRow(row) : null;
   }, [data, rawId]);
 
   const leads = useMemo(() => {
     const rows = leadsData?.data ?? [];
-    if (rows.length > 0) {
-      return rows.map((client) => toLeadRow(client));
-    }
-    return [];
+    return rows.map((client) => toLeadRow(client));
   }, [leadsData?.data]);
 
-  if (isPending && !data && rawId !== "1" && rawId !== "barry-wilson") {
+  if (isPending && !data) {
     return (
       <div className="p-4 sm:p-6">
         <TableStatus isLoading={isPending} error={error} onRetry={refetch} />
       </div>
+    );
+  }
+
+  if (!agent) {
+    return (
+      <NotFoundState
+        itemType="Agent"
+        backUrl="/dashboard/leads-agents"
+        backLabel="Back to Agents"
+      />
     );
   }
 
@@ -106,6 +107,7 @@ export default function AgentDetailPage({ params }) {
           <div className="w-full">
             <AgentAssignedLeadsTable
               leads={leads}
+              meta={leadsData?.meta}
               agentName={agent.name}
               onSelectLead={(leadId) => router.push(`/dashboard/leads-agents/leads/${leadId}`)}
             />
