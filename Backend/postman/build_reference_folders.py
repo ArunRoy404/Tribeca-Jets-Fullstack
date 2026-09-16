@@ -163,6 +163,13 @@ BULK_BODY = """{
   "ids": ["{{%s}}"]
 }"""
 
+BULK_RESTORE_BODY = """{
+  // required · 1-100 UUIDs of archived rows.
+  // Ids that are not archived come back in `skipped` rather than failing
+  // the batch, so two people restoring the same selection both succeed.
+  "ids": ["{{%s}}"]
+}"""
+
 PAGINATION_QUERY = [
     {"key": "page", "value": "1",
      "description": "Page number, 1-based. Integer ≥1. Default 1. Out of range returns an empty `data` with a truthful `meta`."},
@@ -368,7 +375,8 @@ airports["item"] = [
         "never there — come back in `skipped` rather than failing the batch. Two "
         "people clearing the same rows is ordinary, and refusing the second one would "
         "make their click do nothing at all.\n\n"
-        "Soft delete, like `07`: re-adding an ICAO restores that airport.",
+        "Soft delete, like `07`: the rows move to the Archived tab and come back\n"
+        "with `10 · Restore several airports`.",
         raw=BULK_BODY % "newAirportId",
         responses=[
             example("200 · Removed", 200, "airports_bulk_200", method="POST",
@@ -379,6 +387,27 @@ airports["item"] = [
                     sent='{\n  "ids": []\n}', path="airports/bulk-delete"),
             example("403 · Role may read but not write", 403, "airports_bulk_403", method="POST",
                     sent=BULK_BODY % "newAirportId", path="airports/bulk-delete"),
+        ],
+    ),
+    request(
+        "10 \u00b7 Restore several airports", "POST", "airports/bulk-restore",
+        "Brings every id in the list back in one statement, for the Archived tab's "
+        "checkbox column. The mirror of the bulk remove above.\n\n"
+        "**POST, not DELETE**, and **partial success is success** \u2014 the same two "
+        "rules. Ids that are not archived come back in `skipped` rather than failing "
+        "the batch, so two people restoring the same selection both succeed.\n\n"
+        "Restore clears the deletion stamp and touches nothing else, so each row "
+        "returns exactly as it was.",
+        raw=BULK_RESTORE_BODY % "newAirportId",
+        responses=[
+            example("200 \u00b7 Restored", 200, "airports_bulk_restore_200", method="POST",
+                    sent=BULK_RESTORE_BODY % "newAirportId", path="airports/bulk-restore"),
+            example("200 \u00b7 Already live (partial)", 200, "airports_bulk_restore_partial", method="POST",
+                    sent=BULK_RESTORE_BODY % "newAirportId", path="airports/bulk-restore"),
+            example("400 \u00b7 Nothing selected", 400, "airports_bulk_restore_400", method="POST",
+                    sent='{\n  "ids": []\n}', path="airports/bulk-restore"),
+            example("403 \u00b7 Role may read but not write", 403, "airports_bulk_restore_403", method="POST",
+                    sent=BULK_RESTORE_BODY % "newAirportId", path="airports/bulk-restore"),
         ],
     ),
 ]
@@ -565,6 +594,27 @@ operators["item"] = [
                     sent=BULK_BODY % "newOperatorId", path="operators/bulk-delete"),
             example("403 · Role may read but not write", 403, "operators_bulk_403", method="POST",
                     sent=BULK_BODY % "newOperatorId", path="operators/bulk-delete"),
+        ],
+    ),
+    request(
+        "09 \u00b7 Restore several operators", "POST", "operators/bulk-restore",
+        "Brings every id in the list back in one statement, for the Archived tab's "
+        "checkbox column. The mirror of the bulk remove above.\n\n"
+        "**POST, not DELETE**, and **partial success is success** \u2014 the same two "
+        "rules. Ids that are not archived come back in `skipped` rather than failing "
+        "the batch, so two people restoring the same selection both succeed.\n\n"
+        "Restore clears the deletion stamp and touches nothing else, so each row "
+        "returns exactly as it was.",
+        raw=BULK_RESTORE_BODY % "newOperatorId",
+        responses=[
+            example("200 \u00b7 Restored", 200, "operators_bulk_restore_200", method="POST",
+                    sent=BULK_RESTORE_BODY % "newOperatorId", path="operators/bulk-restore"),
+            example("200 \u00b7 Already live (partial)", 200, "operators_bulk_restore_partial", method="POST",
+                    sent=BULK_RESTORE_BODY % "newOperatorId", path="operators/bulk-restore"),
+            example("400 \u00b7 Nothing selected", 400, "operators_bulk_restore_400", method="POST",
+                    sent='{\n  "ids": []\n}', path="operators/bulk-restore"),
+            example("403 \u00b7 Role may read but not write", 403, "operators_bulk_restore_403", method="POST",
+                    sent=BULK_RESTORE_BODY % "newOperatorId", path="operators/bulk-restore"),
         ],
     ),
 ]

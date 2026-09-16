@@ -5503,6 +5503,213 @@
               "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Airports)\",\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-09-15T10:12:40.957Z\"\n}"
             }
           ]
+        },
+        {
+          "name": "10 \u00b7 Restore several airports",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/airports/bulk-restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports",
+                "bulk-restore"
+              ]
+            },
+            "description": "Brings every id in the list back in one statement, for the Archived tab's checkbox column. The mirror of the bulk remove above.\n\n**POST, not DELETE**, and **partial success is success** \u2014 the same two rules. Ids that are not archived come back in `skipped` rather than failing the batch, so two people restoring the same selection both succeed.\n\nRestore clears the deletion stamp and touches nothing else, so each row returns exactly as it was.\n\nRequires `Manage Airports`."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Already live (partial)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"b4f7315a-f556-4c99-a232-22a50c38fa7f\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Nothing selected",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:19.370Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Role may read but not write",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/airports/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Airports)\",\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:19.484Z\"\n}"
+            }
+          ]
         }
       ],
       "event": [
@@ -6359,6 +6566,213 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Operators)\",\n  \"path\": \"/api/operators/bulk-delete\",\n  \"timestamp\": \"2026-09-15T10:12:40.993Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "09 \u00b7 Restore several operators",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operators/bulk-restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators",
+                "bulk-restore"
+              ]
+            },
+            "description": "Brings every id in the list back in one statement, for the Archived tab's checkbox column. The mirror of the bulk remove above.\n\n**POST, not DELETE**, and **partial success is success** \u2014 the same two rules. Ids that are not archived come back in `skipped` rather than failing the batch, so two people restoring the same selection both succeed.\n\nRestore clears the deletion stamp and touches nothing else, so each row returns exactly as it was.\n\nRequires `Manage Operators`."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/operators/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Already live (partial)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/operators/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"245d1d7b-6cca-4da7-ba2a-fa7964abac91\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Nothing selected",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/operators/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/operators/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:27.405Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Role may read but not write",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/operators/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Operators)\",\n  \"path\": \"/api/operators/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:27.416Z\"\n}"
             }
           ]
         }
