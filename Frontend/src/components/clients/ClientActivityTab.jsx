@@ -1,100 +1,38 @@
 "use client";
 
-import {
-  CheckCircle2,
-  Plane,
-  DollarSign,
-  FileText,
-  Mail,
-  Calendar,
-} from "lucide-react";
+import DetailCard from "@/components/common/DetailCard";
 import ClientFollowUpBanner from "@/components/clients/ClientFollowUpBanner";
 
-// Hardcoded preview data — will be wired to real API endpoint once activity API is connected
-const ACTIVITIES_PREVIEW = [
-  {
-    id: 1,
-    user: "Barry",
-    action: "confirmed TJ-1048 and sent final itinerary to Hope",
-    time: "Aug 9 · 15:42",
-    icon: <CheckCircle2 className="size-4" />,
-    color: "bg-info/10 text-info",
-  },
-  {
-    id: 2,
-    user: "ExecuJet",
-    action: "operator confirmation received for TJ-1048",
-    time: "Aug 9 · 14:20",
-    icon: <Plane className="size-4" />,
-    color: "bg-purple/10 text-purple",
-  },
-  {
-    id: 3,
-    user: "Ari",
-    action: "payment received — $42,500 cleared for TJ-1048",
-    time: "Aug 8 · 17:35",
-    icon: <DollarSign className="size-4" />,
-    color: "bg-success/10 text-success",
-  },
-  {
-    id: 4,
-    user: "Barry",
-    action: "sent round trip quote Q-2026-042 ($79,500)",
-    time: "Aug 8 · 11:00",
-    icon: <FileText className="size-4" />,
-    color: "bg-warning/10 text-warning",
-  },
-  {
-    id: 5,
-    user: "Barry",
-    action: "created operation TJ-1048 — Miami → Los Angeles",
-    time: "Aug 6 · 09:15",
-    icon: <Plane className="size-4" />,
-    color: "bg-info/10 text-info",
-  },
-  {
-    id: 6,
-    user: "Hope",
-    action: "replied confirming 4 passengers and catering request",
-    time: "Aug 5 · 14:30",
-    icon: <Mail className="size-4" />,
-    color: "bg-purple/10 text-purple",
-  },
-  {
-    id: 7,
-    user: "Barry",
-    action: "follow-up scheduled for Aug 12 — September routing",
-    time: "Aug 4 · 10:00",
-    icon: <Calendar className="size-4" />,
-    color: "bg-purple/10 text-purple",
-  },
-  {
-    id: 8,
-    user: "Barry",
-    action: "created operation TJ-1039 — Teterboro → Miami",
-    time: "Jun 20 · 09:00",
-    icon: <Plane className="size-4" />,
-    color: "bg-info/10 text-info",
-  },
-];
+/**
+ * Client Activity Log Tab
+ *
+ * TODO [API Integration - Activity / Audit Module]:
+ * When the Activity / Audit Log API module is connected to Clients:
+ * 1. Fetch activities for this client:
+ *    GET /api/clients/{clientId}/activity?page={page}&limit={limit}
+ * 2. Expected Activity record schema:
+ *    - id: string | number
+ *    - user: string (author name, e.g. "Barry", "Ari", or system)
+ *    - action: string (action description)
+ *    - time: string (formatted timestamp string)
+ *    - icon: ReactNode (optional category icon)
+ *    - color: string (optional category icon badge tone)
+ * 3. In the absence of activity records, render an honest empty state per project agreement.
+ */
+export default function ClientActivityTab({ activities = [], onScheduleFollowUp }) {
+  const hasActivities = Array.isArray(activities) && activities.length > 0;
 
-export default function ClientActivityTab({ onScheduleFollowUp }) {
   return (
-    <div className="flex flex-col gap-6 w-full">
-      {/* Activity Timeline Card */}
-      <div className="flex flex-col gap-4 p-4 sm:p-5 bg-white border border-border rounded-lg shadow-card w-full">
-        <h3 className="font-montserrat font-bold text-[16px] text-foreground border-b border-border/50 pb-3">
-          Activity Log
-        </h3>
-
-        <div className="flex flex-col gap-4 relative pl-2">
-          {ACTIVITIES_PREVIEW.map((item, idx) => (
-            <div key={item.id} className="flex items-start gap-3.5 relative">
-              {idx < ACTIVITIES_PREVIEW.length - 1 && (
+    <DetailCard className="gap-6 p-4 sm:p-6">
+      {hasActivities ? (
+        <div className="flex flex-col gap-4 relative pl-2 w-full">
+          {activities.map((item, idx) => (
+            <div key={item.id || idx} className="flex items-start gap-3.5 relative">
+              {idx < activities.length - 1 && (
                 <div className="absolute left-[15px] top-8 w-0.5 h-full bg-border/60 -z-0" />
               )}
               <div
-                className={`size-8 rounded-full flex items-center justify-center shrink-0 z-10 ${item.color}`}
+                className={`size-8 rounded-full flex items-center justify-center shrink-0 z-10 ${item.color || "bg-secondary text-foreground"}`}
               >
                 {item.icon}
               </div>
@@ -109,10 +47,19 @@ export default function ClientActivityTab({ onScheduleFollowUp }) {
             </div>
           ))}
         </div>
-      </div>
+      ) : (
+        <div className="py-12 flex flex-col items-center justify-center text-center gap-2">
+          <p className="font-montserrat font-semibold text-[15px] text-foreground">
+            No activity on record
+          </p>
+          <p className="font-montserrat text-[12px] text-muted-foreground max-w-sm">
+            No historical activities or interactions have been recorded for this client yet.
+          </p>
+        </div>
+      )}
 
-      {/* Follow-up Banner Card */}
+      {/* Follow-up Banner inside the same container */}
       <ClientFollowUpBanner onScheduleFollowUp={onScheduleFollowUp} />
-    </div>
+    </DetailCard>
   );
 }
