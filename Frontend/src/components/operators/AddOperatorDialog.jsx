@@ -46,10 +46,14 @@ const EMPTY_FORM = {
   phone: "",
   aircraftTypesInput: "",
   serviceRoutesInput: "",
-  reliability: "4.8",
+  // Blank, not "4.8": a pre-filled rating makes every operator someone adds
+  // carry a score nobody gave them. The input keeps "4.8" as a placeholder,
+  // which is a format hint and is never submitted.
+  reliability: "",
   safety: "",
   responseSpeed: "",
   cancellationPolicy: "",
+  paymentTerms: "",
   sourcingNotes: "",
 };
 
@@ -86,6 +90,7 @@ function initialForm(operator) {
     safety: fieldValue(operator.safety),
     responseSpeed: fieldValue(operator.responseSpeed),
     cancellationPolicy: fieldValue(operator.cancellationPolicy),
+    paymentTerms: fieldValue(operator.paymentTerms),
     sourcingNotes: operator.sourcingNotes || "",
   };
 }
@@ -171,6 +176,7 @@ function OperatorForm({ editingOperator, onDone }) {
       safetyRating: optional(formData.safety),
       responseSpeed: optional(formData.responseSpeed),
       cancellationPolicy: optional(formData.cancellationPolicy),
+      paymentTerms: optional(formData.paymentTerms),
       sourcingNotes: optional(formData.sourcingNotes),
     };
 
@@ -360,14 +366,25 @@ function OperatorForm({ editingOperator, onDone }) {
             </FieldWrapper>
           </div>
 
-          <FieldWrapper label="Cancellation policy (Optional)">
-            <Input
-              placeholder="48 hours Notice"
-              value={formData.cancellationPolicy}
-              onChange={(e) => handleChange("cancellationPolicy", e.target.value)}
-              className="h-10 text-[13px] font-montserrat"
-            />
-          </FieldWrapper>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            <FieldWrapper label="Cancellation policy (Optional)">
+              <Input
+                placeholder="48 hours Notice"
+                value={formData.cancellationPolicy}
+                onChange={(e) => handleChange("cancellationPolicy", e.target.value)}
+                className="h-10 text-[13px] font-montserrat"
+              />
+            </FieldWrapper>
+
+            <FieldWrapper label="Payment terms (Optional)">
+              <Input
+                placeholder="Net 30"
+                value={formData.paymentTerms}
+                onChange={(e) => handleChange("paymentTerms", e.target.value)}
+                className="h-10 text-[13px] font-montserrat"
+              />
+            </FieldWrapper>
+          </div>
 
           <FieldWrapper label="Notes (Optional)" optional>
             <textarea

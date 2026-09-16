@@ -31,16 +31,21 @@ export default function OperatorDetailHeader({
       )
     : null;
 
+  /**
+   * Every value comes from the record. The mapper already renders anything
+   * missing as an em dash, so there are no `||` fallbacks here — the previous
+   * ones ("4.8", "24", "$0") were invented numbers standing in for data the
+   * API had deliberately returned as null.
+   *
+   * `totalTrips` and `totalPaid` stay in the row because the design calls for
+   * them; they read "—" until the trips and payments modules can supply them.
+   */
   const stats = [
-    { label: "RELIABILITY", value: operator.reliability || "4.8", tone: "foreground" },
-    { label: "SAFETY", value: operator.safety || "-", tone: "success" },
-    {
-      label: "RESPONSE SPEED",
-      value: operator.responseSpeed === "Fast" ? "-" : operator.responseSpeed || "-",
-      tone: "destructive",
-    },
-    { label: "TOTAL TRIPS", value: operator.totalTrips || "24", tone: "purple" },
-    { label: "TOTAL PAID", value: operator.totalPaid || "$0", tone: "success" },
+    { label: "RELIABILITY", value: operator.reliability, tone: "foreground" },
+    { label: "SAFETY", value: operator.safety, tone: "success" },
+    { label: "RESPONSE SPEED", value: operator.responseSpeed, tone: "destructive" },
+    { label: "TOTAL TRIPS", value: operator.totalTrips, tone: "purple" },
+    { label: "TOTAL PAID", value: operator.totalPaid, tone: "success" },
   ];
 
   return (
