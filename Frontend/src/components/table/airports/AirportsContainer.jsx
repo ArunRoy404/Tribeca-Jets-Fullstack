@@ -18,6 +18,7 @@ import {
   useAirportsTableParams,
   useRemoveAirports,
   useRestoreAirport,
+  useRestoreAirports,
 } from "@/hooks/airports";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { useAirportsStore } from "@/store/useAirportsStore";
@@ -46,6 +47,7 @@ export default function AirportsContainer({ revealDelay = 0 }) {
   const [selected, setSelected] = useState(() => new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const { mutate: removeMany, isPending: isRemovingMany } = useRemoveAirports();
+  const { mutate: restoreMany, isPending: isRestoringMany } = useRestoreAirports();
   const { mutate: restoreAirport } = useRestoreAirport();
 
   const isArchived = params?.tab === ARCHIVE_TABS.ARCHIVED;
@@ -58,14 +60,18 @@ export default function AirportsContainer({ revealDelay = 0 }) {
     [rows, selected],
   );
 
-  const handleBulkDelete = () => {
+  // The checkbox column is on both tabs, so the bulk action follows the tab:
+  // Remove on the live list, Restore on Archived.
+  const handleBulkAction = () => {
     const ids = selectedRows.map((row) => row?.id).filter(Boolean);
     if (!ids.length) return;
-    removeMany(ids, {
+    const run = isArchived ? restoreMany : removeMany;
+    run(ids, {
       onSuccess: () => {
         setBulkOpen(false);
-        // Clearing matters: the ids are gone, and leaving them selected would
-        // keep the button offering to remove rows that no longer exist.
+        // Clearing matters: those rows have left this tab, and leaving them
+        // selected would keep the button offering to act on rows it no longer
+        // shows.
         setSelected(new Set());
       },
     });
@@ -115,7 +121,7 @@ export default function AirportsContainer({ revealDelay = 0 }) {
           setLimit={params?.setLimit}
           onAddAirport={openAddModal}
           selectedCount={selectedRows.length}
-          onBulkDelete={() => setBulkOpen(true)}
+          onBulkAction={() => setBulkOpen(true)}
           tab={params?.tab}
           setTab={params?.setTab}
         />
@@ -190,9 +196,14 @@ export default function AirportsContainer({ revealDelay = 0 }) {
             secondary: item?.name,
           }))}
           itemLabel="airports"
-          note="These airports will be removed from the list. Trips and itineraries that reference them keep working, and adding one again with the same ICAO restores it."
-          onConfirm={handleBulkDelete}
-          isPending={isRemovingMany}
+          action={isArchived ? "restore" : "remove"}
+          note={
+            isArchived
+              ? "These airports will return to the main list, exactly as they were."
+              : "These airports will be removed from the list. Trips and itineraries that reference them keep working, and you can bring them back from the Archived tab."
+          }
+          onConfirm={handleBulkAction}
+          isPending={isRemovingMany || isRestoringMany}
         />
 
         <AddAirportDialog />

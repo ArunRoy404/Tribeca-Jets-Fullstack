@@ -39,4 +39,8 @@ export const operatorsService = {
   /** POST /operators/bulk-delete — soft-removes several at once. */
   removeMany: (ids) =>
     request({ url: "/operators/bulk-delete", method: "POST", data: { ids } }),
+
+  /** POST /operators/bulk-restore — brings several archived ones back at once. */
+  restoreMany: (ids) =>
+    request({ url: "/operators/bulk-restore", method: "POST", data: { ids } }),
 };

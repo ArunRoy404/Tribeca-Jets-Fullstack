@@ -36,7 +36,7 @@ export default function OperatorsToolbar({
   setLimit,
   onAddOperator,
   selectedCount = 0,
-  onBulkDelete,
+  onBulkAction,
   tab,
   setTab,
 }) {
@@ -83,20 +83,21 @@ export default function OperatorsToolbar({
         <PageSizeSelect value={limit} onChange={setLimit} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {/* Adding and removing are live-tab verbs. On Archived the only
-            action is Restore, which lives on the row. */}
+        {/* The checkbox column is on both tabs, so both get a bulk action —
+            Remove on the live list, Restore on Archived. Leaving Archived with
+            checkboxes and no button was a selection that did nothing. */}
+        <BulkDeleteButton
+          count={selectedCount}
+          itemLabel="operators"
+          onClick={onBulkAction}
+          action={isArchived ? "restore" : "remove"}
+        />
+        {/* Adding is a live-tab verb only. */}
         {isArchived ? null : (
-          <>
-            <BulkDeleteButton
-              count={selectedCount}
-              itemLabel="operators"
-              onClick={onBulkDelete}
-            />
-            <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" onClick={() => onAddOperator?.()}>
-              <Plus className="size-3.5" />
-              <span>Add Operator</span>
-            </Button>
-          </>
+          <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" onClick={() => onAddOperator?.()}>
+            <Plus className="size-3.5" />
+            <span>Add Operator</span>
+          </Button>
         )}
       </div>
       </div>

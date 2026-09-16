@@ -31,7 +31,7 @@ export default function AirportsToolbar({
   setLimit,
   onAddAirport,
   selectedCount = 0,
-  onBulkDelete,
+  onBulkAction,
   tab,
   setTab,
 }) {
@@ -80,13 +80,15 @@ export default function AirportsToolbar({
         <PageSizeSelect value={limit} onChange={setLimit} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {isArchived ? null : (
-          <BulkDeleteButton
-            count={selectedCount}
-            itemLabel="airports"
-            onClick={onBulkDelete}
-          />
-        )}
+        {/* The checkbox column is on both tabs, so both get a bulk action —
+            Remove on the live list, Restore on Archived. Leaving Archived with
+            checkboxes and no button was a selection that did nothing. */}
+        <BulkDeleteButton
+          count={selectedCount}
+          itemLabel="airports"
+          onClick={onBulkAction}
+          action={isArchived ? "restore" : "remove"}
+        />
         {isArchived ? null : <Button
         variant="outline"
         size="sm"

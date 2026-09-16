@@ -20,6 +20,7 @@ import {
   useOperatorsTableParams,
   useRemoveOperators,
   useRestoreOperator,
+  useRestoreOperators,
 } from "@/hooks/operators";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { toOperatorRow } from "@/lib/operator";
@@ -49,6 +50,7 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
   const [selected, setSelected] = useState(() => new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const { mutate: removeMany, isPending: isRemovingMany } = useRemoveOperators();
+  const { mutate: restoreMany, isPending: isRestoringMany } = useRestoreOperators();
   const { mutate: restoreOperator } = useRestoreOperator();
 
   const isArchived = params?.tab === ARCHIVE_TABS.ARCHIVED;
@@ -61,14 +63,19 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
     [rows, selected],
   );
 
-  const handleBulkDelete = () => {
+  // The checkbox column is on both tabs, so the bulk action follows the tab:
+  // Remove on the live list, Restore on Archived. Removing an already-removed
+  // row is the one thing the Archived tab must not offer.
+  const handleBulkAction = () => {
     const ids = selectedRows.map((row) => row?.id).filter(Boolean);
     if (!ids.length) return;
-    removeMany(ids, {
+    const run = isArchived ? restoreMany : removeMany;
+    run(ids, {
       onSuccess: () => {
         setBulkOpen(false);
-        // Clearing matters: the ids are gone, and leaving them selected would
-        // keep the button offering to remove rows that no longer exist.
+        // Clearing matters: those rows have left this tab, and leaving them
+        // selected would keep the button offering to act on rows it no longer
+        // shows.
         setSelected(new Set());
       },
     });
@@ -123,7 +130,7 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
           setLimit={params?.setLimit}
           onAddOperator={openAddModal}
           selectedCount={selectedRows.length}
-          onBulkDelete={() => setBulkOpen(true)}
+          onBulkAction={() => setBulkOpen(true)}
           tab={params?.tab}
           setTab={params?.setTab}
         />
@@ -198,9 +205,14 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
             secondary: item?.homeBase,
           }))}
           itemLabel="operators"
-          note="These operators will be removed from the list. Trips, quotes and payments that reference them keep working."
-          onConfirm={handleBulkDelete}
-          isPending={isRemovingMany}
+          action={isArchived ? "restore" : "remove"}
+          note={
+            isArchived
+              ? "These operators will return to the main list, exactly as they were."
+              : "These operators will be removed from the list. Trips, quotes and payments that reference them keep working."
+          }
+          onConfirm={handleBulkAction}
+          isPending={isRemovingMany || isRestoringMany}
         />
 
         <AddOperatorDialog />

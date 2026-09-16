@@ -56,4 +56,8 @@ export const airportsService = {
    */
   removeMany: (ids) =>
     request({ url: "/airports/bulk-delete", method: "POST", data: { ids } }),
+
+  /** POST /airports/bulk-restore — brings several archived ones back at once. */
+  restoreMany: (ids) =>
+    request({ url: "/airports/bulk-restore", method: "POST", data: { ids } }),
 };

@@ -12,5 +12,6 @@ export { useCreateAirport } from "./useCreateAirport";
 export { useUpdateAirport } from "./useUpdateAirport";
 export { useRemoveAirport } from "./useRemoveAirport";
 export { useRemoveAirports } from "./useRemoveAirports";
+export { useRestoreAirports } from "./useRestoreAirports";
 export { useRestoreAirport } from "./useRestoreAirport";
 export { useAirportsTableParams } from "./useAirportsTableParams";

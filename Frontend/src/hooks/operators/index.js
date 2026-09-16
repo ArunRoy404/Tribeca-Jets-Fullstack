@@ -10,5 +10,6 @@ export { useCreateOperator } from "./useCreateOperator";
 export { useUpdateOperator } from "./useUpdateOperator";
 export { useRemoveOperator } from "./useRemoveOperator";
 export { useRemoveOperators } from "./useRemoveOperators";
+export { useRestoreOperators } from "./useRestoreOperators";
 export { useRestoreOperator } from "./useRestoreOperator";
 export { useOperatorsTableParams } from "./useOperatorsTableParams";
