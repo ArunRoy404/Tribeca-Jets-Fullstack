@@ -25,8 +25,9 @@ export const queryKeys = {
 
   clients: {
     all: ["clients"],
-    list: (filters) => ["clients", "list", filters ?? {}],
+    list: (params) => ["clients", "list", params ?? {}],
     detail: (id) => ["clients", "detail", id],
+    stats: ["clients", "stats"],
   },
 
   airports: {
