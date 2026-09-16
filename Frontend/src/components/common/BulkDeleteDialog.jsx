@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, X } from "lucide-react";
+import { Trash2, RotateCcw, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,12 @@ import { Button } from "@/components/ui/button";
  * Shared across modules: it takes already-labelled items rather than records,
  * so each table decides what its own primary and secondary lines say.
  *
+ * `action` switches it between the live tab's Remove and the Archived tab's
+ * Restore — same listing, same confirmation, different verb. It defaults to
+ * "remove", so existing callers are untouched.
+ *
  * @param items `[{ id, primary, secondary? }]` — what to list.
+ * @param action `"remove" | "restore"`
  */
 export default function BulkDeleteDialog({
   open,
@@ -31,26 +36,38 @@ export default function BulkDeleteDialog({
   onConfirm,
   isPending = false,
   note,
+  action = "remove",
 }) {
   const count = items.length;
   const noun = count === 1 ? itemLabel.replace(/s$/, "") : itemLabel;
+  const restoring = action === "restore";
+  const Icon = restoring ? RotateCcw : Trash2;
+  const verb = restoring ? "Restore" : "Remove";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-130 p-6 flex flex-col gap-4">
         <DialogHeader className="flex flex-col items-start gap-3 w-full">
           <div className="flex items-center gap-3.5 w-full">
-            <div className="size-10 rounded-full bg-destructive/10 border border-destructive/30 text-destructive flex items-center justify-center shrink-0">
-              <Trash2 className="size-4.5" />
+            <div
+              className={
+                restoring
+                  ? "size-10 rounded-full bg-purple/10 border border-purple/30 text-purple flex items-center justify-center shrink-0"
+                  : "size-10 rounded-full bg-destructive/10 border border-destructive/30 text-destructive flex items-center justify-center shrink-0"
+              }
+            >
+              <Icon className="size-4.5" />
             </div>
             <DialogTitle className="font-montserrat font-bold text-[18px] text-foreground text-left">
-              Remove {count} {noun}?
+              {verb} {count} {noun}?
             </DialogTitle>
           </div>
 
           <DialogDescription className="font-montserrat text-[14px] text-muted-foreground text-left leading-relaxed pt-1">
             {note ??
-              `These ${noun} will be removed from the list. Records that reference them keep working.`}
+              (restoring
+                ? `These ${noun} will be returned to the main list, exactly as they were.`
+                : `These ${noun} will be removed from the list. Records that reference them keep working.`)}
           </DialogDescription>
         </DialogHeader>
 
@@ -86,13 +103,17 @@ export default function BulkDeleteDialog({
           </Button>
           <Button
             type="button"
-            variant="destructive"
+            variant={restoring ? "default" : "destructive"}
             className="gap-1.5 px-5 h-10 font-medium text-[13px]"
             onClick={onConfirm}
             disabled={isPending || count === 0}
           >
-            <Trash2 className="size-4" />
-            {isPending ? "Removing…" : `Remove ${count}`}
+            <Icon className="size-4" />
+            {isPending
+              ? restoring
+                ? "Restoring…"
+                : "Removing…"
+              : `${verb} ${count}`}
           </Button>
         </div>
       </DialogContent>
