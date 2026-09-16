@@ -14,6 +14,12 @@ Every screen listed below already exists in the frontend. "Not started" here
 means *not wired to an API* — the screen renders from a file in
 `src/dummyData/`. Finishing a module means deleting that file.
 
+> **Looking for what actually works right now?** That lives in
+> [MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md) — per module, the
+> features wired end to end today, and the ones deliberately left blank until
+> the module they depend on ships. This file explains what each module *is*;
+> that one tracks state.
+
 ---
 
 ## The order

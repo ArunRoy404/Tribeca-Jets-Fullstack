@@ -182,6 +182,15 @@ Judge by durability, not by emphasis. "Make the button blue" is a task. "Status
 is never changed by a password reset" is a rule. When it is genuinely one task,
 leave these files alone — a document that records everything is not read.
 
+**`docs/MODULE_FEATURE_STATUS.md` is updated in the same pass as every module.**
+It lists, per module, what is wired end to end and what is deliberately blank
+until its dependency ships. Two edits every time a module lands: fill in the new
+module's own two lists, **and go back through the modules that were waiting on
+it** and move those lines from "waiting" to "working". That second edit is the
+same second pass the build-order rule already requires — this file is where it
+becomes visible, so a stale entry here means a dependant screen is still
+rendering an em dash it no longer needs to.
+
 ## Communication
 
 - Report what is actually true: if a check was skipped, say so; if tests fail, show the output.
