@@ -307,7 +307,10 @@ export class OperatorsService {
 
     await this.prisma.operator.update({
       where: { id },
-      data: { deletedAt: new Date(), updatedById: actor.id },
+      // `archiveData`, not a hand-written `deletedAt`: writing the stamp
+      // directly skipped `deletedById`, so the Archived tab's "Removed By"
+      // column rendered an em dash for every operator removed this way.
+      data: { ...archiveData(actor.id), updatedById: actor.id },
     });
 
     await this.audit.record({
