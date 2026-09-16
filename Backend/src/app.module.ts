@@ -13,6 +13,7 @@ import { ClientsModule } from './modules/clients/clients.module.js';
 import { AirportsModule } from './modules/airports/airports.module.js';
 import { OperatorsModule } from './modules/operators/operators.module.js';
 import { AircraftModule } from './modules/aircraft/aircraft.module.js';
+import { TripRequestsModule } from './modules/trip-requests/trip-requests.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -45,6 +46,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     AirportsModule,
     OperatorsModule,
     AircraftModule,
+    TripRequestsModule,
   ],
   providers: [
     /**

@@ -8,6 +8,9 @@ import {
   OperatorStatus,
   AircraftCategory,
   AircraftStatus,
+  ClientPriority,
+  FollowUpMethod,
+  TripRequestStatus,
   UserRole,
   UserStatus,
 } from '../src/generated/prisma/enums.js';
@@ -176,7 +179,7 @@ async function main(): Promise<void> {
       lastName: 'Chen',
       email: 'marcus.chen@example.com',
       type: ClientType.DIRECT,
-      leadStage: LeadStage.BOOKED,
+      leadStage: LeadStage.WON,
       leadSource: LeadSource.REFERRAL,
       homeAirportIcao: 'KTEB',
       assignedBrokerId: broker.id,
@@ -311,6 +314,62 @@ async function main(): Promise<void> {
     });
   }
 
+  // Trip requests come last: `clientId` and both airport ids are real foreign
+  // keys, so every row they point at has to exist first.
+  //
+  // These are enquiries against seeded clients — the second half of the Add
+  // Lead form, which files a person and what they asked for as two records.
+  const day = (offset: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    return date.toISOString().slice(0, 10);
+  };
+
+  const requests = [
+    { clientEmail: 'marcus.chen@example.com', originIcao: 'KTEB', destinationIcao: 'KMIA', departure: day(14), returnDate: day(17), passengers: 4, aircraftPreference: AircraftCategory.HEAVY_JET, estimatedValue: '28000.00', status: TripRequestStatus.QUOTED, source: LeadSource.DIRECT, summary: 'NYC → Miami, business charter', requirements: 'Catering and ground transport at both ends.' },
+    { clientEmail: 'marcus.chen@example.com', originIcao: 'KMIA', destinationIcao: 'KASE', departure: day(46), returnDate: null, passengers: 6, aircraftPreference: AircraftCategory.SUPER_MIDSIZE, estimatedValue: '41500.00', status: TripRequestStatus.OPEN, source: LeadSource.REFERRAL, summary: 'Miami → Aspen, ski week', requirements: 'Ski equipment, six sets.' },
+  ];
+
+  for (const { clientEmail, originIcao, destinationIcao, departure, returnDate, ...fields } of requests) {
+    const client = await prisma.client.findFirst({
+      where: { email: clientEmail },
+      select: { id: true, assignedBrokerId: true },
+    });
+    if (!client) continue;
+
+    const existing = await prisma.tripRequest.findFirst({
+      where: { clientId: client.id, summary: fields.summary },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    const [origin, destination] = await Promise.all([
+      prisma.airport.findUnique({ where: { icao: originIcao }, select: { id: true } }),
+      prisma.airport.findUnique({ where: { icao: destinationIcao }, select: { id: true } }),
+    ]);
+
+    await prisma.tripRequest.create({
+      data: {
+        ...fields,
+        clientId: client.id,
+        assignedBrokerId: client.assignedBrokerId,
+        originAirportId: origin?.id ?? null,
+        destinationAirportId: destination?.id ?? null,
+        departureDate: new Date(`${departure}T00:00:00.000Z`),
+        returnDate: returnDate ? new Date(`${returnDate}T00:00:00.000Z`) : null,
+        createdById: admin.id,
+        updatedById: admin.id,
+      },
+    });
+  }
+
+  // Lead-desk settings on the seeded brokers, so the Agents roster has a cap
+  // to measure workload against rather than inventing one.
+  await prisma.user.update({
+    where: { id: broker.id },
+    data: { maxActiveLeads: 15, defaultFollowUpMethod: FollowUpMethod.CALL },
+  });
+
   console.log('Seed complete.');
   console.log('  admin@tribecajets.com  / ChangeMe123!  (SUPER_ADMIN)');
   console.log('  broker@tribecajets.com / ChangeMe123!  (BROKER)');
@@ -320,7 +379,7 @@ async function main(): Promise<void> {
   console.log('  assistant@tribecajets.com / ChangeMe123!  (ASSISTANT)');
   console.log('  + barry / mark (BROKER, active), tom (SUSPENDED), newhire (INVITED)');
   console.log(
-    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft`,
+    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests`,
   );
 }
 

@@ -45,6 +45,10 @@ model Airport {
   /// archiving an airport must never remove an airframe.
   basedAircraft Aircraft[] @relation("AircraftHomeBase")
 
+  /// Enquiries routing through here, in each direction.
+  originRequests      TripRequest[] @relation("TripRequestOrigin")
+  destinationRequests TripRequest[] @relation("TripRequestDestination")
+
   // ---- Audit trail (every model carries these four) ------------------------
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

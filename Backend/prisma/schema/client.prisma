@@ -31,6 +31,11 @@ model Client {
   homeAirportId String?  @db.Uuid
   homeAirport   Airport? @relation("ClientHomeAirport", fields: [homeAirportId], references: [id], onDelete: SetNull)
 
+  /// What this client has asked for. Restrict on the other side: an enquiry
+  /// without a client cannot be followed up, so a client with live requests
+  /// cannot be hard-deleted — and nothing in this system hard-deletes anyway.
+  tripRequests TripRequest[] @relation("TripRequestClient")
+
   leadSource LeadSource @default(DIRECT)
   leadStage  LeadStage  @default(NEW)
 
@@ -52,6 +57,16 @@ model Client {
   /// Due Today / Overdue / Upcoming filter and the follow-up dialog.
   /// When the Tasks module lands it should read these rather than replace
   /// them — a follow-up is a property of the relationship, not a side table.
+  /// How urgently the desk is working this lead. Separate from `leadStage`,
+  /// which says where they are in the funnel: a brand-new enquiry can be the
+  /// most important thing on the desk, and a long-negotiated one routine.
+  priority ClientPriority @default(MEDIUM)
+
+  /// How the next follow-up should happen. The desk works some clients by
+  /// WhatsApp and others only by phone, and getting it wrong wastes the
+  /// contact.
+  followUpMethod FollowUpMethod?
+
   nextFollowUpAt DateTime?
   followUpNote   String?
 
@@ -117,11 +132,33 @@ enum LeadSource {
   OTHER
 }
 
+/// The sales funnel, as the Leads screen draws it.
+///
+/// Was NEW/CONTACTED/QUOTED/NEGOTIATING/BOOKED/LOST, which did not match the
+/// UI the desk actually uses. The frontend is the specification here, so
+/// NEGOTIATING became PROPOSAL and BOOKED became WON, and the two missing
+/// steps were added. See the migration for how existing rows were mapped.
 enum LeadStage {
   NEW
   CONTACTED
+  QUALIFIED
+  PROPOSAL
   QUOTED
-  NEGOTIATING
-  BOOKED
+  WON
   LOST
+}
+
+enum ClientPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// How the desk reaches someone. WhatsApp is first-class here because the
+/// scope calls for it throughout.
+enum FollowUpMethod {
+  CALL
+  EMAIL
+  WHATSAPP
+  SMS
 }
