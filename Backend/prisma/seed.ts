@@ -6,6 +6,8 @@ import {
   LeadSource,
   LeadStage,
   OperatorStatus,
+  AircraftCategory,
+  AircraftStatus,
   UserRole,
   UserStatus,
 } from '../src/generated/prisma/enums.js';
@@ -265,6 +267,50 @@ async function main(): Promise<void> {
     }
   }
 
+  // Aircraft come last: `operatorId` and `homeBaseId` are real foreign keys,
+  // so both rows they point at have to exist first. Each tail below is a real
+  // airframe on a real operator's certificate, and every specification is that
+  // type's published figure — a seeded number is still a number someone will
+  // read off the screen and quote against.
+  const aircraft = [
+    { tailNumber: 'N780EX', model: 'Gulfstream G550', manufacturer: 'Gulfstream Aerospace', category: AircraftCategory.HEAVY_JET, status: AircraftStatus.AVAILABLE, operatorName: 'ExecuJet', homeBaseIcao: 'KTEB', maxPassengers: 14, rangeNm: 6750, yearBuilt: 2019, maxSpeed: 'Mach 0.885', cruiseSpeed: 'Mach 0.80', serviceCeilingFt: 51000, baggageCapacityCuFt: 226, cabinLengthFt: 50.1, maxTakeoffWeightLb: 91000, emptyWeightLb: 48300, fuelCapacityGal: 6325, takeoffDistanceFt: 5910, landingDistanceFt: 2770, amenities: ['WiFi', 'Satellite Phone', 'Full Galley', 'Private Lavatory', 'Lie-flat Seats', 'Entertainment System', 'Power Outlets'], notes: 'Gogo ATG-5000 WiFi. Premium interior configuration.' },
+    { tailNumber: 'N785EX', model: 'Global 7500', manufacturer: 'Bombardier Aviation', category: AircraftCategory.ULTRA_LONG_RANGE, status: AircraftStatus.AVAILABLE, operatorName: 'FlexJet', homeBaseIcao: 'KTEB', maxPassengers: 14, rangeNm: 7700, yearBuilt: 2021, maxSpeed: 'Mach 0.925', cruiseSpeed: 'Mach 0.85', serviceCeilingFt: 51000, baggageCapacityCuFt: 195, cabinLengthFt: 54.4, maxTakeoffWeightLb: 114850, emptyWeightLb: 63000, fuelCapacityGal: 7500, takeoffDistanceFt: 5800, landingDistanceFt: 2520, amenities: ['Ka-band WiFi', 'Satellite Phone', 'Full Galley', 'Private Lavatory', 'Master Suite', 'Power Outlets'], notes: 'Four living zones. Flagship ultra-long-range tail.' },
+    { tailNumber: 'N680EX', model: 'Challenger 350', manufacturer: 'Bombardier Aviation', category: AircraftCategory.SUPER_MIDSIZE, status: AircraftStatus.IN_SERVICE, operatorName: 'FlexJet', homeBaseIcao: 'KVNY', maxPassengers: 9, rangeNm: 3200, yearBuilt: 2020, maxSpeed: 'Mach 0.83', cruiseSpeed: 'Mach 0.80', serviceCeilingFt: 45000, baggageCapacityCuFt: 106, cabinLengthFt: 25.2, maxTakeoffWeightLb: 40600, emptyWeightLb: 23200, fuelCapacityGal: 2100, takeoffDistanceFt: 4835, landingDistanceFt: 2364, amenities: ['WiFi', 'Full Galley', 'Private Lavatory', 'Power Outlets'], notes: 'Coast-to-coast US capability.' },
+    { tailNumber: 'N600VJ', model: 'Global 6000', manufacturer: 'Bombardier Aviation', category: AircraftCategory.ULTRA_LONG_RANGE, status: AircraftStatus.AVAILABLE, operatorName: 'VistaJet', homeBaseIcao: 'EGLL', maxPassengers: 13, rangeNm: 6000, yearBuilt: 2018, maxSpeed: 'Mach 0.89', cruiseSpeed: 'Mach 0.85', serviceCeilingFt: 51000, baggageCapacityCuFt: 195, cabinLengthFt: 43.3, maxTakeoffWeightLb: 99500, emptyWeightLb: 56000, fuelCapacityGal: 6600, takeoffDistanceFt: 6476, landingDistanceFt: 2670, amenities: ['WiFi', 'Full Galley', 'Private Lavatory', 'Lie-flat Seats'], notes: 'Silver and red stripe livery. Transatlantic workhorse.' },
+    { tailNumber: 'N421NJ', model: 'Citation Latitude', manufacturer: 'Textron Aviation', category: AircraftCategory.MIDSIZE_JET, status: AircraftStatus.MAINTENANCE, operatorName: 'NetJets', homeBaseIcao: 'KPBI', maxPassengers: 9, rangeNm: 2700, yearBuilt: 2022, maxSpeed: 'Mach 0.80', cruiseSpeed: 'Mach 0.72', serviceCeilingFt: 45000, baggageCapacityCuFt: 100, cabinLengthFt: 21.9, maxTakeoffWeightLb: 30800, emptyWeightLb: 18800, fuelCapacityGal: 1600, takeoffDistanceFt: 3580, landingDistanceFt: 2480, amenities: ['WiFi', 'Refreshment Centre', 'Private Lavatory', 'Power Outlets'], notes: 'Flat-floor cabin. Popular for short Florida hops.' },
+    // One TURBOPROP and one INACTIVE tail, so the category and status filters
+    // both have something to exclude.
+    { tailNumber: 'N208CL', model: 'Pilatus PC-12 NGX', manufacturer: 'Pilatus Aircraft', category: AircraftCategory.TURBOPROP, status: AircraftStatus.AVAILABLE, operatorName: 'Clay Lacy Aviation', homeBaseIcao: 'KASE', maxPassengers: 8, rangeNm: 1803, yearBuilt: 2021, maxSpeed: '290 KTAS', cruiseSpeed: '270 KTAS', serviceCeilingFt: 30000, baggageCapacityCuFt: 40, cabinLengthFt: 16.9, maxTakeoffWeightLb: 10450, emptyWeightLb: 6600, fuelCapacityGal: 402, takeoffDistanceFt: 2600, landingDistanceFt: 2170, amenities: ['Power Outlets', 'Refreshment Centre'], notes: 'Short-field capable. The only tail that can work KASE in winter.' },
+    { tailNumber: 'N750CL', model: 'Citation X', manufacturer: 'Textron Aviation', category: AircraftCategory.SUPER_MIDSIZE, status: AircraftStatus.INACTIVE, operatorName: 'Clay Lacy Aviation', homeBaseIcao: 'KVNY', maxPassengers: 8, rangeNm: 3070, yearBuilt: 2012, maxSpeed: 'Mach 0.935', cruiseSpeed: 'Mach 0.85', serviceCeilingFt: 51000, baggageCapacityCuFt: 82, cabinLengthFt: 25.2, maxTakeoffWeightLb: 36600, emptyWeightLb: 22100, fuelCapacityGal: 1926, takeoffDistanceFt: 5140, landingDistanceFt: 3180, amenities: ['Power Outlets'], notes: 'Withdrawn from charter when the West Coast desk moved to NetJets.' },
+  ];
+
+  for (const { operatorName, homeBaseIcao, ...tail } of aircraft) {
+    const existing = await prisma.aircraft.findUnique({
+      where: { tailNumber: tail.tailNumber },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    const operator = await prisma.operator.findFirst({
+      where: { name: operatorName },
+      select: { id: true },
+    });
+    const homeBase = await prisma.airport.findUnique({
+      where: { icao: homeBaseIcao },
+      select: { id: true },
+    });
+
+    await prisma.aircraft.create({
+      data: {
+        ...tail,
+        operatorId: operator?.id ?? null,
+        homeBaseId: homeBase?.id ?? null,
+        createdById: admin.id,
+        updatedById: admin.id,
+      },
+    });
+  }
+
   console.log('Seed complete.');
   console.log('  admin@tribecajets.com  / ChangeMe123!  (SUPER_ADMIN)');
   console.log('  broker@tribecajets.com / ChangeMe123!  (BROKER)');
@@ -273,7 +319,9 @@ async function main(): Promise<void> {
   console.log('  senior@tribecajets.com / ChangeMe123!  (SENIOR_BROKER)');
   console.log('  assistant@tribecajets.com / ChangeMe123!  (ASSISTANT)');
   console.log('  + barry / mark (BROKER, active), tom (SUSPENDED), newhire (INVITED)');
-  console.log(`  ${airports.length} airports, ${operators.length} operators`);
+  console.log(
+    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft`,
+  );
 }
 
 main()

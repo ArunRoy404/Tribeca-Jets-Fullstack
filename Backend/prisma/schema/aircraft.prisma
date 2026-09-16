@@ -1,0 +1,149 @@
+/// The individual airframes the desk quotes and books.
+///
+/// An aircraft belongs to an Operator (who holds the certificate and actually
+/// flies it) and is usually based at an Airport. Quotes, trips, empty legs and
+/// flight tracking all reference this table, which is why both of its
+/// dependencies had to ship first — see AGENTS.md on build order.
+model Aircraft {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The registration, and the identifier the desk actually uses ("N780EX").
+  /// Unique and upper-cased on the way in for the same reason as an airport's
+  /// ICAO: `n780ex` and `N780EX` are one airframe, and two rows for one tail
+  /// would split its trip history in half.
+  tailNumber String @unique @db.VarChar(12)
+
+  /// What the desk calls it ("Gulfstream G550") and who built it
+  /// ("Gulfstream Aerospace"). Kept as two fields because the quote sheet
+  /// names the model alone while the specification sheet names both.
+  model        String
+  manufacturer String?
+
+  category AircraftCategory
+  status   AircraftStatus   @default(AVAILABLE)
+
+  /// The operator who holds the certificate. Nullable because the Add form
+  /// offers "Unassigned": an airframe is often catalogued from a sourcing
+  /// conversation before the operating company is confirmed.
+  operatorId String?   @db.Uuid
+  operator   Operator? @relation("AircraftOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+
+  /// Where it sits when it is not flying. A real Airport relation rather than
+  /// the free text the screen used to hold, so positioning legs can be priced
+  /// from it once trips exist.
+  homeBaseId String?  @db.Uuid
+  homeBase   Airport? @relation("AircraftHomeBase", fields: [homeBaseId], references: [id], onDelete: SetNull)
+
+  /// Seats available to passengers, not the certified seating count — the
+  /// number the broker quotes against.
+  maxPassengers Int?
+  /// Still-air range in nautical miles.
+  rangeNm       Int?
+  /// Year of manufacture. Not a date: the airframe's age is quoted in years
+  /// and no one records the day it rolled out.
+  yearBuilt     Int?
+
+  // ---- Performance and dimensions (the Specifications tab) ----------------
+
+  /// Speeds stay free text ("Mach 0.885", "310 KTAS") because the industry
+  /// quotes jets in Mach and turboprops in knots. One numeric column cannot
+  /// hold both without a second column saying which unit it is in, and a
+  /// number rendered under the wrong unit is worse than the string itself.
+  /// Everything below this pair has a single settled unit, so it is numeric.
+  maxSpeed    String?
+  cruiseSpeed String?
+
+  serviceCeilingFt    Int?
+  baggageCapacityCuFt Int?
+  /// Feet, to one decimal — cabins are quoted as "50.1 ft".
+  cabinLengthFt       Decimal? @db.Decimal(5, 1)
+  maxTakeoffWeightLb  Int?
+  emptyWeightLb       Int?
+  fuelCapacityGal     Int?
+  takeoffDistanceFt   Int?
+  landingDistanceFt   Int?
+
+  /// Cabin features shown as chips ("WiFi", "Full Galley", "Lie-flat Seats").
+  /// A string array rather than a lookup table: the desk types whatever the
+  /// operator's spec sheet says, and no screen filters or reports on them.
+  amenities String[] @default([])
+
+  // ---- Maintenance --------------------------------------------------------
+
+  /// Three dates, because the Maintenance tab shows exactly three rows and
+  /// nothing writes a fourth. A maintenance-log table would be a module that
+  /// does not exist yet; when inspections need their own history, these become
+  /// the most recent row of that table.
+  ///
+  /// `@db.Date` rather than a timestamp: an inspection happened on a day, and
+  /// storing midnight UTC makes it render as the day before for anyone west of
+  /// Greenwich.
+  ///
+  /// The tab labels these "100-Hour" and "Annual"; the column names avoid the
+  /// interval so a fleet on a different programme still fits. Their Completed
+  /// / Scheduled / Overdue badge is derived from the date, never stored.
+  lastInspectionAt    DateTime? @db.Date
+  lastAnnualAt        DateTime? @db.Date
+  nextInspectionDueAt DateTime? @db.Date
+
+  /// What the desk needs to remember when quoting this tail.
+  notes String?
+
+  // ---- Audit trail (every model carries these four) ------------------------
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("AircraftCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("AircraftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  /// ---- Archive trail ------------------------------------------------------
+  /// Soft delete is the only delete: nothing in this system is destroyed, so
+  /// these three answer "who archived this, and did anyone bring it back".
+  ///
+  /// `restoredAt` survives a later archive on purpose — the columns hold the
+  /// most recent event of each kind, and the full back-and-forth lives in the
+  /// audit log rather than in a widening set of columns.
+  deletedAt   DateTime?
+  deletedById String?   @db.Uuid
+  deletedBy   User?     @relation("AircraftDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("AircraftRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@index([category, deletedAt])
+  /// The operator detail page's Fleet tab reads by operator, and the aircraft
+  /// table filters by it.
+  @@index([operatorId])
+  @@index([homeBaseId])
+  @@map("aircraft")
+}
+
+/// The size classes the desk quotes in. These are commercial categories rather
+/// than a certification standard — they decide which airframes answer a
+/// request, so they match the Add form's dropdown exactly.
+enum AircraftCategory {
+  TURBOPROP
+  LIGHT_JET
+  MIDSIZE_JET
+  SUPER_MIDSIZE
+  HEAVY_JET
+  ULTRA_LONG_RANGE
+  VIP_AIRLINER
+}
+
+/// Availability, not airworthiness.
+///
+/// AVAILABLE is quotable; IN_SERVICE is on a trip right now; MAINTENANCE is
+/// down and must not be quoted; INACTIVE has left the fleet without being
+/// archived — a tail the operator no longer offers but whose history the desk
+/// still needs.
+enum AircraftStatus {
+  AVAILABLE
+  IN_SERVICE
+  MAINTENANCE
+  INACTIVE
+}

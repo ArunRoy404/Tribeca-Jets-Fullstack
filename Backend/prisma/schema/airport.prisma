@@ -41,6 +41,10 @@ model Airport {
   /// archiving an airport never removes a client.
   homeClients Client[] @relation("ClientHomeAirport")
 
+  /// Aircraft based here. SetNull on the other side for the same reason:
+  /// archiving an airport must never remove an airframe.
+  basedAircraft Aircraft[] @relation("AircraftHomeBase")
+
   // ---- Audit trail (every model carries these four) ------------------------
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

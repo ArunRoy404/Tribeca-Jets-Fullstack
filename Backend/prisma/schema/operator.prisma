@@ -28,20 +28,26 @@ model Operator {
   /// Fleet summary ("Global 7500", "Challenger 350") and the routes they serve
   /// ("KTEB ↔ KMIA"), both shown as chips on the operator card.
   ///
-  /// Denormalised on purpose while Aircraft does not exist. Once it does,
-  /// `aircraftTypes` should be derived from the fleet rather than typed twice —
-  /// it is a summary of other rows, not a fact of its own.
+  /// `aircraftTypes` is now a second record of what `fleet` below already
+  /// knows. It is kept because an operator can be catalogued before a single
+  /// tail of theirs is, and the sourcing note "they fly Globals" is useful
+  /// before any airframe exists to prove it. Where the two disagree, `fleet`
+  /// is the fact and this is the claim.
   aircraftTypes String[] @default([])
   serviceRoutes String[] @default([])
+
+  /// The airframes they operate. SetNull on the other side, so archiving an
+  /// operator never removes an aircraft — it only unassigns it.
+  fleet Aircraft[] @relation("AircraftOperator")
 
   /// Out of 5, one decimal, as the operator card renders it (4.8).
   reliabilityRating Float?
   /// A certification, not a number: "ARG/US Platinum", "Wyvern Wingman",
   /// "IS-BAO Stage 3". Free text because the issuing bodies and their tiers
   /// change independently of this product.
-  safetyRating   String?
+  safetyRating      String?
   /// Typical quote turnaround, as the desk describes it ("< 15 min").
-  responseSpeed  String?
+  responseSpeed     String?
 
   cancellationPolicy String?
   /// "Net 30", "Due upon receipt".

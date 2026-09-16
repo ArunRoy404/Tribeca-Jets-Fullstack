@@ -38,6 +38,8 @@ model User {
   updatedAirports  Airport[]  @relation("AirportUpdatedBy")
   createdOperators Operator[] @relation("OperatorCreatedBy")
   updatedOperators Operator[] @relation("OperatorUpdatedBy")
+  createdAircraft  Aircraft[] @relation("AircraftCreatedBy")
+  updatedAircraft  Aircraft[] @relation("AircraftUpdatedBy")
 
   /// Who archived a record, and who brought it back. Separate from created/
   /// updated because "removed this" is the one mutation those two never
@@ -48,6 +50,8 @@ model User {
   restoredAirports  Airport[]  @relation("AirportRestoredBy")
   deletedOperators  Operator[] @relation("OperatorDeletedBy")
   restoredOperators Operator[] @relation("OperatorRestoredBy")
+  deletedAircraft   Aircraft[] @relation("AircraftDeletedBy")
+  restoredAircraft  Aircraft[] @relation("AircraftRestoredBy")
 
   // ---- Audit trail (every model carries these four) ------------------------
   //
