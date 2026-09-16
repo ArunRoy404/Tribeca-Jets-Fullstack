@@ -8,29 +8,21 @@ import { Button } from "@/components/ui/button";
 export default function ClientDetailSidebar({ client, onEditNotes }) {
   if (!client) return null;
 
-  // Real API fields with hardcoded preview fallbacks matching Figma
-  const email = client.email && client.email !== "—" ? client.email : "hope.sterling@sterlinggroup.com";
-  const phone = client.phone && client.phone !== "—" ? client.phone : "+1 (212) 555-0184";
-  const company = client.company && client.company !== "—" ? client.company : "Sterling Group";
-  const type = client.type && client.type !== "—" ? client.type : "Direct";
-  const leadSource = client.leadSource && client.leadSource !== "—" ? client.leadSource : "Referral";
-  const broker = client.broker && client.broker !== "Unassigned" ? client.broker : "Barry";
-  const added = client.addedLabel && client.addedLabel !== "—" ? client.addedLabel : "Jan 2026";
+  // Real client API fields with honest fallbacks when data is not on file
+  const email = client.email || "—";
+  const phone = client.phone || "—";
+  const company = client.company || "—";
+  const type = client.type || "—";
+  const leadSource = client.leadSource || "—";
+  const broker = client.broker || "Unassigned";
+  const added = client.addedLabel || "—";
 
-  const homeAirport = client.homeAirport && client.homeAirport !== "—" ? client.homeAirport : "KTEB";
-  const preferredAirports = (client.preferences?.preferredAirports ?? []).length
-    ? client.preferences.preferredAirports
-    : ["KTEB", "KMIA"];
-  const preferredRoutes = (client.preferences?.preferredRoutes ?? []).length
-    ? client.preferences.preferredRoutes
-    : ["KTEB → KMIA"];
-  const preferredAircraft = (client.preferences?.preferredAircraft ?? []).length
-    ? client.preferences.preferredAircraft
-    : ["Gulfstream G550", "Global 6000"];
+  const homeAirport = client.homeAirport && client.homeAirport !== "—" ? client.homeAirport : null;
+  const preferredAirports = client.preferences?.preferredAirports ?? [];
+  const preferredRoutes = client.preferences?.preferredRoutes ?? [];
+  const preferredAircraft = client.preferences?.preferredAircraft ?? [];
 
-  const notes =
-    client.notes ||
-    "Hope prefers morning departures. Always book catering — seafood preferred. Send itinerary PDF 48 hours prior. Strongly prefers ExecuJet as operator. Birthday: March 14.";
+  const notes = client.notes || "No internal notes on file.";
 
   return (
     <div className="flex flex-col gap-5 w-full lg:w-80 shrink-0">
@@ -58,39 +50,51 @@ export default function ClientDetailSidebar({ client, onEditNotes }) {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Home Airport</span>
-            <Badge tone="secondary" className="w-fit font-bold text-[11px] px-2.5 py-0.5">
-              {homeAirport}
-            </Badge>
+            {homeAirport ? (
+              <Badge tone="secondary" className="w-fit font-bold text-[11px] px-2.5 py-0.5">
+                {homeAirport}
+              </Badge>
+            ) : (
+              <span className="font-montserrat text-[12px] text-muted-foreground">—</span>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Preferred Airports</span>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {preferredAirports.map((ap) => (
-                <Badge key={ap} tone="secondary" className="font-bold text-[11px] px-2.5 py-0.5">
-                  {ap}
-                </Badge>
-              ))}
-            </div>
+            {preferredAirports.length > 0 ? (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {preferredAirports.map((ap) => (
+                  <Badge key={ap} tone="secondary" className="font-bold text-[11px] px-2.5 py-0.5">
+                    {ap}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="font-montserrat text-[12px] text-muted-foreground">—</span>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Preferred Routes</span>
             <div className="font-montserrat font-bold text-[12px] text-foreground">
-              {preferredRoutes.join(", ")}
+              {preferredRoutes.length > 0 ? preferredRoutes.join(", ") : "—"}
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Preferred Aircraft</span>
-            <div className="flex flex-col gap-1 text-[12px] font-montserrat">
-              {preferredAircraft.map((ac) => (
-                <div key={ac} className="flex items-center gap-1.5 text-muted-foreground">
-                  <Plane className="size-3.5 text-purple shrink-0" />
-                  <span className="font-medium text-foreground">{ac}</span>
-                </div>
-              ))}
-            </div>
+            {preferredAircraft.length > 0 ? (
+              <div className="flex flex-col gap-1 text-[12px] font-montserrat">
+                {preferredAircraft.map((ac) => (
+                  <div key={ac} className="flex items-center gap-1.5 text-muted-foreground">
+                    <Plane className="size-3.5 text-purple shrink-0" />
+                    <span className="font-medium text-foreground">{ac}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span className="font-montserrat text-[12px] text-muted-foreground">—</span>
+            )}
           </div>
         </div>
       </div>
