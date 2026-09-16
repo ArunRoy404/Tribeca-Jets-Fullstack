@@ -13,9 +13,13 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { Roles } from '../../common/decorators/roles.decorator.js';
+import {
+  RequirePermissions,
+  RequireWritePermissions,
+} from '../../common/decorators/permissions.decorator.js';
+import { Permission } from '../../common/authorization/permissions.js';
+import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
-import { UserRole } from '../../generated/prisma/enums.js';
 import { ClientsService } from './clients.service.js';
 import {
   CreateClientDto,
@@ -29,6 +33,7 @@ export class ClientsController {
   constructor(private readonly clients: ClientsService) {}
 
   @Get()
+  @RequirePermissions(Permission.VIEW_CLIENTS)
   @ApiOperation({
     summary: 'List clients and travel agents',
     description: 'Brokers receive only the clients assigned to them.',
@@ -40,7 +45,19 @@ export class ClientsController {
     return this.clients.findAll(user, query);
   }
 
+  @Get('stats')
+  @RequirePermissions(Permission.VIEW_CLIENTS)
+  @ApiOperation({
+    summary: 'Client tiles',
+    description:
+      "Totals for the cards above the table, scoped exactly like the list — a broker's tiles count their own book, never the company's.",
+  })
+  stats(@CurrentUser() user: AuthenticatedUser) {
+    return this.clients.stats(user);
+  }
+
   @Get(':id')
+  @RequirePermissions(Permission.VIEW_CLIENTS)
   @ApiOperation({ summary: 'Get one client' })
   findOne(
     @CurrentUser() user: AuthenticatedUser,
@@ -50,6 +67,7 @@ export class ClientsController {
   }
 
   @Post()
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
   @ApiOperation({ summary: 'Create a client or travel agent' })
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -59,6 +77,7 @@ export class ClientsController {
   }
 
   @Patch(':id')
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
   @ApiOperation({ summary: 'Update a client' })
   update(
     @CurrentUser() user: AuthenticatedUser,
@@ -68,7 +87,42 @@ export class ClientsController {
     return this.clients.update(user, id, dto);
   }
 
+  /**
+   * Declared before `:id`, and POST rather than DELETE-with-body: proxies drop
+   * bodies on DELETE, and a dropped body removes nothing while answering 200.
+   */
+  @Post('bulk-delete')
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Remove several clients at once (soft)',
+    description:
+      "For the table's checkbox column. Scoped: a broker can only clear rows from their own book. Ids that match nothing are reported as `skipped` rather than failing the batch.",
+  })
+  removeMany(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BulkIdsDto,
+  ) {
+    return this.clients.removeMany(user, dto.ids);
+  }
+
+  @Post('bulk-restore')
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Restore several archived clients at once',
+    description:
+      "For the Archived tab's checkbox column. Ids that are not archived come back in `skipped`.",
+  })
+  restoreMany(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BulkIdsDto,
+  ) {
+    return this.clients.restoreMany(user, dto.ids);
+  }
+
   @Post(':id/restore')
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
   @ApiOperation({
     summary: 'Restore an archived client',
     description:
@@ -82,7 +136,7 @@ export class ClientsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Soft-delete a client',

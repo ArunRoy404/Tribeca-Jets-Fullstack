@@ -122,6 +122,19 @@ any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
   straight to the detail view, so excluding archived rows there lists a record
   and then 404s it. Return it with its archive trail and let the UI decide what
   to offer. (The list is the opposite: it filters by `?archived=`.)
+- **A module that references another stores its id, never its name.** When
+  Clients was built, Airports did not exist, so `homeAirport` held an ICAO
+  string; the moment Airports shipped that became a column pointing at nothing
+  the database could check. It is now `homeAirportId`, a real foreign key,
+  backfilled in the migration by matching each stored code to its airport row.
+  Expect to do this whenever a dependency lands after its dependant — and check
+  the row exists in the service, so the form gets a named 400 rather than a
+  bare P2003.
+- **Never an ad-hoc `@Roles(...)` list on a controller.** The permission matrix
+  is the source of truth. Where a rule is finer than a permission — clients may
+  be created by a broker but removed only by an administrator — enforce it in
+  the service with `scopeFor(...) !== Scope.ALL`, which keeps the bulk routes
+  and the single route on one rule instead of two.
 - **Bulk delete gets a matching bulk restore.** Same `bulkIdsSchema`, same
   `bulkResult`, same partial-success rule — `POST /<resource>/bulk-restore`.
   Read `affected` rather than `deleted`, which is kept only as an alias for the

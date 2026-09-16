@@ -2278,6 +2278,18 @@
                   "value": "false",
                   "disabled": true,
                   "description": "Allowed (case-sensitive): true | false. Default false \u2014 only live rows. `true` returns ONLY archived ones, which is what the Archived tab reads. Replaces the old `includeDeleted`, which used a coercion where the string \"false\" evaluated to true \u2014 so asking to exclude removed rows included them."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Filter to one relationship status. Allowed (case-sensitive): LEAD | ACTIVE | VIP | INACTIVE. Omit for all.",
+                  "disabled": true
+                },
+                {
+                  "key": "followUp",
+                  "value": "",
+                  "description": "Filter by follow-up window, resolved against the current clock. Allowed (case-sensitive): OVERDUE | TODAY | UPCOMING. Omit for all.",
+                  "disabled": true
                 }
               ]
             },
@@ -2393,7 +2405,55 @@
           ]
         },
         {
-          "name": "02 \u00b7 Get client",
+          "name": "02 \u00b7 Client tiles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clients/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "stats"
+              ]
+            },
+            "description": "Totals for the cards above the table.\n\n**Scoped exactly like the list.** A broker's tiles count their own book, never the company's \u2014 a broker seeing \"16 clients\" above a table of 4 would leak the size of the business, which is the kind of disclosure the role restrictions exist to prevent.\n\n`activeAndVip` is the sum the UI shows as one tile; `active` and `vip` are returned separately so a caller does not have to re-derive them.\n\nRequires `View Clients`."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Tiles",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 12,\n    \"active\": 12,\n    \"vip\": 0,\n    \"activeAndVip\": 12,\n    \"followUpsDue\": 0,\n    \"addedThisYear\": 12,\n    \"year\": 2026\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Get client",
           "request": {
             "method": "GET",
             "header": [],
@@ -2469,7 +2529,7 @@
           ]
         },
         {
-          "name": "03 \u00b7 Create client",
+          "name": "04 \u00b7 Create client",
           "request": {
             "method": "POST",
             "header": [
@@ -2495,7 +2555,7 @@
             "description": "Creates a client or travel agent.\n\n`type: \"TRAVEL_AGENT\"` additionally requires `companyName`.\n\nA `BROKER` caller always gets the client assigned to themselves regardless of `assignedBrokerId`. `originatingBrokerId` drives commission attribution, defaults to the assignee, and can never be changed later.\n\nEvery enum's allowed values are listed inline in the body.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"DIRECT\",                            // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  \"firstName\": \"Marcus\",                       // required \u00b7 max 100 chars\n\n  \"lastName\": \"Reyes\",                         // required \u00b7 max 100 chars\n\n  \"email\": \"marcus.reyes@example.com\",         // optional \u00b7 valid email, stored lowercase\n\n  \"phone\": \"+1 555 0142\",                      // optional \u00b7 max 40 chars, free-form\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  \"homeAirport\": \"KTEB\",                       // optional \u00b7 ICAO/IATA code, max 10 chars\n\n  \"leadSource\": \"REFERRAL\",                    // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\" | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n\n  \"leadStage\": \"NEW\",                          // optional \u00b7 default \"NEW\" \u00b7 Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  \"labels\": [\"VIP\"],                           // optional \u00b7 max 25 entries, 50 chars each\n\n  \"preferences\": {                             // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  \"notes\": \"Prefers late-morning departures.\"  // optional \u00b7 max 5000 chars\n}",
+              "raw": "{\n  \"type\": \"DIRECT\",                            // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\"\n\n  // required when type is \"TRAVEL_AGENT\", otherwise optional \u00b7 max 200 chars\n  // \"companyName\": \"Whitfield Travel Group\",\n\n  \"status\": \"LEAD\",                            // optional \u00b7 default \"LEAD\" \u00b7 Allowed (case-sensitive): \"LEAD\" | \"ACTIVE\" | \"VIP\" | \"INACTIVE\"\n  // Where the relationship stands. Distinct from leadStage, which is where the deal stands.\n\n  \"firstName\": \"Marcus\",                       // required \u00b7 max 100 chars\n\n  \"lastName\": \"Reyes\",                         // required \u00b7 max 100 chars\n\n  \"email\": \"marcus.reyes@example.com\",         // optional \u00b7 valid email, stored lowercase\n\n  \"phone\": \"+1 555 0142\",                      // optional \u00b7 max 40 chars, free-form\n\n  // optional \u00b7 ISO date (YYYY-MM-DD). Drives VIP birthday reminders.\n  // \"birthday\": \"1979-04-12\",\n\n  // optional \u00b7 UUID of an airport row, not a code. Airports are their own\n  // module, and a code typed into a box is how a home airport ends up\n  // matching nothing. Send null to clear it. 400 if the id is unknown or archived.\n  // \"homeAirportId\": \"00000000-0000-4000-8000-000000000000\",\n\n  \"leadSource\": \"REFERRAL\",                    // optional \u00b7 default \"DIRECT\" \u00b7 Allowed (case-sensitive): \"DIRECT\" | \"TRAVEL_AGENT\" | \"FACEBOOK_GROUP_1\" | \"FACEBOOK_GROUP_2\" | \"REFERRAL\" | \"WEBSITE\" | \"OTHER\"\n\n  \"leadStage\": \"NEW\",                          // optional \u00b7 default \"NEW\" \u00b7 Allowed (case-sensitive): \"NEW\" | \"CONTACTED\" | \"QUOTED\" | \"NEGOTIATING\" | \"BOOKED\" | \"LOST\"\n\n  // optional \u00b7 UUID of the owning broker.\n  // Ignored for BROKER callers \u2014 the server always assigns the client to them.\n  // \"assignedBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n  // optional \u00b7 UUID. Commission attribution; set once at creation and never\n  // updatable afterwards. Defaults to assignedBrokerId.\n  // \"originatingBrokerId\": \"00000000-0000-4000-8000-000000000000\",\n\n\n  // optional \u00b7 ISO date-time. Drives the \"Follow-ups Due\" tile and the\n  // Overdue / Due Today / Upcoming filter. Send null to clear it.\n  // \"nextFollowUpAt\": \"2026-09-30T10:00:00.000Z\",\n  // \"followUpNote\": \"Check Miami availability\",\n\n  \"labels\": [\"VIP\"],                           // optional \u00b7 max 25 entries, 50 chars each\n\n  \"preferences\": {                             // optional \u00b7 free-form travel preferences. Unknown keys are preserved.\n    \"pets\": true,                        // boolean\n    \"children\": false,                   // boolean\n    \"noRedEye\": true,                    // boolean\n    \"wifiRequired\": false,               // boolean\n    \"flightAttendant\": false,            // boolean\n    \"catering\": \"Vegetarian\",            // string, max 500\n    \"beverages\": \"Still water, no ice\",  // string, max 500\n    \"oversizedBaggage\": \"Golf clubs\",    // string, max 500\n    \"preferredFbo\": \"Signature\",         // string, max 200\n    \"groundTransport\": \"SUV, 2 cars\",    // string, max 500\n    \"hotel\": \"Four Seasons\",             // string, max 500\n    \"preferredAirports\": [\"KTEB\"],       // array of codes, max 50\n    \"preferredOperators\": [\"Vista\"]      // array of names, max 50\n  },\n\n  \"notes\": \"Prefers late-morning departures.\"  // optional \u00b7 max 5000 chars\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2685,7 +2745,7 @@
           ]
         },
         {
-          "name": "04 \u00b7 Update client",
+          "name": "05 \u00b7 Update client",
           "request": {
             "method": "PATCH",
             "header": [
@@ -2808,7 +2868,7 @@
           ]
         },
         {
-          "name": "05 \u00b7 Delete client (soft)",
+          "name": "06 \u00b7 Delete client (soft)",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2933,7 +2993,7 @@
           ]
         },
         {
-          "name": "06 \u00b7 Restore client",
+          "name": "07 \u00b7 Restore client",
           "request": {
             "method": "POST",
             "header": [
@@ -2992,6 +3052,336 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"42bab11c-c238-4ee1-8cb1-1ac58c7cdc09\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Marcus\",\n    \"lastName\": \"Reyes\",\n    \"email\": \"marcus.reyes@example.com\",\n    \"phone\": \"+1 555 0142\",\n    \"homeAirport\": \"KTEB\",\n    \"leadSource\": \"DIRECT\",\n    \"leadStage\": \"QUOTED\",\n    \"labels\": [],\n    \"createdAt\": \"2026-09-15T10:43:40.012Z\",\n    \"updatedAt\": \"2026-09-15T10:49:10.962Z\",\n    \"assignedBroker\": null,\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-15T10:49:10.960Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "08 \u00b7 Remove several clients (soft)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{clientId}}\"]  // required \u00b7 1-100 UUIDs. Scoped: a broker can only act on their own book. Ids that match nothing come back in `skipped`.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/clients/bulk-delete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "bulk-delete"
+              ]
+            },
+            "description": "Archives every id in one statement, for the table's checkbox column.\n\n**POST, not DELETE.** Request bodies on DELETE are unevenly supported by proxies; a silently dropped body would remove nothing and still answer 200.\n\n**Administrators only**, like the single delete: a broker holds `Manage Clients` at assigned scope, which covers creating and editing their own book but not removing from it. A broker losing a client should reassign it, not erase it.\n\n**Partial success is success.** Ids matching nothing come back in `skipped`."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Removed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{clientId}}\"]  // required \u00b7 1-100 UUIDs. Scoped: a broker can only act on their own book. Ids that match nothing come back in `skipped`.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Already removed (partial)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{clientId}}\"]  // required \u00b7 1-100 UUIDs. Scoped: a broker can only act on their own book. Ids that match nothing come back in `skipped`.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"5b26b7ce-fee7-4939-b6a5-dcd5d1500c27\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Nothing selected",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/clients/bulk-delete\",\n  \"timestamp\": \"2026-09-16T03:40:18.514Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Brokers cannot remove clients",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{clientId}}\"]  // required \u00b7 1-100 UUIDs. Scoped: a broker can only act on their own book. Ids that match nothing come back in `skipped`.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Only administrators can remove a client. Reassign it instead.\",\n  \"path\": \"/api/clients/bulk-delete\",\n  \"timestamp\": \"2026-09-16T03:40:18.524Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "09 \u00b7 Restore several clients",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{clientId}}\"]  // required \u00b7 1-100 UUIDs. Scoped: a broker can only act on their own book. Ids that match nothing come back in `skipped`.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/clients/bulk-restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients",
+                "bulk-restore"
+              ]
+            },
+            "description": "Brings every id in the list back, for the Archived tab's checkbox column. The mirror of the bulk remove above, with the same administrator-only rule and the same partial-success behaviour.\n\nRestore clears the deletion stamp and touches nothing else, so each record returns exactly as it was."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{clientId}}\"]  // required \u00b7 1-100 UUIDs. Scoped: a broker can only act on their own book. Ids that match nothing come back in `skipped`.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Already live (partial)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\"{{clientId}}\"]  // required \u00b7 1-100 UUIDs. Scoped: a broker can only act on their own book. Ids that match nothing come back in `skipped`.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/clients/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"5b26b7ce-fee7-4939-b6a5-dcd5d1500c27\"\n    ]\n  }\n}"
             }
           ]
         }

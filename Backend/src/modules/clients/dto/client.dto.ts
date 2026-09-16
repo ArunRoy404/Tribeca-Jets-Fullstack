@@ -6,6 +6,7 @@ import {
 } from '../../../common/dto/pagination.dto.js';
 import { archiveQuerySchema } from '../../../common/database/archive.js';
 import {
+  ClientStatus,
   ClientType,
   LeadSource,
   LeadStage,
@@ -41,18 +42,28 @@ const preferencesSchema = z
  */
 const clientBaseSchema = z.object({
   type: z.enum(ClientType).default(ClientType.DIRECT),
+  /** Where the relationship stands. Distinct from `leadStage`, the deal. */
+  status: z.enum(ClientStatus).default(ClientStatus.LEAD),
   companyName: z.string().trim().max(200).optional(),
   firstName: z.string().trim().min(1, 'First name is required').max(100),
   lastName: z.string().trim().min(1, 'Last name is required').max(100),
   email: z.email().toLowerCase().trim().optional(),
   phone: z.string().trim().max(40).optional(),
   birthday: z.coerce.date().optional(),
-  homeAirport: z.string().trim().max(10).optional(),
+  /**
+   * The airport's id, not its ICAO. Airports are their own module now, and a
+   * code typed into a text box is how you end up with a home airport that
+   * matches nothing. The service checks the row exists before storing it.
+   */
+  homeAirportId: z.uuid().nullable().optional(),
   leadSource: z.enum(LeadSource).default(LeadSource.DIRECT),
   leadStage: z.enum(LeadStage).default(LeadStage.NEW),
   assignedBrokerId: z.uuid().optional(),
   originatingBrokerId: z.uuid().optional(),
   preferences: preferencesSchema.default({}),
+  /** Nullable so the form can clear a scheduled follow-up. */
+  nextFollowUpAt: z.coerce.date().nullable().optional(),
+  followUpNote: z.string().trim().max(1_000).nullable().optional(),
   notes: z.string().max(5_000).optional(),
   labels: z.array(z.string().trim().max(50)).max(25).default([]),
 });
@@ -83,12 +94,23 @@ export const CLIENT_SORTABLE_FIELDS = [
   'lastName',
   'firstName',
   'leadStage',
+  'status',
+  'nextFollowUpAt',
 ] as const;
+
+/**
+ * The follow-up filter the table offers. Resolved against "now" in the service
+ * rather than here, so every request is judged against the current clock and
+ * not whenever the schema happened to be built.
+ */
+export const FOLLOW_UP_WINDOWS = ['OVERDUE', 'TODAY', 'UPCOMING'] as const;
 
 export const queryClientsSchema = paginationSchema
   .extend({
     sortBy: sortableBy(CLIENT_SORTABLE_FIELDS),
     type: z.enum(ClientType).optional(),
+    status: z.enum(ClientStatus).optional(),
+    followUp: z.enum(FOLLOW_UP_WINDOWS).optional(),
     leadStage: z.enum(LeadStage).optional(),
     leadSource: z.enum(LeadSource).optional(),
     assignedBrokerId: z.uuid().optional(),

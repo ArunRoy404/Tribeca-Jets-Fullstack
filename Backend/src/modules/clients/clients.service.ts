@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import {
@@ -19,7 +24,13 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import { UserRole } from '../../generated/prisma/enums.js';
+import { bulkResult, type BulkResult } from '../../common/dto/bulk.dto.js';
+import {
+  Permission,
+  Scope,
+  scopeFor,
+} from '../../common/authorization/permissions.js';
+import { ClientStatus, UserRole } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type {
   CreateClientInput,
@@ -35,7 +46,11 @@ const CLIENT_LIST_SELECT = {
   lastName: true,
   email: true,
   phone: true,
-  homeAirport: true,
+  status: true,
+  /** The related row, so the table can show "KTEB" and link to the airport. */
+  homeAirport: { select: { id: true, icao: true, name: true, city: true } },
+  nextFollowUpAt: true,
+  followUpNote: true,
   leadSource: true,
   leadStage: true,
   labels: true,
@@ -51,6 +66,38 @@ const CLIENT_LIST_SELECT = {
   ...ARCHIVE_SELECT,
   ...ARCHIVE_ACTOR_SELECT,
 } satisfies Prisma.ClientSelect;
+
+/**
+ * The Due Today / Overdue / Upcoming filter, resolved against the current
+ * clock on every request.
+ *
+ * "Today" is the server's day boundary. That is a simplification worth naming:
+ * a desk spanning time zones will disagree at the edges, and the fix is a
+ * per-user timezone, which nothing else in the system carries yet.
+ *
+ * Module-private for now. The moment payments or quotes need the same three
+ * windows this lifts into `common/database/filters.ts` and both callers move
+ * with it.
+ */
+function followUpFilter(
+  window: 'OVERDUE' | 'TODAY' | 'UPCOMING' | undefined,
+): Prisma.ClientWhereInput {
+  if (!window) return {};
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+  switch (window) {
+    case 'OVERDUE':
+      return { nextFollowUpAt: { lt: startOfToday } };
+    case 'TODAY':
+      return { nextFollowUpAt: { gte: startOfToday, lt: startOfTomorrow } };
+    case 'UPCOMING':
+      return { nextFollowUpAt: { gte: startOfTomorrow } };
+  }
+}
 
 @Injectable()
 export class ClientsService {
@@ -82,7 +129,14 @@ export class ClientsService {
     const where: Prisma.ClientWhereInput = {
       ...archiveFilter(query.archived),
       ...this.visibilityScope(user),
-      ...equalsAny(query, ['type', 'leadStage', 'leadSource', 'assignedBrokerId']),
+      ...equalsAny(query, [
+        'type',
+        'status',
+        'leadStage',
+        'leadSource',
+        'assignedBrokerId',
+      ]),
+      ...followUpFilter(query.followUp),
       // Not an equality filter: `labels` is an array column, so this asks
       // whether the label is among them.
       ...(query.label ? { labels: { has: query.label } } : {}),
@@ -133,7 +187,28 @@ export class ClientsService {
     return client;
   }
 
+  /**
+   * A home airport must name a live airport row.
+   *
+   * Prisma would raise P2003 on a bad id, which the exception filter turns
+   * into a 400 — but with no field name attached. Checking here means the form
+   * can point at the right input, and it also catches an *archived* airport,
+   * which the foreign key alone would happily accept.
+   */
+  private async assertHomeAirport(id: string | null | undefined): Promise<void> {
+    if (!id) return;
+    const airport = await this.prisma.airport.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!airport) {
+      throw new BadRequestException('That home airport does not exist');
+    }
+  }
+
   async create(user: AuthenticatedUser, input: CreateClientInput) {
+    await this.assertHomeAirport(input.homeAirportId);
+
     // A broker may only create clients owned by themselves.
     const assignedBrokerId =
       user.role === UserRole.BROKER
@@ -173,6 +248,7 @@ export class ClientsService {
   async update(user: AuthenticatedUser, id: string, input: UpdateClientInput) {
     // Reuses the scoped read, so an out-of-scope id 404s before any write.
     await this.findOne(user, id);
+    await this.assertHomeAirport(input.homeAirportId);
 
     // Reassigning a client is an admin action; a broker must not be able to
     // hand their own client to someone else or claim another's.
@@ -219,6 +295,8 @@ export class ClientsService {
    * 403, so an id cannot be used to probe for records.
    */
   async restore(user: AuthenticatedUser, id: string) {
+    // Symmetry: whoever may archive may un-archive, nobody else.
+    this.assertMayArchive(user);
     const target = await this.prisma.client.findFirst({
       where: { id, deletedAt: { not: null }, ...this.visibilityScope(user) },
       select: { id: true, firstName: true, lastName: true },
@@ -242,7 +320,25 @@ export class ClientsService {
     return client;
   }
 
+  /**
+   * Archiving a client is an administrator's call, not a broker's.
+   *
+   * This preserves the rule the controller used to spell out as an ad-hoc
+   * `@Roles(SUPER_ADMIN, ADMIN)` list, but expresses it through the permission
+   * matrix instead — a broker holds MANAGE_CLIENTS at ASSIGNED scope, which is
+   * enough to create and edit their own book but not to remove from it. A
+   * broker losing a client should reassign it, not erase it from the list.
+   */
+  private assertMayArchive(user: AuthenticatedUser): void {
+    if (scopeFor(user.role, Permission.MANAGE_CLIENTS) !== Scope.ALL) {
+      throw new ForbiddenException(
+        'Only administrators can remove a client. Reassign it instead.',
+      );
+    }
+  }
+
   async remove(user: AuthenticatedUser, id: string): Promise<void> {
+    this.assertMayArchive(user);
     await this.findOne(user, id);
 
     await this.prisma.client.update({
@@ -256,5 +352,141 @@ export class ClientsService {
       entityType: 'Client',
       entityId: id,
     });
+  }
+
+  /**
+   * The four tiles above the clients table.
+   *
+   * Scoped like the list, so a broker's tiles count their own book rather than
+   * the company's — a broker seeing "16 clients" over a table of 4 is a leak of
+   * exactly the kind §11 forbids.
+   */
+  async stats(user: AuthenticatedUser) {
+    const base: Prisma.ClientWhereInput = {
+      deletedAt: null,
+      ...this.visibilityScope(user),
+    };
+
+    const startOfTomorrow = new Date();
+    startOfTomorrow.setHours(0, 0, 0, 0);
+    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+    const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+
+    const [total, active, vip, followUpsDue, addedThisYear] =
+      await this.prisma.$transaction([
+        this.prisma.client.count({ where: base }),
+        this.prisma.client.count({
+          where: { ...base, status: ClientStatus.ACTIVE },
+        }),
+        this.prisma.client.count({ where: { ...base, status: ClientStatus.VIP } }),
+        // Overdue and due-today together: both are "deal with this now".
+        this.prisma.client.count({
+          where: { ...base, nextFollowUpAt: { lt: startOfTomorrow } },
+        }),
+        this.prisma.client.count({
+          where: { ...base, createdAt: { gte: startOfYear } },
+        }),
+      ]);
+
+    return {
+      total,
+      active,
+      vip,
+      activeAndVip: active + vip,
+      followUpsDue,
+      addedThisYear,
+      year: startOfYear.getFullYear(),
+    };
+  }
+
+  /**
+   * Removes several clients at once, for the table's checkbox column.
+   *
+   * Scoped read first, so a broker cannot clear rows outside their book by
+   * posting ids, and so the audit entry can name what actually went.
+   */
+  async removeMany(
+    user: AuthenticatedUser,
+    ids: string[],
+  ): Promise<BulkResult> {
+    this.assertMayArchive(user);
+
+    const targets = await this.prisma.client.findMany({
+      where: {
+        id: { in: ids },
+        deletedAt: null,
+        ...this.visibilityScope(user),
+      },
+      select: { id: true, firstName: true, lastName: true },
+    });
+
+    if (targets.length > 0) {
+      await this.prisma.client.updateMany({
+        where: { id: { in: targets.map((row) => row.id) } },
+        data: { ...archiveData(user.id), updatedById: user.id },
+      });
+
+      await this.audit.record({
+        actorId: user.id,
+        action: 'client.removed_bulk',
+        entityType: 'Client',
+        entityId: null,
+        metadata: {
+          count: targets.length,
+          clients: targets.map((row) => ({
+            id: row.id,
+            name: `${row.firstName} ${row.lastName}`,
+          })),
+        },
+      });
+    }
+
+    return bulkResult(ids, targets.map((row) => row.id));
+  }
+
+  /**
+   * Brings several archived clients back at once. Mirrors `removeMany`.
+   *
+   * The scope filter is deliberately applied here too: a broker restoring
+   * rows must only reach their own.
+   */
+  async restoreMany(
+    user: AuthenticatedUser,
+    ids: string[],
+  ): Promise<BulkResult> {
+    this.assertMayArchive(user);
+
+    const targets = await this.prisma.client.findMany({
+      where: {
+        id: { in: ids },
+        deletedAt: { not: null },
+        ...this.visibilityScope(user),
+      },
+      select: { id: true, firstName: true, lastName: true },
+    });
+
+    if (targets.length > 0) {
+      await this.prisma.client.updateMany({
+        where: { id: { in: targets.map((row) => row.id) } },
+        data: { ...restoreData(user.id), updatedById: user.id },
+      });
+
+      await this.audit.record({
+        actorId: user.id,
+        action: 'client.restored_bulk',
+        entityType: 'Client',
+        entityId: null,
+        metadata: {
+          count: targets.length,
+          clients: targets.map((row) => ({
+            id: row.id,
+            name: `${row.firstName} ${row.lastName}`,
+          })),
+        },
+      });
+    }
+
+    return bulkResult(ids, targets.map((row) => row.id));
   }
 }
