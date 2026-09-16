@@ -99,6 +99,16 @@
       "key": "newAircraftTail",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "tripRequestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newTripRequestId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -1251,7 +1261,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"email\": \"admin@tribecajets.com\",\n    \"firstName\": \"Ari\",\n    \"lastName\": \"Admin\",\n    \"phone\": null,\n    \"role\": \"SUPER_ADMIN\",\n    \"status\": \"ACTIVE\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-09-16T04:54:45.004Z\",\n    \"createdAt\": \"2026-09-15T03:40:49.368Z\",\n    \"avatarUrl\": null,\n    \"permissions\": {\n      \"VIEW_DASHBOARD\": \"ALL\",\n      \"VIEW_TRIPS\": \"ALL\",\n      \"MANAGE_TRIPS\": \"ALL\",\n      \"DELETE_TRIPS\": \"ALL\",\n      \"VIEW_FINANCIALS\": \"ALL\",\n      \"EXPORT_DATA\": \"ALL\",\n      \"MANAGE_USERS\": \"ALL\",\n      \"OPERATOR_SOURCING\": \"ALL\",\n      \"VIEW_CLIENTS\": \"ALL\",\n      \"MANAGE_CLIENTS\": \"ALL\",\n      \"MANAGE_AIRPORTS\": \"ALL\",\n      \"MANAGE_OPERATORS\": \"ALL\",\n      \"MANAGE_AIRCRAFT\": \"ALL\"\n    }\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"email\": \"admin@tribecajets.com\",\n    \"firstName\": \"Ari\",\n    \"lastName\": \"Admin\",\n    \"phone\": null,\n    \"role\": \"SUPER_ADMIN\",\n    \"status\": \"ACTIVE\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-09-16T05:08:05.933Z\",\n    \"createdAt\": \"2026-09-15T03:40:49.368Z\",\n    \"avatarUrl\": null,\n    \"permissions\": {\n      \"VIEW_DASHBOARD\": \"ALL\",\n      \"VIEW_TRIPS\": \"ALL\",\n      \"MANAGE_TRIPS\": \"ALL\",\n      \"DELETE_TRIPS\": \"ALL\",\n      \"VIEW_FINANCIALS\": \"ALL\",\n      \"EXPORT_DATA\": \"ALL\",\n      \"MANAGE_USERS\": \"ALL\",\n      \"OPERATOR_SOURCING\": \"ALL\",\n      \"VIEW_CLIENTS\": \"ALL\",\n      \"MANAGE_CLIENTS\": \"ALL\",\n      \"MANAGE_AIRPORTS\": \"ALL\",\n      \"MANAGE_OPERATORS\": \"ALL\",\n      \"MANAGE_AIRCRAFT\": \"ALL\"\n    }\n  }\n}"
                 },
                 {
                   "name": "200 \u00b7 Session (ASSISTANT \u2014 read-only scopes)",
@@ -1279,7 +1289,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"8f82d942-d948-41b8-a54e-efb1a5580d3e\",\n    \"email\": \"assistant@tribecajets.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-09-16T04:54:45.053Z\",\n    \"createdAt\": \"2026-09-15T06:22:21.600Z\",\n    \"avatarUrl\": null,\n    \"permissions\": {\n      \"VIEW_DASHBOARD\": \"ALL\",\n      \"VIEW_TRIPS\": \"ASSIGNED\",\n      \"MANAGE_TRIPS\": \"NONE\",\n      \"DELETE_TRIPS\": \"NONE\",\n      \"VIEW_FINANCIALS\": \"NONE\",\n      \"EXPORT_DATA\": \"NONE\",\n      \"MANAGE_USERS\": \"NONE\",\n      \"OPERATOR_SOURCING\": \"READ\",\n      \"VIEW_CLIENTS\": \"ASSIGNED\",\n      \"MANAGE_CLIENTS\": \"NONE\",\n      \"MANAGE_AIRPORTS\": \"READ\",\n      \"MANAGE_OPERATORS\": \"READ\",\n      \"MANAGE_AIRCRAFT\": \"READ\"\n    }\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"8f82d942-d948-41b8-a54e-efb1a5580d3e\",\n    \"email\": \"assistant@tribecajets.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarKey\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-09-16T05:08:05.986Z\",\n    \"createdAt\": \"2026-09-15T06:22:21.600Z\",\n    \"avatarUrl\": null,\n    \"permissions\": {\n      \"VIEW_DASHBOARD\": \"ALL\",\n      \"VIEW_TRIPS\": \"ASSIGNED\",\n      \"MANAGE_TRIPS\": \"NONE\",\n      \"DELETE_TRIPS\": \"NONE\",\n      \"VIEW_FINANCIALS\": \"NONE\",\n      \"EXPORT_DATA\": \"NONE\",\n      \"MANAGE_USERS\": \"NONE\",\n      \"OPERATOR_SOURCING\": \"READ\",\n      \"VIEW_CLIENTS\": \"ASSIGNED\",\n      \"MANAGE_CLIENTS\": \"NONE\",\n      \"MANAGE_AIRPORTS\": \"READ\",\n      \"MANAGE_OPERATORS\": \"READ\",\n      \"MANAGE_AIRCRAFT\": \"READ\"\n    }\n  }\n}"
                 }
               ],
               "event": [
@@ -7380,7 +7390,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"70e0da11-f386-4336-b972-f891ed715c60\",\n      \"tailNumber\": \"N264QT\",\n      \"model\": \"Falcon 8X\",\n      \"manufacturer\": \"Dassault Aviation\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"MAINTENANCE\",\n      \"operatorId\": \"2230bb74-a595-4662-a5d4-f7564e44db7d\",\n      \"operator\": {\n        \"id\": \"2230bb74-a595-4662-a5d4-f7564e44db7d\",\n        \"name\": \"Solairus Aviation\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"c2f62ab5-9a2b-433c-8968-51d51cc0f896\",\n      \"homeBase\": {\n        \"id\": \"c2f62ab5-9a2b-433c-8968-51d51cc0f896\",\n        \"icao\": \"QRVN\",\n        \"iata\": \"BED\",\n        \"name\": \"Laurence G Hanscom Field\",\n        \"city\": \"Bedford\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6450,\n      \"yearBuilt\": 2023,\n      \"maxSpeed\": \"Mach 0.90\",\n      \"cruiseSpeed\": null,\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 140,\n      \"cabinLengthFt\": 42.7,\n      \"maxTakeoffWeightLb\": 73000,\n      \"emptyWeightLb\": 41000,\n      \"fuelCapacityGal\": 4900,\n      \"takeoffDistanceFt\": 5880,\n      \"landingDistanceFt\": 2260,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n      \"createdAt\": \"2026-09-16T04:42:31.711Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T04:42:31.805Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": \"2026-09-16T04:42:31.805Z\",\n      \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedBy\": null,\n      \"restoredBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"40640aa7-78af-4742-b6fd-ad6c3d0eb062\",\n      \"tailNumber\": \"N345ZT\",\n      \"model\": \"Falcon 8X\",\n      \"manufacturer\": \"Dassault Aviation\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"MAINTENANCE\",\n      \"operatorId\": \"91dbe9de-c260-472a-9e78-d37096d298be\",\n      \"operator\": {\n        \"id\": \"91dbe9de-c260-472a-9e78-d37096d298be\",\n        \"name\": \"Solairus Aviation\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"65fb7e7d-25ec-49a9-a61f-5470d676da51\",\n      \"homeBase\": {\n        \"id\": \"65fb7e7d-25ec-49a9-a61f-5470d676da51\",\n        \"icao\": \"QSHH\",\n        \"iata\": \"BED\",\n        \"name\": \"Laurence G Hanscom Field\",\n        \"city\": \"Bedford\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6450,\n      \"yearBuilt\": 2023,\n      \"maxSpeed\": \"Mach 0.90\",\n      \"cruiseSpeed\": null,\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 140,\n      \"cabinLengthFt\": 42.7,\n      \"maxTakeoffWeightLb\": 73000,\n      \"emptyWeightLb\": 41000,\n      \"fuelCapacityGal\": 4900,\n      \"takeoffDistanceFt\": 5880,\n      \"landingDistanceFt\": 2260,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n      \"createdAt\": \"2026-09-16T04:42:24.719Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T04:42:24.816Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": \"2026-09-16T04:42:24.816Z\",\n      \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedBy\": null,\n      \"restoredBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"cc5ffae7-a22a-42db-918f-b15fb35ac718\",\n      \"tailNumber\": \"N794ZT\",\n      \"model\": \"Falcon 8X\",\n      \"manufacturer\": \"Dassault Aviation\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"MAINTENANCE\",\n      \"operatorId\": \"8307c63a-ee56-4357-b610-7b6f5ecabebf\",\n      \"operator\": {\n        \"id\": \"8307c63a-ee56-4357-b610-7b6f5ecabebf\",\n        \"name\": \"Solairus Aviation\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"ea15457e-b7c1-4d5a-8020-f80810ab84d5\",\n      \"homeBase\": {\n        \"id\": \"ea15457e-b7c1-4d5a-8020-f80810ab84d5\",\n        \"icao\": \"QAFW\",\n        \"iata\": \"BED\",\n        \"name\": \"Laurence G Hanscom Field\",\n        \"city\": \"Bedford\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6450,\n      \"yearBuilt\": 2023,\n      \"maxSpeed\": \"Mach 0.90\",\n      \"cruiseSpeed\": null,\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 140,\n      \"cabinLengthFt\": 42.7,\n      \"maxTakeoffWeightLb\": 73000,\n      \"emptyWeightLb\": 41000,\n      \"fuelCapacityGal\": 4900,\n      \"takeoffDistanceFt\": 5880,\n      \"landingDistanceFt\": 2260,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n      \"createdAt\": \"2026-09-16T04:42:18.283Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T04:42:18.399Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": \"2026-09-16T04:42:18.399Z\",\n      \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedBy\": null,\n      \"restoredBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 10,\n    \"totalPages\": 4,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"d36701b1-5af2-40a8-a282-96c44eb454d1\",\n      \"tailNumber\": \"N750CL\",\n      \"model\": \"Citation X\",\n      \"manufacturer\": \"Textron Aviation\",\n      \"category\": \"SUPER_MIDSIZE\",\n      \"status\": \"INACTIVE\",\n      \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"operator\": {\n        \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n        \"name\": \"Clay Lacy Aviation\",\n        \"status\": \"INACTIVE\",\n        \"deletedAt\": \"2026-09-15T11:07:53.300Z\"\n      },\n      \"homeBaseId\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n      \"homeBase\": {\n        \"id\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n        \"icao\": \"KVNY\",\n        \"iata\": \"VNY\",\n        \"name\": \"Van Nuys Airport\",\n        \"city\": \"Los Angeles\"\n      },\n      \"maxPassengers\": 8,\n      \"rangeNm\": 3070,\n      \"yearBuilt\": 2012,\n      \"maxSpeed\": \"Mach 0.935\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 82,\n      \"cabinLengthFt\": 25.2,\n      \"maxTakeoffWeightLb\": 36600,\n      \"emptyWeightLb\": 22100,\n      \"fuelCapacityGal\": 1926,\n      \"takeoffDistanceFt\": 5140,\n      \"landingDistanceFt\": 3180,\n      \"amenities\": [\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Withdrawn from charter when the West Coast desk moved to NetJets.\",\n      \"createdAt\": \"2026-09-16T03:53:11.006Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T03:53:11.006Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"2fc9dd84-4f05-4913-998b-0607e718c78b\",\n      \"tailNumber\": \"N208CL\",\n      \"model\": \"Pilatus PC-12 NGX\",\n      \"manufacturer\": \"Pilatus Aircraft\",\n      \"category\": \"TURBOPROP\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"operator\": {\n        \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n        \"name\": \"Clay Lacy Aviation\",\n        \"status\": \"INACTIVE\",\n        \"deletedAt\": \"2026-09-15T11:07:53.300Z\"\n      },\n      \"homeBaseId\": \"1ab27851-bacb-4f60-84cb-c36b93ba5e8a\",\n      \"homeBase\": {\n        \"id\": \"1ab27851-bacb-4f60-84cb-c36b93ba5e8a\",\n        \"icao\": \"KASE\",\n        \"iata\": \"ASE\",\n        \"name\": \"Aspen/Pitkin County\",\n        \"city\": \"Aspen\"\n      },\n      \"maxPassengers\": 8,\n      \"rangeNm\": 1803,\n      \"yearBuilt\": 2021,\n      \"maxSpeed\": \"290 KTAS\",\n      \"cruiseSpeed\": null,\n      \"serviceCeilingFt\": 30000,\n      \"baggageCapacityCuFt\": 40,\n      \"cabinLengthFt\": 16.9,\n      \"maxTakeoffWeightLb\": 10450,\n      \"emptyWeightLb\": 6600,\n      \"fuelCapacityGal\": 402,\n      \"takeoffDistanceFt\": 2600,\n      \"landingDistanceFt\": 2170,\n      \"amenities\": [\n        \"Power Outlets\",\n        \"Refreshment Centre\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"Short-field capable. The only tail that can work KASE in winter.\",\n      \"createdAt\": \"2026-09-16T03:53:11.001Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T04:42:49.263Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"3a3353b9-e69d-4cbb-85eb-fe5c833ac714\",\n      \"tailNumber\": \"N421NJ\",\n      \"model\": \"Citation Latitude\",\n      \"manufacturer\": \"Textron Aviation\",\n      \"category\": \"MIDSIZE_JET\",\n      \"status\": \"MAINTENANCE\",\n      \"operatorId\": \"245d1d7b-6cca-4da7-ba2a-fa7964abac91\",\n      \"operator\": {\n        \"id\": \"245d1d7b-6cca-4da7-ba2a-fa7964abac91\",\n        \"name\": \"NetJets\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"6d8f3898-07be-4808-b285-9e62be79c61a\",\n      \"homeBase\": {\n        \"id\": \"6d8f3898-07be-4808-b285-9e62be79c61a\",\n        \"icao\": \"KPBI\",\n        \"iata\": \"PBI\",\n        \"name\": \"Palm Beach International\",\n        \"city\": \"West Palm Beach\"\n      },\n      \"maxPassengers\": 9,\n      \"rangeNm\": 2700,\n      \"yearBuilt\": 2022,\n      \"maxSpeed\": \"Mach 0.80\",\n      \"cruiseSpeed\": \"Mach 0.72\",\n      \"serviceCeilingFt\": 45000,\n      \"baggageCapacityCuFt\": 100,\n      \"cabinLengthFt\": 21.9,\n      \"maxTakeoffWeightLb\": 30800,\n      \"emptyWeightLb\": 18800,\n      \"fuelCapacityGal\": 1600,\n      \"takeoffDistanceFt\": 3580,\n      \"landingDistanceFt\": 2480,\n      \"amenities\": [\n        \"WiFi\",\n        \"Refreshment Centre\",\n        \"Private Lavatory\",\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Flat-floor cabin. Popular for short Florida hops.\",\n      \"createdAt\": \"2026-09-16T03:53:10.997Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T03:53:10.997Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 7,\n    \"totalPages\": 3,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "400 \u00b7 Unsortable column",
@@ -7405,7 +7415,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"tailNumber\\\"|\\\"model\\\"|\\\"category\\\"|\\\"status\\\"|\\\"maxPassengers\\\"|\\\"rangeNm\\\"|\\\"yearBuilt\\\"\"\n  },\n  \"path\": \"/api/aircraft?sortBy=notes\",\n  \"timestamp\": \"2026-09-16T04:48:38.467Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"tailNumber\\\"|\\\"model\\\"|\\\"category\\\"|\\\"status\\\"|\\\"maxPassengers\\\"|\\\"rangeNm\\\"|\\\"yearBuilt\\\"\"\n  },\n  \"path\": \"/api/aircraft?sortBy=notes\",\n  \"timestamp\": \"2026-09-16T05:08:05.713Z\"\n}"
             },
             {
               "name": "400 \u00b7 Enum is case-sensitive",
@@ -7430,7 +7440,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"category\": \"Invalid option: expected one of \\\"TURBOPROP\\\"|\\\"LIGHT_JET\\\"|\\\"MIDSIZE_JET\\\"|\\\"SUPER_MIDSIZE\\\"|\\\"HEAVY_JET\\\"|\\\"ULTRA_LONG_RANGE\\\"|\\\"VIP_AIRLINER\\\"\"\n  },\n  \"path\": \"/api/aircraft?category=heavy_jet\",\n  \"timestamp\": \"2026-09-16T04:48:38.469Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"category\": \"Invalid option: expected one of \\\"TURBOPROP\\\"|\\\"LIGHT_JET\\\"|\\\"MIDSIZE_JET\\\"|\\\"SUPER_MIDSIZE\\\"|\\\"HEAVY_JET\\\"|\\\"ULTRA_LONG_RANGE\\\"|\\\"VIP_AIRLINER\\\"\"\n  },\n  \"path\": \"/api/aircraft?category=heavy_jet\",\n  \"timestamp\": \"2026-09-16T05:08:05.715Z\"\n}"
             },
             {
               "name": "200 \u00b7 Fleet finder",
@@ -7455,7 +7465,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"70e0da11-f386-4336-b972-f891ed715c60\",\n      \"tailNumber\": \"N264QT\",\n      \"model\": \"Falcon 8X\",\n      \"manufacturer\": \"Dassault Aviation\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"MAINTENANCE\",\n      \"operatorId\": \"2230bb74-a595-4662-a5d4-f7564e44db7d\",\n      \"operator\": {\n        \"id\": \"2230bb74-a595-4662-a5d4-f7564e44db7d\",\n        \"name\": \"Solairus Aviation\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"c2f62ab5-9a2b-433c-8968-51d51cc0f896\",\n      \"homeBase\": {\n        \"id\": \"c2f62ab5-9a2b-433c-8968-51d51cc0f896\",\n        \"icao\": \"QRVN\",\n        \"iata\": \"BED\",\n        \"name\": \"Laurence G Hanscom Field\",\n        \"city\": \"Bedford\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6450,\n      \"yearBuilt\": 2023,\n      \"maxSpeed\": \"Mach 0.90\",\n      \"cruiseSpeed\": null,\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 140,\n      \"cabinLengthFt\": 42.7,\n      \"maxTakeoffWeightLb\": 73000,\n      \"emptyWeightLb\": 41000,\n      \"fuelCapacityGal\": 4900,\n      \"takeoffDistanceFt\": 5880,\n      \"landingDistanceFt\": 2260,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n      \"createdAt\": \"2026-09-16T04:42:31.711Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T04:42:31.805Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": \"2026-09-16T04:42:31.805Z\",\n      \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedBy\": null,\n      \"restoredBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"40640aa7-78af-4742-b6fd-ad6c3d0eb062\",\n      \"tailNumber\": \"N345ZT\",\n      \"model\": \"Falcon 8X\",\n      \"manufacturer\": \"Dassault Aviation\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"MAINTENANCE\",\n      \"operatorId\": \"91dbe9de-c260-472a-9e78-d37096d298be\",\n      \"operator\": {\n        \"id\": \"91dbe9de-c260-472a-9e78-d37096d298be\",\n        \"name\": \"Solairus Aviation\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"65fb7e7d-25ec-49a9-a61f-5470d676da51\",\n      \"homeBase\": {\n        \"id\": \"65fb7e7d-25ec-49a9-a61f-5470d676da51\",\n        \"icao\": \"QSHH\",\n        \"iata\": \"BED\",\n        \"name\": \"Laurence G Hanscom Field\",\n        \"city\": \"Bedford\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6450,\n      \"yearBuilt\": 2023,\n      \"maxSpeed\": \"Mach 0.90\",\n      \"cruiseSpeed\": null,\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 140,\n      \"cabinLengthFt\": 42.7,\n      \"maxTakeoffWeightLb\": 73000,\n      \"emptyWeightLb\": 41000,\n      \"fuelCapacityGal\": 4900,\n      \"takeoffDistanceFt\": 5880,\n      \"landingDistanceFt\": 2260,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n      \"createdAt\": \"2026-09-16T04:42:24.719Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T04:42:24.816Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": \"2026-09-16T04:42:24.816Z\",\n      \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedBy\": null,\n      \"restoredBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"cc5ffae7-a22a-42db-918f-b15fb35ac718\",\n      \"tailNumber\": \"N794ZT\",\n      \"model\": \"Falcon 8X\",\n      \"manufacturer\": \"Dassault Aviation\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"MAINTENANCE\",\n      \"operatorId\": \"8307c63a-ee56-4357-b610-7b6f5ecabebf\",\n      \"operator\": {\n        \"id\": \"8307c63a-ee56-4357-b610-7b6f5ecabebf\",\n        \"name\": \"Solairus Aviation\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"ea15457e-b7c1-4d5a-8020-f80810ab84d5\",\n      \"homeBase\": {\n        \"id\": \"ea15457e-b7c1-4d5a-8020-f80810ab84d5\",\n        \"icao\": \"QAFW\",\n        \"iata\": \"BED\",\n        \"name\": \"Laurence G Hanscom Field\",\n        \"city\": \"Bedford\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6450,\n      \"yearBuilt\": 2023,\n      \"maxSpeed\": \"Mach 0.90\",\n      \"cruiseSpeed\": null,\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 140,\n      \"cabinLengthFt\": 42.7,\n      \"maxTakeoffWeightLb\": 73000,\n      \"emptyWeightLb\": 41000,\n      \"fuelCapacityGal\": 4900,\n      \"takeoffDistanceFt\": 5880,\n      \"landingDistanceFt\": 2260,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n      \"createdAt\": \"2026-09-16T04:42:18.283Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T04:42:18.399Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": \"2026-09-16T04:42:18.399Z\",\n      \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedBy\": null,\n      \"restoredBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"2eab94e1-cb30-45cd-805c-bae94bc0283d\",\n      \"tailNumber\": \"N600VJ\",\n      \"model\": \"Global 6000\",\n      \"manufacturer\": \"Bombardier Aviation\",\n      \"category\": \"ULTRA_LONG_RANGE\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n      \"operator\": {\n        \"id\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n        \"name\": \"VistaJet\",\n        \"status\": \"ACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"78be496a-f938-4a77-87a0-1bdd815ee80d\",\n      \"homeBase\": {\n        \"id\": \"78be496a-f938-4a77-87a0-1bdd815ee80d\",\n        \"icao\": \"EGLL\",\n        \"iata\": \"LHR\",\n        \"name\": \"London Heathrow Airport\",\n        \"city\": \"London\"\n      },\n      \"maxPassengers\": 13,\n      \"rangeNm\": 6000,\n      \"yearBuilt\": 2018,\n      \"maxSpeed\": \"Mach 0.89\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 195,\n      \"cabinLengthFt\": 43.3,\n      \"maxTakeoffWeightLb\": 99500,\n      \"emptyWeightLb\": 56000,\n      \"fuelCapacityGal\": 6600,\n      \"takeoffDistanceFt\": 6476,\n      \"landingDistanceFt\": 2670,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Lie-flat Seats\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Silver and red stripe livery. Transatlantic workhorse.\",\n      \"createdAt\": \"2026-09-16T03:53:10.990Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T03:53:10.990Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"2c1fdcec-e480-43a5-bc18-24384bb62aae\",\n      \"tailNumber\": \"N680EX\",\n      \"model\": \"Challenger 350\",\n      \"manufacturer\": \"Bombardier Aviation\",\n      \"category\": \"SUPER_MIDSIZE\",\n      \"status\": \"IN_SERVICE\",\n      \"operatorId\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n      \"operator\": {\n        \"id\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n        \"name\": \"FlexJet\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n      \"homeBase\": {\n        \"id\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n        \"icao\": \"KVNY\",\n        \"iata\": \"VNY\",\n        \"name\": \"Van Nuys Airport\",\n        \"city\": \"Los Angeles\"\n      },\n      \"maxPassengers\": 9,\n      \"rangeNm\": 3200,\n      \"yearBuilt\": 2020,\n      \"maxSpeed\": \"Mach 0.83\",\n      \"cruiseSpeed\": \"Mach 0.80\",\n      \"serviceCeilingFt\": 45000,\n      \"baggageCapacityCuFt\": 106,\n      \"cabinLengthFt\": 25.2,\n      \"maxTakeoffWeightLb\": 40600,\n      \"emptyWeightLb\": 23200,\n      \"fuelCapacityGal\": 2100,\n      \"takeoffDistanceFt\": 4835,\n      \"landingDistanceFt\": 2364,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Coast-to-coast US capability.\",\n      \"createdAt\": \"2026-09-16T03:53:10.985Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T03:53:10.985Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"ecf3ed7f-844c-404a-8744-6311440c82fd\",\n      \"tailNumber\": \"N780EX\",\n      \"model\": \"Gulfstream G550\",\n      \"manufacturer\": \"Gulfstream Aerospace\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"da27b81e-9266-4b81-acbb-e8a095aa8f48\",\n      \"operator\": {\n        \"id\": \"da27b81e-9266-4b81-acbb-e8a095aa8f48\",\n        \"name\": \"ExecuJet\",\n        \"status\": \"ACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n      \"homeBase\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"iata\": \"TEB\",\n        \"name\": \"Teterboro Airport\",\n        \"city\": \"Teterboro\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6750,\n      \"yearBuilt\": 2019,\n      \"maxSpeed\": \"Mach 0.885\",\n      \"cruiseSpeed\": \"Mach 0.80\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 226,\n      \"cabinLengthFt\": 50.1,\n      \"maxTakeoffWeightLb\": 91000,\n      \"emptyWeightLb\": 48300,\n      \"fuelCapacityGal\": 6325,\n      \"takeoffDistanceFt\": 5910,\n      \"landingDistanceFt\": 2770,\n      \"amenities\": [\n        \"WiFi\",\n        \"Satellite Phone\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Lie-flat Seats\",\n        \"Entertainment System\",\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Cabin refurbished 2025.\",\n      \"createdAt\": \"2026-09-16T03:53:10.971Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T04:41:54.375Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 6,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"2eab94e1-cb30-45cd-805c-bae94bc0283d\",\n      \"tailNumber\": \"N600VJ\",\n      \"model\": \"Global 6000\",\n      \"manufacturer\": \"Bombardier Aviation\",\n      \"category\": \"ULTRA_LONG_RANGE\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n      \"operator\": {\n        \"id\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n        \"name\": \"VistaJet\",\n        \"status\": \"ACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"78be496a-f938-4a77-87a0-1bdd815ee80d\",\n      \"homeBase\": {\n        \"id\": \"78be496a-f938-4a77-87a0-1bdd815ee80d\",\n        \"icao\": \"EGLL\",\n        \"iata\": \"LHR\",\n        \"name\": \"London Heathrow Airport\",\n        \"city\": \"London\"\n      },\n      \"maxPassengers\": 13,\n      \"rangeNm\": 6000,\n      \"yearBuilt\": 2018,\n      \"maxSpeed\": \"Mach 0.89\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 195,\n      \"cabinLengthFt\": 43.3,\n      \"maxTakeoffWeightLb\": 99500,\n      \"emptyWeightLb\": 56000,\n      \"fuelCapacityGal\": 6600,\n      \"takeoffDistanceFt\": 6476,\n      \"landingDistanceFt\": 2670,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Lie-flat Seats\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Silver and red stripe livery. Transatlantic workhorse.\",\n      \"createdAt\": \"2026-09-16T03:53:10.990Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T03:53:10.990Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"2c1fdcec-e480-43a5-bc18-24384bb62aae\",\n      \"tailNumber\": \"N680EX\",\n      \"model\": \"Challenger 350\",\n      \"manufacturer\": \"Bombardier Aviation\",\n      \"category\": \"SUPER_MIDSIZE\",\n      \"status\": \"IN_SERVICE\",\n      \"operatorId\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n      \"operator\": {\n        \"id\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n        \"name\": \"FlexJet\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n      \"homeBase\": {\n        \"id\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n        \"icao\": \"KVNY\",\n        \"iata\": \"VNY\",\n        \"name\": \"Van Nuys Airport\",\n        \"city\": \"Los Angeles\"\n      },\n      \"maxPassengers\": 9,\n      \"rangeNm\": 3200,\n      \"yearBuilt\": 2020,\n      \"maxSpeed\": \"Mach 0.83\",\n      \"cruiseSpeed\": \"Mach 0.80\",\n      \"serviceCeilingFt\": 45000,\n      \"baggageCapacityCuFt\": 106,\n      \"cabinLengthFt\": 25.2,\n      \"maxTakeoffWeightLb\": 40600,\n      \"emptyWeightLb\": 23200,\n      \"fuelCapacityGal\": 2100,\n      \"takeoffDistanceFt\": 4835,\n      \"landingDistanceFt\": 2364,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Coast-to-coast US capability.\",\n      \"createdAt\": \"2026-09-16T03:53:10.985Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T03:53:10.985Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"ecf3ed7f-844c-404a-8744-6311440c82fd\",\n      \"tailNumber\": \"N780EX\",\n      \"model\": \"Gulfstream G550\",\n      \"manufacturer\": \"Gulfstream Aerospace\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"da27b81e-9266-4b81-acbb-e8a095aa8f48\",\n      \"operator\": {\n        \"id\": \"da27b81e-9266-4b81-acbb-e8a095aa8f48\",\n        \"name\": \"ExecuJet\",\n        \"status\": \"ACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n      \"homeBase\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"iata\": \"TEB\",\n        \"name\": \"Teterboro Airport\",\n        \"city\": \"Teterboro\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6750,\n      \"yearBuilt\": 2019,\n      \"maxSpeed\": \"Mach 0.885\",\n      \"cruiseSpeed\": \"Mach 0.80\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 226,\n      \"cabinLengthFt\": 50.1,\n      \"maxTakeoffWeightLb\": 91000,\n      \"emptyWeightLb\": 48300,\n      \"fuelCapacityGal\": 6325,\n      \"takeoffDistanceFt\": 5910,\n      \"landingDistanceFt\": 2770,\n      \"amenities\": [\n        \"WiFi\",\n        \"Satellite Phone\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Lie-flat Seats\",\n        \"Entertainment System\",\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Cabin refurbished 2025.\",\n      \"createdAt\": \"2026-09-16T03:53:10.971Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T04:41:54.375Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 3,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "401 \u00b7 Not signed in",
@@ -7549,7 +7559,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 10,\n    \"available\": 4,\n    \"inService\": 1,\n    \"maintenance\": 4,\n    \"inactive\": 1\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 7,\n    \"available\": 4,\n    \"inService\": 1,\n    \"maintenance\": 1,\n    \"inactive\": 1\n  }\n}"
             }
           ],
           "event": [
@@ -7659,7 +7669,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"70e0da11-f386-4336-b972-f891ed715c60\",\n    \"tailNumber\": \"N264QT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"MAINTENANCE\",\n    \"operatorId\": \"2230bb74-a595-4662-a5d4-f7564e44db7d\",\n    \"operator\": {\n      \"id\": \"2230bb74-a595-4662-a5d4-f7564e44db7d\",\n      \"name\": \"Solairus Aviation\",\n      \"status\": \"PREFERRED\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"c2f62ab5-9a2b-433c-8968-51d51cc0f896\",\n    \"homeBase\": {\n      \"id\": \"c2f62ab5-9a2b-433c-8968-51d51cc0f896\",\n      \"icao\": \"QRVN\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n    \"createdAt\": \"2026-09-16T04:42:31.711Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T04:42:31.805Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-16T04:42:31.805Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null,\n    \"tripHistory\": []\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"d36701b1-5af2-40a8-a282-96c44eb454d1\",\n    \"tailNumber\": \"N750CL\",\n    \"model\": \"Citation X\",\n    \"manufacturer\": \"Textron Aviation\",\n    \"category\": \"SUPER_MIDSIZE\",\n    \"status\": \"INACTIVE\",\n    \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"operator\": {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"deletedAt\": \"2026-09-15T11:07:53.300Z\"\n    },\n    \"homeBaseId\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n    \"homeBase\": {\n      \"id\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n      \"icao\": \"KVNY\",\n      \"iata\": \"VNY\",\n      \"name\": \"Van Nuys Airport\",\n      \"city\": \"Los Angeles\"\n    },\n    \"maxPassengers\": 8,\n    \"rangeNm\": 3070,\n    \"yearBuilt\": 2012,\n    \"maxSpeed\": \"Mach 0.935\",\n    \"cruiseSpeed\": \"Mach 0.85\",\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 82,\n    \"cabinLengthFt\": 25.2,\n    \"maxTakeoffWeightLb\": 36600,\n    \"emptyWeightLb\": 22100,\n    \"fuelCapacityGal\": 1926,\n    \"takeoffDistanceFt\": 5140,\n    \"landingDistanceFt\": 3180,\n    \"amenities\": [\n      \"Power Outlets\"\n    ],\n    \"lastInspectionAt\": null,\n    \"lastAnnualAt\": null,\n    \"nextInspectionDueAt\": null,\n    \"notes\": \"Withdrawn from charter when the West Coast desk moved to NetJets.\",\n    \"createdAt\": \"2026-09-16T03:53:11.006Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T03:53:11.006Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null,\n    \"tripHistory\": []\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not found",
@@ -7687,7 +7697,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Aircraft not found\",\n  \"path\": \"/api/aircraft/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-16T04:48:38.505Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Aircraft not found\",\n  \"path\": \"/api/aircraft/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-16T05:08:05.746Z\"\n}"
             }
           ]
         },
@@ -7743,7 +7753,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"tailNumber\": \"N855XT\",\n  \"model\": \"Falcon 8X\",\n  \"category\": \"HEAVY_JET\",\n  \"status\": \"AVAILABLE\",\n  \"manufacturer\": \"Dassault Aviation\",\n  \"operatorId\": \"1a3e6f7d-837c-4e74-9929-30bb617f7d74\",\n  \"homeBaseId\": \"d92fd9aa-fe36-4e13-9cfc-e0296fd03264\",\n  \"maxPassengers\": 14,\n  \"rangeNm\": 6450,\n  \"yearBuilt\": 2023,\n  \"maxSpeed\": \"Mach 0.90\",\n  \"cruiseSpeed\": \"Mach 0.85\",\n  \"serviceCeilingFt\": 51000,\n  \"baggageCapacityCuFt\": 140,\n  \"cabinLengthFt\": 42.7,\n  \"maxTakeoffWeightLb\": 73000,\n  \"emptyWeightLb\": 41000,\n  \"fuelCapacityGal\": 4900,\n  \"takeoffDistanceFt\": 5880,\n  \"landingDistanceFt\": 2260,\n  \"amenities\": [\n    \"WiFi\",\n    \"Full Galley\",\n    \"Private Lavatory\"\n  ],\n  \"lastInspectionAt\": \"2026-07-15\",\n  \"lastAnnualAt\": \"2026-01-20\",\n  \"nextInspectionDueAt\": \"2026-11-15\",\n  \"notes\": \"Cabin refurbished 2025.\"\n}"
+                  "raw": "{\n  \"tailNumber\": \"N520QT\",\n  \"model\": \"Falcon 8X\",\n  \"category\": \"HEAVY_JET\",\n  \"status\": \"AVAILABLE\",\n  \"manufacturer\": \"Dassault Aviation\",\n  \"operatorId\": \"edf886cc-b861-4dde-8497-0c4d59862627\",\n  \"homeBaseId\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n  \"maxPassengers\": 14,\n  \"rangeNm\": 6450,\n  \"yearBuilt\": 2023,\n  \"maxSpeed\": \"Mach 0.90\",\n  \"cruiseSpeed\": \"Mach 0.85\",\n  \"serviceCeilingFt\": 51000,\n  \"baggageCapacityCuFt\": 140,\n  \"cabinLengthFt\": 42.7,\n  \"maxTakeoffWeightLb\": 73000,\n  \"emptyWeightLb\": 41000,\n  \"fuelCapacityGal\": 4900,\n  \"takeoffDistanceFt\": 5880,\n  \"landingDistanceFt\": 2260,\n  \"amenities\": [\n    \"WiFi\",\n    \"Full Galley\",\n    \"Private Lavatory\"\n  ],\n  \"lastInspectionAt\": \"2026-07-15\",\n  \"lastAnnualAt\": \"2026-01-20\",\n  \"nextInspectionDueAt\": \"2026-11-15\",\n  \"notes\": \"Cabin refurbished 2025.\"\n}"
                 }
               },
               "status": "Created",
@@ -7756,7 +7766,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b6b33024-4c38-4e69-a555-dfe952bd2880\",\n    \"tailNumber\": \"N855XT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"AVAILABLE\",\n    \"operatorId\": \"1a3e6f7d-837c-4e74-9929-30bb617f7d74\",\n    \"operator\": {\n      \"id\": \"1a3e6f7d-837c-4e74-9929-30bb617f7d74\",\n      \"name\": \"Solairus Aviation\",\n      \"status\": \"PREFERRED\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"d92fd9aa-fe36-4e13-9cfc-e0296fd03264\",\n    \"homeBase\": {\n      \"id\": \"d92fd9aa-fe36-4e13-9cfc-e0296fd03264\",\n      \"icao\": \"QDDB\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": \"Mach 0.85\",\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"Cabin refurbished 2025.\",\n    \"createdAt\": \"2026-09-16T04:48:38.520Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T04:48:38.520Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"87ac1e29-bf1e-48ff-be72-831098cf95fa\",\n    \"tailNumber\": \"N520QT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"AVAILABLE\",\n    \"operatorId\": \"edf886cc-b861-4dde-8497-0c4d59862627\",\n    \"operator\": {\n      \"id\": \"edf886cc-b861-4dde-8497-0c4d59862627\",\n      \"name\": \"Solairus Aviation\",\n      \"status\": \"PREFERRED\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n    \"homeBase\": {\n      \"id\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n      \"icao\": \"QZQD\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": \"Mach 0.85\",\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"Cabin refurbished 2025.\",\n    \"createdAt\": \"2026-09-16T05:08:05.758Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T05:08:05.758Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null\n  }\n}"
             },
             {
               "name": "409 \u00b7 Tail number already in use",
@@ -7783,7 +7793,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An aircraft with tail number N855XT already exists\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-16T04:48:38.529Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An aircraft with tail number N520QT already exists\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-16T05:08:05.768Z\"\n}"
             },
             {
               "name": "400 \u00b7 Validation failed",
@@ -7810,7 +7820,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"tailNumber\": \"A tail number contains only letters, digits and hyphens\",\n    \"model\": \"Aircraft model is required\",\n    \"category\": \"Choose an aircraft category\",\n    \"rangeNm\": \"Range must be a whole number of nautical miles\"\n  },\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-16T04:48:38.532Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"tailNumber\": \"A tail number contains only letters, digits and hyphens\",\n    \"model\": \"Aircraft model is required\",\n    \"category\": \"Choose an aircraft category\",\n    \"rangeNm\": \"Range must be a whole number of nautical miles\"\n  },\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-16T05:08:05.771Z\"\n}"
             },
             {
               "name": "400 \u00b7 Operator does not exist",
@@ -7837,7 +7847,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That operator does not exist\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-16T04:48:38.535Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That operator does not exist\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-16T05:08:05.774Z\"\n}"
             },
             {
               "name": "403 \u00b7 Role may read but not write",
@@ -7864,7 +7874,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Aircraft)\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-16T04:48:38.537Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Aircraft)\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-16T05:08:05.777Z\"\n}"
             }
           ],
           "event": [
@@ -7961,7 +7971,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b6b33024-4c38-4e69-a555-dfe952bd2880\",\n    \"tailNumber\": \"N855XT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"MAINTENANCE\",\n    \"operatorId\": \"1a3e6f7d-837c-4e74-9929-30bb617f7d74\",\n    \"operator\": {\n      \"id\": \"1a3e6f7d-837c-4e74-9929-30bb617f7d74\",\n      \"name\": \"Solairus Aviation\",\n      \"status\": \"PREFERRED\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"d92fd9aa-fe36-4e13-9cfc-e0296fd03264\",\n    \"homeBase\": {\n      \"id\": \"d92fd9aa-fe36-4e13-9cfc-e0296fd03264\",\n      \"icao\": \"QDDB\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n    \"createdAt\": \"2026-09-16T04:48:38.520Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T04:48:38.545Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"87ac1e29-bf1e-48ff-be72-831098cf95fa\",\n    \"tailNumber\": \"N520QT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"MAINTENANCE\",\n    \"operatorId\": \"edf886cc-b861-4dde-8497-0c4d59862627\",\n    \"operator\": {\n      \"id\": \"edf886cc-b861-4dde-8497-0c4d59862627\",\n      \"name\": \"Solairus Aviation\",\n      \"status\": \"PREFERRED\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n    \"homeBase\": {\n      \"id\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n      \"icao\": \"QZQD\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n    \"createdAt\": \"2026-09-16T05:08:05.758Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T05:08:05.783Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null\n  }\n}"
             },
             {
               "name": "400 \u00b7 Empty patch",
@@ -7993,7 +8003,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/aircraft/b6b33024-4c38-4e69-a555-dfe952bd2880\",\n  \"timestamp\": \"2026-09-16T04:48:38.557Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/aircraft/87ac1e29-bf1e-48ff-be72-831098cf95fa\",\n  \"timestamp\": \"2026-09-16T05:08:05.789Z\"\n}"
             }
           ]
         },
@@ -8103,7 +8113,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b6b33024-4c38-4e69-a555-dfe952bd2880\",\n    \"tailNumber\": \"N855XT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"MAINTENANCE\",\n    \"operatorId\": \"1a3e6f7d-837c-4e74-9929-30bb617f7d74\",\n    \"operator\": {\n      \"id\": \"1a3e6f7d-837c-4e74-9929-30bb617f7d74\",\n      \"name\": \"Solairus Aviation\",\n      \"status\": \"PREFERRED\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"d92fd9aa-fe36-4e13-9cfc-e0296fd03264\",\n    \"homeBase\": {\n      \"id\": \"d92fd9aa-fe36-4e13-9cfc-e0296fd03264\",\n      \"icao\": \"QDDB\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n    \"createdAt\": \"2026-09-16T04:48:38.520Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T04:48:38.575Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-16T04:48:38.573Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"87ac1e29-bf1e-48ff-be72-831098cf95fa\",\n    \"tailNumber\": \"N520QT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"MAINTENANCE\",\n    \"operatorId\": \"edf886cc-b861-4dde-8497-0c4d59862627\",\n    \"operator\": {\n      \"id\": \"edf886cc-b861-4dde-8497-0c4d59862627\",\n      \"name\": \"Solairus Aviation\",\n      \"status\": \"PREFERRED\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n    \"homeBase\": {\n      \"id\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n      \"icao\": \"QZQD\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n    \"createdAt\": \"2026-09-16T05:08:05.758Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T05:08:05.799Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-16T05:08:05.798Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not archived",
@@ -8132,7 +8142,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived aircraft not found\",\n  \"path\": \"/api/aircraft/b6b33024-4c38-4e69-a555-dfe952bd2880/restore\",\n  \"timestamp\": \"2026-09-16T04:48:38.583Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived aircraft not found\",\n  \"path\": \"/api/aircraft/87ac1e29-bf1e-48ff-be72-831098cf95fa/restore\",\n  \"timestamp\": \"2026-09-16T05:08:05.805Z\"\n}"
             }
           ]
         },
@@ -8231,7 +8241,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"b6b33024-4c38-4e69-a555-dfe952bd2880\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"87ac1e29-bf1e-48ff-be72-831098cf95fa\"\n    ]\n  }\n}"
             },
             {
               "name": "400 \u00b7 Nothing selected",
@@ -8263,7 +8273,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/aircraft/bulk-delete\",\n  \"timestamp\": \"2026-09-16T04:48:38.596Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/aircraft/bulk-delete\",\n  \"timestamp\": \"2026-09-16T05:08:05.819Z\"\n}"
             },
             {
               "name": "403 \u00b7 Role may read but not write",
@@ -8291,7 +8301,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Aircraft)\",\n  \"path\": \"/api/aircraft/bulk-delete\",\n  \"timestamp\": \"2026-09-16T04:48:38.599Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Aircraft)\",\n  \"path\": \"/api/aircraft/bulk-delete\",\n  \"timestamp\": \"2026-09-16T05:08:05.821Z\"\n}"
             }
           ]
         },
@@ -8390,7 +8400,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"b6b33024-4c38-4e69-a555-dfe952bd2880\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"87ac1e29-bf1e-48ff-be72-831098cf95fa\"\n    ]\n  }\n}"
             },
             {
               "name": "400 \u00b7 Nothing selected",
@@ -8422,7 +8432,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/aircraft/bulk-restore\",\n  \"timestamp\": \"2026-09-16T04:48:38.610Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/aircraft/bulk-restore\",\n  \"timestamp\": \"2026-09-16T05:08:05.832Z\"\n}"
             },
             {
               "name": "403 \u00b7 Role may read but not write",
@@ -8450,7 +8460,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Aircraft)\",\n  \"path\": \"/api/aircraft/bulk-restore\",\n  \"timestamp\": \"2026-09-16T04:48:38.612Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Aircraft)\",\n  \"path\": \"/api/aircraft/bulk-restore\",\n  \"timestamp\": \"2026-09-16T05:08:05.835Z\"\n}"
             }
           ],
           "event": [
@@ -8476,6 +8486,1173 @@
                   "if (id) {",
                   "    pm.sendRequest({",
                   "        url: pm.collectionVariables.get('baseUrl') + '/aircraft/' + id,",
+                  "        method: 'DELETE',",
+                  "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
+                  "    }, function (err) {",
+                  "        if (err) { console.warn('teardown could not archive ' + id, err); }",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 \u00b7 Trip Requests",
+      "description": "Open trip requests \u2014 what a client asked for, before it becomes a quote or a trip (scope \u00a76.4).\n\n**This is the other half of a lead.** A lead is a *person*: a Client at lead stage, in `03 \u00b7 Clients`. What they asked for is one of these. They are two records because one client can ask for three different trips, and because the request outlives the lead stage while the client stays a client.\n\nUses the **trips** permissions rather than a new pair, because a request is the start of a trip: `VIEW_TRIPS` to read, `MANAGE_TRIPS` to write, `DELETE_TRIPS` (administrators only) to archive.\n\nEvery request below is signed in as the seeded SUPER_ADMIN by the folder's pre-request script, except the 403 examples, captured as the seeded broker and assistant.",
+      "item": [
+        {
+          "name": "01 \u00b7 List trip requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip-requests?page=1&limit=10&search=&sortOrder=desc&sortBy=createdAt&openOnly=false&status=&source=&aircraftPreference=&clientId=&assignedBrokerId=&originAirportId=&destinationAirportId=&departure=&archived=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip-requests"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, 1-based. Integer \u22651. Default 1."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Rows per page. Integer 1-100. Default 10. >100 or <1 \u2192 400."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Case-insensitive substring across the summary, the client's name and company, and both airports' ICAO codes."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Allowed (case-sensitive): asc | desc. Default desc."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | departureDate | status | estimatedValue | passengers. Default createdAt. A closed list \u2014 anything else returns 400."
+                },
+                {
+                  "key": "openOnly",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Allowed: true | false. Default false. `true` hides CONVERTED and LOST \u2014 the working board is a list of things still needing a price, and finished requests bury them."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): OPEN | SOURCING | QUOTED | CONVERTED | LOST. Lower-case returns 400 rather than being silently corrected."
+                },
+                {
+                  "key": "source",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): DIRECT | TRAVEL_AGENT | FACEBOOK_GROUP_1 | FACEBOOK_GROUP_2 | REFERRAL | WEBSITE | OTHER."
+                },
+                {
+                  "key": "aircraftPreference",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): TURBOPROP | LIGHT_JET | MIDSIZE_JET | SUPER_MIDSIZE | HEAVY_JET | ULTRA_LONG_RANGE | VIP_AIRLINER."
+                },
+                {
+                  "key": "clientId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "uuid. One client's enquiries \u2014 what the lead detail page reads."
+                },
+                {
+                  "key": "assignedBrokerId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "uuid."
+                },
+                {
+                  "key": "originAirportId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "uuid."
+                },
+                {
+                  "key": "destinationAirportId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "uuid."
+                },
+                {
+                  "key": "departure",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): OVERDUE | TODAY | UPCOMING. Departure relative to today."
+                },
+                {
+                  "key": "archived",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Allowed: true | false. Default false \u2014 live rows only. `true` returns ONLY archived ones."
+                }
+              ]
+            },
+            "description": "Open trip requests \u2014 the enquiry, before it becomes a quote or a trip (scope \u00a76.4).\n\n**Scoped.** A broker sees the enquiries assigned to them *plus any not yet assigned to anyone* \u2014 an unowned request is exactly the one that must not disappear. Applied in the query, so their pagination counts and pipeline totals are correct rather than merely censored.\n\n`client`, `assignedBroker` and both airports come back as objects rather than names, so the board can link to them and cannot show a stale name after a rename.\n\nUse `openOnly=true` for the working board."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Page of requests",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests?page=1&limit=3",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"clientId\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null,\n        \"email\": \"marcus.chen@example.com\",\n        \"phone\": null,\n        \"type\": \"DIRECT\",\n        \"status\": \"ACTIVE\",\n        \"leadStage\": \"WON\",\n        \"priority\": \"MEDIUM\"\n      },\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"assignedBroker\": {\n        \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"firstName\": \"Jordan\",\n        \"lastName\": \"Broker\",\n        \"email\": \"broker@tribecajets.com\"\n      },\n      \"source\": \"DIRECT\",\n      \"status\": \"QUOTED\",\n      \"originAirportId\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"iata\": \"TEB\",\n        \"name\": \"Teterboro Airport\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirportId\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"iata\": \"MIA\",\n        \"name\": \"Miami International\",\n        \"city\": \"Miami\"\n      },\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"returnDate\": \"2026-10-03T00:00:00.000Z\",\n      \"passengers\": 4,\n      \"aircraftPreference\": \"HEAVY_JET\",\n      \"estimatedValue\": 28000,\n      \"summary\": \"NYC \u2192 Miami, business charter\",\n      \"requirements\": \"Catering and ground transport at both ends.\",\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-16T05:07:20.296Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T05:07:20.296Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"c42c925e-7487-4dd0-bbf5-2a574d9edc40\",\n      \"reference\": 2,\n      \"clientId\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null,\n        \"email\": \"marcus.chen@example.com\",\n        \"phone\": null,\n        \"type\": \"DIRECT\",\n        \"status\": \"ACTIVE\",\n        \"leadStage\": \"WON\",\n        \"priority\": \"MEDIUM\"\n      },\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"assignedBroker\": {\n        \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"firstName\": \"Jordan\",\n        \"lastName\": \"Broker\",\n        \"email\": \"broker@tribecajets.com\"\n      },\n      \"source\": \"REFERRAL\",\n      \"status\": \"OPEN\",\n      \"originAirportId\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n      \"originAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"iata\": \"MIA\",\n        \"name\": \"Miami International\",\n        \"city\": \"Miami\"\n      },\n      \"destinationAirportId\": \"1ab27851-bacb-4f60-84cb-c36b93ba5e8a\",\n      \"destinationAirport\": {\n        \"id\": \"1ab27851-bacb-4f60-84cb-c36b93ba5e8a\",\n        \"icao\": \"KASE\",\n        \"iata\": \"ASE\",\n        \"name\": \"Aspen/Pitkin County\",\n        \"city\": \"Aspen\"\n      },\n      \"departureDate\": \"2026-11-01T00:00:00.000Z\",\n      \"returnDate\": null,\n      \"passengers\": 6,\n      \"aircraftPreference\": \"SUPER_MIDSIZE\",\n      \"estimatedValue\": 41500,\n      \"summary\": \"Miami \u2192 Aspen, ski week\",\n      \"requirements\": \"Ski equipment, six sets.\",\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-16T05:00:04.772Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T05:00:04.772Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Working board (openOnly)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests?openOnly=true",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"clientId\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null,\n        \"email\": \"marcus.chen@example.com\",\n        \"phone\": null,\n        \"type\": \"DIRECT\",\n        \"status\": \"ACTIVE\",\n        \"leadStage\": \"WON\",\n        \"priority\": \"MEDIUM\"\n      },\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"assignedBroker\": {\n        \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"firstName\": \"Jordan\",\n        \"lastName\": \"Broker\",\n        \"email\": \"broker@tribecajets.com\"\n      },\n      \"source\": \"DIRECT\",\n      \"status\": \"QUOTED\",\n      \"originAirportId\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"iata\": \"TEB\",\n        \"name\": \"Teterboro Airport\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirportId\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"iata\": \"MIA\",\n        \"name\": \"Miami International\",\n        \"city\": \"Miami\"\n      },\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"returnDate\": \"2026-10-03T00:00:00.000Z\",\n      \"passengers\": 4,\n      \"aircraftPreference\": \"HEAVY_JET\",\n      \"estimatedValue\": 28000,\n      \"summary\": \"NYC \u2192 Miami, business charter\",\n      \"requirements\": \"Catering and ground transport at both ends.\",\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-16T05:07:20.296Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T05:07:20.296Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"c42c925e-7487-4dd0-bbf5-2a574d9edc40\",\n      \"reference\": 2,\n      \"clientId\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null,\n        \"email\": \"marcus.chen@example.com\",\n        \"phone\": null,\n        \"type\": \"DIRECT\",\n        \"status\": \"ACTIVE\",\n        \"leadStage\": \"WON\",\n        \"priority\": \"MEDIUM\"\n      },\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"assignedBroker\": {\n        \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"firstName\": \"Jordan\",\n        \"lastName\": \"Broker\",\n        \"email\": \"broker@tribecajets.com\"\n      },\n      \"source\": \"REFERRAL\",\n      \"status\": \"OPEN\",\n      \"originAirportId\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n      \"originAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"iata\": \"MIA\",\n        \"name\": \"Miami International\",\n        \"city\": \"Miami\"\n      },\n      \"destinationAirportId\": \"1ab27851-bacb-4f60-84cb-c36b93ba5e8a\",\n      \"destinationAirport\": {\n        \"id\": \"1ab27851-bacb-4f60-84cb-c36b93ba5e8a\",\n        \"icao\": \"KASE\",\n        \"iata\": \"ASE\",\n        \"name\": \"Aspen/Pitkin County\",\n        \"city\": \"Aspen\"\n      },\n      \"departureDate\": \"2026-11-01T00:00:00.000Z\",\n      \"returnDate\": null,\n      \"passengers\": 6,\n      \"aircraftPreference\": \"SUPER_MIDSIZE\",\n      \"estimatedValue\": 41500,\n      \"summary\": \"Miami \u2192 Aspen, ski week\",\n      \"requirements\": \"Ski equipment, six sets.\",\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-16T05:00:04.772Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-16T05:00:04.772Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Enum is case-sensitive",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests?status=open",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"status\": \"Invalid option: expected one of \\\"OPEN\\\"|\\\"SOURCING\\\"|\\\"QUOTED\\\"|\\\"CONVERTED\\\"|\\\"LOST\\\"\"\n  },\n  \"path\": \"/api/trip-requests?status=open\",\n  \"timestamp\": \"2026-09-16T05:08:06.299Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/trip-requests\",\n  \"timestamp\": \"2026-09-16T04:00:00.000Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The detail, update and delete requests below need a real id.",
+                  "pm.test('list returned rows', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const rows = pm.response.json().data;",
+                  "    pm.expect(rows.length).to.be.above(0);",
+                  "    pm.collectionVariables.set('tripRequestId', rows[0].id);",
+                  "    pm.collectionVariables.set('clientId', rows[0].clientId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 Request stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip-requests/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip-requests",
+                "stats"
+              ]
+            },
+            "description": "Counts and pipeline value for the tiles above the board, scoped like the list so a broker's tiles always agree with the rows underneath them.\n\n`pipelineValue` sums **only open requests** \u2014 a converted one belongs to the trip it became, and counting it here would double it."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Stats",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"open\": 1,\n    \"sourcing\": 0,\n    \"quoted\": 1,\n    \"converted\": 0,\n    \"total\": 2,\n    \"pipelineValue\": 69500\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('stats returned', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data).to.have.property('pipelineValue');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Get trip request",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip-requests/{{tripRequestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip-requests",
+                "{{tripRequestId}}"
+              ]
+            },
+            "description": "One enquiry, with its client, broker and both airports resolved.\n\nArchived rows load here too, so the Archived tab can link to them. A request outside the caller's scope returns **404, not 403** \u2014 a 403 confirms the record exists and turns any id into an oracle."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Trip request",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/{{tripRequestId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "{{tripRequestId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"reference\": 8,\n    \"clientId\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n    \"client\": {\n      \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n      \"firstName\": \"Marcus\",\n      \"lastName\": \"Chen\",\n      \"companyName\": null,\n      \"email\": \"marcus.chen@example.com\",\n      \"phone\": null,\n      \"type\": \"DIRECT\",\n      \"status\": \"ACTIVE\",\n      \"leadStage\": \"WON\",\n      \"priority\": \"MEDIUM\"\n    },\n    \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n    \"assignedBroker\": {\n      \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"firstName\": \"Jordan\",\n      \"lastName\": \"Broker\",\n      \"email\": \"broker@tribecajets.com\"\n    },\n    \"source\": \"DIRECT\",\n    \"status\": \"QUOTED\",\n    \"originAirportId\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n    \"originAirport\": {\n      \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n      \"icao\": \"KTEB\",\n      \"iata\": \"TEB\",\n      \"name\": \"Teterboro Airport\",\n      \"city\": \"Teterboro\"\n    },\n    \"destinationAirportId\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n    \"destinationAirport\": {\n      \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n      \"icao\": \"KMIA\",\n      \"iata\": \"MIA\",\n      \"name\": \"Miami International\",\n      \"city\": \"Miami\"\n    },\n    \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n    \"returnDate\": \"2026-10-03T00:00:00.000Z\",\n    \"passengers\": 4,\n    \"aircraftPreference\": \"HEAVY_JET\",\n    \"estimatedValue\": 28000,\n    \"summary\": \"NYC \u2192 Miami, business charter\",\n    \"requirements\": \"Catering and ground transport at both ends.\",\n    \"internalNotes\": null,\n    \"createdAt\": \"2026-09-16T05:07:20.296Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T05:07:20.296Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/00000000-0000-4000-8000-000000000000",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "00000000-0000-4000-8000-000000000000"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Trip request not found\",\n  \"path\": \"/api/trip-requests/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-16T05:08:06.318Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 File a trip request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{clientId}}\",                          // required \u00b7 uuid of a live client. The ONLY required field \u2014 an enquiry with nobody attached cannot be followed up, quoted or converted. For a travel agent's enquiry this is the agent, who is a client of type TRAVEL_AGENT.\n\n  \"source\": \"REFERRAL\",                                // optional \u00b7 DIRECT | TRAVEL_AGENT | FACEBOOK_GROUP_1 | FACEBOOK_GROUP_2 | REFERRAL | WEBSITE | OTHER. Default DIRECT. Same enum the client's leadSource uses \u2014 one vocabulary, not two.\n  \"status\": \"OPEN\",                                    // optional \u00b7 OPEN | SOURCING | QUOTED | CONVERTED | LOST. Default OPEN.\n\n  \"assignedBrokerId\": \"{{userId}}\",                    // optional \u00b7 uuid. A BROKER always files against themselves, whatever is sent here; assigning to someone else needs a wider scope.\n\n  \"originAirportId\": \"{{airportId}}\",                  // optional \u00b7 uuid of a live airport  // Route. Real airport ids, not codes typed into a box.\n  \"destinationAirportId\": null,                        // optional \u00b7 uuid, or null\n\n  \"departureDate\": \"2026-11-15\",                       // optional                           // YYYY-MM-DD, no time of day. A present returnDate is what makes this a round trip \u2014 there is no separate flag, because two fields that can disagree will. A return before the departure returns 400.\n  \"returnDate\": \"2026-11-18\",                          // optional\n\n  \"passengers\": 4,                                     // optional \u00b7 integer 1-200. An empty string is stored as absent, never as 0.\n  \"aircraftPreference\": \"HEAVY_JET\",                   // optional \u00b7 TURBOPROP | LIGHT_JET | MIDSIZE_JET | SUPER_MIDSIZE | HEAVY_JET | ULTRA_LONG_RANGE | VIP_AIRLINER. A category, not a tail \u2014 at enquiry stage nobody has picked an airframe.\n  \"estimatedValue\": 28000,                             // optional \u00b7 number 0-100000000, whole currency units. Feeds the pipeline total, so it is DECIMAL not float.\n\n  \"summary\": \"NYC \u2192 Miami, business charter\",          // optional \u00b7 max 300 chars. One line for the board's Route column.\n  \"requirements\": \"Catering and ground transport.\",    // optional \u00b7 max 2000 chars. What the client asked for.\n  \"internalNotes\": \"Referred by Hope Sterling.\"        // optional \u00b7 max 2000 chars. Never shown to a client.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trip-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip-requests"
+              ]
+            },
+            "description": "Files an enquiry. This is the second half of the Add Lead form: a lead is a *person* (a Client at lead stage) and what they asked for is this record, because one client can ask for three different trips and because the request outlives the lead stage \u2014 it becomes a quote, then a trip, while the client stays a client.\n\n**Only `clientId` is required.** Everything else can arrive later; demanding a full route on a first phone call only produces guesses.\n\nA **broker files against themselves** whatever `assignedBrokerId` says \u2014 assigning to someone else needs a wider scope."
+          },
+          "response": [
+            {
+              "name": "201 \u00b7 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientId\": \"d2272d98-936a-424f-96c6-ecd86a69977f\",\n  \"source\": \"REFERRAL\",\n  \"status\": \"OPEN\",\n  \"originAirportId\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n  \"destinationAirportId\": null,\n  \"departureDate\": \"2026-11-15\",\n  \"returnDate\": \"2026-11-18\",\n  \"passengers\": 4,\n  \"aircraftPreference\": \"HEAVY_JET\",\n  \"estimatedValue\": 28000,\n  \"summary\": \"NYC \\u2192 Miami, business charter\",\n  \"requirements\": \"Catering and ground transport.\",\n  \"internalNotes\": \"Referred by Hope Sterling.\"\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"7a38f403-c7cc-4e2d-806c-44422c82f301\",\n    \"reference\": 10,\n    \"clientId\": \"d2272d98-936a-424f-96c6-ecd86a69977f\",\n    \"client\": {\n      \"id\": \"d2272d98-936a-424f-96c6-ecd86a69977f\",\n      \"firstName\": \"Marcus\",\n      \"lastName\": \"Reyes\",\n      \"companyName\": null,\n      \"email\": \"marcus.reyes@example.com\",\n      \"phone\": \"+1 555 0142\",\n      \"type\": \"DIRECT\",\n      \"status\": \"LEAD\",\n      \"leadStage\": \"QUOTED\",\n      \"priority\": \"MEDIUM\"\n    },\n    \"assignedBrokerId\": null,\n    \"assignedBroker\": null,\n    \"source\": \"REFERRAL\",\n    \"status\": \"OPEN\",\n    \"originAirportId\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n    \"originAirport\": {\n      \"id\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n      \"icao\": \"QZQD\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"destinationAirportId\": null,\n    \"destinationAirport\": null,\n    \"departureDate\": \"2026-11-15T00:00:00.000Z\",\n    \"returnDate\": \"2026-11-18T00:00:00.000Z\",\n    \"passengers\": 4,\n    \"aircraftPreference\": \"HEAVY_JET\",\n    \"estimatedValue\": 28000,\n    \"summary\": \"NYC \u2192 Miami, business charter\",\n    \"requirements\": \"Catering and ground transport.\",\n    \"internalNotes\": \"Referred by Hope Sterling.\",\n    \"createdAt\": \"2026-09-16T05:08:06.322Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T05:08:06.322Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Client does not exist",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That client does not exist\",\n  \"path\": \"/api/trip-requests\",\n  \"timestamp\": \"2026-09-16T05:08:06.329Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Return before departure",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"returnDate\": \"The return date cannot be before the departure date\"\n  },\n  \"path\": \"/api/trip-requests\",\n  \"timestamp\": \"2026-09-16T05:08:06.332Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Role may read but not write",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Create/Edit Trips)\",\n  \"path\": \"/api/trip-requests\",\n  \"timestamp\": \"2026-09-16T05:08:06.333Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The update, remove and restore requests below operate on this new",
+                  "// request, so running the folder never touches seeded rows.",
+                  "pm.test('created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.collectionVariables.set('newTripRequestId', pm.response.json().data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Update a trip request",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SOURCING\",                                // Also how the request moves through the pipeline.  // Every field optional \u2014 this is a PATCH, and an empty body returns 400. Send only what changed; anything omitted is left alone, and null clears.\n\n  \"estimatedValue\": 31500,\n\n  \"internalNotes\": \"Client added two passengers on the call.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip-requests",
+                "{{newTripRequestId}}"
+              ]
+            },
+            "description": "Partial update \u2014 send only what changed. An empty body returns 400 rather than a no-op 200.\n\n**Also how a request moves through the pipeline**: send `status`.\n\n**Reassignment is an administrator action.** A broker must not hand their own enquiry to someone else or claim another's \u2014 the same rule clients use."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Updated",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "{{newTripRequestId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"7a38f403-c7cc-4e2d-806c-44422c82f301\",\n    \"reference\": 10,\n    \"clientId\": \"d2272d98-936a-424f-96c6-ecd86a69977f\",\n    \"client\": {\n      \"id\": \"d2272d98-936a-424f-96c6-ecd86a69977f\",\n      \"firstName\": \"Marcus\",\n      \"lastName\": \"Reyes\",\n      \"companyName\": null,\n      \"email\": \"marcus.reyes@example.com\",\n      \"phone\": \"+1 555 0142\",\n      \"type\": \"DIRECT\",\n      \"status\": \"LEAD\",\n      \"leadStage\": \"QUOTED\",\n      \"priority\": \"MEDIUM\"\n    },\n    \"assignedBrokerId\": null,\n    \"assignedBroker\": null,\n    \"source\": \"REFERRAL\",\n    \"status\": \"SOURCING\",\n    \"originAirportId\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n    \"originAirport\": {\n      \"id\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n      \"icao\": \"QZQD\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"destinationAirportId\": null,\n    \"destinationAirport\": null,\n    \"departureDate\": \"2026-11-15T00:00:00.000Z\",\n    \"returnDate\": \"2026-11-18T00:00:00.000Z\",\n    \"passengers\": 4,\n    \"aircraftPreference\": \"HEAVY_JET\",\n    \"estimatedValue\": 31500,\n    \"summary\": \"NYC \u2192 Miami, business charter\",\n    \"requirements\": \"Catering and ground transport.\",\n    \"internalNotes\": \"Client added two passengers on the call.\",\n    \"createdAt\": \"2026-09-16T05:08:06.322Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T05:08:06.336Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Empty patch",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "{{newTripRequestId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/trip-requests/7a38f403-c7cc-4e2d-806c-44422c82f301\",\n  \"timestamp\": \"2026-09-16T05:08:06.342Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Broker cannot reassign",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "{{newTripRequestId}}"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Only administrators can reassign a trip request\",\n  \"path\": \"/api/trip-requests/7a38f403-c7cc-4e2d-806c-44422c82f301\",\n  \"timestamp\": \"2026-09-16T05:08:06.347Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Remove a trip request (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip-requests",
+                "{{newTripRequestId}}"
+              ]
+            },
+            "description": "**Administrators only.** A broker who has stopped working an enquiry sets its status to `LOST`, which keeps it in the pipeline history and in the conversion figures \u2014 removing the row quietly improves everyone's conversion rate, which is exactly the wrong incentive to build into a sales tool.\n\nSoft, like every delete in this system."
+          },
+          "response": [
+            {
+              "name": "204 \u00b7 Removed",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "{{newTripRequestId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "403 \u00b7 Brokers mark it Lost instead",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "{{newTripRequestId}}"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Only administrators can remove a trip request. Mark it Lost instead.\",\n  \"path\": \"/api/trip-requests/7a38f403-c7cc-4e2d-806c-44422c82f301\",\n  \"timestamp\": \"2026-09-16T05:08:06.349Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Restore a trip request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip-requests",
+                "{{newTripRequestId}}",
+                "restore"
+              ]
+            },
+            "description": "Administrators only, like removing it. Clears the deletion stamp and nothing else, so every field comes back untouched.\n\nReturns **200, not 201** \u2014 a restore creates nothing. A row that is not archived returns 404."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "{{newTripRequestId}}",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"7a38f403-c7cc-4e2d-806c-44422c82f301\",\n    \"reference\": 10,\n    \"clientId\": \"d2272d98-936a-424f-96c6-ecd86a69977f\",\n    \"client\": {\n      \"id\": \"d2272d98-936a-424f-96c6-ecd86a69977f\",\n      \"firstName\": \"Marcus\",\n      \"lastName\": \"Reyes\",\n      \"companyName\": null,\n      \"email\": \"marcus.reyes@example.com\",\n      \"phone\": \"+1 555 0142\",\n      \"type\": \"DIRECT\",\n      \"status\": \"LEAD\",\n      \"leadStage\": \"QUOTED\",\n      \"priority\": \"MEDIUM\"\n    },\n    \"assignedBrokerId\": null,\n    \"assignedBroker\": null,\n    \"source\": \"REFERRAL\",\n    \"status\": \"SOURCING\",\n    \"originAirportId\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n    \"originAirport\": {\n      \"id\": \"d936061a-4b2e-47b1-bfa5-ac8a13e0c84b\",\n      \"icao\": \"QZQD\",\n      \"iata\": \"BED\",\n      \"name\": \"Laurence G Hanscom Field\",\n      \"city\": \"Bedford\"\n    },\n    \"destinationAirportId\": null,\n    \"destinationAirport\": null,\n    \"departureDate\": \"2026-11-15T00:00:00.000Z\",\n    \"returnDate\": \"2026-11-18T00:00:00.000Z\",\n    \"passengers\": 4,\n    \"aircraftPreference\": \"HEAVY_JET\",\n    \"estimatedValue\": 31500,\n    \"summary\": \"NYC \u2192 Miami, business charter\",\n    \"requirements\": \"Catering and ground transport.\",\n    \"internalNotes\": \"Client added two passengers on the call.\",\n    \"createdAt\": \"2026-09-16T05:08:06.322Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-16T05:08:06.358Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-16T05:08:06.358Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not archived",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/{{newTripRequestId}}/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "{{newTripRequestId}}",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived trip request not found\",\n  \"path\": \"/api/trip-requests/7a38f403-c7cc-4e2d-806c-44422c82f301/restore\",\n  \"timestamp\": \"2026-09-16T05:08:06.365Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "08 \u00b7 Remove several at once (soft)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newTripRequestId}}\"]   // 1-100 uuids. Ids that match nothing come back in `skipped` rather than failing the batch.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trip-requests/bulk-delete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip-requests",
+                "bulk-delete"
+              ]
+            },
+            "description": "Administrators only, like the single case. **POST, not DELETE-with-body** \u2014 proxies drop DELETE bodies, and a dropped body would remove nothing while answering 200.\n\n**Partial success is success**: ids that match nothing are reported in `skipped`."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Removed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "bulk-delete"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"{{newTripRequestId}}\",\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 2,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": [\n      \"00000000-0000-4000-8000-000000000000\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Nothing selected",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "bulk-delete"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": []\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/trip-requests/bulk-delete\",\n  \"timestamp\": \"2026-09-16T05:08:06.372Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Brokers mark them Lost instead",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "bulk-delete"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Only administrators can remove a trip request. Mark it Lost instead.\",\n  \"path\": \"/api/trip-requests/bulk-delete\",\n  \"timestamp\": \"2026-09-16T05:08:06.374Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "09 \u00b7 Restore several at once",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newTripRequestId}}\"]   // 1-100 uuids. Ids that are not archived come back in `skipped`.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trip-requests/bulk-restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip-requests",
+                "bulk-restore"
+              ]
+            },
+            "description": "The mirror of `08`, for the Archived tab's checkbox column \u2014 the reason every bulk delete in this API has one. A table that lets you select archived rows and offers no action on them is a dead checkbox column."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "bulk-restore"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"{{newTripRequestId}}\",\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 2,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": [\n      \"00000000-0000-4000-8000-000000000000\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Already live (partial)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/trip-requests/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "trip-requests",
+                    "bulk-restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"7a38f403-c7cc-4e2d-806c-44422c82f301\"\n    ]\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Teardown. This is the last request in the folder and leaves the",
+                  "// enquiry it created LIVE, so every run would add a probe to the",
+                  "// working board. There is no hard delete by design, so archiving it",
+                  "// is the best available end state: debris sits in the Archived tab",
+                  "// rather than among the requests a broker is trying to price.",
+                  "pm.test('restored', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const id = pm.collectionVariables.get('newTripRequestId');",
+                  "if (id) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('baseUrl') + '/trip-requests/' + id,",
                   "        method: 'DELETE',",
                   "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
                   "    }, function (err) {",
