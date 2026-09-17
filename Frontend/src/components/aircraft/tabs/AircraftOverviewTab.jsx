@@ -2,18 +2,15 @@
 
 import Link from "next/link";
 import { Building2, ArrowRight } from "lucide-react";
-import SectionCard from "@/components/common/SectionCard";
+import DetailCard from "@/components/common/DetailCard";
 import DetailField from "@/components/common/DetailField";
 
 /**
- * Every value below comes from the record, already formatted by
- * `toAircraftRow` — an absent one is an em dash.
+ * AircraftOverviewTab
  *
- * This tab used to fall back to "Gulfstream Aerospace", "Mach 0.885",
- * "51,000 ft", "226 cu ft" and a seven-item amenity list, so every aircraft in
- * the fleet displayed the specification of one G550 whether or not anybody had
- * entered it. It also linked to a hardcoded operator id, so "View Operator"
- * opened the same company from any tail.
+ * Displays aircraft specifications, interior amenities, notes, operator details,
+ * home base airport, and trip aggregates.
+ * Follows the CRM rule: "Never display a number the data did not supply".
  */
 export default function AircraftOverviewTab({ aircraft }) {
   if (!aircraft) return null;
@@ -21,10 +18,11 @@ export default function AircraftOverviewTab({ aircraft }) {
   const amenities = aircraft.amenities ?? [];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
-      <div className="flex-1 flex flex-col gap-6 w-full min-w-0">
-        <SectionCard title="SPECIFICATIONS">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start w-full">
+      {/* Left Column: Specifications, Interior & Amenities, Notes */}
+      <div className="flex flex-col gap-6 w-full min-w-0">
+        <DetailCard title="SPECIFICATIONS">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 w-full">
             <DetailField label="Manufacturer" value={aircraft.manufacturer} />
             <DetailField label="Year Built" value={aircraft.yearBuilt} />
             <DetailField label="Max Passengers" value={aircraft.maxPassengers} />
@@ -34,10 +32,10 @@ export default function AircraftOverviewTab({ aircraft }) {
             <DetailField label="Baggage Capacity" value={aircraft.baggageCapacity} />
             <DetailField label="Cabin Length" value={aircraft.cabinLength} />
           </div>
-        </SectionCard>
+        </DetailCard>
 
-        <SectionCard title="INTERIOR & AMENITIES">
-          {amenities.length ? (
+        <DetailCard title="INTERIOR & AMENITIES">
+          {amenities.length > 0 ? (
             <div className="flex flex-wrap gap-2 w-full">
               {amenities.map((amenity) => (
                 <span
@@ -53,11 +51,11 @@ export default function AircraftOverviewTab({ aircraft }) {
               No amenities recorded for this aircraft.
             </p>
           )}
-        </SectionCard>
+        </DetailCard>
 
-        <SectionCard title="NOTES">
+        <DetailCard title="NOTES">
           {aircraft.notes ? (
-            <p className="font-montserrat font-medium text-[14px] text-foreground leading-relaxed">
+            <p className="font-montserrat font-medium text-[13px] text-foreground leading-relaxed">
               {aircraft.notes}
             </p>
           ) : (
@@ -65,25 +63,25 @@ export default function AircraftOverviewTab({ aircraft }) {
               No notes on file.
             </p>
           )}
-        </SectionCard>
+        </DetailCard>
       </div>
 
-      <div className="w-full lg:w-96 shrink-0 flex flex-col gap-6">
-        <SectionCard title="OPERATOR">
+      {/* Right Column: Operator, Home Base, Trip Stats */}
+      <div className="w-full shrink-0 flex flex-col gap-6 min-w-0">
+        <DetailCard title="OPERATOR">
           {aircraft.operatorId ? (
             <div className="flex flex-col gap-3 w-full">
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-lg bg-purple/10 border border-purple/20 flex items-center justify-center text-purple shrink-0">
                   <Building2 className="size-5" />
                 </div>
-                <span className="font-montserrat font-bold text-[18px] text-purple">
+                <span className="font-montserrat font-bold text-[16px] text-purple truncate">
                   {aircraft.operator}
                 </span>
               </div>
-              {/* The real operator, not a hardcoded id. */}
               <Link
                 href={`/dashboard/operators/${aircraft.operatorId}`}
-                className="inline-flex items-center gap-1 font-montserrat text-[13px] font-bold text-purple hover:underline pt-1"
+                className="inline-flex items-center gap-1 font-montserrat text-[12px] font-bold text-purple hover:underline pt-1"
               >
                 <span>View Operator</span>
                 <ArrowRight className="size-3.5" />
@@ -94,13 +92,13 @@ export default function AircraftOverviewTab({ aircraft }) {
               Unassigned. Edit the aircraft to link it to an operator.
             </p>
           )}
-        </SectionCard>
+        </DetailCard>
 
-        <SectionCard title="HOME BASE">
+        <DetailCard title="HOME BASE">
           {aircraft.homeBaseId ? (
             <Link
               href={`/dashboard/airports?search=${aircraft.homeBaseIcao ?? ""}`}
-              className="font-montserrat font-bold text-[15px] text-purple hover:underline"
+              className="font-montserrat font-bold text-[14px] text-purple hover:underline"
             >
               {aircraft.homeBase}
             </Link>
@@ -109,18 +107,17 @@ export default function AircraftOverviewTab({ aircraft }) {
               No home base on file.
             </p>
           )}
-        </SectionCard>
+        </DetailCard>
 
-        <SectionCard title="TRIP STATS">
+        <DetailCard title="TRIP STATS">
           <div className="flex flex-col gap-3.5 w-full">
             {/* All three are null until the Trips module exists. They render as
-                an em dash rather than 0, because "0 trips" against a tail the
-                desk has flown is a wrong answer and "—" is an honest one. */}
+                an em dash rather than 0, per the project agreement. */}
             <DetailField label="Total Trips" value={aircraft.totalTrips} />
             <DetailField label="This Year" value={aircraft.tripsThisYear} />
             <DetailField label="Avg Utilization" value={aircraft.avgUtilization} />
           </div>
-        </SectionCard>
+        </DetailCard>
       </div>
     </div>
   );
