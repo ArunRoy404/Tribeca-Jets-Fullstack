@@ -14,6 +14,7 @@ import {
   UserRole,
   UserStatus,
   OperatorQuoteStatus,
+  QuoteStatus,
 } from '../src/generated/prisma/enums.js';
 import argon2 from 'argon2';
 
@@ -371,8 +372,13 @@ async function main(): Promise<void> {
   // 2 responded") have something real to count. The unanswered one is
   // deliberate: an enquiry where every operator has replied never exercises
   // AWAITING_RESPONSE, which is the state the desk actually chases.
+  // `deletedAt: null` matters: testing archives requests, and an archived one
+  // still matches on summary. Without it the seed hangs its quotes off a
+  // removed enquiry — which is exactly what happened, and it is invisible
+  // until a board shows two quotes whose request is not in any list.
   const sourcedRequest = await prisma.tripRequest.findFirst({
-    where: { summary: 'NYC → Miami, business charter' },
+    where: { summary: 'NYC → Miami, business charter', deletedAt: null },
+    orderBy: { createdAt: 'asc' },
     select: { id: true },
   });
 
@@ -438,6 +444,146 @@ async function main(): Promise<void> {
     }
   }
 
+  // Client quotes: one sent and waiting, one draft.
+  //
+  // The sent one is built on the cheapest operator quote above, which is the
+  // whole point of the link — the margin on it traces back to a real number an
+  // operator gave us rather than to a figure someone retyped. The draft gives
+  // the board a row that has never been near a client, so the "send it first"
+  // rule has something to refuse.
+  if (sourcedRequest) {
+    const winning = await prisma.operatorQuote.findFirst({
+      where: {
+        tripRequestId: sourcedRequest.id,
+        status: OperatorQuoteStatus.RECEIVED,
+        deletedAt: null,
+      },
+      orderBy: { price: 'asc' },
+      select: { id: true, price: true, operatorId: true, aircraftId: true },
+    });
+
+    const request = await prisma.tripRequest.findUnique({
+      where: { id: sourcedRequest.id },
+      select: {
+        clientId: true,
+        assignedBrokerId: true,
+        originAirportId: true,
+        destinationAirportId: true,
+        departureDate: true,
+        returnDate: true,
+        passengers: true,
+      },
+    });
+
+    const already = await prisma.quote.count({
+      where: { tripRequestId: sourcedRequest.id, deletedAt: null },
+    });
+
+    if (winning && request && already === 0) {
+      const operatorCost = Number(winning.price);
+      // A round 22% over cost, before tax — a plausible desk markup, and
+      // written as a stated multiple rather than a magic total so the figure
+      // is reproducible rather than invented.
+      const basePrice = Math.round(operatorCost * 1.22 * 100) / 100;
+
+      const inTenDays = new Date();
+      inTenDays.setUTCDate(inTenDays.getUTCDate() + 10);
+      inTenDays.setUTCHours(0, 0, 0, 0);
+
+      const sent = await prisma.quote.create({
+        data: {
+          clientId: request.clientId,
+          tripRequestId: sourcedRequest.id,
+          operatorQuoteId: winning.id,
+          assignedBrokerId: request.assignedBrokerId ?? broker.id,
+          operatorId: winning.operatorId,
+          aircraftId: winning.aircraftId,
+          originAirportId: request.originAirportId,
+          destinationAirportId: request.destinationAirportId,
+          departureDate: request.departureDate,
+          returnDate: request.returnDate,
+          passengers: request.passengers,
+          basePrice,
+          fetEnabled: true,
+          operatorCost,
+          depositAmount: Math.round(basePrice * 0.25 * 100) / 100,
+          lineItems: [
+            { label: 'Catering (premium)', amount: null, included: true },
+            { label: 'Ground transportation', amount: 850, included: false },
+          ],
+          status: QuoteStatus.SENT,
+          version: 1,
+          sentAt: new Date(Date.now() - 20 * 3_600_000),
+          validUntil: inTenDays,
+          terms: '50% on acceptance, balance 72 hours before departure.',
+          createdById: admin.id,
+          updatedById: admin.id,
+        },
+        select: { id: true, basePrice: true, fetRate: true },
+      });
+
+      const fetAmount =
+        Math.round(Number(sent.basePrice) * Number(sent.fetRate) * 100) / 100;
+      await prisma.quoteVersion.create({
+        data: {
+          quoteId: sent.id,
+          version: 1,
+          basePrice,
+          fetEnabled: true,
+          fetRate: sent.fetRate,
+          operatorCost,
+          lineItems: [
+            { label: 'Catering (premium)', amount: null, included: true },
+            { label: 'Ground transportation', amount: 850, included: false },
+          ],
+          fetAmount,
+          extrasTotal: 850,
+          totalPrice: Math.round((basePrice + fetAmount + 850) * 100) / 100,
+          grossProfit:
+            Math.round((basePrice + fetAmount + 850 - operatorCost) * 100) / 100,
+          note: 'Initial quote',
+          createdById: admin.id,
+        },
+      });
+
+      await prisma.quote.create({
+        data: {
+          clientId: request.clientId,
+          tripRequestId: sourcedRequest.id,
+          assignedBrokerId: broker.id,
+          originAirportId: request.originAirportId,
+          destinationAirportId: request.destinationAirportId,
+          departureDate: request.departureDate,
+          passengers: request.passengers,
+          basePrice: 38900,
+          fetEnabled: true,
+          lineItems: [],
+          status: QuoteStatus.DRAFT,
+          version: 1,
+          internalNotes: 'Alternative on a super-midsize — cheaper, one stop.',
+          createdById: admin.id,
+          updatedById: admin.id,
+          versions: {
+            create: {
+              version: 1,
+              basePrice: 38900,
+              fetEnabled: true,
+              fetRate: 0.075,
+              operatorCost: null,
+              lineItems: [],
+              fetAmount: 2917.5,
+              extrasTotal: 0,
+              totalPrice: 41817.5,
+              grossProfit: null,
+              note: 'Initial quote',
+              createdById: admin.id,
+            },
+          },
+        },
+      });
+    }
+  }
+
   // Lead-desk settings on the seeded brokers, so the Agents roster has a cap
   // to measure workload against rather than inventing one.
   await prisma.user.update({
@@ -454,7 +600,7 @@ async function main(): Promise<void> {
   console.log('  assistant@tribecajets.com / ChangeMe123!  (ASSISTANT)');
   console.log('  + barry / mark (BROKER, active), tom (SUSPENDED), newhire (INVITED)');
   console.log(
-    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, 3 operator quotes`,
+    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, 3 operator quotes, 2 client quotes`,
   );
 }
 

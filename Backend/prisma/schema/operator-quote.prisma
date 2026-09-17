@@ -85,6 +85,12 @@ model OperatorQuote {
   /// Broker-only notes on the ask and the answer.
   internalNotes String?
 
+  /// The client-facing offers priced off this operator's number. Added in the
+  /// second pass when Quotes (#10) shipped: it is what makes a quote's margin
+  /// traceable to the price we were actually given, rather than to a figure
+  /// retyped from another screen.
+  clientQuotes Quote[] @relation("QuoteOperatorQuote")
+
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
   createdBy   User?    @relation("OperatorQuoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)

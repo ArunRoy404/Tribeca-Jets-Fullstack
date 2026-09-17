@@ -1,0 +1,248 @@
+/// The client-facing offer: what Tribeca Jets sells the flight for.
+///
+/// Scope §6.10 ("Instant Quote Calculator & Quote Builder") and the data model
+/// in §10, which lists **Client Quote** — trip, client, pricing, FET, deposit,
+/// terms, version, status — as an entity distinct from **Operator Quote**.
+///
+/// The two are genuinely different records and this is the seam between them:
+/// an `OperatorQuote` is what an operator charges *us* (§6.9, module #9), and a
+/// `Quote` is what the client is charged, with margin and Federal Excise Tax on
+/// top. Approving an operator's price does not create the client's offer — the
+/// desk decides the markup — so `operatorQuoteId` is the link, not an identity.
+///
+/// **What is stored and what is worked out.** Only the inputs a person typed
+/// are columns: the base price, whether FET applies and at what rate, what the
+/// operator charges, and the extras. Every figure built from them — the FET
+/// amount, the extras subtotal, the total, the gross profit and the margin —
+/// is computed on read. Storing a total beside its parts means the day someone
+/// edits the base price and the total does not follow, the quote contradicts
+/// itself and nothing in the UI says which half is right. That is the classic
+/// accounting bug, and on a charter desk it is money.
+///
+/// The thing a frozen figure *is* needed for — "what exactly did we send the
+/// client on the 9th?" — is `QuoteVersion`, below, which snapshots the whole
+/// computed set every time the price changes.
+model Quote {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Human-facing reference ("Q-42"), matching TripRequest's. Assigned by the
+  /// database so two brokers quoting at once cannot collide, and never reused.
+  reference Int @unique @default(autoincrement())
+
+  /// Who is being quoted. Required, and Restrict: a quote is a financial
+  /// offer made to a named person, and it has to stay attached to them.
+  clientId String @db.Uuid
+  client   Client @relation("QuoteClient", fields: [clientId], references: [id], onDelete: Restrict)
+
+  /// The enquiry this answers. Nullable — the desk also quotes a repeat client
+  /// straight off a phone call, with no request filed first.
+  tripRequestId String?      @db.Uuid
+  tripRequest   TripRequest? @relation("QuoteTripRequest", fields: [tripRequestId], references: [id], onDelete: SetNull)
+
+  /// The operator price this offer is built on, when it came out of sourcing.
+  ///
+  /// This is the whole point of building #9 before #10: without it the
+  /// operator cost below would be a number retyped from another screen, and
+  /// the margin on this quote could not be traced to the price we were
+  /// actually given. Nullable, because a quote can be priced before sourcing
+  /// finishes — or without sourcing at all.
+  operatorQuoteId String?        @db.Uuid
+  operatorQuote   OperatorQuote? @relation("QuoteOperatorQuote", fields: [operatorQuoteId], references: [id], onDelete: SetNull)
+
+  /// The broker who owns it. Drives row-level scope: a broker sees their own
+  /// quotes, a senior broker sees the desk's.
+  assignedBrokerId String? @db.Uuid
+  assignedBroker   User?   @relation("QuoteAssignedBroker", fields: [assignedBrokerId], references: [id], onDelete: SetNull)
+
+  /// Who is flying it. Denormalised from the operator quote on purpose: a
+  /// quote can name an operator without one, and the operator quote can later
+  /// be archived without the client's offer forgetting who was going to fly.
+  operatorId String?   @db.Uuid
+  operator   Operator? @relation("QuoteOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+
+  /// The aircraft, two ways — the same pattern OperatorQuote uses. A real tail
+  /// when it is one we hold, so seats and range come with it; free text when
+  /// the operator is flying something we have never entered.
+  aircraftId     String?   @db.Uuid
+  aircraft       Aircraft? @relation("QuoteAircraft", fields: [aircraftId], references: [id], onDelete: SetNull)
+  quotedAircraft String?
+
+  /// Route. Real airport relations, never codes typed into a box.
+  originAirportId      String?  @db.Uuid
+  originAirport        Airport? @relation("QuoteOrigin", fields: [originAirportId], references: [id], onDelete: SetNull)
+  destinationAirportId String?  @db.Uuid
+  destinationAirport   Airport? @relation("QuoteDestination", fields: [destinationAirportId], references: [id], onDelete: SetNull)
+
+  /// Days, not moments — the same reasoning as TripRequest. A present
+  /// `returnDate` is what makes it a round trip; there is no separate flag,
+  /// because two fields that can disagree will.
+  departureDate DateTime? @db.Date
+  returnDate    DateTime? @db.Date
+
+  passengers Int?
+
+  // ---- The priced inputs --------------------------------------------------
+
+  /// The charter price before tax and extras. Required: a quote with no price
+  /// is not a quote. Decimal, never Float — binary floating point cannot hold
+  /// 79500.10, and this is the number on a document sent to a client.
+  basePrice Decimal @db.Decimal(12, 2)
+
+  /// US Federal Excise Tax on domestic air transportation.
+  ///
+  /// The rate is stored per quote rather than hardcoded at 7.5%, because a
+  /// statutory rate is a fact about *when the quote was written*. Hardcoding
+  /// it would silently restate every historical quote the day the rate moves,
+  /// and international legs are exempt entirely — which is what `fetEnabled`
+  /// is for.
+  fetEnabled Boolean @default(true)
+  fetRate    Decimal @default(0.075) @db.Decimal(6, 5)
+
+  /// What the flight costs us. Nullable: a draft can be priced to the client
+  /// before the operator's number is in, and a margin of "we do not know yet"
+  /// must read as unknown rather than as 100% profit.
+  operatorCost Decimal? @db.Decimal(12, 2)
+
+  /// Extras on the offer — catering, ground transportation, de-icing.
+  ///
+  /// JSON rather than a table, deliberately. These are values, not records:
+  /// they are only ever read with their quote, never filtered across quotes,
+  /// and they are replaced as a set when the broker re-prices. A table would
+  /// mean either deleting rows on every edit — which this system does not do —
+  /// or an archive trail on a catering line. Their history is preserved where
+  /// it belongs, frozen into each `QuoteVersion` snapshot.
+  ///
+  /// Shape: `[{ label, amount, included }]`. `included: true` with no amount is
+  /// the "Included" the offer prints; an amount adds to the total.
+  lineItems Json @default("[]")
+
+  /// What the client pays up front to hold the aircraft. A figure, not a
+  /// percentage — the desk sets it per quote.
+  depositAmount Decimal? @db.Decimal(12, 2)
+
+  // ---- State --------------------------------------------------------------
+
+  status QuoteStatus @default(DRAFT)
+
+  /// The current version number. The snapshots are in `versions`; this is
+  /// kept in step with the highest one so the board can show "V3" without
+  /// loading the log for every row.
+  version Int @default(1)
+
+  /// When it went out, when the client opened it, and when they decided.
+  ///
+  /// `viewedAt` is only ever set by the client portal (#25), which does not
+  /// exist — scope §16 says "client opened quote, **where technically
+  /// trackable**". Until then it stays null and the screen says so, rather
+  /// than guessing from the sent date.
+  sentAt    DateTime?
+  viewedAt  DateTime?
+  decidedAt DateTime?
+
+  /// The offer's shelf life. A date, because the desk works these in days.
+  /// Expiry is *derived* from it on read — a status column that only becomes
+  /// true when someone happens to load the row is a lie on every other day.
+  validUntil DateTime? @db.Date
+
+  /// Terms printed on the quote. Client-facing.
+  terms         String?
+  /// What the desk says among themselves. Never shown to a client.
+  internalNotes String?
+  /// Why it was approved or rejected, in the broker's words.
+  decisionNote  String?
+
+  versions QuoteVersion[] @relation("QuoteVersionQuote")
+
+  // ---- Audit trail (every model carries these four) ------------------------
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("QuoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("QuoteUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  /// ---- Archive trail ------------------------------------------------------
+  deletedAt   DateTime?
+  deletedById String?   @db.Uuid
+  deletedBy   User?     @relation("QuoteDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("QuoteRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@index([clientId])
+  @@index([assignedBrokerId, status])
+  @@index([tripRequestId])
+  @@index([validUntil])
+  @@map("quotes")
+}
+
+/// One frozen snapshot of a quote's figures.
+///
+/// Scope §6.10 asks for quote version history, and §5 lists it among the
+/// advanced requirements Ari named. The question it answers is not "what does
+/// this quote say" — the `Quote` row says that — but **"what exactly did the
+/// client see on the 9th, and what changed after?"** That is why every
+/// computed figure is written out here rather than recomputed: a snapshot that
+/// recalculates from today's rate is not a snapshot.
+///
+/// Append-only. Nothing updates a version and nothing removes one, which is why
+/// this is the one model with no archive trail — a record that is never deleted
+/// needs no soft delete. A new row is cut on create, and on any edit that moves
+/// the money.
+model QuoteVersion {
+  id String @id @default(uuid()) @db.Uuid
+
+  quoteId String @db.Uuid
+  quote   Quote  @relation("QuoteVersionQuote", fields: [quoteId], references: [id], onDelete: Cascade)
+
+  /// 1, 2, 3 — rendered "V1", "V2", "V3".
+  version Int
+
+  /// The inputs, as they were.
+  basePrice    Decimal  @db.Decimal(12, 2)
+  fetEnabled   Boolean
+  fetRate      Decimal  @db.Decimal(6, 5)
+  operatorCost Decimal? @db.Decimal(12, 2)
+  lineItems    Json     @default("[]")
+
+  /// The figures, as they were. Redundant against the inputs *by design* —
+  /// recomputing them later would quietly restate history the first time a
+  /// rounding rule or a tax rate changed.
+  fetAmount   Decimal  @db.Decimal(12, 2)
+  extrasTotal Decimal  @db.Decimal(12, 2)
+  totalPrice  Decimal  @db.Decimal(12, 2)
+  grossProfit Decimal? @db.Decimal(12, 2)
+
+  /// What changed and why ("Added return leg", "Adjusted FET and catering").
+  note String?
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("QuoteVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([quoteId, version])
+  @@index([quoteId, version(sort: Desc)])
+  @@map("quote_versions")
+}
+
+/// Where a client quote has got to.
+///
+/// DRAFT is being written; SENT has gone to the client; VIEWED means they
+/// opened it; APPROVED and REJECTED are their answer; EXPIRED is the offer
+/// lapsing unanswered.
+///
+/// EXPIRED is a real status rather than only a derived flag because an expired
+/// quote that is then approved is a business event — the desk chose to honour
+/// a lapsed price — and that has to be distinguishable from one approved in
+/// time.
+enum QuoteStatus {
+  DRAFT
+  SENT
+  VIEWED
+  APPROVED
+  REJECTED
+  EXPIRED
+}

@@ -54,6 +54,10 @@ model User {
   assignedTripRequests  TripRequest[]   @relation("TripRequestAssignedBroker")
   createdOperatorQuotes OperatorQuote[] @relation("OperatorQuoteCreatedBy")
   updatedOperatorQuotes OperatorQuote[] @relation("OperatorQuoteUpdatedBy")
+  createdQuotes         Quote[]         @relation("QuoteCreatedBy")
+  updatedQuotes         Quote[]         @relation("QuoteUpdatedBy")
+  assignedQuotes        Quote[]         @relation("QuoteAssignedBroker")
+  createdQuoteVersions  QuoteVersion[]  @relation("QuoteVersionCreatedBy")
 
   /// Who archived a record, and who brought it back. Separate from created/
   /// updated because "removed this" is the one mutation those two never
@@ -70,6 +74,8 @@ model User {
   restoredTripRequests   TripRequest[]   @relation("TripRequestRestoredBy")
   deletedOperatorQuotes  OperatorQuote[] @relation("OperatorQuoteDeletedBy")
   restoredOperatorQuotes OperatorQuote[] @relation("OperatorQuoteRestoredBy")
+  deletedQuotes          Quote[]         @relation("QuoteDeletedBy")
+  restoredQuotes         Quote[]         @relation("QuoteRestoredBy")
 
   // ---- Audit trail (every model carries these four) ------------------------
   //

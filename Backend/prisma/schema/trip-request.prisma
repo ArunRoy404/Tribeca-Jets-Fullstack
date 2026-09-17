@@ -82,6 +82,11 @@ model TripRequest {
   /// responded" is counted from here, never stored.
   operatorQuotes OperatorQuote[] @relation("OperatorQuoteRequest")
 
+  /// The client-facing offers built from this enquiry. An enquiry can be
+  /// quoted more than once — a different aircraft, a different operator — and
+  /// the desk compares them.
+  quotes Quote[] @relation("QuoteTripRequest")
+
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
   createdBy   User?    @relation("TripRequestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
