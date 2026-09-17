@@ -55,7 +55,15 @@ model Operator {
   /// What the desk needs to remember when sourcing from them.
   sourcingNotes      String?
 
+  /// Client quotes naming this operator as the one flying it.
+  quotes Quote[] @relation("QuoteOperator")
+
   // ---- Audit trail (every model carries these four) ------------------------
+  /// Every quote this operator has given us. The scorecard in scope §6.7 —
+  /// response speed, win rate, how often they came in over budget — is
+  /// counted from here.
+  operatorQuotes OperatorQuote[] @relation("OperatorQuoteOperator")
+
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
   createdBy   User?    @relation("OperatorCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)

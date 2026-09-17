@@ -9,6 +9,7 @@ import FilterTabs from "@/components/table/common/FilterTabs";
 import PageSizeSelect from "@/components/table/common/PageSizeSelect";
 import BulkDeleteButton from "@/components/table/common/BulkDeleteButton";
 import { useDebouncedParam } from "@/hooks/common/useTableQueryParams";
+import { useEnumFilter } from "@/hooks/common/useEnumFilter";
 import { useAircraftAmenities } from "@/hooks/aircraft";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,25 +31,6 @@ const TAB_LABELS = {
 const TAB_IDS = Object.fromEntries(
   Object.entries(TAB_LABELS).map(([id, label]) => [label, id]),
 );
-
-/**
- * Builds the label list and the label→enum lookup for one filter.
- *
- * Display labels live in the dropdown; enum constants go in the URL and on the
- * wire. Written once here because this screen has two such filters and they
- * would otherwise be the same eight lines twice.
- */
-function useEnumFilter(values, format, allLabel) {
-  const options = useMemo(
-    () => [allLabel, ...values.map(format)],
-    [values, format, allLabel],
-  );
-  const valueByLabel = useMemo(
-    () => Object.fromEntries(values.map((value) => [format(value), value])),
-    [values, format],
-  );
-  return { options, valueByLabel };
-}
 
 export default function AircraftToolbar({
   search,

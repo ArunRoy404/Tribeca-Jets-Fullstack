@@ -4,6 +4,7 @@
  * Components import from `@/hooks/trip-requests`, never the individual files.
  */
 export { useTripRequests } from "./useTripRequests";
+export { useSourcingTableParams } from "./useSourcingTableParams";
 export { useTripRequest } from "./useTripRequest";
 export { useTripRequestStats } from "./useTripRequestStats";
 export { useCreateTripRequest } from "./useCreateTripRequest";

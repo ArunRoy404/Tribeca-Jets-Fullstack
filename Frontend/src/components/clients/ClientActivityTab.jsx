@@ -19,7 +19,7 @@ import ClientFollowUpBanner from "@/components/clients/ClientFollowUpBanner";
  *    - color: string (optional category icon badge tone)
  * 3. In the absence of activity records, render an honest empty state per project agreement.
  */
-export default function ClientActivityTab({ activities = [], onScheduleFollowUp }) {
+export default function ClientActivityTab({ activities = [], onScheduleFollowUp, client, onMarkComplete, isCompleting }) {
   const hasActivities = Array.isArray(activities) && activities.length > 0;
 
   return (
@@ -59,7 +59,12 @@ export default function ClientActivityTab({ activities = [], onScheduleFollowUp 
       )}
 
       {/* Follow-up Banner inside the same container */}
-      <ClientFollowUpBanner onScheduleFollowUp={onScheduleFollowUp} />
+      <ClientFollowUpBanner
+        client={client}
+        onScheduleFollowUp={onScheduleFollowUp}
+        onMarkComplete={onMarkComplete}
+        isCompleting={isCompleting}
+      />
     </DetailCard>
   );
 }

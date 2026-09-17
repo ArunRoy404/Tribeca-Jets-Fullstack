@@ -1,0 +1,120 @@
+# Render Blueprint — development/testing deployment of the API.
+#
+# This is deliberately NOT a production deployment. NODE_ENV is `development`,
+# which is what makes the deploy possible without SMTP or S3 credentials:
+#
+#   - MailModule throws at boot in production without SMTP. In development it
+#     falls back to the log driver, so two-factor and password-reset codes are
+#     printed to the Render log stream instead of being emailed.
+#   - Storage falls back to local disk. Render's filesystem is ephemeral, so
+#     uploaded avatars do not survive a deploy. Acceptable for testing only.
+#   - Swagger is served at /api/docs (main.ts mounts it only outside production).
+#
+# Before this becomes a real deployment: set NODE_ENV=production and supply
+# SMTP_* and S3_*, or the API will refuse to start — which is the intent.
+#
+# Postgres is NOT defined here. It lives on Neon; paste its connection string
+# into DATABASE_URL when Render prompts for it.
+
+services:
+  # Redis is not optional. RedisService connects at boot regardless of
+  # environment, and the rate limiter is Redis-backed, so the API crash-loops
+  # without this. Counters only — nothing here needs to survive a restart.
+  - type: keyvalue
+    name: tribeca-jets-cache
+    plan: free
+    # Must match the API's region, and the API matches Neon (ap-southeast-1).
+    region: singapore
+    # Internal traffic only; nothing outside Render needs to reach it.
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+  - type: web
+    name: tribeca-jets-api
+    runtime: node
+    plan: free
+    rootDir: Backend
+    # Neon is in ap-southeast-1. Render's default is Oregon, which would put a
+    # trans-Pacific round trip on every query — and this app makes several per
+    # request. Keep these three regions aligned.
+    region: singapore
+
+    # `npm ci` installs devDependencies here because NODE_ENV is not
+    # `production` — nest, prisma and tsx all live there, so a production
+    # NODE_ENV would break the build on `prisma generate`.
+    #
+    # db:deploy applies pending migrations. It runs in the build rather than a
+    # preDeployCommand because preDeploy is not available on the free plan.
+    buildCommand: npm ci && npm run build && npm run db:deploy
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: development
+
+      - key: API_PREFIX
+        value: api
+
+      # ---- Data -----------------------------------------------------------
+      # Neon. Include ?sslmode=require. Entered in the dashboard, not here.
+      - key: DATABASE_URL
+        sync: false
+
+      - key: REDIS_URL
+        fromService:
+          name: tribeca-jets-cache
+          type: keyvalue
+          property: connectionString
+
+      # ---- Auth -----------------------------------------------------------
+      # Render generates these. Both must be at least 32 characters or the
+      # env schema rejects them at boot.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+
+      # Everything is served over HTTPS, so the session cookie is marked
+      # secure even though development would not force it.
+      - key: COOKIE_SECURE
+        value: "true"
+
+      # Deliberately empty, and it must stay that way.
+      #
+      # .env.example documents `.tribecajetscommandcenter.com` for the VPS,
+      # where the web app and api. are subdomains of one site. On Render the
+      # API is reached through the Next rewrite proxy, so the cookie belongs
+      # to the web origin — any domain attribute set here fails to match and
+      # the browser silently drops the session.
+      - key: COOKIE_DOMAIN
+        value: ""
+
+      # ---- Origins --------------------------------------------------------
+      # The Vercel URL. Feeds the CORS allowlist and the links in emails.
+      # Set once the frontend is deployed; until then the schema default
+      # (localhost:3000) applies and nothing breaks, because the browser
+      # talks to the Next proxy rather than here.
+      - key: WEB_APP_URL
+        sync: false
+
+      # This service's own https:// URL. Used to build absolute file URLs.
+      - key: API_PUBLIC_URL
+        sync: false
+
+      # ---- Drivers --------------------------------------------------------
+      # Explicit rather than `auto`, so it is obvious from the config that
+      # files land on an ephemeral disk and mail is not actually sent.
+      - key: STORAGE_DRIVER
+        value: local
+      - key: MAIL_DRIVER
+        value: log
+
+      # ---- Rate limiting --------------------------------------------------
+      # Raise the multiplier temporarily to run the Postman collection, which
+      # signs in more times than the login limit allows in one pass. Leave the
+      # per-route limits themselves alone.
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: RATE_LIMIT_MULTIPLIER
+        value: "1"

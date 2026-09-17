@@ -51,6 +51,7 @@ const CLIENT_LIST_SELECT = {
   email: true,
   phone: true,
   status: true,
+  birthday: true,
   /** The related row, so the table can show "KTEB" and link to the airport. */
   homeAirport: { select: { id: true, icao: true, name: true, city: true } },
   priority: true,
@@ -59,6 +60,16 @@ const CLIENT_LIST_SELECT = {
   followUpNote: true,
   leadSource: true,
   leadStage: true,
+  /**
+   * Notes and preferences are read as well as written. They were accepted by
+   * the DTO and stored but left out of this select, which made them
+   * write-only: the detail page said "No internal notes on file" about a
+   * client whose notes were in the database, and the edit form — which
+   * prefills from this response — reopened with them blank and posted the
+   * emptied object straight back.
+   */
+  notes: true,
+  preferences: true,
   labels: true,
   createdAt: true,
   updatedAt: true,
@@ -71,6 +82,26 @@ const CLIENT_LIST_SELECT = {
   // `restoredAt` for the badge — same four columns as every other module.
   ...ARCHIVE_SELECT,
   ...ARCHIVE_ACTOR_SELECT,
+} satisfies Prisma.ClientSelect;
+
+/**
+ * The detail view: the list's columns plus the originating broker, who is only
+ * ever shown on one record at a time.
+ *
+ * `findOne` used to use `include` instead, which returned every scalar column
+ * and the two broker relations — but *not* `homeAirport`, because an `include`
+ * only adds the relations it names. So the detail endpoint answered with a
+ * bare `homeAirportId` while the list answered with the airport row, and the
+ * client detail page rendered "—" for the home airport of every client that
+ * had one. Worse, the edit form prefills from this response: it reopened with
+ * the picker blank and saved that blank back. One select for both shapes is
+ * what stops the two drifting again.
+ */
+const CLIENT_DETAIL_SELECT = {
+  ...CLIENT_LIST_SELECT,
+  originatingBroker: {
+    select: { id: true, firstName: true, lastName: true, email: true },
+  },
 } satisfies Prisma.ClientSelect;
 
 /**
@@ -172,17 +203,21 @@ export class ClientsService {
     return paginate(items, total, query.page, query.limit);
   }
 
+  /**
+   * The detail view, archived rows included.
+   *
+   * The Archived tab links to these pages, so filtering `deletedAt: null` here
+   * listed a row and then 404'd it when anyone clicked through. Aircraft and
+   * Operators already load an archived record and offer Restore in place of
+   * Edit and Remove; this brings Clients in line.
+   *
+   * Writes do not go through here — they use `findLive` below, which keeps the
+   * filter, so an archived client still cannot be edited or re-archived.
+   */
   async findOne(user: AuthenticatedUser, id: string) {
     const client = await this.prisma.client.findFirst({
-      where: { id, deletedAt: null, ...this.visibilityScope(user) },
-      include: {
-        assignedBroker: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-        originatingBroker: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-      },
+      where: { id, ...this.visibilityScope(user) },
+      select: CLIENT_DETAIL_SELECT,
     });
 
     // Deliberately 404 and not 403: a broker should not be able to confirm
@@ -191,6 +226,18 @@ export class ClientsService {
       throw new NotFoundException('Client not found');
     }
 
+    return client;
+  }
+
+  /** The same scoped lookup, but only for a live row. Guards every write. */
+  private async findLive(user: AuthenticatedUser, id: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { id, deletedAt: null, ...this.visibilityScope(user) },
+      select: { id: true },
+    });
+    if (!client) {
+      throw new NotFoundException('Client not found');
+    }
     return client;
   }
 
@@ -254,7 +301,7 @@ export class ClientsService {
 
   async update(user: AuthenticatedUser, id: string, input: UpdateClientInput) {
     // Reuses the scoped read, so an out-of-scope id 404s before any write.
-    await this.findOne(user, id);
+    await this.findLive(user, id);
     await this.assertHomeAirport(input.homeAirportId);
 
     // Reassigning a client is an admin action; a broker must not be able to
@@ -346,7 +393,7 @@ export class ClientsService {
 
   async remove(user: AuthenticatedUser, id: string): Promise<void> {
     this.assertMayArchive(user);
-    await this.findOne(user, id);
+    await this.findLive(user, id);
 
     await this.prisma.client.update({
       where: { id },

@@ -49,6 +49,10 @@ model Airport {
   originRequests      TripRequest[] @relation("TripRequestOrigin")
   destinationRequests TripRequest[] @relation("TripRequestDestination")
 
+  /// Quotes routing through here, in each direction.
+  originQuotes      Quote[] @relation("QuoteOrigin")
+  destinationQuotes Quote[] @relation("QuoteDestination")
+
   // ---- Audit trail (every model carries these four) ------------------------
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

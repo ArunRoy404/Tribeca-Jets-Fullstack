@@ -12,10 +12,13 @@ import {
 import { useRouter } from "next/navigation";
 
 export default function AgentHeaderActions({
+  agent,
   onEdit,
   onAssignLead,
 }) {
   const router = useRouter();
+  // The agent's own address, from the record — never a constructed one.
+  const email = agent?.email && agent.email !== "\u2014" ? agent.email : null;
 
   return (
     <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 w-full sm:w-auto">
@@ -49,13 +52,26 @@ export default function AgentHeaderActions({
             Manage in Users & Roles
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => {}} className="gap-2 cursor-pointer">
+          {/* A real mailto against the address on the record. This did nothing
+              at all before, which looks identical to a mail client that failed
+              to open. */}
+          <DropdownMenuItem
+            disabled={!email}
+            onClick={() => email && window.open(`mailto:${email}`, "_self")}
+            className="gap-2 cursor-pointer"
+          >
             <Mail className="size-3.5" />
             Send Direct Email
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => {}} className="gap-2 cursor-pointer">
+          {/* Logging a call needs somewhere to log it. Disabled and labelled
+              rather than silently inert, so the desk knows it is coming rather
+              than thinking it is broken. */}
+          <DropdownMenuItem disabled className="gap-2">
             <Phone className="size-3.5" />
             Log Call Activity
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              With Communications
+            </span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

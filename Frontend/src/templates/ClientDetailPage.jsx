@@ -20,7 +20,7 @@ import DetailTabNav from "@/components/common/DetailTabNav";
 import NotFoundState from "@/components/common/NotFoundState";
 import TableStatus from "@/components/table/common/TableStatus";
 import { useClientsStore } from "@/store/useClientsStore";
-import { useClient } from "@/hooks/clients";
+import { useClient, useUpdateClient, useRestoreClient } from "@/hooks/clients";
 import { toClientRow } from "@/lib/client";
 
 export default function ClientDetailPage({ params }) {
@@ -35,6 +35,16 @@ export default function ClientDetailPage({ params }) {
 
   const { data, isPending, error, refetch } = useClient(rawId);
   const client = data ? toClientRow(data) : null;
+
+  // Completing a follow-up clears the reminder and the note that went with it.
+  // The note describes the call that has now happened, so leaving it behind
+  // would attach it to whatever gets scheduled next.
+  const { mutate: restoreClient, isPending: isRestoring } = useRestoreClient();
+  const { mutate: updateClient, isPending: isCompleting } = useUpdateClient();
+  const markFollowUpComplete = () => {
+    if (!client?.id) return;
+    updateClient({ id: client.id, nextFollowUpAt: null, followUpNote: null });
+  };
 
   if (isPending || error) {
     return (
@@ -67,9 +77,12 @@ export default function ClientDetailPage({ params }) {
         titleContent={<ClientHeaderTitle client={client} />}
         actions={
           <ClientHeaderActions
+            client={client}
             onEdit={() => openEditModal(client)}
             onFollowUp={() => openFollowUpModal(client?.id || client)}
             onArchive={() => openArchiveModal(client)}
+            onRestore={() => restoreClient(client)}
+            isRestoring={isRestoring}
           />
         }
       />
@@ -108,26 +121,40 @@ export default function ClientDetailPage({ params }) {
                   client={client}
                   onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
                   onSwitchToActivity={() => setActiveTab("activity")}
+                  onMarkComplete={markFollowUpComplete}
+                  isCompleting={isCompleting}
                 />
               )}
               {activeTab === "trips" && (
                 <ClientTripsTab
+                  client={client}
                   onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                  onMarkComplete={markFollowUpComplete}
+                  isCompleting={isCompleting}
                 />
               )}
               {activeTab === "quotes" && (
                 <ClientQuotesTab
+                  client={client}
                   onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                  onMarkComplete={markFollowUpComplete}
+                  isCompleting={isCompleting}
                 />
               )}
               {activeTab === "payments" && (
                 <ClientPaymentsTab
+                  client={client}
                   onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                  onMarkComplete={markFollowUpComplete}
+                  isCompleting={isCompleting}
                 />
               )}
               {activeTab === "activity" && (
                 <ClientActivityTab
+                  client={client}
                   onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                  onMarkComplete={markFollowUpComplete}
+                  isCompleting={isCompleting}
                 />
               )}
             </div>

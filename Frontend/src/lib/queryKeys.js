@@ -36,6 +36,26 @@ export const queryKeys = {
     brokerPerformance: ["clients", "broker-performance"],
   },
 
+  operatorQuotes: {
+    all: ["operator-quotes"],
+    list: (params) => ["operator-quotes", "list", params ?? {}],
+    detail: (id) => ["operator-quotes", "detail", id],
+    stats: ["operator-quotes", "stats"],
+  },
+
+  quotes: {
+    all: ["quotes"],
+    list: (params) => ["quotes", "list", params ?? {}],
+    detail: (id) => ["quotes", "detail", id],
+    stats: ["quotes", "stats"],
+    /**
+     * A quote's frozen history. Outside `detail` because it changes only when
+     * the money moves, while the quote itself changes on every edit — and the
+     * history is append-only, so a cached copy stays correct far longer.
+     */
+    versions: (id) => ["quotes", "versions", id],
+  },
+
   tripRequests: {
     all: ["trip-requests"],
     list: (params) => ["trip-requests", "list", params ?? {}],

@@ -113,7 +113,14 @@ audit trail pointing at them.
 | `totalPaid` | **Operator Payments (#17)** |
 | Trip history tab | **Trips (#11)** |
 | Payments tab | **Operator Payments (#17)** |
-| Sourcing response history | **Operator Sourcing (#9)** |
+| ~~Sourcing response history~~ | ✅ Shipped — response rate, win rate, average response time and last asked |
+
+**Two bugs fixed here on 2026-09-17:** the status dropdown's options carried
+display labels (`value="Active"`) rather than enum values, so it showed "Active"
+for every operator whatever its real status and rejected any change with a 400 —
+**operator status could not be changed from the form at all**. And a blank
+aircraft-types field defaulted to `["Global 7500"]`, putting an airframe nobody
+entered into the operator's fleet.
 
 ---
 
@@ -131,19 +138,41 @@ audit trail pointing at them.
 - Removal is admin-only: brokers hold `MANAGE_CLIENTS` at `ASSIGNED` scope
 - `GET /clients/broker-performance` — real aggregates over leads
 - Enquiries listed on the client, from Trip Requests
+- Internal notes, travel preferences and birthday round-trip: written, returned
+  and repopulated in the edit form
+- An archived client's detail page opens from the Archived tab and offers
+  Restore in place of Edit, Create Trip and Archive
+- Mark Complete on the follow-up strip clears the reminder and its note
 
 **Waiting on a dependency**
 
 | Feature | Unblocked by |
 |---|---|
 | Trips tab ("No Trip History") | **Trips (#11)** |
-| Quotes tab ("No Quotes Yet") | **Quotes (#10)** |
+| ~~Quotes tab~~ | ✅ Shipped with **Quotes (#10)** — the tab lists the client's real offers |
 | Payments tab ("No Payments Yet") | **Receivables (#16)** |
 | Activity timeline ("No Activity Yet") | **Communications / Email Templates (#21)** |
 | Total spend, trip count, average trip value | **Trips (#11)** + **Receivables (#16)** |
 
 **Removed rather than faked:** the detail page had an attachment drop zone
 wired to nothing. It belongs to **Document Vault (#22)**.
+
+**Four bugs fixed here on 2026-09-17**, all of the same family — a field the
+API accepted, stored, and never gave back:
+
+1. `notes`, `preferences` and `birthday` were **write-only**. The detail page
+   said "No internal notes on file" about clients whose notes were in the
+   database.
+2. `findOne` used `include` rather than the shared select, so the detail
+   endpoint returned a bare `homeAirportId` and no airport row — home airport
+   read "—" on every client that had one, and the edit form then cleared it.
+3. **`updateClientSchema` used `.partial()`, which does not strip `.default()`.**
+   Any partial update re-applied every create-time default: scheduling a
+   follow-up demoted a VIP travel agent to a brand-new direct lead and erased
+   their labels and travel preferences. This was the most damaging bug in the
+   codebase and nothing on screen revealed it.
+4. The follow-up strip carried a hardcoded date and a note about a Miami → New
+   York round trip, shown on four of the five tabs for every client.
 
 ---
 
@@ -215,7 +244,15 @@ which needs the same pipeline for contracts, operator documents and quote PDFs.
 | Agent "associated trips" panel | **Trips (#11)** |
 | Revenue per agent | **Trips (#11)** + **Receivables (#16)** |
 | Contact / activity timeline on a lead | **Communications / Email Templates (#21)** |
-| Quote-linked lead stages (Proposal, Quoted moving on their own) | **Quotes (#10)** |
+| Quote-linked lead stages (Proposal, Quoted moving on their own) | **Quotes (#10)** ✅ exists — wiring the *client's* lead stage to it is a Clients change, still to do |
+| Log Call Activity on an agent | **Communications** — disabled and labelled, not silently inert |
+
+**Fixed here on 2026-09-17:** the agent detail page's row menu offered Schedule
+Follow-up and Convert to Client over live leads and both did nothing — the
+dialogs were never mounted on that page. Its Prev/Next had no handler either,
+and the desktop table and mobile cards offered different menus. The Internal
+Notes card displayed the *follow-up* note, and the trip-interest card printed
+`LIGHT_JET` at the reader.
 
 **By design, not pending:** the roster is read-only and has no Add form. An
 agent is one of the desk's own brokers — a User — and staff are invited through
@@ -245,44 +282,133 @@ agents are something else: clients of type `TRAVEL_AGENT`.
 | Feature | Unblocked by |
 |---|---|
 | **The dedicated Open Requests board** | Nothing — the API supports it in full. This is a screen to draw, not a module to design |
-| "Source this request" action | **Operator Sourcing (#9)** |
-| Request → quote conversion | **Quotes (#10)** |
+| ~~"Source this request" action~~ | ✅ Shipped with **Operator Sourcing (#9)** |
+| ~~Request → quote conversion~~ | ✅ Shipped with **Quotes (#10)** — a quote carries `tripRequestId`, and sending it moves the enquiry to QUOTED |
 | Request → trip, closing the loop | **Trips (#11)** |
 | Matching against repositioning flights | **Empty Legs (#15)** |
 
 ---
 
-## 9. Operator Sourcing ⬅ Next
+## 9. Operator Sourcing ✅
 
-**Working now** — nothing. The screen renders from
-`Frontend/src/dummyData/operatorSourcing.js`.
+**One new table, not two.** The board's rows are trip requests being worked —
+client, broker, route, departure and budget are all `TripRequest` columns, and
+the New Sourcing Request form is the trip-request form with a quote deadline
+added. So the only genuinely new record is `OperatorQuote`: what each operator
+came back with. A second requests table would have split one enquiry across two
+rows, the way a leads table would have split one client.
 
-**Dependencies, all satisfied:** Trip Requests (#8), Operators (#4),
-Aircraft (#6). It is the first module that reads an enquiry and does something
-with it.
+**Working now**
 
-**Will need after it ships**
+- The sourcing board, listing real enquiries with URL-backed search, status,
+  aircraft and broker filters, paging and an Archived tab
+- New Sourcing Request — files a real trip request, including the quote deadline
+- Ask an Operator — one live ask per operator per enquiry, enforced by the
+  service *and* a partial unique index; operators already asked are removed
+  from the picker rather than offered and refused
+- Record the operator's response; approve, reject, record a decline, and **undo
+  a decision**
+- Only one quote per enquiry can be approved — a second attempt is refused by
+  name rather than silently demoting the first, because two approved quotes
+  mean two operators booked for one flight
+- Asking the first operator moves the enquiry to SOURCING; approving moves it
+  to QUOTED. Neither ever moves a request backwards or touches one already
+  converted or lost
+- Sourcing tiles: open requests, awaiting response, quotes received, average
+  response time, sourced
+- Per-enquiry counts — operators asked, responses in, best price, and the
+  board's four stages — **all derived from the quotes on every read**, never
+  stored
+- Operator scorecard on the operator detail page: response rate, win rate,
+  average response time, last asked
+
+**Waiting on a dependency**
 
 | Feature | Unblocked by |
 |---|---|
-| Turning a sourced price into a priced offer | **Quotes (#10)** |
-| Operator response-time and win-rate history on the operator record | itself, second pass into **Operators (#4)** |
+| ~~Turning an approved operator price into a client-facing offer~~ | ✅ Shipped with **Quotes (#10)** — a quote carries `operatorQuoteId`, which is what makes its margin traceable |
+| Deposit / payment column on the board | **Receivables (#16)** — null today, renders an em dash |
+| Departure and arrival *times* on the route strip | **Trips (#11)** — a request records the day, not a schedule |
+| Emailing the request to the operator | **Email Templates (#21)** |
+| Operator document upload and field extraction (§6.9) | **Document Vault (#22)** — no upload pipeline exists |
+
+**Deferred by decision: most of the operator scorecard.** Scope §6.7 asks for
+accuracy, hidden fees, cabin cleanliness, crew quality and passenger feedback
+alongside response speed — and §17 lists "operator scorecard rating scales" as a
+decision nobody has made. The three figures that can be counted from real quotes
+are built; inventing a scale for the rest would put a score on an operator that
+no one gave them, which is the exact failure that made "never display a number
+the data did not supply" the hardest rule in this project.
 
 ---
 
-## 10. Quotes ⬜
+## 10. Quotes ✅
 
-**Working now** — nothing. Renders from `dummyData/quotes.js`.
+**Two quote entities, deliberately.** Scope §10 lists Operator Quote and Client
+Quote separately and they are genuinely different records: one is what an
+operator charges *us* (#9), the other is what the client pays, with margin and
+Federal Excise Tax on top. Approving an operator's price does not create the
+client's offer — the desk decides the markup — so `operatorQuoteId` links them
+without making one the other.
 
-**Waits on:** Trip Requests (#8) ✅, Operator Sourcing (#9), Clients (#5) ✅,
-Aircraft (#6) ✅.
+**Nothing computed is stored.** `fetAmount`, `extrasTotal`, `totalPrice`,
+`grossProfit` and `marginPercentage` are worked out on every read from the four
+inputs a person actually typed. A stored total beside its own parts is the
+classic accounting bug: the day an edit moves the base price and the total does
+not follow, the quote contradicts itself and nothing on screen says which half
+is right. The one place frozen figures *are* needed — "what exactly did the
+client see on the 9th?" — is `QuoteVersion`.
 
-**Unblocks:** the Clients Quotes tab, broker conversion rate on Users and
-Agents, lead stages that move on their own, and Trips (#11).
+**Working now**
+
+- The quotes board: URL-backed search, status and broker filters, sorting,
+  paging, page size, an Archived tab, bulk remove and bulk restore
+- Write a quote, always as a draft at V1 — nothing reaches a client by being
+  saved
+- Line items: extras that are priced, and extras that are "Included" — a line
+  with neither is refused rather than stored as $0
+- FET as a **rate**, stored per quote, switchable off for an exempt
+  international leg. A rate above 1 is refused as the typo it is: "7.5" meaning
+  7.5% turns a $79,500 quote into a $676,000 one, and that one would go out
+- **Version history.** A new version is cut only when an edit moves the money,
+  and every figure is frozen as it stood. Correcting an FBO address is not a new
+  version of the offer
+- Send, approve, reject, expire, and **undo any decision**
+- Only one quote per enquiry can be approved — a second is refused by name
+  rather than silently demoting the first
+- An approved or rejected quote cannot be edited in place; reopening it is a
+  recorded act
+- Copy a quote into a fresh draft, with none of the original's send or decision
+  history
+- Sending a quote moves its enquiry to QUOTED — forward only, never over a
+  request already converted or lost
+- **Margins are gated behind `VIEW_FINANCIALS`.** An assistant sees the offer
+  and not the desk's profit, and the keys are *absent* rather than zeroed — a
+  `0` margin is a number someone could repeat down the phone
+- Expiry is derived from `validUntil` on every read, so a quote that lapsed on
+  Friday does not still read "Sent" on Monday
+- The client detail page's Quotes tab, filled in the same pass
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Print-ready / PDF output and a branded quote document (§6.10) | **Document Vault (#22)** — nothing in this system generates a document yet |
+| Emailing the quote to the client | **Email Templates (#21)** — Send marks it sent and says so; it does not deliver |
+| `viewedAt` — "the client opened it" | **Client Portal (#25)**, and scope §16 already hedges it with "where technically trackable" |
+| Turning an approved quote into a booking | **Trips (#11)** |
+| Deposit *received* against the deposit quoted | **Receivables (#16)** |
+| Distance and aircraft recommendation from the route (§6.10) | **Airports** holds the coordinates; the recommendation rules are undecided |
+
+**Deferred by decision: the AI quote builder.** Scope §6.10 calls it
+"potential", §17 lists "AI quote approval rules before sending" as an open
+decision, and §18 says outright that **AI must not be the source of truth for
+financial calculations**. Building it now would mean inventing the approval
+rules the scope says nobody has agreed.
 
 ---
 
-## 11. Trips ⬜
+## 11. Trips ⬅
 
 **Working now** — nothing. Renders from `dummyData/trips.js` and
 `dummyData/tripDetails.js`.
@@ -417,7 +543,8 @@ waits on the data being there, which means most of the queue above.
 ## The short version
 
 **Usable against the real database today:** Auth, Users & Roles, Airports,
-Operators, Clients, Aircraft, Leads & Agents, and the Trip Requests API.
+Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, and
+the Trip Requests API.
 
 **The one screen that is only a screen:** the Open Requests board. Its API is
 finished and verified.

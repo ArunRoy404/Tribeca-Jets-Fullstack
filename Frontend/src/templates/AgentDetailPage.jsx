@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo } from "react";
+import { use, useMemo, useState } from "react";
 import CommonCard from "@/components/common/CommonCard";
 import AgentDetailHeader from "@/components/leads-agents/AgentDetailHeader";
 import AgentDetailStats from "@/components/leads-agents/AgentDetailStats";
@@ -9,6 +9,8 @@ import AgentAssignedLeadsTable from "@/components/leads-agents/AgentAssignedLead
 import AgentAssociatedTrips from "@/components/leads-agents/AgentAssociatedTrips";
 import AgentRecentActivity from "@/components/leads-agents/AgentRecentActivity";
 import AssignBrokerDialog from "@/components/leads-agents/AssignBrokerDialog";
+import ScheduleFollowUpDialog from "@/components/leads-agents/ScheduleFollowUpDialog";
+import ConvertLeadDialog from "@/components/leads-agents/ConvertLeadDialog";
 import NotFoundState from "@/components/common/NotFoundState";
 import TableStatus from "@/components/table/common/TableStatus";
 import { useBrokerPerformance, useClients } from "@/hooks/clients";
@@ -23,7 +25,8 @@ import { useRouter } from "next/navigation";
  *
  * Data binding:
  * - Agent performance: reads from `useBrokerPerformance()` and finds the row matching `agentId`.
- * - Assigned leads: queries `useClients({ status: "LEAD", assignedBrokerId: agentId, limit: 50 })`.
+ * - Assigned leads: queries `useClients({ status: "LEAD", assignedBrokerId: agentId, page, limit: 10 })`,
+ *   paged by the table's own Prev/Next.
  *
  * Future API connections:
  * - Associated trips: GET /api/trips?brokerId={agentId}
@@ -35,10 +38,16 @@ export default function AgentDetailPage({ params }) {
   const rawId = decodeURIComponent(unwrappedParams?.agentId || "");
 
   const openAssignBrokerModal = useLeadsAgentsStore((s) => s.openAssignBrokerModal);
+  const openFollowUpModal = useLeadsAgentsStore((s) => s.openFollowUpModal);
+  const openConvertLeadModal = useLeadsAgentsStore((s) => s.openConvertLeadModal);
+
+  // Local, not in the URL: this is one section of a detail page rather than a
+  // table screen, and the page's own address already identifies the agent.
+  const [leadsPage, setLeadsPage] = useState(1);
 
   const { data, isPending, error, refetch } = useBrokerPerformance();
   const { data: leadsData } = useClients(
-    { status: "LEAD", assignedBrokerId: rawId, limit: 50 },
+    { status: "LEAD", assignedBrokerId: rawId, page: leadsPage, limit: 10 },
     { enabled: Boolean(rawId) },
   );
 
@@ -110,6 +119,9 @@ export default function AgentDetailPage({ params }) {
               meta={leadsData?.meta}
               agentName={agent.name}
               onSelectLead={(leadId) => router.push(`/dashboard/leads-agents/leads/${leadId}`)}
+              onScheduleFollowUp={(lead) => openFollowUpModal(lead)}
+              onConvertLead={(lead) => openConvertLeadModal(lead)}
+              onPageChange={setLeadsPage}
             />
           </div>
 
@@ -121,8 +133,12 @@ export default function AgentDetailPage({ params }) {
         </div>
       </CommonCard>
 
-      {/* Dialogs */}
+      {/* Dialogs — mounted here because the assigned-leads table offers the
+          actions they perform. Without them the row menu had two items that
+          did nothing. */}
       <AssignBrokerDialog />
+      <ScheduleFollowUpDialog />
+      <ConvertLeadDialog />
     </div>
   );
 }

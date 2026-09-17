@@ -79,10 +79,21 @@ const optional = (value) => {
   return trimmed ? trimmed : undefined;
 };
 
+/**
+ * Splits "KTEB \u2192 KMIA" back into the two controls the form renders it with.
+ * Stored as one string because that is how the desk writes a route; the form
+ * asks for it as From and To.
+ */
+function splitRoute(route) {
+  const [from = "", to = ""] = String(route ?? "").split("\u2192");
+  return { from: from.trim(), to: to.trim() };
+}
+
 /** Builds the form state for a client, or a blank form when adding. */
 function initialForm(client) {
   if (!client) return EMPTY;
   const prefs = client.preferences ?? {};
+  const route = splitRoute((prefs.preferredRoutes ?? [])[0]);
   return {
     ...EMPTY,
     firstName: client.firstName ?? "",
@@ -99,6 +110,10 @@ function initialForm(client) {
     birthday: client.birthday ? client.birthday.slice(0, 10) : "",
     nextFollowUpAt: client.nextFollowUpAt ? client.nextFollowUpAt.slice(0, 10) : "",
     preferredAirports: (prefs.preferredAirports ?? []).join(", "),
+    // Repopulated, not dropped: the form is the only editor for these, so a
+    // field it reopens blank is a field the next save deletes.
+    routeFrom: route.from,
+    routeTo: route.to,
     notes: client.notes ?? "",
   };
 }
@@ -143,6 +158,17 @@ function ClientForm({ editingClient, onDone }) {
   );
 
   const [form, setForm] = useState(() => initialForm(editingClient));
+  // The keys this form does not render — catering, pets, wifi and the rest of
+  // the open set. Carried through untouched so saving the two fields the form
+  // does own cannot delete the ones it never showed.
+  const untouchedPreferences = useMemo(() => {
+    const {
+      preferredAirports: _airports,
+      preferredRoutes: _routes,
+      ...rest
+    } = editingClient?.preferences ?? {};
+    return rest;
+  }, [editingClient]);
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = (e) => {
@@ -176,6 +202,7 @@ function ClientForm({ editingClient, onDone }) {
         : null,
       notes: optional(form.notes),
       preferences: {
+        ...untouchedPreferences,
         ...(preferredAirports.length ? { preferredAirports } : {}),
         ...(route ? { preferredRoutes: [route] } : {}),
       },

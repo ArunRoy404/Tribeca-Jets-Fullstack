@@ -89,7 +89,14 @@ model Aircraft {
   /// What the desk needs to remember when quoting this tail.
   notes String?
 
+  /// Client quotes offering this tail.
+  quotes Quote[] @relation("QuoteAircraft")
+
   // ---- Audit trail (every model carries these four) ------------------------
+  /// Quotes offered on this tail. Nullable on the quote side: operators fly
+  /// tails we have never entered, and those are recorded as text instead.
+  operatorQuotes OperatorQuote[] @relation("OperatorQuoteAircraft")
+
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
   createdBy   User?    @relation("AircraftCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)

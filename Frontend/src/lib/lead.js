@@ -1,4 +1,5 @@
 import { formatDate, toArchiveFields } from "@/lib/archive";
+import { formatAircraftCategory } from "@/lib/aircraft";
 
 /**
  * Display helpers for the Leads & Agents screens.
@@ -166,7 +167,12 @@ export function toTripRequestRow(request) {
 
     passengers: request?.passengers ?? DASH,
     rawPassengers: request?.passengers ?? null,
-    aircraftPreference: request?.aircraftPreference ?? null,
+    // Formatted here, not raw: the card printed "LIGHT_JET" at the reader.
+    // Enum casing is the wire vocabulary, never the display vocabulary.
+    aircraftPreference: request?.aircraftPreference
+      ? formatAircraftCategory(request.aircraftPreference)
+      : null,
+    rawAircraftPreference: request?.aircraftPreference ?? null,
 
     estimatedValue: formatMoney(request?.estimatedValue),
     rawEstimatedValue: request?.estimatedValue ?? null,
@@ -217,6 +223,10 @@ export function toLeadRow(client, latestRequest = null) {
     followUpMethod: formatFollowUpMethod(client?.followUpMethod),
     rawFollowUpMethod: client?.followUpMethod ?? null,
     followUpNote: client?.followUpNote ?? "",
+    // The client's own internal notes. Distinct from the follow-up note, which
+    // describes one scheduled call; the Internal Notes card was falling back
+    // to that because this field was not carried here.
+    notes: client?.notes ?? "",
 
     // Straight from the enquiry when one was paired in; never fabricated.
     route: latestRequest ? formatRoute(latestRequest) : DASH,

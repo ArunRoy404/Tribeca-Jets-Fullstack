@@ -19,6 +19,7 @@ export default function AgentDetailHeader({
       titleContent={<AgentHeaderTitle agent={agent} />}
       actions={
         <AgentHeaderActions
+          agent={agent}
           onEdit={onEdit}
           onAssignLead={onAssignLead}
         />

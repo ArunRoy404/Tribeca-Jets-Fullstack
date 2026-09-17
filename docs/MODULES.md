@@ -39,8 +39,8 @@ set of broken joins the day the real table arrives.
 | 6 | **Aircraft** | ✅ Done | Operators (owner), Airports (home base) |
 | 7 | **Leads & Agents** | ✅ Done | Users, Clients |
 | 8 | **Trip Requests** *(Open Requests)* | ◐ API done, board pending | Clients, Airports, Users |
-| 9 | **Operator Sourcing** | ⬅ **Next** | Trip Requests, Operators, Aircraft |
-| 10 | **Quotes** | Not started | Trip Requests, Sourcing, Clients, Aircraft |
+| 9 | **Operator Sourcing** | ✅ Done | Trip Requests, Operators, Aircraft |
+| 10 | **Quotes** | ⬅ **Next** | Trip Requests, Sourcing, Clients, Aircraft |
 | 11 | **Trips** | Not started | Quotes, everything above |
 | 12 | **Itineraries** | Not started | Trips |
 | 13 | **Schedule** | Not started | Trips (read-only view) |
@@ -59,9 +59,15 @@ set of broken joins the day the real table arrives.
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
 | 27 | **AI Assistant** | Stub only | All |
 
-**Why Operator Sourcing is next:** it needs Trip Requests, Operators and
-Aircraft, and all three now exist. It is the first module that reads an
-enquiry and does something with it.
+**Why Quotes is next:** every dependency is now built. Sourcing settles what
+the flight costs Tribeca Jets to buy; Quotes is the priced offer to the client,
+with margin and FET on top.
+
+**Operator Sourcing added one table, not two.** The board's rows are trip
+requests being worked — the same record the Open Requests board shows — so the
+only genuinely new entity was `OperatorQuote`. That is the second time reading
+the doc's data model before the frontend's folder names saved a duplicate
+table; the first was leads.
 
 **The open question about leads is settled**, and the doc settled it. A lead
 is not a table: §6.3 puts "lead source and lead stage" on the *client*, and
@@ -293,11 +299,34 @@ enquiry marks it **Lost**, which keeps it in the conversion figures. Removing
 the row would quietly improve everyone's conversion rate, which is the wrong
 incentive to build into a sales tool.
 
-### 9. Operator Sourcing
+### 9. Operator Sourcing ✅
 
-The broker sends a request out to operators and collects what comes back.
-Tracks which operators were asked, who responded, and at what price —
-"Requested → Sourcing → Pending Operator Quote → Source Complete".
+The broker sends a request out to operators and collects what comes back:
+which operators were asked, who responded, at what price, and who won.
+
+**It is a view over trip requests plus one new table.** The board's rows are
+enquiries being worked, and `OperatorQuote` holds each operator's answer. The
+four stages the screen groups by — Requested → Pending Operator Quote →
+Sourcing → Source Complete — are **derived from the quotes on every read**,
+never stored, for the same reason the aircraft maintenance badge is: a stored
+stage is wrong the moment the next operator replies.
+
+**Response time is computed, not remembered.** From the ask to the answer,
+every time it is read. A stored "2h" is right for one day and wrong forever
+after — and the operator scorecard the desk judges operators by is built on it.
+
+**Only one quote per enquiry can be approved.** A second attempt is refused by
+name rather than silently demoting the first: two approved quotes would mean
+two operators booked for one flight. Undo is a deliberate act — reopen the
+wrong one, then approve the right one — which is also the only way back from a
+mis-click, since the board disables both buttons once a quote is settled.
+
+> **Deferred: most of the §6.7 scorecard.** The scope asks for accuracy, hidden
+> fees, cabin cleanliness, crew quality and passenger feedback; §17 lists the
+> rating scales for all of it as an open decision. Response rate, win rate and
+> average response time are counted from real quotes and shipped. The rest is
+> absent rather than invented — a score nobody gave an operator is the same
+> failure as the 4.9 safety rating.
 
 ### 10. Quotes
 

@@ -1,103 +1,70 @@
 "use client";
 
 import { use } from "react";
-import QuoteDetailHeader from "@/components/quotes/QuoteDetailHeader";
-import QuoteDetailStats from "@/components/quotes/QuoteDetailStats";
-import QuoteBreakdownCard from "@/components/quotes/QuoteBreakdownCard";
-import QuoteVersionsCard from "@/components/quotes/QuoteVersionsCard";
-import FlightDetailsCard from "@/components/quotes/FlightDetailsCard";
-import QuoteProfitabilityCard from "@/components/quotes/QuoteProfitabilityCard";
-import QuoteStatusActionsCard from "@/components/quotes/QuoteStatusActionsCard";
-import QuoteNotesCard from "@/components/quotes/QuoteNotesCard";
+import { useRouter } from "next/navigation";
+import QuoteDetailsView from "@/components/quotes/QuoteDetailsView";
 import AddQuoteDialog from "@/components/quotes/AddQuoteDialog";
 import DeleteQuoteDialog from "@/components/quotes/DeleteQuoteDialog";
-import Reveal from "@/components/common/Reveal";
 import NotFoundState from "@/components/common/NotFoundState";
+import TableStatus from "@/components/table/common/TableStatus";
 import { useQuotesStore } from "@/store/useQuotesStore";
+import { useDuplicateQuote, useQuote } from "@/hooks/quotes";
+import { toQuoteRow } from "@/lib/quote";
 
-export default function QuoteDetailPage({ params }) {
-  const unwrappedParams = use(params);
-  const rawId = decodeURIComponent(unwrappedParams?.quoteId || "");
+/**
+ * One quote.
+ *
+ * Archived quotes open here too — the Archived tab links straight to this
+ * page, and a detail view that 404s a row the list just showed is worse than
+ * one that says "archived" and offers Restore.
+ */
+export default function QuoteDetailPage({ params, quoteId }) {
+  const router = useRouter();
+  const unwrapped = params ? use(params) : null;
+  const id = decodeURIComponent(quoteId || unwrapped?.quoteId || "");
 
-  const getQuoteById = useQuotesStore((s) => s.getQuoteById);
   const openAddQuoteModal = useQuotesStore((s) => s.openAddQuoteModal);
-  const duplicateQuote = useQuotesStore((s) => s.duplicateQuote);
-  const updateQuoteStatus = useQuotesStore((s) => s.updateQuoteStatus);
+  const openDeleteQuoteModal = useQuotesStore((s) => s.openDeleteQuoteModal);
 
-  const quote = getQuoteById(rawId);
+  const { data, isPending, error, refetch } = useQuote(id);
+  const { mutate: duplicate } = useDuplicateQuote();
 
-  if (!quote) {
-    return <NotFoundState itemType="Quote" backUrl="/dashboard/quotes" backLabel="Back to Quotes" />;
+  if (isPending) {
+    return (
+      <div className="p-4 sm:p-6">
+        <TableStatus isLoading onRetry={refetch} />
+      </div>
+    );
   }
 
-  const handleDuplicate = () => {
-    duplicateQuote(quote?.id);
-    alert(`Quote ${quote?.id} duplicated successfully.`);
-  };
+  if (error || !data) {
+    return (
+      <NotFoundState
+        itemType="Quote"
+        backUrl="/dashboard/quotes"
+        backLabel="Back to Quotes"
+      />
+    );
+  }
 
-  const handleDownloadPDF = () => {
-    alert(`Downloading PDF for quote ${quote?.id}...`);
-  };
-
-  const handleSendToClient = () => {
-    updateQuoteStatus(quote?.id, "Sent");
-    alert(`Quote ${quote?.id} has been sent to ${quote?.client}.`);
-  };
+  const quote = toQuoteRow(data);
 
   return (
     <>
-      <div className="flex flex-col gap-6 p-4 sm:p-6 pb-12 w-full max-w-7xl mx-auto">
-        {/* Header Bar */}
-        <Reveal>
-          <QuoteDetailHeader
-            quote={quote}
-            onEdit={() => openAddQuoteModal(quote)}
-            onDuplicate={handleDuplicate}
-            onDownloadPDF={handleDownloadPDF}
-            onSendToClient={handleSendToClient}
-          />
-        </Reveal>
+      <QuoteDetailsView
+        quote={quote}
+        onEdit={() => openAddQuoteModal(quote)}
+        onDuplicate={() =>
+          duplicate(quote.id, {
+            // Land on the copy, not the original — otherwise the toast says a
+            // draft was made and the screen still shows the quote it came from.
+            onSuccess: (created) =>
+              router.push(`/dashboard/quotes/${created?.id}`),
+          })
+        }
+        onRemove={() => openDeleteQuoteModal(quote)}
+      />
 
-        {/* 5 KPI Metric Tiles */}
-        <Reveal>
-          <QuoteDetailStats quote={quote} />
-        </Reveal>
-
-        {/* 2-Column Responsive Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start w-full">
-          {/* Left Column: Breakdown, Versions, Flight Details */}
-          <div className="flex flex-col gap-6 w-full lg:col-span-2">
-            <Reveal className="w-full">
-              <QuoteBreakdownCard quote={quote} />
-            </Reveal>
-
-            <Reveal className="w-full">
-              <QuoteVersionsCard quote={quote} />
-            </Reveal>
-
-            <Reveal className="w-full">
-              <FlightDetailsCard quote={quote} />
-            </Reveal>
-          </div>
-
-          {/* Right Column: Profitability, Status Actions, Notes */}
-          <div className="flex flex-col gap-6 w-full lg:col-span-1">
-            <Reveal className="w-full">
-              <QuoteProfitabilityCard quote={quote} />
-            </Reveal>
-
-            <Reveal className="w-full">
-              <QuoteStatusActionsCard quote={quote} />
-            </Reveal>
-
-            <Reveal className="w-full">
-              <QuoteNotesCard quote={quote} />
-            </Reveal>
-          </div>
-        </div>
-      </div>
-
-      {/* Modals */}
       <AddQuoteDialog />
       <DeleteQuoteDialog />
     </>

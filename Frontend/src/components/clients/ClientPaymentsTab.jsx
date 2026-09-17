@@ -24,7 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
  * 3. Pass `payments` array and `totalSummary` to render rows and totals.
  * 4. In the absence of payment records, render an honest empty state per project agreement.
  */
-export default function ClientPaymentsTab({ payments = [], totalSummary, onScheduleFollowUp }) {
+export default function ClientPaymentsTab({ payments = [], totalSummary, onScheduleFollowUp, client, onMarkComplete, isCompleting }) {
   const hasPayments = Array.isArray(payments) && payments.length > 0;
 
   return (
@@ -166,7 +166,12 @@ export default function ClientPaymentsTab({ payments = [], totalSummary, onSched
       )}
 
       {/* Follow-up Banner Card */}
-      <ClientFollowUpBanner onScheduleFollowUp={onScheduleFollowUp} />
+      <ClientFollowUpBanner
+        client={client}
+        onScheduleFollowUp={onScheduleFollowUp}
+        onMarkComplete={onMarkComplete}
+        isCompleting={isCompleting}
+      />
     </DetailCard>
   );
 }

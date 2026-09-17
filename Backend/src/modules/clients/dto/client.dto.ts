@@ -91,12 +91,51 @@ export type CreateClientInput = z.infer<typeof createClientSchema>;
 export class CreateClientDto extends createZodDto(createClientSchema) {}
 
 /**
- * Every field optional, and the create refinement is intentionally not reused:
- * a partial update has no complete object to validate that rule against.
+ * Every field optional, written out rather than derived with `.partial()`.
+ *
+ * This is not stylistic. **`.partial()` does not remove `.default()`** — it
+ * makes a field optional on the way in and then fills the default on the way
+ * out, so every absent defaulted field arrived at the service with a value.
+ * `PATCH { phone }` parsed to `{ phone, type: DIRECT, status: LEAD, leadSource:
+ * DIRECT, leadStage: NEW, priority: MEDIUM, labels: [], preferences: {} }`, and
+ * the service wrote all of it: scheduling a follow-up demoted a VIP travel
+ * agent to a brand-new direct lead and erased their labels and travel
+ * preferences. Nothing in the UI revealed it, because the edit form happens to
+ * post every one of those fields — only the small single-purpose dialogs
+ * (follow-up, convert, assign broker) triggered it.
+ *
+ * Aircraft, Operators, Airports, Users and Trip Requests all spell their update
+ * schemas out for this reason. Clients was the one that did not.
+ *
+ * The create refinement is intentionally not reused: a partial update has no
+ * complete object to validate "travel agents need a company name" against.
+ *
+ * `originatingBrokerId` is absent by design — attribution is set once, at
+ * creation, and never rewritten.
  */
-export const updateClientSchema = clientBaseSchema
-  .partial()
-  .omit({ originatingBrokerId: true }); // Attribution is set once, at creation.
+export const updateClientSchema = z.object({
+  type: z.enum(ClientType).optional(),
+  status: z.enum(ClientStatus).optional(),
+  companyName: z.string().trim().max(200).optional(),
+  firstName: z.string().trim().min(1, 'First name is required').max(100).optional(),
+  lastName: z.string().trim().min(1, 'Last name is required').max(100).optional(),
+  email: z.email().toLowerCase().trim().optional(),
+  phone: z.string().trim().max(40).optional(),
+  birthday: z.coerce.date().optional(),
+  homeAirportId: z.uuid().nullable().optional(),
+  leadSource: z.enum(LeadSource).optional(),
+  leadStage: z.enum(LeadStage).optional(),
+  assignedBrokerId: z.uuid().optional(),
+  /** Replaced wholesale when sent, left untouched when absent. */
+  preferences: preferencesSchema.optional(),
+  priority: z.enum(ClientPriority).optional(),
+  followUpMethod: z.enum(FollowUpMethod).nullable().optional(),
+  /** Nullable so the form can clear a scheduled follow-up. */
+  nextFollowUpAt: z.coerce.date().nullable().optional(),
+  followUpNote: z.string().trim().max(1_000).nullable().optional(),
+  notes: z.string().max(5_000).optional(),
+  labels: z.array(z.string().trim().max(50)).max(25).optional(),
+});
 
 export type UpdateClientInput = z.infer<typeof updateClientSchema>;
 export class UpdateClientDto extends createZodDto(updateClientSchema) {}

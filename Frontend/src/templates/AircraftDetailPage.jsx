@@ -1,16 +1,10 @@
 "use client";
 
 import { use } from "react";
-import AircraftDetailHeader from "@/components/aircraft/AircraftDetailHeader";
-import AircraftOverviewTab from "@/components/aircraft/tabs/AircraftOverviewTab";
-import AircraftTripsTab from "@/components/aircraft/tabs/AircraftTripsTab";
-import AircraftSpecsTab from "@/components/aircraft/tabs/AircraftSpecsTab";
-import AircraftMaintenanceTab from "@/components/aircraft/tabs/AircraftMaintenanceTab";
+import AircraftDetailsView from "@/components/aircraft/AircraftDetailsView";
 import AddAircraftDialog from "@/components/aircraft/AddAircraftDialog";
 import ArchiveAircraftDialog from "@/components/aircraft/ArchiveAircraftDialog";
 import ChangeStatusDialog from "@/components/aircraft/ChangeStatusDialog";
-import Reveal from "@/components/common/Reveal";
-import DetailTabNav from "@/components/common/DetailTabNav";
 import NotFoundState from "@/components/common/NotFoundState";
 import TableStatus from "@/components/table/common/TableStatus";
 import { useAircraftStore } from "@/store/useAircraftStore";
@@ -59,41 +53,18 @@ export default function AircraftDetailPage({ params }) {
     );
   }
 
-  // The Maintenance count is real — it is how many dates are on file. Trip
-  // History carries no count: it is an aggregate over trips, which do not
-  // exist, and a hardcoded number reads as fact.
-  const tabs = [
-    { id: "overview", label: "Overview" },
-    { id: "trips", label: "Trip History" },
-    { id: "specs", label: "Specifications" },
-    { id: "maintenance", label: "Maintenance", count: aircraft.maintenance?.length || 0 },
-  ];
-
   return (
     <>
-      <div className="flex flex-col gap-6 p-4 sm:p-6 pb-12 w-full max-w-7xl mx-auto">
-        <Reveal>
-          <AircraftDetailHeader
-            aircraft={aircraft}
-            onEdit={openEditModal}
-            onChangeStatus={openStatusModal}
-            onArchive={openArchiveModal}
-            onRestore={restoreAircraft}
-            mayWrite={mayWrite}
-          />
-        </Reveal>
-
-        <Reveal>
-          <DetailTabNav tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
-        </Reveal>
-
-        <Reveal className="w-full pt-2">
-          {activeTab === "overview" && <AircraftOverviewTab aircraft={aircraft} />}
-          {activeTab === "trips" && <AircraftTripsTab />}
-          {activeTab === "specs" && <AircraftSpecsTab aircraft={aircraft} />}
-          {activeTab === "maintenance" && <AircraftMaintenanceTab aircraft={aircraft} />}
-        </Reveal>
-      </div>
+      <AircraftDetailsView
+        aircraft={aircraft}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onEdit={openEditModal}
+        onChangeStatus={openStatusModal}
+        onArchive={openArchiveModal}
+        onRestore={restoreAircraft}
+        mayWrite={mayWrite}
+      />
 
       <AddAircraftDialog />
       <ArchiveAircraftDialog />

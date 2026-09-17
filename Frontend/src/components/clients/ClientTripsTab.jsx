@@ -29,7 +29,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
  * 3. Pass `trips` array and `totalProfit` / pagination meta to render rows.
  * 4. In the absence of trip records, render an honest empty state per project agreement.
  */
-export default function ClientTripsTab({ trips = [], totalProfit, onScheduleFollowUp }) {
+export default function ClientTripsTab({ trips = [], totalProfit, onScheduleFollowUp, client, onMarkComplete, isCompleting }) {
   const hasTrips = Array.isArray(trips) && trips.length > 0;
 
   return (
@@ -167,7 +167,12 @@ export default function ClientTripsTab({ trips = [], totalProfit, onScheduleFoll
       )}
 
       {/* Follow-up Banner Card */}
-      <ClientFollowUpBanner onScheduleFollowUp={onScheduleFollowUp} />
+      <ClientFollowUpBanner
+        client={client}
+        onScheduleFollowUp={onScheduleFollowUp}
+        onMarkComplete={onMarkComplete}
+        isCompleting={isCompleting}
+      />
     </DetailCard>
   );
 }

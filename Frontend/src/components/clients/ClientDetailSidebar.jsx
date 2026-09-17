@@ -2,13 +2,13 @@
 
 import { Plane, Edit } from "lucide-react";
 import DetailField from "@/components/common/DetailField";
+import DetailCard from "@/components/common/DetailCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export default function ClientDetailSidebar({ client, onEditNotes }) {
   if (!client) return null;
 
-  // Real client API fields with honest fallbacks when data is not on file
   const email = client.email || "—";
   const phone = client.phone || "—";
   const company = client.company || "—";
@@ -27,10 +27,7 @@ export default function ClientDetailSidebar({ client, onEditNotes }) {
   return (
     <div className="flex flex-col gap-5 w-full lg:w-80 shrink-0">
       {/* Contact Card */}
-      <div className="flex flex-col gap-4 p-4 sm:p-5 bg-white border border-border rounded-lg shadow-card w-full">
-        <h3 className="font-montserrat font-bold text-[15px] text-foreground border-b border-border/50 pb-2">
-          Contact
-        </h3>
+      <DetailCard title="Contact">
         <div className="flex flex-col gap-3">
           <DetailField label="Email" value={email} valueClassName="font-semibold text-purple truncate" />
           <DetailField label="Phone" value={phone} valueClassName="font-semibold" />
@@ -40,13 +37,10 @@ export default function ClientDetailSidebar({ client, onEditNotes }) {
           <DetailField label="Broker" value={broker} valueClassName="font-semibold" />
           <DetailField label="Added" value={added} valueClassName="font-semibold text-muted-foreground" />
         </div>
-      </div>
+      </DetailCard>
 
       {/* Travel Preferences Card */}
-      <div className="flex flex-col gap-4 p-4 sm:p-5 bg-white border border-border rounded-lg shadow-card w-full">
-        <h3 className="font-montserrat font-bold text-[15px] text-foreground border-b border-border/50 pb-2">
-          Travel Preferences
-        </h3>
+      <DetailCard title="Travel Preferences">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Home Airport</span>
@@ -97,28 +91,27 @@ export default function ClientDetailSidebar({ client, onEditNotes }) {
             )}
           </div>
         </div>
-      </div>
+      </DetailCard>
 
       {/* Internal Notes Card */}
-      <div className="flex flex-col gap-3 p-4 sm:p-5 bg-white border border-border rounded-lg shadow-card w-full">
-        <div className="flex items-center justify-between border-b border-border/50 pb-2">
-          <h3 className="font-montserrat font-bold text-[15px] text-foreground">
-            Internal Notes
-          </h3>
+      <DetailCard
+        title="Internal Notes"
+        action={
           <Button
             variant="outline"
             size="sm"
-            className="h-8 px-2.5 text-[11px] gap-1 font-medium cursor-pointer"
+            className="h-7 px-2 text-[11px] gap-1 font-medium cursor-pointer"
             onClick={onEditNotes}
           >
             <Edit className="size-3" />
             Edit Notes
           </Button>
-        </div>
+        }
+      >
         <p className="font-montserrat text-[12px] text-muted-foreground leading-relaxed">
           {notes}
         </p>
-      </div>
+      </DetailCard>
     </div>
   );
 }

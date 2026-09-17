@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-function FieldWrapper({ label, children, optional }) {
+function FieldWrapper({ label, children, optional, error }) {
   return (
     <div className="flex flex-col gap-1.5 w-full min-w-0">
       {label && (
@@ -22,6 +22,11 @@ function FieldWrapper({ label, children, optional }) {
         </label>
       )}
       {children}
+      {/* The API says which field it rejected; showing it beside that field
+          beats a toast that names it in prose. */}
+      {error && (
+        <p className="font-montserrat text-[11px] text-destructive">{error}</p>
+      )}
     </div>
   );
 }
@@ -138,9 +143,13 @@ function OperatorForm({ editingOperator, onDone }) {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
+    // Empty, never a plausible tail. A blank field meant "we don't know what
+    // they fly"; defaulting it to ["Global 7500"] put an aircraft nobody
+    // entered into the operator's fleet list, and it read exactly like data
+    // someone had supplied.
     const aircraftTypes = formData.aircraftTypesInput
       ? formData.aircraftTypesInput.split(",").map((t) => t.trim()).filter(Boolean)
-      : ["Global 7500"];
+      : [];
 
     const serviceRoutes = formData.serviceRoutesInput
       ? formData.serviceRoutesInput.split(",").map((r) => r.trim()).filter(Boolean)
@@ -188,9 +197,6 @@ function OperatorForm({ editingOperator, onDone }) {
       return;
     }
     create.mutate(payload, { onSuccess: closeAddModal });
-    return;
-
-    closeAddModal();
   };
 
   return (
@@ -211,7 +217,7 @@ function OperatorForm({ editingOperator, onDone }) {
           <SectionHeader title="Operator Information" />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <FieldWrapper label="Operator name">
+            <FieldWrapper label="Operator name" error={fieldErrors?.name}>
               <Input
                 placeholder="FLEXJet"
                 value={formData.name}
@@ -227,9 +233,17 @@ function OperatorForm({ editingOperator, onDone }) {
                 onChange={(e) => handleChange("status", e.target.value)}
                 className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
               >
-                <option value="Active">Active</option>
-                <option value="Preferred">Preferred</option>
-                <option value="Inactive">Inactive</option>
+                {/* The enum goes on the wire, the label goes on the screen.
+                    These options used to carry value="Active", which matched
+                    no enum the API accepts and matched no value the form
+                    holds — so the select displayed "Active" for every
+                    operator whatever its real status, and picking anything
+                    sent a label the API rejected. */}
+                {FILTERABLE_OPERATOR_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {formatOperatorStatus(status)}
+                  </option>
+                ))}
               </select>
             </FieldWrapper>
           </div>
@@ -245,7 +259,7 @@ function OperatorForm({ editingOperator, onDone }) {
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Website (Optional)" optional>
+            <FieldWrapper label="Website (Optional)" optional error={fieldErrors?.website}>
               <Input
                 placeholder="www.flexjet.com"
                 value={formData.website}
@@ -256,7 +270,7 @@ function OperatorForm({ editingOperator, onDone }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <FieldWrapper label="General email (Optional)">
+            <FieldWrapper label="General email (Optional)" error={fieldErrors?.generalEmail}>
               <Input
                 type="email"
                 placeholder="ops@flexjet.com"
@@ -266,7 +280,7 @@ function OperatorForm({ editingOperator, onDone }) {
               />
             </FieldWrapper>
 
-            <FieldWrapper label="General phone (Optional)">
+            <FieldWrapper label="General phone (Optional)" error={fieldErrors?.generalPhone}>
               <Input
                 placeholder="+1 (212) 555-0100"
                 value={formData.generalPhone}
@@ -290,7 +304,7 @@ function OperatorForm({ editingOperator, onDone }) {
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Contact Email">
+            <FieldWrapper label="Contact Email" error={fieldErrors?.contactEmail}>
               <Input
                 type="email"
                 placeholder="jmiller@flexjet.com"
@@ -301,7 +315,7 @@ function OperatorForm({ editingOperator, onDone }) {
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Contact Phone (Optional)">
+            <FieldWrapper label="Contact Phone (Optional)" error={fieldErrors?.contactPhone}>
               <Input
                 placeholder="+1 (212) 555-0184"
                 value={formData.phone}
@@ -338,7 +352,7 @@ function OperatorForm({ editingOperator, onDone }) {
           <SectionHeader title="Performance & Terms" />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-            <FieldWrapper label="Reliability (0-5) (Optional)">
+            <FieldWrapper label="Reliability (0-5) (Optional)" error={fieldErrors?.reliabilityRating}>
               <Input
                 placeholder="4.8"
                 value={formData.reliability}

@@ -69,14 +69,14 @@ export default function StatCard({
           <p className="font-montserrat font-medium text-[11px] sm:text-[12px] text-muted-foreground uppercase w-full truncate">
             {displayTitle}
           </p>
-          <p
+          <div
             className={cn(
               "font-montserrat font-bold text-[18px] sm:text-[22px] w-full truncate",
               valueColor || VALUE_TONE_CLASSES[valueTone] || "text-foreground"
             )}
           >
-            {value}
-          </p>
+            {value ?? children}
+          </div>
           {subtitle && (
             <p className={cn("font-montserrat font-normal text-[11px] sm:text-[12px] w-full truncate", SUBTITLE_CLASSES[subtitleTone])}>
               {subtitle}

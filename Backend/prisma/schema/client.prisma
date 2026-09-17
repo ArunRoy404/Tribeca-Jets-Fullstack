@@ -73,6 +73,10 @@ model Client {
   notes  String?
   labels String[] @default([])
 
+  /// Offers made to this client. Feeds the Quotes tab on the client detail
+  /// page, which was an empty state until this module shipped.
+  quotes Quote[] @relation("QuoteClient")
+
   // ---- Audit trail (every model carries these four) ------------------------
   // Distinct from assignedBroker/originatingBroker, which are business
   // relationships: an admin can create a client assigned to someone else, and
