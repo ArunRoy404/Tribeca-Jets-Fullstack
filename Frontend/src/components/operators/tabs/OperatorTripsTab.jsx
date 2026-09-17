@@ -1,139 +1,160 @@
 "use client";
 
-import Image from "next/image";
-import { FileText, Eye } from "lucide-react";
-import StatusBadge from "@/components/common/StatusBadge";
-import RowActionsMenu from "@/components/table/common/RowActionsMenu";
-import TablePagination from "@/components/table/common/TablePagination";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import Link from "next/link";
+import { Plane, MoreHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-const columns = [
-  "Trip ID",
-  "Route",
-  "Aircraft",
-  "Departure",
-  "Client",
-  "Charter Price",
-  "Status",
-  "Broker",
-  "Action",
-];
+/**
+ * OperatorTripsTab
+ *
+ * NOTE FOR AI AGENTS / DEVELOPERS:
+ * DO NOT DELETE THIS COMPONENT OR ITS TABLE MARKUP.
+ *
+ * Current API status:
+ * - The backend Trips module does not yet have a cross-module query linking trips to operators.
+ * - `operator.tripHistory` returns empty array `[]`.
+ * - When `trips.length === 0`, this component renders an honest empty state ("No Trip History")
+ *   per the CRM core rule: "Never display a number the data did not supply".
+ *
+ * INSTRUCTIONS FOR WIRING THE API:
+ * 1. Data source: `operator.tripHistory` or `GET /api/trips?operatorId={operator.id}`.
+ * 2. When data is returned, this component will automatically render the pre-styled table below.
+ * 3. Expected item wire shape:
+ *    - tripId: string (e.g. "TJ-1048")
+ *    - client: string
+ *    - broker: string
+ *    - route: string (e.g. "KTEB → KPBI")
+ *    - departure: string
+ *    - returnDate: string
+ *    - aircraft: string
+ *    - status: string
+ *    - profit: string
+ */
+
+/*
+// PREVIOUS HARDCODED MOCK DATA (KEPT FOR REFERENCE ONLY — DO NOT USE IN PRODUCTION):
+// const defaultTrips = [
+//   { id: "t-1", tripId: "#TJ-1048", client: "Jonathan Reed", broker: "Benny", route: "KTEB → KPBI", departure: "Aug 15, 2026", returnDate: "Aug 18, 2026", aircraft: "Jet Aviation", status: "Confirmed", profit: "$8,500" },
+//   { id: "t-2", tripId: "TJ-2402", client: "Hope Sterling", broker: "Benny", route: "KTEB → KMIA", departure: "Aug 20, 2026", returnDate: "Aug 23, 2026", aircraft: "Air Charter Group", status: "Booked", profit: "$17,000" },
+//   { id: "t-3", tripId: "TJ-2403", client: "Emily Carter", broker: "Mark", route: "KMIA → EGLL", departure: "Sep 3, 2026", returnDate: "Sep 10, 2026", aircraft: "VistaJet", status: "Booked", profit: "$37,000" },
+// ];
+*/
 
 export default function OperatorTripsTab({ operator }) {
   const trips = operator?.tripHistory || [];
 
+  // Honest empty state when no trips exist in database for this operator
   if (trips.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-md border border-border w-full">
-        <FileText className="size-10 text-muted-foreground/50 mb-3" />
-        <p className="font-montserrat font-bold text-[16px] text-foreground">No Trips History</p>
-        <p className="font-montserrat text-[13px] text-muted-foreground mt-1">
-          No trips have been booked or executed with this operator yet.
+      <div className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-lg border border-border w-full shadow-card">
+        <div className="size-12 rounded-full bg-secondary flex items-center justify-center text-muted-foreground mb-3">
+          <Plane className="size-6 text-muted-foreground" />
+        </div>
+        <p className="font-montserrat font-bold text-[16px] text-foreground">
+          No Trip History
+        </p>
+        <p className="font-montserrat text-[13px] text-muted-foreground mt-1 max-w-sm">
+          No trip records have been associated with this operator yet.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="relative flex flex-col items-start rounded-md border border-border overflow-hidden w-full">
-      <Image
-        src="/dashboard/bg/trips-table.png"
-        alt=""
-        fill
-        className="object-cover opacity-50 pointer-events-none"
-        sizes="1600px"
-      />
-      <div className="absolute inset-0 bg-gradient-to-r from-white/90 to-[#e5eeff]/90 backdrop-blur-2xl pointer-events-none" />
-
-      {/* Mobile Card List (< lg) */}
-      <div className="relative w-full lg:hidden flex flex-col gap-2 p-3">
-        {trips.map((tr) => (
-          <div
-            key={tr.tripId}
-            className="flex flex-col gap-2.5 items-start p-3 w-full rounded-sm border border-border bg-white"
-          >
-            <div className="flex items-center justify-between gap-2 w-full">
-              <div className="flex items-center gap-2 min-w-0">
-                <p className="font-montserrat font-semibold text-[13px] text-purple truncate">{tr.tripId}</p>
-              </div>
-              <StatusBadge status={tr.status} bordered />
-            </div>
-
-            <div className="flex items-start justify-between gap-3 w-full text-[12px] font-montserrat">
-              <div>
-                <span className="text-muted-foreground text-[10px] block">Route</span>
-                <span className="font-bold text-foreground">{tr.route}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-muted-foreground text-[10px] block">Charter Price</span>
-                <span className="font-bold text-success">{tr.price}</span>
-              </div>
-            </div>
-
-            <div className="flex items-start justify-between gap-3 w-full text-[12px] font-montserrat">
-              <div>
-                <span className="text-muted-foreground text-[10px] block">Client / Broker</span>
-                <span className="font-semibold text-foreground">{tr.client} ({tr.broker})</span>
-              </div>
-              <div className="text-right">
-                <span className="text-muted-foreground text-[10px] block">Departure / Aircraft</span>
-                <span className="font-semibold text-foreground">{tr.departure} · {tr.aircraft}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Desktop Table (>= lg) */}
-      <div className="relative w-full overflow-x-auto hidden lg:block">
-        <Table className="min-w-[1000px]">
+    <div className="flex flex-col w-full bg-white rounded-lg border border-border overflow-hidden shadow-card">
+      <div className="overflow-x-auto w-full">
+        <Table className="min-w-[900px]">
           <TableHeader>
-            <TableRow className="bg-black/10 border-border hover:bg-black/10">
-              {columns.map((col) => (
-                <TableHead key={col} className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center whitespace-nowrap h-auto">
-                  {col}
-                </TableHead>
-              ))}
+            <TableRow className="bg-secondary/40 border-b border-border hover:bg-secondary/40">
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
+                Trip ID
+              </TableHead>
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
+                Client
+              </TableHead>
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
+                Broker
+              </TableHead>
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
+                Route
+              </TableHead>
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
+                Departure
+              </TableHead>
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
+                Return
+              </TableHead>
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
+                Aircraft
+              </TableHead>
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-center">
+                Status
+              </TableHead>
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-center">
+                Profit
+              </TableHead>
+              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-center">
+                Next Action
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {trips.map((tr) => (
-              <TableRow key={tr.tripId} className="border-border hover:bg-secondary/40 transition-colors">
-                <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-purple text-center">
-                  {tr.tripId}
+              <TableRow
+                key={tr.id || tr.tripId}
+                className="border-b border-border/60 hover:bg-secondary/20 transition-colors"
+              >
+                <TableCell className="py-3.5 px-4 text-left">
+                  <Link
+                    href={`/dashboard/trips/${encodeURIComponent(String(tr.tripId || tr.id).replace("#", ""))}`}
+                    className="font-montserrat font-bold text-[13px] text-purple hover:underline"
+                  >
+                    {tr.tripId || tr.id}
+                  </Link>
                 </TableCell>
-                <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center">
-                  {tr.route}
-                </TableCell>
-                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">
-                  {tr.aircraft}
-                </TableCell>
-                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">
-                  {tr.departure}
-                </TableCell>
-                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-foreground text-center">
+                <TableCell className="py-3.5 px-4 font-montserrat font-semibold text-[13px] text-foreground text-left">
                   {tr.client}
                 </TableCell>
-                <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-success text-center">
-                  {tr.price}
-                </TableCell>
-                <TableCell className="p-[10px] text-center">
-                  <div className="flex justify-center">
-                    <StatusBadge status={tr.status} bordered />
-                  </div>
-                </TableCell>
-                <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-muted-foreground text-center">
+                <TableCell className="py-3.5 px-4 font-montserrat font-medium text-[13px] text-foreground text-left">
                   {tr.broker}
                 </TableCell>
-                <TableCell className="p-[10px] text-center">
+                <TableCell className="py-3.5 px-4 font-montserrat font-medium text-[13px] text-foreground text-left">
+                  {tr.route}
+                </TableCell>
+                <TableCell className="py-3.5 px-4 font-montserrat font-medium text-[13px] text-foreground text-left">
+                  {tr.departure}
+                </TableCell>
+                <TableCell className="py-3.5 px-4 font-montserrat font-medium text-[13px] text-foreground text-left">
+                  {tr.returnDate || "—"}
+                </TableCell>
+                <TableCell className="py-3.5 px-4 font-montserrat font-medium text-[13px] text-foreground text-left">
+                  {tr.aircraft}
+                </TableCell>
+                <TableCell className="py-3.5 px-4 text-center">
                   <div className="flex justify-center">
-                    <RowActionsMenu
-                      items={[
-                        { label: "View Trip Details", icon: <Eye /> },
-                        { label: "View Invoice", icon: <FileText /> },
-                      ]}
-                    />
+                    <span className="px-2.5 py-0.5 rounded font-montserrat font-medium text-[11px] border bg-info/10 text-info border-info/30">
+                      {tr.status}
+                    </span>
                   </div>
+                </TableCell>
+                <TableCell className="py-3.5 px-4 font-montserrat font-bold text-[13px] text-success text-center">
+                  {tr.profit}
+                </TableCell>
+                <TableCell className="py-3.5 px-4 text-center">
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center size-8 rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </button>
                 </TableCell>
               </TableRow>
             ))}
@@ -141,8 +162,35 @@ export default function OperatorTripsTab({ operator }) {
         </Table>
       </div>
 
-      <div className="relative w-full">
-        <TablePagination totalCount={trips.length} itemLabel="trips" page={1} pageCount={1} onPrev={() => {}} onNext={() => {}} />
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between gap-4 px-4 py-3 border-t border-border bg-white text-[12px] font-montserrat">
+        <span className="text-muted-foreground font-medium">
+          {trips.length} {trips.length === 1 ? "trip" : "trips"}
+        </span>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2.5 text-[12px] font-medium gap-1 cursor-pointer"
+            disabled
+          >
+            ← Prev
+          </Button>
+          <button
+            type="button"
+            className="size-8 rounded-sm bg-[#252832] text-white font-bold text-[12px] flex items-center justify-center cursor-pointer"
+          >
+            1
+          </button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2.5 text-[12px] font-medium gap-1 cursor-pointer"
+            disabled
+          >
+            Next →
+          </Button>
+        </div>
       </div>
     </div>
   );
