@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
+import { calendarDate } from '../../../common/dto/dates.js';
 import {
   paginationSchema,
   sortableBy,
@@ -23,6 +24,7 @@ export const TRIP_REQUEST_SORTABLE_FIELDS = [
   'status',
   'estimatedValue',
   'passengers',
+  'quoteDeadline',
 ] as const;
 
 /**
@@ -33,17 +35,6 @@ export const TRIP_REQUEST_SORTABLE_FIELDS = [
  */
 const PASSENGERS = { min: 1, max: 200, int: true };
 const ESTIMATE = { min: 0, max: 100_000_000 };
-
-/**
- * A date the desk picks from a calendar, with no time of day.
- *
- * Accepts `YYYY-MM-DD` and stores midnight UTC against a `DATE` column, so it
- * comes back as the day that was typed rather than shifting for whoever reads
- * it. Same treatment as the aircraft maintenance dates.
- */
-const calendarDate = z.iso
-  .date('Use a YYYY-MM-DD date')
-  .transform((value) => new Date(`${value}T00:00:00.000Z`));
 
 /** Windows the Open Requests board filters by. */
 export const REQUEST_WINDOWS = ['OVERDUE', 'TODAY', 'UPCOMING'] as const;
@@ -95,6 +86,8 @@ export const createTripRequestSchema = z
 
     departureDate: calendarDate.optional(),
     returnDate: calendarDate.optional(),
+    /** When operator quotes are needed by. Scope §6.7's request builder. */
+    quoteDeadline: calendarDate.optional(),
 
     passengers: optionalNumber('Passengers must be a whole number', PASSENGERS),
     aircraftPreference: z.enum(AircraftCategory).optional(),
@@ -138,6 +131,7 @@ export const updateTripRequestSchema = z
 
     departureDate: calendarDate.nullable().optional(),
     returnDate: calendarDate.nullable().optional(),
+    quoteDeadline: calendarDate.nullable().optional(),
 
     passengers: nullableNumber('Passengers must be a whole number', PASSENGERS),
     aircraftPreference: z.enum(AircraftCategory).nullable().optional(),

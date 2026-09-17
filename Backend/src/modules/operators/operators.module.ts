@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AircraftModule } from '../aircraft/aircraft.module.js';
+import { OperatorQuotesModule } from '../operator-quotes/operator-quotes.module.js';
 import { OperatorsController } from './operators.controller.js';
 import { OperatorsService } from './operators.service.js';
 
@@ -7,7 +8,7 @@ import { OperatorsService } from './operators.service.js';
   // Aircraft, not the other way round: the fleet belongs to the aircraft
   // module and the operator detail page borrows it. AircraftService does not
   // inject OperatorsService, so this stays a one-way edge rather than a cycle.
-  imports: [AircraftModule],
+  imports: [AircraftModule, OperatorQuotesModule],
   controllers: [OperatorsController],
   providers: [OperatorsService],
   // Exported because sourcing, quotes and operator payments all resolve

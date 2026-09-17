@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { AircraftService } from '../aircraft/aircraft.service.js';
+import { OperatorQuotesService } from '../operator-quotes/operator-quotes.service.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -94,6 +95,9 @@ export class OperatorsService {
     // rather than querying `aircraft` from here. See AGENTS.md — cross-module
     // reads go through the owning module.
     private readonly aircraft: AircraftService,
+    // Same arrangement as the fleet: sourcing owns the quotes table and the
+    // operator detail page borrows its scorecard. One-way edge, no cycle.
+    private readonly sourcing: OperatorQuotesService,
   ) {}
 
   // The caller is not read here: reference data is the same rows for
@@ -154,11 +158,19 @@ export class OperatorsService {
     // a wrong answer the moment this operator's tails were in the database.
     const fleet = await this.aircraft.listForOperator(id);
 
+    // The part of the §6.7 scorecard the data can actually answer, now that
+    // sourcing exists: how often they reply, how fast, and how often we go
+    // with them. The rest of that scorecard — accuracy, hidden fees, crew and
+    // cabin quality, passenger feedback — has no agreed rating scale (§17), so
+    // it is absent rather than invented.
+    const scorecard = await this.sourcing.scorecardFor(id);
+
     return {
       ...row,
       ...UNAVAILABLE_AGGREGATES,
       fleet,
       fleetSize: fleet.length,
+      scorecard,
       // Trips and Payments still have no module behind them. Empty arrays
       // rather than omitted keys, so those tabs render their own empty state
       // instead of crashing on undefined.

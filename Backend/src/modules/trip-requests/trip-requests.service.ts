@@ -28,6 +28,7 @@ import {
 } from '../../common/authorization/permissions.js';
 import { TripRequestStatus, UserRole } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { OperatorQuotesService } from '../operator-quotes/operator-quotes.service.js';
 import type {
   CreateTripRequestInput,
   QueryTripRequestsInput,
@@ -82,6 +83,7 @@ const REQUEST_SELECT = {
   destinationAirport: AIRPORT_SELECT,
   departureDate: true,
   returnDate: true,
+  quoteDeadline: true,
   passengers: true,
   aircraftPreference: true,
   estimatedValue: true,
@@ -145,7 +147,29 @@ export class TripRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly sourcing: OperatorQuotesService,
   ) {}
+
+  /**
+   * Attaches what sourcing knows about these enquiries.
+   *
+   * The sourcing board's "4 contacted, 3 responded" and its four stages —
+   * Requested, Pending Operator Quote, Sourcing, Source Complete — are counted
+   * from the quotes every time they are read, never stored. A stored stage is
+   * wrong the moment the next operator replies.
+   *
+   * Added in the second pass when Operator Sourcing shipped. Before that these
+   * keys were absent and the screen was dummy-backed; leaving them absent now
+   * would make the board say "0 contacted" about an enquiry four operators are
+   * working on, which is a wrong answer rather than a missing one.
+   */
+  private async withSourcing<T extends { id: string }>(rows: T[]) {
+    const summaries = await this.sourcing.summaryFor(rows.map((row) => row.id));
+    return rows.map((row) => ({
+      ...row,
+      sourcing: summaries.get(row.id) ?? null,
+    }));
+  }
 
   /**
    * `estimatedValue` is a Prisma Decimal, which serialises to a string. The
@@ -271,7 +295,7 @@ export class TripRequestsService {
     ]);
 
     return paginate(
-      rows.map((row) => this.serialise(row)),
+      await this.withSourcing(rows.map((row) => this.serialise(row))),
       total,
       query.page,
       query.limit,
@@ -289,7 +313,8 @@ export class TripRequestsService {
       select: REQUEST_DETAIL_SELECT,
     });
     if (!row) throw new NotFoundException('Trip request not found');
-    return this.serialise(row);
+    const [withSourcing] = await this.withSourcing([this.serialise(row)]);
+    return withSourcing;
   }
 
   /**
