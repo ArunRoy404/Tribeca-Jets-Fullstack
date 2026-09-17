@@ -170,6 +170,20 @@ Two corollaries:
 - **Every query parameter is described**, including all pagination, sort and filter params, with its default and its bounds.
 - **Enums and fixed-value fields are documented case-sensitively**, listing the exact accepted values.
 - Verify with `newman` before calling the collection done. A collection that has not been run is not finished.
+- **A folder that creates a row archives it again in a teardown.** The run is a
+  demonstration, not a data entry session. `03 · Clients` had no teardown and
+  ended by *restoring* the client it created, so every Newman run left one more
+  live "Marcus Reyes" in the directory — 26 of the 28 live clients were Postman
+  debris before anyone looked. There is no hard delete by design, so archiving
+  the probe is the correct end state: the debris sits in the Archived tab
+  rather than among the records a broker works. `build_aircraft_folder.py` and
+  `build_trip_requests_folder.py` are the pattern.
+- **Every request must pass on the second run, not just the first.** A request
+  that mutates shared state has to be re-runnable. `04 · Set new password` sent
+  a fixed new password, and the API refuses one identical to the current — so
+  it passed on a fresh database and failed on every run after. A collection that
+  only goes green after a reseed reports a false failure every other time, which
+  is how a real failure gets ignored. Generate the value per run.
 
 ## Keep these files current
 

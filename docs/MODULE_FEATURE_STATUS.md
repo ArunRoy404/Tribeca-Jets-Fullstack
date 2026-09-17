@@ -115,6 +115,13 @@ audit trail pointing at them.
 | Payments tab | **Operator Payments (#17)** |
 | Sourcing response history | **Operator Sourcing (#9)** |
 
+**Two bugs fixed here on 2026-09-17:** the status dropdown's options carried
+display labels (`value="Active"`) rather than enum values, so it showed "Active"
+for every operator whatever its real status and rejected any change with a 400 —
+**operator status could not be changed from the form at all**. And a blank
+aircraft-types field defaulted to `["Global 7500"]`, putting an airframe nobody
+entered into the operator's fleet.
+
 ---
 
 ## 5. Clients ✅
@@ -131,6 +138,11 @@ audit trail pointing at them.
 - Removal is admin-only: brokers hold `MANAGE_CLIENTS` at `ASSIGNED` scope
 - `GET /clients/broker-performance` — real aggregates over leads
 - Enquiries listed on the client, from Trip Requests
+- Internal notes, travel preferences and birthday round-trip: written, returned
+  and repopulated in the edit form
+- An archived client's detail page opens from the Archived tab and offers
+  Restore in place of Edit, Create Trip and Archive
+- Mark Complete on the follow-up strip clears the reminder and its note
 
 **Waiting on a dependency**
 
@@ -144,6 +156,23 @@ audit trail pointing at them.
 
 **Removed rather than faked:** the detail page had an attachment drop zone
 wired to nothing. It belongs to **Document Vault (#22)**.
+
+**Four bugs fixed here on 2026-09-17**, all of the same family — a field the
+API accepted, stored, and never gave back:
+
+1. `notes`, `preferences` and `birthday` were **write-only**. The detail page
+   said "No internal notes on file" about clients whose notes were in the
+   database.
+2. `findOne` used `include` rather than the shared select, so the detail
+   endpoint returned a bare `homeAirportId` and no airport row — home airport
+   read "—" on every client that had one, and the edit form then cleared it.
+3. **`updateClientSchema` used `.partial()`, which does not strip `.default()`.**
+   Any partial update re-applied every create-time default: scheduling a
+   follow-up demoted a VIP travel agent to a brand-new direct lead and erased
+   their labels and travel preferences. This was the most damaging bug in the
+   codebase and nothing on screen revealed it.
+4. The follow-up strip carried a hardcoded date and a note about a Miami → New
+   York round trip, shown on four of the five tabs for every client.
 
 ---
 
@@ -216,6 +245,14 @@ which needs the same pipeline for contracts, operator documents and quote PDFs.
 | Revenue per agent | **Trips (#11)** + **Receivables (#16)** |
 | Contact / activity timeline on a lead | **Communications / Email Templates (#21)** |
 | Quote-linked lead stages (Proposal, Quoted moving on their own) | **Quotes (#10)** |
+| Log Call Activity on an agent | **Communications** — disabled and labelled, not silently inert |
+
+**Fixed here on 2026-09-17:** the agent detail page's row menu offered Schedule
+Follow-up and Convert to Client over live leads and both did nothing — the
+dialogs were never mounted on that page. Its Prev/Next had no handler either,
+and the desktop table and mobile cards offered different menus. The Internal
+Notes card displayed the *follow-up* note, and the trip-interest card printed
+`LIGHT_JET` at the reader.
 
 **By design, not pending:** the roster is read-only and has no Add form. An
 agent is one of the desk's own brokers — a User — and staff are invited through

@@ -18,6 +18,62 @@ DTOs are Zod schemas wrapped in `createZodDto` (`src/common/dto/zod-dto.ts`), en
 
 **There is no global `ValidationPipe`, and you must not add one** — it strips properties off Zod-backed DTOs because they have no `class-validator` metadata. This has bitten us once already.
 
+### Never build an update schema with `.partial()`
+
+**`.partial()` does not remove `.default()`.** It makes a field optional on the
+way in and then fills the default on the way out, so every absent defaulted
+field arrives at the service carrying a value — and the service writes it.
+
+This was live in Clients. `PATCH { phone }` parsed to `{ phone, type: DIRECT,
+status: LEAD, leadSource: DIRECT, leadStage: NEW, priority: MEDIUM, labels: [],
+preferences: {} }`. Scheduling a follow-up demoted a VIP travel agent to a
+brand-new direct lead and erased their labels and travel preferences. Nothing
+in the UI showed it, because the big edit form happens to post every one of
+those fields; only the small single-purpose dialogs — follow-up, convert,
+assign broker — triggered it, which is exactly the set nobody tests.
+
+**Write the update schema out as its own `z.object({ ... })`, every field
+`.optional()`, no defaults.** Aircraft, Operators, Airports, Users and Trip
+Requests all do; Clients was the one that did not. Duplicating the field list
+is the cost, and it is worth it — `.partial()` looks like it means "everything
+optional" and does not.
+
+A default belongs on **create** only. If a value must exist, the column's
+database default is the backstop, not the update DTO.
+
+### A field the DTO accepts must be in the select
+
+If `create`/`update` will store it, the response must return it. A field that
+is written but never read is invisible to the UI and, worse, invisible to the
+**edit form**, which prefills from that response: it reopens the field blank
+and posts the blank back.
+
+Clients accepted `notes`, `preferences` and `birthday` and returned none of
+them, so the detail page said "No internal notes on file" about a client whose
+notes were in the database.
+
+**Grep the DTO against the select whenever either changes.**
+
+### One select per model, and the detail view extends the list's
+
+`findOne` uses `select: <MODEL>_DETAIL_SELECT`, which spreads
+`<MODEL>_LIST_SELECT` and adds what only the detail page needs.
+
+**Never use `include` for a detail read.** `include` returns every scalar plus
+only the relations it names, so it silently drops the ones it does not —
+Clients' `findOne` returned a bare `homeAirportId` while the list returned the
+airport row, and the detail page rendered "—" for the home airport of every
+client that had one, then cleared it on the next save.
+
+### The detail endpoint loads archived rows; writes do not
+
+`findOne` must not filter `deletedAt: null` — the Archived tab links to these
+pages, and filtering here lists a row and then 404s it when someone clicks
+through. Writes keep the filter through a separate private `findLive`, so an
+archived record still cannot be edited or re-archived.
+
+Users is the exception, because it has no archive/restore at all.
+
 ## Authorization: three distinct layers
 
 Keep them separate. Collapsing them is how row-level leaks happen.

@@ -88,6 +88,16 @@ When a module graduates:
   null into "—", so components read the mapped value directly and add no
   fallback of their own. See the rule in the root `AGENTS.md` for what this
   cost us on operators.
+- **A default parameter is a fallback.** `function Banner({ date = "Aug 12,
+  2026" })` is the same bug as `value || "4.8"`, and it hides better: it looks
+  like an ordinary signature rather than a placeholder. `ClientFollowUpBanner`
+  defaulted its date, note and status that way; only the Overview tab passed
+  real values, so the other four tabs showed an invented follow-up — about a
+  Miami → New York round trip — for every client in the system, and switching
+  tabs changed the client's follow-up date.
+  **Pass the record, not pre-formatted pieces of it.** A component that takes
+  `client` and reads what it needs cannot be called without the data; one that
+  takes six strings can, and eventually is.
 - Read the module's `src/hooks/<module>/README.md` if there is one; `src/hooks/auth/` is the reference implementation for everything below.
 
 ## Services and hooks
