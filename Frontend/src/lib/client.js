@@ -60,7 +60,7 @@ export const formatLeadSource = (v) => SOURCE_LABELS[v] ?? v ?? "";
 export const formatFollowUpWindow = (v) => FOLLOW_UP_LABELS[v] ?? v ?? "";
 
 /** A person's display name, falling back to the company for an agency row. */
-function displayName(client) {
+export function displayName(client) {
   const full = [client?.firstName, client?.lastName].filter(Boolean).join(" ");
   return full || client?.companyName || "—";
 }

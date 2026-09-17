@@ -36,6 +36,13 @@ export const queryKeys = {
     brokerPerformance: ["clients", "broker-performance"],
   },
 
+  operatorQuotes: {
+    all: ["operator-quotes"],
+    list: (params) => ["operator-quotes", "list", params ?? {}],
+    detail: (id) => ["operator-quotes", "detail", id],
+    stats: ["operator-quotes", "stats"],
+  },
+
   tripRequests: {
     all: ["trip-requests"],
     list: (params) => ["trip-requests", "list", params ?? {}],
