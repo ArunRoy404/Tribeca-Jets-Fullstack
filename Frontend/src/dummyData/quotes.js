@@ -45,9 +45,9 @@ export const quoteAircraftOptions = [
 export const quotesData = [
   {
     id: "Q-2026-042",
-    client: "Jonathan Reed",
+    client: "Hope Sterling",
     clientTier: "VIP",
-    company: "Reed Capital",
+    company: "Sterling Group",
     broker: "Barry",
     brokerFullName: "Barry Wilson",
     origin: "KTEB",
