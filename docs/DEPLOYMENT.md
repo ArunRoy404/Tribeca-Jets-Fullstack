@@ -30,7 +30,25 @@ Two consequences worth stating, because both look like bugs otherwise:
 `WEB_APP_URL` and `API_PROXY_TARGET` each need a URL the other side does not
 have yet, so the first pass is deliberately circular:
 
-1. **Neon** — create the database, copy the connection string.
+1. **Neon** — create the database, then copy the **direct** connection string:
+   turn *Connection pooling* off in the Connect dialog, or delete `-pooler`
+   from the hostname. Click *Show password* first; the displayed string is
+   masked.
+
+   Not the pooled one. `render.yaml` runs `npm run db:deploy` during the
+   build, and Prisma migrations need a session-mode connection — advisory
+   locks and DDL that PgBouncer's transaction mode does not carry. The usual
+   answer is a pooled `url` plus a direct `directUrl`, but `prisma7.config.ts`
+   reads `DATABASE_URL` and nothing else, so one string has to serve both the
+   migrations and the app. At this concurrency the pooler buys nothing anyway.
+
+   Keep `sslmode=require`. `channel_binding=require` can be dropped —
+   `@prisma/adapter-pg` runs on node-postgres, which does not implement
+   channel binding and ignores the parameter.
+
+   **Put Render in the same region as Neon.** A Singapore database behind an
+   Oregon web service pays a round trip on every query, and this app makes
+   several per request.
 2. **Render** — create the blueprint from `render.yaml`. It prompts for the
    three `sync: false` values. Give it `DATABASE_URL` now; leave `WEB_APP_URL`
    at its default and set `API_PUBLIC_URL` once Render assigns the hostname.

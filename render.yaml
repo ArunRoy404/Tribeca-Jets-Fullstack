@@ -23,6 +23,8 @@ services:
   - type: keyvalue
     name: tribeca-jets-cache
     plan: free
+    # Must match the API's region, and the API matches Neon (ap-southeast-1).
+    region: singapore
     # Internal traffic only; nothing outside Render needs to reach it.
     ipAllowList: []
     maxmemoryPolicy: allkeys-lru
@@ -32,6 +34,10 @@ services:
     runtime: node
     plan: free
     rootDir: Backend
+    # Neon is in ap-southeast-1. Render's default is Oregon, which would put a
+    # trans-Pacific round trip on every query — and this app makes several per
+    # request. Keep these three regions aligned.
+    region: singapore
 
     # `npm ci` installs devDependencies here because NODE_ENV is not
     # `production` — nest, prisma and tsx all live there, so a production
