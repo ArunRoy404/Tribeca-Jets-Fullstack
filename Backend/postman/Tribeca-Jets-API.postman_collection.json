@@ -114,6 +114,16 @@
       "key": "newClientId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "operatorQuoteId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newOperatorQuoteId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -5484,7 +5494,14 @@
                   "pm.test('created', function () {",
                   "    pm.response.to.have.status(201);",
                   "    pm.collectionVariables.set('newAirportId', pm.response.json().data.id);",
-                  "});"
+                  "});",
+                  "",
+                  "// Kept separately from the id the list request captures, which later",
+                  "// requests overwrite. The teardown needs to know which row *this run*",
+                  "// created.",
+                  "if (pm.response.code < 400) {",
+                  "    pm.collectionVariables.set('newAirportId', pm.response.json().data.id);",
+                  "}"
                 ]
               }
             }
@@ -6185,6 +6202,36 @@
               "cookie": [],
               "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Airports)\",\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:19.484Z\"\n}"
             }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Teardown. This is the last request in the folder, and the folder ends",
+                  "// by restoring the airport it created \u2014 so every run used to leave",
+                  "// one more live airport behind. Thirty-seven had piled up in",
+                  "// operators before anyone looked.",
+                  "//",
+                  "// There is no hard delete in this system by design, so the run cannot",
+                  "// erase its own row. Archiving it is the best available end state: the",
+                  "// debris sits in the Archived tab instead of among the records the desk",
+                  "// actually works.",
+                  "const id = pm.collectionVariables.get('newAirportId');",
+                  "if (id) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('baseUrl') + '/airports/' + id,",
+                  "        method: 'DELETE',",
+                  "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
+                  "    }, function (err) {",
+                  "        if (err) { console.warn('teardown could not archive ' + id, err); }",
+                  "    });",
+                  "    pm.collectionVariables.set('newAirportId', '');",
+                  "}"
+                ]
+              }
+            }
           ]
         }
       ],
@@ -6704,7 +6751,14 @@
                   "pm.test('created', function () {",
                   "    pm.response.to.have.status(201);",
                   "    pm.collectionVariables.set('newOperatorId', pm.response.json().data.id);",
-                  "});"
+                  "});",
+                  "",
+                  "// Kept separately from the id the list request captures, which later",
+                  "// requests overwrite. The teardown needs to know which row *this run*",
+                  "// created.",
+                  "if (pm.response.code < 400) {",
+                  "    pm.collectionVariables.set('newOperatorId', pm.response.json().data.id);",
+                  "}"
                 ]
               }
             }
@@ -7249,6 +7303,36 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Operators)\",\n  \"path\": \"/api/operators/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:27.416Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Teardown. This is the last request in the folder, and the folder ends",
+                  "// by restoring the operator it created \u2014 so every run used to leave",
+                  "// one more live operator behind. Thirty-seven had piled up in",
+                  "// operators before anyone looked.",
+                  "//",
+                  "// There is no hard delete in this system by design, so the run cannot",
+                  "// erase its own row. Archiving it is the best available end state: the",
+                  "// debris sits in the Archived tab instead of among the records the desk",
+                  "// actually works.",
+                  "const id = pm.collectionVariables.get('newOperatorId');",
+                  "if (id) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('baseUrl') + '/operators/' + id,",
+                  "        method: 'DELETE',",
+                  "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
+                  "    }, function (err) {",
+                  "        if (err) { console.warn('teardown could not archive ' + id, err); }",
+                  "    });",
+                  "    pm.collectionVariables.set('newOperatorId', '');",
+                  "}"
+                ]
+              }
             }
           ]
         }
@@ -9719,6 +9803,1513 @@
                   "    }, function (err) {",
                   "        if (err) { console.warn('teardown could not archive ' + id, err); }",
                   "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 \u00b7 Operator Sourcing",
+      "description": "Asking operators to price an enquiry, and comparing what comes back (scope \u00a76.7 and \u00a76.9).\n\n**One new table, not two.** The sourcing board's rows are trip requests being worked \u2014 the same record the Open Requests board shows \u2014 so the only genuinely new entity here is the operator's answer. A second requests table would have split one enquiry across two rows the way a leads table would have split one client.\n\nUses the **trips** permissions rather than its own pair: sourcing is a stage of a trip, not something a role is granted separately. `VIEW_TRIPS` to read, `MANAGE_TRIPS` to write, `DELETE_TRIPS` (administrators only) to archive.\n\nEvery request below is signed in as the seeded SUPER_ADMIN by the folder's pre-request script, except the 403 examples, which were captured as the seeded assistant and broker.",
+      "item": [
+        {
+          "name": "01 \u00b7 List operator quotes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes?page=1&limit=10&search=&sortOrder=desc&sortBy=createdAt&tripRequestId=&operatorId=&aircraftId=&status=&openOnly=false&archived=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, 1-based. Integer \u22651. Default 1."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Rows per page. Integer 1-100. Default 10. >100 or <1 \u2192 400."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Case-insensitive substring across the operator's name, the quoted aircraft and tail, and the linked tail's number and model."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Allowed (case-sensitive): asc | desc. Default desc."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | requestedAt | respondedAt | price | status. Default createdAt. A closed list \u2014 anything else returns 400."
+                },
+                {
+                  "key": "tripRequestId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "uuid. Every quote on one enquiry \u2014 how the comparison view loads."
+                },
+                {
+                  "key": "operatorId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "uuid. One operator's quote history, which is what their scorecard is counted from."
+                },
+                {
+                  "key": "aircraftId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "uuid. Only matches quotes that named a tail we hold."
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): AWAITING_RESPONSE | RECEIVED | APPROVED | REJECTED | DECLINED. Lower-case returns 400 rather than being silently corrected."
+                },
+                {
+                  "key": "openOnly",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Allowed: true | false. Default false. `true` keeps only AWAITING_RESPONSE and RECEIVED \u2014 the ones still needing something from somebody."
+                },
+                {
+                  "key": "archived",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Allowed: true | false. Default false \u2014 live rows only. `true` returns ONLY archived ones."
+                }
+              ]
+            },
+            "description": "Operator sourcing \u2014 what each operator came back with on an enquiry (scope \u00a76.7 and \u00a76.9).\n\n**Sourcing adds one table, not two.** The board's rows are trip requests being worked: client, broker, route, departure and budget are all TripRequest columns, and the New Sourcing Request form is the trip-request form with a quote deadline added. The only genuinely new record is this one.\n\n**Scoped through the enquiry.** A broker sees quotes on the requests assigned to them plus any unassigned. Doing it through the relation rather than copying `assignedBrokerId` onto the quote means reassigning a request moves its quotes with it, with no backfill.\n\n**Two fields are computed on every read and never stored**: `responseHours`, measured from the ask to the answer, and `isOverdue`, the enquiry's quote deadline against today. A stored \"2h\" is right for one day and wrong forever after, and the operator scorecard is built on response speed."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Page of quotes",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes?page=1&limit=3",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"ad16935c-9095-4493-b8e3-6515131336f6\",\n      \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"tripRequest\": {\n        \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n        \"reference\": 8,\n        \"status\": \"QUOTED\",\n        \"quoteDeadline\": null,\n        \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n        \"estimatedValue\": 28000,\n        \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"client\": {\n          \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n          \"firstName\": \"Marcus\",\n          \"lastName\": \"Chen\",\n          \"companyName\": null\n        },\n        \"originAirport\": {\n          \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n          \"icao\": \"KTEB\",\n          \"city\": \"Teterboro\"\n        },\n        \"destinationAirport\": {\n          \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n          \"icao\": \"KMIA\",\n          \"city\": \"Miami\"\n        }\n      },\n      \"operatorId\": \"f156fb35-7a5d-4d6c-86dd-ea29b5bcda6f\",\n      \"operator\": {\n        \"id\": \"f156fb35-7a5d-4d6c-86dd-ea29b5bcda6f\",\n        \"name\": \"Solairus Aviation\",\n        \"status\": \"PREFERRED\",\n        \"homeBase\": \"Petaluma, CA\",\n        \"reliabilityRating\": 4.7,\n        \"responseSpeed\": \"< 25 min\",\n        \"contactEmail\": \"druiz@solairus.com\",\n        \"generalEmail\": \"charter@solairus.com\"\n      },\n      \"aircraftId\": null,\n      \"aircraft\": null,\n      \"suggestedAircraft\": \"Heavy jet, four passengers, NYC to Miami\",\n      \"quotedAircraft\": null,\n      \"quotedTailNumber\": null,\n      \"price\": null,\n      \"amenities\": [],\n      \"terms\": null,\n      \"status\": \"RECEIVED\",\n      \"requestedAt\": \"2026-09-16T02:11:29.956Z\",\n      \"respondedAt\": \"2026-09-17T06:12:29.371Z\",\n      \"decisionNote\": null,\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-17T06:11:29.976Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-17T06:12:29.381Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"responseHours\": 28,\n      \"isOverdue\": null\n    },\n    {\n      \"id\": \"e5cb43fc-1523-466a-952a-4bd94cfeace9\",\n      \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"tripRequest\": {\n        \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n        \"reference\": 8,\n        \"status\": \"QUOTED\",\n        \"quoteDeadline\": null,\n        \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n        \"estimatedValue\": 28000,\n        \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"client\": {\n          \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n          \"firstName\": \"Marcus\",\n          \"lastName\": \"Chen\",\n          \"companyName\": null\n        },\n        \"originAirport\": {\n          \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n          \"icao\": \"KTEB\",\n          \"city\": \"Teterboro\"\n        },\n        \"destinationAirport\": {\n          \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n          \"icao\": \"KMIA\",\n          \"city\": \"Miami\"\n        }\n      },\n      \"operatorId\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n      \"operator\": {\n        \"id\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n        \"name\": \"VistaJet\",\n        \"status\": \"ACTIVE\",\n        \"homeBase\": \"Luton, UK\",\n        \"reliabilityRating\": 4.7,\n        \"responseSpeed\": \"< 20 min\",\n        \"contactEmail\": \"sblake@vistajet.com\",\n        \"generalEmail\": null\n      },\n      \"aircraftId\": null,\n      \"aircraft\": null,\n      \"suggestedAircraft\": \"Heavy jet, four passengers, NYC to Miami\",\n      \"quotedAircraft\": null,\n      \"quotedTailNumber\": null,\n      \"price\": 31250,\n      \"amenities\": [\n        \"WiFi\",\n        \"Flight Attendant\"\n      ],\n      \"terms\": \"Net 15. 10% non-refundable deposit.\",\n      \"status\": \"RECEIVED\",\n      \"requestedAt\": \"2026-09-16T02:11:29.956Z\",\n      \"respondedAt\": \"2026-09-16T09:11:29.956Z\",\n      \"decisionNote\": null,\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-17T06:11:29.970Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-17T06:11:29.970Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"responseHours\": 7,\n      \"isOverdue\": null\n    },\n    {\n      \"id\": \"eb60ab80-7349-4411-b207-8c4257c4b1ef\",\n      \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"tripRequest\": {\n        \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n        \"reference\": 8,\n        \"status\": \"QUOTED\",\n        \"quoteDeadline\": null,\n        \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n        \"estimatedValue\": 28000,\n        \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"client\": {\n          \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n          \"firstName\": \"Marcus\",\n          \"lastName\": \"Chen\",\n          \"companyName\": null\n        },\n        \"originAirport\": {\n          \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n          \"icao\": \"KTEB\",\n          \"city\": \"Teterboro\"\n        },\n        \"destinationAirport\": {\n          \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n          \"icao\": \"KMIA\",\n          \"city\": \"Miami\"\n        }\n      },\n      \"operatorId\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n      \"operator\": {\n        \"id\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n        \"name\": \"FlexJet\",\n        \"status\": \"PREFERRED\",\n        \"homeBase\": \"Cleveland, OH\",\n        \"reliabilityRating\": 4.8,\n        \"responseSpeed\": \"< 15 min\",\n        \"contactEmail\": \"jmiller@flexjet.com\",\n        \"generalEmail\": null\n      },\n      \"aircraftId\": null,\n      \"aircraft\": null,\n      \"suggestedAircraft\": \"Heavy jet, four passengers, NYC to Miami\",\n      \"quotedAircraft\": null,\n      \"quotedTailNumber\": null,\n      \"price\": 27400,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\"\n      ],\n      \"terms\": \"Net 30. 50% fee within 48 hours of departure.\",\n      \"status\": \"RECEIVED\",\n      \"requestedAt\": \"2026-09-16T02:11:29.956Z\",\n      \"respondedAt\": \"2026-09-16T04:11:29.956Z\",\n      \"decisionNote\": null,\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-17T06:11:29.963Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-17T06:11:29.963Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"responseHours\": 2,\n      \"isOverdue\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 3,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 One enquiry\u2019s comparison",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes?tripRequestId=aece2684-0e30-44e6-bb97-5f41eaead8b7",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"ad16935c-9095-4493-b8e3-6515131336f6\",\n      \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"tripRequest\": {\n        \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n        \"reference\": 8,\n        \"status\": \"QUOTED\",\n        \"quoteDeadline\": null,\n        \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n        \"estimatedValue\": 28000,\n        \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"client\": {\n          \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n          \"firstName\": \"Marcus\",\n          \"lastName\": \"Chen\",\n          \"companyName\": null\n        },\n        \"originAirport\": {\n          \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n          \"icao\": \"KTEB\",\n          \"city\": \"Teterboro\"\n        },\n        \"destinationAirport\": {\n          \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n          \"icao\": \"KMIA\",\n          \"city\": \"Miami\"\n        }\n      },\n      \"operatorId\": \"f156fb35-7a5d-4d6c-86dd-ea29b5bcda6f\",\n      \"operator\": {\n        \"id\": \"f156fb35-7a5d-4d6c-86dd-ea29b5bcda6f\",\n        \"name\": \"Solairus Aviation\",\n        \"status\": \"PREFERRED\",\n        \"homeBase\": \"Petaluma, CA\",\n        \"reliabilityRating\": 4.7,\n        \"responseSpeed\": \"< 25 min\",\n        \"contactEmail\": \"druiz@solairus.com\",\n        \"generalEmail\": \"charter@solairus.com\"\n      },\n      \"aircraftId\": null,\n      \"aircraft\": null,\n      \"suggestedAircraft\": \"Heavy jet, four passengers, NYC to Miami\",\n      \"quotedAircraft\": null,\n      \"quotedTailNumber\": null,\n      \"price\": null,\n      \"amenities\": [],\n      \"terms\": null,\n      \"status\": \"RECEIVED\",\n      \"requestedAt\": \"2026-09-16T02:11:29.956Z\",\n      \"respondedAt\": \"2026-09-17T06:12:29.371Z\",\n      \"decisionNote\": null,\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-17T06:11:29.976Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-17T06:12:29.381Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"responseHours\": 28,\n      \"isOverdue\": null\n    },\n    {\n      \"id\": \"e5cb43fc-1523-466a-952a-4bd94cfeace9\",\n      \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"tripRequest\": {\n        \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n        \"reference\": 8,\n        \"status\": \"QUOTED\",\n        \"quoteDeadline\": null,\n        \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n        \"estimatedValue\": 28000,\n        \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"client\": {\n          \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n          \"firstName\": \"Marcus\",\n          \"lastName\": \"Chen\",\n          \"companyName\": null\n        },\n        \"originAirport\": {\n          \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n          \"icao\": \"KTEB\",\n          \"city\": \"Teterboro\"\n        },\n        \"destinationAirport\": {\n          \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n          \"icao\": \"KMIA\",\n          \"city\": \"Miami\"\n        }\n      },\n      \"operatorId\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n      \"operator\": {\n        \"id\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n        \"name\": \"VistaJet\",\n        \"status\": \"ACTIVE\",\n        \"homeBase\": \"Luton, UK\",\n        \"reliabilityRating\": 4.7,\n        \"responseSpeed\": \"< 20 min\",\n        \"contactEmail\": \"sblake@vistajet.com\",\n        \"generalEmail\": null\n      },\n      \"aircraftId\": null,\n      \"aircraft\": null,\n      \"suggestedAircraft\": \"Heavy jet, four passengers, NYC to Miami\",\n      \"quotedAircraft\": null,\n      \"quotedTailNumber\": null,\n      \"price\": 31250,\n      \"amenities\": [\n        \"WiFi\",\n        \"Flight Attendant\"\n      ],\n      \"terms\": \"Net 15. 10% non-refundable deposit.\",\n      \"status\": \"RECEIVED\",\n      \"requestedAt\": \"2026-09-16T02:11:29.956Z\",\n      \"respondedAt\": \"2026-09-16T09:11:29.956Z\",\n      \"decisionNote\": null,\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-17T06:11:29.970Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-17T06:11:29.970Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"responseHours\": 7,\n      \"isOverdue\": null\n    },\n    {\n      \"id\": \"eb60ab80-7349-4411-b207-8c4257c4b1ef\",\n      \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"tripRequest\": {\n        \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n        \"reference\": 8,\n        \"status\": \"QUOTED\",\n        \"quoteDeadline\": null,\n        \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n        \"estimatedValue\": 28000,\n        \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"client\": {\n          \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n          \"firstName\": \"Marcus\",\n          \"lastName\": \"Chen\",\n          \"companyName\": null\n        },\n        \"originAirport\": {\n          \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n          \"icao\": \"KTEB\",\n          \"city\": \"Teterboro\"\n        },\n        \"destinationAirport\": {\n          \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n          \"icao\": \"KMIA\",\n          \"city\": \"Miami\"\n        }\n      },\n      \"operatorId\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n      \"operator\": {\n        \"id\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n        \"name\": \"FlexJet\",\n        \"status\": \"PREFERRED\",\n        \"homeBase\": \"Cleveland, OH\",\n        \"reliabilityRating\": 4.8,\n        \"responseSpeed\": \"< 15 min\",\n        \"contactEmail\": \"jmiller@flexjet.com\",\n        \"generalEmail\": null\n      },\n      \"aircraftId\": null,\n      \"aircraft\": null,\n      \"suggestedAircraft\": \"Heavy jet, four passengers, NYC to Miami\",\n      \"quotedAircraft\": null,\n      \"quotedTailNumber\": null,\n      \"price\": 27400,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\"\n      ],\n      \"terms\": \"Net 30. 50% fee within 48 hours of departure.\",\n      \"status\": \"RECEIVED\",\n      \"requestedAt\": \"2026-09-16T02:11:29.956Z\",\n      \"respondedAt\": \"2026-09-16T04:11:29.956Z\",\n      \"decisionNote\": null,\n      \"internalNotes\": null,\n      \"createdAt\": \"2026-09-17T06:11:29.963Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-17T06:11:29.963Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"responseHours\": 2,\n      \"isOverdue\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 3,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Enum is case-sensitive",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes?status=received",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"status\": \"Invalid option: expected one of \\\"AWAITING_RESPONSE\\\"|\\\"RECEIVED\\\"|\\\"APPROVED\\\"|\\\"REJECTED\\\"|\\\"DECLINED\\\"\"\n  },\n  \"path\": \"/api/operator-quotes?status=received\",\n  \"timestamp\": \"2026-09-17T06:12:35.475Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/operator-quotes\",\n  \"timestamp\": \"2026-09-17T06:00:00.000Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The requests below need a real quote, an enquiry and an operator.",
+                  "pm.test('list returned rows', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const rows = pm.response.json().data;",
+                  "    pm.expect(rows.length).to.be.above(0);",
+                  "    pm.collectionVariables.set('operatorQuoteId', rows[0].id);",
+                  "    pm.collectionVariables.set('tripRequestId', rows[0].tripRequestId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 Sourcing tiles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "stats"
+              ]
+            },
+            "description": "Counts by state plus the average response time, scoped like the list so a broker's tiles always agree with the rows underneath them.\n\n`averageResponseHours` is **null, never 0**, when nothing has been answered yet. A desk that has just started sourcing has no response time, and 0 would read as every operator replying instantly."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Tiles",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"awaitingResponse\": 0,\n    \"received\": 3,\n    \"approved\": 0,\n    \"rejected\": 0,\n    \"declined\": 0,\n    \"total\": 3,\n    \"averageResponseHours\": 12.3\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('stats returned', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data).to.have.property('averageResponseHours');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Get one quote",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "{{operatorQuoteId}}"
+              ]
+            },
+            "description": "Archived quotes load here too, because the Archived tab links straight to them.\n\nA quote outside the caller\u2019s scope returns **404, not 403** \u2014 a 403 confirms the record exists and turns any id into an oracle."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Quote record",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/ad16935c-9095-4493-b8e3-6515131336f6",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "ad16935c-9095-4493-b8e3-6515131336f6"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"ad16935c-9095-4493-b8e3-6515131336f6\",\n    \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"tripRequest\": {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"status\": \"QUOTED\",\n      \"quoteDeadline\": null,\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"estimatedValue\": 28000,\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null\n      },\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"city\": \"Miami\"\n      }\n    },\n    \"operatorId\": \"f156fb35-7a5d-4d6c-86dd-ea29b5bcda6f\",\n    \"operator\": {\n      \"id\": \"f156fb35-7a5d-4d6c-86dd-ea29b5bcda6f\",\n      \"name\": \"Solairus Aviation\",\n      \"status\": \"PREFERRED\",\n      \"homeBase\": \"Petaluma, CA\",\n      \"reliabilityRating\": 4.7,\n      \"responseSpeed\": \"< 25 min\",\n      \"contactEmail\": \"druiz@solairus.com\",\n      \"generalEmail\": \"charter@solairus.com\"\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"suggestedAircraft\": \"Heavy jet, four passengers, NYC to Miami\",\n    \"quotedAircraft\": null,\n    \"quotedTailNumber\": null,\n    \"price\": null,\n    \"amenities\": [],\n    \"terms\": null,\n    \"status\": \"RECEIVED\",\n    \"requestedAt\": \"2026-09-16T02:11:29.956Z\",\n    \"respondedAt\": \"2026-09-17T06:12:29.371Z\",\n    \"decisionNote\": null,\n    \"internalNotes\": null,\n    \"createdAt\": \"2026-09-17T06:11:29.976Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T06:12:29.381Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"responseHours\": 28,\n    \"isOverdue\": null\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not found or out of scope",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/00000000-0000-4000-8000-000000000000",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "00000000-0000-4000-8000-000000000000"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Quote not found\",\n  \"path\": \"/api/operator-quotes/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-17T06:12:35.490Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Ask an operator to quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tripRequestId\": \"{{tripRequestId}}\",                // required \u00b7 uuid of a live trip request you can see. Sourcing hangs off an enquiry \u2014 there is no free-standing quote.\n  \"operatorId\": \"{{operatorId}}\",                      // required \u00b7 uuid of a live operator. An archived one returns 400 saying so, rather than \"does not exist\".\n\n  \"suggestedAircraft\": \"Challenger 650 or similar\",    // optional \u00b7 max 200 chars. What WE asked for, in the broker's words. Free text on purpose: the ask describes a mission, not one airframe we already hold.\n\n  \"aircraftId\": null,                                  // optional \u00b7 uuid, or null                                                                                                                                                                            // What they offered. Two fields, deliberately: aircraftId is the real tail when it is one we hold \u2014 and it must be on THIS operator's certificate, or 400 \u2014 and the text fields carry what the operator wrote when it is not. Operators fly tails we have never entered; refusing the quote over that would lose the quote.\n  \"quotedAircraft\": \"Challenger 650\",                  // optional \u00b7 max 200 chars\n  \"quotedTailNumber\": \"N650XY\",                        // optional \u00b7 max 12 chars\n\n  \"price\": 29850,                                      // optional \u00b7 number 0-100000000, whole currency units, USD. DECIMAL not float \u2014 money does not round in binary. 0 is a real quote (a waived positioning leg), which is why the floor is 0 and not 1.  // A price may be sent with the ask. A broker who got the number on the call would otherwise have to record a response a second later, logging a response time of zero for a quote that took a day. Sent with a price, the quote starts at RECEIVED; without one, at AWAITING_RESPONSE.\n\n  \"amenities\": [\"WiFi\", \"Full Galley\"],                // optional \u00b7 up to 30 chips, each 1-60 chars. Same vocabulary as Aircraft.amenities so the comparison view reads one list. Replaced wholesale on update, never merged.\n  \"terms\": \"Net 30. 50% fee within 48 hours.\",         // optional \u00b7 max 2000 chars. Free text: every operator words these differently, and parsing them into columns is what scope \u00a718 warns breaks.\n\n  \"internalNotes\": \"Called Dana directly.\"             // optional \u00b7 max 2000 chars. Never shown to a client or an operator.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes"
+              ]
+            },
+            "description": "Creates the ask and moves the enquiry to **SOURCING**.\n\n**One live ask per operator per enquiry.** Asking the same operator twice is a mistake, not a second quote, and the comparison view would show them twice \u2014 the duplicate returns 409. Enforced in the service so the message explains itself, and by a partial unique index in Postgres so it still holds when two brokers send the same ask at the same moment.\n\nA price may be sent with the ask: sent with one the quote starts at RECEIVED, without one at AWAITING_RESPONSE."
+          },
+          "response": [
+            {
+              "name": "201 \u00b7 Asked",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n  \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n  \"suggestedAircraft\": \"Challenger 650 or similar\",\n  \"aircraftId\": null,\n  \"quotedAircraft\": \"Challenger 650\",\n  \"quotedTailNumber\": \"N650XY\",\n  \"price\": 29850,\n  \"amenities\": [\n    \"WiFi\",\n    \"Full Galley\"\n  ],\n  \"terms\": \"Net 30. 50% fee within 48 hours.\",\n  \"internalNotes\": \"Called Dana directly.\"\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a6d8a4e4-1130-4381-80fe-93ea865a5e00\",\n    \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"tripRequest\": {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"status\": \"QUOTED\",\n      \"quoteDeadline\": null,\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"estimatedValue\": 28000,\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null\n      },\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"city\": \"Miami\"\n      }\n    },\n    \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"operator\": {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"homeBase\": \"Van Nuys, CA\",\n      \"reliabilityRating\": 4.2,\n      \"responseSpeed\": \"< 45 min\",\n      \"contactEmail\": \"druiz@claylacy.com\",\n      \"generalEmail\": null\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"suggestedAircraft\": \"Challenger 650 or similar\",\n    \"quotedAircraft\": \"Challenger 650\",\n    \"quotedTailNumber\": \"N650XY\",\n    \"price\": 29850,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\"\n    ],\n    \"terms\": \"Net 30. 50% fee within 48 hours.\",\n    \"status\": \"RECEIVED\",\n    \"requestedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"respondedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"decisionNote\": null,\n    \"internalNotes\": \"Called Dana directly.\",\n    \"createdAt\": \"2026-09-17T06:12:35.496Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"responseHours\": 0,\n    \"isOverdue\": null\n  }\n}"
+            },
+            {
+              "name": "409 \u00b7 Already asked this operator",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n  \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n  \"suggestedAircraft\": \"Challenger 650 or similar\",\n  \"aircraftId\": null,\n  \"quotedAircraft\": \"Challenger 650\",\n  \"quotedTailNumber\": \"N650XY\",\n  \"price\": 29850,\n  \"amenities\": [\n    \"WiFi\",\n    \"Full Galley\"\n  ],\n  \"terms\": \"Net 30. 50% fee within 48 hours.\",\n  \"internalNotes\": \"Called Dana directly.\"\n}"
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"This operator has already been asked for this request\",\n  \"path\": \"/api/operator-quotes\",\n  \"timestamp\": \"2026-09-17T06:12:35.507Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Unknown operator",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n  \"operatorId\": \"00000000-0000-4000-8000-000000000000\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That operator does not exist\",\n  \"path\": \"/api/operator-quotes\",\n  \"timestamp\": \"2026-09-17T06:12:35.510Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Assistant cannot source",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n  \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n  \"suggestedAircraft\": \"Challenger 650 or similar\",\n  \"aircraftId\": null,\n  \"quotedAircraft\": \"Challenger 650\",\n  \"quotedTailNumber\": \"N650XY\",\n  \"price\": 29850,\n  \"amenities\": [\n    \"WiFi\",\n    \"Full Galley\"\n  ],\n  \"terms\": \"Net 30. 50% fee within 48 hours.\",\n  \"internalNotes\": \"Called Dana directly.\"\n}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Create/Edit Trips)\",\n  \"path\": \"/api/operator-quotes\",\n  \"timestamp\": \"2026-09-17T06:12:35.512Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "/*",
+                  " * Pick an operator nobody has asked for this enquiry yet.",
+                  " *",
+                  " * One live ask per operator per enquiry is enforced by the API, so posting",
+                  " * a pair that already exists returns 409 \u2014 which is correct, and which made",
+                  " * this request fail on every run when it used whatever operator the",
+                  " * Operators folder happened to capture.",
+                  " */",
+                  "const base = pm.collectionVariables.get('baseUrl');",
+                  "const requestId = pm.collectionVariables.get('tripRequestId');",
+                  "",
+                  "pm.sendRequest({",
+                  "    url: base + '/operator-quotes?limit=100&tripRequestId=' + requestId,",
+                  "    method: 'GET',",
+                  "}, function (askedErr, askedRes) {",
+                  "    const asked = new Set(",
+                  "        (!askedErr && askedRes.code === 200 ? askedRes.json().data : [])",
+                  "            .map(function (quote) { return quote.operatorId; })",
+                  "    );",
+                  "",
+                  "    pm.sendRequest({",
+                  "        url: base + '/operators?limit=100',",
+                  "        method: 'GET',",
+                  "    }, function (opErr, opRes) {",
+                  "        if (opErr || opRes.code !== 200) { return; }",
+                  "        const operators = opRes.json().data;",
+                  "        const free = operators.find(function (operator) {",
+                  "            return !asked.has(operator.id);",
+                  "        });",
+                  "        // Falling back to the first operator is deliberate: with every",
+                  "        // operator already asked, 409 is the honest answer and this request",
+                  "        // documents that example too.",
+                  "        pm.collectionVariables.set('operatorId', (free || operators[0]).id);",
+                  "    });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('asked', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.collectionVariables.set('operatorQuoteId', pm.response.json().data.id);",
+                  "    // Kept separately from the id the list captures, which later requests",
+                  "    // overwrite. The teardown needs the row *this run* created.",
+                  "    pm.collectionVariables.set('newOperatorQuoteId', pm.response.json().data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Edit a quote",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 28900,  // Every field optional \u2014 this is a PATCH. Send only what changed; anything omitted is left alone, and null clears. `status` is deliberately NOT accepted here. A quote moves through its states by the endpoints that mean something \u2014 record a response, approve, reject, decline, reopen \u2014 because each carries a rule a PATCH would walk straight past. Approving has to check no other quote on the enquiry is already approved; recording a response has to stamp the clock the operator scorecard is measured with.\n\n  \"terms\": \"Net 30. Revised after the call.\",\n\n  \"internalNotes\": \"Came down after we mentioned the Flexjet number.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "{{operatorQuoteId}}"
+              ]
+            },
+            "description": "Corrects the ask or the recorded answer. **Does not move the quote\u2019s state** and does not accept `status` \u2014 use the response and decision endpoints below, which enforce the rules those transitions carry."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Updated",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "{{operatorQuoteId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"price\": 28900,\n  \"terms\": \"Net 30. Revised after the call.\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a6d8a4e4-1130-4381-80fe-93ea865a5e00\",\n    \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"tripRequest\": {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"status\": \"QUOTED\",\n      \"quoteDeadline\": null,\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"estimatedValue\": 28000,\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null\n      },\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"city\": \"Miami\"\n      }\n    },\n    \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"operator\": {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"homeBase\": \"Van Nuys, CA\",\n      \"reliabilityRating\": 4.2,\n      \"responseSpeed\": \"< 45 min\",\n      \"contactEmail\": \"druiz@claylacy.com\",\n      \"generalEmail\": null\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"suggestedAircraft\": \"Challenger 650 or similar\",\n    \"quotedAircraft\": \"Challenger 650\",\n    \"quotedTailNumber\": \"N650XY\",\n    \"price\": 28900,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\"\n    ],\n    \"terms\": \"Net 30. Revised after the call.\",\n    \"status\": \"RECEIVED\",\n    \"requestedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"respondedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"decisionNote\": null,\n    \"internalNotes\": \"Came down after we mentioned the Flexjet number.\",\n    \"createdAt\": \"2026-09-17T06:12:35.496Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T06:12:35.515Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"responseHours\": 0,\n    \"isOverdue\": null\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not found or out of scope",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/00000000-0000-4000-8000-000000000000",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "00000000-0000-4000-8000-000000000000"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"price\": 1000\n}"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Quote not found\",\n  \"path\": \"/api/operator-quotes/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-17T06:12:35.524Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Record the response",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 31200,                                      // optional \u00b7 number 0-100000000  // The operator came back. Stamps the response clock ONCE and never again, so a later correction cannot restart it and flatter them \u2014 corrections go through PATCH. Refused with 409 on a quote already approved, rejected or declined; reopen it first.\n\n  \"quotedAircraft\": \"Challenger 650\",                  // optional \u00b7 max 200 chars\n  \"quotedTailNumber\": \"N650XY\",                        // optional \u00b7 max 12 chars\n  \"aircraftId\": null,                                  // optional \u00b7 uuid of a tail on THIS operator's certificate, or null\n\n  \"amenities\": [\"WiFi\", \"Flight Attendant\"],           // optional \u00b7 up to 30 chips\n  \"terms\": \"Net 15. 10% non-refundable deposit.\"       // optional \u00b7 max 2000 chars\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/response",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "{{operatorQuoteId}}",
+                "response"
+              ]
+            },
+            "description": "The operator came back. Moves the quote to **RECEIVED** and stamps `respondedAt` \u2014 **once, and never again**, so a later correction cannot restart the clock and flatter them. Corrections go through PATCH.\n\nReturns 409 on a quote already approved, rejected or declined; reopen it first."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Response recorded",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/response",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "{{operatorQuoteId}}",
+                    "response"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"price\": 31200,\n  \"terms\": \"Net 15. 10% non-refundable deposit.\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a6d8a4e4-1130-4381-80fe-93ea865a5e00\",\n    \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"tripRequest\": {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"status\": \"QUOTED\",\n      \"quoteDeadline\": null,\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"estimatedValue\": 28000,\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null\n      },\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"city\": \"Miami\"\n      }\n    },\n    \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"operator\": {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"homeBase\": \"Van Nuys, CA\",\n      \"reliabilityRating\": 4.2,\n      \"responseSpeed\": \"< 45 min\",\n      \"contactEmail\": \"druiz@claylacy.com\",\n      \"generalEmail\": null\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"suggestedAircraft\": \"Challenger 650 or similar\",\n    \"quotedAircraft\": \"Challenger 650\",\n    \"quotedTailNumber\": \"N650XY\",\n    \"price\": 31200,\n    \"amenities\": [\n      \"WiFi\",\n      \"Flight Attendant\"\n    ],\n    \"terms\": \"Net 15. 10% non-refundable deposit.\",\n    \"status\": \"RECEIVED\",\n    \"requestedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"respondedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"decisionNote\": null,\n    \"internalNotes\": \"Came down after we mentioned the Flexjet number.\",\n    \"createdAt\": \"2026-09-17T06:12:35.496Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T06:12:35.527Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"responseHours\": 0,\n    \"isOverdue\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Approve a quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisionNote\": \"Best price, and the only one with a galley.\"  // Optional on an approval, worth insisting on for a rejection: \"why did we not go with them\" is what the next sourcing round and the operator scorecard both read. Not enforced as required, because a broker clearing a stale board should not be blocked into inventing a reason.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "{{operatorQuoteId}}",
+                "approve"
+              ]
+            },
+            "description": "Chooses this operator for the trip, and moves the enquiry to **QUOTED**.\n\n**Only one quote per request can be approved.** A second attempt returns 409 naming the operator already chosen, rather than silently demoting them \u2014 two approved quotes would mean two operators booked for one flight, and the fix has to be a deliberate act: reopen the wrong one, then approve the right one."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Approved",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/approve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "{{operatorQuoteId}}",
+                    "approve"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"decisionNote\": \"Best price, and the only one with a galley.\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a6d8a4e4-1130-4381-80fe-93ea865a5e00\",\n    \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"tripRequest\": {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"status\": \"QUOTED\",\n      \"quoteDeadline\": null,\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"estimatedValue\": 28000,\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null\n      },\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"city\": \"Miami\"\n      }\n    },\n    \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"operator\": {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"homeBase\": \"Van Nuys, CA\",\n      \"reliabilityRating\": 4.2,\n      \"responseSpeed\": \"< 45 min\",\n      \"contactEmail\": \"druiz@claylacy.com\",\n      \"generalEmail\": null\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"suggestedAircraft\": \"Challenger 650 or similar\",\n    \"quotedAircraft\": \"Challenger 650\",\n    \"quotedTailNumber\": \"N650XY\",\n    \"price\": 31200,\n    \"amenities\": [\n      \"WiFi\",\n      \"Flight Attendant\"\n    ],\n    \"terms\": \"Net 15. 10% non-refundable deposit.\",\n    \"status\": \"APPROVED\",\n    \"requestedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"respondedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"decisionNote\": \"Best price, and the only one with a galley.\",\n    \"internalNotes\": \"Came down after we mentioned the Flexjet number.\",\n    \"createdAt\": \"2026-09-17T06:12:35.496Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T06:12:35.536Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"responseHours\": 0,\n    \"isOverdue\": null\n  }\n}"
+            },
+            {
+              "name": "409 \u00b7 Another operator already approved",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/ad16935c-9095-4493-b8e3-6515131336f6/approve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "ad16935c-9095-4493-b8e3-6515131336f6",
+                    "approve"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"Clay Lacy Aviation is already approved for this request. Reopen that quote first.\",\n  \"path\": \"/api/operator-quotes/ad16935c-9095-4493-b8e3-6515131336f6/approve\",\n  \"timestamp\": \"2026-09-17T06:12:35.550Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "08 \u00b7 Reject a quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisionNote\": \"Best price, and the only one with a galley.\"  // Optional on an approval, worth insisting on for a rejection: \"why did we not go with them\" is what the next sourcing round and the operator scorecard both read. Not enforced as required, because a broker clearing a stale board should not be blocked into inventing a reason.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "{{operatorQuoteId}}",
+                "reject"
+              ]
+            },
+            "description": "The broker rules this one out. **It stays in the comparison and in the operator\u2019s scorecard** \u2014 that is the difference between rejecting a quote and archiving it, and why brokers can do the first but not the second."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Rejected",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/reject",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "{{operatorQuoteId}}",
+                    "reject"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"decisionNote\": \"Client went with the cabin, not the price.\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a6d8a4e4-1130-4381-80fe-93ea865a5e00\",\n    \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"tripRequest\": {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"status\": \"QUOTED\",\n      \"quoteDeadline\": null,\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"estimatedValue\": 28000,\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null\n      },\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"city\": \"Miami\"\n      }\n    },\n    \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"operator\": {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"homeBase\": \"Van Nuys, CA\",\n      \"reliabilityRating\": 4.2,\n      \"responseSpeed\": \"< 45 min\",\n      \"contactEmail\": \"druiz@claylacy.com\",\n      \"generalEmail\": null\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"suggestedAircraft\": \"Challenger 650 or similar\",\n    \"quotedAircraft\": \"Challenger 650\",\n    \"quotedTailNumber\": \"N650XY\",\n    \"price\": 31200,\n    \"amenities\": [\n      \"WiFi\",\n      \"Flight Attendant\"\n    ],\n    \"terms\": \"Net 15. 10% non-refundable deposit.\",\n    \"status\": \"REJECTED\",\n    \"requestedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"respondedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"decisionNote\": \"Client went with the cabin, not the price.\",\n    \"internalNotes\": \"Came down after we mentioned the Flexjet number.\",\n    \"createdAt\": \"2026-09-17T06:12:35.496Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T06:12:35.564Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"responseHours\": 0,\n    \"isOverdue\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "09 \u00b7 Record a decline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisionNote\": \"Best price, and the only one with a galley.\"  // Optional on an approval, worth insisting on for a rejection: \"why did we not go with them\" is what the next sourcing round and the operator scorecard both read. Not enforced as required, because a broker clearing a stale board should not be blocked into inventing a reason.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "{{operatorQuoteId}}",
+                "decline"
+              ]
+            },
+            "description": "The operator came back and said no. Kept distinct from a rejection: one counts against their availability, the other against their price.\n\nBoth count as a reply, so neither hides from their response rate \u2014 an operator who declines promptly is not the same as one who never answers."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Declined",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/ad16935c-9095-4493-b8e3-6515131336f6/decline",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "ad16935c-9095-4493-b8e3-6515131336f6",
+                    "decline"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"decisionNote\": \"No tail available on those dates.\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"ad16935c-9095-4493-b8e3-6515131336f6\",\n    \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"tripRequest\": {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"status\": \"QUOTED\",\n      \"quoteDeadline\": null,\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"estimatedValue\": 28000,\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null\n      },\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"city\": \"Miami\"\n      }\n    },\n    \"operatorId\": \"f156fb35-7a5d-4d6c-86dd-ea29b5bcda6f\",\n    \"operator\": {\n      \"id\": \"f156fb35-7a5d-4d6c-86dd-ea29b5bcda6f\",\n      \"name\": \"Solairus Aviation\",\n      \"status\": \"PREFERRED\",\n      \"homeBase\": \"Petaluma, CA\",\n      \"reliabilityRating\": 4.7,\n      \"responseSpeed\": \"< 25 min\",\n      \"contactEmail\": \"druiz@solairus.com\",\n      \"generalEmail\": \"charter@solairus.com\"\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"suggestedAircraft\": \"Heavy jet, four passengers, NYC to Miami\",\n    \"quotedAircraft\": null,\n    \"quotedTailNumber\": null,\n    \"price\": null,\n    \"amenities\": [],\n    \"terms\": null,\n    \"status\": \"DECLINED\",\n    \"requestedAt\": \"2026-09-16T02:11:29.956Z\",\n    \"respondedAt\": \"2026-09-17T06:12:29.371Z\",\n    \"decisionNote\": \"No tail available on those dates.\",\n    \"internalNotes\": null,\n    \"createdAt\": \"2026-09-17T06:11:29.976Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T06:12:35.572Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"responseHours\": 28,\n    \"isOverdue\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "10 \u00b7 Undo a decision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/reopen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "{{operatorQuoteId}}",
+                "reopen"
+              ]
+            },
+            "description": "Returns an approved, rejected or declined quote to where it was \u2014 RECEIVED if the operator had answered, AWAITING_RESPONSE if not.\n\nWithout this a mis-click on Approve is unfixable, because the board disables both buttons once a quote is decided. Returns 409 on a quote that has not been decided."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Reopened",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/reopen",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "{{operatorQuoteId}}",
+                    "reopen"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a6d8a4e4-1130-4381-80fe-93ea865a5e00\",\n    \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"tripRequest\": {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"status\": \"QUOTED\",\n      \"quoteDeadline\": null,\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"estimatedValue\": 28000,\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null\n      },\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"city\": \"Miami\"\n      }\n    },\n    \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"operator\": {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"homeBase\": \"Van Nuys, CA\",\n      \"reliabilityRating\": 4.2,\n      \"responseSpeed\": \"< 45 min\",\n      \"contactEmail\": \"druiz@claylacy.com\",\n      \"generalEmail\": null\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"suggestedAircraft\": \"Challenger 650 or similar\",\n    \"quotedAircraft\": \"Challenger 650\",\n    \"quotedTailNumber\": \"N650XY\",\n    \"price\": 31200,\n    \"amenities\": [\n      \"WiFi\",\n      \"Flight Attendant\"\n    ],\n    \"terms\": \"Net 15. 10% non-refundable deposit.\",\n    \"status\": \"RECEIVED\",\n    \"requestedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"respondedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"decisionNote\": null,\n    \"internalNotes\": \"Came down after we mentioned the Flexjet number.\",\n    \"createdAt\": \"2026-09-17T06:12:35.496Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T06:12:35.553Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"responseHours\": 0,\n    \"isOverdue\": null\n  }\n}"
+            },
+            {
+              "name": "409 \u00b7 Not decided yet",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/reopen",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "{{operatorQuoteId}}",
+                    "reopen"
+                  ]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"This quote has not been decided yet\",\n  \"path\": \"/api/operator-quotes/a6d8a4e4-1130-4381-80fe-93ea865a5e00/reopen\",\n  \"timestamp\": \"2026-09-17T06:12:35.560Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "11 \u00b7 Remove a quote (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "{{operatorQuoteId}}"
+              ]
+            },
+            "description": "Soft delete \u2014 `deletedAt` is set and nothing is destroyed. **Administrators only.**\n\nNever the way to say \"we are not going with them\": that is Reject, which keeps the quote in the comparison and in the operator\u2019s scorecard. A broker quietly removing a quote that came in over budget would improve their own sourcing numbers, which is the wrong incentive to build into the tool."
+          },
+          "response": [
+            {
+              "name": "403 \u00b7 Broker cannot remove",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "{{operatorQuoteId}}"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Delete Trips)\",\n  \"path\": \"/api/operator-quotes/a6d8a4e4-1130-4381-80fe-93ea865a5e00\",\n  \"timestamp\": \"2026-09-17T06:12:35.583Z\"\n}"
+            },
+            {
+              "name": "204 \u00b7 Removed",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "{{operatorQuoteId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            }
+          ]
+        },
+        {
+          "name": "12 \u00b7 Restore a quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "{{operatorQuoteId}}",
+                "restore"
+              ]
+            },
+            "description": "Brings an archived quote back exactly as it was.\n\nReturns **409** if the operator has since been asked again for this request \u2014 one live ask per operator per enquiry \u2014 rather than surfacing a raw constraint violation."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/{{operatorQuoteId}}/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "{{operatorQuoteId}}",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a6d8a4e4-1130-4381-80fe-93ea865a5e00\",\n    \"tripRequestId\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n    \"tripRequest\": {\n      \"id\": \"aece2684-0e30-44e6-bb97-5f41eaead8b7\",\n      \"reference\": 8,\n      \"status\": \"QUOTED\",\n      \"quoteDeadline\": null,\n      \"departureDate\": \"2026-09-30T00:00:00.000Z\",\n      \"estimatedValue\": 28000,\n      \"assignedBrokerId\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n      \"client\": {\n        \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n        \"firstName\": \"Marcus\",\n        \"lastName\": \"Chen\",\n        \"companyName\": null\n      },\n      \"originAirport\": {\n        \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n        \"icao\": \"KTEB\",\n        \"city\": \"Teterboro\"\n      },\n      \"destinationAirport\": {\n        \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n        \"icao\": \"KMIA\",\n        \"city\": \"Miami\"\n      }\n    },\n    \"operatorId\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"operator\": {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"homeBase\": \"Van Nuys, CA\",\n      \"reliabilityRating\": 4.2,\n      \"responseSpeed\": \"< 45 min\",\n      \"contactEmail\": \"druiz@claylacy.com\",\n      \"generalEmail\": null\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"suggestedAircraft\": \"Challenger 650 or similar\",\n    \"quotedAircraft\": \"Challenger 650\",\n    \"quotedTailNumber\": \"N650XY\",\n    \"price\": 31200,\n    \"amenities\": [\n      \"WiFi\",\n      \"Flight Attendant\"\n    ],\n    \"terms\": \"Net 15. 10% non-refundable deposit.\",\n    \"status\": \"REJECTED\",\n    \"requestedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"respondedAt\": \"2026-09-17T06:12:35.496Z\",\n    \"decisionNote\": \"Client went with the cabin, not the price.\",\n    \"internalNotes\": \"Came down after we mentioned the Flexjet number.\",\n    \"createdAt\": \"2026-09-17T06:12:35.496Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T06:12:35.590Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-17T06:12:35.589Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"responseHours\": 0,\n    \"isOverdue\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "13 \u00b7 Remove several (soft)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{operatorQuoteId}}\"]      // required \u00b7 1-100 uuids. Unknown or already-archived ids are reported in `skipped` rather than failing the batch.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/bulk-delete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "bulk-delete"
+              ]
+            },
+            "description": "Administrators only, same rule as the single remove.\n\nPartial success is the design: ids that were already archived or do not exist come back in `skipped`, so one stale row in a selection does not lose the whole action."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Removed (partial)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "bulk-delete"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"{{operatorQuoteId}}\",\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 2,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": [\n      \"00000000-0000-4000-8000-000000000000\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Already removed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "bulk-delete"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"{{operatorQuoteId}}\"\n  ]\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"a6d8a4e4-1130-4381-80fe-93ea865a5e00\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "14 \u00b7 Restore several",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{operatorQuoteId}}\"]      // required \u00b7 1-100 uuids.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/operator-quotes/bulk-restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operator-quotes",
+                "bulk-restore"
+              ]
+            },
+            "description": "Any quote whose operator has since been asked again for the same request is reported in `skipped` rather than failing the batch \u2014 one live ask per operator per enquiry."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored (partial)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operator-quotes/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operator-quotes",
+                    "bulk-restore"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"{{operatorQuoteId}}\",\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 2,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": [\n      \"00000000-0000-4000-8000-000000000000\"\n    ]\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('restored', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Teardown. This is the last request in the folder, and the folder ends",
+                  "// by restoring the quote it created \u2014 so every run would otherwise leave",
+                  "// one more live quote on the sourcing board. Clients, airports and",
+                  "// operators each accumulated dozens that way before anyone noticed.",
+                  "//",
+                  "// There is no hard delete in this system by design, so the run cannot",
+                  "// erase its own row. Archiving it is the best available end state.",
+                  "const id = pm.collectionVariables.get('newOperatorQuoteId');",
+                  "if (id) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('baseUrl') + '/operator-quotes/' + id,",
+                  "        method: 'DELETE',",
+                  "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
+                  "    }, function (err) {",
+                  "        if (err) { console.warn('teardown could not archive ' + id, err); }",
+                  "    });",
+                  "    pm.collectionVariables.set('newOperatorQuoteId', '');",
                   "}"
                 ]
               }
