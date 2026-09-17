@@ -4,6 +4,9 @@
   "description": "Tribeca Jets Command Center \u2014 API",
   "author": "",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
