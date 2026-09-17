@@ -26,7 +26,7 @@ export default function AgentPerformanceCards({ agent }) {
   const converted =
     agent?.convertedLeads !== null && agent?.convertedLeads !== undefined
       ? String(agent.convertedLeads)
-      : "0";
+      : "—";
   const conversionRate =
     agent?.conversionRate && agent.conversionRate !== "—"
       ? agent.conversionRate
@@ -34,7 +34,7 @@ export default function AgentPerformanceCards({ agent }) {
   const pipeline =
     agent?.activeLeads !== null && agent?.activeLeads !== undefined
       ? String(agent.activeLeads)
-      : "0";
+      : "—";
   const capacity =
     agent?.maxActiveLeads && agent.maxActiveLeads !== "—"
       ? String(agent.maxActiveLeads)
