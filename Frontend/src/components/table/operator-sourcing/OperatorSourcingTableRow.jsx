@@ -12,13 +12,18 @@ export default function OperatorSourcingTableRow({
   onToggleRow,
   getRowActions,
   onSelectRequest,
+  // Selection with no bulk action is a control that does nothing, so the
+  // column is not rendered at all unless a caller opts in.
+  selectable = false,
 }) {
   return (
     <TableRow key={r?.id} className="border-border cursor-pointer" onClick={() => onSelectRequest?.(r?.id)}>
-      <TableCell className="p-[10px]" onClick={(e) => e.stopPropagation()}>
-        <Checkbox checked={selected} onCheckedChange={() => onToggleRow?.(r?.id)} />
-      </TableCell>
-      <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-purple">{r?.id}</TableCell>
+      {selectable && (
+        <TableCell className="p-[10px]" onClick={(e) => e.stopPropagation()}>
+          <Checkbox checked={selected} onCheckedChange={() => onToggleRow?.(r?.id)} />
+        </TableCell>
+      )}
+      <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-purple">{r?.reference}</TableCell>
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center">{r?.client}</TableCell>
       <TableCell className="p-[10px] font-montserrat font-semibold text-[12px] text-ink text-center whitespace-nowrap">
         <span className="inline-flex items-center gap-1.5">
@@ -35,7 +40,7 @@ export default function OperatorSourcingTableRow({
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center whitespace-nowrap">{r?.deadline}</TableCell>
       <TableCell className="p-[10px] text-center">
         <div className="flex justify-center">
-          {r?.status && <StatusBadge status={r?.status} bordered />}
+          {r?.stage && <StatusBadge status={r?.stage} bordered />}
         </div>
       </TableCell>
       <TableCell className="p-[10px] text-center" onClick={(e) => e.stopPropagation()}>

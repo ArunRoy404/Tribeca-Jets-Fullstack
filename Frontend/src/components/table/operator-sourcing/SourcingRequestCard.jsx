@@ -26,10 +26,10 @@ export default function SourcingRequestCard({ request, selected, onToggleSelect,
           <span onClick={(e) => e.stopPropagation()}>
             <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
           </span>
-          <p className="font-montserrat font-semibold text-[13px] text-purple truncate">{request?.id}</p>
+          <p className="font-montserrat font-semibold text-[13px] text-purple truncate">{request?.reference}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {request?.status && <StatusBadge status={request?.status} bordered />}
+          {request?.stage && <StatusBadge status={request?.stage} bordered />}
           {actions && <RowActionsMenu items={actions} />}
         </div>
       </div>
