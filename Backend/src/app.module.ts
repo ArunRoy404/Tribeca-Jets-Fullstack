@@ -15,6 +15,7 @@ import { OperatorsModule } from './modules/operators/operators.module.js';
 import { AircraftModule } from './modules/aircraft/aircraft.module.js';
 import { TripRequestsModule } from './modules/trip-requests/trip-requests.module.js';
 import { OperatorQuotesModule } from './modules/operator-quotes/operator-quotes.module.js';
+import { QuotesModule } from './modules/quotes/quotes.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -49,6 +50,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     AircraftModule,
     TripRequestsModule,
     OperatorQuotesModule,
+    QuotesModule,
   ],
   providers: [
     /**
