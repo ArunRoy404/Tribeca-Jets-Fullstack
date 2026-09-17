@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Edit, Plus, MoreHorizontal, Calendar, Archive } from "lucide-react";
+import { Edit, Plus, MoreHorizontal, Calendar, Archive, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,8 +11,34 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export default function ClientHeaderActions({ onEdit, onFollowUp, onArchive }) {
+export default function ClientHeaderActions({
+  client,
+  onEdit,
+  onFollowUp,
+  onArchive,
+  onRestore,
+  isRestoring = false,
+}) {
   const router = useRouter();
+
+  // An archived client is reachable from the Archived tab, and the only thing
+  // to do with one is bring it back. Offering Edit, Create Trip and Archive on
+  // a removed record is offering three actions the API refuses.
+  if (client?.isArchived) {
+    return (
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 w-full sm:w-auto">
+        <Button
+          variant="outline"
+          disabled={isRestoring}
+          className="h-9 sm:h-10 text-[12px] sm:text-[13px] gap-2 font-medium flex-1 sm:flex-none cursor-pointer"
+          onClick={onRestore}
+        >
+          <RotateCcw className="size-3.5 sm:size-4" />
+          Restore Client
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 w-full sm:w-auto">

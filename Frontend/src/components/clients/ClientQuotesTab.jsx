@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
  *    - status: string (e.g. "SENT", "ACCEPTED", "EXPIRED", "REJECTED")
  * 3. In the absence of quotes, render an honest empty state per project agreement.
  */
-export default function ClientQuotesTab({ quotes = [], onScheduleFollowUp }) {
+export default function ClientQuotesTab({ quotes = [], onScheduleFollowUp, client, onMarkComplete, isCompleting }) {
   const hasQuotes = Array.isArray(quotes) && quotes.length > 0;
 
   return (
@@ -122,7 +122,12 @@ export default function ClientQuotesTab({ quotes = [], onScheduleFollowUp }) {
       )}
 
       {/* Follow-up Banner Card */}
-      <ClientFollowUpBanner onScheduleFollowUp={onScheduleFollowUp} />
+      <ClientFollowUpBanner
+        client={client}
+        onScheduleFollowUp={onScheduleFollowUp}
+        onMarkComplete={onMarkComplete}
+        isCompleting={isCompleting}
+      />
     </DetailCard>
   );
 }

@@ -10,7 +10,13 @@ import StatusBadge from "@/components/common/StatusBadge";
 import DetailCard from "@/components/common/DetailCard";
 import ClientFollowUpBanner from "@/components/clients/ClientFollowUpBanner";
 
-export default function ClientOverviewTab({ client, onScheduleFollowUp, onSwitchToActivity }) {
+export default function ClientOverviewTab({
+  client,
+  onScheduleFollowUp,
+  onSwitchToActivity,
+  onMarkComplete,
+  isCompleting,
+}) {
   if (!client) return null;
 
   const routes = client.preferences?.preferredRoutes ?? [];
@@ -152,10 +158,10 @@ export default function ClientOverviewTab({ client, onScheduleFollowUp, onSwitch
 
       {/* Follow-up Banner inside the same container */}
       <ClientFollowUpBanner
-        date={hasFollowUp ? client.nextFollowUpLabel : "—"}
-        note={hasFollowUp ? client.followUpNote || "Follow-up due" : "No follow-up scheduled"}
-        status={hasFollowUp ? client.followUpWindowLabel : "None"}
+        client={client}
         onScheduleFollowUp={onScheduleFollowUp}
+        onMarkComplete={onMarkComplete}
+        isCompleting={isCompleting}
       />
     </DetailCard>
   );
