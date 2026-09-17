@@ -5,8 +5,8 @@ node_modules
 .pnp.js
 
 # ---- Build output ----------------------------------------------------------
-dist
-build
+/dist
+/build
 *.tsbuildinfo
 
 # ---- Secrets ---------------------------------------------------------------
@@ -28,11 +28,15 @@ src/generated
 # ---- Runtime data ----------------------------------------------------------
 # Root of the local storage driver — uploaded documents, passports, IDs.
 # Never belongs in git; back it up separately from the database.
-storage
-uploads
+#
+# The leading slash is load-bearing. Without it the pattern matches at every
+# depth, and `storage` silently excluded src/core/storage/ — the whole storage
+# module — from git. It built locally and failed on the first real deploy.
+/storage
+/uploads
 
 # ---- Logs ------------------------------------------------------------------
-logs
+/logs
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -42,7 +46,7 @@ pids
 *.seed
 
 # ---- Test / tooling caches -------------------------------------------------
-coverage
+/coverage
 .nyc_output
 .vitest
 vite.config.ts.timestamp-*
