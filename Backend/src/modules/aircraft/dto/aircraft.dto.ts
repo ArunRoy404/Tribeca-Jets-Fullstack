@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
+import { calendarDate } from '../../../common/dto/dates.js';
 import {
   paginationSchema,
   sortableBy,
@@ -73,17 +74,6 @@ const tailNumber = z
     /^[A-Z0-9-]+$/,
     'A tail number contains only letters, digits and hyphens',
   );
-
-/**
- * A date the desk picks from a calendar, with no time of day.
- *
- * Accepts `YYYY-MM-DD` and stores midnight UTC against a `DATE` column, so it
- * comes back as the day that was typed rather than shifting for whoever reads
- * it.
- */
-const calendarDate = z.iso
-  .date('Use a YYYY-MM-DD date')
-  .transform((value) => new Date(`${value}T00:00:00.000Z`));
 
 export const queryAircraftSchema = paginationSchema
   .extend({
