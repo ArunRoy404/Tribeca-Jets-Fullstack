@@ -1,0 +1,148 @@
+/// One operator's answer to one enquiry.
+///
+/// Scope §6.7 ("operator request builder, request generation") and §6.9
+/// ("operator quote inbox, quote comparison, quote storage and history").
+///
+/// **Operator Sourcing adds one table, not two.** The sourcing screen's rows
+/// are trip requests — the dummy data's `id: "TJ-2402"`, client, broker,
+/// route, departure and budget are `TripRequest` columns, and its New Sourcing
+/// Request form is the trip-request form with a quote deadline added. So a
+/// "sourcing request" is a TripRequest being worked, and the only genuinely
+/// new record is this one: what each operator came back with. A second
+/// requests table would have split one enquiry across two rows the way a leads
+/// table would have split one client.
+///
+/// This is the *operator-side* quote — what it costs Tribeca Jets to buy the
+/// flight. The client-facing quote, with margin and FET on top, is its own
+/// entity (scope §6.10) and arrives with Quotes (#10).
+model OperatorQuote {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The enquiry being sourced. Restrict, not Cascade: quotes are the record
+  /// of what the market said on a date, and they outlive the enquiry's
+  /// working life — they are how "we paid over the odds for that route in
+  /// August" gets answered a year later.
+  tripRequestId String      @db.Uuid
+  tripRequest   TripRequest @relation("OperatorQuoteRequest", fields: [tripRequestId], references: [id], onDelete: Restrict)
+
+  /// Who was asked. Required — a quote with no operator is not a quote.
+  operatorId String   @db.Uuid
+  operator   Operator @relation("OperatorQuoteOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+
+  /// What the broker asked for, in the broker's words ("Challenger 650 or
+  /// similar"). Free text on purpose: the ask is a description of a mission,
+  /// not a pointer at one airframe we already hold.
+  suggestedAircraft String?
+
+  /// What the operator actually offered.
+  ///
+  /// Two fields, deliberately. `aircraftId` is the real tail when it is one we
+  /// hold, so the fleet's seats, range and amenities are available without
+  /// retyping them. `quotedAircraft` is what the operator wrote when it is
+  /// not — operators fly tails we have never entered, and refusing to record
+  /// a quote because its airframe is not in our database would lose the quote.
+  /// This is not stubbing a foreign key with a string: the key is used
+  /// whenever it can be, and the text is the operator's own words beside it.
+  aircraftId     String?   @db.Uuid
+  aircraft       Aircraft? @relation("OperatorQuoteAircraft", fields: [aircraftId], references: [id], onDelete: SetNull)
+  quotedAircraft String?
+
+  /// Tail number as quoted, when the operator names one we do not hold.
+  /// Stored as written; `aircraft.tailNumber` is the authority when the FK is
+  /// set.
+  quotedTailNumber String? @db.VarChar(12)
+
+  /// The buy price, in USD. Nullable because a quote exists from the moment it
+  /// is requested — the price arrives with the response, and 0 is not "no
+  /// price yet". Decimal, never Float: money does not round in binary.
+  price Decimal? @db.Decimal(12, 2)
+
+  /// What the price includes ("WiFi", "Full catering"). Same shape as
+  /// `Aircraft.amenities` so the comparison view reads one vocabulary.
+  amenities String[] @default([])
+
+  /// Commercial terms as quoted — cancellation window, payment schedule,
+  /// positioning. Free text: every operator words these differently, and
+  /// parsing them into columns is what scope §18 warns breaks.
+  terms String?
+
+  /// Where this quote stands. See OperatorQuoteStatus.
+  status OperatorQuoteStatus @default(AWAITING_RESPONSE)
+
+  /// When the request went out, and when the answer came back.
+  ///
+  /// Response time is **derived from these two and never stored**. A stored
+  /// "2h" is right for one day and wrong forever after, and the operator
+  /// scorecard in §6.7 is built on response speed — a number the desk judges
+  /// operators by has to be recomputed, not remembered.
+  requestedAt DateTime  @default(now())
+  respondedAt DateTime?
+
+  /// Why an operator declined, or why the broker rejected it. The scorecard
+  /// and the next sourcing round both depend on this being written down.
+  decisionNote String?
+
+  /// Broker-only notes on the ask and the answer.
+  internalNotes String?
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("OperatorQuoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("OperatorQuoteUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt   DateTime?
+  deletedById String?   @db.Uuid
+  deletedBy   User?     @relation("OperatorQuoteDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("OperatorQuoteRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  /// One live ask per operator per enquiry. Asking ExecuJet twice for the same
+  /// trip is a mistake, not a second quote, and the comparison view would show
+  /// the same operator twice. Archived rows are excluded so a withdrawn ask
+  /// can be re-sent.
+  ///
+  /// **The uniqueness is a partial index in SQL, not `@@unique` here.**
+  /// `@@unique([tripRequestId, operatorId, deletedAt])` does not do it:
+  /// Postgres treats NULLs as distinct, so two live rows both carrying
+  /// `deletedAt = NULL` satisfy it and the duplicate gets in. The migration
+  /// creates `operator_quotes_one_live_per_operator` as
+  /// `UNIQUE (...) WHERE "deletedAt" IS NULL` instead.
+  ///
+  /// Prisma cannot express that, so it will not appear in a future
+  /// `migrate diff` — if one ever offers to drop it, keep it. The service
+  /// checks first as well, so the duplicate returns a 409 explaining itself
+  /// rather than a raw constraint violation; the index is what holds when two
+  /// brokers send the same ask at the same moment.
+  @@index([tripRequestId, operatorId])
+  @@index([tripRequestId, status])
+  @@index([operatorId, status])
+  @@index([status, deletedAt])
+  @@index([requestedAt])
+  @@map("operator_quotes")
+}
+
+/// Where one operator's quote stands.
+///
+/// The two "pending" states the screen shows are genuinely different things,
+/// and the sourcing board counts on telling them apart: AWAITING_RESPONSE is
+/// "we asked, they have not answered" (the screen's "Vendor Pending"), RECEIVED
+/// is "they answered, the broker has not decided" (the screen's "Pending").
+/// Collapsing them would make `operatorsContacted` and `responses` the same
+/// number.
+///
+/// There is no EXPIRED value. Expiry is the quote deadline against today, so it
+/// is derived at read time like the aircraft maintenance badge — a stored
+/// EXPIRED is wrong from the moment the deadline passes until something writes
+/// to the row.
+enum OperatorQuoteStatus {
+  AWAITING_RESPONSE
+  RECEIVED
+  APPROVED
+  REJECTED
+  DECLINED
+}

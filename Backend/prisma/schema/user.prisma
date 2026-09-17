@@ -43,29 +43,33 @@ model User {
 
   /// Reference data this user entered or last touched. Audit back-references
   /// only — airports and operators are shared and belong to nobody.
-  createdAirports      Airport[]     @relation("AirportCreatedBy")
-  updatedAirports      Airport[]     @relation("AirportUpdatedBy")
-  createdOperators     Operator[]    @relation("OperatorCreatedBy")
-  updatedOperators     Operator[]    @relation("OperatorUpdatedBy")
-  createdAircraft      Aircraft[]    @relation("AircraftCreatedBy")
-  updatedAircraft      Aircraft[]    @relation("AircraftUpdatedBy")
-  createdTripRequests  TripRequest[] @relation("TripRequestCreatedBy")
-  updatedTripRequests  TripRequest[] @relation("TripRequestUpdatedBy")
-  assignedTripRequests TripRequest[] @relation("TripRequestAssignedBroker")
+  createdAirports       Airport[]       @relation("AirportCreatedBy")
+  updatedAirports       Airport[]       @relation("AirportUpdatedBy")
+  createdOperators      Operator[]      @relation("OperatorCreatedBy")
+  updatedOperators      Operator[]      @relation("OperatorUpdatedBy")
+  createdAircraft       Aircraft[]      @relation("AircraftCreatedBy")
+  updatedAircraft       Aircraft[]      @relation("AircraftUpdatedBy")
+  createdTripRequests   TripRequest[]   @relation("TripRequestCreatedBy")
+  updatedTripRequests   TripRequest[]   @relation("TripRequestUpdatedBy")
+  assignedTripRequests  TripRequest[]   @relation("TripRequestAssignedBroker")
+  createdOperatorQuotes OperatorQuote[] @relation("OperatorQuoteCreatedBy")
+  updatedOperatorQuotes OperatorQuote[] @relation("OperatorQuoteUpdatedBy")
 
   /// Who archived a record, and who brought it back. Separate from created/
   /// updated because "removed this" is the one mutation those two never
   /// capture — an archived row's `updatedBy` is whoever last edited it.
-  deletedClients       Client[]      @relation("ClientDeletedBy")
-  restoredClients      Client[]      @relation("ClientRestoredBy")
-  deletedAirports      Airport[]     @relation("AirportDeletedBy")
-  restoredAirports     Airport[]     @relation("AirportRestoredBy")
-  deletedOperators     Operator[]    @relation("OperatorDeletedBy")
-  restoredOperators    Operator[]    @relation("OperatorRestoredBy")
-  deletedAircraft      Aircraft[]    @relation("AircraftDeletedBy")
-  restoredAircraft     Aircraft[]    @relation("AircraftRestoredBy")
-  deletedTripRequests  TripRequest[] @relation("TripRequestDeletedBy")
-  restoredTripRequests TripRequest[] @relation("TripRequestRestoredBy")
+  deletedClients         Client[]        @relation("ClientDeletedBy")
+  restoredClients        Client[]        @relation("ClientRestoredBy")
+  deletedAirports        Airport[]       @relation("AirportDeletedBy")
+  restoredAirports       Airport[]       @relation("AirportRestoredBy")
+  deletedOperators       Operator[]      @relation("OperatorDeletedBy")
+  restoredOperators      Operator[]      @relation("OperatorRestoredBy")
+  deletedAircraft        Aircraft[]      @relation("AircraftDeletedBy")
+  restoredAircraft       Aircraft[]      @relation("AircraftRestoredBy")
+  deletedTripRequests    TripRequest[]   @relation("TripRequestDeletedBy")
+  restoredTripRequests   TripRequest[]   @relation("TripRequestRestoredBy")
+  deletedOperatorQuotes  OperatorQuote[] @relation("OperatorQuoteDeletedBy")
+  restoredOperatorQuotes OperatorQuote[] @relation("OperatorQuoteRestoredBy")
 
   // ---- Audit trail (every model carries these four) ------------------------
   //

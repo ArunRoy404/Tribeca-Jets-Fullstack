@@ -13,6 +13,7 @@ import {
   TripRequestStatus,
   UserRole,
   UserStatus,
+  OperatorQuoteStatus,
 } from '../src/generated/prisma/enums.js';
 import argon2 from 'argon2';
 
@@ -363,6 +364,80 @@ async function main(): Promise<void> {
     });
   }
 
+  // Operator sourcing: what came back on the first enquiry.
+  //
+  // Three operators asked, two answered, one still out — so the board has a
+  // row in each of its states to show, and the derived counts ("3 contacted,
+  // 2 responded") have something real to count. The unanswered one is
+  // deliberate: an enquiry where every operator has replied never exercises
+  // AWAITING_RESPONSE, which is the state the desk actually chases.
+  const sourcedRequest = await prisma.tripRequest.findFirst({
+    where: { summary: 'NYC → Miami, business charter' },
+    select: { id: true },
+  });
+
+  if (sourcedRequest) {
+    const hoursAgo = (hours: number) =>
+      new Date(Date.now() - hours * 3_600_000);
+
+    const quotes = [
+      { operatorName: 'FlexJet', tail: 'N780EX', price: '27400.00', status: OperatorQuoteStatus.RECEIVED, requestedAt: hoursAgo(28), respondedAt: hoursAgo(26), amenities: ['WiFi', 'Full Galley'], terms: 'Net 30. 50% fee within 48 hours of departure.' },
+      { operatorName: 'VistaJet', tail: null, price: '31250.00', status: OperatorQuoteStatus.RECEIVED, requestedAt: hoursAgo(28), respondedAt: hoursAgo(21), amenities: ['WiFi', 'Flight Attendant'], terms: 'Net 15. 10% non-refundable deposit.' },
+      { operatorName: 'Solairus Aviation', tail: null, price: null, status: OperatorQuoteStatus.AWAITING_RESPONSE, requestedAt: hoursAgo(28), respondedAt: null, amenities: [], terms: null },
+    ];
+
+    for (const quote of quotes) {
+      const operator = await prisma.operator.findFirst({
+        where: { name: quote.operatorName, deletedAt: null },
+        select: { id: true },
+      });
+      if (!operator) continue;
+
+      // Re-runnable: the live-only uniqueness means a second seed would
+      // otherwise collide on the same request/operator pair.
+      const existing = await prisma.operatorQuote.findFirst({
+        where: {
+          tripRequestId: sourcedRequest.id,
+          operatorId: operator.id,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (existing) continue;
+
+      // Only link a tail we actually hold, and only on its own operator's
+      // certificate — the service enforces that, and the seed must not write
+      // a row the API would have refused.
+      const aircraft = quote.tail
+        ? await prisma.aircraft.findFirst({
+            where: {
+              tailNumber: quote.tail,
+              operatorId: operator.id,
+              deletedAt: null,
+            },
+            select: { id: true },
+          })
+        : null;
+
+      await prisma.operatorQuote.create({
+        data: {
+          tripRequestId: sourcedRequest.id,
+          operatorId: operator.id,
+          aircraftId: aircraft?.id ?? null,
+          suggestedAircraft: 'Heavy jet, four passengers, NYC to Miami',
+          price: quote.price,
+          amenities: quote.amenities,
+          terms: quote.terms,
+          status: quote.status,
+          requestedAt: quote.requestedAt,
+          respondedAt: quote.respondedAt,
+          createdById: admin.id,
+          updatedById: admin.id,
+        },
+      });
+    }
+  }
+
   // Lead-desk settings on the seeded brokers, so the Agents roster has a cap
   // to measure workload against rather than inventing one.
   await prisma.user.update({
@@ -379,7 +454,7 @@ async function main(): Promise<void> {
   console.log('  assistant@tribecajets.com / ChangeMe123!  (ASSISTANT)');
   console.log('  + barry / mark (BROKER, active), tom (SUSPENDED), newhire (INVITED)');
   console.log(
-    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests`,
+    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, 3 operator quotes`,
   );
 }
 

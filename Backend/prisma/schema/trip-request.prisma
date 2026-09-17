@@ -62,6 +62,12 @@ model TripRequest {
   /// point cannot hold 28000.10 exactly.
   estimatedValue Decimal? @db.Decimal(12, 2)
 
+  /// When operator quotes are needed by. Scope §6.7's request builder asks for
+  /// it, and the sourcing board sorts on it: a deadline that has passed with
+  /// no quotes in is the thing a broker has to see first. A date, not a
+  /// timestamp — the desk works these in days.
+  quoteDeadline DateTime? @db.Date
+
   /// One line for the table's Route/Interest column ("NYC → Miami, business
   /// charter"), written by whoever took the call.
   summary       String?
@@ -71,6 +77,11 @@ model TripRequest {
   internalNotes String?
 
   // ---- Audit trail (every model carries these four) ------------------------
+  /// What each operator came back with. Added in the second pass when
+  /// Operator Sourcing shipped — the sourcing board's "4 contacted, 3
+  /// responded" is counted from here, never stored.
+  operatorQuotes OperatorQuote[] @relation("OperatorQuoteRequest")
+
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
   createdBy   User?    @relation("TripRequestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
