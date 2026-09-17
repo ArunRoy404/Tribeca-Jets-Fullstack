@@ -171,6 +171,34 @@ Two corollaries:
 - **A placeholder attribute is fine** — it is a format hint, greyed, and never
   submitted. A `value` or a default is not.
 
+## Never store a figure beside the parts it is computed from
+
+A total, a tax amount, a profit, a percentage — if it can be worked out from
+columns the row already has, **compute it on read and do not store it.**
+
+The day an edit moves one of the parts and the stored total does not follow,
+the record contradicts itself and nothing on screen says which half is right.
+On a charter desk that is money: a quote whose base price says $82,500 and
+whose total still says $85,463 will be read down the phone by whoever opens it
+first.
+
+So `Quote` stores only what a person typed — base price, whether tax applies
+and at what rate, the operator's cost, the extras — and `fetAmount`,
+`extrasTotal`, `totalPrice`, `grossProfit` and `marginPercentage` are worked
+out on every read, in **one place** (`quotes.pricing.ts`). The frontend never
+re-derives them either; a second copy of the arithmetic in JavaScript disagrees
+with the server the first time a rounding rule changes.
+
+**The exception is a snapshot, and it is an exception on purpose.** "What
+exactly did the client see on the 9th?" cannot be answered by recalculating —
+a snapshot that recomputes from today's tax rate is not a snapshot. So
+`QuoteVersion` writes every computed figure out in full and never updates one.
+Redundancy is the point there; anywhere else it is the bug.
+
+A corollary for stats: when the total is derived, the database cannot `SUM` it.
+Count in the service rather than summing the nearest column — summing
+`basePrice` would report a figure that is neither the offer nor the revenue.
+
 ## Contract rules that apply to both sides
 
 - **Enum values are the backend's `SCREAMING_SNAKE_CASE`**, on the wire and in the database. The frontend maps them to display labels at the edge; it never invents its own vocabulary (no `"Senior Broker"` on the wire when the enum says `SENIOR_BROKER`).
@@ -200,6 +228,12 @@ Two corollaries:
   the probe is the correct end state: the debris sits in the Archived tab
   rather than among the records a broker works. `build_aircraft_folder.py` and
   `build_trip_requests_folder.py` are the pattern.
+- **A folder must pass on its own, not only inside a full run.** Requests
+  reference collection variables — `{{clientId}}`, `{{operatorId}}` — that
+  earlier folders happen to set, so a folder run alone sends empty strings and
+  fails validation. That reports a false failure to anyone debugging one
+  folder, which is how a real failure gets ignored. Fetch what a request needs
+  in its own pre-request script; `10 · Quotes` is the pattern.
 - **Every request must pass on the second run, not just the first.** A request
   that mutates shared state has to be re-runnable. `04 · Set new password` sent
   a fixed new password, and the API refuses one identical to the current — so
@@ -451,6 +485,21 @@ any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
   database-level kill switch (auth refuses a stamped row a session) and hides
   the handful of rows archived before the feature was withdrawn; nothing writes
   it. Every *other* soft-deletable model follows the six-column rule above.
+
+## A seed lookup filters `deletedAt: null`, like every other query
+
+`prisma/seed.ts` finds its anchor rows by natural key — an email, a summary
+line — and **testing archives rows**. An archived row still matches on summary,
+so a seed that forgets the filter hangs its new records off a removed parent.
+
+This happened: the sourcing seed found an archived `TripRequest` and attached
+three operator quotes to it, then the quotes seed did the same. Nothing looked
+wrong — the rows existed, the API returned them — until a board showed two
+quotes whose enquiry was in no list at all, and Postman's `04 · Ask an
+operator` started failing with "that request does not exist".
+
+Add `deletedAt: null` and an `orderBy` to every seed lookup, so re-running the
+seed on a database that has been worked in picks the same row every time.
 
 ## The permission matrix ships with the session
 
