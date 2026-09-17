@@ -12,13 +12,7 @@ import QuoteProfitabilityCard from "@/components/quotes/profitability/QuoteProfi
 import QuoteStatusActionsCard from "@/components/quotes/actions/QuoteStatusActionsCard";
 import QuoteNotesCard from "@/components/quotes/notes/QuoteNotesCard";
 
-export default function QuoteDetailsView({
-  quote,
-  onEdit,
-  onDuplicate,
-  onDownloadPDF,
-  onSendToClient,
-}) {
+export default function QuoteDetailsView({ quote, onEdit, onDuplicate, onRemove }) {
   return (
     <div className="flex flex-col w-full bg-page-bg min-h-screen">
       {/* Top Header connected with navbar */}
@@ -29,10 +23,10 @@ export default function QuoteDetailsView({
         titleContent={<QuoteHeaderTitle quote={quote} />}
         actions={
           <QuoteHeaderActions
+            quote={quote}
             onEdit={onEdit}
             onDuplicate={onDuplicate}
-            onDownloadPDF={onDownloadPDF}
-            onSendToClient={onSendToClient}
+            onRemove={onRemove}
           />
         }
       />

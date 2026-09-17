@@ -26,9 +26,9 @@ export default function QuoteCard({ item, actions, onClick }) {
       <div className="flex items-center justify-between gap-2 w-full">
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-montserrat font-bold text-[13px] text-purple truncate">
-            {item?.id}
+            {item?.reference}
           </span>
-          {item?.clientTier === "VIP" && (
+          {item?.isVip && (
             <span className="px-1.5 py-0.2 rounded font-montserrat font-bold text-[9px] bg-warning/15 text-warning border border-warning/30">
               VIP
             </span>
@@ -49,7 +49,7 @@ export default function QuoteCard({ item, actions, onClick }) {
           <ArrowRight className="size-3.5 text-muted-foreground" />
           <span>{item?.destination}</span>
           <span className="text-muted-foreground font-normal text-[11px] ml-1">
-            • {item?.date}
+            • {item?.departure}
           </span>
         </div>
       </div>
@@ -65,11 +65,11 @@ export default function QuoteCard({ item, actions, onClick }) {
       </div>
 
       <div className="grid grid-cols-3 gap-2 w-full items-center border-t border-border/50 pt-2 text-[11px]">
-        <Field label="Base Price" value={item?.basePriceFormatted} />
-        <Field label="FET (7.5%)" value={item?.fetFormatted} />
+        <Field label="Base Price" value={item?.basePrice} />
+        <Field label={`FET (${item?.fetRateLabel})`} value={item?.fet} />
         <Field
           label="Total"
-          value={item?.totalPriceFormatted}
+          value={item?.total}
           valueClassName="font-bold text-success text-[13px]"
         />
       </div>

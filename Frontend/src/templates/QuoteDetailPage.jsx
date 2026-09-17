@@ -1,52 +1,70 @@
 "use client";
 
 import { use } from "react";
+import { useRouter } from "next/navigation";
 import QuoteDetailsView from "@/components/quotes/QuoteDetailsView";
 import AddQuoteDialog from "@/components/quotes/AddQuoteDialog";
 import DeleteQuoteDialog from "@/components/quotes/DeleteQuoteDialog";
 import NotFoundState from "@/components/common/NotFoundState";
+import TableStatus from "@/components/table/common/TableStatus";
 import { useQuotesStore } from "@/store/useQuotesStore";
+import { useDuplicateQuote, useQuote } from "@/hooks/quotes";
+import { toQuoteRow } from "@/lib/quote";
 
+/**
+ * One quote.
+ *
+ * Archived quotes open here too — the Archived tab links straight to this
+ * page, and a detail view that 404s a row the list just showed is worse than
+ * one that says "archived" and offers Restore.
+ */
 export default function QuoteDetailPage({ params, quoteId }) {
-  const unwrappedParams = params ? use(params) : null;
-  const rawId = decodeURIComponent(quoteId || unwrappedParams?.quoteId || "");
+  const router = useRouter();
+  const unwrapped = params ? use(params) : null;
+  const id = decodeURIComponent(quoteId || unwrapped?.quoteId || "");
 
-  const getQuoteById = useQuotesStore((s) => s.getQuoteById);
   const openAddQuoteModal = useQuotesStore((s) => s.openAddQuoteModal);
-  const duplicateQuote = useQuotesStore((s) => s.duplicateQuote);
-  const updateQuoteStatus = useQuotesStore((s) => s.updateQuoteStatus);
+  const openDeleteQuoteModal = useQuotesStore((s) => s.openDeleteQuoteModal);
 
-  const quote = getQuoteById(rawId);
+  const { data, isPending, error, refetch } = useQuote(id);
+  const { mutate: duplicate } = useDuplicateQuote();
 
-  if (!quote) {
-    return <NotFoundState itemType="Quote" backUrl="/dashboard/quotes" backLabel="Back to Quotes" />;
+  if (isPending) {
+    return (
+      <div className="p-4 sm:p-6">
+        <TableStatus isLoading onRetry={refetch} />
+      </div>
+    );
   }
 
-  const handleDuplicate = () => {
-    duplicateQuote(quote?.id);
-    alert(`Quote ${quote?.id} duplicated successfully.`);
-  };
+  if (error || !data) {
+    return (
+      <NotFoundState
+        itemType="Quote"
+        backUrl="/dashboard/quotes"
+        backLabel="Back to Quotes"
+      />
+    );
+  }
 
-  const handleDownloadPDF = () => {
-    alert(`Downloading PDF for quote ${quote?.id}...`);
-  };
-
-  const handleSendToClient = () => {
-    updateQuoteStatus(quote?.id, "Sent");
-    alert(`Quote ${quote?.id} has been sent to ${quote?.client}.`);
-  };
+  const quote = toQuoteRow(data);
 
   return (
     <>
       <QuoteDetailsView
         quote={quote}
         onEdit={() => openAddQuoteModal(quote)}
-        onDuplicate={handleDuplicate}
-        onDownloadPDF={handleDownloadPDF}
-        onSendToClient={handleSendToClient}
+        onDuplicate={() =>
+          duplicate(quote.id, {
+            // Land on the copy, not the original — otherwise the toast says a
+            // draft was made and the screen still shows the quote it came from.
+            onSuccess: (created) =>
+              router.push(`/dashboard/quotes/${created?.id}`),
+          })
+        }
+        onRemove={() => openDeleteQuoteModal(quote)}
       />
 
-      {/* Modals */}
       <AddQuoteDialog />
       <DeleteQuoteDialog />
     </>
