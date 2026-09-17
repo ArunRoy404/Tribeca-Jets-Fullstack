@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Plane } from "lucide-react";
 import SectionCard from "@/components/common/SectionCard";
 import DetailField from "@/components/common/DetailField";

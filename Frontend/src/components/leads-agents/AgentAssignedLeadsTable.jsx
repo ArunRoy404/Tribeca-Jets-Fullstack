@@ -35,8 +35,11 @@ const COLUMNS = [
  */
 export default function AgentAssignedLeadsTable({
   leads = [],
-  agentName = "Broker",
+  agentName,
   onSelectLead,
+  onScheduleFollowUp,
+  onConvertLead,
+  onPageChange,
   meta,
 }) {
   const count = leads.length;
@@ -44,11 +47,23 @@ export default function AgentAssignedLeadsTable({
   const totalPages = Math.max(meta?.totalPages || 1, 1);
   const totalCount = meta?.total !== undefined ? meta.total : count;
 
+  /**
+   * One definition of what a row can do, so the desktop table and the mobile
+   * cards offer the same menu. They had drifted: the table listed three
+   * actions, two of which did nothing, and the cards listed one.
+   */
+  const rowActions = (item) => [
+    { label: "View Lead", onSelect: () => onSelectLead?.(item.id) },
+    { label: "Schedule Follow-up", onSelect: () => onScheduleFollowUp?.(item) },
+    { label: "Convert to Client", onSelect: () => onConvertLead?.(item) },
+  ];
+
   return (
     <div className="flex flex-col gap-3 w-full">
       <div className="flex items-center justify-between">
         <h3 className="font-montserrat font-bold text-[14px] text-foreground">
-          {count} {count === 1 ? "lead" : "leads"} assigned to {agentName}
+          {count} {count === 1 ? "lead" : "leads"}
+          {agentName ? ` assigned to ${agentName}` : " assigned"}
         </h3>
       </div>
 
@@ -138,13 +153,7 @@ export default function AgentAssignedLeadsTable({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex justify-center">
-                          <RowActionsMenu
-                            items={[
-                              { label: "View Lead", onSelect: () => onSelectLead?.(item.id) },
-                              { label: "Schedule Follow-up", onSelect: () => {} },
-                              { label: "Convert to Client", onSelect: () => {} },
-                            ]}
-                          />
+                          <RowActionsMenu items={rowActions(item)} />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -177,11 +186,7 @@ export default function AgentAssignedLeadsTable({
                       <span className="text-[11px] text-muted-foreground">Next: {item.nextFollowUp || "—"}</span>
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
-                      <RowActionsMenu
-                        items={[
-                          { label: "View Lead", onSelect: () => onSelectLead?.(item.id) },
-                        ]}
-                      />
+                      <RowActionsMenu items={rowActions(item)} />
                     </div>
                   </div>
                 </div>
@@ -197,6 +202,7 @@ export default function AgentAssignedLeadsTable({
                   size="sm"
                   className="h-7 px-2 text-[11px] gap-1 cursor-pointer"
                   disabled={page <= 1}
+                  onClick={() => onPageChange?.(page - 1)}
                 >
                   <ChevronLeft className="size-3" />
                   Prev
@@ -213,6 +219,7 @@ export default function AgentAssignedLeadsTable({
                   size="sm"
                   className="h-7 px-2 text-[11px] gap-1 cursor-pointer"
                   disabled={page >= totalPages}
+                  onClick={() => onPageChange?.(page + 1)}
                 >
                   Next
                   <ChevronRight className="size-3" />
