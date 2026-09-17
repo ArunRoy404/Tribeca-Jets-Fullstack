@@ -113,7 +113,7 @@ audit trail pointing at them.
 | `totalPaid` | **Operator Payments (#17)** |
 | Trip history tab | **Trips (#11)** |
 | Payments tab | **Operator Payments (#17)** |
-| Sourcing response history | **Operator Sourcing (#9)** |
+| ~~Sourcing response history~~ | ✅ Shipped — response rate, win rate, average response time and last asked |
 
 **Two bugs fixed here on 2026-09-17:** the status dropdown's options carried
 display labels (`value="Active"`) rather than enum values, so it showed "Active"
@@ -282,37 +282,72 @@ agents are something else: clients of type `TRAVEL_AGENT`.
 | Feature | Unblocked by |
 |---|---|
 | **The dedicated Open Requests board** | Nothing — the API supports it in full. This is a screen to draw, not a module to design |
-| "Source this request" action | **Operator Sourcing (#9)** |
+| ~~"Source this request" action~~ | ✅ Shipped with **Operator Sourcing (#9)** |
 | Request → quote conversion | **Quotes (#10)** |
 | Request → trip, closing the loop | **Trips (#11)** |
 | Matching against repositioning flights | **Empty Legs (#15)** |
 
 ---
 
-## 9. Operator Sourcing ⬅ Next
+## 9. Operator Sourcing ✅
 
-**Working now** — nothing. The screen renders from
-`Frontend/src/dummyData/operatorSourcing.js`.
+**One new table, not two.** The board's rows are trip requests being worked —
+client, broker, route, departure and budget are all `TripRequest` columns, and
+the New Sourcing Request form is the trip-request form with a quote deadline
+added. So the only genuinely new record is `OperatorQuote`: what each operator
+came back with. A second requests table would have split one enquiry across two
+rows, the way a leads table would have split one client.
 
-**Dependencies, all satisfied:** Trip Requests (#8), Operators (#4),
-Aircraft (#6). It is the first module that reads an enquiry and does something
-with it.
+**Working now**
 
-**Will need after it ships**
+- The sourcing board, listing real enquiries with URL-backed search, status,
+  aircraft and broker filters, paging and an Archived tab
+- New Sourcing Request — files a real trip request, including the quote deadline
+- Ask an Operator — one live ask per operator per enquiry, enforced by the
+  service *and* a partial unique index; operators already asked are removed
+  from the picker rather than offered and refused
+- Record the operator's response; approve, reject, record a decline, and **undo
+  a decision**
+- Only one quote per enquiry can be approved — a second attempt is refused by
+  name rather than silently demoting the first, because two approved quotes
+  mean two operators booked for one flight
+- Asking the first operator moves the enquiry to SOURCING; approving moves it
+  to QUOTED. Neither ever moves a request backwards or touches one already
+  converted or lost
+- Sourcing tiles: open requests, awaiting response, quotes received, average
+  response time, sourced
+- Per-enquiry counts — operators asked, responses in, best price, and the
+  board's four stages — **all derived from the quotes on every read**, never
+  stored
+- Operator scorecard on the operator detail page: response rate, win rate,
+  average response time, last asked
+
+**Waiting on a dependency**
 
 | Feature | Unblocked by |
 |---|---|
-| Turning a sourced price into a priced offer | **Quotes (#10)** |
-| Operator response-time and win-rate history on the operator record | itself, second pass into **Operators (#4)** |
+| Turning an approved operator price into a client-facing offer | **Quotes (#10)** |
+| Deposit / payment column on the board | **Receivables (#16)** — null today, renders an em dash |
+| Departure and arrival *times* on the route strip | **Trips (#11)** — a request records the day, not a schedule |
+| Emailing the request to the operator | **Email Templates (#21)** |
+| Operator document upload and field extraction (§6.9) | **Document Vault (#22)** — no upload pipeline exists |
+
+**Deferred by decision: most of the operator scorecard.** Scope §6.7 asks for
+accuracy, hidden fees, cabin cleanliness, crew quality and passenger feedback
+alongside response speed — and §17 lists "operator scorecard rating scales" as a
+decision nobody has made. The three figures that can be counted from real quotes
+are built; inventing a scale for the rest would put a score on an operator that
+no one gave them, which is the exact failure that made "never display a number
+the data did not supply" the hardest rule in this project.
 
 ---
 
-## 10. Quotes ⬜
+## 10. Quotes ⬅
 
 **Working now** — nothing. Renders from `dummyData/quotes.js`.
 
-**Waits on:** Trip Requests (#8) ✅, Operator Sourcing (#9), Clients (#5) ✅,
-Aircraft (#6) ✅.
+**Waits on:** Trip Requests (#8) ✅, Operator Sourcing (#9) ✅, Clients (#5) ✅,
+Aircraft (#6) ✅ — so every dependency is now satisfied.
 
 **Unblocks:** the Clients Quotes tab, broker conversion rate on Users and
 Agents, lead stages that move on their own, and Trips (#11).
@@ -454,7 +489,8 @@ waits on the data being there, which means most of the queue above.
 ## The short version
 
 **Usable against the real database today:** Auth, Users & Roles, Airports,
-Operators, Clients, Aircraft, Leads & Agents, and the Trip Requests API.
+Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, and the Trip
+Requests API.
 
 **The one screen that is only a screen:** the Open Requests board. Its API is
 finished and verified.
