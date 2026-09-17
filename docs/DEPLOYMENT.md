@@ -87,8 +87,33 @@ Only one is actually required:
 
 | Variable | Value | Notes |
 |---|---|---|
-| `API_PROXY_TARGET` | `https://<service>.onrender.com` | **Required.** No `NEXT_PUBLIC_` prefix — it is server-only, and the browser never needs to know where the API lives. Without it the proxy points at `localhost:4000` and every request fails. |
+| `API_PROXY_TARGET` | `https://<service>.onrender.com` | **Required, and read at _build_ time.** No `NEXT_PUBLIC_` prefix — it is server-only, and the browser never needs to know where the API lives. Without it the proxy points at `localhost:4000` and every request fails. |
 | `NEXT_PUBLIC_API_URL` | `/api` | Optional; `Frontend/src/lib/axios.js` already defaults to `/api`. Set it explicitly anyway, so nobody later "fixes" it to an absolute URL without reading this file. |
+
+### `API_PROXY_TARGET` is baked in at build time
+
+`next build` evaluates `rewrites()` once and serializes the result into
+`.next/routes-manifest.json`:
+
+```json
+{ "source": "/api/:path*", "destination": "http://localhost:4000/api/:path*" }
+```
+
+`next start` reads that file. It does **not** re-read `next.config.mjs`, so
+setting `API_PROXY_TARGET` at run time changes nothing. Two consequences on
+Vercel:
+
+- The variable must exist **before** the build runs. Vercel exposes project
+  environment variables to the build, so setting it in the dashboard is
+  enough — but set it before the first deploy, not after.
+- **Changing it later requires a redeploy**, not just saving the new value.
+  Saving alone leaves the old destination baked into the deployed build.
+
+The failure is quiet and confusing: the app proxies to `localhost:4000`, which
+on Vercel is nothing at all, and every API call fails with a network error
+while the health endpoint looks fine in isolation. Locally it is worse — it
+silently reaches your *own* backend and appears to work against the wrong
+database.
 
 Everything else in `Frontend/.env.example` is optional. Every
 `NEXT_PUBLIC_QUERY_*` and `NEXT_PUBLIC_AUTH_*` value has a fallback in
