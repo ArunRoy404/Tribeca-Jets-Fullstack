@@ -1,76 +1,94 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/common/StatusBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import DetailCard from "@/components/common/DetailCard";
 import ClientFollowUpBanner from "@/components/clients/ClientFollowUpBanner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useQuotes } from "@/hooks/quotes";
+import { toQuoteRow } from "@/lib/quote";
 
 /**
- * Client Quotes Tab
+ * Every quote this client has been sent.
  *
- * TODO [API Integration - Quotes Module]:
- * When the Quotes API module is connected to Clients:
- * 1. Fetch quotes for this client:
- *    GET /api/quotes?clientId={clientId}&page={page}&limit={limit}
- * 2. Expected Quote record schema:
- *    - quoteId: string (e.g. "Q-2026-042")
- *    - from: string (origin airport ICAO/IATA code)
- *    - to: string (destination airport ICAO/IATA code)
- *    - amount: string (formatted currency amount)
- *    - date: string (formatted quote date string)
- *    - status: string (e.g. "SENT", "ACCEPTED", "EXPIRED", "REJECTED")
- * 3. In the absence of quotes, render an honest empty state per project agreement.
+ * Wired in the second pass when Quotes (#10) shipped. It was an honest empty
+ * state until then — "No quotes on record" was true of every client, because
+ * no quote existed anywhere. The day the module landed that same empty state
+ * became a wrong answer, which is what the second pass exists to catch.
  */
-export default function ClientQuotesTab({ quotes = [], onScheduleFollowUp, client, onMarkComplete, isCompleting }) {
-  const hasQuotes = Array.isArray(quotes) && quotes.length > 0;
+export default function ClientQuotesTab({ client, onScheduleFollowUp, onMarkComplete, isCompleting }) {
+  const router = useRouter();
+
+  const { data, isPending } = useQuotes(
+    { clientId: client?.id, limit: 10, sortBy: "createdAt", sortOrder: "desc" },
+    { enabled: Boolean(client?.id) },
+  );
+
+  const quotes = (data?.data ?? []).map(toQuoteRow);
+  const hasQuotes = quotes.length > 0;
+  const total = data?.meta?.total ?? 0;
+
+  const openQuote = (id) => router.push(`/dashboard/quotes/${id}`);
+  const rowActions = (item) => [
+    { label: "View Quote", onSelect: () => openQuote(item.id) },
+  ];
 
   return (
     <DetailCard className="gap-6 p-4 sm:p-6">
       {hasQuotes ? (
         <>
-          {/* Desktop Quotes Table (hidden lg:block) */}
+          {/* Desktop table */}
           <div className="hidden lg:block border border-border rounded-lg overflow-hidden w-full">
             <div className="overflow-x-auto w-full">
-              <Table className="min-w-[700px]">
+              <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow className="bg-black/5 border-border hover:bg-black/5">
                     <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Quote ID</TableHead>
                     <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Route</TableHead>
-                    <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Amount</TableHead>
-                    <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Date</TableHead>
+                    <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Total</TableHead>
+                    <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Version</TableHead>
+                    <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Valid Until</TableHead>
                     <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Status</TableHead>
-                    <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Next Action</TableHead>
+                    <TableHead className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {quotes.map((item, idx) => (
-                    <TableRow key={item.quoteId || idx} className="border-border hover:bg-purple/5 transition-colors">
+                  {quotes.map((item) => (
+                    <TableRow
+                      key={item.id}
+                      onClick={() => openQuote(item.id)}
+                      className="border-border hover:bg-purple/5 transition-colors cursor-pointer"
+                    >
                       <TableCell className="p-3 font-montserrat font-bold text-[11px] text-purple text-center">
-                        {item.quoteId}
+                        {item.reference}
                       </TableCell>
                       <TableCell className="p-3 font-montserrat font-semibold text-[11px] text-foreground text-center">
-                        {item.from} → {item.to}
+                        {item.origin} → {item.destination}
                       </TableCell>
                       <TableCell className="p-3 font-montserrat font-bold text-[11px] text-success text-center">
-                        {item.amount}
+                        {item.total}
                       </TableCell>
-                      <TableCell className="p-3 font-montserrat font-medium text-[11px] text-foreground text-center whitespace-nowrap">
-                        {item.date}
+                      <TableCell className="p-3 font-montserrat text-[11px] text-muted-foreground text-center">
+                        {item.version}
+                      </TableCell>
+                      {/* An expired offer that still reads "Sent" is the one a
+                          broker chases by mistake. */}
+                      <TableCell
+                        className={`p-3 font-montserrat text-[11px] text-center ${
+                          item.isExpired ? "text-destructive font-semibold" : "text-muted-foreground"
+                        }`}
+                      >
+                        {item.expiry}
                       </TableCell>
                       <TableCell className="p-3 text-center">
                         <div className="flex justify-center">
                           <StatusBadge status={item.status} bordered />
                         </div>
                       </TableCell>
-                      <TableCell className="p-3 text-center">
+                      <TableCell className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-center">
-                          <RowActionsMenu
-                            items={[
-                              { label: "View Quote PDF", onSelect: () => {} },
-                              { label: "Resend to Client", onSelect: () => {} },
-                            ]}
-                          />
+                          <RowActionsMenu items={rowActions(item)} />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -80,48 +98,53 @@ export default function ClientQuotesTab({ quotes = [], onScheduleFollowUp, clien
             </div>
           </div>
 
-          {/* Mobile Card Presentation (lg:hidden) */}
+          {/* Mobile cards */}
           <div className="flex flex-col gap-3 w-full lg:hidden">
-            {quotes.map((item, idx) => (
+            {quotes.map((item) => (
               <div
-                key={item.quoteId || idx}
-                className="flex flex-col gap-2.5 p-3.5 bg-white border border-border rounded-lg shadow-card text-[12px] font-montserrat"
+                key={item.id}
+                onClick={() => openQuote(item.id)}
+                className="flex flex-col gap-2.5 p-3.5 bg-white border border-border rounded-lg shadow-card text-[12px] font-montserrat cursor-pointer"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-purple text-[13px]">{item.quoteId}</span>
+                  <span className="font-bold text-purple text-[13px]">{item.reference}</span>
                   <StatusBadge status={item.status} bordered />
                 </div>
 
                 <div className="flex items-center justify-between text-foreground font-semibold border-b border-border/40 pb-2">
-                  <span>{item.from} → {item.to}</span>
-                  <span className="font-bold text-success text-[13px]">{item.amount}</span>
+                  <span>{item.origin} → {item.destination}</span>
+                  <span className="font-bold text-success text-[13px]">{item.total}</span>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] pt-1">
-                  <span className="text-muted-foreground">{item.date}</span>
-                  <RowActionsMenu
-                    items={[
-                      { label: "View Quote PDF", onSelect: () => {} },
-                      { label: "Resend to Client", onSelect: () => {} },
-                    ]}
-                  />
+                <div className="flex items-center justify-between text-[11px] pt-1 text-muted-foreground">
+                  <span>{item.version} · {item.departure}</span>
+                  <span className={item.isExpired ? "text-destructive font-semibold" : ""}>
+                    {item.expiry}
+                  </span>
                 </div>
               </div>
             ))}
           </div>
+
+          {total > quotes.length && (
+            <p className="font-montserrat text-[12px] text-muted-foreground">
+              Showing the {quotes.length} most recent of {total}.
+            </p>
+          )}
         </>
       ) : (
         <div className="py-12 flex flex-col items-center justify-center text-center gap-2">
           <p className="font-montserrat font-semibold text-[15px] text-foreground">
-            No quotes on record
+            {isPending ? "Loading quotes…" : "No quotes on record"}
           </p>
-          <p className="font-montserrat text-[12px] text-muted-foreground max-w-sm">
-            No quotes have been requested or generated for this client yet.
-          </p>
+          {!isPending && (
+            <p className="font-montserrat text-[12px] text-muted-foreground max-w-sm">
+              No quotes have been written for this client yet.
+            </p>
+          )}
         </div>
       )}
 
-      {/* Follow-up Banner Card */}
       <ClientFollowUpBanner
         client={client}
         onScheduleFollowUp={onScheduleFollowUp}
