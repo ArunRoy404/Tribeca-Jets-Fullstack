@@ -109,6 +109,11 @@
       "key": "newTripRequestId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "newClientId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -2114,6 +2119,26 @@
               ],
               "event": [
                 {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "/*",
+                      " * A fresh password for every run.",
+                      " *",
+                      " * The API refuses a new password identical to the current one, so a fixed",
+                      " * literal here passed on a freshly seeded database and failed on every run",
+                      " * after it \u2014 the first run had already set that password.",
+                      " *",
+                      " * Policy: at least 10 characters, with a lowercase letter, an uppercase",
+                      " * letter and a digit. The suffix keeps runs apart; the prefix keeps it",
+                      " * readable in the console when someone is debugging this flow.",
+                      " */",
+                      "pm.collectionVariables.set('newPassword', 'BrandNewPass' + Date.now().toString().slice(-8));"
+                    ]
+                  }
+                },
+                {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
@@ -2346,7 +2371,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"a7562467-f7cb-4088-910b-c66da25cc28e\",\n      \"type\": \"TRAVEL_AGENT\",\n      \"companyName\": \"Whitfield Travel Group\",\n      \"firstName\": \"Dana\",\n      \"lastName\": \"Whitfield\",\n      \"email\": \"dana@whitfieldtravel.com\",\n      \"phone\": null,\n      \"homeAirport\": \"KOPF\",\n      \"leadSource\": \"FACEBOOK_GROUP_1\",\n      \"leadStage\": \"QUOTED\",\n      \"labels\": [\n        \"Agency\"\n      ],\n      \"createdAt\": \"2026-09-15T03:40:49.386Z\",\n      \"updatedAt\": \"2026-09-15T03:40:49.386Z\",\n      \"assignedBroker\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      }\n    },\n    {\n      \"id\": \"976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n      \"type\": \"DIRECT\",\n      \"companyName\": null,\n      \"firstName\": \"Marcus\",\n      \"lastName\": \"Chen\",\n      \"email\": \"marcus.chen@example.com\",\n      \"phone\": null,\n      \"homeAirport\": \"KTEB\",\n      \"leadSource\": \"REFERRAL\",\n      \"leadStage\": \"BOOKED\",\n      \"labels\": [\n        \"VIP\"\n      ],\n      \"createdAt\": \"2026-09-15T03:40:49.382Z\",\n      \"updatedAt\": \"2026-09-15T03:40:49.382Z\",\n      \"assignedBroker\": {\n        \"id\": \"99d50a8e-a2fe-4c32-a6fb-0a16b92106bd\",\n        \"firstName\": \"Jordan\",\n        \"lastName\": \"Broker\",\n        \"email\": \"broker@tribecajets.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 2,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"8ea08791-e62f-47e0-b7ca-66fec338f678\",\n      \"type\": \"DIRECT\",\n      \"companyName\": null,\n      \"firstName\": \"Postman\",\n      \"lastName\": \"Probe\",\n      \"email\": \"postman.probe@tribecajets.com\",\n      \"phone\": \"+1 555 0100\",\n      \"status\": \"LEAD\",\n      \"birthday\": null,\n      \"homeAirport\": null,\n      \"priority\": \"MEDIUM\",\n      \"followUpMethod\": null,\n      \"nextFollowUpAt\": null,\n      \"followUpNote\": null,\n      \"leadSource\": \"DIRECT\",\n      \"leadStage\": \"NEW\",\n      \"notes\": \"Created by the Postman example capture script.\",\n      \"preferences\": {\n        \"catering\": \"None requested\"\n      },\n      \"labels\": [\n        \"Probe\"\n      ],\n      \"createdAt\": \"2026-09-17T05:47:24.343Z\",\n      \"updatedAt\": \"2026-09-17T05:47:24.343Z\",\n      \"assignedBroker\": null,\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"e013b1dc-dea0-409f-9ba1-7ef9510c57d2\",\n      \"type\": \"DIRECT\",\n      \"companyName\": null,\n      \"firstName\": \"Marcus\",\n      \"lastName\": \"Reyes\",\n      \"email\": \"marcus.reyes@example.com\",\n      \"phone\": \"+1 555 0142\",\n      \"status\": \"LEAD\",\n      \"birthday\": null,\n      \"homeAirport\": null,\n      \"priority\": \"MEDIUM\",\n      \"followUpMethod\": null,\n      \"nextFollowUpAt\": null,\n      \"followUpNote\": null,\n      \"leadSource\": \"DIRECT\",\n      \"leadStage\": \"QUOTED\",\n      \"notes\": \"Requested a quote KTEB to KMIA.\",\n      \"preferences\": {},\n      \"labels\": [],\n      \"createdAt\": \"2026-09-16T05:08:13.721Z\",\n      \"updatedAt\": \"2026-09-16T05:08:13.835Z\",\n      \"assignedBroker\": null,\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": \"2026-09-16T05:08:13.834Z\",\n      \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedBy\": null,\n      \"restoredBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 2,\n    \"total\": 29,\n    \"totalPages\": 15,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "400 \u00b7 Unsortable column",
@@ -2379,7 +2404,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"lastName\\\"|\\\"firstName\\\"|\\\"leadStage\\\"\"\n  },\n  \"path\": \"/api/clients?sortBy=email\",\n  \"timestamp\": \"2026-09-15T09:25:30.193Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"lastName\\\"|\\\"firstName\\\"|\\\"leadStage\\\"|\\\"status\\\"|\\\"nextFollowUpAt\\\"\"\n  },\n  \"path\": \"/api/clients?sortBy=notAColumn\",\n  \"timestamp\": \"2026-09-17T05:47:24.366Z\"\n}"
             },
             {
               "name": "401 \u00b7 Not signed in",
@@ -2406,7 +2431,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.945Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-17T05:47:24.368Z\"\n}"
             }
           ],
           "event": [
@@ -2473,7 +2498,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 12,\n    \"active\": 12,\n    \"vip\": 0,\n    \"activeAndVip\": 12,\n    \"followUpsDue\": 0,\n    \"addedThisYear\": 12,\n    \"year\": 2026\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 29,\n    \"active\": 12,\n    \"vip\": 0,\n    \"leads\": 17,\n    \"activeAndVip\": 12,\n    \"followUpsDue\": 0,\n    \"addedThisYear\": 29,\n    \"year\": 2026\n  }\n}"
             }
           ]
         },
@@ -2521,7 +2546,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a7562467-f7cb-4088-910b-c66da25cc28e\",\n    \"type\": \"TRAVEL_AGENT\",\n    \"companyName\": \"Whitfield Travel Group\",\n    \"firstName\": \"Dana\",\n    \"lastName\": \"Whitfield\",\n    \"email\": \"dana@whitfieldtravel.com\",\n    \"phone\": null,\n    \"birthday\": null,\n    \"homeAirport\": \"KOPF\",\n    \"leadSource\": \"FACEBOOK_GROUP_1\",\n    \"leadStage\": \"QUOTED\",\n    \"assignedBrokerId\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"originatingBrokerId\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"preferences\": {\n      \"catering\": \"Kosher on request\"\n    },\n    \"notes\": null,\n    \"labels\": [\n      \"Agency\"\n    ],\n    \"createdAt\": \"2026-09-15T03:40:49.386Z\",\n    \"updatedAt\": \"2026-09-15T03:40:49.386Z\",\n    \"deletedAt\": null,\n    \"assignedBroker\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"originatingBroker\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"8ea08791-e62f-47e0-b7ca-66fec338f678\",\n    \"type\": \"DIRECT\",\n    \"status\": \"LEAD\",\n    \"companyName\": null,\n    \"firstName\": \"Postman\",\n    \"lastName\": \"Probe\",\n    \"email\": \"postman.probe@tribecajets.com\",\n    \"phone\": \"+1 555 0100\",\n    \"birthday\": null,\n    \"homeAirportId\": null,\n    \"leadSource\": \"DIRECT\",\n    \"leadStage\": \"NEW\",\n    \"assignedBrokerId\": null,\n    \"originatingBrokerId\": null,\n    \"preferences\": {\n      \"catering\": \"None requested\"\n    },\n    \"priority\": \"MEDIUM\",\n    \"followUpMethod\": null,\n    \"nextFollowUpAt\": null,\n    \"followUpNote\": null,\n    \"notes\": \"Created by the Postman example capture script.\",\n    \"labels\": [\n      \"Probe\"\n    ],\n    \"createdAt\": \"2026-09-17T05:47:24.343Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-17T05:47:24.343Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"assignedBroker\": null,\n    \"originatingBroker\": null\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not found or out of scope",
@@ -2549,7 +2574,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T04:14:26.937Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-17T05:47:24.400Z\"\n}"
             }
           ]
         },
@@ -2628,7 +2653,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b4bb3a88-8606-466a-9eaa-72abb4944780\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Marcus\",\n    \"lastName\": \"Reyes\",\n    \"email\": \"marcus.reyes@example.com\",\n    \"phone\": \"+1 555 0142\",\n    \"homeAirport\": \"KTEB\",\n    \"leadSource\": \"REFERRAL\",\n    \"leadStage\": \"NEW\",\n    \"labels\": [\n      \"VIP\"\n    ],\n    \"createdAt\": \"2026-09-15T04:14:26.920Z\",\n    \"updatedAt\": \"2026-09-15T04:14:26.920Z\",\n    \"assignedBroker\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"8ea08791-e62f-47e0-b7ca-66fec338f678\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Postman\",\n    \"lastName\": \"Probe\",\n    \"email\": \"postman.probe@tribecajets.com\",\n    \"phone\": \"+1 555 0100\",\n    \"status\": \"LEAD\",\n    \"birthday\": null,\n    \"homeAirport\": null,\n    \"priority\": \"MEDIUM\",\n    \"followUpMethod\": null,\n    \"nextFollowUpAt\": null,\n    \"followUpNote\": null,\n    \"leadSource\": \"DIRECT\",\n    \"leadStage\": \"NEW\",\n    \"notes\": \"Created by the Postman example capture script.\",\n    \"preferences\": {\n      \"catering\": \"None requested\"\n    },\n    \"labels\": [\n      \"Probe\"\n    ],\n    \"createdAt\": \"2026-09-17T05:47:24.343Z\",\n    \"updatedAt\": \"2026-09-17T05:47:24.343Z\",\n    \"assignedBroker\": null,\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
             },
             {
               "name": "400 \u00b7 Validation failed",
@@ -2669,7 +2694,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"firstName\": \"First name is required\",\n    \"email\": \"Invalid email address\",\n    \"companyName\": \"Company name is required for travel agents\"\n  },\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.932Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"firstName\": \"First name is required\",\n    \"lastName\": \"Last name is required\"\n  },\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-17T05:47:24.403Z\"\n}"
             },
             {
               "name": "403 \u00b7 Missing X-CSRF-Token",
@@ -2710,7 +2735,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Invalid or missing CSRF token\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.934Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Invalid or missing CSRF token\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-17T05:47:24.406Z\"\n}"
             },
             {
               "name": "401 \u00b7 Not signed in",
@@ -2751,7 +2776,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-15T04:14:26.945Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/clients\",\n  \"timestamp\": \"2026-09-17T05:47:24.408Z\"\n}"
             }
           ],
           "event": [
@@ -2763,6 +2788,9 @@
                   "pm.test('created', () => {",
                   "  pm.response.to.have.status(201);",
                   "  pm.collectionVariables.set('clientId', pm.response.json().data.id);",
+                  "  // Kept separately from clientId, which later requests overwrite. The",
+                  "  // teardown needs to know which row *this run* created.",
+                  "  pm.collectionVariables.set('newClientId', pm.response.json().data.id);",
                   "});"
                 ]
               }
@@ -2846,7 +2874,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b4bb3a88-8606-466a-9eaa-72abb4944780\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Marcus\",\n    \"lastName\": \"Reyes\",\n    \"email\": \"marcus.reyes@example.com\",\n    \"phone\": \"+1 555 0142\",\n    \"homeAirport\": \"KTEB\",\n    \"leadSource\": \"DIRECT\",\n    \"leadStage\": \"QUOTED\",\n    \"labels\": [],\n    \"createdAt\": \"2026-09-15T04:14:26.920Z\",\n    \"updatedAt\": \"2026-09-15T04:14:26.927Z\",\n    \"assignedBroker\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"8ea08791-e62f-47e0-b7ca-66fec338f678\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Postman\",\n    \"lastName\": \"Probe\",\n    \"email\": \"postman.probe@tribecajets.com\",\n    \"phone\": \"+1 555 0100\",\n    \"status\": \"LEAD\",\n    \"birthday\": null,\n    \"homeAirport\": null,\n    \"priority\": \"HIGH\",\n    \"followUpMethod\": null,\n    \"nextFollowUpAt\": null,\n    \"followUpNote\": null,\n    \"leadSource\": \"DIRECT\",\n    \"leadStage\": \"CONTACTED\",\n    \"notes\": \"Called back; wants KTEB to KMIA in November.\",\n    \"preferences\": {\n      \"catering\": \"None requested\",\n      \"preferredAirports\": [\n        \"KTEB\",\n        \"KMIA\"\n      ]\n    },\n    \"labels\": [],\n    \"createdAt\": \"2026-09-17T05:47:24.343Z\",\n    \"updatedAt\": \"2026-09-17T05:47:24.416Z\",\n    \"assignedBroker\": null,\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not found or out of scope",
@@ -2888,7 +2916,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T04:14:26.937Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-17T05:47:24.425Z\"\n}"
             }
           ]
         },
@@ -2980,7 +3008,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission to perform this action\",\n  \"path\": \"/api/clients/976a426e-26a6-43d3-ae9b-8e0a381f811c\",\n  \"timestamp\": \"2026-09-15T04:14:27.746Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Only administrators can remove a client. Reassign it instead.\",\n  \"path\": \"/api/clients/8ea08791-e62f-47e0-b7ca-66fec338f678\",\n  \"timestamp\": \"2026-09-17T05:47:24.459Z\"\n}"
             },
             {
               "name": "404 \u00b7 Not found",
@@ -3013,7 +3041,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T04:14:26.937Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/clients/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-17T05:47:24.462Z\"\n}"
             }
           ]
         },
@@ -3076,7 +3104,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"42bab11c-c238-4ee1-8cb1-1ac58c7cdc09\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Marcus\",\n    \"lastName\": \"Reyes\",\n    \"email\": \"marcus.reyes@example.com\",\n    \"phone\": \"+1 555 0142\",\n    \"homeAirport\": \"KTEB\",\n    \"leadSource\": \"DIRECT\",\n    \"leadStage\": \"QUOTED\",\n    \"labels\": [],\n    \"createdAt\": \"2026-09-15T10:43:40.012Z\",\n    \"updatedAt\": \"2026-09-15T10:49:10.962Z\",\n    \"assignedBroker\": null,\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-15T10:49:10.960Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"8ea08791-e62f-47e0-b7ca-66fec338f678\",\n    \"type\": \"DIRECT\",\n    \"companyName\": null,\n    \"firstName\": \"Postman\",\n    \"lastName\": \"Probe\",\n    \"email\": \"postman.probe@tribecajets.com\",\n    \"phone\": \"+1 555 0100\",\n    \"status\": \"LEAD\",\n    \"birthday\": null,\n    \"homeAirport\": null,\n    \"priority\": \"HIGH\",\n    \"followUpMethod\": null,\n    \"nextFollowUpAt\": null,\n    \"followUpNote\": null,\n    \"leadSource\": \"DIRECT\",\n    \"leadStage\": \"CONTACTED\",\n    \"notes\": \"Called back; wants KTEB to KMIA in November.\",\n    \"preferences\": {\n      \"catering\": \"None requested\",\n      \"preferredAirports\": [\n        \"KTEB\",\n        \"KMIA\"\n      ]\n    },\n    \"labels\": [],\n    \"createdAt\": \"2026-09-17T05:47:24.343Z\",\n    \"updatedAt\": \"2026-09-17T05:47:24.476Z\",\n    \"assignedBroker\": null,\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-17T05:47:24.472Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
             }
           ]
         },
@@ -3199,7 +3227,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"5b26b7ce-fee7-4939-b6a5-dcd5d1500c27\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"8ea08791-e62f-47e0-b7ca-66fec338f678\"\n    ]\n  }\n}"
             },
             {
               "name": "400 \u00b7 Nothing selected",
@@ -3241,7 +3269,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/clients/bulk-delete\",\n  \"timestamp\": \"2026-09-16T03:40:18.514Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/clients/bulk-delete\",\n  \"timestamp\": \"2026-09-17T05:47:24.440Z\"\n}"
             },
             {
               "name": "403 \u00b7 Brokers cannot remove clients",
@@ -3283,7 +3311,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Only administrators can remove a client. Reassign it instead.\",\n  \"path\": \"/api/clients/bulk-delete\",\n  \"timestamp\": \"2026-09-16T03:40:18.524Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Only administrators can remove a client. Reassign it instead.\",\n  \"path\": \"/api/clients/bulk-delete\",\n  \"timestamp\": \"2026-09-17T05:47:24.444Z\"\n}"
             }
           ]
         },
@@ -3406,7 +3434,40 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"5b26b7ce-fee7-4939-b6a5-dcd5d1500c27\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"8ea08791-e62f-47e0-b7ca-66fec338f678\"\n    ]\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('restored', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Teardown. This is the last request in the folder, and the folder ends by",
+                  "// restoring the client it created \u2014 so every run used to leave one more",
+                  "// live \"Marcus Reyes\" in the client directory. Twenty-six had piled up.",
+                  "//",
+                  "// There is no hard delete in this system by design, so the run cannot",
+                  "// erase its own row. Archiving it is the best available end state: the",
+                  "// debris sits in the Archived tab instead of among the clients a broker",
+                  "// actually works.",
+                  "const id = pm.collectionVariables.get('newClientId');",
+                  "if (id) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('baseUrl') + '/clients/' + id,",
+                  "        method: 'DELETE',",
+                  "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
+                  "    }, function (err) {",
+                  "        if (err) { console.warn('teardown could not archive ' + id, err); }",
+                  "    });",
+                  "    pm.collectionVariables.set('newClientId', '');",
+                  "}"
+                ]
+              }
             }
           ]
         }
