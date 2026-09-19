@@ -121,14 +121,20 @@ export default function OperatorOverviewTab({ operator }) {
 
         {/* Cancellation Policy */}
         <DetailCard title="CANCELLATION POLICY">
-          <p className="font-montserrat text-[13px] text-muted-foreground leading-relaxed">
+          {/* `whitespace-pre-line` because this is pasted from the operator's
+              own terms, a tier per line. Collapsing it into one paragraph is
+              how a 50% band gets read as a 25% one over the phone. */}
+          <p className="font-montserrat text-[13px] text-muted-foreground leading-relaxed whitespace-pre-line">
             {cancellationPolicy}
           </p>
         </DetailCard>
 
         {/* Notes */}
         <DetailCard title="NOTES">
-          <p className="font-montserrat text-[13px] text-muted-foreground leading-relaxed">
+          {/* Same reason as the policy above: sourcing notes are typed in a
+              textarea, so they arrive with the line breaks whoever wrote them
+              intended. */}
+          <p className="font-montserrat text-[13px] text-muted-foreground leading-relaxed whitespace-pre-line">
             {notes}
           </p>
         </DetailCard>

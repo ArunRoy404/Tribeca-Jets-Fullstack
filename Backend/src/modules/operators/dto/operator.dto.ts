@@ -79,7 +79,13 @@ export const createOperatorSchema = z.object({
   safetyRating: z.string().trim().max(120).optional(),
   responseSpeed: z.string().trim().max(60).optional(),
 
-  cancellationPolicy: z.string().trim().max(2_000).optional(),
+  /**
+   * Pasted verbatim from the operator's own terms, so it is a block of text
+   * rather than a phrase — a tiered policy runs to a paragraph per band plus a
+   * force-majeure clause. Sized like a quote's `terms` for that reason, not
+   * like `paymentTerms`, which really is "Net 30".
+   */
+  cancellationPolicy: z.string().trim().max(5_000).optional(),
   paymentTerms: z.string().trim().max(120).optional(),
   sourcingNotes: z.string().trim().max(2_000).optional(),
 });
@@ -114,7 +120,7 @@ export const updateOperatorSchema = z
     safetyRating: z.string().trim().max(120).nullable().optional(),
     responseSpeed: z.string().trim().max(60).nullable().optional(),
 
-    cancellationPolicy: z.string().trim().max(2_000).nullable().optional(),
+    cancellationPolicy: z.string().trim().max(5_000).nullable().optional(),
     paymentTerms: z.string().trim().max(120).nullable().optional(),
     sourcingNotes: z.string().trim().max(2_000).nullable().optional(),
   })
