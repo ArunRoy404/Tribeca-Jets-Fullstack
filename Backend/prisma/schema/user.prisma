@@ -58,6 +58,15 @@ model User {
   updatedQuotes         Quote[]         @relation("QuoteUpdatedBy")
   assignedQuotes        Quote[]         @relation("QuoteAssignedBroker")
   createdQuoteVersions  QuoteVersion[]  @relation("QuoteVersionCreatedBy")
+  createdFiles          FileObject[]    @relation("FileObjectCreatedBy")
+  updatedFiles          FileObject[]    @relation("FileObjectUpdatedBy")
+
+  /// This user's personal document folder — their 1099 and anything else the
+  /// company files against them. `onDelete: Cascade` on the owning side is
+  /// deliberate and harmless here: users are never deleted (suspending is the
+  /// way out), so it exists only to state that a folder cannot outlive its
+  /// owner.
+  ownedFiles FileObject[] @relation("FileObjectOwnerUser")
 
   /// Who archived a record, and who brought it back. Separate from created/
   /// updated because "removed this" is the one mutation those two never
@@ -76,6 +85,8 @@ model User {
   restoredOperatorQuotes OperatorQuote[] @relation("OperatorQuoteRestoredBy")
   deletedQuotes          Quote[]         @relation("QuoteDeletedBy")
   restoredQuotes         Quote[]         @relation("QuoteRestoredBy")
+  deletedFiles           FileObject[]    @relation("FileObjectDeletedBy")
+  restoredFiles          FileObject[]    @relation("FileObjectRestoredBy")
 
   // ---- Audit trail (every model carries these four) ------------------------
   //
