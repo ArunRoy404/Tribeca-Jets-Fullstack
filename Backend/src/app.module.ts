@@ -1,3 +1,4 @@
+import { DiscoveryModule } from '@nestjs/core';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 
@@ -30,6 +31,10 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 
 @Module({
   imports: [
+    // Lets the OpenAPI document read the same @Public/@RequirePermissions
+    // metadata the guards read, so the documented 401s and 403s cannot drift
+    // from what is actually enforced. See common/openapi/describe-responses.ts.
+    DiscoveryModule,
     // Config first: every other module reads validated env from it.
     AppConfigModule,
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
+import { calendarDate, timestamp } from '../../../common/dto/dates.js';
 import {
   paginationSchema,
   sortableBy,
@@ -51,7 +52,7 @@ const clientBaseSchema = z.object({
   lastName: z.string().trim().min(1, 'Last name is required').max(100),
   email: z.email().toLowerCase().trim().optional(),
   phone: z.string().trim().max(40).optional(),
-  birthday: z.coerce.date().optional(),
+  birthday: calendarDate.optional(),
   /**
    * The airport's id, not its ICAO. Airports are their own module now, and a
    * code typed into a text box is how you end up with a home airport that
@@ -76,7 +77,7 @@ const clientBaseSchema = z.object({
    */
   followUpMethod: z.enum(FollowUpMethod).nullable().optional(),
   /** Nullable so the form can clear a scheduled follow-up. */
-  nextFollowUpAt: z.coerce.date().nullable().optional(),
+  nextFollowUpAt: timestamp.nullable().optional(),
   followUpNote: z.string().trim().max(1_000).nullable().optional(),
   notes: z.string().max(5_000).optional(),
   labels: z.array(z.string().trim().max(50)).max(25).default([]),
@@ -121,7 +122,7 @@ export const updateClientSchema = z.object({
   lastName: z.string().trim().min(1, 'Last name is required').max(100).optional(),
   email: z.email().toLowerCase().trim().optional(),
   phone: z.string().trim().max(40).optional(),
-  birthday: z.coerce.date().optional(),
+  birthday: calendarDate.optional(),
   homeAirportId: z.uuid().nullable().optional(),
   leadSource: z.enum(LeadSource).optional(),
   leadStage: z.enum(LeadStage).optional(),
@@ -131,7 +132,7 @@ export const updateClientSchema = z.object({
   priority: z.enum(ClientPriority).optional(),
   followUpMethod: z.enum(FollowUpMethod).nullable().optional(),
   /** Nullable so the form can clear a scheduled follow-up. */
-  nextFollowUpAt: z.coerce.date().nullable().optional(),
+  nextFollowUpAt: timestamp.nullable().optional(),
   followUpNote: z.string().trim().max(1_000).nullable().optional(),
   notes: z.string().max(5_000).optional(),
   labels: z.array(z.string().trim().max(50)).max(25).optional(),

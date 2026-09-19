@@ -18,4 +18,22 @@ import { z } from 'zod';
  */
 export const calendarDate = z.iso
   .date('Use a YYYY-MM-DD date')
+  .meta({ type: 'string', format: 'date', example: '2026-11-14' })
   .transform((value) => new Date(`${value}T00:00:00.000Z`));
+
+/**
+ * A moment the system records or a user picks a time for.
+ *
+ * `z.coerce.date()` is the trap here, and it is the same family as
+ * `z.coerce.number()`: its input is `unknown`, so it accepts `true` (1970),
+ * `0` (1970) and `""` (Invalid Date) as happily as a real timestamp — and
+ * because `unknown` cannot be expressed in JSON Schema, it also documented
+ * itself as an empty object and crashed the OpenAPI build outright.
+ *
+ * This accepts an ISO 8601 datetime and nothing else, which is exactly what
+ * the frontend sends.
+ */
+export const timestamp = z.iso
+  .datetime({ message: 'Use an ISO 8601 date and time' })
+  .meta({ type: 'string', format: 'date-time', example: '2026-11-14T09:30:00.000Z' })
+  .transform((value) => new Date(value));

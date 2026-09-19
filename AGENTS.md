@@ -526,6 +526,48 @@ fields and the form's `required` attributes and its "(Optional)" labels must
 say the same thing, or the form promises one contract while the server enforces
 another.
 
+## `z.coerce.date()` is the same trap as `z.coerce.number()`
+
+Its input type is `unknown`, so it accepts `true` and `0` as 1 January 1970 and
+`""` as an Invalid Date, exactly as happily as a real timestamp. Clients used it
+for `birthday` and `nextFollowUpAt`, so a stray boolean stored a 1970 birthday
+that nobody typed.
+
+Use the helpers in `common/dto/dates.ts`:
+
+- **`calendarDate`** for a day the user names — a birthday, a departure date, a
+  quote deadline. It stores midnight UTC against a `@db.Date` column, so the
+  14th does not render as the 13th west of Greenwich.
+- **`timestamp`** for a moment — a follow-up time, anything with a clock on it.
+
+There is a second reason beyond validation: **`unknown` cannot be expressed in
+JSON Schema**, so a `z.coerce.date()` field documented itself as `{}`, Swagger
+read a typeless property as a reference to a class that does not exist, and the
+entire `/api/docs` page 500'd with a bogus "circular dependency". A DTO that
+cannot describe itself takes the documentation down with it.
+
+## DTOs document themselves — never hand-write OpenAPI metadata
+
+`createZodDto` derives the OpenAPI schema from the Zod schema with
+`z.toJSONSchema`, and publishes it through `_OPENAPI_METADATA_FACTORY` — the
+same hook the Swagger CLI plugin generates, which is why no plugin is
+configured. Add a DTO and it is documented: types, bounds, defaults, enums and
+required-ness, all from the one schema that also validates.
+
+`io: 'input'` is deliberate. Several DTOs transform on the way in, and the
+*output* is what the service sees, not what a caller sends — documenting the
+output would tell everyone to post a JavaScript `Date`.
+
+Responses are derived too, in `common/openapi/describe-responses.ts`, which
+reads the **same `@Public()` and `@RequirePermissions()` metadata the guards
+read**. So the documented 401s and 403s cannot drift from what is enforced, and
+95 routes cost no `@ApiResponse` decorators at all. Add a route and its error
+catalogue appears with it.
+
+Two things still belong on the controller by hand: `@ApiOperation` — the
+summary and the *why*, which no schema can infer — and any response a route
+returns that the rules above cannot see.
+
 ## Service layer rules
 
 - Soft delete (`deletedAt`), never a hard `delete`. Every query filters `deletedAt: null`.
