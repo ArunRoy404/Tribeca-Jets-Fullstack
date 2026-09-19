@@ -14,6 +14,7 @@ import { ClientsModule } from './modules/clients/clients.module.js';
 import { AirportsModule } from './modules/airports/airports.module.js';
 import { OperatorsModule } from './modules/operators/operators.module.js';
 import { AircraftModule } from './modules/aircraft/aircraft.module.js';
+import { FilesModule } from './modules/files/files.module.js';
 import { TripRequestsModule } from './modules/trip-requests/trip-requests.module.js';
 import { OperatorQuotesModule } from './modules/operator-quotes/operator-quotes.module.js';
 import { QuotesModule } from './modules/quotes/quotes.module.js';
@@ -53,6 +54,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     AirportsModule,
     OperatorsModule,
     AircraftModule,
+    FilesModule,
     TripRequestsModule,
     OperatorQuotesModule,
     QuotesModule,

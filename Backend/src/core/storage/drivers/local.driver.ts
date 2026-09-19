@@ -80,11 +80,18 @@ export class LocalStorageDriver implements StorageDriver {
   }
 
   /**
-   * There is nothing to presign on local disk, so this points at the API's
-   * own download route, which enforces the same permission checks.
+   * There is nothing to presign on local disk, so this points at the API's own
+   * object route, which re-checks permission on every fetch.
+   *
+   * That is not a weaker substitute for a presigned URL — it is stronger. A
+   * presigned link keeps working after the caller's access is revoked, because
+   * the signature was minted before anyone revoked it; this URL is re-authorised
+   * each time it is opened. Sessions are httpOnly cookies, so it works in an
+   * `<img src>` with no token in the query string to leak through a referrer
+   * header or a screenshot.
    */
   async getSignedUrl(key: string): Promise<string> {
     const base = this.config.apiPublicUrl.replace(/\/$/, '');
-    return `${base}/${this.config.apiPrefix}/files/${encodeURIComponent(key)}`;
+    return `${base}/${this.config.apiPrefix}/files/objects/${encodeURIComponent(key)}`;
   }
 }

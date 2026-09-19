@@ -27,6 +27,7 @@ export const Permission = {
   MANAGE_AIRPORTS: 'MANAGE_AIRPORTS',
   MANAGE_OPERATORS: 'MANAGE_OPERATORS',
   MANAGE_AIRCRAFT: 'MANAGE_AIRCRAFT',
+  MANAGE_RESOURCES: 'MANAGE_RESOURCES',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -180,6 +181,26 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: READ,
   },
+  /**
+   * Publishing company-wide material: the brochure, the aircraft category
+   * guide, the referral programme terms.
+   *
+   * Everyone reads these, so there is no VIEW_ counterpart — a permission that
+   * is never denied is not a permission. This row is only about who may put a
+   * document in front of the whole company, which is an administrator.
+   *
+   * Deliberately separate from MANAGE_USERS even though the same two roles
+   * hold it today. Filing a broker's 1099 and publishing a marketing PDF are
+   * different acts on different audiences, and the referral-agent portal will
+   * need to grant the second to a role that must never have the first.
+   */
+  [Permission.MANAGE_RESOURCES]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: NONE,
+    [UserRole.BROKER]: NONE,
+    [UserRole.ASSISTANT]: NONE,
+  },
 };
 
 /** How far `role` may reach for `permission`. */
@@ -261,4 +282,5 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.MANAGE_AIRPORTS]: 'Manage Airports',
   [Permission.MANAGE_OPERATORS]: 'Manage Operators',
   [Permission.MANAGE_AIRCRAFT]: 'Manage Aircraft',
+  [Permission.MANAGE_RESOURCES]: 'Manage Shared Resources',
 };
