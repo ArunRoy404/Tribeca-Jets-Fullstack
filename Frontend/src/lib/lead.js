@@ -162,6 +162,11 @@ export function toTripRequestRow(request) {
     rawDepartureDate: request?.departureDate ?? null,
     returnDate: formatDate(request?.returnDate),
     rawReturnDate: request?.returnDate ?? null,
+    // The date the desk promised the client a price by. Sourcing sets it, and
+    // the enquiry log shows it, so it belongs on the shared row rather than
+    // being read off the raw record in two places.
+    quoteDeadline: formatDate(request?.quoteDeadline),
+    rawQuoteDeadline: request?.quoteDeadline ?? null,
     // Derived, never stored: two fields that can disagree, will.
     isRoundTrip: Boolean(request?.returnDate),
 

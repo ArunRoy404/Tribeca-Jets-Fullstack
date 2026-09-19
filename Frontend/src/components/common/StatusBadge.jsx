@@ -14,6 +14,10 @@ const STATUS_TONES = {
   Booked: "info",
   Quoted: "purple",
   Sourcing: "cyan",
+  // Trip requests. "Open" is an enquiry nobody has started working;
+  // "Converted" is one that became a trip, which is the win.
+  Open: "info",
+  Converted: "success",
   Requested: "info",
   "In Flight": "warning",
   "Not Departed": "pending",

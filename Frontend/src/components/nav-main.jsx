@@ -36,6 +36,9 @@ const navSections = [
     items: [
       { label: "Clients", icon: "nav-clients", href: "/dashboard/clients" },
       { label: "Leads & Agents", icon: "nav-leads-agents", href: "/dashboard/leads-agents" },
+      // Between leads and quotes because that is the order of the pipeline:
+      // someone becomes a client, asks for something, and then gets a price.
+      { label: "Trip Requests", icon: "nav-trips", href: "/dashboard/trip-requests" },
       { label: "Quotes", icon: "nav-quotes", href: "/dashboard/quotes" },
       { label: "Email Templates", icon: "nav-email-templates", href: "/dashboard/email-templates" },
     ],
