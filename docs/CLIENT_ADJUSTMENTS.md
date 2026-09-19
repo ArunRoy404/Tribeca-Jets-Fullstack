@@ -102,7 +102,7 @@ a safety net that is already under him. **Walk him through the Archived tab
 rather than building anything.** The item is ticked when he has seen it, not
 when someone has read this paragraph.
 
-### ☐ 8 / 10a. "Active trip request" — a page for trip requests
+### ✅ 8 / 10a. "Active trip request" — a page for trip requests
 
 > If you can pls add a section to CRM called "active trip request"
 >
@@ -121,9 +121,8 @@ and, from 18 September:
 the status ladder `OPEN → SOURCING → QUOTED → CONVERTED / LOST`, archive and
 restore, bulk actions, and a full Postman folder.
 
-**There is no frontend page** — no `Frontend/src/app/dashboard/trip-requests/`
-folder exists. This is frontend-only work against a finished API, which makes
-it the highest visible value per hour on the list.
+✅ **Done 19 September 2026.** The page exists at `/dashboard/trip-requests`,
+with Active / All Requests / Archived tabs. See **Done**.
 
 His "most never get booked, but we still want the data" is precisely why the
 module archives rather than deletes, and why `LOST` is a status rather than a
@@ -135,19 +134,21 @@ removal. That part is already right.
 
 ## C. Both sides, small
 
-### ☐ 2. Operator cancellation policies
+### ✅ 2. Operator cancellation policies
 
 > For operator section, can we add a section for cancellation policies? I want
 > to be able to copy and paste each operators cancellation policy to their
 > profile
 
 "Copy and paste" is the whole specification: free text, not a structured
-penalty schedule. One nullable text column on `Operator`, through the DTO and
-into both selects, a field in the operator form and a block on the profile.
+penalty schedule.
 
-The cheapest item here. Roughly an hour across both apps.
+✅ **Done 19 September 2026** — and it turned out the column, the DTO, the
+selects, the form field and the profile card all already existed. The gap was
+the two words he emphasised: the field was single-line, so a pasted policy lost
+its line breaks. See **Done**.
 
-### ☐ 4. Automatic logout after ten idle minutes
+### ✅ 4. Automatic logout after ten idle minutes
 
 > Can we also make this CRM automatically logout within 10 minutes if it's not
 > being touched? For security purposes
@@ -401,6 +402,161 @@ His full specification, verbatim:
 
 ## Done
 
+### ✅ Trip requests page — 19 September 2026
+
+Order item 3, and the request he sent twice.
+
+> If you can pls add a section to CRM called "active trip request"
+
+> I want there to be a whole page for just trip requests. We get a lot of trip
+> requests. But most never get booked. We still want to have access to those
+> trip request data...
+
+**The API was already finished** — ten endpoints, the
+`OPEN → SOURCING → QUOTED → CONVERTED / LOST` ladder, archive and restore, bulk
+actions, broker scoping — and so was the frontend's data layer. What did not
+exist was the screen. Trip requests were only reachable *inside* Leads & Agents,
+which is why he kept asking for them to have a place of their own.
+
+**Three tabs, which is his sentence turned into a control**
+
+| Tab | Sends | Why |
+|---|---|---|
+| **Active** (default) | `openOnly=true` | "active trip request" — the enquiries still in play |
+| **All Requests** | `openOnly=false` | "most never get booked... we still want the data" |
+| **Archived** | `archived=true` | rows that should not have been filed at all |
+
+One URL field drives all three, because a request cannot be both the live
+working list and the archive — two fields would let a link express a state the
+tab strip cannot show.
+
+**The action the page leads with is Mark as Lost, not Remove.** A lost enquiry
+leaves the Active tab and stays in the log, which is exactly what makes it
+findable when an empty leg matches it later (#10b). Archiving is offered too,
+and both the row menu and the bulk dialog say to prefer Lost.
+
+Also: stats tiles (total, open, sourcing, quoted, converted, pipeline value),
+search, five filters, a mobile card view below `lg`, bulk archive and restore,
+and a sidebar entry between Leads & Agents and Quotes — the order of the
+pipeline.
+
+**Permissions**: an enquiry is a stage of a trip, so it borrows the trips
+permissions as the API does. A broker files and edits their own; only an
+administrator archives. The checkbox column follows `DELETE_TRIPS`, so a role
+that cannot act on a selection does not get one.
+
+**Two bugs found and fixed on the way**, both pre-existing:
+
+1. **`CommonDatePicker` emitted `"Aug 12, 2026"`** — a string every date field
+   on the API rejects with "Use a YYYY-MM-DD date". Quotes, leads, aircraft
+   maintenance and sourcing requests all pass that value straight to the
+   server, so **none of their dates could be saved at all**. It now speaks
+   `YYYY-MM-DD` in and out and formats the label for reading only, the same
+   split as enums. It also opened on a hardcoded August 2026, offered a
+   hardcoded "Today (Aug 12)", and highlighted the 1st, 10th and every teens
+   date together because it matched by substring. All four fixed in one place.
+2. **The sourcing dialog and this page were about to be two copies of the same
+   twelve-field form.** Extracted `TripRequestForm` and moved sourcing onto it
+   in the same pass.
+
+**Verified:** 18 live assertions — every tab, every filter, dates round-tripping
+through create/edit/clear, and Mark as Lost leaving Active while staying in the
+log. `next build` clean, oxlint clean, Newman 127 / 56 / 0.
+
+**Still open:** #10b, matching those kept requests against empty legs. The
+Empty Legs module has a frontend folder and no backend.
+
+---
+
+### ✅ Ten-minute idle logout — 19 September 2026
+
+Order item 4.
+
+> Can we also make this CRM automatically logout within 10 minutes if it's not
+> being touched? For security purposes
+
+**Both halves, because either alone is a half-measure.**
+
+**The browser keeps the precise timer** (`useIdleLogout`), and four things
+about it are deliberate:
+
+- **"Touched" means a person, not the network.** Only real input counts, so a
+  dashboard polling in a forgotten tab still signs out. `mousemove` is
+  excluded — a trackpad nudged by a sleeve is not someone working.
+- **A sleeping laptop fires no timers.** Nothing is scheduled for the deadline;
+  a one-second tick compares the clock against a stored stamp, so waking after
+  three hours signs out immediately rather than eventually.
+- **Tabs share a session.** The stamp lives in `localStorage`, so working in
+  one tab keeps the others alive instead of an idle one signing everybody out.
+- **A minute's warning**, with a countdown and "I'm still here". Signing out
+  silently loses a half-written quote.
+
+**The server refuses to refresh a session that has been idle past the limit**,
+so switching the timer off in the browser does not buy an endless one. The
+signal is the age of the refresh-token row: a rotation only happens once the
+access token has expired, so a session in continuous use presents a row at most
+one access-token lifetime old, while an abandoned one keeps ageing. Deliberately
+approximate and always in the user's favour — it never signs out someone who was
+active.
+
+`JWT_ACCESS_TTL` dropped from 15m to 10m to match, and `AUTH_IDLE_TIMEOUT_MINUTES`
+is configurable.
+
+**The limit is shipped from `/auth/me`**, not from the frontend's own env — the
+same reasoning as the permission matrix. A second copy of the number would
+drift from the server's, silently.
+
+The sign-in screen says *why*, from a closed set of reasons. Without it, being
+signed out for inactivity is indistinguishable from being signed out by a bug,
+and the second reading is the one people reach for.
+
+**Verified:** a 19-minute-old session still refreshes; a 25-minute-old one is
+refused with "Signed out after a period of inactivity", and the refusal kills
+the session rather than declining one request. `/auth/me` ships
+`session.idleTimeoutMinutes`, captured into the Postman examples. 34 tests,
+Newman 127 / 56 / 0.
+
+### ✅ Operator cancellation policies — 19 September 2026
+
+Order item 2.
+
+**Most of it was already built** — the `cancellationPolicy` column, the DTO on
+create and update, both selects, the mapper, the form field and a CANCELLATION
+POLICY card on the operator profile. What was missing was the two words he
+emphasised: *copy and paste*.
+
+The field was a **single-line `<input>`** placeholdered "48 hours Notice". A
+real policy is pasted out of an operator's email as a tier per line:
+
+```
+More than 30 days prior to departure: 10% of the charter price.
+14-30 days prior: 25%.
+72 hours to 14 days: 50%.
+Less than 72 hours: 100%, non-refundable.
+```
+
+Pasting that into a one-line input loses the line breaks on the way in, and the
+profile card rendered whatever survived as one run-on paragraph. **A 50% band
+read as a 25% one over the phone is what this prevents.**
+
+**What changed**
+
+- The form field is a full-width, resizable textarea with a realistic
+  multi-line placeholder, so pasting is the obvious thing to do with it
+- The profile card renders `whitespace-pre-line`, so tiers stay tiers — and the
+  Notes card beside it, which had the same bug, with it
+- The cap went from 2,000 to 5,000 characters. A tiered policy plus a
+  force-majeure clause exceeds 2,000; it is now sized like a quote's `terms`
+  rather than like `paymentTerms`, which really is "Net 30"
+- The dialog's two hand-styled `<textarea>` blocks became one `DialogTextarea`,
+  extracted on the second copy rather than pasted a third time
+
+**Verified:** 9 live assertions — a pasted policy survives create, detail read,
+list read (which is what the edit form prefills from) and clearing; 3,000
+characters is accepted where it used to be refused; 5,001 is still refused.
+Newman 127 requests / 56 assertions / 0 failures, and the Operators folder
+passes alone.
+
 ### ✅ File upload — 19 September 2026
 
 Order item 1. Not a request of the client's in its own right; the single piece
@@ -466,9 +622,9 @@ Dependency-first, as `AGENTS.md` requires. Cheapest unblocker at the top.
 | # | Item | Why here |
 |---|---|---|
 | 1 | ~~**File upload endpoint**~~ ✅ **API done 19 Sep 2026** | Unblocks #7, #11 Resources, #11 attachments, and #3's foundation. One piece of infrastructure, four dependants. See **Done**, above. |
-| 2 | **#2 Operator cancellation policy** | An hour, both sides, no dependencies. |
-| 3 | **#8 / #10a Trip requests page** | Frontend only — the API is finished. Highest visible value per hour on the list. |
-| 4 | **#4 Ten-minute idle logout** | Self-contained, and he framed it as security. |
+| 2 | ~~**#2 Operator cancellation policy**~~ ✅ **19 Sep 2026** | Took a textarea, not a column — see **Done**. |
+| 3 | ~~**#8 / #10a Trip requests page**~~ ✅ **19 Sep 2026** | Frontend only — the API was already finished. |
+| 4 | ~~**#4 Ten-minute idle logout**~~ ✅ **19 Sep 2026** | Enforced on both sides — see **Done**. |
 | 5 | **#1 Demonstrate the Archived tab** | No code. Do it on the next call. |
 | 6 | **#5 Notes timeline** | Clients now, Trips on its turn. |
 | 7 | **#9 Client credit ledger** | Client-scoped now, trip link when Trips lands. |

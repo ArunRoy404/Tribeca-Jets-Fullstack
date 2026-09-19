@@ -37,6 +37,11 @@ Legend: ✅ done · ◐ partly done · ⬅ next · ⬜ not started
 - Invitation acceptance
 - CSRF via `tj_csrf` cookie echoed as `X-CSRF-Token`
 - Real SMTP delivery (`core/mail`) for codes and invitations
+- **Ten-minute idle logout** (client request #4), enforced on both sides: the
+  browser keeps the precise timer — real input only, sleep-safe, shared across
+  tabs, with a minute's warning — and the API refuses to refresh a session that
+  has demonstrably been idle past the limit. The limit ships from `/auth/me`
+  rather than the frontend's env, so the two cannot drift
 
 **Waiting on a dependency** — none. Auth depends on nothing.
 
@@ -97,8 +102,12 @@ audit trail pointing at them.
 **Working now**
 
 - Full CRUD, archive/restore, bulk operations, stats
-- Contact details, certifications, commercial terms, cancellation policy,
-  payment terms, sourcing notes
+- Contact details, certifications, commercial terms, payment terms, sourcing
+  notes
+- **Cancellation policy pasted verbatim** from the operator's own terms — a
+  textarea in, `whitespace-pre-line` out, up to 5,000 characters, so a tiered
+  policy stays a tier per line instead of collapsing into one paragraph
+  (client request #2)
 - `reliabilityRating` as a real 0–5 number; `safetyRating` and `responseSpeed`
   as the free text they actually are
 - **Fleet tab is real** — filled in the second pass the day Aircraft shipped,
@@ -261,7 +270,7 @@ agents are something else: clients of type `TRAVEL_AGENT`.
 
 ---
 
-## 8. Trip Requests (Open Requests) ◐
+## 8. Trip Requests ✅
 
 **Working now**
 
@@ -275,13 +284,19 @@ agents are something else: clients of type `TRAVEL_AGENT`.
 - Return-before-departure rejected on the field, not in a banner
 - Uses the **trips** permissions (`VIEW_TRIPS` / `MANAGE_TRIPS` /
   `DELETE_TRIPS`), because a request is the start of a trip
-- Created and listed through the Leads screens today
+- **A page of its own** at `/dashboard/trip-requests` (client request #8/#10a)
+  — Active / All Requests / Archived tabs, stats tiles, search, five filters,
+  a mobile card view below `lg`, bulk archive and restore
+- **Mark as Lost** as the row action, ahead of Remove: a lost enquiry leaves
+  the Active tab and stays in the log, which is what makes it findable when an
+  empty leg matches it later
+- Also created and listed through the Leads and Operator Sourcing screens,
+  which write the same record through one shared form
 
 **Waiting on a dependency**
 
 | Feature | Unblocked by |
 |---|---|
-| **The dedicated Open Requests board** | Nothing — the API supports it in full. This is a screen to draw, not a module to design |
 | ~~"Source this request" action~~ | ✅ Shipped with **Operator Sourcing (#9)** |
 | ~~Request → quote conversion~~ | ✅ Shipped with **Quotes (#10)** — a quote carries `tripRequestId`, and sending it moves the enquiry to QUOTED |
 | Request → trip, closing the loop | **Trips (#11)** |
@@ -595,11 +610,11 @@ screen that does not exist.
 ## The short version
 
 **Usable against the real database today:** Auth, Users & Roles, Airports,
-Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, and
-the Trip Requests API.
+Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes and
+Trip Requests.
 
-**The one screen that is only a screen:** the Open Requests board. Its API is
-finished and verified.
+**Every module above is wired end to end** — schema, API, Postman and screen.
+The last one that was only an API, Trip Requests, got its page on 19 September.
 
 **The one module that unblocks the most:** Trips (#11). Nine modules and a
 dozen individual fields are waiting on it.

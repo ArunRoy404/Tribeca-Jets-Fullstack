@@ -931,6 +931,52 @@ checkbox column that feeds them.
 Per "fix a module when we reach it", only the module being worked on gets
 wired up. Aircraft is done; the others follow on their own turn.
 
+## A control's value is the wire format; its label is for reading
+
+`CommonDatePicker` emitted `"Aug 12, 2026"` — the string the Figma mock showed
+— and every date field on the API rejects that with "Use a YYYY-MM-DD date".
+Quotes, leads, aircraft maintenance and sourcing requests all pass the picker's
+value straight to the server, so **none of their dates could be saved at all**,
+in four modules, silently, until someone tried one.
+
+This is the same rule the project already applies to enums, and it applies to
+every control: **the value a component emits is what the API accepts**, and the
+friendly version is produced at render time, for reading only. A control that
+emits a display string has made every one of its call sites responsible for
+translating it back, and they will not all remember.
+
+The same component also opened on a hardcoded month, offered a hardcoded
+"Today", and matched the selected day by substring so the 1st highlighted the
+10th. Shared controls get used everywhere; a mock value left in one is a wrong
+answer on twenty screens.
+
+## Signing out an idle session takes both sides
+
+The browser owns the precise timer, because only it can tell whether a person
+is there. Four things make that harder than a `setTimeout`, and all four are
+requirements:
+
+- **"Touched" means a person, not the network.** Only real input counts, or a
+  dashboard polling in a forgotten tab keeps the session alive for ever.
+  `mousemove` is not input — a trackpad nudged by a sleeve fires it.
+- **A sleeping machine fires no timers.** Compare the clock against a stored
+  timestamp on a short tick; never schedule one shot at the deadline, or a
+  laptop closed for three hours wakes with minutes still "remaining".
+- **Tabs share a session**, so the last-activity stamp goes in `localStorage`.
+  Otherwise the idle tab signs out the tab someone is working in.
+- **Warn before acting.** Signing out silently loses whatever was on screen.
+
+**And the server has to refuse the refresh**, or the whole thing is a UI
+convention that anyone can switch off in a browser. The signal is the age of
+the refresh-token row: a rotation only happens once the access token has
+expired, so a session in continuous use presents a row at most one access-token
+lifetime old, while an abandoned one keeps ageing. Approximate, and always in
+the user's favour.
+
+**The limit ships from `/auth/me`, never from the frontend's own env** — the
+same reason the permission matrix does. Two copies of one number drift, and
+they drift silently.
+
 ## Required fields must agree with the API
 
 A form that marks only one field "(Optional)" while six more are optional is
