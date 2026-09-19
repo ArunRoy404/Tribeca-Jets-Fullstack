@@ -1,6 +1,10 @@
 import type { INestApplication } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
-import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
+import {
+  PATH_METADATA,
+  METHOD_METADATA,
+  HTTP_CODE_METADATA,
+} from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import {
@@ -18,7 +22,19 @@ const METHOD_NAMES: Record<number, string> = {
   [RequestMethod.PATCH]: 'patch',
 };
 
-type RouteFacts = { isPublic: boolean; permissions: string[] };
+type RouteFacts = {
+  isPublic: boolean;
+  permissions: string[];
+  /**
+   * The status an explicit `@HttpCode` sets, if any.
+   *
+   * Needed because Nest only injects a default success response when a
+   * controller declares no `@ApiResponse` of its own — so a route that
+   * documents a 403 by hand arrives here with no 200 at all, and without this
+   * it would be published as an operation that returns nothing but errors.
+   */
+  httpCode?: number;
+};
 
 const ERROR = { $ref: '#/components/schemas/ApiError' };
 const errorResponse = (description: string) => ({
@@ -82,6 +98,9 @@ function collectRouteFacts(app: INestApplication): Map<string, RouteFacts> {
           isPublic:
             reflector.get<boolean | undefined>(IS_PUBLIC_KEY, handler) === true,
           permissions: requirement?.permissions ?? [],
+          httpCode: Reflect.getMetadata(HTTP_CODE_METADATA, handler) as
+            | number
+            | undefined,
         },
       );
     }
@@ -151,23 +170,42 @@ export function describeResponses(
       const hasPathParam = parameters.some((p) => p.in === 'path');
       const takesInput = Boolean(op.requestBody) || parameters.length > 0;
 
-      // A 204 has no body by definition, so it gets words rather than a
-      // schema — an empty description reads as an undocumented endpoint.
-      const noContent = op.responses['204'] as { description?: string } | undefined;
-      if (noContent && !noContent.description) {
-        noContent.description =
-          'Done. No body — the record was archived, not destroyed, and can be restored.';
-      }
 
-      const successCode = op.responses['201'] ? '201' : '200';
+      /**
+       * Which status this route answers with when it works.
+       *
+       * Nest injects a default 200/201 only when the controller declares no
+       * `@ApiResponse` of its own, so a route that documents a 403 by hand —
+       * which the Files module has to, because its permission depends on the
+       * row's category — would otherwise be published as an operation that can
+       * only fail. The code is reconstructed the same way Nest picks it: an
+       * explicit `@HttpCode` wins, else POST is 201 and everything else 200.
+       */
+      const successCode = op.responses['201']
+        ? '201'
+        : op.responses['200']
+          ? '200'
+          : op.responses['204']
+            ? '204'
+            : String(route.httpCode ?? (method === 'post' ? 201 : 200));
+
+      op.responses[successCode] ??= {};
       const success = op.responses[successCode] as
         | { description?: string; content?: unknown }
         | undefined;
 
+      // A 204 has no body by definition, so it gets words rather than a
+      // schema — an empty description reads as an undocumented endpoint.
+      if (successCode === '204' && success && !success.description) {
+        success.description =
+          'Done. No body — the record was archived, not destroyed, and can be restored.';
+      }
+
       const isBulk = path.includes('/bulk-');
 
-      // Only fill in what the controller has not already said.
-      if (success && !success.content) {
+      // Only fill in what the controller has not already said. A 204 is
+      // described above and by definition carries no body, so it is skipped.
+      if (success && successCode !== '204' && !success.content) {
         success.description ||= isBulk
           ? 'Applied. Partial success is success — check `skipped`.'
           : isPaginated
