@@ -49,7 +49,18 @@ export const envSchema = z
     JWT_REFRESH_SECRET: z
       .string()
       .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
-    JWT_ACCESS_TTL: z.string().default('15m'),
+    JWT_ACCESS_TTL: z.string().default('10m'),
+    /**
+     * How long a session may sit untouched before it has to be signed in again
+     * (client request #4: "automatically logout within 10 minutes if it's not
+     * being touched").
+     *
+     * The browser holds the precise timer — only it can see whether anyone is
+     * actually there. This is the server's backstop: a refresh is refused once
+     * the session has demonstrably been idle longer than this, so disabling
+     * the timer in the browser does not buy an eternal session.
+     */
+    AUTH_IDLE_TIMEOUT_MINUTES: z.coerce.number().int().min(1).max(1440).default(10),
     JWT_REFRESH_TTL: z.string().default('7d'),
     /** Refresh lifetime when the user ticks "Remember me" on sign-in. */
     JWT_REFRESH_TTL_REMEMBERED: z.string().default('30d'),

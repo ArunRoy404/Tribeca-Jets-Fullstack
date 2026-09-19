@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AuthCard from "@/components/auth/AuthCard";
@@ -18,6 +19,20 @@ function SignInForm() {
   // what to toast, whether a second factor is required.
   const { mutate: login, isPending, error } = useLogin();
   const [rememberMe, setRememberMe] = useState(false);
+
+  /**
+   * Why they are looking at this screen.
+   *
+   * Without it, being signed out for inactivity is indistinguishable from
+   * being signed out by a bug — and the second reading is the one people
+   * reach for. A closed set of reasons, so the query string cannot put
+   * arbitrary text on an authentication page.
+   */
+  const reason = useSearchParams()?.get?.("reason");
+  const notice =
+    reason === "idle"
+      ? "You were signed out because the app was left untouched. Sign in to pick up where you were."
+      : null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -37,6 +52,14 @@ function SignInForm() {
           description="Access the Tribeca Jets Command Center"
           subtitleTone="slate"
         />
+
+        {notice ? (
+          <StaggerItem className="w-full">
+            <p className="w-full rounded-md border border-warning/30 bg-warning/10 px-3 py-2.5 font-montserrat text-[13px] text-foreground">
+              {notice}
+            </p>
+          </StaggerItem>
+        ) : null}
 
         <StaggerItem as={motion.form} onSubmit={handleSubmit} className="flex w-full flex-col gap-2">
           <CommonInput
