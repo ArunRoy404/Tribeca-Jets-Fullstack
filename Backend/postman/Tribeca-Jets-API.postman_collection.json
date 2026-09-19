@@ -144,6 +144,21 @@
       "key": "airportId2",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "fileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resourceFileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "photoId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -13126,6 +13141,1549 @@
                   "});",
                   "pm.collectionVariables.set('newQuoteId', '');",
                   "pm.collectionVariables.set('duplicatedQuoteId', '');"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 \u00b7 Files",
+      "description": "Every document the desk keeps, in one table and one bucket: a broker\u2019s tax forms, the company\u2019s published resources, photographs of a tail.\n\n**`category` is the whole authorization model.** A 1099 and a marketing brochure are both rows here and are not remotely the same secret, so the permission that governs a file is a property of the file, not of the route. That is why these endpoints carry no blanket permission decorator \u2014 the check happens in the service, against the same matrix every other module uses:\n\n| Category | Who may read | Who may write |\n|---|---|---|\n| `USER_DOCUMENT` | the owner, or `MANAGE_USERS` | `MANAGE_USERS` |\n| `RESOURCE` | everyone signed in | `MANAGE_RESOURCES` |\n| `AIRCRAFT_PHOTO` | `MANAGE_AIRCRAFT` | `MANAGE_AIRCRAFT` |\n\n**Reads that fail answer 404, writes that fail answer 403.** A 403 on a read would confirm the row exists, and for a personal document that turns a list of user ids into a register of who has been paid.\n\n**The content type is read from the bytes**, never from the upload header \u2014 see requests 03 and 07 for what that prevents. SVG, archives and legacy `.doc`/`.xls` are refused outright.\n\nThe two uploads use fixtures in `postman/fixtures/`, referenced relative to the backend directory. They are real PDF and PNG files rather than placeholders, because the API sniffs them.\n\nEvery request is signed in as the seeded SUPER_ADMIN by the folder\u2019s pre-request script, except the 403 and 404 examples, captured as the seeded broker and assistant.",
+      "item": [
+        {
+          "name": "01 \u00b7 List files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "integer \u2265 1 \u00b7 default 1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "integer 1-100 \u00b7 default 10"
+                },
+                {
+                  "key": "search",
+                  "value": null,
+                  "disabled": true,
+                  "description": "string 1-200 chars \u00b7 case-insensitive, across filename and label"
+                },
+                {
+                  "key": "sortBy",
+                  "value": null,
+                  "disabled": true,
+                  "description": "createdAt | updatedAt | filename | size | category \u00b7 default createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": null,
+                  "disabled": true,
+                  "description": "asc | desc \u00b7 default desc, so the newest upload is first"
+                },
+                {
+                  "key": "category",
+                  "value": null,
+                  "disabled": true,
+                  "description": "USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO \u00b7 case-sensitive. Naming a category this role cannot read at all returns 403, not an empty list."
+                },
+                {
+                  "key": "ownerUserId",
+                  "value": null,
+                  "disabled": true,
+                  "description": "uuid \u00b7 one user's personal folder"
+                },
+                {
+                  "key": "aircraftId",
+                  "value": null,
+                  "disabled": true,
+                  "description": "uuid \u00b7 one aircraft's photographs"
+                },
+                {
+                  "key": "archived",
+                  "value": null,
+                  "disabled": true,
+                  "description": "true | false \u00b7 default false. `true` serves the Archived tab, and returns ONLY archived rows."
+                }
+              ]
+            },
+            "description": "Returns only what the caller may see, and the three categories differ genuinely:\n\n- **RESOURCE** \u2014 every signed-in caller.\n- **USER_DOCUMENT** \u2014 an administrator, or the person whose folder it is. A broker sees their own 1099 and nobody else\u2019s, and another broker\u2019s does not appear here at all.\n- **AIRCRAFT_PHOTO** \u2014 anyone who may read the fleet.\n\nThat is why two roles legitimately get different totals from the same request."
+          },
+          "response": [
+            {
+              "name": "One page of files",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files?page=1&limit=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"15338af8-3353-4117-9a0c-d1cad969462a\",\n      \"filename\": \"sample-photo.png\",\n      \"contentType\": \"image/png\",\n      \"size\": 73,\n      \"checksum\": \"74bcd9e25155343d04057fc98d7c8d70a961e99c0a56e78fd74bc8fe7cbbeb9d\",\n      \"category\": \"AIRCRAFT_PHOTO\",\n      \"label\": \"N750CL cabin\",\n      \"notes\": null,\n      \"ownerUserId\": null,\n      \"ownerUser\": null,\n      \"aircraftId\": \"d36701b1-5af2-40a8-a282-96c44eb454d1\",\n      \"aircraft\": {\n        \"id\": \"d36701b1-5af2-40a8-a282-96c44eb454d1\",\n        \"tailNumber\": \"N750CL\",\n        \"model\": \"Citation X\"\n      },\n      \"createdAt\": \"2026-09-19T04:25:37.317Z\",\n      \"createdById\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n      \"updatedAt\": \"2026-09-19T04:25:37.317Z\",\n      \"updatedById\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"b4dc8988-5735-4bd3-af5e-3d8edb2b6880\",\n      \"filename\": \"sample-document.pdf\",\n      \"contentType\": \"application/pdf\",\n      \"size\": 601,\n      \"checksum\": \"c7c5eeff7c54aef4a1d72b6280dd496a57736f328a6efce39b7564be5301055f\",\n      \"category\": \"RESOURCE\",\n      \"label\": \"Tribeca Jets brochure\",\n      \"notes\": null,\n      \"ownerUserId\": null,\n      \"ownerUser\": null,\n      \"aircraftId\": null,\n      \"aircraft\": null,\n      \"createdAt\": \"2026-09-19T04:25:37.306Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-19T04:25:37.306Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"ff5bc0ab-abd6-4dc0-a628-db618dcd4ee7\",\n      \"filename\": \"sample-document.pdf\",\n      \"contentType\": \"application/pdf\",\n      \"size\": 601,\n      \"checksum\": \"c7c5eeff7c54aef4a1d72b6280dd496a57736f328a6efce39b7564be5301055f\",\n      \"category\": \"USER_DOCUMENT\",\n      \"label\": \"2025 Form 1099-NEC\",\n      \"notes\": null,\n      \"ownerUserId\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n      \"ownerUser\": {\n        \"id\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n        \"firstName\": \"Mark\",\n        \"lastName\": \"Evans\",\n        \"email\": \"mark@tribecajets.com\"\n      },\n      \"aircraftId\": null,\n      \"aircraft\": null,\n      \"createdAt\": \"2026-09-19T04:25:37.295Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-19T04:25:37.295Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"d28b493a-300c-4cd1-ba1d-e1ebbd1230c3\",\n      \"filename\": \"evil.pdf\",\n      \"contentType\": \"text/plain\",\n      \"size\": 52,\n      \"checksum\": \"f789279c7dc0001dafe291f9102935507502d1f41024057dbbab4b924b3e8c9b\",\n      \"category\": \"USER_DOCUMENT\",\n      \"label\": null,\n      \"notes\": null,\n      \"ownerUserId\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n      \"ownerUser\": {\n        \"id\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n        \"firstName\": \"Mark\",\n        \"lastName\": \"Evans\",\n        \"email\": \"mark@tribecajets.com\"\n      },\n      \"aircraftId\": null,\n      \"aircraft\": null,\n      \"createdAt\": \"2026-09-19T04:22:11.721Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-19T04:22:11.721Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 5,\n    \"total\": 4,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 and an envelope', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.expect(body.meta).to.have.property('total');",
+                  "});",
+                  "pm.test('storageKey never leaves the service', () => {",
+                  "  pm.expect(pm.response.text()).to.not.include('storageKey');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 File counts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "stats"
+              ]
+            },
+            "description": "Counts for the tiles above a file list, scoped to what the caller may see \u2014 so an administrator and a broker legitimately disagree."
+          },
+          "response": [
+            {
+              "name": "Counts",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "stats"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 4,\n    \"archived\": 8,\n    \"byCategory\": {\n      \"USER_DOCUMENT\": 2,\n      \"RESOURCE\": 1,\n      \"AIRCRAFT_PHOTO\": 1\n    }\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 File a document in a user\u2019s folder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "postman/fixtures/sample-document.pdf",
+                  "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                },
+                {
+                  "key": "category",
+                  "value": "USER_DOCUMENT",
+                  "type": "text",
+                  "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                },
+                {
+                  "key": "ownerUserId",
+                  "value": "{{userId}}",
+                  "type": "text",
+                  "description": "required for USER_DOCUMENT, rejected for every other category \u00b7 uuid of a live user. Whose personal folder this lands in."
+                },
+                {
+                  "key": "label",
+                  "value": "2025 Form 1099-NEC",
+                  "type": "text",
+                  "description": "optional \u00b7 max 200 chars. Shown instead of the filename where given."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files"
+              ]
+            },
+            "description": "The client\u2019s example: a broker earns commission, the company issues them a 1099, and it goes in their personal folder.\n\n**The most sensitive rows in the system.** Only an administrator may file one, and only an administrator or the person it belongs to may read it \u2014 a broker of identical rank at the next desk gets a **404**, not a 403, because a 403 would confirm the document exists and turn a list of user ids into a register of who has been paid.\n\nAccepts PDF, DOCX, XLSX, TXT and CSV up to 25 MB. Refuses SVG (a document that executes script), archives, and legacy `.doc`/`.xls` (byte-identical at the header, so they cannot be told apart, and they are the macro-bearing formats).\n\nThe `file` part points at `postman/fixtures/sample-document.pdf`, resolved relative to the backend directory \u2014 which is where `npm run test:api` runs newman from."
+          },
+          "response": [
+            {
+              "name": "Filed against the broker",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-document.pdf",
+                      "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                    },
+                    {
+                      "key": "category",
+                      "value": "USER_DOCUMENT",
+                      "type": "text",
+                      "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                    },
+                    {
+                      "key": "ownerUserId",
+                      "value": "9d1afd49-adbe-4408-bd8e-3d493c32e7a7",
+                      "type": "text",
+                      "description": "required for USER_DOCUMENT, rejected for every other category \u00b7 uuid of a live user. Whose personal folder this lands in."
+                    },
+                    {
+                      "key": "label",
+                      "value": "2025 Form 1099-NEC",
+                      "type": "text",
+                      "description": "optional \u00b7 max 200 chars. Shown instead of the filename where given."
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"ff5bc0ab-abd6-4dc0-a628-db618dcd4ee7\",\n    \"filename\": \"sample-document.pdf\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"checksum\": \"c7c5eeff7c54aef4a1d72b6280dd496a57736f328a6efce39b7564be5301055f\",\n    \"category\": \"USER_DOCUMENT\",\n    \"label\": \"2025 Form 1099-NEC\",\n    \"notes\": null,\n    \"ownerUserId\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n    \"ownerUser\": {\n      \"id\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n      \"firstName\": \"Mark\",\n      \"lastName\": \"Evans\",\n      \"email\": \"mark@tribecajets.com\"\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"createdAt\": \"2026-09-19T04:25:37.295Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-19T04:25:37.295Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            },
+            {
+              "name": "A photograph is not a document",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-photo.png",
+                      "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                    },
+                    {
+                      "key": "category",
+                      "value": "USER_DOCUMENT",
+                      "type": "text",
+                      "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                    },
+                    {
+                      "key": "ownerUserId",
+                      "value": "9d1afd49-adbe-4408-bd8e-3d493c32e7a7",
+                      "type": "text",
+                      "description": "required for USER_DOCUMENT, rejected for every other category \u00b7 uuid of a live user. Whose personal folder this lands in."
+                    }
+                  ]
+                }
+              },
+              "status": "Unsupported Media Type",
+              "code": 415,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 415,\n  \"message\": \"This must be a document. Accepted formats: application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/plain, text/csv\",\n  \"path\": \"/api/files\",\n  \"timestamp\": \"2026-09-19T04:25:37.359Z\"\n}"
+            },
+            {
+              "name": "Renaming a PNG to .pdf changes nothing",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-photo.png",
+                      "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                    },
+                    {
+                      "key": "category",
+                      "value": "USER_DOCUMENT",
+                      "type": "text",
+                      "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                    },
+                    {
+                      "key": "ownerUserId",
+                      "value": "9d1afd49-adbe-4408-bd8e-3d493c32e7a7",
+                      "type": "text",
+                      "description": "required for USER_DOCUMENT, rejected for every other category \u00b7 uuid of a live user. Whose personal folder this lands in."
+                    }
+                  ]
+                }
+              },
+              "status": "Unsupported Media Type",
+              "code": 415,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 415,\n  \"message\": \"This must be a document. Accepted formats: application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/plain, text/csv\",\n  \"path\": \"/api/files\",\n  \"timestamp\": \"2026-09-19T04:25:37.363Z\"\n}"
+            },
+            {
+              "name": "A personal document needs an owner",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-document.pdf",
+                      "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                    },
+                    {
+                      "key": "category",
+                      "value": "USER_DOCUMENT",
+                      "type": "text",
+                      "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ownerUserId\": \"A personal document needs the user whose folder it belongs in\"\n  },\n  \"path\": \"/api/files\",\n  \"timestamp\": \"2026-09-19T04:25:37.374Z\"\n}"
+            },
+            {
+              "name": "A broker may not file one at all",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-document.pdf",
+                      "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                    },
+                    {
+                      "key": "category",
+                      "value": "RESOURCE",
+                      "type": "text",
+                      "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                    }
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role cannot manage RESOURCE files\",\n  \"path\": \"/api/files\",\n  \"timestamp\": \"2026-09-19T04:25:37.366Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const base = pm.collectionVariables.get('baseUrl');",
+                  "",
+                  "if (!pm.collectionVariables.get('userId')) {",
+                  "    pm.sendRequest({ url: base + '/users?limit=1', method: 'GET' }, (err, res) => {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.collectionVariables.set('userId', res.json().data[0].id);",
+                  "        }",
+                  "    });",
+                  "}",
+                  "",
+                  "if (!pm.collectionVariables.get('aircraftId')) {",
+                  "    pm.sendRequest({ url: base + '/aircraft?limit=1', method: 'GET' }, (err, res) => {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.collectionVariables.set('aircraftId', res.json().data[0].id);",
+                  "        }",
+                  "    });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 and a stored file', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(body.data.category).to.eql('USER_DOCUMENT');",
+                  "});",
+                  "pm.test('the sniffed type is stored, not the part header', () => {",
+                  "  pm.expect(body.data.contentType).to.eql('application/pdf');",
+                  "});",
+                  "pm.collectionVariables.set('fileId', body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Publish a company resource",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "postman/fixtures/sample-document.pdf",
+                  "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                },
+                {
+                  "key": "category",
+                  "value": "RESOURCE",
+                  "type": "text",
+                  "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                },
+                {
+                  "key": "label",
+                  "value": "Tribeca Jets brochure",
+                  "type": "text",
+                  "description": "optional \u00b7 max 200 chars. Shown instead of the filename where given."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files"
+              ]
+            },
+            "description": "Company-wide material: the brochure, the aircraft category guide, the referral programme terms, marketing collateral.\n\nReadable by everyone signed in \u2014 that is what publishing means \u2014 and writable only by an administrator, through `MANAGE_RESOURCES`. That is deliberately its own permission rather than borrowing `MANAGE_USERS`: filing a broker\u2019s 1099 and publishing a marketing PDF are different acts on different audiences, and the referral-agent portal will need to grant the second to a role that must never have the first.\n\nAccepts documents and images up to 50 MB. A resource belongs to the company, so sending an `ownerUserId` is refused rather than ignored \u2014 silently dropping it would publish company-wide a file the uploader believed they had filed against one person."
+          },
+          "response": [
+            {
+              "name": "Published",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-document.pdf",
+                      "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                    },
+                    {
+                      "key": "category",
+                      "value": "RESOURCE",
+                      "type": "text",
+                      "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                    },
+                    {
+                      "key": "label",
+                      "value": "Tribeca Jets brochure",
+                      "type": "text",
+                      "description": "optional \u00b7 max 200 chars. Shown instead of the filename where given."
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b4dc8988-5735-4bd3-af5e-3d8edb2b6880\",\n    \"filename\": \"sample-document.pdf\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"checksum\": \"c7c5eeff7c54aef4a1d72b6280dd496a57736f328a6efce39b7564be5301055f\",\n    \"category\": \"RESOURCE\",\n    \"label\": \"Tribeca Jets brochure\",\n    \"notes\": null,\n    \"ownerUserId\": null,\n    \"ownerUser\": null,\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"createdAt\": \"2026-09-19T04:25:37.306Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-19T04:25:37.306Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            },
+            {
+              "name": "A resource belongs to nobody",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-document.pdf",
+                      "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                    },
+                    {
+                      "key": "category",
+                      "value": "RESOURCE",
+                      "type": "text",
+                      "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                    },
+                    {
+                      "key": "ownerUserId",
+                      "value": "9d1afd49-adbe-4408-bd8e-3d493c32e7a7",
+                      "type": "text",
+                      "description": "required for USER_DOCUMENT, rejected for every other category \u00b7 uuid of a live user. Whose personal folder this lands in."
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ownerUserId\": \"A RESOURCE file does not belong to a user\"\n  },\n  \"path\": \"/api/files\",\n  \"timestamp\": \"2026-09-19T04:25:37.370Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201, owned by the company', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(body.data.ownerUserId).to.be.null;",
+                  "});",
+                  "pm.collectionVariables.set('resourceFileId', body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Add a photograph of a tail",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "postman/fixtures/sample-photo.png",
+                  "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                },
+                {
+                  "key": "category",
+                  "value": "AIRCRAFT_PHOTO",
+                  "type": "text",
+                  "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                },
+                {
+                  "key": "aircraftId",
+                  "value": "{{aircraftId}}",
+                  "type": "text",
+                  "description": "required for AIRCRAFT_PHOTO, rejected for every other category \u00b7 uuid of a live aircraft."
+                },
+                {
+                  "key": "label",
+                  "value": "Cabin",
+                  "type": "text",
+                  "description": "optional \u00b7 max 200 chars. Shown instead of the filename where given."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files"
+              ]
+            },
+            "description": "Cabin and exterior photographs, for quotes and itineraries (the client\u2019s \"stock image database\").\n\nFollows the fleet\u2019s own permission exactly: whoever may edit a tail may photograph it, and an assistant who may read the fleet may see the pictures. A separate permission here would mean a broker could rename a tail but not photograph it, which nobody could explain.\n\nImages only \u2014 JPEG, PNG, WEBP, GIF \u2014 up to 15 MB. **SVG is refused**: it is a document that executes script, and serving one from the API\u2019s own origin is stored XSS wearing an image\u2019s clothes."
+          },
+          "response": [
+            {
+              "name": "Added to the fleet",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-photo.png",
+                      "description": "required \u00b7 the bytes. The content type is read from these, NOT from the part header \u2014 a sender-chosen type would decide what the download route later hands a browser. Renaming a file changes nothing."
+                    },
+                    {
+                      "key": "category",
+                      "value": "AIRCRAFT_PHOTO",
+                      "type": "text",
+                      "description": "required \u00b7 USER_DOCUMENT | RESOURCE | AIRCRAFT_PHOTO. Case-sensitive. This single field decides who may read the file, who may replace it, which formats are accepted and how large it may be."
+                    },
+                    {
+                      "key": "aircraftId",
+                      "value": "d36701b1-5af2-40a8-a282-96c44eb454d1",
+                      "type": "text",
+                      "description": "required for AIRCRAFT_PHOTO, rejected for every other category \u00b7 uuid of a live aircraft."
+                    },
+                    {
+                      "key": "label",
+                      "value": "Cabin",
+                      "type": "text",
+                      "description": "optional \u00b7 max 200 chars. Shown instead of the filename where given."
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"15338af8-3353-4117-9a0c-d1cad969462a\",\n    \"filename\": \"sample-photo.png\",\n    \"contentType\": \"image/png\",\n    \"size\": 73,\n    \"checksum\": \"74bcd9e25155343d04057fc98d7c8d70a961e99c0a56e78fd74bc8fe7cbbeb9d\",\n    \"category\": \"AIRCRAFT_PHOTO\",\n    \"label\": \"N750CL cabin\",\n    \"notes\": null,\n    \"ownerUserId\": null,\n    \"ownerUser\": null,\n    \"aircraftId\": \"d36701b1-5af2-40a8-a282-96c44eb454d1\",\n    \"aircraft\": {\n      \"id\": \"d36701b1-5af2-40a8-a282-96c44eb454d1\",\n      \"tailNumber\": \"N750CL\",\n      \"model\": \"Citation X\"\n    },\n    \"createdAt\": \"2026-09-19T04:25:37.317Z\",\n    \"createdById\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n    \"updatedAt\": \"2026-09-19T04:25:37.317Z\",\n    \"updatedById\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const base = pm.collectionVariables.get('baseUrl');",
+                  "",
+                  "if (!pm.collectionVariables.get('userId')) {",
+                  "    pm.sendRequest({ url: base + '/users?limit=1', method: 'GET' }, (err, res) => {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.collectionVariables.set('userId', res.json().data[0].id);",
+                  "        }",
+                  "    });",
+                  "}",
+                  "",
+                  "if (!pm.collectionVariables.get('aircraftId')) {",
+                  "    pm.sendRequest({ url: base + '/aircraft?limit=1', method: 'GET' }, (err, res) => {",
+                  "        if (!err && res.code === 200) {",
+                  "            pm.collectionVariables.set('aircraftId', res.json().data[0].id);",
+                  "        }",
+                  "    });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 and linked to the aircraft', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(body.data.aircraftId).to.not.be.null;",
+                  "});",
+                  "pm.collectionVariables.set('photoId', body.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Get one file",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files/{{fileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "{{fileId}}"
+              ]
+            },
+            "description": "Metadata only \u2014 the bytes come from request 07.\n\nArchived files are returned, with their archive trail, because the Archived tab links straight here; excluding them would list a row and then 404 it.\n\n`storageKey` is never in the payload. It is the address of the bytes, and every permission check in this module assumes reaching them means going through a route that re-checks it \u2014 a key in a JSON response is that check bypassed."
+          },
+          "response": [
+            {
+              "name": "The file",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "{{fileId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"ff5bc0ab-abd6-4dc0-a628-db618dcd4ee7\",\n    \"filename\": \"sample-document.pdf\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"checksum\": \"c7c5eeff7c54aef4a1d72b6280dd496a57736f328a6efce39b7564be5301055f\",\n    \"category\": \"USER_DOCUMENT\",\n    \"label\": \"2025 Form 1099-NEC\",\n    \"notes\": null,\n    \"ownerUserId\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n    \"ownerUser\": {\n      \"id\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n      \"firstName\": \"Mark\",\n      \"lastName\": \"Evans\",\n      \"email\": \"mark@tribecajets.com\"\n    },\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"createdAt\": \"2026-09-19T04:25:37.295Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-19T04:25:37.295Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Another broker\u2019s personal document",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/{{fileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "{{fileId}}"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"File not found\",\n  \"path\": \"/api/files/ff5bc0ab-abd6-4dc0-a628-db618dcd4ee7\",\n  \"timestamp\": \"2026-09-19T04:25:37.380Z\"\n}"
+            },
+            {
+              "name": "No such file",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/00000000-0000-4000-8000-000000000000",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "00000000-0000-4000-8000-000000000000"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"File not found\",\n  \"path\": \"/api/files/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-19T04:25:37.389Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('no storage key', () => {",
+                  "  pm.expect(pm.response.text()).to.not.include('storageKey');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Download a file",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files/{{fileId}}/download",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "{{fileId}}",
+                "download"
+              ]
+            },
+            "description": "Streams the stored bytes with the content type **detected at upload**, never one supplied by a caller.\n\nImages are served `inline` so a photograph can be used in an `<img>`; everything else is `attachment`, which is what stops a document being rendered as a page on the API\u2019s own origin. Every response carries `X-Content-Type-Options: nosniff`.\n\nSessions are httpOnly cookies, so this URL works directly in an `<img src>` \u2014 and because it is a route rather than a presigned link, permission is re-checked on every fetch instead of being frozen at the moment the link was minted.\n\nAn archived file still downloads: the row is archived, the bytes are not, and refusing here would make the Archived tab a list of documents nobody can open."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 with the stored type', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/pdf');",
+                  "});",
+                  "pm.test('a document downloads rather than rendering', () => {",
+                  "  pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment');",
+                  "  pm.expect(pm.response.headers.get('X-Content-Type-Options')).to.eql('nosniff');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 \u00b7 Rename a file",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"2025 Form 1099-NEC (corrected)\",   // optional \u00b7 max 200 chars, or null  // Every field optional \u2014 this is a PATCH. Send only what changed; null clears. Only these two. The bytes, the `category` and the owner are immutable: re-categorising a stored file would move it between access rules without anybody re-reading it, so replacing a document means uploading a new one and archiving the old \u2014 which is also the only version history this table keeps.\n  \"notes\": \"Supersedes the copy issued in January.\"   // optional \u00b7 max 5000 chars, or null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files/{{resourceFileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "{{resourceFileId}}"
+              ]
+            },
+            "description": "The label and the notes, and nothing else.\n\nThe bytes, the `category` and the owner are immutable by design: re-categorising a stored file would move it between access rules without anybody re-reading it. Replacing a document means uploading a new one and archiving the old \u2014 which is also the only version history this table keeps."
+          },
+          "response": [
+            {
+              "name": "Renamed",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/{{resourceFileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "{{resourceFileId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"label\": \"Tribeca Jets brochure (2026)\",\n  \"notes\": \"Replaces the 2025 edition.\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"b4dc8988-5735-4bd3-af5e-3d8edb2b6880\",\n    \"filename\": \"sample-document.pdf\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"checksum\": \"c7c5eeff7c54aef4a1d72b6280dd496a57736f328a6efce39b7564be5301055f\",\n    \"category\": \"RESOURCE\",\n    \"label\": \"Tribeca Jets brochure (2026)\",\n    \"notes\": \"Replaces the 2025 edition.\",\n    \"ownerUserId\": null,\n    \"ownerUser\": null,\n    \"aircraftId\": null,\n    \"aircraft\": null,\n    \"createdAt\": \"2026-09-19T04:25:37.306Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-19T04:25:37.396Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 \u00b7 Remove a file (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/files/{{photoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "{{photoId}}"
+              ]
+            },
+            "description": "Archives the row and **leaves the object in storage untouched**.\n\nThere is no permanent delete in this system, and a restore that could not return the same bytes would not be a restore \u2014 deleting the object here would quietly make the Archived tab a list of files that can never come back. Storage cost is the price of that promise.\n\n204, no body. A caller who may read the row but not write its category gets 403; one who may not read it at all gets 404."
+          },
+          "response": [
+            {
+              "name": "Archived",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/{{photoId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "{{photoId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "Not a broker\u2019s to withdraw",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/{{resourceFileId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "{{resourceFileId}}"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role cannot manage RESOURCE files\",\n  \"path\": \"/api/files/b4dc8988-5735-4bd3-af5e-3d8edb2b6880\",\n  \"timestamp\": \"2026-09-19T04:25:37.437Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204, no body', () => {",
+                  "  pm.response.to.have.status(204);",
+                  "  pm.expect(pm.response.text()).to.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 \u00b7 Restore an archived file",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/files/{{photoId}}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "{{photoId}}",
+                "restore"
+              ]
+            },
+            "description": "Clears the deletion stamp and nothing else \u2014 every field comes back untouched, because nothing was ever changed.\n\n**200, not 201.** Nest gives every POST a 201 by default and a restore creates nothing; it clears a stamp on a row that existed all along. A row that is not archived returns 404."
+          },
+          "response": [
+            {
+              "name": "Restored",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/{{photoId}}/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "{{photoId}}",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"15338af8-3353-4117-9a0c-d1cad969462a\",\n    \"filename\": \"sample-photo.png\",\n    \"contentType\": \"image/png\",\n    \"size\": 73,\n    \"checksum\": \"74bcd9e25155343d04057fc98d7c8d70a961e99c0a56e78fd74bc8fe7cbbeb9d\",\n    \"category\": \"AIRCRAFT_PHOTO\",\n    \"label\": \"N750CL cabin\",\n    \"notes\": null,\n    \"ownerUserId\": null,\n    \"ownerUser\": null,\n    \"aircraftId\": \"d36701b1-5af2-40a8-a282-96c44eb454d1\",\n    \"aircraft\": {\n      \"id\": \"d36701b1-5af2-40a8-a282-96c44eb454d1\",\n      \"tailNumber\": \"N750CL\",\n      \"model\": \"Citation X\"\n    },\n    \"createdAt\": \"2026-09-19T04:25:37.317Z\",\n    \"createdById\": \"9d1afd49-adbe-4408-bd8e-3d493c32e7a7\",\n    \"updatedAt\": \"2026-09-19T04:25:37.414Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-19T04:25:37.412Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200, not 201', () => pm.response.to.have.status(200));",
+                  "pm.test('the deletion stamp is cleared', () => {",
+                  "  pm.expect(body.data.deletedAt).to.be.null;",
+                  "  pm.expect(body.data.restoredAt).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 \u00b7 Remove several files at once",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{fileId}}\", \"{{photoId}}\"]  // 1-100 uuids. Duplicates are removed rather than rejected. Ids that match nothing, that the caller cannot see, or whose category the caller cannot write come back in `skipped` rather than failing the batch: a mixed selection must not force a choice between revealing which rows exist and refusing the whole action.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files/bulk-delete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "bulk-delete"
+              ]
+            },
+            "description": "For the table\u2019s checkbox column.\n\nPOST rather than DELETE-with-body: request bodies on DELETE are dropped by proxies, and a dropped body removes nothing while answering 200.\n\nPartial success is success. Ids that match nothing, that the caller cannot see, or whose category the caller cannot write come back in `skipped` \u2014 a mixed selection must not force a choice between revealing which rows exist and refusing the whole action."
+          },
+          "response": [
+            {
+              "name": "One archived, one unknown id skipped",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "bulk-delete"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"{{photoId}}\",\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 2,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": [\n      \"00000000-0000-4000-8000-000000000000\"\n    ]\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 and a partial-success report', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(body.data).to.have.property('affected');",
+                  "  pm.expect(body.data.skipped).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 \u00b7 Restore several files at once",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{fileId}}\", \"{{photoId}}\"]  // 1-100 uuids. Duplicates are removed rather than rejected. Ids that match nothing, that the caller cannot see, or whose category the caller cannot write come back in `skipped` rather than failing the batch: a mixed selection must not force a choice between revealing which rows exist and refusing the whole action.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files/bulk-restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "bulk-restore"
+              ]
+            },
+            "description": "The mirror of request 11, for the Archived tab\u2019s checkbox column. Same body, same partial-success rule \u2014 ids that are not archived are reported as `skipped` rather than failing the batch, so two people restoring the same selection both succeed."
+          },
+          "response": [
+            {
+              "name": "One restored, one unknown id skipped",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/files/bulk-restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "files",
+                    "bulk-restore"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"{{photoId}}\",\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 2,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": [\n      \"00000000-0000-4000-8000-000000000000\"\n    ]\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 \u00b7 Teardown \u2014 archive this run\u2019s uploads",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{fileId}}\", \"{{resourceFileId}}\", \"{{photoId}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files/bulk-delete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "bulk-delete"
+              ]
+            },
+            "description": "The run is a demonstration, not a data entry session.\n\nWithout this, every pass would leave three more files in the store \u2014 which is exactly how 26 of 28 \"live\" clients turned out to be Postman debris. There is no hard delete by design, so archiving the probes is the correct end state: they sit in the Archived tab rather than among the documents anybody works with."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('the run leaves nothing behind', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('fileId', '');",
+                  "pm.collectionVariables.set('resourceFileId', '');",
+                  "pm.collectionVariables.set('photoId', '');"
                 ]
               }
             }
