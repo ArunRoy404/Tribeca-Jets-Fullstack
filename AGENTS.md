@@ -568,6 +568,83 @@ Two things still belong on the controller by hand: `@ApiOperation` — the
 summary and the *why*, which no schema can infer — and any response a route
 returns that the rules above cannot see.
 
+**A hand-written `@ApiResponse` silences Nest's default success response.** Nest
+injects the implicit 200/201 only when a controller declares *none* of its own,
+so the moment a route documents its 403 by hand it arrives at
+`describeResponses` with no success entry at all — and would be published as an
+operation that can only fail. That is why the success code is reconstructed
+there from `HTTP_CODE_METADATA` the same way Nest picks it, rather than read
+off the document. Five Files routes were briefly published that way; the fix is
+in the derivation, so nothing has to be remembered at the call site.
+
+## Uploads: never trust the content type a caller sends
+
+A multipart part's `Content-Type` is chosen by whoever sent it. Store it and the
+download route will one day hand a browser exactly what an attacker picked —
+`text/html` on a file the desk believes is a PDF is a script running on the
+API's own origin, with the session cookie attached.
+
+**Read the type from the bytes** (`modules/files/file-signature.ts`) and store
+*that*. The sender's header settles exactly one question: whether text is
+`text/plain` or `text/csv`, which are the same bytes and differ only in intent.
+
+Three formats stay off every allowlist, for reasons that are not about
+convenience:
+
+- **SVG** is a document that executes script. Serving one from the API's origin
+  is stored XSS wearing an image's clothes.
+- **Archives** carry their contents past whatever checked the outer file.
+- **Legacy `.doc`/`.xls`** are both OLE2 and byte-identical at the header, so
+  nothing can tell them apart without trusting the sender — which is the thing
+  sniffing exists to avoid. They are also the macro-bearing formats, and Word
+  and Excel have written the modern equivalents by default since 2007.
+
+Then serve defensively too: `X-Content-Type-Options: nosniff` on every
+response, and `Content-Disposition: inline` **only** for images. Everything else
+downloads.
+
+## When the permission depends on the row, the guard cannot make the decision
+
+`@RequirePermissions` runs before anything is read, so it can only express a
+rule that is true of the caller alone. A file's rule is not: a 1099 and a
+marketing brochure are rows in one table, in one bucket, and are not remotely
+the same secret.
+
+So `FileObject` carries a required `category`, and `files.access.ts` maps each
+value to a read permission, a write permission, an owner kind, a format
+allowlist and a size ceiling. The controller carries **no** permission
+decorator and says so in a comment; the service enforces the table.
+
+Two things make this safe rather than a hole:
+
+- **It is a data structure, not four `if` branches.** A rule spread across
+  `findAll`, `findOne`, `update` and `remove` is a rule that gets forgotten in
+  the fifth place — and the fifth place is the download.
+- **A category with no rule does not compile.** `Record<FileCategory, …>` is
+  total, so adding an enum value without deciding who may open it is a type
+  error. For the same reason there is no `OTHER`: a catch-all is a category
+  whose access rule cannot be stated.
+
+The usual split still holds — reads that fail answer **404**, writes that fail
+answer **403**. A 403 on reading a personal document confirms it exists, which
+turns a list of user ids into a register of who has been paid.
+
+## Archiving a file never touches the bytes
+
+`deletedAt` on the row, and the object stays in storage exactly where it was.
+
+There is no permanent delete in this system, and a restore that cannot hand
+back the same bytes is not a restore — it is an empty row wearing a filename.
+Deleting the object on archive would quietly turn the Archived tab into a list
+of documents nobody can ever open again, and nothing on screen would say so.
+Storage is the price of the promise the rest of the system already makes.
+
+The same reasoning runs the other way on upload: **write the bytes first, then
+the row.** A failed insert leaves an unreferenced object in the bucket, which is
+invisible, harmless and findable by `driver` plus key prefix. The opposite order
+leaves a row pointing at nothing. Given a choice between an orphaned blob and an
+orphaned row, the blob is the one that cannot lie to anybody.
+
 ## Service layer rules
 
 - Soft delete (`deletedAt`), never a hard `delete`. Every query filters `deletedAt: null`.

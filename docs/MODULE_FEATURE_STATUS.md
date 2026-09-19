@@ -207,12 +207,12 @@ API accepted, stored, and never gave back:
 | `IN_SERVICE` becoming *derived* rather than set by hand | **Trips (#11)** |
 | Availability against a date range | **Trips (#11)** + **Schedule (#13)** |
 
-**Deferred by decision: aircraft images.** The scope lists them on the record
-and in the passenger itinerary. **This project has no file-upload pipeline at
-all** — `multer` is not installed, no endpoint accepts a file, `avatarKey` is
-only ever read. Building the first one inside Aircraft would either be thrown
-away or become an accidental framework. It ships with **Document Vault (#22)**,
-which needs the same pipeline for contracts, operator documents and quote PDFs.
+**Aircraft images: the API is live, the screen is not.** `POST /api/files`
+with `category=AIRCRAFT_PHOTO` and an `aircraftId` stores a photograph against
+a tail, governed by `MANAGE_AIRCRAFT` — the same permission that edits the
+record, so whoever may rename a tail may photograph it. The fleet UI has no
+uploader or gallery yet, and the quote/itinerary picture-picker the client
+asked for waits on those two modules' UI changes. See **Files (#28)**.
 
 ---
 
@@ -330,7 +330,7 @@ rows, the way a leads table would have split one client.
 | Deposit / payment column on the board | **Receivables (#16)** — null today, renders an em dash |
 | Departure and arrival *times* on the route strip | **Trips (#11)** — a request records the day, not a schedule |
 | Emailing the request to the operator | **Email Templates (#21)** |
-| Operator document upload and field extraction (§6.9) | **Document Vault (#22)** — no upload pipeline exists |
+| Operator document upload and field extraction (§6.9) | **Document Vault (#22)** — the pipeline exists now (**Files #28**); the sourcing screen and the extraction step do not |
 
 **Deferred by decision: most of the operator scorecard.** Scope §6.7 asks for
 accuracy, hidden fees, cabin cleanliness, crew quality and passenger feedback
@@ -491,9 +491,14 @@ It is also what unblocks the Activity timelines on Clients and Leads.
 
 **No screen exists.** Waits on Trips (#11), Clients ✅, Operators ✅.
 
-**This is the module that owns the file-upload pipeline**, which nothing in the
-project has yet. Aircraft images, the client attachment drop zone, contracts,
-operator certificates and quote PDFs all queue behind it.
+**The pipeline it was going to own now exists** — see **Files (#28)**, built
+first because four separate client requests were queued behind it. What is left
+here is the vault *as a product*: a browsable store with folders, versions and
+expiry dates on certificates.
+
+Aircraft images, the client attachment drop zone, contracts, operator
+certificates and quote PDFs all now have somewhere to go on the server. Each
+still needs its own screen and its own category rule.
 
 ---
 
@@ -540,6 +545,53 @@ waits on the data being there, which means most of the queue above.
 
 ---
 
+## 28. Files ✅ *(API only)*
+
+**Not in the original queue.** Built out of order because four separate client
+requests were queued behind one missing piece of infrastructure — per-broker tax
+form folders, the referral portal's Resources section, referral attachments, and
+the aircraft photo library. See
+[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md).
+
+**Working now**
+
+- `POST /api/files` — multipart upload. The content type is read from the
+  **bytes**, never the upload header, so renaming a file changes nothing
+- Three categories, each with its own read rule, write rule, format allowlist
+  and size ceiling: `USER_DOCUMENT` (25 MB, documents), `RESOURCE` (50 MB,
+  documents or images), `AIRCRAFT_PHOTO` (15 MB, images)
+- A broker's personal folder is readable by that broker and an administrator,
+  and by **nobody else** — another broker gets a 404, not a 403
+- `GET /api/files` — paginated, searchable, filterable, scoped per category to
+  what the caller may see; `?archived=true` serves the Archived tab
+- `GET /api/files/:id/download` — streams with the stored type, `nosniff`, and
+  `inline` only for images. Permission is re-checked on every fetch rather than
+  frozen into a presigned link
+- `GET /api/files/objects/:key` — serves driver-managed objects; this is what
+  finally makes `avatarKey` reachable
+- Rename and notes; archive, restore, bulk archive, bulk restore
+- New permission `MANAGE_RESOURCES`, held by administrators only
+- 13 Postman requests, 19 captured examples, real multipart fixtures
+- 15 unit tests on the content sniffer alone
+
+**Waiting on a dependency**
+
+| Feature | Blocked by |
+|---|---|
+| Any screen at all | **Files UI** — no frontend consumes this yet |
+| The broker document folder tab | **Users & Roles UI** |
+| The aircraft photo gallery | **Aircraft UI** |
+| Referral attachments and the Resources section | **Referral Agent (#11 in the client list)** |
+| Picking a photo onto a quote or itinerary | **Quotes / Itineraries** — both have client UI changes pending |
+| Client and operator document categories | their own screens; each is one row in `FILE_CATEGORY_RULES` |
+
+**Deferred by decision: thumbnails and image resizing.** A 15 MB cabin
+photograph served whole into a gallery is slow, and the fix is a resize
+pipeline. Nothing renders a gallery yet, so building it now would be tuning a
+screen that does not exist.
+
+---
+
 ## The short version
 
 **Usable against the real database today:** Auth, Users & Roles, Airports,
@@ -552,8 +604,9 @@ finished and verified.
 **The one module that unblocks the most:** Trips (#11). Nine modules and a
 dozen individual fields are waiting on it.
 
-**The one piece of infrastructure nothing has:** file upload. It arrives with
-Document Vault (#22) and until then, no screen anywhere accepts a file.
+**The piece of infrastructure nothing had:** file upload — built as **Files
+(#28)**. The API stores, serves, archives and restores files today; no *screen*
+accepts one yet, so every consumer still needs its own UI.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational

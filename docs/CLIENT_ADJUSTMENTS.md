@@ -53,8 +53,15 @@ endpoint on top of the storage drivers already merged in `8dc46a1`
 (`Backend/src/core/storage/` — local and S3 drivers behind one
 `StorageDriver` interface). That is not a quotes feature, and **three other
 requests are blocked on the same thing**: #7 (broker tax-form folders), #11's
-Resources section, and #11's referral attachment. Build the upload endpoint and
-the media library now; leave only the quote/itinerary picture-picker deferred.
+Resources section, and #11's referral attachment.
+
+✅ **The foundation shipped on 19 September 2026** — see **Done**.
+`POST /api/files` with `category=AIRCRAFT_PHOTO` stores a photograph against a
+real tail today.
+
+**Still deferred:** the fleet-side uploader and gallery, and the picture-picker
+on a quote or an itinerary. Those are the halves that need the pending Quotes
+and Itinerary UI.
 
 ### ☐ 6. Instant quote calculator with a suggested-price selector
 
@@ -205,7 +212,7 @@ Design it together with #11's **Agent Update** field — that is the same
 feature with a visibility flag, and discovering that after building both is
 how two note systems end up in one codebase.
 
-### ☐ 7. A document folder per user, for tax forms
+### ◐ 7. A document folder per user, for tax forms
 
 > I want there to be a folder for each broker that I can attach tax forms to
 > For example, a broker (mark) makes a commission with us, we need to give him
@@ -214,15 +221,14 @@ how two note systems end up in one codebase.
 >
 > So each user has a folder that we can add documents to
 
-⚠️ **Blocked on file upload.** The storage drivers exist; **no endpoint accepts
-a file yet** — there is no `FileInterceptor` or `UploadedFile` anywhere in the
-backend.
+◐ **The server half is done** — see **Done**. `USER_DOCUMENT` is
+exactly this: an administrator files a document against a user, the owner and an
+administrator can read it, and another broker gets a 404 rather than a 403, so
+they cannot even learn it exists. Verified live.
 
-Then a Document model scoped to a user, a tab on the user profile, and a
-permission decision that is not optional: **a broker's 1099 must not be
-readable by another broker.** A tax form is the most sensitive document this
-system will hold. Own-scope read, admin-scope write, and no listing endpoint
-that leaks another user's filenames.
+**What is left is the screen:** a Documents tab on the user profile with an
+uploader, the list, and Remove. `GET /api/files?category=USER_DOCUMENT&ownerUserId=<id>`
+is the whole data call.
 
 ### ☐ 10b. Empty-leg matching against past trip requests
 
@@ -391,20 +397,82 @@ His full specification, verbatim:
 
 ---
 
+---
+
+## Done
+
+### ✅ File upload — 19 September 2026
+
+Order item 1. Not a request of the client's in its own right; the single piece
+of infrastructure four of his requests were queued behind.
+
+**What exists now**
+
+- `POST /api/files` — multipart upload, and **the content type is read from the
+  bytes, never from the upload header.** A PNG announced as `application/pdf`
+  is stored as a PNG; an HTML file named `.pdf` is stored as `text/plain` and
+  served as an attachment with `nosniff`, so a browser downloads it instead of
+  running it on the API's own origin. SVG, archives and legacy `.doc`/`.xls`
+  are refused outright — the first executes script, the second hides its
+  contents from any check, and the third two are byte-identical at the header,
+  so nothing can tell them apart.
+- **Three categories, and the category is the whole authorization model.** A
+  1099 and a marketing brochure are both rows in one table and are not remotely
+  the same secret, so the permission that governs a file is a property of the
+  file rather than of the route:
+
+  | Category | Who may read | Who may write |
+  |---|---|---|
+  | `USER_DOCUMENT` | the owner, or `MANAGE_USERS` | `MANAGE_USERS` |
+  | `RESOURCE` | everyone signed in | `MANAGE_RESOURCES` (new) |
+  | `AIRCRAFT_PHOTO` | `MANAGE_AIRCRAFT` | `MANAGE_AIRCRAFT` |
+
+- **A broker cannot see another broker's tax form, and cannot learn that one
+  exists.** Reads that fail answer **404, not 403** — a 403 would confirm the
+  row is there and turn a list of user ids into a register of who has been paid.
+  Verified live: Mark downloads his own 1099, Barry gets 404 on the detail, 404
+  on the download, and it is absent from both his list and his filtered list.
+- Archive, restore, bulk archive, bulk restore, rename — and **archiving leaves
+  the bytes in storage untouched**, because a restore that could not hand back
+  the same file would not be a restore.
+- `GET /files/objects/:key` serves driver-managed objects, which is what finally
+  makes the existing `avatarKey` column reachable. Permission is re-checked on
+  every fetch rather than frozen into a presigned link, and because sessions are
+  httpOnly cookies the URL works directly in an `<img src>`.
+
+**Verified:** 34 unit tests · 34 live authorization assertions · Newman 127
+requests / 56 assertions / 0 failures, passing alone and twice in a row · 106
+OpenAPI operations, none missing a summary, a description or a success schema.
+
+**One thing fixed on the way.** The Files routes hand-write their 403s, because
+a permission that depends on the row's category cannot be derived from a guard
+decorator. That exposed a bug in the OpenAPI derivation added last week: Nest
+only injects a default success response when a controller declares *no*
+`@ApiResponse` of its own, so those five routes were published as operations
+that could only fail. `describe-responses.ts` now reconstructs the success code
+the same way Nest picks it. The fix is general — it protects every future route
+that documents a response by hand.
+
+**What this does *not* include:** any screen. No frontend consumes the API yet,
+so #7's folder tab, #3's gallery and #11's Resources section each still need
+their UI. Thumbnails and image resizing are deliberately deferred until
+something renders a gallery.
+
+
 ## The order
 
 Dependency-first, as `AGENTS.md` requires. Cheapest unblocker at the top.
 
 | # | Item | Why here |
 |---|---|---|
-| 1 | **File upload endpoint** | Unblocks #7, #11 Resources, #11 attachments, and #3's foundation. One piece of infrastructure, four dependants. |
+| 1 | ~~**File upload endpoint**~~ ✅ **API done 19 Sep 2026** | Unblocks #7, #11 Resources, #11 attachments, and #3's foundation. One piece of infrastructure, four dependants. See **Done**, above. |
 | 2 | **#2 Operator cancellation policy** | An hour, both sides, no dependencies. |
 | 3 | **#8 / #10a Trip requests page** | Frontend only — the API is finished. Highest visible value per hour on the list. |
 | 4 | **#4 Ten-minute idle logout** | Self-contained, and he framed it as security. |
 | 5 | **#1 Demonstrate the Archived tab** | No code. Do it on the next call. |
 | 6 | **#5 Notes timeline** | Clients now, Trips on its turn. |
 | 7 | **#9 Client credit ledger** | Client-scoped now, trip link when Trips lands. |
-| 8 | **#7 User document folders** | After upload exists. |
+| 8 | **#7 User document folders** | ◐ API done — the Documents tab on the user profile is what remains. |
 | 9 | **Trips** | Not a client request — but it still unblocks nine modules, and both #5 and #9 are waiting on it. |
 | 10 | **#10b Empty-leg matching** | After Empty Legs has a backend. |
 | 11 | **#11 Referral Agent portal** | Last. Needs Trips, Commissions and upload all in place. |
