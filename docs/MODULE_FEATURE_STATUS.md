@@ -17,7 +17,12 @@ the scope asks for that we chose not to build yet, with the reason.
 > pretends a missing dependency is a zero.
 
 Companion to [MODULES.md](MODULES.md), which explains what each module *is* and
-why it sits where it does in the queue. This file is only about state.
+why it sits where it does in the queue, and to
+[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md), which tracks what the client has
+asked us to change. This file is only about state.
+
+The rules behind every decision recorded here live in **`AGENTS.md`** at the
+repository root.
 
 Legend: ✅ done · ◐ partly done · ⬅ next · ⬜ not started
 
@@ -604,6 +609,44 @@ the aircraft photo library. See
 photograph served whole into a gallery is slow, and the fix is a resize
 pipeline. Nothing renders a gallery yet, so building it now would be tuning a
 screen that does not exist.
+
+---
+
+## Cross-cutting fixes
+
+Things repaired in one place that changed behaviour in several modules. They
+have no single module's section, and they are the ones a later agent is most
+likely to trip over if they are not written down.
+
+### `CommonDatePicker` emitted a display string — fixed 19 September 2026
+
+The shared date control emitted `"Aug 12, 2026"`, the string the Figma mock
+showed. Every date field on the API rejects it with "Use a YYYY-MM-DD date".
+
+**Quotes, Leads, Aircraft maintenance and Operator Sourcing all pass the
+picker's value straight to the server, so none of their dates could be saved at
+all** — silently, in four modules, until someone tried one. It now emits
+`YYYY-MM-DD` and formats the label for reading only, the same split the project
+already applies to enums.
+
+Three more mock values went with it: the calendar opened on a hardcoded August
+2026, the shortcut read "Today (Aug 12)" whatever the real date was, and the
+selected day was matched by substring, so picking the 1st highlighted the 10th
+and the teens too.
+
+**If you are wiring a module whose dates "never worked", this was why.** The
+modules above were not individually broken; they were all downstream of one
+control.
+
+### The OpenAPI success response — fixed 19 September 2026
+
+Nest injects an implicit 200/201 only when a controller declares **no**
+`@ApiResponse` of its own. The Files routes hand-write their 403s, so five of
+them were published as operations that could only fail. `describe-responses.ts`
+now reconstructs the success code the way Nest picks it, from
+`HTTP_CODE_METADATA`. **The fix is general** — every future route that
+documents a response by hand is covered, and nothing has to be remembered at
+the call site.
 
 ---
 

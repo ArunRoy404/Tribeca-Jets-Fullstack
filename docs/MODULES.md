@@ -14,11 +14,17 @@ Every screen listed below already exists in the frontend. "Not started" here
 means *not wired to an API* — the screen renders from a file in
 `src/dummyData/`. Finishing a module means deleting that file.
 
-> **Looking for what actually works right now?** That lives in
-> [MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md) — per module, the
-> features wired end to end today, and the ones deliberately left blank until
-> the module they depend on ships. This file explains what each module *is*;
-> that one tracks state.
+> **Three documents, three questions.** Read the right one:
+>
+> | Question | File |
+> |---|---|
+> | *What is this module, and why is it here in the queue?* | **MODULES.md** — this file |
+> | *What works against the real database today?* | [MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md) |
+> | *What has the client asked us to change, and what is left?* | [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) |
+>
+> The rules every module follows — and the incidents that produced them — are
+> in **`AGENTS.md`** at the repository root. Read it before writing code; it is
+> the whole rulebook, and the conventions in it are not guessable.
 
 ---
 
@@ -38,10 +44,10 @@ set of broken joins the day the real table arrives.
 | 5 | **Clients** | ✅ Done | Users (broker), Airports (home base) |
 | 6 | **Aircraft** | ✅ Done | Operators (owner), Airports (home base) |
 | 7 | **Leads & Agents** | ✅ Done | Users, Clients |
-| 8 | **Trip Requests** *(Open Requests)* | ◐ API done, board pending | Clients, Airports, Users |
+| 8 | **Trip Requests** *(Open Requests)* | ✅ Done | Clients, Airports, Users |
 | 9 | **Operator Sourcing** | ✅ Done | Trip Requests, Operators, Aircraft |
-| 10 | **Quotes** | ⬅ **Next** | Trip Requests, Sourcing, Clients, Aircraft |
-| 11 | **Trips** | Not started | Quotes, everything above |
+| 10 | **Quotes** | ✅ Done | Trip Requests, Sourcing, Clients, Aircraft |
+| 11 | **Trips** | ⬅ **Next** | Quotes, everything above |
 | 12 | **Itineraries** | Not started | Trips |
 | 13 | **Schedule** | Not started | Trips (read-only view) |
 | 14 | **Flight Tracking** | Not started | Trips, Aircraft |
@@ -58,10 +64,18 @@ set of broken joins the day the real table arrives.
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
 | 27 | **AI Assistant** | Stub only | All |
+| 28 | **Files** | ✅ API done, no screen | — (built out of order; see below) |
 
-**Why Quotes is next:** every dependency is now built. Sourcing settles what
-the flight costs Tribeca Jets to buy; Quotes is the priced offer to the client,
-with margin and FET on top.
+**Why Trips is next:** it is the single largest unblocker in the project. Nine
+modules (12, 13, 14, 16, 17, 18, 19, 23 and the Dashboard) and roughly a dozen
+individual fields on modules already shipped are waiting on it — every "—" on a
+screen that should read a trip count is waiting for this one table.
+
+**Files (#28) was built out of order, on purpose.** It is not in the signed
+scope's module list and it is not a client request in its own right: it is the
+one piece of infrastructure that **four** of the client's adjustments were
+queued behind. Building it inside any one of them would have made it that
+module's private code. See [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md).
 
 **Operator Sourcing added one table, not two.** The board's rows are trip
 requests being worked — the same record the Open Requests board shows — so the
@@ -241,14 +255,17 @@ feature nothing has.
 Quotes, Trips, Empty Legs and Flight Tracking all reference aircraft, so this
 unblocks a large part of the remaining queue.
 
-> **Deferred: aircraft images.** The scope lists images on the Aircraft record
-> (§ data model) and in the passenger itinerary (§6.11). They are not built,
-> because **this project has no file-upload pipeline at all** — `multer` is not
-> installed and no endpoint anywhere accepts a file; `avatarKey` is only ever
-> read. Building the first one inside Aircraft would either be thrown away or
-> become an accidental framework. It belongs with **Document Vault (#22)**,
-> which needs the same pipeline for contracts, operator documents and quote
-> PDFs. A column that nothing can write would be worse than the gap.
+> **Aircraft images: the API is live, the screen is not.** This paragraph used
+> to say the project had no file-upload pipeline at all. It has one now —
+> **Files (#28)**, built when four client requests turned out to be queued
+> behind it. `POST /api/files` with `category=AIRCRAFT_PHOTO` and an
+> `aircraftId` stores a photograph against a tail, governed by
+> `MANAGE_AIRCRAFT`: whoever may rename a tail may photograph it.
+>
+> What is still missing is UI. The fleet screen has no uploader and no gallery,
+> and the picture-picker the client wants on a quote or an itinerary waits on
+> those two modules' pending UI changes. Thumbnails and resizing are deferred
+> until something actually renders a gallery.
 
 ### 7. Leads & Agents ✅
 
@@ -277,7 +294,7 @@ the invite form was removed.
 to measure. A new broker showing "0% conversion" is a wrong answer that follows
 them around.
 
-### 8. Trip Requests (Open Requests) — API done
+### 8. Trip Requests (Open Requests) ✅
 
 A client asks for a flight: route, dates, passenger count, aircraft
 preference, budget. The record that *starts* everything downstream — sourcing,
@@ -287,10 +304,17 @@ quotes and trips all descend from it.
 It has full CRUD, archive/restore, scoping and stats, and the lead detail page
 lists a client's enquiries.
 
-**What is still missing is the dedicated board.** The doc's IA lists "Open Trip
-Requests" as its own section and the frontend has no page for it — the API
-already supports it (`openOnly=true`, the departure window filter, the pipeline
-tile), so this is a screen to build, not a module to design.
+**The dedicated page shipped on 19 September 2026**, as client adjustments #8
+and #10a — he asked for it twice, five weeks apart. It lives at
+`/dashboard/trip-requests` with three tabs: **Active** (`openOnly=true`),
+**All Requests**, and **Archived**. His reason for wanting all of them kept is
+worth repeating, because it is the whole design: *"most never get booked. We
+still want to have access to those trip request data just in case in future
+when we have empty legs that can match a previous trip request."*
+
+That is also why the row action leads with **Mark as Lost** rather than Remove.
+A lost enquiry leaves the Active tab and stays in the log — which is exactly
+what makes it findable when an empty leg matches it later (**Empty Legs #15**).
 
 Uses the **trips** permissions rather than its own: a request is the start of a
 trip. `VIEW_TRIPS` to read, `MANAGE_TRIPS` to write, `DELETE_TRIPS`
@@ -328,22 +352,62 @@ mis-click, since the board disables both buttons once a quote is settled.
 > absent rather than invented — a score nobody gave an operator is the same
 > failure as the 4.9 safety rating.
 
-### 10. Quotes
+### 10. Quotes ✅
 
 The priced offer to the client, built from a sourced operator price plus
 margin and **FET** (Federal Excise Tax). Draft → Sent → Viewed → Approved /
 Rejected / Expired. An approved quote becomes a trip.
 
-### 11. Trips
+**Two quote entities, deliberately.** Scope §10 lists Operator Quote and Client
+Quote separately and they are genuinely different records: one is what an
+operator charges *us* (#9), the other is what the client pays. Approving an
+operator's price does not create the client's offer — the desk decides the
+markup — so `operatorQuoteId` links them without making one the other.
+
+**Nothing computed is stored.** `fetAmount`, `extrasTotal`, `totalPrice`,
+`grossProfit` and `marginPercentage` are worked out on every read, in one place
+(`quotes.pricing.ts`), from the four inputs a person actually typed. A stored
+total beside its own parts is the classic accounting bug: the day an edit moves
+the base price and the total does not follow, the quote contradicts itself and
+nothing on screen says which half is right — and someone reads the wrong half
+down the phone. The one place frozen figures *are* correct is `QuoteVersion`,
+which answers "what exactly did the client see on the 9th?" and must never
+recompute.
+
+**Margins are gated behind `VIEW_FINANCIALS`**, and the keys are *absent*
+rather than zeroed — a `0` margin is a number someone could repeat out loud.
+
+> ⚠️ **The client has UI changes pending for Quotes.** Two of his adjustments
+> (the aircraft picture-picker, and an instant quote calculator with a
+> suggested-price selector) are **deferred at his own request** until that UI
+> lands. Do not start them. See [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md).
+
+### 11. Trips ⬅ **Next**
 
 The booked flight, and the centre of the system: client, broker, operator,
 aircraft, route, dates, status, client payment state, operator payment state,
 FET and profit. Almost every remaining module reads from it.
 
+**The single largest unblocker in the project.** Landing it fills in, in the
+second pass every module owes its dependants: Users `activeTrips`/`revenue`,
+Operators `totalTrips` and trip history, Aircraft
+`totalTrips`/`tripsThisYear`/`avgUtilization` and a *derived* `IN_SERVICE`,
+Clients' trips tab and total spend, Agents' `activeTrips` — plus it is the
+dependency for modules 12, 13, 14, 16, 17, 18, 19, 23 and 24.
+
+**That second pass is not optional and is part of shipping Trips.** A
+dependency returning `totalTrips: null` today is telling the truth; the day
+Trips exists, the same null becomes a *wrong answer* on a screen. Grep the
+dependants for the nulls and empty arrays their services return before calling
+this module done.
+
 ### 12. Itineraries
 
 The passenger-facing document for a trip: tail number, times, passengers and
 passport numbers, catering, ground transport, FBO. Confirmed or pending.
+
+> ⚠️ **Like Quotes, this has client UI changes pending**, and the aircraft
+> picture-picker is deferred until they land.
 
 ### 13. Schedule
 
@@ -392,6 +456,12 @@ certificates, attached to trips, clients and operators. **No screen exists.**
 The Clients detail page had an attachment drop zone wired to nothing — it was
 removed rather than faked, and belongs here.
 
+**The pipeline it was going to own already exists** — see **Files (#28)**.
+What is left here is the vault *as a product*: a browsable store with folders,
+versions, and expiry dates on certificates. Each consumer (contracts, operator
+certificates, quote PDFs) needs its own screen and its own row in
+`FILE_CATEGORY_RULES`.
+
 ### 23. Reports
 
 Revenue, profit, FET collected and trip counts over selectable periods, with
@@ -417,6 +487,48 @@ discovered at delivery.
 
 Currently four hardcoded suggestion strings. The scope doc describes an
 in-app assistant answering questions about the desk's own data.
+
+### 28. Files ✅ *(API only)*
+
+**Not in the signed scope's module list, and built out of order deliberately.**
+Four of the client's adjustments were each blocked on the same missing thing —
+a per-broker tax-form folder, the referral portal's Resources section, referral
+attachments, and the aircraft photo library. Building it inside any one of them
+would have made it that module's private code.
+
+**The category is the authorization model, and that is the idea worth carrying
+forward.** A 1099 and a marketing brochure are rows in one table and are not
+remotely the same secret, so `@RequirePermissions` — which runs before any row
+is read — cannot decide who may open one. Instead `FileObject` carries a
+required `category`, and `files.access.ts` maps each value to a read
+permission, a write permission, an owner kind, a format allowlist and a size
+ceiling:
+
+| Category | Who may read | Who may write |
+|---|---|---|
+| `USER_DOCUMENT` | the owner, or `MANAGE_USERS` | `MANAGE_USERS` |
+| `RESOURCE` | everyone signed in | `MANAGE_RESOURCES` |
+| `AIRCRAFT_PHOTO` | `MANAGE_AIRCRAFT` | `MANAGE_AIRCRAFT` |
+
+It is a `Record<FileCategory, …>`, so **adding a category without deciding who
+may open it is a compile error**. There is deliberately no `OTHER`: a catch-all
+is a category whose access rule cannot be stated.
+
+**Three things about it are security decisions, not implementation details:**
+
+- **The content type is read from the bytes, never the upload header.** A
+  multipart part's `Content-Type` is chosen by whoever sent it, so storing it
+  means the download route eventually hands a browser exactly what an attacker
+  picked — `text/html` on the API's own origin, with the session cookie
+  attached. SVG, archives and legacy `.doc`/`.xls` are refused outright.
+- **A broker cannot learn that another broker's tax form exists.** Failed reads
+  answer **404, not 403** — a 403 would turn a list of user ids into a register
+  of who has been paid.
+- **Archiving never touches the bytes.** A restore that cannot hand back the
+  same file is not a restore; it is an empty row wearing a filename.
+
+**No screen consumes this yet.** Every consumer — the broker documents tab, the
+aircraft gallery, Resources — still needs its own UI.
 
 ---
 
@@ -456,18 +568,33 @@ backwards compatibility a requirement of every shared change.
 filter dropdowns define the fields and enums. Where the UI and the schema
 disagree, that is a real finding — surface it rather than quietly picking one.
 
+**A control's value is the wire format; its label is for reading.** Enums
+travel as `SCREAMING_SNAKE_CASE`, dates as `YYYY-MM-DD`. This is a rule because
+`CommonDatePicker` emitted the display string from the Figma mock —
+`"Aug 12, 2026"` — which every date field on the API rejects. Quotes, leads,
+aircraft maintenance and sourcing requests all passed it straight through, so
+**none of their dates could be saved at all**, in four modules, silently, until
+someone tried one. Shared controls get used everywhere; a mock value left in
+one is a wrong answer on twenty screens.
+
 **Postman is a deliverable.** Every endpoint gets its entry in the same pass as
 the code, with a real captured success example and an example for every error
-it can return. Verified with `newman` before it counts as done.
+it can return. Verified with `newman` before it counts as done. A folder that
+creates a row archives it again in a teardown — the run is a demonstration, not
+a data entry session.
+
+**Never commit or push unless the user asks in that message.** Approval of the
+work is not approval to commit. Leaving finished work uncommitted is the
+correct resting state.
 
 ---
 
-## The five gaps between the scope doc and the build
+## The four gaps between the scope doc and the build
 
 Sections the signed scope's information architecture lists, with no screen in
 the frontend at all:
 
-1. Open Trip Requests
+1. ~~Open Trip Requests~~ ✅ **closed 19 September 2026** — `/dashboard/trip-requests`
 2. Document Vault
 3. Client Portal
 4. Settings / Backup / Import / Export
@@ -478,3 +605,22 @@ Plus two acceptance criteria with zero code: **PWA / offline support** and
 
 None of these are blocked. They just have not been scheduled, and they are the
 most likely source of a surprise at delivery.
+
+---
+
+## If you are an agent picking this up cold
+
+1. Read **`AGENTS.md`** at the repository root, in full. It is the whole
+   rulebook and its conventions are not guessable — ESM `.js` imports on a TS
+   source tree, no `.partial()` on update schemas, no `z.coerce.*` on anything
+   a form touches, 404-not-403 for rows outside scope, URL-as-source-of-truth
+   for table state.
+2. Read **[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md)** §0 — it carries the
+   handoff brief, the standing constraints and the current work queue.
+3. Read this file for the module you are about to touch, and
+   **[MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md)** for what it can
+   actually do today.
+4. **Read the frontend before writing schema.** The screens were built first
+   and they are the specification.
+5. **Never commit or push unless asked in that message.** Finished work sitting
+   uncommitted is the correct resting state.
