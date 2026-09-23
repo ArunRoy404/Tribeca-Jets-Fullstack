@@ -577,6 +577,62 @@ there from `HTTP_CODE_METADATA` the same way Nest picks it, rather than read
 off the document. Five Files routes were briefly published that way; the fix is
 in the derivation, so nothing has to be remembered at the call site.
 
+## Uploads are one global surface, addressed by content
+
+**There is exactly one way to put a file into this system:**
+`POST /api/uploads/image` and `POST /api/uploads/document`. Both return a
+**URL**, and the record being edited stores that URL in a column. Nothing in
+the upload path knows what a file is *for*.
+
+This replaced a `FileObject` table keyed by a `FileCategory` enum, and the two
+reasons it had to go are worth keeping, because both are easy to re-introduce:
+
+- **A category was required at upload time**, which made it impossible to
+  attach a photograph to a record that did not exist yet. That is the ordinary
+  shape of a create form: pick the picture, then save. Uploading first and
+  storing the returned URL in the form payload is what makes that work.
+- **Every new upload button needed a new enum value and a migration.** A
+  *purpose* — "tax form", "id proof", "brochure" — is not a kind of file. Only
+  `image` and `document` are, and those two are settled.
+
+Three rules hold on top of that:
+
+- **The URL stored is relative** (`/api/uploads/<id>`), never absolute. An
+  absolute URL captured at upload time embeds whatever host was running then,
+  so every row written in development points at localhost for ever, and a
+  domain change or a move to a CDN strands every file already uploaded.
+- **Storage is content-addressed**: `images/<sha256>.png`,
+  `documents/<sha256>.pdf`. Identical bytes always resolve to the same object,
+  so a re-upload overwrites a file with itself instead of filling the disk.
+  **There is deliberately no date folder** — a date would put the same bytes in
+  two places on two days and defeat the deduplication the key exists to
+  provide.
+- **Deduplication is scoped to the uploader.** Re-uploading returns the
+  existing row with `deduplicated: true` and writes nothing. It is per-user
+  because a globally shared row makes one person's delete a side effect on
+  another person's record. Per-user costs one row and no bytes, since the
+  object is shared anyway.
+
+The upload routes carry **no permission decorator**, and that is deliberate:
+every write these files attach to is already guarded by the permission for
+*that* record. A broker who cannot edit an aircraft cannot save a photograph
+onto one, whatever they managed to upload. Reads still need a session —
+`JwtAuthGuard` is global — so there is no unauthenticated path to a stored
+object.
+
+## A `StreamableFile` must never be wrapped by the response interceptor
+
+`TransformInterceptor` puts every response in `{ success, data, meta? }`. A
+`StreamableFile` is not a payload to describe — it *is* the body — so wrapping
+one serves `{"success":true,"data":{"options":{},"stream":{}}}` where a PNG
+should be.
+
+**The failure is invisible to the obvious test.** The status code is 200, the
+`Content-Type` says `image/png`, the `Content-Disposition` is right, and only
+the bytes are wrong. The old download route shipped like this and was "verified"
+by checking exactly those headers. Any test of a streaming route must compare
+the returned bytes against the file that was uploaded.
+
 ## Uploads: never trust the content type a caller sends
 
 A multipart part's `Content-Type` is chosen by whoever sent it. Store it and the
@@ -584,7 +640,7 @@ download route will one day hand a browser exactly what an attacker picked —
 `text/html` on a file the desk believes is a PDF is a script running on the
 API's own origin, with the session cookie attached.
 
-**Read the type from the bytes** (`modules/files/file-signature.ts`) and store
+**Read the type from the bytes** (`common/files/file-signature.ts`) and store
 *that*. The sender's header settles exactly one question: whether text is
 `text/plain` or `text/csv`, which are the same bytes and differ only in intent.
 
@@ -603,31 +659,25 @@ Then serve defensively too: `X-Content-Type-Options: nosniff` on every
 response, and `Content-Disposition: inline` **only** for images. Everything else
 downloads.
 
-## When the permission depends on the row, the guard cannot make the decision
+## Access to a file is a property of the record that holds its URL
 
-`@RequirePermissions` runs before anything is read, so it can only express a
-rule that is true of the caller alone. A file's rule is not: a 1099 and a
-marketing brochure are rows in one table, in one bucket, and are not remotely
-the same secret.
+An earlier design gave every file a required `category` and made that category
+decide who could read it. It was removed — see "Uploads are one global surface"
+above for why — and the rule that replaced it is simpler:
 
-So `FileObject` carries a required `category`, and `files.access.ts` maps each
-value to a read permission, a write permission, an owner kind, a format
-allowlist and a size ceiling. The controller carries **no** permission
-decorator and says so in a comment; the service enforces the table.
+**A file is reachable by anyone with a session; what it is attached to is
+guarded normally.** A tax form is protected because the *user record* that
+lists it is protected, not because the bytes carry a permission of their own.
 
-Two things make this safe rather than a hole:
+That is a real trade, and it is worth stating plainly rather than discovering
+later: **a URL is an address, not a permission.** Anyone signed in who holds an
+upload id can fetch it. For aircraft photographs, brochures and logos that is
+correct and intended. For a 1099 it is not, and the answer when that screen is
+built is a `visibility` flag plus an owner on the upload row, checked on the
+fetch route — deliberately *not* a category enum, because the thing being
+described is one file's sensitivity and not a taxonomy of purposes.
 
-- **It is a data structure, not four `if` branches.** A rule spread across
-  `findAll`, `findOne`, `update` and `remove` is a rule that gets forgotten in
-  the fifth place — and the fifth place is the download.
-- **A category with no rule does not compile.** `Record<FileCategory, …>` is
-  total, so adding an enum value without deciding who may open it is a type
-  error. For the same reason there is no `OTHER`: a catch-all is a category
-  whose access rule cannot be stated.
-
-The usual split still holds — reads that fail answer **404**, writes that fail
-answer **403**. A 403 on reading a personal document confirms it exists, which
-turns a list of user ids into a register of who has been paid.
+Do not solve it by putting files back behind a category.
 
 ## Archiving a file never touches the bytes
 

@@ -183,14 +183,14 @@ b70b5d8  feat(auth): sign out a session left untouched for ten minutes
 
 | # | Request | Backend | Frontend | State |
 |---|---|---|---|---|
-| — | File upload infrastructure | ✅ | ☐ | **API done.** No screen consumes it yet. Unblocks 3, 7, 11. |
+| — | Upload infrastructure | ✅ | ☐ | **API done, rebuilt 23 Sep.** No screen consumes it yet. Unblocks 3, 7, 11. |
 | 1 | Client stays visible after a broker deletes it | ✅ | ✅ | **Already works.** Needs a demonstration, not code. |
 | 2 | Operator cancellation policies | ✅ | ✅ | **Done** 19 Sep 2026. |
 | 3 | Aircraft pictures + stock image library | ◐ | ☐ | Foundation done. Gallery and picker **deferred** — needs Quotes/Itinerary UI. |
 | 4 | Ten-minute idle logout | ✅ | ✅ | **Done** 19 Sep 2026. |
 | 5 | Notes on a timeline | ☐ | ☐ | Not started. Needs Trips for half of it. |
 | 6 | Instant quote calculator | ☐ | ☐ | **Deferred** — needs Quotes UI **and his rate data**. |
-| 7 | A document folder per user (tax forms) | ✅ | ☐ | **API done.** The Documents tab is what remains. |
+| 7 | A document folder per user (tax forms) | ◐ | ☐ | Uploading works. Needs a `UserDocument` table, the Documents tab, **and per-file access control**. |
 | 8 | "Active trip request" section | ✅ | ✅ | **Done** 19 Sep 2026 — same as 10a. |
 | 9 | Client credit / money on account | ☐ | ☐ | Not started. Build as a ledger, not a number. |
 | 10a | Trip request page | ✅ | ✅ | **Done** 19 Sep 2026. |
@@ -206,12 +206,12 @@ Dependency-first, as `AGENTS.md` requires. Cheapest unblocker at the top.
 
 | # | Item | Why here |
 |---|---|---|
-| 1 | ~~**File upload endpoint**~~ ✅ 19 Sep 2026 | One piece of infrastructure, four dependants: 7, 11 Resources, 11 attachments, 3's foundation. |
+| 1 | ~~**Upload endpoints**~~ ✅ 19 Sep, rebuilt 23 Sep 2026 | One piece of infrastructure, four dependants: 7, 11 Resources, 11 attachments, 3's foundation. |
 | 2 | ~~**#2 Operator cancellation policy**~~ ✅ 19 Sep 2026 | Took a textarea, not a column. |
 | 3 | ~~**#8 / #10a Trip requests page**~~ ✅ 19 Sep 2026 | Frontend only — the API was already finished. |
 | 4 | ~~**#4 Ten-minute idle logout**~~ ✅ 19 Sep 2026 | Enforced on both sides. |
 | **5** | **#1 Demonstrate the Archived tab** | **No code.** Five minutes on the next call with him. |
-| **6** | **#7 User document folders** | ◐ API done. A Documents tab on the user profile is all that remains — **the cheapest real work available.** |
+| **6** | **#7 User document folders** | ◐ Uploading works. Needs a small `UserDocument` table, the profile tab, and the per-file access control a tax form requires — **the cheapest real work available.** |
 | **7** | **#5 Notes timeline** | Clients now, Trips on its turn. Design together with #11's Agent Update field. |
 | **8** | **#9 Client credit ledger** | Client-scoped now; the trip link is a second pass the day Trips lands. |
 | **9** | **Trips** | Not a client request — but #5 and #9 both wait on it, and it unblocks nine modules. |
@@ -270,8 +270,9 @@ He names the consumers himself — quote and itinerary.
 
 **This one splits, and the split matters.**
 
-- ✅ **The foundation shipped** (§4, File upload). `POST /api/files` with
-  `category=AIRCRAFT_PHOTO` stores a photograph against a real tail today.
+- ✅ **The foundation shipped** (§4, Uploads). `POST /api/uploads/image`
+  returns a URL today; the aircraft record stores it in a `photoUrl` column
+  that still needs adding with the fleet UI.
 - ☐ **Still deferred:** the fleet-side uploader and gallery, and the
   picture-picker on a quote or an itinerary. Those need the pending Quotes and
   Itinerary UI. **Do not start them.**
@@ -357,40 +358,43 @@ that `AGENTS.md` records.
 >
 > So each user has a folder that we can add documents to
 
-**Status: server half done. Order item 6 — the cheapest real work available.**
+**Status: the upload half exists. Order item 6 — the cheapest real work
+available.**
 
-✅ **The server half is finished.** `USER_DOCUMENT` is exactly this: an
-administrator files a document against a user, the owner and an administrator
-can read it, and another broker gets a **404 rather than a 403**, so they
-cannot even learn it exists. Verified live.
+✅ **Uploading and serving a document is done** — `POST /api/uploads/document`
+returns a URL, and `GET /api/uploads/:id` serves the bytes.
 
-☐ **What is left is one screen:** a **Documents tab on the user profile**, with
-an uploader, the list, and Remove.
+☐ **What is left is the feature itself:** a small `UserDocument` table (which
+document belongs to which broker, with a label and a date) and a **Documents
+tab on the user profile** with an uploader, the list and Remove.
 
-**The whole data call:**
+**The split matters.** Uploading returns a URL and nothing else — a broker's
+folder is a *list*, and a URL column holds one file. So this feature owns rows
+that each carry an upload URL, rather than the upload knowing whose folder it
+is in.
 
 ```
-GET    /api/files?category=USER_DOCUMENT&ownerUserId=<id>
-POST   /api/files            (multipart: file, category, ownerUserId, label, notes)
-GET    /api/files/:id/download
-DELETE /api/files/:id        (archives — never destroys the bytes)
-POST   /api/files/:id/restore
+POST   /api/uploads/document      → { url: "/api/uploads/<id>" }
+POST   /api/users/:id/documents   → stores that url + a label      (to build)
+GET    /api/users/:id/documents   → the folder                     (to build)
+DELETE /api/users/:id/documents/:docId                             (to build)
 ```
 
 **Where to build it**
 
 | | Path |
 |---|---|
-| API surface | `Backend/src/modules/files/files.controller.ts` |
-| Access rules | `Backend/src/modules/files/files.access.ts` |
+| Upload surface (done) | `Backend/src/modules/uploads/` |
+| New table | `Backend/prisma/schema/user-document.prisma` |
 | User profile page | `Frontend/src/templates/UsersRolesPage.jsx` and the user detail view |
-| New hooks folder | `Frontend/src/hooks/files/` (follow `src/hooks/aircraft/`) |
-| New service | `Frontend/src/services/files.service.js` |
+| New hooks folder | `Frontend/src/hooks/user-documents/` (follow `src/hooks/aircraft/`) |
+| Shared uploader | `Frontend/src/components/common/` — **build it here, not in the tab.** Step 2 adds upload widgets to many screens, and the second copy is the bug |
 
-**Watch for:** accepted formats and the size ceiling are **per category**, and
-they are data, not `if` branches — read `FILE_CATEGORY_RULES` and surface the
-real limits in the uploader rather than retyping them. `USER_DOCUMENT` accepts
-documents only, 25 MB.
+⚠️ **This is the feature that needs per-file access control, and it does not
+exist yet.** Today anyone with a session who holds an upload URL can fetch it —
+fine for a brochure, **not fine for a 1099**. Add `visibility` and an owner to
+the upload row and check them on the fetch route as part of this work. Do not
+solve it with a category enum; that was the design this replaced.
 
 ---
 
@@ -635,68 +639,81 @@ His full specification, verbatim:
 Kept in full. A later session needs to know *why* a thing was built the way it
 was, not only that it exists.
 
-### ✅ File upload — 19 September 2026 · order item 1
+### ✅ File upload — 19 September 2026, **rebuilt 23 September 2026** · order item 1
 
 Not a request of the client's in its own right; the single piece of
 infrastructure four of his requests were queued behind.
 
+**Built twice, and the second version is the one to read.** The first keyed
+every file to a `FileCategory` that decided who could read it. Two things were
+wrong with it, and both were found by looking at what step 2 is about to add:
+
+- **A category was required at upload time**, so a photograph could not be
+  attached to an aircraft that did not exist yet. That is the ordinary shape of
+  a create form — pick the picture, then save.
+- **Every new upload button needed a new enum value and a migration**, and the
+  frontend work ahead adds a lot of upload buttons.
+
+It was replaced before any screen consumed it, so nothing was migrated and no
+real data existed.
+
 **What exists now**
 
-- **`POST /api/files`** — multipart upload, and **the content type is read from
-  the bytes, never from the upload header.** A PNG announced as
-  `application/pdf` is stored as a PNG; an HTML file named `.pdf` is stored as
-  `text/plain` and served as an attachment with `nosniff`, so a browser
-  downloads it instead of running it on the API's own origin. SVG, archives and
-  legacy `.doc`/`.xls` are refused outright — the first executes script, the
-  second hides its contents from any check, and the last two are byte-identical
-  at the header, so nothing can tell them apart without trusting the sender.
-- **Three categories, and the category is the whole authorization model.** A
-  1099 and a marketing brochure are both rows in one table and are not remotely
-  the same secret, so the permission that governs a file is a property of the
-  file rather than of the route:
+```
+POST /api/uploads/image      jpg · png · webp · gif        15 MB  →  images/
+POST /api/uploads/document   pdf · docx · xlsx · csv · txt 25 MB  →  documents/
+GET  /api/uploads/:id        streams the bytes
+GET  /api/uploads/:id/meta   describes it without downloading
+DELETE /api/uploads/:id      archives the record, keeps the bytes
+POST /api/uploads/:id/restore
+```
 
-  | Category | Who may read | Who may write | Accepts | Cap |
-  |---|---|---|---|---|
-  | `USER_DOCUMENT` | the owner, or `MANAGE_USERS` | `MANAGE_USERS` | documents | 25 MB |
-  | `RESOURCE` | everyone signed in | `MANAGE_RESOURCES` (new) | documents + images | 50 MB |
-  | `AIRCRAFT_PHOTO` | `MANAGE_AIRCRAFT` | `MANAGE_AIRCRAFT` | images | 15 MB |
+**A screen uploads, gets a URL, and stores that URL on whatever record it was
+editing.** Nothing in the upload path knows what a file is *for* — that is the
+business of the record holding the URL — so a new upload spot anywhere in the
+product needs no backend change.
 
-  It is a `Record<FileCategory, …>`, so **adding a category without deciding who
-  may open it is a type error.** There is deliberately no `OTHER`: a catch-all
-  is a category whose access rule cannot be stated.
-- **A broker cannot see another broker's tax form, and cannot learn that one
-  exists.** Reads that fail answer **404, not 403**. Verified live: Mark
-  downloads his own 1099; Barry gets 404 on the detail, 404 on the download, and
-  it is absent from both his list and his filtered list.
-- Archive, restore, bulk archive, bulk restore, rename — and **archiving leaves
-  the bytes in storage untouched**, because a restore that could not hand back
-  the same file would not be a restore.
-- **`GET /files/objects/:key`** serves driver-managed objects, which is what
-  finally makes the existing `avatarKey` column reachable. Permission is
-  re-checked on every fetch rather than frozen into a presigned link, and
-  because sessions are httpOnly cookies the URL works directly in an `<img src>`.
+- **The content type is read from the bytes, never the upload header.** A PNG
+  announced as `application/pdf` is stored as a PNG; HTML named `.pdf` is
+  stored as `text/plain` and served as an attachment with `nosniff`, so a
+  browser downloads it instead of running it on the API's own origin. SVG,
+  archives and legacy `.doc`/`.xls` are refused outright — the first executes
+  script, the second hides its contents from any check, and the last two are
+  byte-identical at the header.
+- **Files go into the folders the client asked for**, content-addressed as
+  `images/<sha256>.png`. No date folder: a date would put the same bytes in two
+  places on two days and defeat deduplication.
+- **Re-uploading a file returns the one already on file** — `deduplicated:
+  true`, the original id, nothing written. Scoped per uploader, so one person's
+  delete is never a side effect on another's record. Self-healing: if the
+  object has gone missing the bytes are rewritten rather than a dead URL
+  returned.
+- **The stored URL is relative** (`/api/uploads/<id>`). An absolute URL
+  captured at upload time embeds whatever host was running then, so every row
+  written in development would point at localhost for ever.
+- **Archiving leaves the bytes alone**, because a restore that could not hand
+  back the same file would not be a restore — and the object may be shared with
+  another user's row.
 
-**Key files:** `Backend/src/modules/files/` · `prisma/schema/file.prisma` ·
-`Backend/src/core/storage/` (local and S3 drivers behind one interface).
+**Verified:** 42 live assertions on a clean database · 42 unit tests · Newman
+122 requests / 56 assertions / 0 failures, passing alone and twice in a row,
+leaving **0 live rows** behind.
 
-**Verified:** 34 unit tests · 34 live authorization assertions · Newman 127
-requests / 56 assertions / 0 failures, passing alone and twice in a row · 106
-OpenAPI operations, none missing a summary, a description or a success schema.
+**One serious bug found and fixed on the way.** `TransformInterceptor` wraps
+every response in `{ success, data }` — including a `StreamableFile`. So every
+download served `{"success":true,"data":{"options":{},"stream":{}}}` where the
+file should have been. **The old download route shipped with this**, and it was
+"verified" by checking the status code and the headers, which were all correct;
+only the bytes were wrong. Any test of a streaming route now has to compare the
+returned bytes against the file that was uploaded.
 
-**One bug fixed on the way.** The Files routes hand-write their 403s, because a
-permission that depends on the row's category cannot be derived from a guard
-decorator. That exposed a bug in the OpenAPI derivation: Nest only injects a
-default success response when a controller declares *no* `@ApiResponse` of its
-own, so those five routes were published as operations that could only fail.
-`describe-responses.ts` now reconstructs the success code the same way Nest
-picks it. **The fix is general** — it protects every future route that
-documents a response by hand.
+⚠️ **Known gap, deliberately open: per-file access control.** A file is
+reachable by anyone with a session. Correct for photographs and brochures,
+**wrong for a 1099** — which is request #7, and where it must be fixed. The
+columns were left out rather than added unenforced, because a schema that
+advertises a protection nothing checks is worse than one that admits the gap.
 
-**What this does *not* include: any screen.** No frontend consumes the API yet,
-so #7's folder tab, #3's gallery and #11's Resources section each still need
-their UI.
-
----
+**What this does *not* include: any screen.** No frontend consumes the API yet.
 
 ### ✅ Operator cancellation policies — 19 September 2026 · order item 2
 

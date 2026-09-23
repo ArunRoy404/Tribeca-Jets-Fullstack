@@ -221,12 +221,13 @@ API accepted, stored, and never gave back:
 | `IN_SERVICE` becoming *derived* rather than set by hand | **Trips (#11)** |
 | Availability against a date range | **Trips (#11)** + **Schedule (#13)** |
 
-**Aircraft images: the API is live, the screen is not.** `POST /api/files`
-with `category=AIRCRAFT_PHOTO` and an `aircraftId` stores a photograph against
-a tail, governed by `MANAGE_AIRCRAFT` — the same permission that edits the
-record, so whoever may rename a tail may photograph it. The fleet UI has no
-uploader or gallery yet, and the quote/itinerary picture-picker the client
-asked for waits on those two modules' UI changes. See **Files (#28)**.
+**Aircraft images: the API is live, the screen is not.**
+`POST /api/uploads/image` returns a URL; the fleet record would store it in a
+`photoUrl` column that does not exist yet. The upload deliberately does not
+know it is for an aircraft, which is what lets a photograph be chosen on the
+Add Aircraft form before the tail exists. The fleet UI has no uploader or
+gallery yet, and the quote/itinerary picture-picker the client asked for waits
+on those two modules' UI changes. See **Uploads (#28)**.
 
 ---
 
@@ -511,7 +512,7 @@ It is also what unblocks the Activity timelines on Clients and Leads.
 
 **No screen exists.** Waits on Trips (#11), Clients ✅, Operators ✅.
 
-**The pipeline it was going to own now exists** — see **Files (#28)**, built
+**The pipeline it was going to own now exists** — see **Uploads (#28)**, built
 first because four separate client requests were queued behind it. What is left
 here is the vault *as a product*: a browsable store with folders, versions and
 expiry dates on certificates.
@@ -565,7 +566,7 @@ waits on the data being there, which means most of the queue above.
 
 ---
 
-## 28. Files ✅ *(API only)*
+## 28. Uploads ✅ *(API only)*
 
 **Not in the original queue.** Built out of order because four separate client
 requests were queued behind one missing piece of infrastructure — per-broker tax
@@ -573,37 +574,60 @@ form folders, the referral portal's Resources section, referral attachments, and
 the aircraft photo library. See
 [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md).
 
+**Rebuilt on 23 September 2026.** The first version keyed every file to a
+`FileCategory` that decided who could read it. That made a category a
+prerequisite of an upload — so a photograph could not be attached to a record
+that did not exist yet, which is the ordinary shape of a create form — and put
+every future upload button behind a new enum value and a migration. It was
+replaced before any screen consumed it, so nothing was migrated and no real data
+existed.
+
 **Working now**
 
-- `POST /api/files` — multipart upload. The content type is read from the
-  **bytes**, never the upload header, so renaming a file changes nothing
-- Three categories, each with its own read rule, write rule, format allowlist
-  and size ceiling: `USER_DOCUMENT` (25 MB, documents), `RESOURCE` (50 MB,
-  documents or images), `AIRCRAFT_PHOTO` (15 MB, images)
-- A broker's personal folder is readable by that broker and an administrator,
-  and by **nobody else** — another broker gets a 404, not a 403
-- `GET /api/files` — paginated, searchable, filterable, scoped per category to
-  what the caller may see; `?archived=true` serves the Archived tab
-- `GET /api/files/:id/download` — streams with the stored type, `nosniff`, and
-  `inline` only for images. Permission is re-checked on every fetch rather than
-  frozen into a presigned link
-- `GET /api/files/objects/:key` — serves driver-managed objects; this is what
-  finally makes `avatarKey` reachable
-- Rename and notes; archive, restore, bulk archive, bulk restore
-- New permission `MANAGE_RESOURCES`, held by administrators only
-- 13 Postman requests, 19 captured examples, real multipart fixtures
-- 15 unit tests on the content sniffer alone
+- **`POST /api/uploads/image`** and **`POST /api/uploads/document`** — the whole
+  write surface. A screen uploads, gets a **URL**, and stores that URL on
+  whatever record it was editing. Nothing in the upload path knows what a file
+  is *for*, so a new upload spot anywhere in the product needs no backend change
+- **The content type is read from the bytes**, never the upload header, so
+  renaming a file changes nothing. SVG, archives and legacy `.doc`/`.xls` are
+  refused — the first executes script, the second hides its contents from any
+  check, and the last two are byte-identical at the header
+- **Files land in the folders the client asked for**: `images/` and
+  `documents/`, content-addressed as `<sha256>.<ext>`
+- **Re-uploading a file returns the one already on file** — `deduplicated: true`,
+  the original id, nothing written. Scoped per uploader, so one person's delete
+  is never a side effect on another's record. Self-healing: if the object has
+  gone missing from storage the bytes are rewritten rather than a dead URL
+  returned
+- **`GET /api/uploads/:id`** streams the bytes with `nosniff`, `inline` for
+  images and `attachment` for everything else. Works directly in an `<img src>`,
+  because the session is an httpOnly cookie
+- **`GET /api/uploads/:id/meta`** describes a file without downloading it, and
+  answers for archived files too, so a list can show "removed" rather than a
+  broken link
+- Remove and restore, with **the bytes untouched** either way
+- 8 Postman requests, 15 captured examples, real multipart fixtures, a teardown
+  that leaves nothing live, and a folder login so it passes run alone
+- 42 live assertions and 8 unit tests on the rules, plus 15 on the byte sniffer
 
 **Waiting on a dependency**
 
 | Feature | Blocked by |
 |---|---|
-| Any screen at all | **Files UI** — no frontend consumes this yet |
+| Any screen at all | **Uploads UI** — no frontend consumes this yet |
 | The broker document folder tab | **Users & Roles UI** |
 | The aircraft photo gallery | **Aircraft UI** |
 | Referral attachments and the Resources section | **Referral Agent (#11 in the client list)** |
 | Picking a photo onto a quote or itinerary | **Quotes / Itineraries** — both have client UI changes pending |
-| Client and operator document categories | their own screens; each is one row in `FILE_CATEGORY_RULES` |
+
+**Deferred by decision: per-file access control.** Today a file is reachable by
+anyone with a session; what it is attached to is guarded normally. That is
+correct for photographs, brochures and logos and **not** correct for a tax form,
+which is the client's own example (#7). The answer when that screen is built is
+a `visibility` flag and an owner on the upload row, checked on the fetch route —
+not a return to categories. The columns were left out rather than added
+unenforced, because a schema that advertises a protection nothing checks is
+worse than one that admits the gap.
 
 **Deferred by decision: thumbnails and image resizing.** A 15 MB cabin
 photograph served whole into a gallery is slow, and the fix is a resize

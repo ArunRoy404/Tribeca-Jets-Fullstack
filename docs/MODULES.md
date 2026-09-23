@@ -64,14 +64,14 @@ set of broken joins the day the real table arrives.
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
 | 27 | **AI Assistant** | Stub only | All |
-| 28 | **Files** | ✅ API done, no screen | — (built out of order; see below) |
+| 28 | **Uploads** | ✅ API done, no screen | — (built out of order; see below) |
 
 **Why Trips is next:** it is the single largest unblocker in the project. Nine
 modules (12, 13, 14, 16, 17, 18, 19, 23 and the Dashboard) and roughly a dozen
 individual fields on modules already shipped are waiting on it — every "—" on a
 screen that should read a trip count is waiting for this one table.
 
-**Files (#28) was built out of order, on purpose.** It is not in the signed
+**Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
 one piece of infrastructure that **four** of the client's adjustments were
 queued behind. Building it inside any one of them would have made it that
@@ -257,10 +257,13 @@ unblocks a large part of the remaining queue.
 
 > **Aircraft images: the API is live, the screen is not.** This paragraph used
 > to say the project had no file-upload pipeline at all. It has one now —
-> **Files (#28)**, built when four client requests turned out to be queued
-> behind it. `POST /api/files` with `category=AIRCRAFT_PHOTO` and an
-> `aircraftId` stores a photograph against a tail, governed by
-> `MANAGE_AIRCRAFT`: whoever may rename a tail may photograph it.
+> **Uploads (#28)**, built when four client requests turned out to be queued
+> behind it. `POST /api/uploads/image` returns a URL, and the aircraft record
+> would store it in a `photoUrl` column that does not exist yet.
+>
+> The upload deliberately does not know it is for an aircraft, which is exactly
+> what lets a photograph be chosen on the **Add Aircraft** form — before the
+> tail it belongs to exists.
 >
 > What is still missing is UI. The fleet screen has no uploader and no gallery,
 > and the picture-picker the client wants on a quote or an itinerary waits on
@@ -456,7 +459,7 @@ certificates, attached to trips, clients and operators. **No screen exists.**
 The Clients detail page had an attachment drop zone wired to nothing — it was
 removed rather than faked, and belongs here.
 
-**The pipeline it was going to own already exists** — see **Files (#28)**.
+**The pipeline it was going to own already exists** — see **Uploads (#28)**.
 What is left here is the vault *as a product*: a browsable store with folders,
 versions, and expiry dates on certificates. Each consumer (contracts, operator
 certificates, quote PDFs) needs its own screen and its own row in
@@ -488,7 +491,7 @@ discovered at delivery.
 Currently four hardcoded suggestion strings. The scope doc describes an
 in-app assistant answering questions about the desk's own data.
 
-### 28. Files ✅ *(API only)*
+### 28. Uploads ✅ *(API only)*
 
 **Not in the signed scope's module list, and built out of order deliberately.**
 Four of the client's adjustments were each blocked on the same missing thing —
@@ -496,36 +499,57 @@ a per-broker tax-form folder, the referral portal's Resources section, referral
 attachments, and the aircraft photo library. Building it inside any one of them
 would have made it that module's private code.
 
-**The category is the authorization model, and that is the idea worth carrying
-forward.** A 1099 and a marketing brochure are rows in one table and are not
-remotely the same secret, so `@RequirePermissions` — which runs before any row
-is read — cannot decide who may open one. Instead `FileObject` carries a
-required `category`, and `files.access.ts` maps each value to a read
-permission, a write permission, an owner kind, a format allowlist and a size
-ceiling:
+**One upload surface for the whole product**, and the shape is the point:
 
-| Category | Who may read | Who may write |
-|---|---|---|
-| `USER_DOCUMENT` | the owner, or `MANAGE_USERS` | `MANAGE_USERS` |
-| `RESOURCE` | everyone signed in | `MANAGE_RESOURCES` |
-| `AIRCRAFT_PHOTO` | `MANAGE_AIRCRAFT` | `MANAGE_AIRCRAFT` |
+```
+POST /api/uploads/image      →  { url: "/api/uploads/<id>", ... }
+POST /api/uploads/document   →  { url: "/api/uploads/<id>", ... }
+```
 
-It is a `Record<FileCategory, …>`, so **adding a category without deciding who
-may open it is a compile error**. There is deliberately no `OTHER`: a catch-all
-is a category whose access rule cannot be stated.
+A screen uploads a file, gets a URL, and stores that URL on whatever record it
+was editing. **Nothing in the upload path knows what a file is for.**
 
-**Three things about it are security decisions, not implementation details:**
+That decoupling is what makes create forms work. An API that wanted an
+`aircraftId` at upload time could not attach a photograph to an aircraft that
+did not exist yet, so every create form would have to save first and upload
+second — leaving a record with no picture whenever the second call failed. It
+also means a new upload button anywhere in the product needs **no backend
+change at all**; an earlier design keyed files to a category enum, and every
+new upload spot would have needed a new value and a migration.
+
+**Two routes, because there are two kinds of file.** `image` and `document`
+describe what a file *is*. A purpose — "tax form", "id proof", "brochure" — is
+not a kind, and encoding one here is how the category design went wrong.
+
+**Four things about it are decisions, not implementation details:**
 
 - **The content type is read from the bytes, never the upload header.** A
   multipart part's `Content-Type` is chosen by whoever sent it, so storing it
-  means the download route eventually hands a browser exactly what an attacker
+  means the fetch route eventually hands a browser exactly what an attacker
   picked — `text/html` on the API's own origin, with the session cookie
   attached. SVG, archives and legacy `.doc`/`.xls` are refused outright.
-- **A broker cannot learn that another broker's tax form exists.** Failed reads
-  answer **404, not 403** — a 403 would turn a list of user ids into a register
-  of who has been paid.
+- **Storage is content-addressed** — `images/<sha256>.png`. Identical bytes
+  always resolve to the same object, so re-uploading overwrites a file with
+  itself rather than filling the disk. There is deliberately no date folder: a
+  date would put the same bytes in two places on two days and defeat the
+  deduplication the key exists to provide.
+- **Re-uploading returns the record already on file**, flagged
+  `deduplicated: true`. Scoped to the uploader, so one person's delete is never
+  a side effect on another person's record.
 - **Archiving never touches the bytes.** A restore that cannot hand back the
-  same file is not a restore; it is an empty row wearing a filename.
+  same file is not a restore; it is an empty row wearing a filename. The object
+  may also be shared with another user's row.
+
+**The URL stored is relative**, never absolute — an absolute URL captured at
+upload time embeds whatever host was running then, so every row written in
+development would point at localhost for ever.
+
+> **Known gap, deliberately left open: per-file access control.** A file is
+> reachable by anyone with a session; what it is attached to is guarded
+> normally. Right for photographs and brochures, **wrong for a 1099**, which is
+> the client's own example. The answer when that screen is built is a
+> `visibility` flag and an owner on the upload row — not a return to
+> categories.
 
 **No screen consumes this yet.** Every consumer — the broker documents tab, the
 aircraft gallery, Resources — still needs its own UI.
