@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Delete,
   Get,
@@ -9,6 +10,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Res,
   StreamableFile,
   UploadedFile,
@@ -27,7 +29,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UploadKind } from '../../generated/prisma/enums.js';
 import { UploadsService, type IncomingFile } from './uploads.service.js';
-import { UploadResponseDto } from './dto/upload.dto.js';
+import { UploadResponseDto, UploadFieldsDto } from './dto/upload.dto.js';
+import { ListUploadsDto } from './dto/upload-query.dto.js';
 import { MAX_UPLOAD_BYTES, UPLOAD_KIND_RULES } from './uploads.rules.js';
 
 /**
@@ -73,6 +76,27 @@ export class UploadsController {
           format: 'binary',
           description: `An image. Accepted: ${UPLOAD_KIND_RULES.IMAGE.accept.join(', ')}. Maximum 15 MB.`,
         },
+        visibility: {
+          type: 'string',
+          enum: ['PUBLIC', 'PRIVATE'],
+          default: 'PRIVATE',
+          description:
+            'Who may fetch it afterwards. PUBLIC is any signed-in user — aircraft photographs, brochures, logos. '
+            + 'PRIVATE is the uploader, an administrator, and ownerUserId if given. Defaults to PRIVATE so the '
+            + 'mistake is a brochure nobody can see, not a tax form everybody can.',
+        },
+        ownerUserId: {
+          type: 'string',
+          format: 'uuid',
+          description:
+            'The user this document is about, who may then read it. This is what files a 1099 into a broker\'s '
+            + 'folder. Naming anyone but yourself needs permission to manage users.',
+        },
+        label: {
+          type: 'string',
+          maxLength: 200,
+          description: 'A human name shown instead of the filename — "2025 Form 1099".',
+        },
       },
     },
   })
@@ -89,8 +113,9 @@ export class UploadsController {
   async uploadImage(
     @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: IncomingFile | undefined,
+    @Body() fields: UploadFieldsDto,
   ) {
-    return this.uploads.create(user, UploadKind.IMAGE, requireFile(file));
+    return this.uploads.create(user, UploadKind.IMAGE, requireFile(file), fields);
   }
 
   @Post('document')
@@ -123,13 +148,30 @@ export class UploadsController {
   async uploadDocument(
     @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: IncomingFile | undefined,
+    @Body() fields: UploadFieldsDto,
   ) {
-    return this.uploads.create(user, UploadKind.DOCUMENT, requireFile(file));
+    return this.uploads.create(user, UploadKind.DOCUMENT, requireFile(file), fields);
   }
 
   // ---------------------------------------------------------------------------
   // Reading
   // ---------------------------------------------------------------------------
+
+  @Get()
+  @ApiOperation({
+    summary: 'List stored files',
+    description:
+      'A page of files the caller may see. `ownerUserId` is what makes this a **folder**: a broker\'s personal '
+      + 'documents are every live upload filed about them, which is a query rather than a second table.\n\n'
+      + 'Scoped on the way out — a caller sees public files, their own uploads, and anything filed about them; '
+      + 'an administrator sees everything. `?archived=true` serves the Archived view.',
+  })
+  async list(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListUploadsDto,
+  ) {
+    return this.uploads.findAll(user, query);
+  }
 
   @Get(':id')
   // Never let a browser second-guess the stored type. Without this, a file
@@ -145,10 +187,11 @@ export class UploadsController {
   })
   @ApiResponse({ status: 200, description: 'The file.' })
   async serve(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    const file = await this.uploads.openStream(id);
+    const file = await this.uploads.openStream(user, id);
 
     response.setHeader('Content-Type', file.contentType);
     response.setHeader('Content-Length', String(file.size));
@@ -164,8 +207,11 @@ export class UploadsController {
       'The record behind a stored URL — filename, type, size and whether it has been removed. ' +
       'For a screen that shows an attachment as a row rather than rendering it.',
   })
-  async meta(@Param('id', ParseUUIDPipe) id: string) {
-    return this.uploads.findOne(id);
+  async meta(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.uploads.findOne(user, id);
   }
 
   // ---------------------------------------------------------------------------

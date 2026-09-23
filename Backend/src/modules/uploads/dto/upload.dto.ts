@@ -49,3 +49,40 @@ export const uploadResponseSchema = z.object({
 });
 
 export class UploadResponseDto extends createZodDto(uploadResponseSchema) {}
+
+/**
+ * The fields that travel beside the bytes.
+ *
+ * Every value arrives as a string, because this is multipart — which is why
+ * `visibility` is a plain enum and `ownerUserId` is a `z.uuid()` rather than
+ * anything needing coercion. Nothing numeric or boolean is accepted here:
+ * `size` and `contentType` are read from the file itself, never from the
+ * sender.
+ */
+export const uploadFieldsSchema = z.object({
+  /**
+   * Who may fetch the bytes afterwards.
+   *
+   * **Defaults to PRIVATE**, so a caller who says nothing gets the safe
+   * answer. Publishing is the deliberate act — an aircraft photograph every
+   * broker needs to see is `PUBLIC`; a tax form is not.
+   */
+  visibility: z.enum(['PUBLIC', 'PRIVATE']).default('PRIVATE'),
+
+  /**
+   * The user this document is *about*, who may then read it.
+   *
+   * This is what files a 1099 into Mark's folder. Naming somebody other than
+   * yourself needs permission to manage users, or any broker could drop a
+   * document into any other broker's folder.
+   */
+  ownerUserId: z.uuid().optional(),
+
+  /**
+   * A human name, shown instead of the filename — "2025 Form 1099" reads
+   * better than "scan_0042.pdf".
+   */
+  label: z.string().trim().min(1).max(200).optional(),
+});
+
+export class UploadFieldsDto extends createZodDto(uploadFieldsSchema) {}

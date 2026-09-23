@@ -67,6 +67,14 @@ model User {
   /// upload route asks, and it must not be answered by somebody else's row.
   uploads Upload[] @relation("UploadUploadedBy")
 
+  /// This person's document folder — their 1099 and anything else the company
+  /// files about them. Uploaded *by* an administrator, readable *by* them.
+  ///
+  /// `onDelete: Cascade` states that a folder cannot outlive its owner. Users
+  /// are never deleted (suspending is the way out), so it is a statement of
+  /// intent rather than a behaviour anything will reach.
+  ownedUploads Upload[] @relation("UploadOwnerUser")
+
   /// Who archived a record, and who brought it back. Separate from created/
   /// updated because "removed this" is the one mutation those two never
   /// capture — an archived row's `updatedBy` is whoever last edited it.
