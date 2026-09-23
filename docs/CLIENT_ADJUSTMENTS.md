@@ -190,7 +190,7 @@ b70b5d8  feat(auth): sign out a session left untouched for ten minutes
 | 4 | Ten-minute idle logout | ✅ | ✅ | **Done** 19 Sep 2026. |
 | 5 | Notes on a timeline | ☐ | ☐ | Not started. Needs Trips for half of it. |
 | 6 | Instant quote calculator | ☐ | ☐ | **Deferred** — needs Quotes UI **and his rate data**. |
-| 7 | A document folder per user (tax forms) | ◐ | ☐ | Uploading works. Needs a `UserDocument` table, the Documents tab, **and per-file access control**. |
+| 7 | A document folder per user (tax forms) | ✅ | ✅ | **Done** 23 Sep 2026. |
 | 8 | "Active trip request" section | ✅ | ✅ | **Done** 19 Sep 2026 — same as 10a. |
 | 9 | Client credit / money on account | ☐ | ☐ | Not started. Build as a ledger, not a number. |
 | 10a | Trip request page | ✅ | ✅ | **Done** 19 Sep 2026. |
@@ -211,7 +211,7 @@ Dependency-first, as `AGENTS.md` requires. Cheapest unblocker at the top.
 | 3 | ~~**#8 / #10a Trip requests page**~~ ✅ 19 Sep 2026 | Frontend only — the API was already finished. |
 | 4 | ~~**#4 Ten-minute idle logout**~~ ✅ 19 Sep 2026 | Enforced on both sides. |
 | **5** | **#1 Demonstrate the Archived tab** | **No code.** Five minutes on the next call with him. |
-| **6** | **#7 User document folders** | ◐ Uploading works. Needs a small `UserDocument` table, the profile tab, and the per-file access control a tax form requires — **the cheapest real work available.** |
+| 6 | ~~**#7 User document folders**~~ ✅ 23 Sep 2026 | A Documents tab on the team member sheet, over a folder query rather than a second table. |
 | **7** | **#5 Notes timeline** | Clients now, Trips on its turn. Design together with #11's Agent Update field. |
 | **8** | **#9 Client credit ledger** | Client-scoped now; the trip link is a second pass the day Trips lands. |
 | **9** | **Trips** | Not a client request — but #5 and #9 both wait on it, and it unblocks nine modules. |
@@ -349,7 +349,7 @@ that `AGENTS.md` records.
 
 ---
 
-### ◐ 7. A document folder per user, for tax forms — **API DONE, UI REMAINING**
+### ✅ 7. A document folder per user, for tax forms — **DONE 23 Sep 2026**
 
 > I want there to be a folder for each broker that I can attach tax forms to
 > For example, a broker (mark) makes a commission with us, we need to give him
@@ -358,43 +358,14 @@ that `AGENTS.md` records.
 >
 > So each user has a folder that we can add documents to
 
-**Status: the upload half exists. Order item 6 — the cheapest real work
-available.**
+**Status: ✅ done 23 September 2026.** See §4.
 
-✅ **Uploading and serving a document is done** — `POST /api/uploads/document`
-returns a URL, and `GET /api/uploads/:id` serves the bytes.
+The folder is a **query, not a second table** — every live document filed about
+that person. So removing the document and removing the file are one act, with
+no join row to keep in step.
 
-☐ **What is left is the feature itself:** a small `UserDocument` table (which
-document belongs to which broker, with a label and a date) and a **Documents
-tab on the user profile** with an uploader, the list and Remove.
-
-**The split matters.** Uploading returns a URL and nothing else — a broker's
-folder is a *list*, and a URL column holds one file. So this feature owns rows
-that each carry an upload URL, rather than the upload knowing whose folder it
-is in.
-
-```
-POST   /api/uploads/document      → { url: "/api/uploads/<id>" }
-POST   /api/users/:id/documents   → stores that url + a label      (to build)
-GET    /api/users/:id/documents   → the folder                     (to build)
-DELETE /api/users/:id/documents/:docId                             (to build)
-```
-
-**Where to build it**
-
-| | Path |
-|---|---|
-| Upload surface (done) | `Backend/src/modules/uploads/` |
-| New table | `Backend/prisma/schema/user-document.prisma` |
-| User profile page | `Frontend/src/templates/UsersRolesPage.jsx` and the user detail view |
-| New hooks folder | `Frontend/src/hooks/user-documents/` (follow `src/hooks/aircraft/`) |
-| Shared uploader | `Frontend/src/components/common/` — **build it here, not in the tab.** Step 2 adds upload widgets to many screens, and the second copy is the bug |
-
-⚠️ **This is the feature that needs per-file access control, and it does not
-exist yet.** Today anyone with a session who holds an upload URL can fetch it —
-fine for a brochure, **not fine for a 1099**. Add `visibility` and an owner to
-the upload row and check them on the fetch route as part of this work. Do not
-solve it with a category enum; that was the design this replaced.
+Barry cannot read Mark's 1099, and cannot learn it exists: the API answers
+**404, not 403**. Verified live with three real accounts.
 
 ---
 
@@ -817,6 +788,66 @@ through create/edit/clear, and Mark as Lost leaving Active while staying in the
 log. `next build` clean, oxlint clean, Newman 127 / 56 / 0.
 
 **Still open:** #10b, matching those kept requests against empty legs.
+
+---
+
+### ✅ Broker document folders — 23 September 2026 · order item 6
+
+> "I want there to be a folder for each broker that I can attach tax forms to.
+> For example, a broker (mark) makes a commission with us, we need to give him
+> a 1099 tax form."
+
+**A folder is a query, not a second table.** Mark's folder is every live upload
+whose `ownerUserId` is Mark. A join table would have earned its place if one
+file needed filing in several folders under different labels; nothing asks for
+that, and the table would then be a second row to keep in step every time a
+document was removed.
+
+**Two columns carry the whole access rule**, added to the upload row:
+
+| | |
+|---|---|
+| `visibility` | `PUBLIC` (any signed-in user) or `PRIVATE`. **Defaults to PRIVATE.** |
+| `ownerUserId` | One extra person who may read a private file. |
+
+The default direction is the point. Failing closed means the mistake is "the
+brochure needs a flag", which somebody notices in a minute; failing open means
+a 1099 was readable by everyone and nobody noticed at all.
+
+**Barry cannot read Mark's 1099, and cannot learn that it exists.** Failed
+reads answer **404, not 403** — including on remove. A 403 would confirm the
+document is there, which turns a staff list into a register of who has been
+paid. Verified with three real accounts: Mark downloads his own, Barry gets 404
+on the file, 404 on the metadata, 404 on the remove, and it is absent from both
+his list and his filtered list.
+
+**Filing into somebody else's folder needs `MANAGE_USERS`**, or any broker
+could drop a document into any other broker's folder.
+
+**What shipped**
+
+- `GET /api/uploads` — paginated, searchable, scoped on the way out;
+  `?ownerUserId=` opens one person's folder
+- `visibility`, `ownerUserId` and `label` on the upload routes
+- The access rule as **pure functions** in `uploads.access.ts`, with a test
+  that walks every combination of owner and uploader asserting the SQL filter
+  admits exactly what the row check admits — a list that shows what a fetch
+  refuses is the same leak, one page earlier
+- **A shared `<FileUpload />`** in `components/common/`, which is the component
+  every later upload screen uses. Built here rather than inside the tab, because
+  the second copy is the bug
+- A **Documents tab** on the team member sheet — upload, download, remove,
+  restore, and a Current / Removed toggle
+
+**One bug the dedup change fixed before it shipped.** The key was
+`(uploader, checksum, kind)`, so filing the same PDF for Mark and then for
+Barry would have returned *Mark's row* — one document in two people's folders.
+It is now keyed on the owner and the visibility too.
+
+**Verified:** 26 live assertions across three accounts · 52 unit tests · Newman
+123 requests / 60 assertions / 0 failures, twice in a row and passing alone ·
+upload, download and the folder query all exercised **through the Next proxy**,
+the path the browser actually takes · `next build` clean · 0 live rows left.
 
 ---
 

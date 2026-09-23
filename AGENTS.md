@@ -659,25 +659,51 @@ Then serve defensively too: `X-Content-Type-Options: nosniff` on every
 response, and `Content-Disposition: inline` **only** for images. Everything else
 downloads.
 
-## Access to a file is a property of the record that holds its URL
+## Who may read a file is two columns, never a category
 
 An earlier design gave every file a required `category` and made that category
 decide who could read it. It was removed — see "Uploads are one global surface"
-above for why — and the rule that replaced it is simpler:
+above — and what replaced it is two columns on the upload row:
 
-**A file is reachable by anyone with a session; what it is attached to is
-guarded normally.** A tax form is protected because the *user record* that
-lists it is protected, not because the bytes carry a permission of their own.
+- **`visibility`** — `PUBLIC` (any signed-in user) or `PRIVATE`.
+  **It defaults to `PRIVATE`**, and that direction is the whole point: failing
+  closed means the mistake is "the brochure needs a flag", which somebody
+  notices in a minute. Failing open means a 1099 was readable by every
+  signed-in user and nobody noticed at all.
+- **`ownerUserId`** — one extra person who may read a `PRIVATE` file, beyond
+  its uploader and an administrator.
 
-That is a real trade, and it is worth stating plainly rather than discovering
-later: **a URL is an address, not a permission.** Anyone signed in who holds an
-upload id can fetch it. For aircraft photographs, brochures and logos that is
-correct and intended. For a 1099 it is not, and the answer when that screen is
-built is a `visibility` flag plus an owner on the upload row, checked on the
-fetch route — deliberately *not* a category enum, because the thing being
-described is one file's sensitivity and not a taxonomy of purposes.
+That second column is an *access-control* fact, not a purpose, and the
+distinction is what keeps this from becoming categories again. It answers "who
+may open these bytes", which is a property of the file. It does **not** say
+what the file is for; the record holding the URL says that.
 
-Do not solve it by putting files back behind a category.
+It is also what makes a personal folder a **query rather than a second table**:
+the client's "folder for each broker" is `GET /uploads?ownerUserId=<id>`. So
+removing a document and removing the file are one act, with no join row to keep
+in step.
+
+Three rules follow:
+
+- **The rule lives in `modules/uploads/uploads.access.ts`, as pure functions.**
+  A security rule that can only be exercised by starting a server and logging
+  in as three different people is a rule that quietly stops being exercised.
+- **`mayRead` and `visibilityWhere` are one rule written twice** — one for a
+  row, one for a `findMany` — so they are side by side in that file, and a test
+  walks every combination asserting the SQL admits exactly what the row check
+  admits. A list that shows what a fetch refuses is the same leak, arriving a
+  page earlier.
+- **Failed reads answer 404, not 403** — including on remove. A 403 confirms
+  the file exists, which turns a list of user ids into a register of who has
+  been paid.
+
+**Deduplication is keyed on `(uploadedById, checksum, kind, ownerUserId,
+visibility)`.** All five matter. Without the owner, filing the same PDF for
+Mark and then for Barry returns Mark's row and puts one document in two
+people's folders. Without the visibility, publishing a file that was uploaded
+privately silently reuses the private row. `label` is deliberately excluded:
+the same bytes filed about the same person is a duplicate whatever it is
+called.
 
 ## Archiving a file never touches the bytes
 

@@ -65,6 +65,13 @@ email stays reserved, so a mistyped invitation address is unrecoverable.
   every module built since
 - `SUPER_ADMIN` immunity: cannot be demoted, suspended or deleted
 - List with search, role and status filters, pagination, stats, roles endpoint
+- **A Documents tab on each team member** (client request #7) — upload, list,
+  download, remove and restore. The folder is a query over **Uploads (#28)**
+  (`?ownerUserId=`), not a second table, so a removed document and a removed
+  file are one act. Files are private and owned: the person they are about can
+  read them, an administrator can read them, and **another broker gets a 404 —
+  not a 403**, which would confirm the document exists and turn the staff list
+  into a register of who has been paid
 
 **Waiting on a dependency**
 
@@ -594,11 +601,17 @@ existed.
   check, and the last two are byte-identical at the header
 - **Files land in the folders the client asked for**: `images/` and
   `documents/`, content-addressed as `<sha256>.<ext>`
+- **Per-file access control**: `visibility` (PUBLIC / PRIVATE, defaulting to
+  PRIVATE) and `ownerUserId`. A broker reads the 1099 filed about them; another
+  broker gets a **404, not a 403**. The rule is pure functions in
+  `uploads.access.ts` with a test that walks every combination
+- **`GET /api/uploads`** — paginated, searchable, scoped on the way out.
+  `?ownerUserId=` is what makes a personal folder a query rather than a table
 - **Re-uploading a file returns the one already on file** — `deduplicated: true`,
-  the original id, nothing written. Scoped per uploader, so one person's delete
-  is never a side effect on another's record. Self-healing: if the object has
-  gone missing from storage the bytes are rewritten rather than a dead URL
-  returned
+  the original id, nothing written. Keyed on uploader, checksum, kind, owner
+  *and* visibility, so filing one PDF for two people does not put one document
+  in two folders. Self-healing: if the object has gone missing from storage the
+  bytes are rewritten rather than a dead URL returned
 - **`GET /api/uploads/:id`** streams the bytes with `nosniff`, `inline` for
   images and `attachment` for everything else. Works directly in an `<img src>`,
   because the session is an httpOnly cookie
@@ -614,20 +627,10 @@ existed.
 
 | Feature | Blocked by |
 |---|---|
-| Any screen at all | **Uploads UI** — no frontend consumes this yet |
-| The broker document folder tab | **Users & Roles UI** |
+| ~~The broker document folder tab~~ | ✅ Shipped — see **Users & Roles (#2)** |
 | The aircraft photo gallery | **Aircraft UI** |
 | Referral attachments and the Resources section | **Referral Agent (#11 in the client list)** |
 | Picking a photo onto a quote or itinerary | **Quotes / Itineraries** — both have client UI changes pending |
-
-**Deferred by decision: per-file access control.** Today a file is reachable by
-anyone with a session; what it is attached to is guarded normally. That is
-correct for photographs, brochures and logos and **not** correct for a tax form,
-which is the client's own example (#7). The answer when that screen is built is
-a `visibility` flag and an owner on the upload row, checked on the fetch route —
-not a return to categories. The columns were left out rather than added
-unenforced, because a schema that advertises a protection nothing checks is
-worse than one that admits the gap.
 
 **Deferred by decision: thumbnails and image resizing.** A 15 MB cabin
 photograph served whole into a gallery is slow, and the fix is a resize
