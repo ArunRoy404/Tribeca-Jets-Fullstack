@@ -7,9 +7,9 @@
  * hands a browser a script running on the API's own origin, holding the
  * session cookie.
  *
- * Module-private for now — the second module that needs to sniff an upload
- * should lift this into `common/`, per AGENTS.md on extracting on the second
- * copy rather than the first.
+ * Shared, because the upload routes and anything that later accepts bytes must
+ * agree on what a file is. Two copies of this list would mean two answers to
+ * "is this a PDF", and the lenient one would be the one an attacker used.
  */
 
 /** A magic-number signature: these bytes at this offset mean this type. */
@@ -19,7 +19,15 @@ interface Signature {
   readonly bytes: readonly number[];
 }
 
-const ascii = (text: string): number[] => [...text].map((c) => c.charCodeAt(0));
+/**
+ * The bytes of an ASCII marker, e.g. `%PDF`.
+ *
+ * Through a Buffer rather than spreading the string: spreading yields Unicode
+ * code points, which is the wrong unit for a magic number and silently wrong
+ * for anything outside ASCII. Every marker here is ASCII by construction, and
+ * this says so.
+ */
+const ascii = (text: string): number[] => Array.from(Buffer.from(text, 'ascii'));
 
 /**
  * Ordered most specific first. WEBP is identified by its second marker,
