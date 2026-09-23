@@ -85,7 +85,7 @@ class Session:
         return self._send(req)
 
     def upload(self, route: str, path: pathlib.Path, declared: str | None = None,
-               filename: str | None = None):
+               filename: str | None = None, fields: dict | None = None):
         """A real multipart POST, so the sniffer sees real bytes."""
         boundary = f'----tribeca{uuid.uuid4().hex}'
         name = filename or path.name
@@ -94,12 +94,20 @@ class Session:
             or mimetypes.guess_type(name)[0]
             or 'application/octet-stream'
         )
-        body = (
+        parts = []
+        for key, value in (fields or {}).items():
+            parts.append(
+                f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"'
+                f'\r\n\r\n{value}\r\n'.encode()
+            )
+        parts.append(
             f'--{boundary}\r\nContent-Disposition: form-data; name="file"; '
             f'filename="{name}"\r\nContent-Type: {content_type}\r\n\r\n'.encode()
             + path.read_bytes()
-            + f'\r\n--{boundary}--\r\n'.encode()
+            + b'\r\n'
         )
+        parts.append(f'--{boundary}--\r\n'.encode())
+        body = b''.join(parts)
         req = urllib.request.Request(BASE + route, data=body, method='POST')
         req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
         return self._send(req)
@@ -112,14 +120,41 @@ STATUS_TEXT = {
 }
 
 
-def formdata(*, description: str, src: pathlib.Path):
-    """The multipart body Postman sends, with the single field described."""
-    return [{
+VISIBILITY_DESC = (
+    'optional · PUBLIC | PRIVATE. Default PRIVATE. PUBLIC is any signed-in user — aircraft '
+    'photographs, brochures, logos. PRIVATE is the uploader, an administrator, and ownerUserId '
+    'if given. The default fails closed on purpose: the mistake is then a brochure nobody can '
+    'see, not a tax form everybody can.'
+)
+
+OWNER_DESC = (
+    'optional · uuid. The user this document is *about*, who may then read it. This is what files '
+    'a 1099 into a broker\'s folder. Naming anyone but yourself needs MANAGE_USERS, or any broker '
+    'could drop a document into any other broker\'s folder.'
+)
+
+LABEL_DESC = 'optional · max 200 chars. A human name shown instead of the filename — "2025 Form 1099".'
+
+
+def formdata(*, description: str, src: pathlib.Path, visibility=None,
+             owner=None, label=None):
+    """The multipart body Postman sends, with every field described."""
+    form = [{
         'key': 'file',
         'type': 'file',
         'src': str(pathlib.Path('postman/fixtures') / src.name),
         'description': description,
     }]
+    if visibility is not None:
+        form.append({'key': 'visibility', 'value': visibility, 'type': 'text',
+                     'description': VISIBILITY_DESC})
+    if owner is not None:
+        form.append({'key': 'ownerUserId', 'value': owner, 'type': 'text',
+                     'description': OWNER_DESC})
+    if label is not None:
+        form.append({'key': 'label', 'value': label, 'type': 'text',
+                     'description': LABEL_DESC})
+    return form
 
 
 def example(name, method, path, status, body, form=None, preview='json'):
@@ -133,6 +168,11 @@ def example(name, method, path, status, body, form=None, preview='json'):
             'path': [p for p in path.lstrip('/').split('/') if p and '?' not in p],
         },
     }
+    if '?' in path:
+        original['url']['query'] = [
+            {'key': k, 'value': v}
+            for k, v in (pair.split('=', 1) for pair in path.split('?', 1)[1].split('&'))
+        ]
     if form is not None:
         original['body'] = {'mode': 'formdata', 'formdata': form}
 
@@ -186,19 +226,36 @@ Three formats are refused on purpose. **SVG** is a document that executes script
 **Removal archives the record and leaves the bytes alone.** Nothing in this system is permanently deleted, and the object may be shared with another user's row — erasing it would break a record the request never looked at.""" % (IMAGE_TYPES, DOCUMENT_TYPES)
 
 
-def build(admin):
-    photo_status, photo = admin.upload('/uploads/image', PHOTO_SRC)
+def build(admin, mark_id):
+    photo_status, photo = admin.upload(
+        '/uploads/image', PHOTO_SRC,
+        fields={'visibility': 'PUBLIC', 'label': 'Global 7500 cabin'},
+    )
     assert photo_status == 201, (photo_status, photo)
     photo_id = photo['data']['id']
 
     # The same bytes again — the deduplication example, captured live.
-    dup_status, dup = admin.upload('/uploads/image', PHOTO_SRC,
-                                   filename='same-photo-renamed.png')
+    dup_status, dup = admin.upload(
+        '/uploads/image', PHOTO_SRC, filename='same-photo-renamed.png',
+        fields={'visibility': 'PUBLIC', 'label': 'Global 7500 cabin'},
+    )
     assert dup_status == 201 and dup['data']['deduplicated'] is True, dup
 
-    doc_status, doc = admin.upload('/uploads/document', DOCUMENT_SRC)
+    # A broker's tax form: the client's own example, and the one case where
+    # getting the access rule wrong matters.
+    doc_status, doc = admin.upload(
+        '/uploads/document', DOCUMENT_SRC,
+        fields={'ownerUserId': mark_id, 'label': '2025 Form 1099'},
+    )
     assert doc_status == 201, (doc_status, doc)
+    assert doc['data']['visibility'] == 'PRIVATE', doc
     doc_id = doc['data']['id']
+
+    folder = admin.request(
+        'GET', f'/uploads?ownerUserId={mark_id}&kind=DOCUMENT&page=1&limit=10')
+    listing = admin.request('GET', '/uploads?page=1&limit=10')
+    forbidden_owner = admin.request(
+        'GET', '/uploads?ownerUserId=11111111-1111-4111-8111-111111111111')
 
     # Rejections, all captured from real responses.
     svg = admin.upload('/uploads/image', SVG_SRC)
@@ -219,7 +276,66 @@ def build(admin):
 
     requests = [
         {
-            'name': '01 · Upload an image',
+            'name': '01 · List files',
+            'event': [script('test', [
+                "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                "pm.test('paginated like every other list', () =>",
+                "  pm.expect(pm.response.json().meta).to.have.property('totalPages'));",
+                "// Scoped on the way out: a caller sees public files, their own",
+                "// uploads, and anything filed about them. An administrator sees all.",
+            ])],
+            'request': {
+                'method': 'GET',
+                'header': [],
+                'url': {
+                    'raw': '{{baseUrl}}/uploads?page=1&limit=10',
+                    'host': ['{{baseUrl}}'],
+                    'path': ['uploads'],
+                    'query': [
+                        {'key': 'page', 'value': '1',
+                         'description': 'optional · integer ≥ 1. Default 1.'},
+                        {'key': 'limit', 'value': '10',
+                         'description': 'optional · integer 1-100. Default 10.'},
+                        {'key': 'search', 'value': None, 'disabled': True,
+                         'description': 'optional · matches filename and label.'},
+                        {'key': 'ownerUserId', 'value': None, 'disabled': True,
+                         'description': 'optional · uuid. Opens one person\'s folder. '
+                                        'Anyone but yourself needs MANAGE_USERS.'},
+                        {'key': 'kind', 'value': None, 'disabled': True,
+                         'description': 'optional · IMAGE | DOCUMENT.'},
+                        {'key': 'archived', 'value': None, 'disabled': True,
+                         'description': 'optional · true | false. Default false. '
+                                        'true returns only removed files.'},
+                        {'key': 'sortBy', 'value': None, 'disabled': True,
+                         'description': 'optional · createdAt | updatedAt | filename | label | size. '
+                                        'Default createdAt.'},
+                        {'key': 'sortOrder', 'value': None, 'disabled': True,
+                         'description': 'optional · asc | desc. Default desc — newest first.'},
+                    ],
+                },
+                'description': (
+                    'A page of files the caller may see.\n\n'
+                    '**`ownerUserId` is what makes this a folder.** The client asked for "a folder for each '
+                    'broker that I can attach tax forms to"; that folder is every live upload filed about '
+                    'them. A query, not a second table — so removing the document and removing the file are '
+                    'one act rather than two rows to keep in step.\n\n'
+                    'The result is scoped on the way out: public files, the caller\'s own uploads, and '
+                    'anything filed about them. An administrator sees everything.'
+                ),
+            },
+            'response': [
+                example('Success (200 · everything this caller may see)', 'GET',
+                        '/uploads?page=1&limit=10', 200, listing[1]),
+                example('Success (200 · one broker\'s document folder)', 'GET',
+                        f'/uploads?ownerUserId={mark_id}&kind=DOCUMENT&page=1&limit=10',
+                        200, folder[1]),
+                example('Error (403 · another user\'s folder)', 'GET',
+                        '/uploads?ownerUserId=11111111-1111-4111-8111-111111111111',
+                        403, forbidden_owner[1]),
+            ],
+        },
+        {
+            'name': '02 · Upload an image',
             'event': [script('test', [
                 "const body = pm.response.json();",
                 "pm.test('201 Created', () => pm.response.to.have.status(201));",
@@ -245,7 +361,8 @@ def build(admin):
                              description=f'Required · the bytes. Accepted: {IMAGE_TYPES}. Maximum 15 MB. '
                                          'SVG is refused — it executes script. The type is read from the '
                                          'bytes, so the filename and the part\'s Content-Type are ignored.',
-                             src=PHOTO_SRC)},
+                             src=PHOTO_SRC, visibility='PUBLIC',
+                             label='Global 7500 cabin')},
                 'description': (
                     'Stores the file under `images/` and returns the URL to save on whatever record is '
                     'being edited.\n\n'
@@ -260,11 +377,13 @@ def build(admin):
             },
             'response': [
                 example('Success (201 · stored)', 'POST', '/uploads/image', 201, photo,
-                        form=formdata(description='The image.', src=PHOTO_SRC)),
+                        form=formdata(description='The image.', src=PHOTO_SRC,
+                                      visibility='PUBLIC', label='Global 7500 cabin')),
                 example('Success (201 · already uploaded, existing record returned)',
                         'POST', '/uploads/image', 201, dup,
                         form=formdata(description='The same bytes, under a different filename.',
-                                      src=PHOTO_SRC)),
+                                      src=PHOTO_SRC, visibility='PUBLIC',
+                                      label='Global 7500 cabin')),
                 example('Error (415 · SVG refused)', 'POST', '/uploads/image', 415, svg[1],
                         form=formdata(description='An SVG — a document that executes script.',
                                       src=SVG_SRC)),
@@ -276,13 +395,19 @@ def build(admin):
             ],
         },
         {
-            'name': '02 · Upload a document',
+            'name': '03 · File a document in a broker\'s folder',
             'event': [script('test', [
                 "const body = pm.response.json();",
                 "pm.test('201 Created', () => pm.response.to.have.status(201));",
                 "pm.test('kind is DOCUMENT', () => pm.expect(body.data.kind).to.eql('DOCUMENT'));",
                 "pm.test('stored as a PDF', () =>",
                 "  pm.expect(body.data.contentType).to.eql('application/pdf'));",
+                "// The default that matters. A tax form uploaded without a",
+                "// thought must not be readable by every signed-in user.",
+                "pm.test('private by default', () =>",
+                "  pm.expect(body.data.visibility).to.eql('PRIVATE'));",
+                "pm.test('filed into the broker\\'s folder', () =>",
+                "  pm.expect(body.data.ownerUserId).to.eql(pm.collectionVariables.get('userId')));",
                 "pm.collectionVariables.set('uploadDocumentId', body.data.id);",
             ])],
             'request': {
@@ -295,10 +420,18 @@ def build(admin):
                              description=f'Required · the bytes. Accepted: {DOCUMENT_TYPES}. Maximum 25 MB. '
                                          'Legacy .doc and .xls are refused: both are OLE2 and byte-identical '
                                          'at the header, so telling them apart would mean trusting the sender.',
-                             src=DOCUMENT_SRC)},
+                             src=DOCUMENT_SRC, owner='{{userId}}',
+                             label='2025 Form 1099')},
                 'description': (
                     'Stores the file under `documents/` and returns the URL to save on the record being '
                     'edited.\n\n'
+                    '**This example is the client\'s own:** *"a broker (mark) makes a commission with us, we '
+                    'need to give him a 1099 tax form. I want to be able to add that form into his own '
+                    'personal folder."* Passing `ownerUserId` is what files it there.\n\n'
+                    'It stays **PRIVATE** because that is the default. Mark can read it and so can an '
+                    'administrator; another broker of identical rank gets a **404, not a 403** — a 403 would '
+                    'confirm the document exists and turn a list of user ids into a register of who has been '
+                    'paid.\n\n'
                     'A file whose bytes are plain text is stored as `text/plain` whatever it was named — '
                     'so HTML uploaded as `invoice.pdf` is stored as text and served as an **attachment** '
                     'with `X-Content-Type-Options: nosniff`, which means a browser downloads it instead of '
@@ -306,8 +439,10 @@ def build(admin):
                 ),
             },
             'response': [
-                example('Success (201 · stored)', 'POST', '/uploads/document', 201, doc,
-                        form=formdata(description='The document.', src=DOCUMENT_SRC)),
+                example('Success (201 · filed in a broker\'s folder)', 'POST',
+                        '/uploads/document', 201, doc,
+                        form=formdata(description='The document.', src=DOCUMENT_SRC,
+                                      owner=mark_id, label='2025 Form 1099')),
                 example('Error (415 · an image is not a document)', 'POST', '/uploads/document',
                         415, image_to_doc[1],
                         form=formdata(description='A PNG posted to the document route.',
@@ -315,7 +450,7 @@ def build(admin):
             ],
         },
         {
-            'name': '03 · Fetch a file',
+            'name': '04 · Fetch a file',
             'event': [script('test', [
                 "pm.test('200 OK', () => pm.response.to.have.status(200));",
                 "pm.test('served with the stored type', () =>",
@@ -354,7 +489,7 @@ def build(admin):
             ],
         },
         {
-            'name': '04 · Describe a file',
+            'name': '05 · Describe a file',
             'event': [script('test', [
                 "pm.test('200 OK', () => pm.response.to.have.status(200));",
                 "pm.test('says whether it has been removed', () =>",
@@ -379,7 +514,7 @@ def build(admin):
             ],
         },
         {
-            'name': '05 · Remove a file',
+            'name': '06 · Remove a file',
             'event': [script('test', [
                 "pm.test('200 OK', () => pm.response.to.have.status(200));",
                 "pm.test('reports the removal', () =>",
@@ -407,7 +542,7 @@ def build(admin):
             ],
         },
         {
-            'name': '06 · Restore a removed file',
+            'name': '07 · Restore a removed file',
             'event': [script('test', [
                 "pm.test('200, not 201 — nothing was created', () =>",
                 "  pm.response.to.have.status(200));",
@@ -432,7 +567,7 @@ def build(admin):
             ],
         },
         {
-            'name': '07 · Teardown — archive the image',
+            'name': '08 · Teardown — archive the image',
             'event': [script('test', [
                 "pm.test('probe archived', () => pm.response.to.have.status(200));",
                 "// The run is a demonstration, not a data entry session. Without a",
@@ -453,10 +588,10 @@ def build(admin):
             'response': [],
         },
         {
-            'name': '08 · Teardown — archive the document',
+            'name': '09 · Teardown — archive the document',
             'event': [script('test', [
                 "pm.test('probe archived', () => pm.response.to.have.status(200));",
-                "// Request 06 restored this row to demonstrate the restore, which left",
+                "// Request 07 restored this row to demonstrate the restore, which left",
                 "// it live. Closing it here is what keeps the run net-zero.",
             ])],
             'request': {
@@ -466,7 +601,7 @@ def build(admin):
                         'path': ['uploads', '{{uploadDocumentId}}']},
                 'description': (
                     'Archives the document again.\n\n'
-                    'Requests 05 and 06 removed and restored it to demonstrate both, so it is live at this '
+                    'Requests 06 and 07 removed and restored it to demonstrate both, so it is live at this '
                     'point. Without this the collection would leave one live row behind on every run — the '
                     'exact drift that put 26 Postman clients into the client directory before anyone '
                     'noticed.'
@@ -494,7 +629,12 @@ def main() -> None:
             raise SystemExit(f'Missing fixture: {fixture}')
 
     admin = Session('admin@tribecajets.com')
-    folder, probes = build(admin)
+
+    # A real broker to file a document about — the client's example is Mark.
+    _, users = admin.request('GET', '/users?search=mark&limit=1')
+    mark_id = users['data'][0]['id']
+
+    folder, probes = build(admin, mark_id)
 
     collection = json.loads(COLLECTION.read_text())
     collection['item'] = [i for i in collection['item']

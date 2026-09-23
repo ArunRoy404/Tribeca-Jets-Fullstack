@@ -15,6 +15,29 @@ import pathlib
 
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 
+OWN_BROKER = [
+    '',
+    '/*',
+    ' * Finds a broker to file a document about.',
+    ' *',
+    ' * `{{userId}}` is set by `04 · Users` during a full run, so without this the',
+    ' * folder run alone posts an empty ownerUserId and fails validation — a false',
+    ' * failure, which is how a real one gets ignored.',
+    ' */',
+    "if (!pm.collectionVariables.get('userId')) {",
+    '    pm.sendRequest({',
+    "        url: pm.collectionVariables.get('baseUrl') + '/users?search=mark&limit=1',",
+    "        method: 'GET',",
+    '    }, function (err, res) {',
+    "        if (err) { console.error('could not resolve a broker', err); return; }",
+    '        const body = res.json();',
+    '        if (body && body.data && body.data.length) {',
+    "            pm.collectionVariables.set('userId', body.data[0].id);",
+    '        }',
+    '    });',
+    '}',
+]
+
 HEADER = [
     '/*',
     ' * Signs this folder in as the seeded SUPER_ADMIN.',
@@ -38,14 +61,16 @@ def main() -> None:
     lines = list(prerequest['script']['exec'])
     start = next(i for i, line in enumerate(lines) if line.startswith('const NEEDED'))
 
+    exec_lines = HEADER + lines[start:] + OWN_BROKER
+
     folder = next(i for i in collection['item'] if i['name'] == '11 · Uploads')
     folder['event'] = [{
         'listen': 'prerequest',
-        'script': {'type': 'text/javascript', 'exec': HEADER + lines[start:]},
+        'script': {'type': 'text/javascript', 'exec': exec_lines},
     }]
 
     COLLECTION.write_text(json.dumps(collection, indent=2, ensure_ascii=False) + '\n')
-    print(f'11 · Uploads — folder login attached ({len(HEADER + lines[start:])} lines)')
+    print(f'11 · Uploads — folder login attached ({len(exec_lines)} lines)')
 
 
 if __name__ == '__main__':
