@@ -1,0 +1,89 @@
+/// A file somebody uploaded, addressed by the hash of its own bytes.
+///
+/// The whole point of this table is that it knows nothing about *why* the file
+/// was uploaded. A screen uploads first, gets back a URL, and puts that URL in
+/// whatever form it was filling in — so an aircraft photograph can be chosen
+/// before the aircraft exists, which is the normal shape of a create form and
+/// the thing the previous design could not do.
+///
+/// Consequently there is no `category` here and no owner column. What a file is
+/// *for* is the business of the record that stores its URL, and a new upload
+/// spot anywhere in the product needs no change to this model.
+model Upload {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Where the bytes live, relative to the storage root:
+  /// `images/<sha256>.jpg` or `documents/<sha256>.pdf`.
+  ///
+  /// Content-addressed on purpose — identical bytes always resolve to the same
+  /// path, so re-uploading a file overwrites it with itself instead of filling
+  /// the disk with copies. That is also why there is no date folder in the key:
+  /// a date would make the same bytes land in two places on two days and defeat
+  /// the deduplication this column exists to provide.
+  storageKey String @db.VarChar(512)
+
+  /// Which storage backend holds it — `local` or `s3`. Recorded per row because
+  /// a deployment can change backends, and a key alone would then be ambiguous.
+  driver String @db.VarChar(16)
+
+  /// What the uploader called it. Display and download only; it is deliberately
+  /// not part of `storageKey`, because a filename arrives from an upload and is
+  /// therefore both a collision source and a path traversal vector.
+  filename String @db.VarChar(255)
+
+  /// Read from the bytes by `common/files/file-signature.ts`, never from the
+  /// multipart header — the header is chosen by whoever sent the file, and
+  /// storing it would let them decide what a browser is later handed.
+  contentType String @db.VarChar(128)
+
+  /// Which upload route accepted it. Kept so a caller can be told "that is an
+  /// image, post it to /uploads/image" without re-sniffing the bytes.
+  kind UploadKind
+
+  size Int
+
+  /// SHA-256 of the bytes, hex. The deduplication key, and the reason
+  /// `storageKey` is derived rather than random.
+  checksum String @db.VarChar(64)
+
+  /// Who uploaded it. Deduplication is scoped to this column: two people
+  /// uploading the same brochure get a row each, so one of them archiving
+  /// theirs can never break the other's. Sharing a row across users would make
+  /// a delete a cross-account side effect nobody asked for.
+  uploadedById String? @db.Uuid
+  uploadedBy   User?   @relation("UploadUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("UploadCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("UploadUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("UploadDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("UploadRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  /// The deduplication lookup: "has this person already uploaded these bytes?"
+  /// Not unique — an archived row and its replacement legitimately share both
+  /// values, and uniqueness here would refuse the re-upload that is supposed to
+  /// recreate it.
+  @@index([checksum, uploadedById, deletedAt])
+  @@index([deletedAt, createdAt])
+  @@map("uploads")
+}
+
+/// Which of the two upload routes a file came through.
+///
+/// Two, not seven, because this describes what the file *is* — an image or a
+/// document — and not what it is for. A purpose ("id proof", "tax form") is the
+/// calling screen's business, and making it an enum here would put every new
+/// upload spot in the product back behind a migration.
+enum UploadKind {
+  IMAGE
+  DOCUMENT
+}

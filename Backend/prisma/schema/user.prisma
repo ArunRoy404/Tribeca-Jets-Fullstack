@@ -58,15 +58,14 @@ model User {
   updatedQuotes         Quote[]         @relation("QuoteUpdatedBy")
   assignedQuotes        Quote[]         @relation("QuoteAssignedBroker")
   createdQuoteVersions  QuoteVersion[]  @relation("QuoteVersionCreatedBy")
-  createdFiles          FileObject[]    @relation("FileObjectCreatedBy")
-  updatedFiles          FileObject[]    @relation("FileObjectUpdatedBy")
+  createdUploads        Upload[]        @relation("UploadCreatedBy")
+  updatedUploads        Upload[]        @relation("UploadUpdatedBy")
 
-  /// This user's personal document folder — their 1099 and anything else the
-  /// company files against them. `onDelete: Cascade` on the owning side is
-  /// deliberate and harmless here: users are never deleted (suspending is the
-  /// way out), so it exists only to state that a folder cannot outlive its
-  /// owner.
-  ownedFiles FileObject[] @relation("FileObjectOwnerUser")
+  /// Files this person put into the system. Distinct from `createdUploads`
+  /// only in name today, and kept separate because deduplication is scoped to
+  /// it: "has *this user* already uploaded these bytes?" is the question the
+  /// upload route asks, and it must not be answered by somebody else's row.
+  uploads Upload[] @relation("UploadUploadedBy")
 
   /// Who archived a record, and who brought it back. Separate from created/
   /// updated because "removed this" is the one mutation those two never
@@ -85,8 +84,8 @@ model User {
   restoredOperatorQuotes OperatorQuote[] @relation("OperatorQuoteRestoredBy")
   deletedQuotes          Quote[]         @relation("QuoteDeletedBy")
   restoredQuotes         Quote[]         @relation("QuoteRestoredBy")
-  deletedFiles           FileObject[]    @relation("FileObjectDeletedBy")
-  restoredFiles          FileObject[]    @relation("FileObjectRestoredBy")
+  deletedUploads         Upload[]        @relation("UploadDeletedBy")
+  restoredUploads        Upload[]        @relation("UploadRestoredBy")
 
   // ---- Audit trail (every model carries these four) ------------------------
   //

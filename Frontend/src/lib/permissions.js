@@ -25,7 +25,6 @@ export const Permission = {
   MANAGE_AIRPORTS: "MANAGE_AIRPORTS",
   MANAGE_OPERATORS: "MANAGE_OPERATORS",
   MANAGE_AIRCRAFT: "MANAGE_AIRCRAFT",
-  MANAGE_RESOURCES: "MANAGE_RESOURCES",
 };
 
 /** How far a role may reach. Mirrors `Scope` on the API. */

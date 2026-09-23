@@ -97,9 +97,6 @@ model Aircraft {
   /// tails we have never entered, and those are recorded as text instead.
   operatorQuotes OperatorQuote[] @relation("OperatorQuoteAircraft")
 
-  /// Cabin and exterior photographs, used on quotes and itineraries.
-  photos FileObject[] @relation("FileObjectAircraft")
-
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
   createdBy   User?    @relation("AircraftCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
