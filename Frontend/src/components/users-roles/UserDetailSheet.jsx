@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { Pencil, UserCheck, UserX } from "lucide-react";
 import { useUsersRolesStore } from "@/store/useUsersRolesStore";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import DetailTabNav from "@/components/common/DetailTabNav";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/common/StatusBadge";
 import DetailField from "@/components/common/DetailField";
 import SectionCard from "@/components/common/SectionCard";
 import TableStatus from "@/components/table/common/TableStatus";
 import { useUpdateUser, useUser } from "@/hooks/users";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
+import UserDocumentsTab from "@/components/users-roles/tabs/UserDocumentsTab";
 import { formatLastLogin, isPendingInvite, toTeamMember } from "@/lib/user";
 
 /** Renders a createdBy/updatedBy actor, which is null for seeded records. */
@@ -21,6 +26,15 @@ function actorName(actor) {
   );
 }
 
+/**
+ * Two tabs, and the second is client adjustment #7 — a folder per broker for
+ * tax forms. Details stays first because it is what the sheet was opened for.
+ */
+const TABS = [
+  { id: "details", label: "Details" },
+  { id: "documents", label: "Documents" },
+];
+
 export default function UserDetailSheet() {
   const selectedId = useUsersRolesStore((s) => s.selectedUserId);
   const close = useUsersRolesStore((s) => s.closeUserDetail);
@@ -30,6 +44,24 @@ export default function UserDetailSheet() {
   // full record — invited-by, client counts — that the list projection omits.
   const { data, isPending, error, refetch } = useUser(selectedId);
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser();
+  const { canWrite } = usePermissions();
+
+  // Local and disposable: which tab is showing inside a sheet is not something
+  // another component reads, and it is not worth a URL param on an overlay.
+  const [tab, setTab] = useState(TABS[0].id);
+
+  // Opening a different person must not land on the tab left over from the
+  // last one — "Documents" showing somebody else's folder for a frame is the
+  // kind of thing nobody reports and everybody notices.
+  //
+  // Adjusted during render rather than in an effect: React re-runs this
+  // component before committing, so the tab is already correct on the first
+  // paint. An effect would show the stale tab for a frame and then move it.
+  const [lastOpened, setLastOpened] = useState(selectedId);
+  if (selectedId !== lastOpened) {
+    setLastOpened(selectedId);
+    setTab(TABS[0].id);
+  }
 
   const item = data ? toTeamMember(data) : null;
   const isSuspended = item?.rawStatus === "SUSPENDED";
@@ -84,6 +116,15 @@ export default function UserDetailSheet() {
               </div>
             </div>
 
+            <DetailTabNav tabs={TABS} activeTab={tab} onTabChange={setTab} />
+
+            {tab === "documents" ? (
+              <UserDocumentsTab
+                userId={item.id}
+                userName={item.name}
+                canManage={canWrite(Permission.MANAGE_USERS)}
+              />
+            ) : (
             <SectionCard>
               <div className="flex gap-4 w-full">
                 <DetailField label="USER NAME" value={item.name} labelClassName="text-[14px]" />
@@ -142,6 +183,7 @@ export default function UserDetailSheet() {
                 />
               </div>
             </SectionCard>
+            )}
 
             <div className="border-t border-secondary flex items-center justify-between gap-3 pt-4 w-full mt-auto flex-wrap">
               <Button

@@ -10,6 +10,21 @@ export const queryKeys = {
     currentUser: ["auth", "me"],
   },
 
+  /**
+   * Stored files.
+   *
+   * `folder` is its own key rather than a `list` with params, because a user's
+   * document tab and a general file listing invalidate at different moments —
+   * uploading into Mark's folder must refresh his tab without refetching every
+   * other list on screen.
+   */
+  uploads: {
+    all: ["uploads"],
+    list: (params) => ["uploads", "list", params ?? {}],
+    folder: (userId, params) => ["uploads", "folder", userId, params ?? {}],
+    meta: (id) => ["uploads", "meta", id],
+  },
+
   users: {
     all: ["users"],
     list: (params) => ["users", "list", params ?? {}],
