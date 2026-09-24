@@ -1,0 +1,30 @@
+update - 23 sep
+
+Hello there,
+
+Quick update on recent development progress:
+ - Document Folders on User Profiles completed
+   - Each team member's profile now has a Documents tab — their own folder for 1099s, contracts, and anything else filed about them
+   - Upload, download, and remove, with a "Removed" view so nothing is ever permanently lost
+   - A broker can open the tax form filed about them; another broker cannot see that it exists at all
+
+ - File Storage rebuilt around a single, universal upload service
+   - One place to upload a photo and one place to upload a document, used by every screen in the product from here on
+   - This means any new upload button anywhere — aircraft photos, referral attachments, marketing material — needs no further backend work
+   - Images and documents are filed into separate folders automatically, exactly as requested
+   - Uploading the same file twice returns the original instead of storing a duplicate, so storage stays lean
+
+
+Adjustments completed based on your feedback:
+ - Private Files (Broker Tax Forms)
+   - Files are private by default — they have to be deliberately marked shareable, rather than the other way round
+   - Sensitive documents are visible only to the person they belong to and to administrators
+   - Anyone else is told the file does not exist, rather than being told they lack permission — so a document's existence cannot be discovered by guessing
+
+ - Safe File Handling
+   - Every uploaded file is identified by inspecting its actual contents, not by its name or what the sender claims it is
+   - File types that can carry hidden or executable content are refused outright
+   - Removing a file archives it and keeps the original intact, so a restore always returns the exact same document
+
+
+Best Regards.
