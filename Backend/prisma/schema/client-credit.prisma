@@ -1,0 +1,104 @@
+/// Money a client has on account with us (client adjustment #9).
+///
+/// The client asked for "a section on their profile that says credit/money on
+/// account ... we can enter how much that is and can always edit that number
+/// or select if it was used towards another trip."
+///
+/// **This is deliberately a ledger and not that number**, and the two halves
+/// of his own sentence are why: "edit that number" and "select if it was used
+/// towards another trip" are *credits* and *applications* — movements, with a
+/// balance derived from them. A single editable balance loses why it changed,
+/// and a client's credit dropping from $18,000 to $6,000 with nothing saying
+/// which trip consumed it is an argument waiting to happen.
+///
+/// It is also the shape this project already forbids everywhere else: a stored
+/// figure sitting beside the parts it is computed from. There is no `balance`
+/// column anywhere. The balance is a sum over these rows, computed on every
+/// read, in one place — exactly as a quote's total is.
+model ClientCredit {
+  id String @id @default(uuid()) @db.Uuid
+
+  clientId String @db.Uuid
+  client   Client @relation("ClientCreditClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  /// Which direction the money moved. See `CreditEntryType`.
+  type CreditEntryType
+
+  /// **Always positive.** The direction is `type`'s job, never a minus sign.
+  ///
+  /// A signed column invites "-5000" typed into a CREDIT row, which reads as a
+  /// credit and behaves as an application, and nothing on screen distinguishes
+  /// the two. Decimal(12,2) and never Float: binary floating point cannot hold
+  /// money, and this column is money the client is owed.
+  amount Decimal @db.Decimal(12, 2)
+
+  /// When the money actually moved — **not** when somebody typed it in.
+  ///
+  /// Those are different days and the difference matters: a trip cancelled on
+  /// the 3rd and entered on the 9th is a credit dated the 3rd. `createdAt`
+  /// still records the typing, which is what an audit column is for, and the
+  /// ledger reads by this column.
+  occurredAt DateTime @db.Date
+
+  /// Why, in the desk's own words — "Cancelled KTEB→KMIA, 14 Mar" or
+  /// "Applied to the Aspen trip". Free text because the reasons are an open
+  /// set and always will be.
+  ///
+  /// It carries more weight than it eventually should: until Trips exists
+  /// there is no row for "used towards another trip" to point at, so for now
+  /// this sentence is the only record of which trip consumed a credit.
+  reason String? @db.VarChar(500)
+
+  /// The desk's own reference — a cheque number, a refund id from the payment
+  /// processor, whatever they write down.
+  reference String? @db.VarChar(100)
+
+  // ---------------------------------------------------------------------------
+  // Deliberately NOT here yet: `appliedToTripId`.
+  //
+  // Trips do not exist. A `tripReference` string "for now" would become a
+  // column pointing at nothing the database can check, and every row written
+  // that way becomes a migration, a backfill and a set of broken joins the day
+  // the real table arrives — which is precisely what `Client.homeAirport` cost
+  // us when it held an ICAO string. The FK lands with Trips, backfilled from
+  // `reason` by hand if the desk wants it.
+  // ---------------------------------------------------------------------------
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("ClientCreditCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("ClientCreditUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("ClientCreditDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("ClientCreditRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  /// The ledger read: one client's movements, newest first, live or archived.
+  /// Also the index the balance sums over.
+  @@index([clientId, deletedAt, occurredAt])
+  @@map("client_credits")
+}
+
+/// Which way the money moved.
+///
+/// Two values, because the client described exactly two things: money kept on
+/// account, and money used towards another trip.
+///
+/// A refund — money actually paid back out — is a third real movement and is
+/// **deliberately absent** until somebody asks for it. Recording one today
+/// means an APPLICATION with a reason saying so, which is honest if imprecise;
+/// inventing the value now would be guessing at a workflow nobody has
+/// described.
+enum CreditEntryType {
+  /// Money placed on account. Increases the balance.
+  CREDIT
+
+  /// Money taken off the account towards a trip. Decreases the balance.
+  APPLICATION
+}

@@ -19,6 +19,7 @@ import { TripRequestsModule } from './modules/trip-requests/trip-requests.module
 import { OperatorQuotesModule } from './modules/operator-quotes/operator-quotes.module.js';
 import { QuotesModule } from './modules/quotes/quotes.module.js';
 import { NotesModule } from './modules/notes/notes.module.js';
+import { ClientCreditsModule } from './modules/client-credits/client-credits.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -60,6 +61,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     OperatorQuotesModule,
     QuotesModule,
     NotesModule,
+    ClientCreditsModule,
   ],
   providers: [
     /**

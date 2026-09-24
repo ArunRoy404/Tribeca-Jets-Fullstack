@@ -52,3 +52,30 @@ export function nullableNumber(message: string, options: NumberOptions = {}) {
     base(message, options).nullable().optional(),
   );
 }
+
+/**
+ * An amount of money, in whole currency units with at most two decimals.
+ *
+ * Money columns are `Decimal(12, 2)`, so a third decimal place is not a more
+ * precise amount — it is a value the database will silently round on the way
+ * in, leaving whatever the service computed from the request disagreeing with
+ * what was actually stored. On a credit ledger that is a balance that does not
+ * match its own rows.
+ *
+ * Refusing it at the edge is the only cheap place: the caller is told to send
+ * money, and nothing downstream has to wonder which of two figures is real.
+ *
+ * Built on `requiredNumber`, so an empty box is still "not provided" rather
+ * than `Number('') === 0`.
+ *
+ * @example amount: money('Enter how much', { min: 0.01, max: 10_000_000 })
+ */
+export function money(message: string, options: NumberOptions = {}) {
+  return requiredNumber(message, options).refine(
+    (value) => {
+      const fraction = String(value).split('.')[1];
+      return fraction === undefined || fraction.length <= 2;
+    },
+    { message: 'Amounts are in whole cents — at most two decimal places' },
+  );
+}

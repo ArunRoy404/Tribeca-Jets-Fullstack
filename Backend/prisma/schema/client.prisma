@@ -77,6 +77,10 @@ model Client {
   /// page, which was an empty state until this module shipped.
   quotes Quote[] @relation("QuoteClient")
 
+  /// Money this client has on account with us. A ledger of movements — the
+  /// balance is summed from it and never stored. See `client-credit.prisma`.
+  credits ClientCredit[] @relation("ClientCreditClient")
+
   // ---- Audit trail (every model carries these four) ------------------------
   // Distinct from assignedBroker/originatingBroker, which are business
   // relationships: an admin can create a client assigned to someone else, and

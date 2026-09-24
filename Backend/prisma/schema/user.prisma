@@ -66,6 +66,10 @@ model User {
   createdNotes Note[] @relation("NoteCreatedBy")
   updatedNotes Note[] @relation("NoteUpdatedBy")
 
+  /// Movements on a client's money-on-account ledger.
+  createdClientCredits ClientCredit[] @relation("ClientCreditCreatedBy")
+  updatedClientCredits ClientCredit[] @relation("ClientCreditUpdatedBy")
+
   /// Files this person put into the system. Distinct from `createdUploads`
   /// only in name today, and kept separate because deduplication is scoped to
   /// it: "has *this user* already uploaded these bytes?" is the question the
@@ -101,6 +105,8 @@ model User {
   restoredUploads        Upload[]        @relation("UploadRestoredBy")
   deletedNotes           Note[]          @relation("NoteDeletedBy")
   restoredNotes          Note[]          @relation("NoteRestoredBy")
+  deletedClientCredits   ClientCredit[]  @relation("ClientCreditDeletedBy")
+  restoredClientCredits  ClientCredit[]  @relation("ClientCreditRestoredBy")
 
   // ---- Audit trail (every model carries these four) ------------------------
   //
