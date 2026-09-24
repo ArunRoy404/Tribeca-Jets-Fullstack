@@ -25,6 +25,33 @@ export const queryKeys = {
     meta: (id) => ["uploads", "meta", id],
   },
 
+  /**
+   * Timeline entries.
+   *
+   * Keyed by the record they hang on, not by note id, because that is how they
+   * are always read: writing a note must refresh the timeline it landed on and
+   * nothing else. The two views of the same subject — the merged timeline and
+   * the plain note list behind the Archived tab — sit under one `all` prefix so
+   * a single write refreshes both.
+   */
+  notes: {
+    all: ["notes"],
+    timeline: (subjectType, subjectId, params) => [
+      "notes",
+      "timeline",
+      subjectType,
+      subjectId,
+      params ?? {},
+    ],
+    list: (subjectType, subjectId, params) => [
+      "notes",
+      "list",
+      subjectType,
+      subjectId,
+      params ?? {},
+    ],
+  },
+
   users: {
     all: ["users"],
     list: (params) => ["users", "list", params ?? {}],
