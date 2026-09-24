@@ -61,6 +61,11 @@ model User {
   createdUploads        Upload[]        @relation("UploadCreatedBy")
   updatedUploads        Upload[]        @relation("UploadUpdatedBy")
 
+  /// Timeline entries this person wrote. `createdBy` *is* the author here —
+  /// see the comment on `Note`, which explains why there is no second column.
+  createdNotes Note[] @relation("NoteCreatedBy")
+  updatedNotes Note[] @relation("NoteUpdatedBy")
+
   /// Files this person put into the system. Distinct from `createdUploads`
   /// only in name today, and kept separate because deduplication is scoped to
   /// it: "has *this user* already uploaded these bytes?" is the question the
@@ -94,6 +99,8 @@ model User {
   restoredQuotes         Quote[]         @relation("QuoteRestoredBy")
   deletedUploads         Upload[]        @relation("UploadDeletedBy")
   restoredUploads        Upload[]        @relation("UploadRestoredBy")
+  deletedNotes           Note[]          @relation("NoteDeletedBy")
+  restoredNotes          Note[]          @relation("NoteRestoredBy")
 
   // ---- Audit trail (every model carries these four) ------------------------
   //

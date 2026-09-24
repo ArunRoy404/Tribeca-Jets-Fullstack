@@ -1,0 +1,103 @@
+/// A dated entry on a record's timeline (client adjustment #5).
+///
+/// The client asked for "a section where I can write notes and add it to a
+/// timeline", for trips and for clients. `Client.notes` was not that: it is one
+/// string, and editing it destroys what it said before. That field stays as the
+/// standing summary the detail sidebar shows — "what you need to know about
+/// this person" — and this table is the append-only record of what happened and
+/// when. Two different questions, deliberately two different places.
+///
+/// **Polymorphic on purpose.** Trips do not exist yet, and neither do the four
+/// other records that will want a timeline. A `clientId` column here would mean
+/// a second table the day Trips ships, and then two note systems drifting apart
+/// — different columns, different permissions, two screens to keep in step.
+/// `subjectType` + `subjectId` costs one enum value per new subject and nothing
+/// else.
+///
+/// The price of polymorphism is that `subjectId` cannot be a foreign key, so
+/// the database cannot check it. The service does instead, by asking the module
+/// that owns the subject — see `notes.subjects.ts`. That indirection is what
+/// makes the row-level rule "you may read this note if you may read its
+/// client" true rather than merely intended.
+model Note {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Which kind of record this hangs on, and which one.
+  ///
+  /// Not a foreign key — it cannot be, with more than one target table. The
+  /// existence and visibility check happens in the service through the owning
+  /// module's service, on every read and every write.
+  subjectType NoteSubjectType
+  subjectId   String          @db.Uuid
+
+  /// What somebody typed. Plain text, rendered with line breaks preserved.
+  ///
+  /// `Text` rather than a capped VarChar because a note is the one field on a
+  /// charter desk where somebody genuinely pastes an email thread. The DTO caps
+  /// it at 5,000 characters to catch a paste accident, which is a validation
+  /// question rather than a storage one.
+  body String @db.Text
+
+  /// Who this note is written for.
+  ///
+  /// **Defaults to INTERNAL**, the same direction upload visibility defaults,
+  /// and for the same reason: the cost of failing closed is someone asking why
+  /// the agent cannot see an update, which takes a minute to fix. The cost of
+  /// failing open is desk commentary about a client reaching the person who
+  /// referred them.
+  ///
+  /// This is #11's *Agent Update* field, built here rather than as a second
+  /// feature later — "Tribeca brokers/admins can intentionally share with the
+  /// referral agent" is a note with a flag on it, and discovering that after
+  /// building both is how two note systems end up in one codebase.
+  ///
+  /// It is stored and displayed today and filters nobody, because the role it
+  /// filters does not exist yet. The day REFERRAL_AGENT lands, its read scope
+  /// is `visibility: SHARED` and nothing else here changes.
+  visibility NoteVisibility @default(INTERNAL)
+
+  /// The author is `createdBy` and there is deliberately no second column for
+  /// it. On every other model the two differ — an admin can create a client
+  /// assigned to a broker — but a note has no owner other than whoever typed
+  /// it, and a `authorId` beside `createdById` would be two columns that must
+  /// always agree.
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("NoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("NoteUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("NoteDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("NoteRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  /// The timeline query: one subject's notes, newest first, live or archived.
+  @@index([subjectType, subjectId, deletedAt, createdAt])
+  /// "What has this person been writing" — the audit trail reads by actor.
+  @@index([createdById, createdAt])
+  @@map("notes")
+}
+
+/// Which kind of record a note hangs on.
+///
+/// One value today because Trips do not exist. Adding TRIP later is this enum,
+/// one entry in `NOTE_SUBJECTS`, and nothing else — which is the whole reason
+/// this is polymorphic rather than a `clientId` column.
+enum NoteSubjectType {
+  CLIENT
+}
+
+/// Who a note is written for.
+enum NoteVisibility {
+  /// Desk commentary. Staff only, and never shown outside the CRM.
+  INTERNAL
+
+  /// Deliberately shared outward — #11's *Agent Update*, the line a broker
+  /// writes knowing the referral agent will read it.
+  SHARED
+}

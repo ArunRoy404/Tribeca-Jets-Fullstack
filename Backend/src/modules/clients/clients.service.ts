@@ -242,6 +242,48 @@ export class ClientsService {
   }
 
   /**
+   * A scoped existence check for another module, returning only a display
+   * name.
+   *
+   * The notes timeline hangs off a `subjectId` that no foreign key can check,
+   * because a note's subject is a client today and a trip tomorrow. So the
+   * check happens here instead, through the service that owns the row — which
+   * is what makes "you may read this note if you may read its client" true
+   * rather than merely intended: the broker scope above is applied once, and
+   * notes inherit it without re-deriving it.
+   *
+   * Archived clients resolve, matching `findOne`: their detail page still
+   * opens, and a timeline that emptied itself on archive would lose the entries
+   * explaining why the record was archived. `archived` comes back with them so
+   * the caller can allow the read and still refuse a write, which is the same
+   * split `findOne` and `findLive` make here.
+   */
+  async subjectRef(
+    user: AuthenticatedUser,
+    id: string,
+  ): Promise<{ id: string; label: string; archived: boolean }> {
+    const client = await this.prisma.client.findFirst({
+      where: { id, ...this.visibilityScope(user) },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        companyName: true,
+        deletedAt: true,
+      },
+    });
+    // 404 and not 403, like findOne: a 403 would confirm the client exists.
+    if (!client) throw new NotFoundException('Client not found');
+
+    return {
+      id: client.id,
+      label:
+        client.companyName ?? `${client.firstName} ${client.lastName}`.trim(),
+      archived: client.deletedAt !== null,
+    };
+  }
+
+  /**
    * A home airport must name a live airport row.
    *
    * Prisma would raise P2003 on a bad id, which the exception filter turns
