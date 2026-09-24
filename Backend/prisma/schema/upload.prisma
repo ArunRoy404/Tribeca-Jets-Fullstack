@@ -113,10 +113,8 @@ model Upload {
   /// value, and uniqueness here would refuse the re-upload that is supposed to
   /// recreate it.
   @@index([checksum, uploadedById, deletedAt])
-
   /// The folder query: one person's documents, newest first.
   @@index([ownerUserId, deletedAt, createdAt])
-
   @@index([deletedAt, createdAt])
   @@map("uploads")
 }
