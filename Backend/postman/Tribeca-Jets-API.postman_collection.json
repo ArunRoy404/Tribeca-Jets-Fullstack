@@ -169,6 +169,16 @@
       "key": "sharedNoteId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "creditId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "creditEntryId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -15673,6 +15683,1262 @@
                   "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
                   "    }, function (err) {",
                   "        if (err) { console.warn('teardown could not withdraw ' + shared, err); }",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 \u00b7 Client Credits",
+      "description": "Money a client has on account with us \u2014 the client's adjustment #9: *\"a section on their profile that says credit/money on account ... we can enter how much that is and can always edit that number or select if it was used towards another trip\"*.\n\n**This is a ledger, not that number, and the difference is deliberate.** The two halves of his own sentence \u2014 \"edit that number\" and \"used towards another trip\" \u2014 are *credits* and *applications*: movements, with a balance derived from them. A single editable field loses why it changed, and a balance dropping from $18,000 to $6,000 with nothing saying which trip consumed it is an argument waiting to happen. He gets the edit he asked for, on a row, plus an audit trail he did not know to ask for.\n\n**There is no `balance` column.** It is summed on every read, in one place, exactly as a quote's total is \u2014 a stored figure beside the parts it is computed from contradicts them the first time one is edited.\n\n**No trip link yet.** Trips do not exist, and a reference string pointing at nothing would become a migration and a set of broken joins the day the table arrives. `reason` carries it for now.\n\n**Reading needs `VIEW_FINANCIALS` *and* access to the client.** An assistant holds the first at NONE and never learns what a client is holding; a broker sees only their own clients, and another broker's ledger answers 404 rather than 403.\n\nEvery request below is signed in as the seeded SUPER_ADMIN by the folder's pre-request script, except the 403 examples, captured as the seeded assistant.",
+      "item": [
+        {
+          "name": "01 \u00b7 What the client has on account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/client-credits/summary?clientId={{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "client-credits",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "clientId",
+                  "value": "{{clientId}}",
+                  "description": "**Required.** uuid of the client whose account this is. A client you may not read answers 404, not 403 \u2014 a 403 would confirm they exist, and a balance should not help anyone build a list of client ids."
+                }
+              ]
+            },
+            "description": "The figures above the ledger: `balance`, `credited`, `applied`, how many movements there are and when the last one was.\n\n**Summed on every read and never stored.** There is no `balance` column, for the same reason a quote has no stored total: the day an edit moves one entry and the stored figure does not follow, the record contradicts itself and nothing on screen says which half is right.\n\nWithdrawn movements count towards nothing here, so the total always agrees with the rows printed underneath it.\n\nReading any of this needs `VIEW_FINANCIALS`: an assistant never learns what a client is holding, even for a client they can otherwise read."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 $18,000 credited, $12,000 used",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/summary?clientId={{clientId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"credited\": 18000,\n    \"applied\": 12000,\n    \"balance\": 6000,\n    \"entries\": 2,\n    \"lastMovementAt\": \"2026-04-02T00:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 A summary narrows nothing",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/summary?clientId={{clientId}}&type=CREDIT",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"type\\\"\"\n  },\n  \"path\": \"/api/client-credits/summary?clientId=685a23b9-318f-4d2f-95ab-aa41b0397ec7&type=CREDIT\",\n  \"timestamp\": \"2026-09-24T07:06:20.322Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 An assistant may not see money",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/summary?clientId={{clientId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role cannot see what a client has on account\",\n  \"path\": \"/api/client-credits/summary?clientId=685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n  \"timestamp\": \"2026-09-24T07:06:20.324Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "/*",
+                  " * Finds a client to hang the ledger on.",
+                  " *",
+                  " * `{{clientId}}` is set by `03 \u00b7 Clients` during a full run, so without this",
+                  " * the folder run alone sends an empty clientId and fails validation \u2014 a",
+                  " * false failure, which is how a real one gets ignored.",
+                  " *",
+                  " * It lives on this request rather than on the folder because the folder",
+                  " * script signs in asynchronously: a lookup queued beside that login fires",
+                  " * before the session cookie exists and comes back 401.",
+                  " */",
+                  "if (!pm.collectionVariables.get('clientId')) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('baseUrl') + '/clients?limit=1',",
+                  "        method: 'GET',",
+                  "    }, function (err, res) {",
+                  "        if (err) { console.error('could not resolve a client', err); return; }",
+                  "        const body = res.json();",
+                  "        if (body && body.data && body.data.length) {",
+                  "            pm.collectionVariables.set('clientId', body.data[0].id);",
+                  "        }",
+                  "    });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('summary loads', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const d = pm.response.json().data;",
+                  "    pm.expect(d).to.have.property('balance');",
+                  "});",
+                  "",
+                  "pm.test('the balance equals credited minus applied', function () {",
+                  "    const d = pm.response.json().data;",
+                  "    // The property that matters: the summary sums and the write guard walks",
+                  "    // the same ledger, and they must never disagree.",
+                  "    pm.expect(d.balance).to.eql(d.credited - d.applied);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 List the movements",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/client-credits?clientId={{clientId}}&page=1&limit=10&sortBy=occurredAt&sortOrder=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "client-credits"
+              ],
+              "query": [
+                {
+                  "key": "clientId",
+                  "value": "{{clientId}}",
+                  "description": "**Required.** uuid of the client whose account this is. A client you may not read answers 404, not 403 \u2014 a 403 would confirm they exist, and a balance should not help anyone build a list of client ids."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number, 1-based. Integer \u22651. Default 1."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Rows per page. Integer 1-100. Default 10. >100 or <1 \u2192 400."
+                },
+                {
+                  "key": "type",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Allowed (case-sensitive): CREDIT | APPLICATION. Lower-case returns 400 rather than being silently corrected."
+                },
+                {
+                  "key": "sortBy",
+                  "value": "occurredAt",
+                  "description": "Allowed (case-sensitive): occurredAt | createdAt | updatedAt | amount. **Default occurredAt**, not createdAt \u2014 the ledger opens on the newest *movement*, not the newest row typed in."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Allowed (case-sensitive): asc | desc. Default desc."
+                },
+                {
+                  "key": "archived",
+                  "value": "false",
+                  "disabled": true,
+                  "description": "Allowed: true | false. Default false \u2014 live movements only. `true` returns ONLY withdrawn ones, which count towards no figure in the summary."
+                }
+              ]
+            },
+            "description": "The ledger itself \u2014 every movement on and off the account, newest first by `occurredAt`.\n\n`clientId` is **required**: there is no \"all credits\" endpoint, because money on account is only meaningful beside the client holding it and an unscoped list would be the one query that ignores the row-level rule the client carries.\n\n`archived=true` is the withdrawn half, with `deletedBy` naming who took each movement off."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 The ledger",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits?clientId={{clientId}}&page=1&limit=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"6c95e687-f61d-48e0-ac08-c8be0ab2930a\",\n      \"clientId\": \"685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n      \"type\": \"APPLICATION\",\n      \"amount\": 12000,\n      \"occurredAt\": \"2026-04-02T00:00:00.000Z\",\n      \"reason\": \"Applied to the Aspen trip\",\n      \"reference\": null,\n      \"createdAt\": \"2026-09-24T07:06:20.302Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"createdBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"updatedAt\": \"2026-09-24T07:06:20.302Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"2200bfe8-d602-4608-b6fc-8170e97204f1\",\n      \"clientId\": \"685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n      \"type\": \"CREDIT\",\n      \"amount\": 18000,\n      \"occurredAt\": \"2026-03-14T00:00:00.000Z\",\n      \"reason\": \"Cancelled KTEB\u2192KMIA, kept on account\",\n      \"reference\": \"REF-44812\",\n      \"createdAt\": \"2026-09-24T07:06:20.295Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"createdBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"updatedAt\": \"2026-09-24T07:06:20.295Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Credits only",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits?clientId={{clientId}}&type=CREDIT",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"2200bfe8-d602-4608-b6fc-8170e97204f1\",\n      \"clientId\": \"685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n      \"type\": \"CREDIT\",\n      \"amount\": 18000,\n      \"occurredAt\": \"2026-03-14T00:00:00.000Z\",\n      \"reason\": \"Cancelled KTEB\u2192KMIA, kept on account\",\n      \"reference\": \"REF-44812\",\n      \"createdAt\": \"2026-09-24T07:06:20.295Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"createdBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"updatedAt\": \"2026-09-24T07:06:20.295Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Withdrawn movements",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits?clientId={{clientId}}&archived=true",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"6c95e687-f61d-48e0-ac08-c8be0ab2930a\",\n      \"clientId\": \"685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n      \"type\": \"APPLICATION\",\n      \"amount\": 12500,\n      \"occurredAt\": \"2026-04-02T00:00:00.000Z\",\n      \"reason\": \"Applied to the Aspen trip (revised)\",\n      \"reference\": null,\n      \"createdAt\": \"2026-09-24T07:06:20.302Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"createdBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"updatedAt\": \"2026-09-24T07:06:20.373Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"deletedAt\": \"2026-09-24T07:06:20.373Z\",\n      \"deletedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": {\n        \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@tribecajets.com\"\n      },\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 clientId is required",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"clientId\": \"Choose which client this ledger belongs to\"\n  },\n  \"path\": \"/api/client-credits\",\n  \"timestamp\": \"2026-09-24T07:06:20.336Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/client-credits\",\n  \"timestamp\": \"2026-09-24T04:00:00.000Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ledger returned', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().meta).to.have.property('total');",
+                  "});",
+                  "",
+                  "pm.test('no row carries a balance', function () {",
+                  "    // The balance is summed on read. A row that carried one would be a",
+                  "    // stored figure beside the parts it is computed from.",
+                  "    const rows = pm.response.json().data;",
+                  "    rows.forEach(function (row) {",
+                  "        pm.expect(row).to.not.have.property('balance');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Put money on the account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{clientId}}\",                          // required \u00b7 uuid of a client you may already read. Money on account is only meaningful beside the client holding it \u2014 there is no unscoped ledger.\n\n  \"type\": \"CREDIT\",                                    // required \u00b7 CREDIT | APPLICATION. CREDIT puts money on the account; APPLICATION takes it off towards a trip. The direction lives here and never in a minus sign.\n  \"amount\": 18000,                                     // required \u00b7 positive, 0.01-10000000, at most 2 decimal places. A third decimal is not a finer amount \u2014 the column is Decimal(12,2) and would round it, leaving the balance disagreeing with the row.\n\n  \"occurredAt\": \"2026-03-14\",                          // required \u00b7 YYYY-MM-DD. The day the money MOVED, not the day it was typed in \u2014 a trip cancelled on the 3rd and entered on the 9th is dated the 3rd. `createdAt` records the typing.\n\n  \"reason\": \"Cancelled KTEB\u2192KMIA, kept on account\",    // optional \u00b7 max 500 chars. Until Trips exists this sentence is the only record of WHICH trip consumed a credit, so it carries more weight than it eventually will.\n  \"reference\": \"REF-44812\"                             // optional \u00b7 max 100 chars. The desk's own reference \u2014 a cheque number, a processor refund id.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/client-credits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "client-credits"
+              ]
+            },
+            "description": "The client's own example: *\"they cancel a trip and they want to keep the money they paid on account with us\"*.\n\n`type` carries the direction and `amount` is **always positive**. A signed column invites `-5000` typed into a CREDIT, which reads as a credit and behaves as an application, and nothing on screen tells the two apart.\n\n`occurredAt` is the day the money moved, which is not the day it was entered \u2014 `createdAt` records that."
+          },
+          "response": [
+            {
+              "name": "201 \u00b7 Credited",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"type\": \"CREDIT\",\n  \"amount\": 18000,\n  \"occurredAt\": \"2026-03-14\",\n  \"reason\": \"Cancelled KTEB\\u2192KMIA, kept on account\",\n  \"reference\": \"REF-44812\"\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"2200bfe8-d602-4608-b6fc-8170e97204f1\",\n    \"clientId\": \"685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n    \"type\": \"CREDIT\",\n    \"amount\": 18000,\n    \"occurredAt\": \"2026-03-14T00:00:00.000Z\",\n    \"reason\": \"Cancelled KTEB\u2192KMIA, kept on account\",\n    \"reference\": \"REF-44812\",\n    \"createdAt\": \"2026-09-24T07:06:20.295Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedAt\": \"2026-09-24T07:06:20.295Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Amounts are whole cents",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"type\": \"CREDIT\",\n  \"amount\": 100.005,\n  \"occurredAt\": \"2026-04-03\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"amount\": \"Amounts are in whole cents \u2014 at most two decimal places\"\n  },\n  \"path\": \"/api/client-credits\",\n  \"timestamp\": \"2026-09-24T07:06:20.311Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 The client has been archived",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"type\": \"CREDIT\",\n  \"amount\": 500,\n  \"occurredAt\": \"2026-04-05\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That client has been archived. Restore them before changing their account.\",\n  \"path\": \"/api/client-credits\",\n  \"timestamp\": \"2026-09-24T07:06:20.419Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 An assistant may not record money",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role cannot see what a client has on account\",\n  \"path\": \"/api/client-credits\",\n  \"timestamp\": \"2026-09-24T07:06:20.315Z\"\n}"
+            },
+            {
+              "name": "404 \u00b7 No such client (or not yours)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientId\": \"00000000-0000-4000-8000-000000000000\",\n  \"type\": \"CREDIT\",\n  \"amount\": 500,\n  \"occurredAt\": \"2026-04-03\"\n}"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Client not found\",\n  \"path\": \"/api/client-credits\",\n  \"timestamp\": \"2026-09-24T07:06:20.313Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('credited', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const d = pm.response.json().data;",
+                  "    pm.expect(d.type).to.eql('CREDIT');",
+                  "    pm.collectionVariables.set('creditId', d.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Use it towards another trip",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"type\": \"APPLICATION\",                               // Takes money off the account.\n  \"amount\": 12000,\n  \"occurredAt\": \"2026-04-02\",\n\n  \"reason\": \"Applied to the Aspen trip\"                // No trip id yet \u2014 see the folder description.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/client-credits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "client-credits"
+              ]
+            },
+            "description": "The other half of the request: *\"select if it was used towards another trip\"*.\n\n**There is no trip id yet, deliberately.** Trips do not exist, and a `tripReference` string \"for now\" would be a column pointing at nothing the database can check \u2014 which is exactly what `Client.homeAirport` cost when it held an ICAO string. Say which trip in `reason`; the foreign key lands with the Trips module.\n\n**An application beyond the balance is refused**, with the available figure named. A client cannot spend money they are not holding, so that is a typo \u2014 an extra zero, or the same cancellation entered twice."
+          },
+          "response": [
+            {
+              "name": "201 \u00b7 Applied",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"type\": \"APPLICATION\",\n  \"amount\": 12000,\n  \"occurredAt\": \"2026-04-02\",\n  \"reason\": \"Applied to the Aspen trip\"\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6c95e687-f61d-48e0-ac08-c8be0ab2930a\",\n    \"clientId\": \"685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n    \"type\": \"APPLICATION\",\n    \"amount\": 12000,\n    \"occurredAt\": \"2026-04-02T00:00:00.000Z\",\n    \"reason\": \"Applied to the Aspen trip\",\n    \"reference\": null,\n    \"createdAt\": \"2026-09-24T07:06:20.302Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedAt\": \"2026-09-24T07:06:20.302Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 More than the account holds",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"type\": \"APPLICATION\",\n  \"amount\": 99000,\n  \"occurredAt\": \"2026-04-03\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That is more than this client has on account. Available: 6000.00.\",\n  \"path\": \"/api/client-credits\",\n  \"timestamp\": \"2026-09-24T07:06:20.308Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('applied', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.collectionVariables.set('creditEntryId', pm.response.json().data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Get one movement",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "client-credits",
+                "{{creditEntryId}}"
+              ]
+            },
+            "description": "Withdrawn movements load here too, so the archived view can link to them.\n\nA movement on a client outside the caller's scope returns **404, not 403**. The entry's own id says nothing about who may read it; the client it belongs to says everything."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 The movement",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits",
+                    "{{creditEntryId}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"2200bfe8-d602-4608-b6fc-8170e97204f1\",\n    \"clientId\": \"685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n    \"type\": \"CREDIT\",\n    \"amount\": 18000,\n    \"occurredAt\": \"2026-03-14T00:00:00.000Z\",\n    \"reason\": \"Cancelled KTEB\u2192KMIA, kept on account\",\n    \"reference\": \"REF-44812\",\n    \"createdAt\": \"2026-09-24T07:06:20.295Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedAt\": \"2026-09-24T07:06:20.295Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 No such movement (or not yours)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/00000000-0000-4000-8000-000000000000",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits",
+                    "00000000-0000-4000-8000-000000000000"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That credit entry does not exist\",\n  \"path\": \"/api/client-credits/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-24T07:06:20.350Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('movement returned', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data).to.have.property('amount');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Edit that number",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 12500,  // Every field optional \u2014 this is a PATCH, and an empty body returns 400. `clientId` is deliberately absent: money does not move between clients.\n\n  \"reason\": \"Applied to the Aspen trip (revised)\"      // null clears it; absent leaves it alone.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "client-credits",
+                "{{creditEntryId}}"
+              ]
+            },
+            "description": "The *\"can always edit that number\"* half of the request \u2014 on an entry, which is what gives it an audit trail the client did not know to ask for.\n\n**The balance is re-checked without this row.** Raising an application is measured against what the account actually holds, rather than against a figure that still contains the old value.\n\n`clientId` cannot be changed: money does not move between clients. An entry filed against the wrong one is withdrawn and re-entered, which leaves the mistake visible on both ledgers instead of silently moving a balance."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Edited",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits",
+                    "{{creditEntryId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 12500,\n  \"reason\": \"Applied to the Aspen trip (revised)\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6c95e687-f61d-48e0-ac08-c8be0ab2930a\",\n    \"clientId\": \"685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n    \"type\": \"APPLICATION\",\n    \"amount\": 12500,\n    \"occurredAt\": \"2026-04-02T00:00:00.000Z\",\n    \"reason\": \"Applied to the Aspen trip (revised)\",\n    \"reference\": null,\n    \"createdAt\": \"2026-09-24T07:06:20.302Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedAt\": \"2026-09-24T07:06:20.356Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Empty body",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits",
+                    "{{creditEntryId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/client-credits/6c95e687-f61d-48e0-ac08-c8be0ab2930a\",\n  \"timestamp\": \"2026-09-24T07:06:20.363Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Raised past the balance",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits",
+                    "{{creditEntryId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 99000\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That is more than this client has on account. Available: 18000.00.\",\n  \"path\": \"/api/client-credits/6c95e687-f61d-48e0-ac08-c8be0ab2930a\",\n  \"timestamp\": \"2026-09-24T07:06:20.369Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('edited', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data.amount).to.eql(12500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Withdraw a movement",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "client-credits",
+                "{{creditEntryId}}"
+              ]
+            },
+            "description": "Soft. It leaves the balance and stays readable in the archived view with the trail of who removed it.\n\nNothing in this system is destroyed, and on a money ledger least of all: the reason a figure changed is the thing somebody will ask about."
+          },
+          "response": [
+            {
+              "name": "204 \u00b7 Withdrawn",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits",
+                    "{{creditEntryId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('withdrawn', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 \u00b7 Restore a withdrawn movement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "client-credits",
+                "{{creditEntryId}}",
+                "restore"
+              ]
+            },
+            "description": "**200, not 201** \u2014 a restore creates nothing; it clears a deletion stamp on a row that existed all along.\n\n**The balance is re-checked, because the ledger has moved on.** A $12,000 application withdrawn in March and restored in June lands on whatever the account holds now; if the credit behind it was spent meanwhile, restoring would overdraw the client. A guard that a withdraw-and-restore walks around is not a guard."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Back on the ledger",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits",
+                    "{{creditEntryId}}",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6c95e687-f61d-48e0-ac08-c8be0ab2930a\",\n    \"clientId\": \"685a23b9-318f-4d2f-95ab-aa41b0397ec7\",\n    \"type\": \"APPLICATION\",\n    \"amount\": 12500,\n    \"occurredAt\": \"2026-04-02T00:00:00.000Z\",\n    \"reason\": \"Applied to the Aspen trip (revised)\",\n    \"reference\": null,\n    \"createdAt\": \"2026-09-24T07:06:20.302Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"updatedAt\": \"2026-09-24T07:06:20.388Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    },\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-24T07:06:20.388Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@tribecajets.com\"\n    }\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not withdrawn",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits",
+                    "{{creditEntryId}}",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That entry is not withdrawn\",\n  \"path\": \"/api/client-credits/6c95e687-f61d-48e0-ac08-c8be0ab2930a/restore\",\n  \"timestamp\": \"2026-09-24T07:06:20.395Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('restored', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data.restoredAt).to.not.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 \u00b7 Teardown \u00b7 clear the probe ledger",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "client-credits",
+                "{{creditEntryId}}"
+              ]
+            },
+            "description": "A run is a demonstration, not a data entry session \u2014 and a ledger is the last place to leave debris.\n\nRequest 08 restores the movement to show that restore works, which leaves it live, so every run would add money to a real client's account. This withdraws it again, and its test withdraws the credit from request 03 as well. There is no hard delete by design, so archiving the probes is the correct end state."
+          },
+          "response": [
+            {
+              "name": "204 \u00b7 Withdrawn",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/client-credits/{{creditEntryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "client-credits",
+                    "{{creditEntryId}}"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('probe withdrawn', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "const credit = pm.collectionVariables.get('creditId');",
+                  "if (credit) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('baseUrl') + '/client-credits/' + credit,",
+                  "        method: 'DELETE',",
+                  "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
+                  "    }, function (err) {",
+                  "        if (err) { console.warn('teardown could not withdraw ' + credit, err); }",
                   "    });",
                   "}"
                 ]
