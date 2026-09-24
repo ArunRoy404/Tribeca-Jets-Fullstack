@@ -66,6 +66,7 @@ set of broken joins the day the real table arrives.
 | 27 | **AI Assistant** | Stub only | All |
 | 28 | **Uploads** | ✅ Done | — (built out of order; see below) |
 | 29 | **Notes / Timeline** | ✅ Done for Clients | Clients, Users (built out of order; adjustment #5) |
+| 30 | **Client Credits** | ✅ Done | Clients (built out of order; adjustment #9). Trip link waits on **Trips** |
 
 **Why Trips is next:** it is the single largest unblocker in the project. Nine
 modules (12, 13, 14, 16, 17, 18, 19, 23 and the Dashboard) and roughly a dozen
@@ -614,6 +615,56 @@ mouth.
 props-fed list with a TODO on it. `NotesTimeline` is written against
 `subjectType`/`subjectId`, so the trip detail page renders the same component
 with `subjectType="TRIP"` when Trips ships.
+
+---
+
+### 30. Client Credits ✅ *(the trip link waits on Trips)*
+
+**Not in the signed scope's module list.** It is the client's adjustment #9:
+*"a section on their profile that says credit/money on account ... we can enter
+how much that is and can always edit that number or select if it was used
+towards another trip."*
+
+**Built as a ledger rather than as that number, deliberately**, and the client's
+own sentence is the argument: "edit that number" and "used towards another
+trip" are two kinds of movement, so they are rows and the balance is summed
+from them. A single editable field loses *why* it changed, and a balance
+dropping from $18,000 to $6,000 with nothing saying which trip consumed it is
+an argument waiting to happen. He still gets the edit he asked for — it lands
+on an entry, which is what gives it a trail.
+
+It is also the shape this schema forbids everywhere else: **a stored figure
+beside the parts it is computed from.** There is no `balance` column. It is
+summed on read, in one place, exactly as a quote's total is.
+
+**Four decisions worth keeping:**
+
+- **The direction is a column, never a minus sign.** `amount` is always
+  positive and `type` is `CREDIT` or `APPLICATION`. A signed column invites
+  `-5000` typed into a credit, which reads as a credit and behaves as an
+  application.
+- **The arithmetic is integer cents**, in pure functions with tests. `0.1 +
+  0.2` is `0.30000000000000004` and a ledger is repeated addition. The
+  conversion parses the decimal string rather than multiplying, because
+  `1.005 * 100` is `100.49999999999999` — a cent lost before rounding ever
+  runs.
+- **An application cannot overdraw the account**, and the check runs on create,
+  on edit *and* on restore. Without the last one, withdrawing an entry and
+  restoring it walks around the rule.
+- **`occurredAt` is not `createdAt`.** A trip cancelled on the 3rd and entered
+  on the 9th is dated the 3rd, and the ledger sorts by the movement.
+
+**Reading needs `VIEW_FINANCIALS` *and* access to the client** — two questions,
+kept separate. An assistant holds the first at NONE and never learns what a
+client is holding; a broker sees only their own clients, and another broker's
+ledger answers **404**, never 403. The tab is hidden rather than shown and
+refused.
+
+> **The trip link is missing on purpose.** "Used towards another trip" has no
+> trip to point at, and a `tripReference` string "for now" would be a column
+> pointing at nothing the database can check — which is exactly what
+> `Client.homeAirport` cost when it held an ICAO string. `reason` carries it
+> until **Trips (#11)** ships, then it becomes a real foreign key.
 
 ---
 

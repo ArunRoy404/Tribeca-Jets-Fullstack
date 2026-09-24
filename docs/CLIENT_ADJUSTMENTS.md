@@ -8,7 +8,7 @@ ordered by dependency.
 `docs/Client_Adjustments.txt`, which held the raw messages and nothing else.
 The original is not needed and has been deleted.
 
-*Last updated: 23 September 2026.*
+*Last updated: 24 September 2026.*
 
 ---
 
@@ -192,7 +192,7 @@ b70b5d8  feat(auth): sign out a session left untouched for ten minutes
 | 6 | Instant quote calculator | ☐ | ☐ | **Deferred** — needs Quotes UI **and his rate data**. |
 | 7 | A document folder per user (tax forms) | ✅ | ✅ | **Done** 23 Sep 2026. |
 | 8 | "Active trip request" section | ✅ | ✅ | **Done** 19 Sep 2026 — same as 10a. |
-| 9 | Client credit / money on account | ☐ | ☐ | Not started. Build as a ledger, not a number. |
+| 9 | Client credit / money on account | ✅ | ✅ | **Done** 24 Sep 2026, as a ledger. Trip link waits on Trips. |
 | 10a | Trip request page | ✅ | ✅ | **Done** 19 Sep 2026. |
 | 10b | Empty-leg matching against past requests | ☐ | ☐ | **Blocked** — Empty Legs has no backend. |
 | 11 | Referral Agent role and partner portal | ☐ | ☐ | **Blocked** — needs Trips, Commissions, upload. Largest item by a distance. |
@@ -213,8 +213,8 @@ Dependency-first, as `AGENTS.md` requires. Cheapest unblocker at the top.
 | **5** | **#1 Demonstrate the Archived tab** | **No code.** Five minutes on the next call with him. |
 | 6 | ~~**#7 User document folders**~~ ✅ 23 Sep 2026 | A Documents tab on the team member sheet, over a folder query rather than a second table. |
 | 7 | ~~**#5 Notes timeline**~~ ✅ 23 Sep 2026 | Polymorphic, so Trips gets it for one enum value. #11's Agent Update field is the `visibility` flag, built with it. |
-| **8** | **#9 Client credit ledger** | Client-scoped now; the trip link is a second pass the day Trips lands. |
-| **9** | **Trips** | Not a client request — but #9 waits on it, #5's trip half needs it, and it unblocks nine modules. |
+| 8 | ~~**#9 Client credit ledger**~~ ✅ 24 Sep 2026 | Client-scoped, as planned. The trip link is a second pass the day Trips lands. |
+| **9** | **Trips** | Not a client request — but #5's trip timeline and #9's trip link both wait on it, and it unblocks nine modules. **Next.** |
 | 10 | **#10b Empty-leg matching** | After Empty Legs has a backend. |
 | 11 | **#11 Referral Agent portal** | Last. Needs Trips, Commissions and upload all in place. |
 | — | **#3, #6** | Deferred at the client's request until the Quotes and Itinerary UI lands. |
@@ -381,17 +381,21 @@ removal. That part was already right before he asked.
 
 ---
 
-### ☐ 9. Client credit / money on account
+### ✅ 9. Client credit / money on account — **DONE 24 Sep 2026**
 
 > For clients - I want a section on their profile that says "credit/money on
 > account". So let's say they cancel a trip and they want to keep the money
 > they paid on account with us, we can enter how much that is and can always
 > edit that number or select if it was used towards another trip.
 
-**Status: not started. Order item 8.**
+**Status: shipped 24 September 2026, as a ledger. Order item 8.**
 
-**Build this as a ledger, not a number — and this is a place where the build
-should not do literally what was asked.**
+The Credit tab on the client detail page. See §4 for what was built. The
+reasoning below is kept because it is the argument to make to him, and because
+it is the decision a later session would otherwise quietly undo.
+
+**Built as a ledger, not a number — a place where the build deliberately does
+not do literally what was asked.**
 
 He says "edit that number", but he also says "select if it was used towards
 another trip", and those two together are **credits and applications**: rows,
@@ -406,10 +410,15 @@ from.** The balance is a `SUM` over the ledger, computed on read.
 **Raise the difference with him in a sentence** — he gets the edit he asked
 for, on a row, and an audit trail he did not know to ask for.
 
-**⚠️ "Used towards another trip" needs Trips to point at.** Ship the
-client-scoped credit ledger now; the trip link is the second pass, the day
-Trips lands. Store the trip id as a real foreign key when it exists — **never
-stub it with a string**.
+**⚠️ "Used towards another trip" needs Trips to point at.** Shipped
+client-scoped; an APPLICATION says which trip in its `reason` text. There is
+deliberately **no `appliedToTripId` column and no reference string** — the FK
+lands with Trips. This is the one part of #9 still outstanding.
+
+**Still to raise with him:** (a) the ledger itself, which is more than he asked
+for and needs one sentence of explanation; (b) whether a **refund** — money
+actually paid back out — is a movement the desk needs. It is deliberately not
+built: recording one today means an APPLICATION whose reason says so.
 
 ---
 
@@ -962,6 +971,80 @@ status · write and read exercised **through the Next proxy** · `next build`
 clean · rendered at **375 / 768 / 1440** with zero horizontal overflow, and the
 assistant's read-only view confirmed to render no composer and no row actions ·
 0 live probes left.
+
+---
+
+### ✅ Client credit ledger — 24 September 2026 · order item 8
+
+> *"For clients - I want a section on their profile that says 'credit/money on
+> account'. So let's say they cancel a trip and they want to keep the money
+> they paid on account with us, we can enter how much that is and can always
+> edit that number or select if it was used towards another trip."*
+
+**Built as a ledger rather than the single editable number he described**, and
+his own sentence is the argument: "edit that number" and "select if it was used
+towards another trip" are two different kinds of movement. A single field loses
+*why* the figure changed, and a balance dropping from $18,000 to $6,000 with
+nothing saying which trip consumed it is an argument waiting to happen. He
+still gets the edit he asked for — it lands on a row, which is what gives it a
+trail.
+
+It is also the shape the schema forbids everywhere else: a stored figure beside
+the parts it is computed from. **There is no `balance` column.** It is summed
+on every read, in one place, exactly as a quote's total is.
+
+**Four decisions, each one a thing a later session would otherwise redo
+wrongly:**
+
+1. **The direction is a column, never a minus sign.** `amount` is always
+   positive; `type` is CREDIT or APPLICATION. A signed column invites `-5000`
+   typed into a credit, which reads as a credit and behaves as an application,
+   and nothing on screen tells them apart.
+2. **The arithmetic is integer cents**, in `client-credits.balance.ts`, as pure
+   functions with tests. `0.1 + 0.2` is `0.30000000000000004`, and a ledger is
+   nothing but repeated addition. The conversion **parses the decimal string
+   rather than multiplying** — `1.005 * 100` is `100.49999999999999`, so
+   multiplying loses the cent before `Math.round` ever runs. That was found by
+   a test, not by reading the code.
+3. **An application cannot overdraw the account**, checked on create, on edit
+   and **on restore**. The last one matters: a $12,000 application withdrawn in
+   March and restored in June lands on whatever the account holds now, so
+   without it a withdraw-and-restore walks straight around the rule. On edit it
+   is measured against the ledger *excluding the row being edited*.
+4. **`occurredAt` is not `createdAt`.** A trip cancelled on the 3rd and entered
+   on the 9th is dated the 3rd. The audit column still records the typing, and
+   the ledger sorts by the movement.
+
+**Access is two questions, kept apart.** `VIEW_FINANCIALS` decides whether a
+role sees money at all — an assistant holds NONE and never learns what a client
+is holding, even for a client they can otherwise read (403). *Which* clients is
+the clients module's own scope, reached through `ClientsService.subjectRef`, so
+another broker's ledger answers **404**. The Credit tab is hidden rather than
+shown and refused.
+
+`money()` was added to `common/dto/numbers.ts` and `formatMoney` was lifted out
+of `lib/lead.js` into a new `lib/money.js` — three modules were already
+importing a money formatter from the leads file — with a re-export so no
+existing caller changed. `formatMoneyExact` is new beside it: a balance is an
+amount somebody is owed, and rounding $6,000.40 to "$6,000" makes the profile
+and the bank statement disagree with nothing explaining why.
+
+**Still outstanding, deliberately:** the trip link. "Used towards another trip"
+has nothing to point at until Trips ships, and a reference string would be a
+column the database cannot check — what `Client.homeAirport` cost when it held
+an ICAO string. `reason` carries it as text for now.
+
+**Verified:** 35 live assertions across four real accounts (the client's own
+$18,000/$12,000 example balancing to $6,000; one cent too much refused and the
+available figure named; spending exactly to zero allowed; an edit raised to the
+whole credit but not past it; an assistant 403 on both read and write; another
+broker 404 on the ledger, the summary, an entry by id and a withdrawal; a
+restore refused when the account has moved on beneath it; an archived client
+readable and not writable) · 109 unit tests · `tsc` clean · oxlint 0 · Newman
+**143 requests / 81 assertions / 0 failures**, twice, and the folder alone at
+12/11/0 · every example label checked against its captured status · rendered at
+**375 / 768 / 1440** with zero horizontal overflow · the tab confirmed absent
+for an assistant · 0 live probes left.
 
 ---
 

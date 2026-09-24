@@ -865,6 +865,49 @@ day the role lands, its read scope is `visibility: SHARED` and nothing else
 changes. Do not build the filtering ahead of the role — there is nothing to
 filter, and a rule with no caller is a rule nobody has tested.
 
+## A balance is summed, never stored — and money is counted in cents
+
+`ClientCredit` is a ledger of movements (`CREDIT` / `APPLICATION`) and there is
+**no `balance` column anywhere**. The balance is a sum over the rows, computed
+on every read, exactly as a quote's total is: a stored figure beside the parts
+it is computed from contradicts them the first time one is edited, and nothing
+on screen says which half is right.
+
+That is also why the client's request was not built literally. He asked for one
+editable number — but the same sentence said "or select if it was used towards
+another trip", and those two together are credits and applications. **He gets
+the edit he asked for, on a row**, plus a trail he did not know to ask for.
+
+Three rules that generalise to every money feature after this one:
+
+- **The direction is a column, never a minus sign.** `amount` is always
+  positive and `type` says which way it moves. A signed column invites `-5000`
+  typed into a CREDIT, which reads as a credit and behaves as an application,
+  and nothing on screen tells the two apart.
+- **Arithmetic happens in integer cents**, in
+  `client-credits.balance.ts`, as pure functions with tests. `0.1 + 0.2` is
+  `0.30000000000000004` and a ledger is nothing but repeated addition. Convert
+  by **parsing the decimal string, not by multiplying**: `1.005 * 100` is
+  `100.49999999999999`, so the precision is gone before `Math.round` ever sees
+  it and the ledger ends a cent light on a value the API had already accepted.
+- **A money DTO refuses a third decimal place** (`money()` in
+  `common/dto/numbers.ts`). The column is `Decimal(12, 2)`, so a third decimal
+  is not a finer amount — it is one Postgres rounds on the way in, leaving the
+  balance the service checked disagreeing with the row it wrote.
+
+**A guard on a balance must be re-applied on restore.** An application cannot
+take an account below zero, and that check lives on create, on update *and* on
+restore: a $12,000 application withdrawn in March and restored in June lands on
+whatever the account holds now, so without it a withdraw-and-restore walks
+straight around the rule. On update it is measured against the ledger
+*excluding the row being edited*, or raising an application by a pound is
+checked against a balance that still contains its old value.
+
+**`occurredAt` is not `createdAt`.** A trip cancelled on the 3rd and entered on
+the 9th is a credit dated the 3rd; the audit column still records the typing.
+The ledger sorts by the movement, which is why `sortableBy` is given an
+explicit fallback here rather than the usual `createdAt`.
+
 ## Service layer rules
 
 - Soft delete (`deletedAt`), never a hard `delete`. Every query filters `deletedAt: null`.

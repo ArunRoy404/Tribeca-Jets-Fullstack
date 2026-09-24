@@ -176,6 +176,7 @@ entered into the operator's fleet.
 | Trips tab ("No Trip History") | **Trips (#11)** |
 | ~~Quotes tab~~ | ✅ Shipped with **Quotes (#10)** — the tab lists the client's real offers |
 | Payments tab ("No Payments Yet") | **Receivables (#16)** |
+| ~~Credit / money on account~~ | ✅ Shipped with **Client Credits (#30)** — a Credit tab with a real ledger |
 | ~~Activity timeline ("No Activity Yet")~~ | ✅ Shipped with **Notes / Timeline (#29)** — notes merged with the audit trail |
 | Total spend, trip count, average trip value | **Trips (#11)** + **Receivables (#16)** |
 
@@ -713,6 +714,64 @@ recorded rather than left for somebody to "tidy up" later.
 note could carry a URL, but nothing has asked for it, and a second place that
 files documents about a client competes with Document Vault (#22) before that
 module has decided anything.
+
+---
+
+## 30. Client Credits ✅ *(the trip link waits on Trips)*
+
+**Not in the original queue.** The client's adjustment #9, built as a ledger
+rather than the single editable number he described — see
+[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) for why, and for the sentence in
+his own request that settles it.
+
+**Working now**
+
+- **`GET /api/client-credits/summary`** — `balance`, `credited`, `applied`, the
+  movement count and the last movement date. **Summed on every read; there is
+  no `balance` column.** Withdrawn movements count towards nothing, so the
+  total always agrees with the rows printed under it
+- **`GET /api/client-credits`** — the ledger, newest *movement* first
+  (`occurredAt`, not `createdAt`: a trip cancelled on the 3rd and entered on
+  the 9th is dated the 3rd). `archived=true` is the withdrawn half
+- Create, edit, withdraw and restore, with `type` carrying the direction and
+  `amount` always positive
+- **An application cannot overdraw the account** — checked on create, on edit
+  (against the ledger *excluding* the row being edited) and on restore, because
+  a withdraw-and-restore would otherwise walk around the rule. The message
+  names what is available
+- **Money is counted in integer cents** by pure functions with tests, and the
+  conversion parses the decimal string rather than multiplying
+- **`money()` in `common/dto/numbers.ts`** refuses a third decimal place: the
+  column is `Decimal(12, 2)` and would round it, leaving the balance the
+  service checked disagreeing with the row it wrote
+- **Two permission questions, kept separate**: `VIEW_FINANCIALS` to see money
+  at all (an assistant holds NONE), and the clients module's own scope for
+  *which* clients. Another broker's ledger answers 404, never 403
+- An archived client's account is readable and not writable, matching
+  `findOne`/`findLive` everywhere else
+- **A Credit tab on the client detail page** — summary tiles, the ledger,
+  Withdrawn view, inline edit, server-side paging. Hidden entirely from roles
+  without `VIEW_FINANCIALS` rather than shown and refused
+- `formatMoneyExact` beside `formatMoney` in the new `lib/money.js`: a balance
+  is an amount somebody is owed, and rounding $6,000.40 to "$6,000" means the
+  profile and the bank statement disagree with nothing explaining why
+- 9 Postman requests, 24 captured examples, a teardown that withdraws both
+  movements and archives the client, and a folder login so it passes run alone
+- 35 live assertions across four real accounts, 20 unit tests on the
+  arithmetic and the DTOs, and the tab rendered at 375 / 768 / 1440 with no
+  horizontal overflow
+
+**Waiting on a dependency**
+
+| Feature | Blocked by |
+|---|---|
+| "Used towards **which** trip" as a real link | **Trips (#11)** — `reason` carries it as text until then; the FK is not stubbed with a string |
+| Credit shown against an invoice | **Receivables (#16)** |
+
+**Deferred by decision: a REFUND type.** Money actually paid back out is a
+third real movement, and it is absent until somebody asks. Recording one today
+means an APPLICATION whose reason says so — imprecise but honest, where
+inventing the value now would be guessing at a workflow nobody has described.
 
 ---
 
