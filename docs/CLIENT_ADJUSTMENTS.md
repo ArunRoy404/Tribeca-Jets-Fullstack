@@ -8,7 +8,7 @@ ordered by dependency.
 `docs/Client_Adjustments.txt`, which held the raw messages and nothing else.
 The original is not needed and has been deleted.
 
-*Last updated: 19 September 2026.*
+*Last updated: 23 September 2026.*
 
 ---
 
@@ -183,12 +183,12 @@ b70b5d8  feat(auth): sign out a session left untouched for ten minutes
 
 | # | Request | Backend | Frontend | State |
 |---|---|---|---|---|
-| — | Upload infrastructure | ✅ | ☐ | **API done, rebuilt 23 Sep.** No screen consumes it yet. Unblocks 3, 7, 11. |
+| — | Upload infrastructure | ✅ | ✅ | **Done, rebuilt 23 Sep.** One screen consumes it (#7). Still unblocks 3 and 11. |
 | 1 | Client stays visible after a broker deletes it | ✅ | ✅ | **Already works.** Needs a demonstration, not code. |
 | 2 | Operator cancellation policies | ✅ | ✅ | **Done** 19 Sep 2026. |
 | 3 | Aircraft pictures + stock image library | ◐ | ☐ | Foundation done. Gallery and picker **deferred** — needs Quotes/Itinerary UI. |
 | 4 | Ten-minute idle logout | ✅ | ✅ | **Done** 19 Sep 2026. |
-| 5 | Notes on a timeline | ☐ | ☐ | Not started. Needs Trips for half of it. |
+| 5 | Notes on a timeline | ✅ | ✅ | **Done for Clients** 23 Sep 2026. Trips gets it by rendering the same component. |
 | 6 | Instant quote calculator | ☐ | ☐ | **Deferred** — needs Quotes UI **and his rate data**. |
 | 7 | A document folder per user (tax forms) | ✅ | ✅ | **Done** 23 Sep 2026. |
 | 8 | "Active trip request" section | ✅ | ✅ | **Done** 19 Sep 2026 — same as 10a. |
@@ -212,9 +212,9 @@ Dependency-first, as `AGENTS.md` requires. Cheapest unblocker at the top.
 | 4 | ~~**#4 Ten-minute idle logout**~~ ✅ 19 Sep 2026 | Enforced on both sides. |
 | **5** | **#1 Demonstrate the Archived tab** | **No code.** Five minutes on the next call with him. |
 | 6 | ~~**#7 User document folders**~~ ✅ 23 Sep 2026 | A Documents tab on the team member sheet, over a folder query rather than a second table. |
-| **7** | **#5 Notes timeline** | Clients now, Trips on its turn. Design together with #11's Agent Update field. |
+| 7 | ~~**#5 Notes timeline**~~ ✅ 23 Sep 2026 | Polymorphic, so Trips gets it for one enum value. #11's Agent Update field is the `visibility` flag, built with it. |
 | **8** | **#9 Client credit ledger** | Client-scoped now; the trip link is a second pass the day Trips lands. |
-| **9** | **Trips** | Not a client request — but #5 and #9 both wait on it, and it unblocks nine modules. |
+| **9** | **Trips** | Not a client request — but #9 waits on it, #5's trip half needs it, and it unblocks nine modules. |
 | 10 | **#10b Empty-leg matching** | After Empty Legs has a backend. |
 | 11 | **#11 Referral Agent portal** | Last. Needs Trips, Commissions and upload all in place. |
 | — | **#3, #6** | Deferred at the client's request until the Quotes and Itinerary UI lands. |
@@ -293,7 +293,7 @@ non-obvious requirements this implies and how each is met.
 
 ---
 
-### ☐ 5. Notes on a timeline, for trips and clients
+### ✅ 5. Notes on a timeline, for trips and clients — **DONE 23 Sep 2026 (Clients)**
 
 > Also, in the trip section and client CRM section, I want to make sure there
 > is a section where I can write notes and add it to a "timeline"
@@ -301,28 +301,14 @@ non-obvious requirements this implies and how each is met.
 >
 > I have it on my old CRM
 
-**Status: not started. Order item 7.**
+**Status: shipped for Clients on 23 September 2026. Order item 7.**
 
-**What exists today:** Clients has a single `notes` string. That is a field, not
-a timeline — editing it destroys what it said before.
+The Activity tab on the client detail page is the timeline. See §4 for what was
+built and the three decisions behind it.
 
-**What to build:**
-
-- A **polymorphic `Note` model** (subject type + subject id), so the same
-  timeline serves clients now and trips later.
-- It must **read alongside the `AuditLog` rows that already exist**. Status
-  changes, reassignments and archives are timeline entries nobody has to type;
-  a timeline showing only hand-written notes is half a timeline when the other
-  half is already in the database.
-- The existing `Client.notes` string is the migration question — decide whether
-  it becomes the first note on the timeline or stays as a separate "internal
-  notes" field. It is currently surfaced on the client detail page.
-
-**⚠️ Trips does not exist.** Ship it for Clients; extend to Trips on its turn.
-
-**⚠️ Design it together with #11's *Agent Update* field.** That is the same
-feature with a visibility flag, and discovering that after building both is how
-two note systems end up in one codebase.
+**Remaining:** the trip half, which is one enum value and rendering the same
+component — `NotesTimeline` takes `subjectType`/`subjectId`, not a client. It
+lands with **Trips**.
 
 ---
 
@@ -848,6 +834,134 @@ It is now keyed on the owner and the visibility too.
 123 requests / 60 assertions / 0 failures, twice in a row and passing alone ·
 upload, download and the folder query all exercised **through the Next proxy**,
 the path the browser actually takes · `next build` clean · 0 live rows left.
+
+---
+
+### ✅ Notes timeline — 23 September 2026 · order item 7
+
+> *"in the trip section and client CRM section, I want to make sure there is a
+> section where I can write notes and add it to a 'timeline'"*
+
+**Shipped for Clients.** The Activity tab on the client detail page — which was
+a props-fed list of hand-built objects with a TODO on top — now reads the API.
+
+**Three decisions, and each one is the thing a later session would otherwise
+redo wrongly.**
+
+**1. `Client.notes` stays, and the timeline is a separate table.** The obvious
+move is to migrate that string in as the first note and drop the field. It was
+not done, and the reason is that the two answer different questions: the
+sidebar's "Internal Notes" is the standing summary — *what do I need to know
+about this person* — and the timeline is *what happened, and when*. Merging
+them would either lose the summary or turn every edit of it into a new entry.
+The field is already labelled "Internal Notes" in the sidebar, so nothing on
+screen had to change.
+
+**2. Polymorphic, not a `clientId` column.** `subjectType` + `subjectId`. Trips
+do not exist yet and neither do the four other records that will want a
+timeline; a `clientId` here means a second table the day Trips ships, and then
+two note systems with different columns, different permissions and two screens
+drifting apart. Adding TRIP is one enum value and three lines in
+`notes.subjects.ts`.
+
+The price is a column no foreign key can check, so **the service checks it by
+asking the module that owns the subject** — `ClientsService.subjectRef`, which
+applies the same broker scope clients apply everywhere else. That is what makes
+*"you may read this note if you may read its client"* true rather than merely
+intended, and it is why a note on another broker's client answers **404**
+rather than 403 on every route including remove.
+
+**3. It reads alongside the audit log, which already had half of it.** Status
+changes, reassignments and archives are the timeline entries nobody has to
+remember to type. `GET /notes/timeline` merges both, newest-first, and each row
+carries `kind: NOTE | EVENT` so the two are drawn differently — a note is a
+statement by a person and carries their name and their controls; an event is a
+fact the system logged and carries neither.
+
+Paged across two tables **without a UNION**: `skip + take` from each, merged,
+sliced. That is exact rather than approximate — the nth newest row overall
+cannot be older than the nth newest of either source — and it keeps the
+row-level rule readable at its call site. The merge is a pure function with
+tests that walk the page boundaries, because the failure mode there is one
+entry appearing twice while another disappears, and a merge exercised only by a
+screen with four rows on it is a merge nobody has tested. Both queries and the
+merge break ties on `id`, or two rows written in the same millisecond swap
+places between pages.
+
+**#11's *Agent Update* field was built here, not later.** *"A separate Agent
+Update field that Tribeca brokers/admins can intentionally share with the
+referral agent"* is a note with a flag on it. `visibility` is INTERNAL by
+default — the same direction upload visibility defaults to PRIVATE, and for the
+same reason: failing closed costs a minute, failing open puts desk commentary
+in front of the person who referred the client. **It filters nobody today**,
+deliberately, because REFERRAL_AGENT does not exist; the day it does, its read
+scope is `visibility: SHARED` and nothing else changes.
+
+**Editing is the author only, administrators included** — narrower than every
+other update in this system. The timeline renders a note under the name of
+whoever wrote it, so an edit anyone else can make is a statement they did not
+write attributed to them. An administrator who disagrees withdraws it and
+writes their own, which leaves both visible. Withdrawing is wider (author *or*
+administrator) for exactly that reason: moderation does not put words in
+anybody's mouth, and the note stays readable under Withdrawn with the trail of
+who removed it.
+
+**Backend:** `prisma/schema/note.prisma` + migration
+`20260923160000_add_notes_timeline` · `modules/notes/` — controller, service,
+`notes.subjects.ts` (the subject registry, one `case` per type),
+`notes.timeline.ts` (the merge, pure) · no `@RequirePermissions` on the
+controller, deliberately and explained there: which permission applies depends
+on `subjectType`, a query-string value a decorator cannot see.
+
+**Frontend:** `services/notes.service.js` · `hooks/notes/` (6 hooks) ·
+`lib/timeline.js` (event wording, relative time — an unmapped action is
+*humanised*, never guessed at) · `components/notes/` — `NoteComposer`,
+`TimelineEntry`, `NotesTimeline` · `ClientActivityTab` rewritten to render it.
+`NotesTimeline` takes `subjectType`/`subjectId`, so the trip detail page
+renders the same component unchanged.
+
+**Postman:** `12 · Notes` — 9 requests, 24 captured examples, a teardown that
+withdraws both probes *and* archives the client it wrote them on, and a folder
+login so it passes run alone.
+
+**Six defects found on a second audit and fixed** — worth listing, because five
+of them passed the first round of checks:
+
+1. **`PATCH /notes/:id` accepted an empty body**, answering 200 with the note
+   unchanged and stamping `updatedById` — a write that reported success, did
+   nothing, and claimed an edit nobody made. Every other module carries the
+   `.refine(Object.keys(value).length > 0)` this one was missing.
+2. **The timeline accepted `?search=`, `?sortBy=` and `?sortOrder=` and honoured
+   none of them**, inherited from `paginationSchema`. Omitting the fields only
+   made Zod *strip* them, so a caller still got 200 and the whole timeline back
+   believing they had filtered. The schema is now `.strict()`.
+3. **Notes could be written on an archived client.** Reads must work there — the
+   Archived tab links to the page — but authoring must not, which is the split
+   `findOne`/`findLive` make everywhere else.
+4. **Postman's `400 · Empty body` example held a 200**, captured before fix 1.
+5. **Postman's `403 · Not the author` example held a 404**, because the probe
+   client had no assigned broker, so the broker attempting the edit could not
+   see the client at all and 404'd before the author check was ever reached.
+   The example documented behaviour the API does not have.
+6. **Newman could not catch 4 or 5**: a captured example is not an assertion.
+   The builder now refuses to write an example whose label disagrees with the
+   status it just received. Auditing the whole collection this way found **five
+   more in `10 · Quotes`** — left alone, per "fix a module when we reach it".
+
+**Verified:** 48 live assertions across four real accounts (a broker writes on
+their own client and gets 404 on another's — list, timeline, write, read-by-id
+and withdraw; an assistant reads the timeline and gets 403 writing; an
+administrator cannot edit somebody else's note but can withdraw it; a closed
+record refuses new notes and edits while still opening and still allowing
+moderation; the timeline refuses all three parameters it does not honour;
+walking the merged timeline two at a time reproduces it exactly, no row twice
+and none lost) · run twice, clean both times · 75 unit tests · `tsc` clean ·
+oxlint 0 · Newman **133 requests / 70 assertions / 0 failures**, twice, and the
+folder alone at 12/10/0 · every example's label checked against its captured
+status · write and read exercised **through the Next proxy** · `next build`
+clean · rendered at **375 / 768 / 1440** with zero horizontal overflow, and the
+assistant's read-only view confirmed to render no composer and no row actions ·
+0 live probes left.
 
 ---
 

@@ -220,6 +220,22 @@ Count in the service rather than summing the nearest column — summing
 - **Every query parameter is described**, including all pagination, sort and filter params, with its default and its bounds.
 - **Enums and fixed-value fields are documented case-sensitively**, listing the exact accepted values.
 - Verify with `newman` before calling the collection done. A collection that has not been run is not finished.
+- **A builder must assert every captured status against the label it is writing.**
+  A captured example is *not* an assertion — Newman runs the request and checks
+  its test script, and never compares an example's name to the response stored
+  in it. So `12 · Notes` shipped a `400 · Empty body` example holding a 200 and
+  a `403 · Not the author` holding a 404, both because the request that
+  captured them never provoked the error they were named for, and both invisible
+  to a green run. The builder is the only place that knows the promised status
+  and the received one at the same moment, so it raises on a mismatch rather
+  than writing the lie (`build_notes_folder.py`'s `example()` is the pattern).
+  **The fix is always the request, never the label.** A 403 example that
+  captures a 404 usually means the account used cannot see the record at all,
+  so the check it was meant to demonstrate was never reached — see the assigned
+  broker in that builder.
+- **Auditing the whole collection for this is one pass over the JSON**, matching
+  each example's leading status code against its stored `code`. Worth running
+  after any builder change.
 - **A folder that creates a row archives it again in a teardown.** The run is a
   demonstration, not a data entry session. `03 · Clients` had no teardown and
   ended by *restoring* the client it created, so every Newman run left one more
@@ -720,6 +736,134 @@ the row.** A failed insert leaves an unreferenced object in the bucket, which is
 invisible, harmless and findable by `driver` plus key prefix. The opposite order
 leaves a row pointing at nothing. Given a choice between an orphaned blob and an
 orphaned row, the blob is the one that cannot lie to anybody.
+
+## A polymorphic subject is checked by the module that owns it
+
+A `Note` hangs on a `subjectType` + `subjectId` rather than a `clientId`,
+because Trips will want the same timeline and a second table would mean two
+note systems with different columns, different permissions and two screens to
+keep in step. One enum value and three lines in `notes.subjects.ts` is the
+whole cost of a new subject.
+
+The price is a column no foreign key can check, and **that check belongs in the
+owning module's service, never re-written locally.** `NotesService` calls
+`ClientsService.subjectRef(user, id)`, which applies the same broker scope
+clients apply everywhere else — so *"you may read this note if you may read its
+client"* is true rather than merely intended. A `where` clause copied into the
+notes module would be the copy that drifts the first time the client scope
+changes, and it would drift silently.
+
+Three rules follow, and they generalise to anything polymorphic:
+
+- **Every entry point resolves the subject first** — list, timeline, read,
+  write, withdraw, restore. A note's own id says nothing about who may read it.
+  Reading it and *then* deciding is a leak that already happened.
+- **404, not 403, for a subject the caller cannot see.** Same reason as
+  everywhere else: a 403 confirms the record exists.
+- **The capability check moves one layer in, and the controller says so.**
+  Which permission applies depends on `subjectType`, which is a value in the
+  query string — a `@RequirePermissions` decorator cannot see it. So these
+  routes carry none, exactly as the upload routes do, and both record why at
+  the top of the controller. This is the only sanctioned reason to omit one.
+
+## A timeline is two sources merged, and the merge is a pure function
+
+The client asked for a notes timeline; half of it was already in `audit_logs`.
+Status changes, reassignments and archives are the entries nobody has to
+remember to type, so a timeline of hand-written notes alone is half a timeline.
+`GET /notes/timeline` reads both and interleaves them.
+
+**Page it by taking `skip + take` from each source and merging** — not by a
+hand-written UNION. That is exact rather than approximate: the nth newest row
+overall cannot be older than the nth newest row of either source, so the window
+is always covered. It over-fetches on deep pages, which a timeline does not
+have, and it keeps the row-level `where` clause readable at its call site,
+which a raw query does not.
+
+Two details are load-bearing:
+
+- **The tie-break is the id, in the merge *and* in both queries.** Two rows
+  written in the same millisecond — a status change and the note explaining it
+  — are otherwise free to swap places between pages, which shows one entry
+  twice and silently hides another. Both queries order by
+  `[{ createdAt: 'desc' }, { id: 'desc' }]` and `newestFirst` settles the tie
+  the same way.
+- **The merge lives in `notes.timeline.ts` as pure functions with tests.** The
+  failure here is an off-by-one across a page boundary, and a merge only ever
+  exercised by opening a screen with four entries on it is a merge nobody has
+  tested.
+
+And **archived notes stay off the timeline.** Withdrawing a note is what taking
+it off the record means; replaying it beside the events it was withdrawn from
+says the opposite. The withdrawn half is the list endpoint with
+`?archived=true`.
+
+**An endpoint must not accept a parameter it ignores**, and dropping the field
+from the schema is not enough to achieve that. `queryTimelineSchema` extends
+`paginationSchema`, which carries `search`, `sortBy` and `sortOrder` — none of
+which a chronological timeline honours. Omitting them made Zod *strip* the keys
+rather than complain, so `?search=Citation` still answered 200 with the whole
+timeline: the caller filtered nothing and was told it worked.
+
+So that one query DTO is `.strict()`, and it is the only one that needs to be:
+its sibling `GET /notes?search=` does filter, and a parameter that works on one
+route and is silently dropped by its neighbour is exactly the confusion worth
+spending a 400 on. **Before omitting an inherited pagination field from any
+query DTO, decide what an unknown key should do** — silently ignored is a
+wrong answer, not a lenient one.
+
+## Only the author edits a note
+
+Deliberately narrower than every other update in this system, administrators
+included. The timeline renders a note under the name of whoever wrote it, so an
+edit anybody else can make is a statement they did not write attributed to
+them. An administrator who disagrees **withdraws it and writes their own**,
+which leaves both on the record.
+
+Withdrawing is wider — the author *or* an administrator — for exactly that
+reason: taking a note off a record is moderation and does not put words in
+anyone's mouth, and the note stays readable under Withdrawn with the trail of
+who removed it.
+
+This is also the one place a failed write answers **403 rather than 404**: the
+caller has already read the note, so the information a 404 would protect has
+been given.
+
+**An archived subject is read-only, and that is a separate check from the
+note's own state.** The same split `findOne` and `findLive` make everywhere
+else: an archived client's timeline must still open — the Archived tab links
+straight to it, and the entries explaining why it was archived are the ones
+somebody came to read — but *writing* on a closed record adds commentary
+nobody is working, on something absent from every live list. So `create` and
+`update` refuse it with a **400** naming the reason (the caller can see the
+subject, so hiding it would contradict the read they just did), while withdraw
+and restore stay allowed: moderating an existing entry is not a new statement,
+and taking something off a closed record is when it is most needed.
+
+This is why `ClientsService.subjectRef` returns `archived` rather than just
+resolving. A resolver that only answers "may you see it" cannot express
+"you may see it and may not write on it", and the notes module had no way to
+ask.
+
+## A note's audience is a flag, decided once
+
+`Note.visibility` is INTERNAL or SHARED, defaulting to INTERNAL — the same
+direction upload visibility defaults to PRIVATE, and for the same reason.
+Failing closed costs somebody a minute asking why an agent cannot see an
+update; failing open puts desk commentary in front of the person who referred
+the client.
+
+**It is the referral portal's *Agent Update* field, built with the notes rather
+than after them.** "A separate Agent Update field that brokers can
+intentionally share with the referral agent" is a note with a flag on it, and
+discovering that after building both is how two note systems end up in one
+codebase.
+
+It is stored and displayed today and **filters nobody**, because the
+REFERRAL_AGENT role does not exist yet. That is deliberate and not a gap: the
+day the role lands, its read scope is `visibility: SHARED` and nothing else
+changes. Do not build the filtering ahead of the role — there is nothing to
+filter, and a rule with no caller is a rule nobody has tested.
 
 ## Service layer rules
 

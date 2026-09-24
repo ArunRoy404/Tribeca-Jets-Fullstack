@@ -164,6 +164,10 @@ entered into the operator's fleet.
 - An archived client's detail page opens from the Archived tab and offers
   Restore in place of Edit, Create Trip and Archive
 - Mark Complete on the follow-up strip clears the reminder and its note
+- **The Activity tab is a real timeline** (adjustment #5): notes people write,
+  merged with the recorded changes already in the audit log. The standing
+  "Internal Notes" field in the sidebar is deliberately separate — see
+  **Notes / Timeline (#29)** for why
 
 **Waiting on a dependency**
 
@@ -172,7 +176,7 @@ entered into the operator's fleet.
 | Trips tab ("No Trip History") | **Trips (#11)** |
 | ~~Quotes tab~~ | ✅ Shipped with **Quotes (#10)** — the tab lists the client's real offers |
 | Payments tab ("No Payments Yet") | **Receivables (#16)** |
-| Activity timeline ("No Activity Yet") | **Communications / Email Templates (#21)** |
+| ~~Activity timeline ("No Activity Yet")~~ | ✅ Shipped with **Notes / Timeline (#29)** — notes merged with the audit trail |
 | Total spend, trip count, average trip value | **Trips (#11)** + **Receivables (#16)** |
 
 **Removed rather than faked:** the detail page had an attachment drop zone
@@ -573,7 +577,7 @@ waits on the data being there, which means most of the queue above.
 
 ---
 
-## 28. Uploads ✅ *(API only)*
+## 28. Uploads ✅
 
 **Not in the original queue.** Built out of order because four separate client
 requests were queued behind one missing piece of infrastructure — per-broker tax
@@ -636,6 +640,79 @@ existed.
 photograph served whole into a gallery is slow, and the fix is a resize
 pipeline. Nothing renders a gallery yet, so building it now would be tuning a
 screen that does not exist.
+
+---
+
+## 29. Notes / Timeline ✅ *(Clients; Trips on its turn)*
+
+**Not in the original queue.** It is the client's adjustment #5 — *"a section
+where I can write notes and add it to a timeline"*, for trips and for clients.
+See [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md).
+
+**`Client.notes` was not that.** One string, and editing it destroys what it
+said before. That column stays as the standing summary the sidebar shows; this
+table is the append-only record. Two questions, two places, and the decision is
+recorded rather than left for somebody to "tidy up" later.
+
+**Working now**
+
+- **`GET /api/notes/timeline`** — notes and the audit entries about the same
+  record, interleaved newest-first. A timeline of hand-written notes alone is
+  half a timeline: status changes, reassignments and archives are already
+  recorded and are the half nobody has to remember to type. `entries=NOTE|EVENT`
+  reads one half
+- **Paginated across two tables without a UNION**, by taking `skip + take` from
+  each and merging. Exact rather than approximate — the nth newest row overall
+  cannot be older than the nth newest of either source. `mergeTimeline` is a
+  pure function with tests that walk the page boundaries, because an off-by-one
+  there shows one entry twice and hides another
+- **Polymorphic: `subjectType` + `subjectId`.** CLIENT today; TRIP is one enum
+  value and three lines in `notes.subjects.ts`. `subjectId` is therefore not a
+  foreign key — the service asks the module that owns the subject, so
+  `ClientsService` applies the same broker scope it applies everywhere else and
+  a note on somebody else's client answers **404, not 403**
+- **`visibility`** — INTERNAL (default) or SHARED. This is #11's *Agent Update*
+  field, built now rather than as a second note system later. It is stored and
+  displayed and **filters nobody yet**, because the Referral Agent role does not
+  exist; the day it lands, its read scope is `visibility: SHARED`
+- **Editing is the author only, administrators included** — narrower than every
+  other update in this system, because the timeline renders a note under the
+  name of whoever wrote it. Withdrawing is wider (author *or* administrator):
+  moderation does not put words in anyone's mouth
+- Withdraw and restore, with a Withdrawn view naming who took each note off
+- **The Activity tab on the client detail page** — composer, Timeline / Notes /
+  Withdrawn views, server-side paging. `NotesTimeline` takes
+  `subjectType`/`subjectId`, so the trip detail page renders the same component
+- **No permission decorator on the controller**, deliberately, the same choice
+  Uploads records: the right to write a note is the right to edit the record it
+  hangs on, and which permission that is depends on a query-string value a
+  decorator cannot see. The check moved one layer in, to `notes.subjects.ts`
+- **An archived record is read-only.** Its timeline still opens — the Archived
+  tab links to it — but writing or editing on it answers 400 with the reason.
+  Withdraw and restore stay allowed: moderation is not a new statement
+- **The timeline refuses `search`, `sortBy` and `sortOrder`** rather than
+  accepting and ignoring them. It is always newest-first; searching notes is
+  `GET /notes?search=`, which does filter. See the `.strict()` note in
+  `AGENTS.md` for why omitting the fields was not enough on its own
+- 9 Postman requests, 26 captured examples, a teardown that withdraws both
+  probes and archives the client it wrote them on, and a folder login so it
+  passes run alone. The builder now **refuses to write an example whose label
+  disagrees with the status it captured**
+- 48 live assertions across four real accounts, 23 unit tests on the merge and
+  the DTOs, and the timeline rendered at 375 / 768 / 1440 with no horizontal
+  overflow
+
+**Waiting on a dependency**
+
+| Feature | Blocked by |
+|---|---|
+| A timeline on the trip detail page | **Trips (#11)** — one enum value, then render `NotesTimeline` |
+| Referral agents reading SHARED notes and nothing else | **Referral Agent (#11 in the client list)** |
+
+**Deferred by decision: attachments on a note.** The upload surface exists and a
+note could carry a URL, but nothing has asked for it, and a second place that
+files documents about a client competes with Document Vault (#22) before that
+module has decided anything.
 
 ---
 

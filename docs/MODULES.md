@@ -64,7 +64,8 @@ set of broken joins the day the real table arrives.
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
 | 27 | **AI Assistant** | Stub only | All |
-| 28 | **Uploads** | ✅ API done, no screen | — (built out of order; see below) |
+| 28 | **Uploads** | ✅ Done | — (built out of order; see below) |
+| 29 | **Notes / Timeline** | ✅ Done for Clients | Clients, Users (built out of order; adjustment #5) |
 
 **Why Trips is next:** it is the single largest unblocker in the project. Nine
 modules (12, 13, 14, 16, 17, 18, 19, 23 and the Dashboard) and roughly a dozen
@@ -544,15 +545,75 @@ not a kind, and encoding one here is how the category design went wrong.
 upload time embeds whatever host was running then, so every row written in
 development would point at localhost for ever.
 
-> **Known gap, deliberately left open: per-file access control.** A file is
-> reachable by anyone with a session; what it is attached to is guarded
-> normally. Right for photographs and brochures, **wrong for a 1099**, which is
-> the client's own example. The answer when that screen is built is a
-> `visibility` flag and an owner on the upload row — not a return to
-> categories.
+**Per-file access control shipped with adjustment #7**, and it is two columns
+rather than a category: `visibility` (PUBLIC / PRIVATE, defaulting to PRIVATE
+so the failure mode is a brochure needing a flag rather than a 1099 being
+readable by everyone) and `ownerUserId` (one extra reader beyond the uploader
+and an administrator). That second column is an *access-control* fact, not a
+purpose — which is what keeps it from becoming categories again — and it is
+what makes a personal folder a **query**, `GET /uploads?ownerUserId=<id>`,
+instead of a second table.
 
-**No screen consumes this yet.** Every consumer — the broker documents tab, the
-aircraft gallery, Resources — still needs its own UI.
+**One screen consumes it so far**: the Documents tab on the team member sheet.
+The aircraft gallery and Resources still need their own UI.
+
+---
+
+### 29. Notes / Timeline ✅ *(Clients; Trips on its turn)*
+
+**Not in the signed scope's module list.** It is the client's adjustment #5:
+*"in the trip section and client CRM section, I want to make sure there is a
+section where I can write notes and add it to a timeline"*.
+
+**`Client.notes` was not that.** It is one string, and editing it destroys what
+it said before — a field, not a timeline. That column stays as the standing
+summary the detail sidebar shows ("what do I need to know about this person")
+and the `Note` table is the append-only record of what happened and when. Two
+different questions, deliberately two different places.
+
+**Three decisions, not implementation details:**
+
+- **Polymorphic: `subjectType` + `subjectId`, not `clientId`.** Trips do not
+  exist yet, and neither do the four other records that will want a timeline. A
+  `clientId` column here means a second table the day Trips ships, and then two
+  note systems with different columns, different permissions and two screens to
+  keep in step. Adding TRIP is one enum value and three lines in
+  `notes.subjects.ts`.
+
+  The price is that `subjectId` cannot be a foreign key, so the service checks
+  it instead — by asking the module that owns the subject. `ClientsService`
+  applies the same broker scope it applies everywhere else, so *"you may read
+  this note if you may read its client"* is true rather than merely intended,
+  and a note on somebody else's client answers **404**.
+
+- **It reads alongside the audit log rather than replacing it.** A timeline of
+  hand-written notes alone is half a timeline: status changes, reassignments and
+  archives are already recorded and are the entries nobody has to remember to
+  type. `GET /notes/timeline` merges both, newest-first, paginated across two
+  tables by taking `skip + take` from each — exact, not approximate, because the
+  nth newest row overall cannot be older than the nth newest of either source.
+
+- **`visibility` is #11's *Agent Update* field, built now.** *"Add a separate
+  Agent Update field that Tribeca brokers/admins can intentionally share with
+  the referral agent"* is a note with a flag on it. Discovering that after
+  building both is how two note systems end up in one codebase. It defaults to
+  INTERNAL — the same direction upload visibility defaults to PRIVATE — and
+  **filters nobody today**, because the Referral Agent role does not exist yet.
+  The day it lands, its read scope is `visibility: SHARED` and nothing else
+  changes.
+
+**Editing is the author only, administrators included** — deliberately narrower
+than every other update in this system. The timeline renders a note under the
+name of whoever wrote it, so an edit anyone else can make is a statement they
+did not write attributed to them. An administrator who disagrees *withdraws* it
+and writes their own, which leaves both visible. Withdrawing is wider than
+editing for exactly that reason: moderation does not put words in anyone's
+mouth.
+
+**The screen** is the Activity tab on the client detail page, which was a
+props-fed list with a TODO on it. `NotesTimeline` is written against
+`subjectType`/`subjectId`, so the trip detail page renders the same component
+with `subjectType="TRIP"` when Trips ships.
 
 ---
 
