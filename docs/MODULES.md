@@ -752,7 +752,9 @@ most likely source of a surprise at delivery.
    a form touches, 404-not-403 for rows outside scope, URL-as-source-of-truth
    for table state.
 2. Read **[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md)** §0 — it carries the
-   handoff brief, the standing constraints and the current work queue.
+   handoff brief, the standing constraints and the current work queue. **§0.0
+   is the three-phase plan** that governs what order the rest of the project
+   happens in; read it before deciding anything is "next".
 3. Read this file for the module you are about to touch, and
    **[MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md)** for what it can
    actually do today.
@@ -760,3 +762,7 @@ most likely source of a surprise at delivery.
    and they are the specification.
 5. **Never commit or push unless asked in that message.** Finished work sitting
    uncommitted is the correct resting state.
+
+Setting the project up on a new machine — env, database, the commands that
+hang, and the prompt to open a session with — is **[HANDOFF.md](../HANDOFF.md)**
+at the repository root.

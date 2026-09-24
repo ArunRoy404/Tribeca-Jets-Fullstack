@@ -816,19 +816,33 @@ the call site.
 ## The short version
 
 **Usable against the real database today:** Auth, Users & Roles, Airports,
-Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes and
-Trip Requests.
+Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
+Requests, Uploads, Notes / Timeline and Client Credits.
 
 **Every module above is wired end to end** — schema, API, Postman and screen.
-The last one that was only an API, Trip Requests, got its page on 19 September.
+The last three landed for the client's adjustments rather than from the module
+queue: **Uploads (#28)** with the broker documents tab on 23 September, **Notes
+(#29)** as the client Activity timeline on 23 September, and **Client Credits
+(#30)** as the client Credit tab on 24 September.
 
 **The one module that unblocks the most:** Trips (#11). Nine modules and a
-dozen individual fields are waiting on it.
+dozen individual fields wait on it — and so do the last pieces of two
+adjustments already shipped: the notes timeline on a trip, and "used towards
+another trip" as a real link rather than a sentence.
 
-**The piece of infrastructure nothing had:** file upload — built as **Files
-(#28)**. The API stores, serves, archives and restores files today; no *screen*
-accepts one yet, so every consumer still needs its own UI.
+**Two second passes are owed the day Trips lands**, and both are written down
+rather than remembered: `Note` gains a `TRIP` subject type (one enum value,
+three lines in `notes.subjects.ts`, then render `NotesTimeline`), and
+`ClientCredit` gains a real `appliedToTripId` foreign key, which is deliberately
+absent today rather than stubbed with a string.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational
-data), and the flight-tracking data feed.
+data), the flight-tracking data feed, and whether a credit **refund** is a
+movement the desk needs (see #30).
+
+**Known debt, left alone deliberately:** five captured examples in `10 · Quotes`
+carry a status label that disagrees with the response stored beside them. Found
+by the collection-wide audit the notes work introduced; untouched because we
+fix a module when we reach it. The builders for `12 · Notes` and `13 · Client
+Credits` now refuse to write such an example at all.

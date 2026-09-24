@@ -18,6 +18,47 @@ You are picking up a workstream mid-flight. Everything you need to continue is
 in this section and the two documents it names. Nothing important lives only in
 a chat log.
 
+### 0.0 The three phases — the shape of the whole remaining project
+
+This is the repository owner's plan, in his own framing. It governs what order
+everything happens in, and **it had been living only in a chat log**, which is
+exactly the failure this document exists to prevent.
+
+| | Phase | State |
+|---|---|---|
+| **1** | **The client's adjustments.** The thirteen messages in §3, built in the dependency order in §2. | **6 of 11 done.** See §1. |
+| **2** | **Frontend changes.** Existing screens change, and new screens that do not exist yet get built. | **Not started.** |
+| **3** | **Backend + Postman + API integration**, module by module, in dependency order. | **Partly done — and that is the complication.** |
+
+**The complication, stated by the owner and worth understanding before you
+touch anything:**
+
+> *"before doing 1 and 2 we already did some modules, fully and partially. and
+> after doing the 1 and 2, the architecture may update, so for the step 3 we
+> might need to start doing and refactoring from the start."*
+
+So thirteen modules are already wired end to end (see
+`MODULE_FEATURE_STATUS.md`), and phase 2 may change the screens those modules
+were built against. **Expect to revise shipped modules rather than only adding
+new ones.** That is the plan working, not scope creep — the same thing
+`AGENTS.md` says about the schema not being designed up front.
+
+Two consequences that are easy to get wrong:
+
+- **Do not start phase 3 work on a module whose screens phase 2 will redesign.**
+  Read the phase-2 change list first. Building an API against a screen that is
+  about to change is how the work gets done twice.
+- **Phase 1 is not blocking phase 2.** The remaining adjustments are either
+  blocked on Trips, deferred by the client, or a conversation rather than code
+  (see §1). Nothing in phase 1 is both unblocked and independent of the phase-2
+  redesign.
+
+**Where phase 2's specification lives:** nowhere yet. The client's UI changes
+and the list of new screens have not been written down in this repository. That
+is the first thing to capture when phase 2 starts — in a new `docs/` file,
+following the shape of this one: his words verbatim, then the analysis, then
+the order.
+
 ### 0.1 What the project is
 
 A private-jet charter brokerage CRM. Two apps, deployed separately:
@@ -41,6 +82,7 @@ Read these before writing code. They are not optional background.
 | **`docs/MODULES.md`** | What each module is and why it sits where it does in the queue. |
 | **`docs/Tribeca_Jets_Command_Center_Team_Scope.docx`** | The signed scope. The baseline, and not always right — §13 specifies MongoDB for a database that is relational throughout, and §17 lists twenty-two decisions still open. Where it and the build disagree, say so and continue under a stated assumption. |
 | **This file** | The client's adjustments: specification, status, order. |
+| **`HANDOFF.md`** (repo root) | Setting the project up on a new machine, the commands that hang, and the prompt to open a new session with. |
 
 ### 0.3 Standing constraints — these are absolute
 
