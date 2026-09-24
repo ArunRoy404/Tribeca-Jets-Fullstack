@@ -102,17 +102,12 @@ export function personName(record) {
   return name || record?.companyName || DASH;
 }
 
-/** Whole currency, no decimals — the desk quotes in round numbers. */
-export function formatMoney(value) {
-  if (value === null || value === undefined || value === "") return DASH;
-  const number = Number(value);
-  if (!Number.isFinite(number)) return DASH;
-  return number.toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-}
+/**
+ * Re-exported so `lib/quote.js` and `lib/sourcing.js`, which already import it
+ * from here, keep working unchanged. It lives in `lib/money.js` now — it was
+ * never about leads, and a ledger needs a to-the-cent variant beside it.
+ */
+export { formatMoney } from "@/lib/money";
 
 /** "KTEB → KMIA", or an em dash when the route is not known yet. */
 export function formatRoute(request) {

@@ -13,6 +13,7 @@ import ClientTripsTab from "@/components/clients/ClientTripsTab";
 import ClientQuotesTab from "@/components/clients/ClientQuotesTab";
 import ClientPaymentsTab from "@/components/clients/ClientPaymentsTab";
 import ClientActivityTab from "@/components/clients/ClientActivityTab";
+import ClientCreditTab from "@/components/client-credits/ClientCreditTab";
 import AddClientDialog from "@/components/clients/AddClientDialog";
 import ScheduleFollowUpDialog from "@/components/clients/ScheduleFollowUpDialog";
 import ArchiveClientDialog from "@/components/clients/ArchiveClientDialog";
@@ -21,6 +22,8 @@ import NotFoundState from "@/components/common/NotFoundState";
 import TableStatus from "@/components/table/common/TableStatus";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useClient, useUpdateClient, useRestoreClient } from "@/hooks/clients";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
 import { toClientRow } from "@/lib/client";
 
 export default function ClientDetailPage({ params }) {
@@ -32,6 +35,12 @@ export default function ClientDetailPage({ params }) {
   const openEditModal = useClientsStore((s) => s.openEditModal);
   const openFollowUpModal = useClientsStore((s) => s.openFollowUpModal);
   const openArchiveModal = useClientsStore((s) => s.openArchiveModal);
+
+  // Money on account is financial data. An assistant holds VIEW_FINANCIALS at
+  // NONE, and the tab is *hidden* rather than shown and refused — a tab that
+  // only ever renders a 403 reads as a broken app, not as a boundary.
+  const { can } = usePermissions();
+  const maySeeMoney = can(Permission.VIEW_FINANCIALS);
 
   const { data, isPending, error, refetch } = useClient(rawId);
   const client = data ? toClientRow(data) : null;
@@ -64,6 +73,10 @@ export default function ClientDetailPage({ params }) {
     { id: "trips", label: "Trips" },
     { id: "quotes", label: "Quotes" },
     { id: "payments", label: "Payments" },
+    // Money on account is its own thing, not a payment: a payment settles an
+    // invoice, a credit is money the client is holding with us. Receivables
+    // (#16) will fill the Payments tab; this one is already real.
+    ...(maySeeMoney ? [{ id: "credit", label: "Credit" }] : []),
     { id: "activity", label: "Activity" },
   ];
 
@@ -148,6 +161,9 @@ export default function ClientDetailPage({ params }) {
                   onMarkComplete={markFollowUpComplete}
                   isCompleting={isCompleting}
                 />
+              )}
+              {activeTab === "credit" && maySeeMoney && (
+                <ClientCreditTab client={client} />
               )}
               {activeTab === "activity" && (
                 <ClientActivityTab

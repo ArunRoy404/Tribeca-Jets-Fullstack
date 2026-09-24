@@ -52,6 +52,20 @@ export const queryKeys = {
     ],
   },
 
+  /**
+   * Money on account.
+   *
+   * `summary` sits beside `list` under one `all` prefix because they are two
+   * readings of the same rows: every write moves both, and refreshing only the
+   * ledger would leave the balance above it stale — which on a money screen is
+   * the one thing nobody would notice and everybody would trust.
+   */
+  clientCredits: {
+    all: ["client-credits"],
+    summary: (clientId) => ["client-credits", "summary", clientId],
+    list: (clientId, params) => ["client-credits", "list", clientId, params ?? {}],
+  },
+
   users: {
     all: ["users"],
     list: (params) => ["users", "list", params ?? {}],
