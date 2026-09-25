@@ -5,6 +5,24 @@ export const itinerariesStats = [
   { label: "AWAITING CONFIRMATION", value: "1", tone: "purple" },
 ];
 
+/** FBOs already referenced across the seeded itineraries, offered as the
+ * Build Itinerary form's FBO pickers. Selecting one fills the read-only FBO
+ * card in the live preview from its address — there is no FBO directory in
+ * this system yet, so this is the same "reasonable seeded list" every other
+ * still-dummy create form in this app offers, not a real lookup. */
+export const FBO_OPTIONS = [
+  { name: "Atlantic Aviation — TEB", address: "94 Moonachie Ave, Teterboro, NJ 07608" },
+  { name: "Atlantic Aviation — OPF", address: "15001 NW 42nd Ave, Opa-locka, FL 33054" },
+  { name: "Atlantic Aviation — PBI", address: "1100 Perimeter Rd, West Palm Beach, FL 33406" },
+  { name: "Signature Flight Support — TEB", address: "111 Moonachie Ave, Teterboro, NJ 07608" },
+  { name: "Signature Flight Support — MIA", address: "3900 NW 25th St, Miami, FL 33142" },
+  { name: "Signature Flight Support — London Luton", address: "Percival Way, Luton LU2 9NR, United Kingdom" },
+  { name: "AOPF - Fontainebleau Aviation", address: "15001 NW 42nd Ave, Opa-locka, FL 33054" },
+  { name: "Jet Aviation — Palm Beach", address: "1000 Perimeter Rd, West Palm Beach, FL 33406" },
+];
+
+export const ITINERARY_AIRCRAFT_OPTIONS = ["Global 7500", "Challenger 350", "Gulfstream G450", "Global 6000"];
+
 export const itinerariesData = [
   {
     id: "#TJ-1048",

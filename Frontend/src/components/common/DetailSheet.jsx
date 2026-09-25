@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import Logo from "@/components/common/Logo";
+import TribecaLetterhead from "@/components/common/TribecaLetterhead";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -41,14 +41,7 @@ export default function DetailSheet({
         className={cn("data-[side=right]:w-full p-6 overflow-y-auto", maxWidthClassName)}
       >
         <div className={cn("flex flex-col gap-4 w-full", bodyClassName)}>
-          <div className="flex items-start justify-between border-b border-border pb-4 pr-8 w-full">
-            <Logo variant="black" className="h-12 w-auto" />
-            <div className="flex flex-col items-end text-[11px] font-montserrat text-muted-foreground">
-              <p className="font-semibold text-foreground">Tribeca Jets</p>
-              <p>www.tribecajets.com</p>
-              <p>fly@tribecajets.com</p>
-            </div>
-          </div>
+          <TribecaLetterhead />
           {children}
         </div>
       </SheetContent>
