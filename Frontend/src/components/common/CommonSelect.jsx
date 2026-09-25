@@ -18,8 +18,14 @@ export default function CommonSelect({
   // back to the placeholder. A sentinel with no matching SelectItem in the
   // list renders as literal text instead, since nothing can resolve it to a
   // label.
+  //
+  // `items` is separately required for a *real* selected value to resolve to
+  // its label at all: Base UI's `SelectValue` looks the current value up in
+  // `Select.Root`'s `items` list, not in whatever `SelectItem` children
+  // happen to be rendered — without it, the trigger falls back to printing
+  // the raw `value` once something is actually picked.
   return (
-    <Select value={value || undefined} onValueChange={(val) => onChange?.(val)}>
+    <Select items={normalizedOptions} value={value || undefined} onValueChange={(val) => onChange?.(val)}>
       <SelectTrigger
         className={cn(
           // The primitive's own base classes set the height behind a
