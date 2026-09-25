@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Pencil, UserCheck, UserX } from "lucide-react";
 import { useUsersRolesStore } from "@/store/useUsersRolesStore";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { SheetTitle } from "@/components/ui/sheet";
+import DetailSheet from "@/components/common/DetailSheet";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/common/StatusBadge";
@@ -79,146 +80,144 @@ export default function UserDetailSheet() {
   };
 
   return (
-    <Sheet open={Boolean(selectedId)} onOpenChange={(open) => !open && close()}>
-      <SheetContent className="data-[side=right]:w-full sm:data-[side=right]:max-w-175 gap-4 p-6 overflow-y-auto">
-        {!item ? (
-          <>
-            {/* The sheet still needs an accessible name while it is empty. */}
-            <SheetTitle className="sr-only">Team member</SheetTitle>
-            <TableStatus
-              isLoading={isPending}
-              error={error}
-              isEmpty={!isPending && !error}
-              emptyMessage="Team member not found"
-              emptyHint="They may have been removed."
-              onRetry={refetch}
-            />
-          </>
-        ) : (
-          <>
-            <div className="border-b border-secondary flex items-start justify-between pb-4 w-full">
-              <div className="flex flex-col gap-2 items-start">
-                <div className="flex gap-2 items-center flex-wrap">
-                  <SheetTitle className="font-montserrat font-bold text-[20px] text-black-text">
-                    {item.name}
-                  </SheetTitle>
-                  <StatusBadge status={item.status} bordered />
-                </div>
+    <DetailSheet open={Boolean(selectedId)} onOpenChange={(open) => !open && close()} resetKey={selectedId}>
+      {!item ? (
+        <>
+          {/* The sheet still needs an accessible name while it is empty. */}
+          <SheetTitle className="sr-only">Team member</SheetTitle>
+          <TableStatus
+            isLoading={isPending}
+            error={error}
+            isEmpty={!isPending && !error}
+            emptyMessage="Team member not found"
+            emptyHint="They may have been removed."
+            onRetry={refetch}
+          />
+        </>
+      ) : (
+        <>
+          <div className="border-b border-secondary flex items-start justify-between pb-4 w-full">
+            <div className="flex flex-col gap-2 items-start">
+              <div className="flex gap-2 items-center flex-wrap">
+                <SheetTitle className="font-montserrat font-bold text-[20px] text-black-text">
+                  {item.name}
+                </SheetTitle>
+                <StatusBadge status={item.status} bordered />
+              </div>
+              <p className="font-montserrat font-normal text-[12px] text-muted-foreground">
+                {item.email}
+              </p>
+              {isInvited && (
                 <p className="font-montserrat font-normal text-[12px] text-muted-foreground">
-                  {item.email}
+                  Invitation pending — the account activates when they set
+                  their password.
                 </p>
-                {isInvited && (
-                  <p className="font-montserrat font-normal text-[12px] text-muted-foreground">
-                    Invitation pending — the account activates when they set
-                    their password.
-                  </p>
-                )}
-              </div>
+              )}
             </div>
+          </div>
 
-            <DetailTabNav tabs={TABS} activeTab={tab} onTabChange={setTab} />
+          <DetailTabNav tabs={TABS} activeTab={tab} onTabChange={setTab} />
 
-            {tab === "documents" ? (
-              <UserDocumentsTab
-                userId={item.id}
-                userName={item.name}
-                canManage={canWrite(Permission.MANAGE_USERS)}
+          {tab === "documents" ? (
+            <UserDocumentsTab
+              userId={item.id}
+              userName={item.name}
+              canManage={canWrite(Permission.MANAGE_USERS)}
+            />
+          ) : (
+          <SectionCard>
+            <div className="flex gap-4 w-full">
+              <DetailField label="USER NAME" value={item.name} labelClassName="text-[14px]" />
+              <DetailField label="EMAIL" value={item.email} labelClassName="text-[14px]" />
+            </div>
+            <div className="flex gap-4 w-full">
+              <DetailField label="ROLE" value={item.roleLabel} valueClassName="text-purple" labelClassName="text-[14px]" />
+              <DetailField label="PERMISSION LEVEL" value={item.permissionLevel} labelClassName="text-[14px]" />
+            </div>
+            <div className="flex gap-4 w-full">
+              <DetailField label="PHONE" value={item.phone || "—"} labelClassName="text-[14px]" />
+              <DetailField
+                label="TWO-FACTOR"
+                value={item.twoFactorEnabled ? "Enabled" : "Disabled"}
+                labelClassName="text-[14px]"
               />
-            ) : (
-            <SectionCard>
-              <div className="flex gap-4 w-full">
-                <DetailField label="USER NAME" value={item.name} labelClassName="text-[14px]" />
-                <DetailField label="EMAIL" value={item.email} labelClassName="text-[14px]" />
-              </div>
-              <div className="flex gap-4 w-full">
-                <DetailField label="ROLE" value={item.roleLabel} valueClassName="text-purple" labelClassName="text-[14px]" />
-                <DetailField label="PERMISSION LEVEL" value={item.permissionLevel} labelClassName="text-[14px]" />
-              </div>
-              <div className="flex gap-4 w-full">
-                <DetailField label="PHONE" value={item.phone || "—"} labelClassName="text-[14px]" />
-                <DetailField
-                  label="TWO-FACTOR"
-                  value={item.twoFactorEnabled ? "Enabled" : "Disabled"}
-                  labelClassName="text-[14px]"
-                />
-              </div>
-              <div className="flex gap-4 w-full">
-                <DetailField
-                  label="ASSIGNED CLIENTS"
-                  value={String(data?._count?.assignedClients ?? 0)}
-                  labelClassName="text-[14px]"
-                />
-                <DetailField
-                  label="ORIGINATED CLIENTS"
-                  value={String(data?._count?.originatedClients ?? 0)}
-                  labelClassName="text-[14px]"
-                />
-              </div>
-              {/* Columns the design asks for that nothing can supply until the
-                  trips and quotes modules exist. */}
-              <div className="flex gap-4 w-full">
-                <DetailField label="ACTIVE LEADS" value={item.activeLeads} labelClassName="text-[14px]" />
-                <DetailField label="ACTIVE TRIPS" value={item.activeTrips} labelClassName="text-[14px]" />
-              </div>
-              <div className="flex gap-4 w-full">
-                <DetailField label="LAST LOGIN" value={item.lastLogin} labelClassName="text-[14px]" />
-                <DetailField
-                  label="INVITED BY"
-                  value={actorName(data?.createdBy)}
-                  labelClassName="text-[14px]"
-                />
-              </div>
-              {/* The audit trail every module now carries. For a user account,
-                  "created" is the invitation — it is the same event. */}
-              <div className="flex gap-4 w-full">
-                <DetailField
-                  label="INVITED ON"
-                  value={formatLastLogin(item.createdAt)}
-                  labelClassName="text-[14px]"
-                />
-                <DetailField
-                  label="LAST UPDATED BY"
-                  value={actorName(data?.updatedBy)}
-                  labelClassName="text-[14px]"
-                />
-              </div>
-            </SectionCard>
-            )}
-
-            <div className="border-t border-secondary flex items-center justify-between gap-3 pt-4 w-full mt-auto flex-wrap">
-              <Button
-                variant="outline"
-                className="gap-2 px-4"
-                onClick={() => {
-                  close();
-                  openEditUserModal(item);
-                }}
-              >
-                <Pencil className="size-4" />
-                Edit
-              </Button>
-
-              <div className="flex items-center gap-2">
-                {/* One control, both directions: a suspended account needs a
-                    way back, and a separate "Reactivate" button that is
-                    disabled most of the time reads worse than a toggle.
-                    Absent entirely while the invitation is pending. */}
-                {!isInvited && (
-                  <Button
-                    variant="outline"
-                    className="gap-2 px-4"
-                    onClick={toggleAccess}
-                    disabled={isUpdating}
-                  >
-                    {isSuspended ? <UserCheck className="size-4" /> : <UserX className="size-4" />}
-                    {isSuspended ? "Reactivate" : "Suspend"}
-                  </Button>
-                )}
-              </div>
             </div>
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
+            <div className="flex gap-4 w-full">
+              <DetailField
+                label="ASSIGNED CLIENTS"
+                value={String(data?._count?.assignedClients ?? 0)}
+                labelClassName="text-[14px]"
+              />
+              <DetailField
+                label="ORIGINATED CLIENTS"
+                value={String(data?._count?.originatedClients ?? 0)}
+                labelClassName="text-[14px]"
+              />
+            </div>
+            {/* Columns the design asks for that nothing can supply until the
+                trips and quotes modules exist. */}
+            <div className="flex gap-4 w-full">
+              <DetailField label="ACTIVE LEADS" value={item.activeLeads} labelClassName="text-[14px]" />
+              <DetailField label="ACTIVE TRIPS" value={item.activeTrips} labelClassName="text-[14px]" />
+            </div>
+            <div className="flex gap-4 w-full">
+              <DetailField label="LAST LOGIN" value={item.lastLogin} labelClassName="text-[14px]" />
+              <DetailField
+                label="INVITED BY"
+                value={actorName(data?.createdBy)}
+                labelClassName="text-[14px]"
+              />
+            </div>
+            {/* The audit trail every module now carries. For a user account,
+                "created" is the invitation — it is the same event. */}
+            <div className="flex gap-4 w-full">
+              <DetailField
+                label="INVITED ON"
+                value={formatLastLogin(item.createdAt)}
+                labelClassName="text-[14px]"
+              />
+              <DetailField
+                label="LAST UPDATED BY"
+                value={actorName(data?.updatedBy)}
+                labelClassName="text-[14px]"
+              />
+            </div>
+          </SectionCard>
+          )}
+
+          <div className="border-t border-secondary flex items-center justify-between gap-3 pt-4 w-full mt-auto flex-wrap">
+            <Button
+              variant="outline"
+              className="gap-2 px-4"
+              onClick={() => {
+                close();
+                openEditUserModal(item);
+              }}
+            >
+              <Pencil className="size-4" />
+              Edit
+            </Button>
+
+            <div className="flex items-center gap-2">
+              {/* One control, both directions: a suspended account needs a
+                  way back, and a separate "Reactivate" button that is
+                  disabled most of the time reads worse than a toggle.
+                  Absent entirely while the invitation is pending. */}
+              {!isInvited && (
+                <Button
+                  variant="outline"
+                  className="gap-2 px-4"
+                  onClick={toggleAccess}
+                  disabled={isUpdating}
+                >
+                  {isSuspended ? <UserCheck className="size-4" /> : <UserX className="size-4" />}
+                  {isSuspended ? "Reactivate" : "Suspend"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </DetailSheet>
   );
 }
