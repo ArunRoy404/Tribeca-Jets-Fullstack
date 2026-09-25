@@ -76,6 +76,22 @@ function writeStamp(value) {
   }
 }
 
+/**
+ * Stamps "activity now" outside of any mounted `useIdleLogout` instance.
+ *
+ * Call this the moment a session actually starts (a completed login or
+ * two-factor verification) — never on a silent token refresh, which is
+ * network activity, not a person. Without it, a brand-new session inherits
+ * whatever `tj_last_activity` was left over from a previous one, which can be
+ * hours or days old, and the idle watcher reads that stale stamp as soon as
+ * it mounts on the dashboard and signs the person right back out — someone
+ * who just typed their password gets bounced to `reason=idle` on the very
+ * next reload.
+ */
+export function markSessionActivityNow() {
+  writeStamp(Date.now());
+}
+
 export function useIdleLogout({ enabled = true } = {}) {
   const { data: user } = useCurrentUser();
 

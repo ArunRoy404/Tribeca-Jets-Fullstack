@@ -7,6 +7,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { setQueryData } from "@/lib/queryClient";
 import { toastApiError, toastDevCode, toastSuccess } from "@/lib/toast";
 import { useAuthStore } from "@/store/useAuthStore";
+import { markSessionActivityNow } from "@/hooks/common/useIdleLogout";
 import { useRedirectTarget } from "./useRedirectTarget";
 
 /**
@@ -47,6 +48,9 @@ export function useLogin() {
       // Seed the cache so the dashboard does not flash a loading state for a
       // user we were just handed.
       setQueryData(queryKeys.auth.currentUser, data?.user ?? null);
+      // A stale stamp from a previous session must not carry into this one —
+      // see markSessionActivityNow's doc comment.
+      markSessionActivityNow();
 
       toastSuccess(`Welcome back, ${data?.user?.firstName ?? "there"}`);
       router.push(redirectTarget);
