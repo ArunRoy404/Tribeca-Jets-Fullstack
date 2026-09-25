@@ -5,7 +5,8 @@ import { FileText } from "lucide-react";
 import StatusBadge from "@/components/common/StatusBadge";
 import DetailField from "@/components/common/DetailField";
 import SectionCard from "@/components/common/SectionCard";
-import { uploadUrl } from "@/services/uploads.service";
+import { ImagePreview } from "@/components/common/image-preview";
+import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
 
 const STOCK_GALLERY = {
   exterior: "/itineraries/aircraft-exterior.jpg",
@@ -39,6 +40,13 @@ export default function ItineraryPreview({ item }) {
       isUpload: Boolean(item.interiorImageUrl),
     },
   ];
+  // The set ImagePreview's lightbox navigates prev/next across — both
+  // photos, whichever came from an upload vs. the stock fallback.
+  const galleryImages = gallery.map((photo) => ({
+    src: photo.src,
+    alt: photo.label,
+    loader: photo.isUpload ? passthroughImageLoader : undefined,
+  }));
 
   return (
     <>
@@ -55,24 +63,24 @@ export default function ItineraryPreview({ item }) {
 
       {/* Aircraft Photo Gallery */}
       <div className="grid grid-cols-2 gap-4 w-full">
-        {gallery.map((photo) => (
-          <div key={photo.label} className="relative w-full aspect-384.5/182 rounded border border-border overflow-hidden">
+        {gallery.map((photo, idx) => (
+          <ImagePreview
+            key={photo.label}
+            images={galleryImages}
+            index={idx}
+            className="w-full aspect-384.5/182 rounded border border-border overflow-hidden"
+          >
             <Image
               src={photo.src}
               alt={photo.label}
               fill
               className="object-cover"
-              // See the matching comment in FileUpload.jsx: an authenticated
-              // upload URL can't go through Next's server-side optimizer
-              // (no session cookie there), so it needs the raw-passthrough
-              // loader. The static stock fallback is a real file under
-              // public/ and optimizes normally.
-              loader={photo.isUpload ? ({ src }) => src : undefined}
+              loader={photo.isUpload ? passthroughImageLoader : undefined}
             />
             <div className="absolute top-0 inset-x-0 flex items-center justify-center bg-secondary px-2 py-2.5">
               <p className="font-montserrat font-bold text-[16px] text-foreground text-center">{photo.label}</p>
             </div>
-          </div>
+          </ImagePreview>
         ))}
       </div>
 

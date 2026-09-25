@@ -13,7 +13,7 @@ import { toastApiError, toastSuccess } from "@/lib/toast";
  * carries a **relative** `url` — that string is what a form stores on whatever
  * record it is editing.
  *
- * Two things are deliberately quiet:
+ * Three things are deliberately quiet:
  *
  * - **A deduplicated upload is a success, not a warning.** Sending a file the
  *   server already holds returns the existing record rather than a second
@@ -22,6 +22,13 @@ import { toastApiError, toastSuccess } from "@/lib/toast";
  * - **Nothing is invalidated unless the file was filed about somebody.** An
  *   upload that is about to become a form field has no list to refresh; only a
  *   document landing in a folder does.
+ * - **An image never toasts on success.** It already gets immediate, inline
+ *   confirmation — the thumbnail brick appearing where the dropzone prompt
+ *   was — so a toast on top is a second, redundant notification for the same
+ *   event, and a genuinely noisy one on a `multiple` field uploading several
+ *   photos in a row. A document has no equivalent inline confirmation (a
+ *   file chip announces itself far less clearly than a photo does), so it
+ *   keeps the toast.
  */
 export function useUploadFile() {
   return useMutation({
@@ -30,7 +37,9 @@ export function useUploadFile() {
       if (variables?.ownerUserId) {
         invalidate(queryKeys.uploads.all);
       }
-      toastSuccess("File uploaded", data?.label || data?.filename || undefined);
+      if (variables?.kind !== "image") {
+        toastSuccess("File uploaded", data?.label || data?.filename || undefined);
+      }
     },
     onError: (error) => toastApiError(error, "Could not upload that file"),
   });

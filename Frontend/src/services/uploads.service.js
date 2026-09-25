@@ -86,3 +86,17 @@ export function uploadUrl(url) {
   const root = base.replace(/\/api\/?$/, "").replace(/\/$/, "");
   return `${root}${url}`;
 }
+
+/**
+ * The `next/image` loader every inline preview of an uploaded (as opposed to
+ * static/public) image must use.
+ *
+ * `GET /uploads/:id` requires a session, and next/image's default loader
+ * resolves a relative `src` with its own **server-side** fetch — one with no
+ * access to the browser's httpOnly cookie, so it 401s and the image never
+ * renders. This hands the URL straight to the browser instead, the same way
+ * this app's download links already rely on a real browser request to carry
+ * the cookie. Static files under `public/` don't need this; only anything
+ * built from `uploadUrl()` does.
+ */
+export const passthroughImageLoader = ({ src }) => src;

@@ -5,7 +5,8 @@ import Image from "next/image";
 import { File as FileIcon, Loader2, Paperclip, Plus, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUploadFile } from "@/hooks/uploads";
-import { uploadUrl } from "@/services/uploads.service";
+import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
+import { ImagePreview } from "@/components/common/image-preview";
 import { cn } from "@/lib/utils";
 
 /**
@@ -165,6 +166,20 @@ export default function FileUpload({
   );
 
   if (variant === "dropzone") {
+    // The subset of this field's values that render as images, in order —
+    // this is the "set" an ImagePreview lightbox navigates prev/next
+    // across, so a `multiple` field's arrows only ever step through its
+    // own photos, never its mixed-in documents.
+    const imageValues = values.filter((url) => {
+      const meta = fileMeta[url];
+      return meta ? meta.isImage : kind === "image";
+    });
+    const previewImages = imageValues.map((url) => ({
+      src: uploadUrl(url),
+      alt: fileMeta[url]?.name || "Uploaded photo",
+      loader: passthroughImageLoader,
+    }));
+
     return (
       <div className={cn("flex flex-col gap-2 w-full", className)}>
         {input}
@@ -204,33 +219,30 @@ export default function FileUpload({
                 const name = meta?.name || (isImage ? "Photo" : "File");
                 return (
                   <div key={url} className="flex flex-col items-center gap-1 w-16 shrink-0">
-                    <div className="relative size-16 rounded border border-border overflow-hidden bg-secondary shrink-0">
+                    <div className="relative size-16 shrink-0">
                       {isImage ? (
-                        <Image
-                          src={uploadUrl(url)}
-                          alt={name}
-                          fill
-                          className="object-cover"
-                          // A stored upload requires the session cookie to
-                          // fetch, and Next's built-in optimizer resolves a
-                          // relative src with its own server-side fetch — one
-                          // with no access to the browser's cookies, so it
-                          // 401s and the image never loads. This loader hands
-                          // the raw URL straight to the browser instead, the
-                          // same way the download links elsewhere in this app
-                          // already rely on a real browser request to carry
-                          // the cookie.
-                          loader={({ src }) => src}
-                        />
+                        <ImagePreview
+                          images={previewImages}
+                          index={imageValues.indexOf(url)}
+                          className="block size-16 rounded border border-border overflow-hidden bg-secondary"
+                        >
+                          <Image
+                            src={uploadUrl(url)}
+                            alt={name}
+                            fill
+                            className="object-cover"
+                            loader={passthroughImageLoader}
+                          />
+                        </ImagePreview>
                       ) : (
-                        <div className="size-full flex items-center justify-center">
+                        <div className="size-16 rounded border border-border overflow-hidden bg-secondary flex items-center justify-center">
                           <FileIcon className="size-6 text-muted-foreground" />
                         </div>
                       )}
                       <button
                         type="button"
                         onClick={() => onRemove?.(multiple ? idx : undefined)}
-                        className="absolute top-1 right-1 size-4.5 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 transition-colors cursor-pointer"
+                        className="absolute top-1 right-1 size-4.5 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 transition-colors cursor-pointer z-10"
                         aria-label="Remove file"
                       >
                         <X className="size-2.5" />
