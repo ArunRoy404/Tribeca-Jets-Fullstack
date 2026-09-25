@@ -257,20 +257,24 @@ feature nothing has.
 Quotes, Trips, Empty Legs and Flight Tracking all reference aircraft, so this
 unblocks a large part of the remaining queue.
 
-> **Aircraft images: the API is live, the screen is not.** This paragraph used
-> to say the project had no file-upload pipeline at all. It has one now —
-> **Uploads (#28)**, built when four client requests turned out to be queued
-> behind it. `POST /api/uploads/image` returns a URL, and the aircraft record
-> would store it in a `photoUrl` column that does not exist yet.
+> **Aircraft images: the upload API is live, the fleet screen is not.** This
+> paragraph used to say the project had no file-upload pipeline at all. It has
+> one now — **Uploads (#28)**, built when four client requests turned out to be
+> queued behind it. `POST /api/uploads/image` returns a URL, and the aircraft
+> record would store it in a `photoUrl` column that does not exist yet.
 >
 > The upload deliberately does not know it is for an aircraft, which is exactly
 > what lets a photograph be chosen on the **Add Aircraft** form — before the
 > tail it belongs to exists.
 >
-> What is still missing is UI. The fleet screen has no uploader and no gallery,
-> and the picture-picker the client wants on a quote or an itinerary waits on
-> those two modules' pending UI changes. Thumbnails and resizing are deferred
-> until something actually renders a gallery.
+> **The picture-picker on a quote and on an itinerary both shipped 25 September
+> 2026**, with the Quotes Figma redesign — `Quote.exteriorImageUrl` and the
+> itinerary gallery, both through a shared `PhotoTile` component. See
+> [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §3 item 3 and §4. What is
+> still missing is the fleet screen itself: no uploader, no gallery, no
+> `Aircraft.photoUrl` column. That piece is small and unblocked — it does not
+> need a client UI change, just doing. Thumbnails and resizing stay deferred
+> until something renders enough images at once to need them.
 
 ### 7. Leads & Agents ✅
 
@@ -382,10 +386,16 @@ recompute.
 **Margins are gated behind `VIEW_FINANCIALS`**, and the keys are *absent*
 rather than zeroed — a `0` margin is a number someone could repeat out loud.
 
-> ⚠️ **The client has UI changes pending for Quotes.** Two of his adjustments
-> (the aircraft picture-picker, and an instant quote calculator with a
-> suggested-price selector) are **deferred at his own request** until that UI
-> lands. Do not start them. See [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md).
+> ✅ **The client's pending Quotes UI landed 25 September 2026** — a full-screen
+> create/edit form with a live document preview (`QuoteDetailStats` and the
+> quote detail page's own cards, reused rather than re-built), an aircraft
+> exterior photo (`Quote.exteriorImageUrl`, through `PhotoTile`), and a live
+> pricing preview (`POST /quotes/price-preview`, run through the same
+> `priceQuote()` the save path uses). That closes the picture-picker half of
+> adjustment #3. The instant-quote-calculator half of #6 is **still deferred**
+> — the UI it was waiting on now exists; what is left is the client's rate
+> data, on the call he offered. See
+> [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §3 items 3 and 6, and §4.
 
 ### 11. Trips ⬅ **Next**
 
@@ -411,8 +421,11 @@ this module done.
 The passenger-facing document for a trip: tail number, times, passengers and
 passport numbers, catering, ground transport, FBO. Confirmed or pending.
 
-> ⚠️ **Like Quotes, this has client UI changes pending**, and the aircraft
-> picture-picker is deferred until they land.
+> ✅ **The aircraft picture-picker landed 24 September 2026**, with the Build
+> Itinerary redesign — a two-photo gallery through the shared `PhotoTile`
+> component, the same one Quotes' picker was built from the next day. Nothing
+> else about this module is wired: it still waits on **Trips (#11)** for
+> everything past the preview screen.
 
 ### 13. Schedule
 

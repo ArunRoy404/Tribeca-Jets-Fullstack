@@ -421,6 +421,16 @@ client see on the 9th?" — is `QuoteVersion`.
 - Expiry is derived from `validUntil` on every read, so a quote that lapsed on
   Friday does not still read "Sent" on Monday
 - The client detail page's Quotes tab, filled in the same pass
+- **A full-screen create/edit form with a live document preview** (25 September
+  2026, the client's Figma redesign) — reuses `QuoteDetailStats` and the quote
+  detail page's own cards rather than a second set built for the form
+- **An aircraft exterior photo per quote** (`exteriorImageUrl`, a relative
+  upload URL), previewed through the shared `PhotoTile` component — the quote
+  half of client adjustment #3
+- **`POST /quotes/price-preview`** — the same `priceQuote()` pricing engine,
+  run against draft form inputs before anything is saved, gated behind
+  `VIEW_FINANCIALS` exactly like the saved quote. Nothing recomputes the money
+  math in frontend JavaScript
 
 **Waiting on a dependency**
 
@@ -458,8 +468,16 @@ plus it is the dependency for modules 12, 13, 14, 16, 17, 18, 19 and 23.
 
 ## 12. Itineraries ⬜
 
-Nothing wired. Waits on **Trips (#11)**; passenger images and the printable
-document also want **Document Vault (#22)**.
+No backend — still waits on **Trips (#11)**; passenger images and the
+printable document also want **Document Vault (#22)**.
+
+The frontend build-form and live preview shipped ahead of the module itself
+(24–25 September 2026, dummy-data-backed): a full-screen create/edit modal, a
+two-photo aircraft gallery through the shared `PhotoTile` component, and the
+mobile layout fixed after a real-device regression (labels were hiding the
+photos on iPhone/Pixel widths — `PhotoTile`'s `shrink-0` fix). None of it talks
+to a database yet; it is screens built ahead of their API, same as every other
+still-⬜ module's UI.
 
 ---
 
@@ -633,9 +651,9 @@ existed.
 | Feature | Blocked by |
 |---|---|
 | ~~The broker document folder tab~~ | ✅ Shipped — see **Users & Roles (#2)** |
-| The aircraft photo gallery | **Aircraft UI** |
+| The aircraft **fleet** photo gallery | **Aircraft UI** — needs `Aircraft.photoUrl` and a form field; unblocked, just not built |
 | Referral attachments and the Resources section | **Referral Agent (#11 in the client list)** |
-| Picking a photo onto a quote or itinerary | **Quotes / Itineraries** — both have client UI changes pending |
+| ~~Picking a photo onto a quote or itinerary~~ | ✅ Shipped — itinerary 24 Sep, quote 25 Sep 2026, both through the shared `PhotoTile` component |
 
 **Deferred by decision: thumbnails and image resizing.** A 15 MB cabin
 photograph served whole into a gallery is slow, and the fix is a resize
@@ -824,6 +842,14 @@ The last three landed for the client's adjustments rather than from the module
 queue: **Uploads (#28)** with the broker documents tab on 23 September, **Notes
 (#29)** as the client Activity timeline on 23 September, and **Client Credits
 (#30)** as the client Credit tab on 24 September.
+
+**Most recent change (25 September):** Quotes gained a full-screen create/edit
+form with a live document preview and pricing preview, plus
+`exteriorImageUrl` — the client's Figma-driven phase-2 redesign. See
+[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §4 for the full entry, including
+a corrected first pass (custom preview markup replaced with the existing
+`QuoteDetailStats` and quote-detail cards) and the shared `PhotoTile` component
+it produced, now also used by Itineraries.
 
 **The one module that unblocks the most:** Trips (#11). Nine modules and a
 dozen individual fields wait on it — and so do the last pieces of two

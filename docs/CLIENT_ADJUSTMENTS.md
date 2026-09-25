@@ -8,7 +8,7 @@ ordered by dependency.
 `docs/Client_Adjustments.txt`, which held the raw messages and nothing else.
 The original is not needed and has been deleted.
 
-*Last updated: 24 September 2026.*
+*Last updated: 25 September 2026.*
 
 ---
 
@@ -26,8 +26,8 @@ exactly the failure this document exists to prevent.
 
 | | Phase | State |
 |---|---|---|
-| **1** | **The client's adjustments.** The thirteen messages in §3, built in the dependency order in §2. | **6 of 11 done.** See §1. |
-| **2** | **Frontend changes.** Existing screens change, and new screens that do not exist yet get built. | **Not started.** |
+| **1** | **The client's adjustments.** The thirteen messages in §3, built in the dependency order in §2. | **7 of 11 done.** See §1. |
+| **2** | **Frontend changes.** Existing screens change, and new screens that do not exist yet get built. | **Done for the two screens the client's Figma redesigns targeted** — the Build Itinerary preview (24 Sep) and the Quotes form + live preview (25 Sep). See the 25 September entry in §4. No further phase-2 item is queued; if he sends another redesign it reopens this phase for that screen only. |
 | **3** | **Backend + Postman + API integration**, module by module, in dependency order. | **Partly done — and that is the complication.** |
 
 **The complication, stated by the owner and worth understanding before you
@@ -53,11 +53,20 @@ Two consequences that are easy to get wrong:
   (see §1). Nothing in phase 1 is both unblocked and independent of the phase-2
   redesign.
 
-**Where phase 2's specification lives:** nowhere yet. The client's UI changes
-and the list of new screens have not been written down in this repository. That
-is the first thing to capture when phase 2 starts — in a new `docs/` file,
-following the shape of this one: his words verbatim, then the analysis, then
-the order.
+**Where phase 2's specification lived:** nowhere written down — it arrived as
+Figma links dropped into a session, not a doc. Two redesigns came through that
+way and both shipped:
+
+- **Build Itinerary** — a full-screen form with a live document preview,
+  24 September 2026.
+- **Quotes** — the same full-screen-with-live-preview treatment, plus the
+  fields the Figma redesign added (an aircraft exterior photo, a live pricing
+  preview), 25 September 2026. See the entry in §4.
+
+No further phase-2 item is queued as of this update. If another redesign link
+arrives, treat it as reopening phase 2 for that one screen — read the change
+list off the Figma file the same way these two were, and log it here in the
+same pass as the code, per §0.7.
 
 ### 0.1 What the project is
 
@@ -192,18 +201,12 @@ script placed **in `Backend/`** (not `/tmp`) using `dotenv` + `pg`.
 
 ### 0.6 Git state at handoff
 
-Branch **`roy`**. Five commits landed 19 September 2026 and are **committed but
-not pushed** — the environment has no GitHub credentials
-(`fatal: could not read Username for 'https://github.com'`). Pushing is the
-repository owner's to do.
-
-```
-91f08d4  docs: record the rules this round settled, and refresh the collection
-b70b5d8  feat(auth): sign out a session left untouched for ten minutes
-7edd79f  feat(trip-requests): give trip requests their own page
-078cc92  fix(date-picker): emit YYYY-MM-DD, not "Aug 12, 2026"
-1c37c7e  feat(operators): raise the cancellation policy ceiling to 5,000 characters
-```
+Branch **`roy`**, pushed and clean as of 25 September 2026
+(`origin/roy` up to date through `1e0dec4`). Commits are pushed only when the
+user asks for it in that message — a session ending with unpushed work
+committed locally is the normal resting state, not a problem to fix. Check
+`git status` and `git log origin/roy..HEAD` on pickup rather than trusting this
+paragraph, since it goes stale the moment the next session commits.
 
 ### 0.7 Keeping this file current is part of the work
 
@@ -228,10 +231,10 @@ b70b5d8  feat(auth): sign out a session left untouched for ten minutes
 | — | Upload infrastructure | ✅ | ✅ | **Done, rebuilt 23 Sep.** One screen consumes it (#7). Still unblocks 3 and 11. |
 | 1 | Client stays visible after a broker deletes it | ✅ | ✅ | **Already works.** Needs a demonstration, not code. |
 | 2 | Operator cancellation policies | ✅ | ✅ | **Done** 19 Sep 2026. |
-| 3 | Aircraft pictures + stock image library | ◐ | ☐ | Foundation done. Gallery and picker **deferred** — needs Quotes/Itinerary UI. |
+| 3 | Aircraft pictures + stock image library | ◐ | ◐ | **Quote and itinerary picture-picker done** 25 Sep 2026 (the two consumers he named). **Still open:** the fleet-side uploader and gallery on the Aircraft screen itself — `Aircraft.photoUrl` doesn't exist yet. |
 | 4 | Ten-minute idle logout | ✅ | ✅ | **Done** 19 Sep 2026. |
 | 5 | Notes on a timeline | ✅ | ✅ | **Done for Clients** 23 Sep 2026. Trips gets it by rendering the same component. |
-| 6 | Instant quote calculator | ☐ | ☐ | **Deferred** — needs Quotes UI **and his rate data**. |
+| 6 | Instant quote calculator | ☐ | ☐ | **Still deferred** — the Quotes UI it needed shipped 25 Sep 2026; now blocked only on **his rate data** (he offered it, on the call he asked for). |
 | 7 | A document folder per user (tax forms) | ✅ | ✅ | **Done** 23 Sep 2026. |
 | 8 | "Active trip request" section | ✅ | ✅ | **Done** 19 Sep 2026 — same as 10a. |
 | 9 | Client credit / money on account | ✅ | ✅ | **Done** 24 Sep 2026, as a ledger. Trip link waits on Trips. |
@@ -256,10 +259,11 @@ Dependency-first, as `AGENTS.md` requires. Cheapest unblocker at the top.
 | 6 | ~~**#7 User document folders**~~ ✅ 23 Sep 2026 | A Documents tab on the team member sheet, over a folder query rather than a second table. |
 | 7 | ~~**#5 Notes timeline**~~ ✅ 23 Sep 2026 | Polymorphic, so Trips gets it for one enum value. #11's Agent Update field is the `visibility` flag, built with it. |
 | 8 | ~~**#9 Client credit ledger**~~ ✅ 24 Sep 2026 | Client-scoped, as planned. The trip link is a second pass the day Trips lands. |
-| **9** | **Trips** | Not a client request — but #5's trip timeline and #9's trip link both wait on it, and it unblocks nine modules. **Next.** |
-| 10 | **#10b Empty-leg matching** | After Empty Legs has a backend. |
-| 11 | **#11 Referral Agent portal** | Last. Needs Trips, Commissions and upload all in place. |
-| — | **#3, #6** | Deferred at the client's request until the Quotes and Itinerary UI lands. |
+| 9 | ~~**#3 (quote/itinerary half) — picture-picker**~~ ✅ 25 Sep 2026 | Shipped with the Quotes Figma redesign (phase 2). See §4. |
+| **10** | **Trips** | Not a client request — but #5's trip timeline and #9's trip link both wait on it, and it unblocks nine modules. **Next.** |
+| 11 | **#10b Empty-leg matching** | After Empty Legs has a backend. |
+| 12 | **#11 Referral Agent portal** | Last. Needs Trips, Commissions and upload all in place. |
+| — | **#3 (fleet half), #6** | **#3's fleet uploader/gallery** is small and unblocked — needs `Aircraft.photoUrl` and a form field, nothing else. **#6** waits on the client's rate data (see §5). |
 
 ---
 
@@ -301,7 +305,7 @@ was not the same as the feature working.
 
 ---
 
-### ⏸ 3. Aircraft pictures and a stock image library — **DEFERRED**
+### ◐ 3. Aircraft pictures and a stock image library — **PARTLY DONE**
 
 > And are you gonna add a section for aircraft pictures? It would be cool to
 > have a stock image database for when you have to add pics to quote or
@@ -313,14 +317,26 @@ He names the consumers himself — quote and itinerary.
 **This one splits, and the split matters.**
 
 - ✅ **The foundation shipped** (§4, Uploads). `POST /api/uploads/image`
-  returns a URL today; the aircraft record stores it in a `photoUrl` column
-  that still needs adding with the fleet UI.
-- ☐ **Still deferred:** the fleet-side uploader and gallery, and the
-  picture-picker on a quote or an itinerary. Those need the pending Quotes and
-  Itinerary UI. **Do not start them.**
+  returns a URL.
+- ✅ **The quote consumer shipped 25 Sep 2026**, with the Quotes Figma
+  redesign — a `FileUpload` field on the quote form stores the URL in
+  `Quote.exteriorImageUrl`, previewed through the shared `PhotoTile` component.
+  See §4.
+- ✅ **The itinerary consumer was already live** from the earlier Build
+  Itinerary work (24 Sep 2026) — its two-photo gallery, also through
+  `PhotoTile`.
+- ☐ **Still open: the fleet-side uploader and gallery.** The Add/Edit Aircraft
+  form has no photo field yet, and there is no `Aircraft.photoUrl` column to
+  put it in. This is the one piece of #3 not blocked on anything — it needs a
+  small schema addition and a `FileUpload` field on the aircraft form, not a
+  client UI change.
+- ☐ **Still deferred:** the "stock image database" half of his message — a
+  shared library to pick from rather than uploading per-quote. Nobody has
+  asked for it since; treat it as a follow-up question for him rather than
+  something to guess at building.
 
-Thumbnails and image resizing are deliberately deferred until something
-actually renders a gallery.
+Thumbnails and image resizing are deliberately deferred until a screen renders
+enough images at once to need them.
 
 ---
 
@@ -367,6 +383,13 @@ lands with **Trips**.
 Pure Quotes. The percentage selector is a markup control over the pricing
 engine that already exists in
 [quotes.pricing.ts](../Backend/src/modules/quotes/quotes.pricing.ts).
+
+**The Quotes UI this was waiting on shipped 25 September 2026** — the
+full-screen form now has a live pricing preview
+(`POST /quotes/price-preview`), computed by that same `priceQuote()` engine
+against draft inputs before anything is saved. That closes the UI half of this
+request; a percentage-selector control over it is a small addition once the
+data below exists.
 
 **The *estimate* half is a data question before it is a build question.** He
 offered to supply rates ("I can help with the data"), and scope §18 says AI
@@ -1140,15 +1163,93 @@ the session rather than declining one request. 34 tests, Newman 127 / 56 / 0.
 
 ---
 
+### ✅ Quotes redesign + live preview, and the quote/itinerary picture-picker — 25 September 2026 · phase 2, order item 9 (#3 quote/itinerary half)
+
+**The Figma link he dropped mid-session** (node `1057-47064`) redesigned the
+Quotes form as a full-screen create/edit modal with a live document preview —
+the same shape the Build Itinerary form got the day before — and added two
+fields the old form didn't have: an aircraft exterior photo, and a running
+price preview as the numbers are typed.
+
+**Backend, because the preview had to be real, not re-derived in JS:**
+
+- **`Quote.exteriorImageUrl`** — a nullable relative `/api/uploads/<id>` URL,
+  same rule as every other stored upload URL in this system: never absolute,
+  or every row written in development points at localhost forever.
+- **`POST /quotes/price-preview`** — takes the same four inputs a quote
+  actually stores (`basePrice`, `fetEnabled`, `fetRate`, `operatorCost`,
+  `lineItems`) and runs them through the *same* `priceQuote()` function
+  `quotes.pricing.ts` uses for a real save. `AGENTS.md`'s rule that a computed
+  figure is worked out in exactly one place applies to a preview too — porting
+  the arithmetic to frontend JavaScript "just for the preview" is exactly the
+  kind of second copy that drifts the first time a rounding rule changes.
+  Gated behind `VIEW_FINANCIALS` the same way the saved quote is: an assistant
+  previewing a draft still doesn't see margin.
+  (Caught by the Postman capture step: it returned 201 by default: fixed with
+  an explicit `@HttpCode(HttpStatus.OK)`, since a preview creates nothing.)
+
+**Frontend — and a correction mid-build worth recording, because it's the
+kind of mistake this file exists to stop repeating:**
+
+- The first pass built a custom preview pane — its own oversized photo box,
+  a hand-rolled `AttributeChip` for the stat row. **Wrong**, per the project's
+  own reuse rule: `QuoteDetailStats` already renders exactly those fields
+  (client, route, aircraft, total price, expiry) and was dropped in as-is; the
+  itinerary form already had a hover-to-zoom photo tile, so that markup was
+  pulled out into a new shared **`PhotoTile`** component
+  (`src/components/common/photo-tile/`) rather than growing a second,
+  slightly different copy — and `ItineraryPreview` was migrated onto it in the
+  same pass, per "extract on the second copy, not the first."
+- The rest of the preview pane reuses the quote detail page's own cards
+  verbatim (`QuoteBreakdownCard`, `FlightDetailsCard`,
+  `QuoteProfitabilityCard`, `QuoteNotesCard`, and — only when editing a real
+  quote — `QuoteVersionsCard`/`QuoteStatusActionsCard`), fed a
+  `previewQuote` object shaped exactly like `toQuoteRow()`'s output.
+  Debounced against `useQuotePricePreview`.
+- **Mobile regression fixed the same round:** the itinerary gallery's photo
+  labels were overflowing and hiding the images on an iPhone 14 Pro / Pixel 7
+  Pro comparison the client-side testing turned up. Root cause was `aspect-ratio`
+  + `overflow-hidden` losing its automatic-minimum-size floor inside a
+  `flex-col` pane taller than the viewport, collapsing the tile toward zero
+  height; fixed with `shrink-0` on `PhotoTile`'s shared sizing class, plus a
+  smaller mobile label (`aspect-4/3 sm:aspect-384.5/182`, `text-[10px]
+  sm:text-[16px]`).
+- **A real app-wide bug found along the way:** every `<Select>` in the app
+  (via `PickerSelect`/`CommonSelect`) displayed the raw stored id instead of
+  its label the moment something was picked — traced into `@base-ui/react`'s
+  source to find `Select.Root` needs an `items` prop to resolve labels from.
+  One line in each of the two wrapper components fixed it everywhere, not just
+  on the Quotes form that surfaced it.
+
+**Key files:** `Backend/prisma/schema/quote.prisma` ·
+`Backend/src/modules/quotes/{dto/quote.dto.ts,quotes.service.ts,quotes.controller.ts}`
+· `Frontend/src/components/quotes/AddQuoteDialog.jsx` ·
+`Frontend/src/components/common/photo-tile/PhotoTile.jsx` ·
+`Frontend/src/hooks/quotes/useQuotePricePreview.js` ·
+`Frontend/src/components/{trips/PickerSelect.jsx,common/CommonSelect.jsx}`.
+
+**Not verified with `newman`** — no network access in this environment to
+install it. Verified instead with a manual pass over the captured Postman
+JSON, matching every example's leading status code against its stored `code`.
+Run `npm run test:api` for real before calling this module's Postman folder
+done.
+
+---
+
 ## 5. Open questions for the client
 
-Both are cheap to close and both are blocking something.
+Each is cheap to close and each is blocking something.
 
 1. **#1 may already be closed.** He is describing a data-loss risk that cannot
    happen here. Five minutes on the Archived tab may settle it outright.
 2. **#6 needs his rate data**, and he offered it — "I can help with the data".
    He also asked for a call: *"We can go over all of this on phone"*. Take it,
-   and come back with the numbers rather than an AI estimate.
+   and come back with the numbers rather than an AI estimate. The UI side is no
+   longer part of the ask — it shipped 25 Sep 2026 with the Quotes redesign.
 3. **#9 is a ledger, not a number** — worth one sentence to him, because what he
    gets is better than what he asked for and he should hear it from us rather
    than discover it.
+4. **#3's "stock image database" half** — the quote/itinerary picture-picker he
+   asked for is done, but he also described a shared library to pick a stock
+   photo from rather than uploading a fresh one each time. Nobody has confirmed
+   that's still wanted since; worth a one-line check before building it.
