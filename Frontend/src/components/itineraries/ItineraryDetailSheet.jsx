@@ -179,11 +179,11 @@ export default function ItineraryDetailSheet() {
                   { key: "arrival", label: "Arrival FBO", fbo: item.arrivalFbo },
                 ].map(({ key, label, fbo }) =>
                   fbo ? (
-                    <div key={key} className="flex flex-col gap-2 p-4 bg-popover border border-border rounded text-[16px] font-montserrat text-foreground">
-                      <p className="font-bold">{label}: {fbo.name}</p>
-                      <p><span className="font-bold">Address:</span> {fbo.address}</p>
-                      <p><span className="font-bold">Phone:</span> {fbo.phone}</p>
-                      <p><span className="font-bold">Email:</span> {fbo.email}</p>
+                    <div key={key} className="flex flex-col gap-1.5 p-3 bg-popover border border-border rounded font-montserrat text-foreground">
+                      <p className="font-bold text-[13px]">{label}: {fbo.name}</p>
+                      <p className="text-[12px]"><span className="font-bold">Address:</span> {fbo.address}</p>
+                      <p className="text-[12px]"><span className="font-bold">Phone:</span> {fbo.phone}</p>
+                      <p className="text-[12px]"><span className="font-bold">Email:</span> {fbo.email}</p>
                     </div>
                   ) : null
                 )}
