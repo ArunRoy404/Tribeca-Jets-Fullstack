@@ -121,6 +121,11 @@ export const createQuoteSchema = z.object({
   aircraftId: z.uuid().nullable().optional(),
   quotedAircraft: z.string().trim().max(200).optional(),
 
+  /** A relative `/api/uploads/<id>` URL from the shared uploads surface, or a
+   *  pasted external link. Never validated as a strict absolute URL — a
+   *  relative uploads path is not one. */
+  exteriorImageUrl: z.string().trim().max(500).optional(),
+
   originAirportId: z.uuid().nullable().optional(),
   destinationAirportId: z.uuid().nullable().optional(),
 
@@ -151,6 +156,28 @@ export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export class CreateQuoteDto extends createZodDto(createQuoteSchema) {}
 
 /**
+ * The priced inputs only, for a dry-run of `priceQuote()` while a broker is
+ * still composing the offer — nothing here is persisted.
+ *
+ * This exists so the live preview on the create/edit form can show a real FET
+ * amount, total and margin as the broker types, without a second copy of that
+ * arithmetic living in the frontend. See `quotes.pricing.ts`: a stored or
+ * re-derived total beside its own parts is the bug this project explicitly
+ * guards against, and a preview is not an exception to that — it is just
+ * computed on a row that has not been saved yet.
+ */
+export const previewQuoteSchema = z.object({
+  basePrice: requiredNumber('The base price is required', MONEY),
+  fetEnabled: z.boolean().default(true),
+  fetRate: optionalNumber('The FET rate must be a number like 0.075', FET_RATE),
+  operatorCost: optionalNumber('The operator cost must be a number', MONEY),
+  lineItems: lineItemList.optional(),
+});
+
+export type PreviewQuoteInput = z.infer<typeof previewQuoteSchema>;
+export class PreviewQuoteDto extends createZodDto(previewQuoteSchema) {}
+
+/**
  * Every field optional — this is a PATCH. `null` clears, omitted leaves alone.
  *
  * Written out rather than derived with `.partial()`. `.partial()` keeps
@@ -166,6 +193,7 @@ export const updateQuoteSchema = z.object({
 
   aircraftId: z.uuid().nullable().optional(),
   quotedAircraft: z.string().trim().max(200).nullable().optional(),
+  exteriorImageUrl: z.string().trim().max(500).nullable().optional(),
 
   originAirportId: z.uuid().nullable().optional(),
   destinationAirportId: z.uuid().nullable().optional(),

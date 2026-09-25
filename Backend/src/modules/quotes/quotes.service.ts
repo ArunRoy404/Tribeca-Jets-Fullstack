@@ -41,6 +41,7 @@ import {
 import type {
   CreateQuoteInput,
   DecideQuoteInput,
+  PreviewQuoteInput,
   QueryQuotesInput,
   SendQuoteInput,
   UpdateQuoteInput,
@@ -124,6 +125,7 @@ const QUOTE_LIST_SELECT = {
   aircraftId: true,
   aircraft: AIRCRAFT_SELECT,
   quotedAircraft: true,
+  exteriorImageUrl: true,
   originAirportId: true,
   originAirport: AIRPORT_SELECT,
   destinationAirportId: true,
@@ -530,6 +532,45 @@ export class QuotesService {
         : null;
 
     return { ...counts, averageMargin };
+  }
+
+  /**
+   * A dry run of `priceQuote()` for the create/edit form's live preview.
+   *
+   * Touches no row — nothing here is a saved quote yet. This is what lets the
+   * form show a real FET amount, total and (for a caller with VIEW_FINANCIALS)
+   * margin as a broker types, without a second copy of that arithmetic living
+   * in the frontend: see the "never store a figure beside the parts it is
+   * computed from" rule this whole pricing engine exists to satisfy. A preview
+   * is not an exception to that — it is the same function, called earlier.
+   */
+  pricePreview(user: AuthenticatedUser, input: PreviewQuoteInput) {
+    const priced = priceQuote({
+      basePrice: input.basePrice,
+      fetEnabled: input.fetEnabled,
+      // Mirrors `Quote.fetRate`'s own `@default(0.075)` — there is no row yet
+      // for Postgres to apply it to, so the same default is restated here.
+      fetRate: input.fetRate ?? 0.075,
+      operatorCost: input.operatorCost ?? null,
+      lineItems: input.lineItems ?? [],
+    });
+    const financials = this.seesFinancials(user);
+
+    return {
+      basePrice: priced.basePrice,
+      fetRate: priced.fetRate,
+      fetAmount: priced.fetAmount,
+      extrasTotal: priced.extrasTotal,
+      totalPrice: priced.totalPrice,
+      lineItems: priced.lineItems,
+      ...(financials
+        ? {
+            operatorCost: priced.operatorCost,
+            grossProfit: priced.grossProfit,
+            marginPercentage: priced.marginPercentage,
+          }
+        : { operatorCost: undefined, grossProfit: undefined, marginPercentage: undefined }),
+    };
   }
 
   // ---- Guards on what a quote may point at --------------------------------

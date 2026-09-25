@@ -67,6 +67,13 @@ model Quote {
   aircraft       Aircraft? @relation("QuoteAircraft", fields: [aircraftId], references: [id], onDelete: SetNull)
   quotedAircraft String?
 
+  /// The aircraft photo on the offer the client sees. A relative
+  /// `/api/uploads/<id>` URL from the shared uploads surface — never an
+  /// absolute one, which would embed whatever host issued it. Nullable: most
+  /// quotes are priced before anyone has a picture, and there is no stock
+  /// fallback for a specific aircraft the way a generic hero image would be.
+  exteriorImageUrl String?
+
   /// Route. Real airport relations, never codes typed into a box.
   originAirportId      String?  @db.Uuid
   originAirport        Airport? @relation("QuoteOrigin", fields: [originAirportId], references: [id], onDelete: SetNull)

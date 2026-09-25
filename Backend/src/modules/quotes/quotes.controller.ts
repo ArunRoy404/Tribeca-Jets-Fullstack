@@ -24,6 +24,7 @@ import { QuotesService } from './quotes.service.js';
 import {
   CreateQuoteDto,
   DecideQuoteDto,
+  PreviewQuoteDto,
   QueryQuotesDto,
   SendQuoteDto,
   UpdateQuoteDto,
@@ -121,6 +122,21 @@ export class QuotesController {
     @Body() body: CreateQuoteDto,
   ) {
     return this.quotes.create(user, body);
+  }
+
+  @Post('price-preview')
+  @HttpCode(HttpStatus.OK)
+  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @ApiOperation({
+    summary: 'Preview the pricing for an offer being composed',
+    description:
+      'A dry run of the same pricing engine a saved quote uses — FET amount, extras total, total price and (for a caller with VIEW_FINANCIALS) gross profit and margin. Nothing here is persisted; the create/edit form calls this as a broker types, so the live preview never re-derives the arithmetic itself.',
+  })
+  pricePreview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: PreviewQuoteDto,
+  ) {
+    return this.quotes.pricePreview(user, body);
   }
 
   @Patch(':id')

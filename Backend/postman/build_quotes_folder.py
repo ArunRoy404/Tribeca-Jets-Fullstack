@@ -118,6 +118,7 @@ CREATE_BODY = """{
   // have never entered.
   "aircraftId": null,                                  // optional · uuid, or null
   "quotedAircraft": "Gulfstream G550",                 // optional · max 200 chars
+  "exteriorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000001", // optional · max 500 chars. A relative URL from POST /uploads/image (module 05). Never validated as a strict absolute URL — a relative uploads path is not one.
 
   "originAirportId": "{{airportId}}",                  // optional · uuid of a live airport. A real relation, never an ICAO string typed into a box.
   "destinationAirportId": "{{airportId2}}",            // optional · uuid
@@ -163,6 +164,8 @@ UPDATE_BODY = """{
   // first — that is a recorded act, and this is not.
   "basePrice": 82500,
 
+  "exteriorImageUrl": null,                            // optional · max 500 chars, or null to clear. A relative URL from POST /uploads/image.
+
   "lineItems": [
     { "label": "Catering (seafood premium)", "amount": null, "included": true },
     { "label": "Ground transportation", "amount": 1200, "included": false }
@@ -192,6 +195,22 @@ DECIDE_BODY = """{
   "decisionNote": "Client confirmed by phone."
 }"""
 
+PREVIEW_BODY = """{
+  // The priced inputs only — same fields as the create body, minus everything
+  // that does not feed the pricing engine. Nothing here is persisted.
+  "basePrice": 79500,                                  // required · number 0-100000000
+
+  "fetEnabled": true,                                  // optional · boolean, default true
+  "fetRate": 0.075,                                    // optional · number 0-1. A RATE, not a percentage.
+
+  "operatorCost": 65000,                               // optional · number 0-100000000. Omit to see the client-side figures without a margin.
+
+  "lineItems": [                                       // optional · up to 40 entries, same shape as the create body
+    { "label": "Catering (seafood premium)", "amount": null, "included": true },
+    { "label": "Ground transportation", "amount": 850, "included": false }
+  ]
+}"""
+
 
 def build(owner, broker, assistant):
     client_id = owner.request('GET', '/clients?limit=1')[1]['data'][0]['id']
@@ -209,6 +228,7 @@ def build(owner, broker, assistant):
         'operatorId': operator['id'],
         'aircraftId': None,
         'quotedAircraft': 'Gulfstream G550',
+        'exteriorImageUrl': '/api/uploads/00000000-0000-4000-8000-000000000001',
         'originAirportId': airports[0]['id'],
         'destinationAirportId': airports[1]['id'],
         'departureDate': '2026-11-14',
@@ -253,6 +273,22 @@ def build(owner, broker, assistant):
         'clientId': MISSING, 'basePrice': 79500,
     })
     cap['create_403'] = assistant.request('POST', '/quotes', payload)
+
+    # Stateless — no id, no row, no dependency on anything captured above.
+    # Same MANAGE_TRIPS gate as writing the quote itself, since this is the
+    # form a broker is filling in before one exists.
+    preview_payload = {
+        'basePrice': 79500,
+        'fetEnabled': True,
+        'operatorCost': 65000,
+        'lineItems': [
+            {'label': 'Catering (seafood premium)', 'amount': None, 'included': True},
+            {'label': 'Ground transportation', 'amount': 850, 'included': False},
+        ],
+    }
+    cap['preview'] = owner.request('POST', '/quotes/price-preview', preview_payload)
+    cap['preview_400'] = owner.request('POST', '/quotes/price-preview', {'fetEnabled': True})
+    cap['preview_403'] = assistant.request('POST', '/quotes/price-preview', preview_payload)
 
     cap['versions_v1'] = owner.request('GET', f'/quotes/{new_id}/versions')
 
@@ -789,6 +825,33 @@ def build(owner, broker, assistant):
                 "pm.collectionVariables.set('newQuoteId', '');",
                 "pm.collectionVariables.set('duplicatedQuoteId', '');",
             ])],
+        },
+        {
+            'name': '17 · Preview pricing',
+            'request': {
+                'method': 'POST', 'header': WRITE_HEADERS,
+                'body': {'mode': 'raw', 'raw': PREVIEW_BODY,
+                         'options': {'raw': {'language': 'json'}}},
+                'url': url('/quotes/price-preview', 'price-preview'),
+                'description': (
+                    'A dry run of the exact `priceQuote()` function a saved quote uses — FET '
+                    'amount, extras total, total price and (for a caller with `VIEW_FINANCIALS`) '
+                    'gross profit and margin. **Persists nothing** and needs no existing quote: '
+                    'this is what the create/edit form calls as a broker types, before a row '
+                    'exists, so the live preview never re-implements the arithmetic itself.\n\n'
+                    'Same `MANAGE_TRIPS` write gate as writing the quote — this is the form a '
+                    'broker is filling in before one exists, not a read.\n\nAppended at the end of '
+                    'this folder rather than after request 05: it is stateless, so it has no '
+                    'ordering dependency on anything above it, live-quote id included.'),
+            },
+            'response': [
+                example('200 · Priced', 'POST', '/quotes/price-preview', *cap['preview'],
+                        req_body=preview_payload),
+                example('400 · Base price is required', 'POST', '/quotes/price-preview', *cap['preview_400'],
+                        req_body={'fetEnabled': True}),
+                example('403 · Assistant cannot price a quote', 'POST', '/quotes/price-preview',
+                        *cap['preview_403'], req_body=preview_payload),
+            ],
         },
     ]
 
