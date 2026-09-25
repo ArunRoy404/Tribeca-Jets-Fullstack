@@ -30,6 +30,14 @@ export const quotesService = {
   /** POST /quotes — always a draft at version 1. */
   create: (payload) => request({ url: "/quotes", method: "POST", data: payload }),
 
+  /**
+   * POST /quotes/price-preview — a dry run of the same pricing engine a saved
+   * quote uses (FET amount, total, margin), for the live preview while a
+   * broker is still composing the offer. Persists nothing.
+   */
+  pricePreview: (payload) =>
+    request({ url: "/quotes/price-preview", method: "POST", data: payload }),
+
   /** PATCH /quotes/:id — a priced change cuts a new version. */
   update: ({ id, ...payload }) =>
     request({ url: `/quotes/${id}`, method: "PATCH", data: payload }),

@@ -1,11 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { FileText } from "lucide-react";
 import StatusBadge from "@/components/common/StatusBadge";
 import DetailField from "@/components/common/DetailField";
 import SectionCard from "@/components/common/SectionCard";
-import { ImagePreview } from "@/components/common/image-preview";
+import { PhotoTile } from "@/components/common/photo-tile";
 import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
 
 const STOCK_GALLERY = {
@@ -64,28 +63,15 @@ export default function ItineraryPreview({ item }) {
       {/* Aircraft Photo Gallery */}
       <div className="grid grid-cols-2 gap-2 sm:gap-4 w-full">
         {gallery.map((photo, idx) => (
-          <ImagePreview
+          <PhotoTile
             key={photo.label}
+            src={photo.src}
+            alt={photo.label}
+            label={photo.label}
             images={galleryImages}
             index={idx}
-            className="w-full aspect-4/3 sm:aspect-384.5/182 rounded border border-border overflow-hidden"
-          >
-            <Image
-              src={photo.src}
-              alt={photo.label}
-              fill
-              className="object-cover"
-              loader={photo.isUpload ? passthroughImageLoader : undefined}
-            />
-            {/* Wide-aspect desktop tile has room for the label on one line at
-                full size; the taller mobile tile keeps it legible by shrinking
-                the type instead of letting a wrapped 16px label eat the tile. */}
-            <div className="absolute top-0 inset-x-0 flex items-center justify-center bg-secondary px-1.5 py-1 sm:px-2 sm:py-2.5">
-              <p className="font-montserrat font-bold text-[10px] sm:text-[16px] leading-tight text-foreground text-center">
-                {photo.label}
-              </p>
-            </div>
-          </ImagePreview>
+            loader={photo.isUpload ? passthroughImageLoader : undefined}
+          />
         ))}
       </div>
 
