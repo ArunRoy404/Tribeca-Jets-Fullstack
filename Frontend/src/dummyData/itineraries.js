@@ -30,6 +30,18 @@ export const itinerariesData = [
     catering: "Seafood Premium",
     groundTransport: "Mercedes S-Class",
     fbo: "Signature Flight Support",
+    departureFbo: {
+      name: "Atlantic Aviation — OPF",
+      address: "15001 NW 42nd Ave, Opa-locka, FL 33054",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
+    arrivalFbo: {
+      name: "AOPF - Fontainebleau Aviation",
+      address: "15001 NW 42nd Ave, Opa-locka, FL 33054",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
     notes: "Internal notes visible to brokers only...",
   },
   {
@@ -57,6 +69,18 @@ export const itinerariesData = [
     catering: "Continental Breakfast & Champagne",
     groundTransport: "Cadillac Escalade ESV",
     fbo: "Atlantic Aviation",
+    departureFbo: {
+      name: "Atlantic Aviation — TEB",
+      address: "94 Moonachie Ave, Teterboro, NJ 07608",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
+    arrivalFbo: {
+      name: "Signature Flight Support — MIA",
+      address: "3900 NW 25th St, Miami, FL 33142",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
     notes: "VIP handling requested at FBO.",
   },
   {
@@ -83,6 +107,18 @@ export const itinerariesData = [
     catering: "Fine Dining 3-Course Menu",
     groundTransport: "Rolls-Royce Phantom",
     fbo: "Signature Flight Support London",
+    departureFbo: {
+      name: "Signature Flight Support — MIA",
+      address: "3900 NW 25th St, Miami, FL 33142",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
+    arrivalFbo: {
+      name: "Signature Flight Support — London Luton",
+      address: "Percival Way, Luton LU2 9NR, United Kingdom",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
     notes: "Transatlantic customs pre-cleared.",
   },
   {
@@ -111,6 +147,18 @@ export const itinerariesData = [
     catering: "Gourmet Wine & Cheese Platter",
     groundTransport: "Executive SUV",
     fbo: "Jet Aviation Palm Beach",
+    departureFbo: {
+      name: "Atlantic Aviation — TEB",
+      address: "94 Moonachie Ave, Teterboro, NJ 07608",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
+    arrivalFbo: {
+      name: "Jet Aviation — Palm Beach",
+      address: "1000 Perimeter Rd, West Palm Beach, FL 33406",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
     notes: "Pet on board - Dog approval confirmed.",
   },
   {
@@ -139,6 +187,18 @@ export const itinerariesData = [
     catering: "Sushi Selection & Fruit Platter",
     groundTransport: "Mercedes V-Class",
     fbo: "Signature Flight Support Teterboro",
+    departureFbo: {
+      name: "Signature Flight Support — TEB",
+      address: "111 Moonachie Ave, Teterboro, NJ 07608",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
+    arrivalFbo: {
+      name: "Atlantic Aviation — PBI",
+      address: "1100 Perimeter Rd, West Palm Beach, FL 33406",
+      phone: "Contact FBO",
+      email: "Contact FBO",
+    },
     notes: "Late night arrival handling.",
   },
 ];
