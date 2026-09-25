@@ -3,6 +3,10 @@
 Two parts: **get it running**, then **the prompt to paste**.
 
 Written 24 September 2026, after client adjustments #5, #7 and #9 shipped.
+Refreshed 25 September 2026 — see "Where we are right now" in Part 2, which is
+the part that goes stale fastest. **Update that paragraph (and this line) in
+the same pass as any session that ships something**, rather than leaving the
+next device to discover it from git log.
 
 ---
 
@@ -105,11 +109,13 @@ Paste everything between the lines into the first message of a new session.
 > **The three phases**, in my own framing, and the reason the order matters:
 >
 > - **Phase 1 — the client's adjustments.** Thirteen messages from the client,
->   reproduced verbatim in `CLIENT_ADJUSTMENTS.md` §3. Six of eleven items are
->   done.
+>   reproduced verbatim in `CLIENT_ADJUSTMENTS.md` §3. Seven of eleven items are
+>   done; #3's fleet-photo half is the only unblocked, undone piece left in it.
 > - **Phase 2 — frontend changes.** Existing screens change and new screens get
->   built. **Not started, and not yet written down anywhere** — capturing that
->   specification is the first task when phase 2 begins.
+>   built. Arrives as Figma links dropped mid-session, not a written spec. Two
+>   redesigns have shipped this way — Build Itinerary (24 Sep) and Quotes
+>   (25 Sep) — and nothing further is queued. Treat the next Figma link as
+>   reopening phase 2 for that one screen.
 > - **Phase 3 — backend, Postman and API integration**, module by module in
 >   dependency order.
 >
@@ -152,11 +158,23 @@ Paste everything between the lines into the first message of a new session.
 > against real accounts, not by reading the code. Report what is actually true:
 > if a check was skipped, say so; if something fails, show the output.
 >
-> **Where we are right now:** adjustment #9 (client credit ledger) just
-> shipped. The next thing in the queue is **Trips (#11)** — not a client
-> request, but the single largest unblocker: nine modules wait on it, plus the
-> last piece of two adjustments already shipped (a notes timeline on a trip,
-> and "used towards another trip" as a real foreign key instead of a sentence).
+> **Where we are right now (25 September 2026):** the Quotes screen just got
+> its client-requested Figma redesign — a full-screen create/edit form with a
+> live document preview, a live pricing preview endpoint
+> (`POST /quotes/price-preview`), and an aircraft photo field
+> (`Quote.exteriorImageUrl`). That closes the quote/itinerary half of
+> adjustment #3 and the UI half of #6. Full account in
+> `CLIENT_ADJUSTMENTS.md` §4's 25 September entry.
+>
+> Two things are unblocked and small, if you want a quick win before Trips:
+> **#3's fleet half** (add `Aircraft.photoUrl`, a `FileUpload` field on the
+> Add/Edit Aircraft form — the pattern is already in `AddQuoteDialog.jsx`) and
+> **demonstrating the Archived tab to the client for #1** (no code).
+>
+> The next real thing in the queue is **Trips (#11)** — not a client request,
+> but the single largest unblocker: nine modules wait on it, plus the last
+> piece of two adjustments already shipped (a notes timeline on a trip, and
+> "used towards another trip" as a real foreign key instead of a sentence).
 >
 > Start by reading the four documents above, then tell me what you understand
 > the current state to be and what you think we should do next. Don't write any
@@ -192,3 +210,14 @@ Short list of the things that have actually bitten, so they are not re-learned.
   wrong bytes. Compare bytes.
 - **Money is integer cents, converted by parsing the decimal string, not by
   multiplying.** `1.005 * 100` is `100.49999999999999`.
+- **Base UI's `Select.Root` needs an `items` prop to show a label after a value
+  is picked**, or `Select.Value` falls back to printing the raw stored value.
+  Bit every `<Select>` in the app at once. Fixed in the only two places
+  `<Select>` is rendered directly (`PickerSelect.jsx`, `CommonSelect.jsx`) — a
+  third direct render needs the same `items` prop.
+- **A shared `PhotoTile` component** (`src/components/common/photo-tile/`) is
+  now the one way to show a labelled, hover-to-zoom photo with a dashed empty
+  state — Itineraries and Quotes both use it. Reach for it before hand-rolling
+  a gallery tile again. `shrink-0` on its sizing class is load-bearing: an
+  `aspect-ratio` tile with `overflow-hidden` collapses to near-zero height
+  without it, inside a scrolling `flex-col` pane taller than the viewport.
