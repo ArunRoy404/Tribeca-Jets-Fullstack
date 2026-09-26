@@ -235,7 +235,18 @@ Count in the service rather than summing the nearest column — summing
   broker in that builder.
 - **Auditing the whole collection for this is one pass over the JSON**, matching
   each example's leading status code against its stored `code`. Worth running
-  after any builder change.
+  after any builder change. Every builder now carries the check; 0 mislabelled
+  as of 26 Sep 2026.
+- **A builder places its folder with `collection_order.place_folder()`**, never
+  by removing and `append`ing. Append moved whichever folder was rebuilt last to
+  the end, so `10 · Quotes` sat after `13 · Client Credits` and the collection
+  stopped reading in the order its serial numbers promise.
+- **`rewrite_body_comments.py` runs from inside `postman/`**; it opens the
+  collection by a relative path.
+- **A local Newman run needs `RATE_LIMIT_MULTIPLIER=20`** in `Backend/.env`.
+  A full run signs in more often than the login limit allows, so at `1` it
+  fails with 429s that look like real failures. Never raise the limits
+  themselves, and never the multiplier outside a developer machine.
 - **A folder that creates a row archives it again in a teardown.** The run is a
   demonstration, not a data entry session. `03 · Clients` had no teardown and
   ended by *restoring* the client it created, so every Newman run left one more
@@ -399,6 +410,17 @@ updatedBy   User?    @relation("<Model>UpdatedBy", fields: [updatedById], refere
   `20260915142333_add_created_by_updated_by_audit_columns`, which carries the
   old invitedBy values across rather than losing them.
 
+**Four models are exempt, and these four only** — each is a record that is
+written once and never edited, so an `updatedBy` would have nothing to say:
+
+- `AuditLog` — it *is* the audit trail; its actor is `actorId`.
+- `QuoteVersion` — a frozen snapshot; carries `createdAt`/`createdById` and
+  nothing that could change.
+- `RefreshToken`, `VerificationCode` — session machinery, owned by the user
+  row they hang off, rotated or consumed rather than edited.
+
+A fifth exception needs a line here, with its reason, in the same pass.
+
 ## Account status is administrative, and `INVITED` is not a decision
 
 `UserStatus` has three values but only two are settable by a person:
@@ -517,6 +539,14 @@ operator` started failing with "that request does not exist".
 Add `deletedAt: null` and an `orderBy` to every seed lookup, so re-running the
 seed on a database that has been worked in picks the same row every time.
 
+**A seed anchors only on rows the seed itself creates — never on Postman
+debris.** The operator-quote seed named "Solairus Aviation", an operator that
+existed only because a Postman run had created it. On any database Postman had
+touched it worked; on a fresh one it silently wrote nothing, and the summary
+line still printed "3 operator quotes" because the number was a literal. So:
+look up by a natural key the seed writes, and **count** what it wrote rather
+than printing a figure.
+
 ## The permission matrix ships with the session
 
 `GET /auth/me` returns `permissions` — the caller's row of the matrix, as
@@ -617,6 +647,11 @@ Three rules hold on top of that:
   absolute URL captured at upload time embeds whatever host was running then,
   so every row written in development points at localhost for ever, and a
   domain change or a move to a CDN strands every file already uploaded.
+  **Enforce it with `uploadUrl`** (`common/dto/uploads.ts`) on every DTO field
+  that stores one — `uploadUrl.optional()` on create,
+  `uploadUrl.nullable().optional()` on update. A bare `z.string()` let
+  `Quote.exteriorImageUrl` take absolute URLs and links to other hosts: images
+  this API never sniffed, served from somewhere nobody chose.
 - **Storage is content-addressed**: `images/<sha256>.png`,
   `documents/<sha256>.pdf`. Identical bytes always resolve to the same object,
   so a re-upload overwrites a file with itself instead of filling the disk.
@@ -1195,7 +1230,18 @@ checkbox column that feeds them.
   moment late rather than appearing and being taken away.
 
 Per "fix a module when we reach it", only the module being worked on gets
-wired up. Aircraft is done; the others follow on their own turn.
+wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
+Leads & Agents (table and detail page), Client Credits, Notes, the client
+detail page and the client/lead dialogs. Not yet: the Clients table, Airports,
+Operators — each on its own turn.
+
+**A control narrower than a permission is gated by scope, not by
+`canWrite`.** A broker may edit a client (`MANAGE_CLIENTS` at `ASSIGNED`) but
+not reassign one, which the service enforces with `scopeFor(...) !==
+Scope.ALL`. The form mirrors the same test —
+`scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL` — and leaves the broker
+picker out entirely, *and omits the field from the payload*. Hiding the
+control but still posting its value is how every broker edit came back 403.
 
 ## A control's value is the wire format; its label is for reading
 
@@ -1254,6 +1300,18 @@ Blank numeric inputs are the sharp edge — an empty box sends `""`, which
 `Number('')` turns into **0**. The API rejects that for required fields and
 treats it as absent for optional ones, but the form should not send it in the
 first place.
+
+**Build every payload with `src/lib/form.js`** — `optionalText(value, {
+editing })` and `optionalNumber(value, { editing })`. A blank box is
+`undefined` on create (leave the default) and **`null` on edit** (clear what is
+stored); an unparseable number is omitted rather than sent as `NaN`. Seven
+forms had their own copy of this, and most sent `undefined` on edit, so
+emptying a phone number saved "successfully" and changed nothing. Never write
+a private `optional()` again.
+
+**Who counts as a broker is `BROKER_ROLES` in `src/lib/roles.js`.** Every
+broker picker and filter imports it. Eight hand-written copies disagreed about
+whether an admin owns clients.
 
 ## Pagination is server-side
 

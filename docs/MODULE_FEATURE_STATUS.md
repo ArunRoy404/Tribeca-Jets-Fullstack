@@ -104,7 +104,7 @@ audit trail pointing at them.
 
 | Feature | Unblocked by |
 |---|---|
-| FBO details per airport | **Document Vault (#22)** / operator data — currently an em dash, never an invented FBO name |
+| FBO details per airport | **Document Vault (#22)** / operator data — an em dash, never an invented FBO name. *True only since 26 Sep 2026:* until then the detail sidebar and the mobile airport card both fell back to "Signature Flight Support", and every airport without notes read "Primary departure airport for NYC clients." |
 | Traffic / trips-through counts | **Trips (#11)** |
 
 ---
@@ -183,6 +183,11 @@ entered into the operator's fleet.
 **Removed rather than faked:** the detail page had an attachment drop zone
 wired to nothing. It belongs to **Document Vault (#22)**.
 
+**Known gap, not a dependency:** the Clients *table* does not read
+`usePermissions()` yet — its row menu, checkbox column and bulk actions render
+for every role, and the API refuses what a broker or assistant cannot do. The
+detail page and dialogs are wired; the table is next time Clients is opened.
+
 **Four bugs fixed here on 2026-09-17**, all of the same family — a field the
 API accepted, stored, and never gave back:
 
@@ -199,6 +204,18 @@ API accepted, stored, and never gave back:
    codebase and nothing on screen revealed it.
 4. The follow-up strip carried a hardcoded date and a note about a Miami → New
    York round trip, shown on four of the five tabs for every client.
+
+**Three more fixed on 2026-09-26** (the whole-project audit):
+
+1. **A broker could not save any edit to their own client** — 403, because the
+   edit form resends `assignedBrokerId` and the reassign guard fired on its
+   presence. It now fires only on a real change, and the broker picker is
+   hidden (not disabled) from anyone without `ALL` scope — on the edit form,
+   Add Lead and Schedule Follow-up.
+2. **Nothing could be cleared.** Six optional fields refused `null`, so
+   emptying a phone number saved without effect.
+3. **Archiving an airport locked every client based there** — the home
+   airport was re-validated on every save, not only when it changed.
 
 ---
 
@@ -238,8 +255,9 @@ API accepted, stored, and never gave back:
 `photoUrl` column that does not exist yet. The upload deliberately does not
 know it is for an aircraft, which is what lets a photograph be chosen on the
 Add Aircraft form before the tail exists. The fleet UI has no uploader or
-gallery yet, and the quote/itinerary picture-picker the client asked for waits
-on those two modules' UI changes. See **Uploads (#28)**.
+gallery yet — that is the one unbuilt, unblocked piece of client adjustment #3.
+The quote/itinerary picture-picker he also asked for shipped on 24–25 Sep. See
+**Uploads (#28)**.
 
 ---
 
@@ -281,6 +299,12 @@ and the desktop table and mobile cards offered different menus. The Internal
 Notes card displayed the *follow-up* note, and the trip-interest card printed
 `LIGHT_JET` at the reader.
 
+**Fixed here on 2026-09-26:** editing a travel-agent lead turned it into a
+direct client (the form sent `type: DIRECT` on every save — now on create
+only). Brokers were offered Assign Broker, Remove and Restore, which the API
+refuses them; the lead detail page offered every write to an assistant and on
+an archived lead. All now hidden for the roles that cannot use them.
+
 **By design, not pending:** the roster is read-only and has no Add form. An
 agent is one of the desk's own brokers — a User — and staff are invited through
 Users & Roles, where the permission matrix and suspend rules live. *Travel*
@@ -300,6 +324,8 @@ agents are something else: clients of type `TRAVEL_AGENT`.
   archive are administrator-only (403 with "Mark it Lost instead")
 - `openOnly` filter, departure-window filter, pipeline value in stats
 - Return-before-departure rejected on the field, not in a banner
+- Editable after its client is archived — the client is re-checked only when
+  it changes (a 400 on every save until 26 Sep 2026)
 - Uses the **trips** permissions (`VIEW_TRIPS` / `MANAGE_TRIPS` /
   `DELETE_TRIPS`), because a request is the start of a trip
 - **A page of its own** at `/dashboard/trip-requests` (client request #8/#10a)
@@ -354,6 +380,8 @@ rows, the way a leads table would have split one client.
   stored
 - Operator scorecard on the operator detail page: response rate, win rate,
   average response time, last asked
+- An operator quote stays editable after its aircraft is archived — the
+  aircraft is re-checked only when it changes (fixed 26 Sep 2026)
 
 **Waiting on a dependency**
 
@@ -424,9 +452,17 @@ client see on the 9th?" — is `QuoteVersion`.
 - **A full-screen create/edit form with a live document preview** (25 September
   2026, the client's Figma redesign) — reuses `QuoteDetailStats` and the quote
   detail page's own cards rather than a second set built for the form
-- **An aircraft exterior photo per quote** (`exteriorImageUrl`, a relative
-  upload URL), previewed through the shared `PhotoTile` component — the quote
-  half of client adjustment #3
+- **An aircraft exterior photo per quote** (`exteriorImageUrl`), previewed
+  through the shared `PhotoTile` component in the form and, since 26 Sep, shown
+  on the saved quote's detail page in an Aircraft Photo card — the quote half
+  of client adjustment #3. Only a relative `/api/uploads/<id>` URL is accepted
+  (shared `uploadUrl`, `common/dto/uploads.ts`)
+- **Delete answers 204 with no body**, like every other module (200 with the
+  row until 26 Sep)
+- **Edits survive an archived dependency.** Each of a quote's eight links is
+  re-checked only when it changes, so archiving an airport or operator no
+  longer locks every quote that used it (fixed 26 Sep; the same bug was fixed
+  in Clients, Trip Requests and Operator Sourcing)
 - **`POST /quotes/price-preview`** — the same `priceQuote()` pricing engine,
   run against draft form inputs before anything is saved, gated behind
   `VIEW_FINANCIALS` exactly like the saved quote. Nothing recomputes the money
@@ -475,9 +511,20 @@ The frontend build-form and live preview shipped ahead of the module itself
 (24–25 September 2026, dummy-data-backed): a full-screen create/edit modal, a
 two-photo aircraft gallery through the shared `PhotoTile` component, and the
 mobile layout fixed after a real-device regression (labels were hiding the
-photos on iPhone/Pixel widths — `PhotoTile`'s `shrink-0` fix). None of it talks
-to a database yet; it is screens built ahead of their API, same as every other
-still-⬜ module's UI.
+photos on iPhone/Pixel widths — `PhotoTile`'s `shrink-0` fix). **The uploads
+are real** — logo, operator PDF and both photos go through
+`POST /api/uploads/*` and live on the server — **but the itinerary is not**:
+it is saved into `useItinerariesStore` and is gone on reload, so nothing
+points at those files afterwards. Screens built ahead of their API, same as
+every other still-⬜ module's UI.
+
+**Placeholders removed 26 Sep 2026**, because a dummy-backed screen still must
+not invent: the builder pre-filled a route (including `KTTB`, not an airport),
+catering, a car and an FBO, and on submit made up a client name, times,
+"Passenger N" names and random passport numbers; the store filled a blank tail,
+aircraft, operator, date and times; the preview showed a stock jet photo on
+every itinerary without one. The five seeded itineraries now carry their stock
+photos as data, where they belong.
 
 ---
 
@@ -525,6 +572,12 @@ anywhere in the system.
 
 Nothing wired. Waits on **Users (#2)** ✅ — buildable now. Task links out to
 trips and clients need **Trips (#11)**; clients ✅ already work.
+
+**The top-nav notification bell belongs here** (scope §6.22, *Notifications,
+Tasks & Activity*). It is dummy-backed: `dummyData/notifications.js` through
+`useNotificationsStore` — moved out of inline JSX on 26 Sep 2026, per the
+dummy-data rule. Real notifications need a source to raise them (follow-ups
+due, quote expiry, trip reminders), so they land with this module, not before.
 
 ---
 
@@ -642,9 +695,11 @@ existed.
   answers for archived files too, so a list can show "removed" rather than a
   broken link
 - Remove and restore, with **the bytes untouched** either way
-- 8 Postman requests, 15 captured examples, real multipart fixtures, a teardown
+- 9 Postman requests, 18 captured examples, real multipart fixtures, a teardown
   that leaves nothing live, and a folder login so it passes run alone
-- 42 live assertions and 8 unit tests on the rules, plus 15 on the byte sniffer
+- Unit tests: 8 on the rules, 10 on the access rule (every combination), 11 on
+  the byte sniffer, and 7 on `uploadUrl` — the shared validator any DTO that
+  stores an upload URL uses (added 26 Sep, first used by the quote photo)
 
 **Waiting on a dependency**
 
@@ -654,11 +709,16 @@ existed.
 | The aircraft **fleet** photo gallery | **Aircraft UI** — needs `Aircraft.photoUrl` and a form field; unblocked, just not built |
 | Referral attachments and the Resources section | **Referral Agent (#11 in the client list)** |
 | ~~Picking a photo onto a quote or itinerary~~ | ✅ Shipped — itinerary 24 Sep, quote 25 Sep 2026, both through the shared `PhotoTile` component |
+| Itinerary files staying attached to a saved itinerary | **Itineraries (#12)** — the uploads are real, the itinerary record is not |
+
+**Consumers today:** the broker Documents tab (#7), the quote photo, and the
+Build Itinerary form.
 
 **Deferred by decision: thumbnails and image resizing.** A 15 MB cabin
-photograph served whole into a gallery is slow, and the fix is a resize
-pipeline. Nothing renders a gallery yet, so building it now would be tuning a
-screen that does not exist.
+photograph served whole is slow, and the fix is a resize pipeline. What renders
+today is one or two photos per screen (a quote, an itinerary); nothing lists
+dozens at once, so building it now would be tuning for a fleet gallery that
+does not exist yet.
 
 ---
 
@@ -829,6 +889,27 @@ now reconstructs the success code the way Nest picks it, from
 documents a response by hand is covered, and nothing has to be remembered at
 the call site.
 
+### The 26 September audit — five cross-module fixes
+
+- **A foreign key is re-checked only when it changes.** Clients, Trip Requests,
+  Operator Sourcing and Quotes all re-validated every link on every save, so
+  archiving an airport, client or aircraft made every record pointing at it
+  uneditable. Each now compares against the stored value first — the rule
+  `AGENTS.md` already stated.
+- **One set of form helpers** — `src/lib/form.js` (`optionalText`,
+  `optionalNumber`) replaced seven private copies in Airports, Operators,
+  Aircraft, Clients, Leads, Quotes and the shared trip-request form. On edit a
+  cleared box sends `null`, so it actually clears; an unparseable number is
+  omitted rather than sent as `NaN`.
+- **One `BROKER_ROLES`** in `src/lib/roles.js` replaced eight copies. The
+  Clients copies left out `ADMIN`, so an admin who owns clients could not be
+  picked or filtered on those screens.
+- **One `uploadUrl`** in `common/dto/uploads.ts` for any DTO that stores an
+  upload URL.
+- **Postman:** every builder asserts label against status and places its
+  folder with `collection_order.place_folder()`. 126 requests, 305 examples,
+  0 mislabelled; Newman 149 / 81 / 0, twice, every folder also alone.
+
 ---
 
 ## The short version
@@ -843,7 +924,12 @@ queue: **Uploads (#28)** with the broker documents tab on 23 September, **Notes
 (#29)** as the client Activity timeline on 23 September, and **Client Credits
 (#30)** as the client Credit tab on 24 September.
 
-**Most recent change (25 September):** Quotes gained a full-screen create/edit
+**Most recent change (26 September):** a whole-project audit — fixes in
+Clients, Leads, Trip Requests, Operator Sourcing, Quotes, Airports and
+Itineraries, listed under their modules and in *Cross-cutting fixes* above.
+Uncommitted at the time of writing.
+
+**Before that (25 September):** Quotes gained a full-screen create/edit
 form with a live document preview and pricing preview, plus
 `exteriorImageUrl` — the client's Figma-driven phase-2 redesign. See
 [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §4 for the full entry, including
@@ -867,8 +953,9 @@ says MongoDB; the project is PostgreSQL, which is right for this relational
 data), the flight-tracking data feed, and whether a credit **refund** is a
 movement the desk needs (see #30).
 
-**Known debt, left alone deliberately:** five captured examples in `10 · Quotes`
-carry a status label that disagrees with the response stored beside them. Found
-by the collection-wide audit the notes work introduced; untouched because we
-fix a module when we reach it. The builders for `12 · Notes` and `13 · Client
-Credits` now refuse to write such an example at all.
+**Known debt:** twelve components nothing imports (listed in
+[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §4, 26 Sep) — kept, because a
+component is not deleted until its module is finished, and one of them
+(`airports/AirportCardsContainer.jsx`) imports a file that does not exist.
+The Postman mislabels once listed here are gone: 0 remain, and every builder
+now refuses to write one.

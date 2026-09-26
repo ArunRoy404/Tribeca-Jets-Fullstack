@@ -267,9 +267,10 @@ unblocks a large part of the remaining queue.
 > what lets a photograph be chosen on the **Add Aircraft** form — before the
 > tail it belongs to exists.
 >
-> **The picture-picker on a quote and on an itinerary both shipped 25 September
-> 2026**, with the Quotes Figma redesign — `Quote.exteriorImageUrl` and the
-> itinerary gallery, both through a shared `PhotoTile` component. See
+> **The picture-picker on an itinerary (24 September 2026) and on a quote
+> (25 September, with the Quotes Figma redesign) have both shipped** — the
+> itinerary gallery and `Quote.exteriorImageUrl`, both through a shared
+> `PhotoTile` component. See
 > [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §3 item 3 and §4. What is
 > still missing is the fleet screen itself: no uploader, no gallery, no
 > `Aircraft.photoUrl` column. That piece is small and unblocked — it does not
@@ -396,6 +397,11 @@ rather than zeroed — a `0` margin is a number someone could repeat out loud.
 > — the UI it was waiting on now exists; what is left is the client's rate
 > data, on the call he offered. See
 > [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §3 items 3 and 6, and §4.
+>
+> **26 September 2026 audit:** the saved quote now shows its photo on the
+> detail page (it was visible only inside the form); `exteriorImageUrl` accepts
+> only a relative upload URL; delete answers 204 like every other module; and a
+> quote whose airport, operator or aircraft is later archived stays editable.
 
 ### 11. Trips ⬅ **Next**
 
@@ -423,9 +429,11 @@ passport numbers, catering, ground transport, FBO. Confirmed or pending.
 
 > ✅ **The aircraft picture-picker landed 24 September 2026**, with the Build
 > Itinerary redesign — a two-photo gallery through the shared `PhotoTile`
-> component, the same one Quotes' picker was built from the next day. Nothing
-> else about this module is wired: it still waits on **Trips (#11)** for
-> everything past the preview screen.
+> component, the same one Quotes' picker was built from the next day. The
+> uploads are real (`POST /api/uploads/*`); **the itinerary is not** — it is
+> kept in a zustand store and lost on reload, so the files it pointed at are
+> orphaned. Nothing else about this module is wired: it still waits on
+> **Trips (#11)** for everything past the preview screen.
 
 ### 13. Schedule
 
@@ -477,8 +485,10 @@ removed rather than faked, and belongs here.
 **The pipeline it was going to own already exists** — see **Uploads (#28)**.
 What is left here is the vault *as a product*: a browsable store with folders,
 versions, and expiry dates on certificates. Each consumer (contracts, operator
-certificates, quote PDFs) needs its own screen and its own row in
-`FILE_CATEGORY_RULES`.
+certificates, quote PDFs) needs its own screen and a URL column on the record
+it belongs to — **no backend upload change**. (This paragraph used to say "a
+row in `FILE_CATEGORY_RULES`"; categories were removed in the 23 Sep rebuild,
+see #28.)
 
 ### 23. Reports
 
@@ -506,7 +516,7 @@ discovered at delivery.
 Currently four hardcoded suggestion strings. The scope doc describes an
 in-app assistant answering questions about the desk's own data.
 
-### 28. Uploads ✅ *(API only)*
+### 28. Uploads ✅
 
 **Not in the signed scope's module list, and built out of order deliberately.**
 Four of the client's adjustments were each blocked on the same missing thing —
@@ -568,8 +578,12 @@ purpose — which is what keeps it from becoming categories again — and it is
 what makes a personal folder a **query**, `GET /uploads?ownerUserId=<id>`,
 instead of a second table.
 
-**One screen consumes it so far**: the Documents tab on the team member sheet.
-The aircraft gallery and Resources still need their own UI.
+**Three screens consume it**: the Documents tab on the team member sheet
+(#7), the quote form's aircraft photo (stored on `Quote.exteriorImageUrl`,
+validated by the shared `uploadUrl` so only a relative upload URL is
+accepted), and the Build Itinerary form (uploads real, itinerary not yet
+saved — see #12). The aircraft fleet gallery and the referral Resources section
+still need their own UI.
 
 ---
 

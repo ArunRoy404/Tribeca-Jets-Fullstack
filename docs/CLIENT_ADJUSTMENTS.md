@@ -8,7 +8,7 @@ ordered by dependency.
 `docs/Client_Adjustments.txt`, which held the raw messages and nothing else.
 The original is not needed and has been deleted.
 
-*Last updated: 25 September 2026.*
+*Last updated: 26 September 2026.*
 
 ---
 
@@ -113,8 +113,11 @@ not a style disagreement.
    in the JSX. Never display a number the data did not supply.
 5. **If B references A, A ships first.** Do not reorder the queue in §2 because
    an item looked quick. That is how a foreign key becomes a string.
-6. **Quotes and Itinerary are deferred** at the client's own request — he has UI
-   changes coming that two of these items depend on. See §3, items 3 and 6.
+6. **Build to the screens he redesigns, not ahead of them.** Quotes and
+   Itinerary were held back at his request until his UI changes arrived; both
+   redesigns shipped (24 and 25 Sep 2026), so neither is deferred any more.
+   What remains of #6 waits on his rate data, not on a screen. See §3, items 3
+   and 6.
 
 ### 0.4 Conventions you will trip over if you do not know them
 
@@ -201,8 +204,10 @@ script placed **in `Backend/`** (not `/tmp`) using `dotenv` + `pg`.
 
 ### 0.6 Git state at handoff
 
-Branch **`roy`**, pushed and clean as of 25 September 2026
-(`origin/roy` up to date through `1e0dec4`). Commits are pushed only when the
+Branch **`roy`**, `origin/roy` up to date through `e948ba1` as of
+26 September 2026. **The working tree is not clean:** the 26 September audit
+(§4) is uncommitted — backend fixes, Postman, frontend and these docs —
+because nobody has asked for a commit yet. Commits are pushed only when the
 user asks for it in that message — a session ending with unpushed work
 committed locally is the normal resting state, not a problem to fix. Check
 `git status` and `git log origin/roy..HEAD` on pickup rather than trusting this
@@ -228,7 +233,7 @@ paragraph, since it goes stale the moment the next session commits.
 
 | # | Request | Backend | Frontend | State |
 |---|---|---|---|---|
-| — | Upload infrastructure | ✅ | ✅ | **Done, rebuilt 23 Sep.** One screen consumes it (#7). Still unblocks 3 and 11. |
+| — | Upload infrastructure | ✅ | ✅ | **Done, rebuilt 23 Sep.** Consumed by #7's document folders, the quote photo (stored on the quote) and the Build Itinerary form (uploads real, itinerary itself not yet saved — no backend). Still unblocks 3's fleet half and 11. |
 | 1 | Client stays visible after a broker deletes it | ✅ | ✅ | **Already works.** Needs a demonstration, not code. |
 | 2 | Operator cancellation policies | ✅ | ✅ | **Done** 19 Sep 2026. |
 | 3 | Aircraft pictures + stock image library | ◐ | ◐ | **Quote and itinerary picture-picker done** 25 Sep 2026 (the two consumers he named). **Still open:** the fleet-side uploader and gallery on the Aircraft screen itself — `Aircraft.photoUrl` doesn't exist yet. |
@@ -322,9 +327,15 @@ He names the consumers himself — quote and itinerary.
   redesign — a `FileUpload` field on the quote form stores the URL in
   `Quote.exteriorImageUrl`, previewed through the shared `PhotoTile` component.
   See §4.
-- ✅ **The itinerary consumer was already live** from the earlier Build
-  Itinerary work (24 Sep 2026) — its two-photo gallery, also through
-  `PhotoTile`.
+- ◐ **The itinerary consumer uploads for real but saves nowhere.** The Build
+  Itinerary form (24 Sep 2026) puts its two photos, logo and operator PDF
+  through `POST /api/uploads/*` and previews them with `PhotoTile` — but
+  Itineraries has no backend, so the finished itinerary lands in a zustand
+  store and is gone on reload. The photos are safe on the server; the record
+  pointing at them is not. Closes when Itineraries gets its API.
+- ✅ **The saved quote shows its photo** (26 Sep 2026) — an Aircraft Photo
+  card on the quote detail page. Before that it appeared only inside the edit
+  form's preview.
 - ☐ **Still open: the fleet-side uploader and gallery.** The Add/Edit Aircraft
   form has no photo field yet, and there is no `Aircraft.photoUrl` column to
   put it in. This is the one piece of #3 not blocked on anything — it needs a
@@ -657,7 +668,9 @@ His full specification, verbatim:
   Note that "percentage of Tribeca profit" reads `grossProfit`, which is the
   figure `VIEW_FINANCIALS` hides from this very role: the agent sees their
   commission, never the profit it was derived from.
-- **Resources** — file upload again, `category=RESOURCE`, already built.
+- **Resources** — file upload again, already built: `PUBLIC` documents, listed
+  by whatever record the portal keeps for them. (This line used to say
+  `category=RESOURCE`; categories were removed in the 23 Sep rebuild — see §4.)
 - **A separate navigation shell**, since the portal shows five items and none
   of the CRM's.
 
@@ -743,8 +756,12 @@ reachable by anyone with a session. Correct for photographs and brochures,
 **wrong for a 1099** — which is request #7, and where it must be fixed. The
 columns were left out rather than added unenforced, because a schema that
 advertises a protection nothing checks is worse than one that admits the gap.
+**Closed by #7 the same day:** `visibility` (default `PRIVATE`) and
+`ownerUserId` — see the Broker document folders entry below.
 
-**What this does *not* include: any screen.** No frontend consumes the API yet.
+**What this did *not* include: any screen.** None consumed it on 23 Sep. Since
+then: #7's Documents tab, the quote photo (25 Sep) and the Build Itinerary
+form's uploads (24 Sep) — see §1.
 
 ### ✅ Operator cancellation policies — 19 September 2026 · order item 2
 
@@ -1232,7 +1249,90 @@ kind of mistake this file exists to stop repeating:**
 install it. Verified instead with a manual pass over the captured Postman
 JSON, matching every example's leading status code against its stored `code`.
 Run `npm run test:api` for real before calling this module's Postman folder
-done.
+done. **Done 26 Sep 2026** — see the next entry.
+
+### ✅ Whole-project audit — 26 September 2026 · not a client request
+
+A full pass over both apps and these documents, run against a live stack
+(fresh database, seeded, every bug reproduced on the original code before it
+was fixed and re-checked after). **Uncommitted at the time of writing.**
+
+**Backend — every one reproduced with a real request first:**
+
+- **A broker could not save any edit to their own client** (403). The edit
+  form resends `assignedBrokerId`, and the reassign guard fired on its
+  presence rather than on a change. It now fires only when the value differs,
+  and the frontend hides the broker picker from anyone without `ALL` scope.
+- **Client edits could not clear anything.** `companyName`, `email`, `phone`,
+  `birthday`, `notes` and `assignedBrokerId` were `.optional()` without
+  `.nullable()`, so a `null` was a 400 and an emptied box stayed filled.
+- **Four modules re-validated every foreign key on every save**, against the
+  rule `AGENTS.md` already stated — Clients (home airport), Trip Requests
+  (client), Operator Quotes (aircraft) and Quotes (all eight links). Archiving
+  a dependency made its dependants uneditable. Each now checks only a link
+  whose value changes.
+- **`DELETE /quotes/:id` answered 200 with the row**; every other module
+  answers 204 with no body. Now 204.
+- **`Quote.exteriorImageUrl` accepted any string**, including absolute URLs
+  and external links, breaking the relative-upload-URL rule. Now validated by a
+  shared `uploadUrl` (`common/dto/uploads.ts`, 7 tests). *This reverses a code
+  comment that called external links deliberate — flagged to the owner.*
+- **The seed never wrote its third operator quote.** It named an operator
+  ("Solairus Aviation") that existed only as Postman debris, and its summary
+  line printed a hardcoded "3". Now uses a seeded operator and counts.
+
+**Postman:**
+
+- **The three mislabelled examples in `10 · Quotes` are fixed at the request,
+  not the label.** The assistant read now uses an unassigned probe quote, so it
+  really returns 200. Every builder now asserts label against status.
+- **Folders stay in serial order** — new `collection_order.py`, used by all
+  seven builders. Previously the last builder to run moved its folder to the
+  end.
+- **Aircraft and Trip Requests now pass run alone** (pre-request fetches), and
+  the aircraft probe tail no longer collides across runs.
+- A `400 · Photo is not an upload URL` example.
+
+**Frontend:**
+
+- **One `lib/form.js`** (`optionalText`, `optionalNumber`) replaces seven
+  private copies — sends `null` on edit so a cleared box clears, and never
+  sends `NaN`.
+- **One `BROKER_ROLES`** in `lib/roles.js` replaces eight copies, which
+  disagreed about whether an admin counts.
+- **Hidden, not refused:** the broker picker (clients, leads, follow-up),
+  Assign Broker / Remove / Restore on the leads table, and every write on the
+  lead detail page for roles without write access or on an archived lead.
+- **Editing a travel-agent lead no longer makes it a direct client** — type and
+  status are sent on create only.
+- **Invented values removed:** the airport notes "Primary departure airport
+  for NYC clients." and FBO "Signature Flight Support" fallbacks; `USA`
+  pre-filled on new airports; the itinerary builder's pre-filled route (incl.
+  the non-airport `KTTB`), catering, car, FBO, client, times, "Passenger N"
+  names and random passport numbers; the itinerary store's default tail,
+  aircraft, operator, date and times; the stock jet photo on new itineraries.
+- **The notification bell's fake alerts** moved out of the component into
+  `dummyData/notifications.js` + `useNotificationsStore`.
+
+**Verified:** backend `tsc` 0 · oxlint 0 · vitest 116/116. Frontend eslint 0 on
+every touched file · `next build` passes. Newman on a freshly created database:
+**149 requests / 81 assertions / 0 failures, twice**, every folder also passing
+alone, no live debris left behind. (149, not the 143 some older counts show:
+the new pre-request fetches are counted as requests.)
+
+**Found and deliberately not changed — owner's call:**
+
+- Twelve components nothing imports (`aircraft/AircraftDetailHeader`,
+  `airports/AirportCardsContainer` — which imports a file that does not exist
+  — `clients/ClientDetailHeader`, `empty-legs/EmptyLegCardsContainer`,
+  `flight-tracking/FlightTrackingStats`,
+  `leads-agents/AgentAssignedLeadCardsContainer`, `LeadOverviewCards`,
+  `LeadSidebarCards`, `operators/OperatorDetailHeader`,
+  `quotes/header/QuoteStatCard`, `quotes/QuoteDetailHeader`,
+  `transactions/TransactionsStats`). Not deleted, per §0.3 #3.
+- Render's `STORAGE_DRIVER=local` loses every upload — 1099s and quote photos
+  now, not just avatars — on each deploy. See `DEPLOYMENT.md`.
+- **Not yet done:** the 375 / 768 / 1440 browser check of the changed screens.
 
 ---
 

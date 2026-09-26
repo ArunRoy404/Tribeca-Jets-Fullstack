@@ -7,7 +7,9 @@
 #     falls back to the log driver, so two-factor and password-reset codes are
 #     printed to the Render log stream instead of being emailed.
 #   - Storage falls back to local disk. Render's filesystem is ephemeral, so
-#     uploaded avatars do not survive a deploy. Acceptable for testing only.
+#     no upload survives a deploy -- avatars, the broker document folders
+#     (tax forms), quote photos and itinerary files alike. Acceptable for
+#     throwaway test data only; supply S3_* before anything real is uploaded.
 #   - Swagger is served at /api/docs (main.ts mounts it only outside production).
 #
 # Before this becomes a real deployment: set NODE_ENV=production and supply
@@ -98,7 +100,9 @@ services:
       - key: WEB_APP_URL
         sync: false
 
-      # This service's own https:// URL. Used to build absolute file URLs.
+      # This service's own https:// URL. Nothing reads it today: stored upload
+      # URLs are deliberately relative (/api/uploads/<id>). Kept for the day
+      # something needs an absolute link, such as an email.
       - key: API_PUBLIC_URL
         sync: false
 

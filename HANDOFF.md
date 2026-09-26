@@ -3,7 +3,7 @@
 Two parts: **get it running**, then **the prompt to paste**.
 
 Written 24 September 2026, after client adjustments #5, #7 and #9 shipped.
-Refreshed 25 September 2026 — see "Where we are right now" in Part 2, which is
+Refreshed 26 September 2026 — see "Where we are right now" in Part 2, which is
 the part that goes stale fastest. **Update that paragraph (and this line) in
 the same pass as any session that ships something**, rather than leaving the
 next device to discover it from git log.
@@ -22,6 +22,7 @@ git checkout roy          # the working branch, NOT main
 cd Backend
 cp .env.example .env      # then fill it in — see the table below
 npm install
+npm run db:generate       # the Prisma client is generated and gitignored — nothing compiles without it
 npm run services:up       # Postgres + Redis via docker compose
 npm run db:deploy         # applies every migration. NOT db:migrate — see below
 npm run db:seed
@@ -50,6 +51,12 @@ Everything else — `DATABASE_URL`, `REDIS_URL`, `STORAGE_DRIVER=auto`,
 `AUTH_IDLE_TIMEOUT_MINUTES=10` — works unchanged. `Frontend/.env.local` needs
 no edits at all.
 
+**One more if you will run Newman:** set `RATE_LIMIT_MULTIPLIER=20`. A full
+run signs in more times than the login limit (five per fifteen minutes per
+IP) allows, so at `1` it fails from the first folder that logs in with a wall
+of 429s that look like real failures. Leave it at `1` anywhere but your own
+machine — production refuses to boot otherwise.
+
 **Seeded accounts** all use the password `ChangeMe123!`:
 `admin@`, `broker@`, `mark@`, `barry@`, `assistant@tribecajets.com`.
 
@@ -71,7 +78,9 @@ npx tsc --noEmit                 # must be clean
 npm run lint                     # oxlint --type-aware; must be 0
 npm test                         # vitest
 npx newman run postman/Tribeca-Jets-API.postman_collection.json \
-  -e postman/Local.postman_environment.json      # run it TWICE
+  -e postman/Local.postman_environment.json      # run it TWICE; needs RATE_LIMIT_MULTIPLIER=20
+# 26 Sep 2026 baseline: 149 requests / 81 assertions / 0 failures, vitest 116/116
+# After any builder: cd postman && python rewrite_body_comments.py   (must run from postman/)
 cd ../Frontend && npx eslint src/<what you touched> && npm run build
 ```
 
@@ -158,13 +167,21 @@ Paste everything between the lines into the first message of a new session.
 > against real accounts, not by reading the code. Report what is actually true:
 > if a check was skipped, say so; if something fails, show the output.
 >
-> **Where we are right now (25 September 2026):** the Quotes screen just got
-> its client-requested Figma redesign — a full-screen create/edit form with a
-> live document preview, a live pricing preview endpoint
-> (`POST /quotes/price-preview`), and an aircraft photo field
-> (`Quote.exteriorImageUrl`). That closes the quote/itinerary half of
-> adjustment #3 and the UI half of #6. Full account in
-> `CLIENT_ADJUSTMENTS.md` §4's 25 September entry.
+> **Where we are right now (26 September 2026):** a whole-project audit just
+> finished, and **it is uncommitted** — check `git status` first. It fixed
+> real bugs (a broker could not save their own client; edits could not clear
+> fields; archiving an airport, client or aircraft made records pointing at it
+> uneditable; quote delete returned 200), removed invented values from the
+> airport and itinerary screens, hid role-restricted lead actions, and got
+> Newman to 0 failures twice with every folder passing alone. Full account in
+> `CLIENT_ADJUSTMENTS.md` §4's 26 September entry. Still open from it: the
+> 375/768/1440 browser check of the changed screens, and two owner decisions
+> (twelve unreferenced components; external links on the quote photo).
+>
+> Before that (25 Sep) the Quotes screen got its Figma redesign — full-screen
+> form, live preview, `POST /quotes/price-preview`, `Quote.exteriorImageUrl`.
+> The Build Itinerary form uploads its photos for real, but Itineraries has no
+> backend yet, so a built itinerary is not saved anywhere.
 >
 > Two things are unblocked and small, if you want a quick win before Trips:
 > **#3's fleet half** (add `Aircraft.photoUrl`, a `FileUpload` field on the
@@ -191,15 +208,19 @@ Short list of the things that have actually bitten, so they are not re-learned.
   three lines in `notes.subjects.ts`, then render `NotesTimeline`), and
   `ClientCredit` gains a real `appliedToTripId`, deliberately absent today
   rather than stubbed as a string.
-- **Five captured examples in `10 · Quotes` are mislabelled** — the status in
-  the name disagrees with the response stored beside it. Left alone on purpose
-  ("fix a module when we reach it"). The newer builders refuse to write one.
 - **A captured Postman example is not an assertion.** Newman runs a request's
   test script and never compares an example's label to its stored response, so
   a request that fails to provoke the error it is named for writes a lie that
-  goes green for ever. `build_notes_folder.py` and
-  `build_client_credits_folder.py` raise on a mismatch; copy that `example()`
-  into any new builder.
+  goes green for ever. Every builder's `example()` now raises on a mismatch
+  (the last three mislabelled examples, in `10 · Quotes`, were fixed at the
+  request on 26 Sep); copy it into any new builder, and place the folder with
+  `collection_order.place_folder()` so the collection stays in serial order.
+- **Validate a foreign key only when it changes.** Edit forms resend every
+  field; a re-check on each save makes a record uneditable the day its airport
+  or client is archived. Four modules had this until 26 Sep.
+- **A seed must not depend on Postman debris.** The seed named an operator
+  that only a Postman run had ever created, so on a fresh database it silently
+  wrote nothing — anchor seed rows on rows the seed itself creates.
 - **An endpoint must not accept a parameter it ignores**, and omitting the
   field from the schema is not enough — Zod strips unknown keys silently. See
   the `.strict()` note in `AGENTS.md`.
