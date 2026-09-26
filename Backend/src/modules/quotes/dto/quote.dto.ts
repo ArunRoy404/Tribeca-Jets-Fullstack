@@ -12,6 +12,7 @@ import {
 } from '../../../common/dto/numbers.js';
 import { calendarDate } from '../../../common/dto/dates.js';
 import { QuoteStatus } from '../../../generated/prisma/enums.js';
+import { uploadUrl } from '../../../common/dto/uploads.js';
 
 /** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
 export const QUOTE_SORTABLE_FIELDS = [
@@ -121,10 +122,10 @@ export const createQuoteSchema = z.object({
   aircraftId: z.uuid().nullable().optional(),
   quotedAircraft: z.string().trim().max(200).optional(),
 
-  /** A relative `/api/uploads/<id>` URL from the shared uploads surface, or a
-   *  pasted external link. Never validated as a strict absolute URL — a
-   *  relative uploads path is not one. */
-  exteriorImageUrl: z.string().trim().max(500).optional(),
+  /** The relative `/api/uploads/<id>` URL the uploads surface returned, and
+   *  nothing else — see `uploadUrl`. An external link would be an image this
+   *  API never checked, served from a host nobody chose. */
+  exteriorImageUrl: uploadUrl.optional(),
 
   originAirportId: z.uuid().nullable().optional(),
   destinationAirportId: z.uuid().nullable().optional(),
@@ -193,7 +194,7 @@ export const updateQuoteSchema = z.object({
 
   aircraftId: z.uuid().nullable().optional(),
   quotedAircraft: z.string().trim().max(200).nullable().optional(),
-  exteriorImageUrl: z.string().trim().max(500).nullable().optional(),
+  exteriorImageUrl: uploadUrl.nullable().optional(),
 
   originAirportId: z.uuid().nullable().optional(),
   destinationAirportId: z.uuid().nullable().optional(),

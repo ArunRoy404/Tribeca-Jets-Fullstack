@@ -229,11 +229,16 @@ export class ClientsService {
     return client;
   }
 
-  /** The same scoped lookup, but only for a live row. Guards every write. */
+  /**
+   * The same scoped lookup, but only for a live row. Guards every write.
+   *
+   * Returns the two links `update` compares against, so it can tell a field
+   * the edit form merely resent from one that is actually changing.
+   */
   private async findLive(user: AuthenticatedUser, id: string) {
     const client = await this.prisma.client.findFirst({
       where: { id, deletedAt: null, ...this.visibilityScope(user) },
-      select: { id: true },
+      select: { id: true, assignedBrokerId: true, homeAirportId: true },
     });
     if (!client) {
       throw new NotFoundException('Client not found');
@@ -343,12 +348,29 @@ export class ClientsService {
 
   async update(user: AuthenticatedUser, id: string, input: UpdateClientInput) {
     // Reuses the scoped read, so an out-of-scope id 404s before any write.
-    await this.findLive(user, id);
-    await this.assertHomeAirport(input.homeAirportId);
+    const current = await this.findLive(user, id);
 
-    // Reassigning a client is an admin action; a broker must not be able to
-    // hand their own client to someone else or claim another's.
-    if (input.assignedBrokerId && user.role === UserRole.BROKER) {
+    // Only a link that is actually changing is checked. The edit form resends
+    // every field, so checking unconditionally meant a client whose home
+    // airport was archived later could not be edited at all.
+    if (
+      input.homeAirportId !== undefined &&
+      input.homeAirportId !== current.homeAirportId
+    ) {
+      await this.assertHomeAirport(input.homeAirportId);
+    }
+
+    // Reassigning a client is for a role that holds the whole book; a broker
+    // must not hand their own client to someone else or claim another's.
+    //
+    // Compared against the stored value, not merely present: the edit form
+    // resends the broker it already has, and treating that as a reassignment
+    // refused every edit a broker made to their own client.
+    if (
+      input.assignedBrokerId !== undefined &&
+      input.assignedBrokerId !== current.assignedBrokerId &&
+      scopeFor(user.role, Permission.MANAGE_CLIENTS) !== Scope.ALL
+    ) {
       throw new ForbiddenException('Only administrators can reassign a client');
     }
 

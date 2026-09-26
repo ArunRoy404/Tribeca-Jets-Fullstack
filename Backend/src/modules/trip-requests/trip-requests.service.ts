@@ -408,6 +408,7 @@ export class TripRequestsService {
         id: true,
         reference: true,
         status: true,
+        clientId: true,
         assignedBrokerId: true,
         originAirportId: true,
         destinationAirportId: true,
@@ -415,7 +416,12 @@ export class TripRequestsService {
     });
     if (!target) throw new NotFoundException('Trip request not found');
 
-    if (dto.clientId) await this.assertClient(dto.clientId);
+    // Compared against the stored client, like every other link below: an
+    // edit form resends the client it already has, and a client archived
+    // later must not make its own enquiry uneditable.
+    if (dto.clientId !== undefined && dto.clientId !== target.clientId) {
+      await this.assertClient(dto.clientId);
+    }
     if (
       dto.assignedBrokerId !== undefined &&
       dto.assignedBrokerId !== target.assignedBrokerId

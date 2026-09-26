@@ -290,6 +290,7 @@ export class QuotesController {
 
   @Delete(':id')
   @RequireWritePermissions(Permission.DELETE_TRIPS)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Archive a quote',
     description:
@@ -298,7 +299,7 @@ export class QuotesController {
   remove(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  ): Promise<void> {
     return this.quotes.remove(user, id);
   }
 }

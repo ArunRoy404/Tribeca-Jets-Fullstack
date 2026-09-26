@@ -113,20 +113,26 @@ export class CreateClientDto extends createZodDto(createClientSchema) {}
  *
  * `originatingBrokerId` is absent by design — attribution is set once, at
  * creation, and never rewritten.
+ *
+ * **Absent and null mean different things.** Absent leaves a column alone;
+ * null clears it. Every column that is nullable in the database accepts null
+ * here, or the edit form has no way to say "I emptied this box" — an emptied
+ * phone number arrived as a missing key and the old number stayed on file.
  */
 export const updateClientSchema = z.object({
   type: z.enum(ClientType).optional(),
   status: z.enum(ClientStatus).optional(),
-  companyName: z.string().trim().max(200).optional(),
+  companyName: z.string().trim().max(200).nullable().optional(),
   firstName: z.string().trim().min(1, 'First name is required').max(100).optional(),
   lastName: z.string().trim().min(1, 'Last name is required').max(100).optional(),
-  email: z.email().toLowerCase().trim().optional(),
-  phone: z.string().trim().max(40).optional(),
-  birthday: calendarDate.optional(),
+  email: z.email().toLowerCase().trim().nullable().optional(),
+  phone: z.string().trim().max(40).nullable().optional(),
+  birthday: calendarDate.nullable().optional(),
   homeAirportId: z.uuid().nullable().optional(),
   leadSource: z.enum(LeadSource).optional(),
   leadStage: z.enum(LeadStage).optional(),
-  assignedBrokerId: z.uuid().optional(),
+  /** Null unassigns. Changing it at all is an administrator's call. */
+  assignedBrokerId: z.uuid().nullable().optional(),
   /** Replaced wholesale when sent, left untouched when absent. */
   preferences: preferencesSchema.optional(),
   priority: z.enum(ClientPriority).optional(),
@@ -134,7 +140,7 @@ export const updateClientSchema = z.object({
   /** Nullable so the form can clear a scheduled follow-up. */
   nextFollowUpAt: timestamp.nullable().optional(),
   followUpNote: z.string().trim().max(1_000).nullable().optional(),
-  notes: z.string().max(5_000).optional(),
+  notes: z.string().max(5_000).nullable().optional(),
   labels: z.array(z.string().trim().max(50)).max(25).optional(),
 });
 

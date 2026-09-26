@@ -431,6 +431,7 @@ export class OperatorQuotesService {
         status: true,
         tripRequestId: true,
         operatorId: true,
+        aircraftId: true,
         respondedAt: true,
       },
     });
@@ -516,7 +517,11 @@ export class OperatorQuotesService {
 
     // Only validate a link that is actually changing: re-sending every field
     // on an edit must not fail over an aircraft the row already had.
-    if (input.aircraftId !== undefined && input.aircraftId !== null) {
+    if (
+      input.aircraftId !== undefined &&
+      input.aircraftId !== null &&
+      input.aircraftId !== target.aircraftId
+    ) {
       await this.assertAircraft(input.aircraftId, target.operatorId);
     }
 
@@ -558,7 +563,7 @@ export class OperatorQuotesService {
       );
     }
 
-    if (input.aircraftId) {
+    if (input.aircraftId && input.aircraftId !== target.aircraftId) {
       await this.assertAircraft(input.aircraftId, target.operatorId);
     }
 

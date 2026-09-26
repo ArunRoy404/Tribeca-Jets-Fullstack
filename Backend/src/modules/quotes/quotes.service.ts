@@ -206,6 +206,18 @@ type PricingRow = {
   status?: QuoteStatus;
 };
 
+/** Every foreign key a quote carries, as `findLive` reads them back. */
+type QuoteLinks = {
+  clientId: string;
+  tripRequestId: string | null;
+  operatorQuoteId: string | null;
+  assignedBrokerId: string | null;
+  operatorId: string | null;
+  aircraftId: string | null;
+  originAirportId: string | null;
+  destinationAirportId: string | null;
+};
+
 /** What the desk sees above the quotes board, counted rather than stored. */
 export type QuoteStats = {
   total: number;
@@ -586,8 +598,12 @@ export class QuotesService {
         version: true,
         clientId: true,
         tripRequestId: true,
+        operatorQuoteId: true,
         assignedBrokerId: true,
         operatorId: true,
+        aircraftId: true,
+        originAirportId: true,
+        destinationAirportId: true,
         sentAt: true,
         basePrice: true,
         fetEnabled: true,
@@ -668,44 +684,53 @@ export class QuotesService {
    */
   private async assertLinks(
     input: CreateQuoteInput | UpdateQuoteInput,
-    current?: { operatorId: string | null; clientId?: string },
+    current?: QuoteLinks,
   ): Promise<void> {
-    const changed = <K extends keyof typeof input>(key: K, was: unknown) =>
-      input[key] !== undefined && input[key] !== null && input[key] !== was;
+    /**
+     * Sent, non-null, and different from what the row already holds. On create
+     * there is no `current`, so everything sent is new and everything is
+     * checked. On update the form resends every link it has, and only the ones
+     * that moved are looked up — the rest were valid when they were written.
+     */
+    // Create carries a clientId and update does not, so the links are read
+    // through one shape both inputs satisfy.
+    const links: Partial<QuoteLinks> = input;
+    const changed = <K extends keyof QuoteLinks>(key: K): boolean => {
+      const next = links[key];
+      return next !== undefined && next !== null && next !== current?.[key];
+    };
 
-    if ('clientId' in input && input.clientId !== undefined) {
-      if (input.clientId !== current?.clientId) {
-        await this.assertLive('client', input.clientId, 'client');
-      }
+    if (changed('clientId')) {
+      await this.assertLive('client', links.clientId, 'client');
     }
-    if (changed('tripRequestId', undefined)) {
-      await this.assertLive('tripRequest', input.tripRequestId, 'request');
+    if (changed('tripRequestId')) {
+      await this.assertLive('tripRequest', links.tripRequestId, 'request');
     }
-    if (changed('operatorQuoteId', undefined)) {
+    if (changed('operatorQuoteId')) {
       await this.assertLive(
         'operatorQuote',
-        input.operatorQuoteId,
+        links.operatorQuoteId,
         'operator quote',
       );
     }
-    if (changed('operatorId', current?.operatorId)) {
-      await this.assertLive('operator', input.operatorId, 'operator');
+    if (changed('operatorId')) {
+      await this.assertLive('operator', links.operatorId, 'operator');
     }
-    if (changed('aircraftId', undefined)) {
-      await this.assertLive('aircraft', input.aircraftId, 'aircraft');
+    if (changed('aircraftId')) {
+      await this.assertLive('aircraft', links.aircraftId, 'aircraft');
     }
-    if (changed('originAirportId', undefined)) {
-      await this.assertLive('airport', input.originAirportId, 'origin airport');
+    if (changed('originAirportId')) {
+      await this.assertLive('airport', links.originAirportId, 'origin airport');
     }
-    if (changed('destinationAirportId', undefined)) {
+    if (changed('destinationAirportId')) {
       await this.assertLive(
         'airport',
-        input.destinationAirportId,
+        links.destinationAirportId,
         'destination airport',
       );
     }
-    if (changed('assignedBrokerId', undefined)) {
-      await this.assertBroker(input.assignedBrokerId);
+    if (changed('assignedBrokerId')) {
+      await this.assertBroker(links.assignedBrokerId);
     }
   }
 
@@ -1219,14 +1244,14 @@ export class QuotesService {
 
   // ---- Archive ------------------------------------------------------------
 
-  async remove(user: AuthenticatedUser, id: string) {
+  async remove(user: AuthenticatedUser, id: string): Promise<void> {
     this.assertMayArchive(user);
     const current = await this.findLive(user, id);
 
-    const quote = await this.prisma.quote.update({
+    await this.prisma.quote.update({
       where: { id },
       data: { ...archiveData(user.id), updatedById: user.id },
-      select: QUOTE_DETAIL_SELECT,
+      select: { id: true },
     });
 
     await this.audit.record({
@@ -1236,8 +1261,6 @@ export class QuotesService {
       entityId: id,
       metadata: { reference: current.reference, status: current.status },
     });
-
-    return this.serialise(quote, user);
   }
 
   async restore(user: AuthenticatedUser, id: string) {
