@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
+from collection_order import place_folder
 
 BASE = 'http://localhost:4000/api'
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
@@ -622,9 +623,7 @@ def main():
     folder = build(owner, broker, assistant)
     folder['event'] = json.loads(json.dumps(source['event']))
 
-    collection['item'] = [f for f in collection['item']
-                          if not f['name'].startswith('13 · Client Credits')]
-    collection['item'].append(folder)
+    place_folder(collection, folder)
 
     existing = {v['key'] for v in collection['variable']}
     for key in ('creditId', 'creditEntryId'):

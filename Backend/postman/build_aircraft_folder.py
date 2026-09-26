@@ -21,6 +21,7 @@ import re
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
+from collection_order import place_folder
 
 BASE = 'http://localhost:4000/api'
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
@@ -65,6 +66,14 @@ class Session:
 
 def example(name: str, method: str, path: str, status: int, body, req_body=None):
     """One Postman response example, carrying the request that produced it."""
+    # A captured example is not an assertion — Newman never compares a label
+    # with the response stored beside it — so the builder refuses to write one
+    # that disagrees. The fix is always the request, never the label.
+    promised = name.split(' ', 1)[0]
+    if promised.isdigit() and int(promised) != status:
+        raise SystemExit(
+            f'refusing to write example {name!r}: the request returned {status}, '
+            f'not {promised}. Fix the request that captures it.')
     original = {
         'method': method,
         'header': [],
@@ -400,9 +409,24 @@ def build(owner: Session, assistant: Session) -> dict:
                     '// A tail this run has not used before. An archived tail number',
                     '// stays reserved (see the 409 example), so a fixed one would',
                     '// collide on the second run instead of exercising the endpoint.',
-                    "let tail = 'N' + (100 + Math.floor(Math.random() * 900));",
-                    "tail += 'QXZ'[Math.floor(Math.random() * 3)] + 'T';",
+                    '// Drawn from the clock rather than Math.random: 2,700 random tails',
+                    '// against a growing pile of archived probes collide sooner or later.',
+                    "const tail = 'T' + Date.now().toString(36).toUpperCase().slice(-8);",
                     "pm.collectionVariables.set('newAircraftTail', tail);",
+                    '',
+                    '// The operator and home base come from live rows, not from folders',
+                    '// 05 and 06 having run first — a folder must pass on its own.',
+                    "const base = pm.collectionVariables.get('baseUrl');",
+                    "pm.sendRequest({ url: base + '/operators?limit=1', method: 'GET' }, function (err, res) {",
+                    '    if (!err && res.code === 200 && res.json().data.length) {',
+                    "        pm.collectionVariables.set('operatorId', res.json().data[0].id);",
+                    '    }',
+                    '});',
+                    "pm.sendRequest({ url: base + '/airports?limit=1', method: 'GET' }, function (err, res) {",
+                    '    if (!err && res.code === 200 && res.json().data.length) {',
+                    "        pm.collectionVariables.set('airportId', res.json().data[0].id);",
+                    '    }',
+                    '});',
                 ]),
                 script('test', [
                     '// The update, remove and restore requests below operate on this',
@@ -569,8 +593,7 @@ def main() -> None:
     folder = build(owner, assistant)
     folder['event'] = json.loads(json.dumps(operators['event']))
 
-    collection['item'] = [f for f in collection['item'] if not f['name'].startswith('07 · Aircraft')]
-    collection['item'].append(folder)
+    place_folder(collection, folder)
 
     existing = {v['key'] for v in collection['variable']}
     for key in ('aircraftId', 'newAircraftId', 'newAircraftTail'):

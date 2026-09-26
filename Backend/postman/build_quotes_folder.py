@@ -20,6 +20,7 @@ import pathlib
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
+from collection_order import place_folder
 
 BASE = 'http://localhost:4000/api'
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
@@ -64,7 +65,23 @@ class Session:
 
 
 def example(name: str, method: str, path: str, status: int, body, req_body=None):
-    """One Postman response example, carrying the request that produced it."""
+    """
+    One Postman response example, carrying the request that produced it —
+    checked against its own label.
+
+    A captured example is not an assertion: Newman runs the request's test
+    script and never compares an example's name to the response stored beside
+    it. This folder shipped `204 · Removed` holding a 200, `200 · Priced`
+    holding a 201 and an assistant's `200` read holding a 404, all green. The
+    builder is the one place that knows the promised status and the received
+    one at the same moment, so it refuses to write the lie. The fix is always
+    the request, never the label.
+    """
+    promised = name.split(' ', 1)[0]
+    if promised.isdigit() and int(promised) != status:
+        raise SystemExit(
+            f'refusing to write example {name!r}: the request returned {status}, '
+            f'not {promised}. Fix the request that captures it.')
     original = {
         'method': method,
         'header': [],
@@ -118,7 +135,7 @@ CREATE_BODY = """{
   // have never entered.
   "aircraftId": null,                                  // optional · uuid, or null
   "quotedAircraft": "Gulfstream G550",                 // optional · max 200 chars
-  "exteriorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000001", // optional · max 500 chars. A relative URL from POST /uploads/image (module 05). Never validated as a strict absolute URL — a relative uploads path is not one.
+  "exteriorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000001", // optional · exactly the relative URL POST /uploads/image returned (folder 11): /api/uploads/<uuid>. An absolute or external URL is a 400 — it would pin a host into the row, or serve an image this API never checked.
 
   "originAirportId": "{{airportId}}",                  // optional · uuid of a live airport. A real relation, never an ICAO string typed into a box.
   "destinationAirportId": "{{airportId2}}",            // optional · uuid
@@ -164,7 +181,7 @@ UPDATE_BODY = """{
   // first — that is a recorded act, and this is not.
   "basePrice": 82500,
 
-  "exteriorImageUrl": null,                            // optional · max 500 chars, or null to clear. A relative URL from POST /uploads/image.
+  "exteriorImageUrl": null,                            // optional · /api/uploads/<uuid>, or null to remove the photo.
 
   "lineItems": [
     { "label": "Catering (seafood premium)", "amount": null, "included": true },
@@ -258,7 +275,17 @@ def build(owner, broker, assistant):
     cap['stats'] = owner.request('GET', '/quotes/stats')
     cap['detail'] = owner.request('GET', f"/quotes/{seeded['id']}")
     cap['detail_404'] = owner.request('GET', f'/quotes/{MISSING}')
-    cap['detail_assistant'] = assistant.request('GET', f"/quotes/{seeded['id']}")
+    # The assistant's read has to be of a quote their scope admits. Both seeded
+    # quotes are assigned to a broker, so reading one as the assistant is a
+    # 404 before the margin rule is ever reached — the example this replaced
+    # was labelled 200 and held exactly that 404. An unassigned offer is
+    # visible to anyone who can see quotes, so the probe is made unassigned.
+    unassigned_id = owner.request('POST', '/quotes', {
+        'clientId': client_id, 'basePrice': 42000, 'operatorCost': 36000,
+    })[1]['data']['id']
+    owner.request('PATCH', f'/quotes/{unassigned_id}', {'assignedBrokerId': None})
+    cap['detail_assistant'] = assistant.request('GET', f'/quotes/{unassigned_id}')
+    owner.request('DELETE', f'/quotes/{unassigned_id}')
 
     cap['create'] = owner.request('POST', '/quotes', payload)
     new_id = cap['create'][1]['data']['id']
@@ -271,6 +298,10 @@ def build(owner, broker, assistant):
     })
     cap['create_400_client'] = owner.request('POST', '/quotes', {
         'clientId': MISSING, 'basePrice': 79500,
+    })
+    cap['create_400_image'] = owner.request('POST', '/quotes', {
+        'clientId': client_id, 'basePrice': 79500,
+        'exteriorImageUrl': 'https://example.com/g550.jpg',
     })
     cap['create_403'] = assistant.request('POST', '/quotes', payload)
 
@@ -476,12 +507,14 @@ def build(owner, broker, assistant):
                     'Archived quotes load here too, because the Archived tab links straight to '
                     'them.\n\nA quote outside the caller’s scope returns **404, not 403** — a 403 '
                     'confirms the record exists and turns any id into an oracle.\n\nThe third '
-                    'example is the same quote read as the seeded assistant: same offer, and '
-                    '`operatorCost`, `grossProfit` and `marginPercentage` simply not there.'),
+                    'example is an unassigned quote read as the seeded assistant: the offer, '
+                    'with `operatorCost`, `grossProfit` and `marginPercentage` simply not there. '
+                    'An assistant sees quotes assigned to them and quotes nobody owns; one '
+                    'assigned to a broker is a 404 to them, like any row outside scope.'),
             },
             'response': [
                 example('200 · Quote record', 'GET', f"/quotes/{seeded['id']}", *cap['detail']),
-                example('200 · The same quote, without the margin (assistant)', 'GET', f"/quotes/{seeded['id']}", *cap['detail_assistant']),
+                example('200 · An unassigned quote, without the margin (assistant)', 'GET', '/quotes/{{quoteId}}', *cap['detail_assistant']),
                 example('404 · Not found or out of scope', 'GET', f'/quotes/{MISSING}', *cap['detail_404']),
             ],
         },
@@ -533,6 +566,9 @@ def build(owner, broker, assistant):
                                   'lineItems': [{'label': 'Catering'}]}),
                 example('400 · Unknown client', 'POST', '/quotes', *cap['create_400_client'],
                         req_body={'clientId': MISSING, 'basePrice': 79500}),
+                example('400 · Photo is not an upload URL', 'POST', '/quotes', *cap['create_400_image'],
+                        req_body={'clientId': '{{clientId}}', 'basePrice': 79500,
+                                  'exteriorImageUrl': 'https://example.com/g550.jpg'}),
                 example('403 · Assistant cannot write quotes', 'POST', '/quotes', *cap['create_403'], req_body=payload),
             ],
             'event': [
@@ -891,10 +927,7 @@ def main() -> None:
     folder = build(owner, broker, assistant)
     folder['event'] = json.loads(json.dumps(sourcing_folder['event']))
 
-    collection['item'] = [
-        f for f in collection['item'] if not f['name'].startswith('10 · Quotes')
-    ]
-    collection['item'].append(folder)
+    place_folder(collection, folder)
 
     existing = {v['key'] for v in collection['variable']}
     for key in ('quoteId', 'newQuoteId', 'duplicatedQuoteId', 'airportId2'):

@@ -70,9 +70,26 @@ Folders execute top to bottom and are ordered so a full pass works:
    03 · Session               current user, refresh
    04 · Password reset        request, resend, verify, set new password
    05 · Sign out              logout
-02 · Regression checks      requests that SHOULD fail
 03 · Clients                CRM CRUD + the no-CSRF check
+04 · Users                  team members, roles, invitations
+05 · Airports               reference data
+06 · Operators              reference data
+07 · Aircraft               fleet
+08 · Trip Requests          enquiries
+09 · Operator Sourcing      operator quotes on an enquiry
+10 · Quotes                 client quotes, versions, send/decide
+11 · Uploads                image + document uploads, access rules
+12 · Notes                  notes and the merged timeline
+13 · Client Credits         money on account
 ```
+
+There is no `02`: `02 · Regression checks` restated failures already captured
+beside the requests they belong to, and `reorganize.py` removed it. The gap is
+kept rather than renumbering every folder after it.
+
+126 requests and 305 captured examples as of 26 Sep 2026. Newman reports 149
+requests because the pre-request fetches that let a folder run alone are
+counted too.
 
 **Every module runs standalone**, not just top to bottom — `03 · Clients` opens
 with its own sign-in, so you can run that folder alone or after Sign out has
@@ -242,12 +259,39 @@ mislabelled captures.
 The reference folders are generated, not hand-edited:
 
 ```bash
-python3 build_reference_folders.py   # rebuilds 05 · Airports and 06 · Operators
 python3 add_restore_requests.py      # patches restore into Clients
+```
+
+**Do not re-run `build_reference_folders.py`** (05 · Airports, 06 · Operators).
+It reads its captured responses from a scratchpad directory on the machine that
+first ran it, which no longer exists, and it would write back 7 + 6 requests
+over folders that have since grown to 10 + 9. It is kept as the record of how
+those folders were made. The next time Airports or Operators changes, replace
+it with a live-capturing builder like the ones below.
+
+Every other module folder has its own builder, which captures live against a
+running, seeded API — `build_aircraft_folder.py` (07),
+`build_trip_requests_folder.py` (08), `build_operator_sourcing_folder.py` (09),
+`build_quotes_folder.py` (10), `build_uploads_folder.py` (11),
+`build_notes_folder.py` (12), `build_client_credits_folder.py` (13), and
+`build_users_folder.py` + `reorganize.py` for 04 (above).
+
+Two things every live builder does, and a new one must copy:
+
+- **`example()` raises when a captured status disagrees with its label.** A
+  captured example is not an assertion; this is the only place the lie can be
+  caught. Fix the request, never the label.
+- **`collection_order.place_folder()` puts the folder back by its serial
+  number.** Appending it moved each rebuilt folder to the end of the
+  collection.
+
+Then, **from inside `postman/`** (it opens the collection by a relative path):
+
+```bash
 python3 rewrite_body_comments.py     # moves JSON body comments to the right
 ```
 
-Run them in that order — the rewriter operates on the whole collection, so a
-builder run after it would leave its two folders in the old top-comment style.
+Always last — the rewriter operates on the whole collection, so a builder run
+after it would leave its folder in the old top-comment style.
 
 Then verify: `npx newman run postman/Tribeca-Jets-API.postman_collection.json -e postman/Local.postman_environment.json`

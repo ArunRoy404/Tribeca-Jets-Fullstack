@@ -27,6 +27,7 @@ import urllib.error
 import urllib.request
 import uuid
 from http.cookiejar import CookieJar
+from collection_order import place_folder
 
 BASE = 'http://localhost:4000/api'
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
@@ -637,11 +638,12 @@ def main() -> None:
     folder, probes = build(admin, mark_id)
 
     collection = json.loads(COLLECTION.read_text())
-    collection['item'] = [i for i in collection['item']
-                          if i['name'] not in ('11 · Files', '11 · Uploads')]
-    collection['item'].append(folder)
+    place_folder(collection, folder)
 
-    COLLECTION.write_text(json.dumps(collection, indent=2, ensure_ascii=False) + '\n')
+    # Escaped non-ASCII, like every other builder: writing it raw re-encodes
+    # every '·' in the collection and turns one folder's rebuild into a
+    # diff of the whole file.
+    COLLECTION.write_text(json.dumps(collection, indent=2) + '\n')
 
     # Archive what this build uploaded. The examples above are already captured
     # as text, so nothing is lost — and the bytes stay in storage regardless,

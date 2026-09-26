@@ -19,6 +19,7 @@ import pathlib
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
+from collection_order import place_folder
 
 BASE = 'http://localhost:4000/api'
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
@@ -65,6 +66,14 @@ STATUS_TEXT = {200: 'OK', 201: 'Created', 204: 'No Content', 400: 'Bad Request',
 
 
 def example(name, method, path, status, body, req_body=None):
+    # A captured example is not an assertion — Newman never compares a label
+    # with the response stored beside it — so the builder refuses to write one
+    # that disagrees. The fix is always the request, never the label.
+    promised = name.split(' ', 1)[0]
+    if promised.isdigit() and int(promised) != status:
+        raise SystemExit(
+            f'refusing to write example {name!r}: the request returned {status}, '
+            f'not {promised}. Fix the request that captures it.')
     original = {
         'method': method, 'header': [],
         'url': {'raw': '{{baseUrl}}' + path, 'host': ['{{baseUrl}}'],
@@ -331,7 +340,30 @@ def build(owner, broker, assistant):
                 example('400 · Return before departure', 'POST', '/trip-requests', *cap['create_400_dates']),
                 example('403 · Role may read but not write', 'POST', '/trip-requests', *cap['create_403']),
             ],
-            'event': [script('test', [
+            'event': [script('prerequest', [
+                '// Fetches a live client, broker and airports for the body rather than',
+                '// trusting {{clientId}} from an earlier request. Request 01 sets it',
+                '// from the newest trip request, whose client is often the probe folder',
+                '// 03 archived in its teardown — so this folder passed inside a full run',
+                '// and failed with "that client does not exist" when run on its own.',
+                "const base = pm.collectionVariables.get('baseUrl');",
+                "pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (err, res) {",
+                '    if (!err && res.code === 200 && res.json().data.length) {',
+                "        pm.collectionVariables.set('clientId', res.json().data[0].id);",
+                '    }',
+                '});',
+                "pm.sendRequest({ url: base + '/users?limit=1&role=BROKER', method: 'GET' }, function (err, res) {",
+                '    if (!err && res.code === 200 && res.json().data.length) {',
+                "        pm.collectionVariables.set('userId', res.json().data[0].id);",
+                '    }',
+                '});',
+                "pm.sendRequest({ url: base + '/airports?limit=2', method: 'GET' }, function (err, res) {",
+                '    if (err || res.code !== 200) { return; }',
+                '    const rows = res.json().data;',
+                "    if (rows[0]) { pm.collectionVariables.set('airportId', rows[0].id); }",
+                "    if (rows[1]) { pm.collectionVariables.set('airportId2', rows[1].id); }",
+                '});',
+            ]), script('test', [
                 '// The update, remove and restore requests below operate on this new',
                 '// request, so running the folder never touches seeded rows.',
                 "pm.test('created', function () {",
@@ -484,9 +516,7 @@ def main():
     folder = build(owner, broker, assistant)
     folder['event'] = json.loads(json.dumps(operators['event']))
 
-    collection['item'] = [f for f in collection['item']
-                          if not f['name'].startswith('08 · Trip Requests')]
-    collection['item'].append(folder)
+    place_folder(collection, folder)
 
     existing = {v['key'] for v in collection['variable']}
     for key in ('tripRequestId', 'newTripRequestId'):

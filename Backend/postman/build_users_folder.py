@@ -22,6 +22,8 @@ import time
 import urllib.error
 import urllib.request
 
+from collection_order import place_folder
+
 BASE = "http://localhost:4000/api"
 COLLECTION = pathlib.Path(__file__).parent / "Tribeca-Jets-API.postman_collection.json"
 PASSWORD = "ChangeMe123!"
@@ -874,16 +876,7 @@ def main() -> None:
     collection = json.loads(COLLECTION.read_text())
     folder = build_folder(captured)
 
-    items = [i for i in collection["item"] if i.get("name") != folder["name"]]
-    # Folders are serial-numbered, so place this one by its own number rather
-    # than appending — otherwise a rebuild reorders the collection.
-    number = folder["name"].split(" ", 1)[0]
-    index = next(
-        (n for n, i in enumerate(items) if i.get("name", "").split(" ", 1)[0] > number),
-        len(items),
-    )
-    items.insert(index, folder)
-    collection["item"] = items
+    place_folder(collection, folder)
 
     names = {v["key"] for v in collection.get("variable", [])}
     for key in ("userId", "invitedUserId", "inviteEmail"):
