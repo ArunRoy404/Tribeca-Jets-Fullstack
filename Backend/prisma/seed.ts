@@ -389,7 +389,11 @@ async function main(): Promise<void> {
     const quotes = [
       { operatorName: 'FlexJet', tail: 'N780EX', price: '27400.00', status: OperatorQuoteStatus.RECEIVED, requestedAt: hoursAgo(28), respondedAt: hoursAgo(26), amenities: ['WiFi', 'Full Galley'], terms: 'Net 30. 50% fee within 48 hours of departure.' },
       { operatorName: 'VistaJet', tail: null, price: '31250.00', status: OperatorQuoteStatus.RECEIVED, requestedAt: hoursAgo(28), respondedAt: hoursAgo(21), amenities: ['WiFi', 'Flight Attendant'], terms: 'Net 15. 10% non-refundable deposit.' },
-      { operatorName: 'Solairus Aviation', tail: null, price: null, status: OperatorQuoteStatus.AWAITING_RESPONSE, requestedAt: hoursAgo(28), respondedAt: null, amenities: [], terms: null },
+      // A seeded operator. This used to name Solairus Aviation, which only
+      // exists where the Postman Operators folder has been run — so on a fresh
+      // database the loop below skipped it and the AWAITING_RESPONSE row this
+      // comment block promises was never written.
+      { operatorName: 'ExecuJet', tail: null, price: null, status: OperatorQuoteStatus.AWAITING_RESPONSE, requestedAt: hoursAgo(28), respondedAt: null, amenities: [], terms: null },
     ];
 
     for (const quote of quotes) {
@@ -599,8 +603,14 @@ async function main(): Promise<void> {
   console.log('  senior@tribecajets.com / ChangeMe123!  (SENIOR_BROKER)');
   console.log('  assistant@tribecajets.com / ChangeMe123!  (ASSISTANT)');
   console.log('  + barry / mark (BROKER, active), tom (SUSPENDED), newhire (INVITED)');
+  // Counted, not typed: a hardcoded "3 operator quotes" went on printing 3
+  // while a skipped row meant only 2 were ever written.
+  const [operatorQuoteCount, quoteCount] = await Promise.all([
+    prisma.operatorQuote.count({ where: { deletedAt: null } }),
+    prisma.quote.count({ where: { deletedAt: null } }),
+  ]);
   console.log(
-    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, 3 operator quotes, 2 client quotes`,
+    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, ${operatorQuoteCount} live operator quotes, ${quoteCount} live client quotes`,
   );
 }
 
