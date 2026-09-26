@@ -53,7 +53,7 @@ export default function AirportCard({
         <span className="text-muted-foreground">Assigned FBO</span>
         <div className="flex items-center gap-1.5 font-bold text-purple">
           <Building2 className="size-3.5" />
-          <span>{airport?.assignedFbo || "Signature Flight Support"}</span>
+          <span>{airport?.assignedFbo}</span>
         </div>
       </div>
     </div>

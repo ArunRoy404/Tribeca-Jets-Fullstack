@@ -26,6 +26,8 @@ export const ITINERARY_AIRCRAFT_OPTIONS = ["Global 7500", "Challenger 350", "Gul
 export const itinerariesData = [
   {
     id: "#TJ-1048",
+    exteriorImage: "/itineraries/aircraft-exterior.jpg",
+    interiorImage: "/itineraries/aircraft-interior.jpg",
     tripId: "TJ-1048",
     client: "Jonathan Reed",
     quoteNumber: "TJ-2026-0001",
@@ -64,6 +66,8 @@ export const itinerariesData = [
   },
   {
     id: "#TJ-2402",
+    exteriorImage: "/itineraries/aircraft-exterior.jpg",
+    interiorImage: "/itineraries/aircraft-interior.jpg",
     tripId: "TJ-2402",
     client: "Hope Sterling",
     quoteNumber: "TJ-2026-0002",
@@ -103,6 +107,8 @@ export const itinerariesData = [
   },
   {
     id: "#TJ-2403",
+    exteriorImage: "/itineraries/aircraft-exterior.jpg",
+    interiorImage: "/itineraries/aircraft-interior.jpg",
     tripId: "TJ-2403",
     client: "Emily Carter",
     quoteNumber: "TJ-2026-0003",
@@ -141,6 +147,8 @@ export const itinerariesData = [
   },
   {
     id: "#TJ-2404",
+    exteriorImage: "/itineraries/aircraft-exterior.jpg",
+    interiorImage: "/itineraries/aircraft-interior.jpg",
     tripId: "TJ-2404",
     client: "Robert Walsh",
     quoteNumber: "TJ-2026-0004",
@@ -181,6 +189,8 @@ export const itinerariesData = [
   },
   {
     id: "#TJ-2405",
+    exteriorImage: "/itineraries/aircraft-exterior.jpg",
+    interiorImage: "/itineraries/aircraft-interior.jpg",
     tripId: "TJ-2405",
     client: "Hope Sterling",
     quoteNumber: "TJ-2026-0005",

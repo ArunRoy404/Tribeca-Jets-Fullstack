@@ -127,7 +127,8 @@ export default function AirportDetailsSidebar() {
               <div className="flex flex-col gap-1 w-full">
                 <span className="font-montserrat text-[12px] text-muted-foreground">FBO</span>
                 <span className="font-montserrat font-bold text-[14px] text-purple">
-                  {airport.assignedFbo || "Signature Flight Support"}
+                  {/* The mapper already renders a missing FBO as an em dash. */}
+                  {airport.assignedFbo}
                 </span>
               </div>
             </div>
@@ -136,7 +137,10 @@ export default function AirportDetailsSidebar() {
             <div className="pt-1 flex flex-col gap-1 w-full">
               <span className="font-montserrat text-[12px] text-muted-foreground">Notes</span>
               <span className="font-montserrat font-bold text-[13px] text-foreground">
-                {airport.notes || "Primary departure airport for NYC clients."}
+                {/* The form stopped writing this sentence onto new airports;
+                    the sidebar went on printing it for every airport with no
+                    notes, anywhere in the world. */}
+                {airport.notes || "No notes on file."}
               </span>
             </div>
           </div>

@@ -84,12 +84,9 @@ export const useItinerariesStore = create((set, get) => ({
           quoteNumber: `TJ-2026-000${(state?.itineraries?.length ?? 0) + 1}`,
           confirmed: "NO",
           tripStatus: "Booked",
-          tailNumber: "N1040TJ",
-          aircraft: "Global 7500",
-          operator: "Flexjet",
-          departureDate: "Aug 24",
-          departureTime: "10:00 AM",
-          arrivalTime: "12:45 PM",
+          // No tail, aircraft, operator, date or times here: the document
+          // renders what the form captured and an em dash for the rest. These
+          // used to fill every blank with N1040TJ, a Global 7500 and Flexjet.
           ...newDoc,
         },
         ...(state?.itineraries ?? []),

@@ -7,11 +7,6 @@ import SectionCard from "@/components/common/SectionCard";
 import { PhotoTile } from "@/components/common/photo-tile";
 import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
 
-const STOCK_GALLERY = {
-  exterior: "/itineraries/aircraft-exterior.jpg",
-  interior: "/itineraries/aircraft-interior.jpg",
-};
-
 /**
  * The itinerary document body — everything between the Tribeca Jets
  * letterhead and the action buttons. Shared by `ItineraryDetailSheet` (a
@@ -20,9 +15,12 @@ const STOCK_GALLERY = {
  * One markup, two contexts, so the preview a broker builds against is
  * pixel-identical to what the sheet shows once it is saved.
  *
- * `item.exteriorImageUrl`/`item.interiorImageUrl` are per-record uploads;
- * the five seeded dummy itineraries have none, so they fall back to the
- * shared stock pair rather than showing a broken image.
+ * `item.exteriorImageUrl`/`item.interiorImageUrl` are per-record uploads.
+ * `item.exteriorImage`/`item.interiorImage` are static pictures the dummy
+ * records in `dummyData/itineraries.js` carry, and go when this module gets
+ * its API. Neither present renders `PhotoTile`'s empty state — a stock photo
+ * of some other airframe is not a picture of this one, and it used to appear
+ * on every newly built itinerary as though somebody had chosen it.
  */
 export default function ItineraryPreview({ item }) {
   if (!item) return null;
@@ -30,18 +28,19 @@ export default function ItineraryPreview({ item }) {
   const gallery = [
     {
       label: "Aircraft Exterior",
-      src: item.exteriorImageUrl ? uploadUrl(item.exteriorImageUrl) : STOCK_GALLERY.exterior,
+      src: item.exteriorImageUrl ? uploadUrl(item.exteriorImageUrl) : (item.exteriorImage ?? null),
       isUpload: Boolean(item.exteriorImageUrl),
     },
     {
       label: "Aircraft Interior / Cabin",
-      src: item.interiorImageUrl ? uploadUrl(item.interiorImageUrl) : STOCK_GALLERY.interior,
+      src: item.interiorImageUrl ? uploadUrl(item.interiorImageUrl) : (item.interiorImage ?? null),
       isUpload: Boolean(item.interiorImageUrl),
     },
   ];
-  // The set ImagePreview's lightbox navigates prev/next across — both
-  // photos, whichever came from an upload vs. the stock fallback.
-  const galleryImages = gallery.map((photo) => ({
+  // The set ImagePreview's lightbox navigates prev/next across — only the
+  // photos that exist, so a missing one is not a blank slide.
+  const present = gallery.filter((photo) => photo.src);
+  const galleryImages = present.map((photo) => ({
     src: photo.src,
     alt: photo.label,
     loader: photo.isUpload ? passthroughImageLoader : undefined,
@@ -56,20 +55,20 @@ export default function ItineraryPreview({ item }) {
         </h2>
         <p className="font-montserrat text-[13px] text-muted-foreground">Passenger itinerary</p>
         <p className="font-montserrat font-medium text-[12px] text-muted-foreground">
-          Tribeca Jets #: {item.quoteNumber || "TJ-2026-0001"}
+          Tribeca Jets #: {item.quoteNumber || "—"}
         </p>
       </div>
 
       {/* Aircraft Photo Gallery */}
       <div className="grid grid-cols-2 gap-2 sm:gap-4 w-full">
-        {gallery.map((photo, idx) => (
+        {gallery.map((photo) => (
           <PhotoTile
             key={photo.label}
             src={photo.src}
             alt={photo.label}
             label={photo.label}
             images={galleryImages}
-            index={idx}
+            index={Math.max(present.indexOf(photo), 0)}
             loader={photo.isUpload ? passthroughImageLoader : undefined}
           />
         ))}

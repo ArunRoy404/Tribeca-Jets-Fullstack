@@ -4,44 +4,25 @@ import { useState } from "react";
 import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useNotificationsStore } from "@/store/useNotificationsStore";
 
-const notifications = [
-  {
-    id: 1,
-    title: "New trip request from Marcus Webb",
-    desc: "Teterboro → Las Vegas, Aug 28, 9 passengers",
-    severity: "High",
-    unread: false,
-  },
-  {
-    id: 2,
-    title: "Payment overdue-Trip TJ-2399",
-    desc: "Robert Walsh-$12,800 balance overdue since Aug 6",
-    severity: "High",
-    unread: true,
-  },
-  {
-    id: 3,
-    title: "Operator payment Due tomorrow",
-    desc: "$74,500 due Aug 14 for Trip TJ-1044",
-    severity: "High",
-    unread: true,
-  },
-  {
-    id: 4,
-    title: "Empty leg match found",
-    desc: "3 clients match Miami → Teterboro on Aug 12",
-    severity: "Medium",
-    unread: false,
-  },
-];
 
 const SEVERITY_TONE = { High: "text-destructive", Medium: "text-warning" };
 
+/**
+ * The notification bell in the top nav.
+ *
+ * **Still dummy-backed** — the Notifications part of scope §6.22 has no API
+ * yet, so the list comes from `dummyData/notifications.js` through its store,
+ * like every other screen built ahead of its backend. It used to be an array
+ * inside this file, which put invented overdue balances in the nav of every
+ * page with nothing to say where they came from.
+ */
 export default function NotificationPopover() {
   const [tab, setTab] = useState("all");
-  const unreadCount = notifications.filter((n) => n.unread).length;
-  const visible = tab === "unread" ? notifications.filter((n) => n.unread) : notifications;
+  const notifications = useNotificationsStore((s) => s.notifications);
+  const unreadCount = notifications?.filter((n) => n?.unread)?.length ?? 0;
+  const visible = tab === "unread" ? notifications?.filter((n) => n?.unread) : notifications;
 
   return (
     <Popover>
@@ -90,7 +71,7 @@ export default function NotificationPopover() {
         </div>
 
         <div className="flex flex-col gap-2 w-full max-h-80 overflow-y-auto">
-          {visible.map((n) => (
+          {visible?.map((n) => (
             <div
               key={n.id}
               className={cn(

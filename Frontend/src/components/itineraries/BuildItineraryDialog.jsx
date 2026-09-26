@@ -63,8 +63,11 @@ export default function BuildItineraryDialog() {
   const [linkedTrip, setLinkedTrip] = useState("");
   const [client, setClient] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
-  const [routeFrom, setRouteFrom] = useState("KTEB");
-  const [routeTo, setRouteTo] = useState("KTTB");
+  // Every field opens blank. The form used to open on a route (to "KTTB",
+  // which is not an airport), a caterer, a car and an FBO, so a hurried save
+  // put a Mercedes and seafood on an itinerary nobody had ordered them for.
+  const [routeFrom, setRouteFrom] = useState("");
+  const [routeTo, setRouteTo] = useState("");
   const [departureDate, setDepartureDate] = useState("");
   const [departureTime, setDepartureTime] = useState("");
   const [arrivalTime, setArrivalTime] = useState("");
@@ -79,9 +82,9 @@ export default function BuildItineraryDialog() {
   const [operatorItineraryText, setOperatorItineraryText] = useState("");
   const [exteriorImage, setExteriorImage] = useState("");
   const [interiorImage, setInteriorImage] = useState("");
-  const [catering, setCatering] = useState("Sea food Premium");
-  const [groundTransport, setGroundTransport] = useState("Mercedes S class");
-  const [fbo, setFbo] = useState("Signature Flight Support");
+  const [catering, setCatering] = useState("");
+  const [groundTransport, setGroundTransport] = useState("");
+  const [fbo, setFbo] = useState("");
   const [notes, setNotes] = useState("");
 
   const [passengers, setPassengers] = useState([{ name: "", passport: "" }]);
@@ -90,8 +93,8 @@ export default function BuildItineraryDialog() {
     setLinkedTrip("");
     setClient("");
     setLogoUrl("");
-    setRouteFrom("KTEB");
-    setRouteTo("KTTB");
+    setRouteFrom("");
+    setRouteTo("");
     setDepartureDate("");
     setDepartureTime("");
     setArrivalTime("");
@@ -106,9 +109,9 @@ export default function BuildItineraryDialog() {
     setOperatorItineraryText("");
     setExteriorImage("");
     setInteriorImage("");
-    setCatering("Sea food Premium");
-    setGroundTransport("Mercedes S class");
-    setFbo("Signature Flight Support");
+    setCatering("");
+    setGroundTransport("");
+    setFbo("");
     setNotes("");
     setPassengers([{ name: "", passport: "" }]);
     setActiveTab("form");
@@ -134,7 +137,9 @@ export default function BuildItineraryDialog() {
   const fboByName = (name) => {
     if (!name) return null;
     const match = FBO_OPTIONS.find((f) => f.name === name);
-    return { name, address: match?.address || "", phone: "Contact FBO", email: "Contact FBO" };
+    // Phone and email stay empty until the FBO directory has them — "Contact
+    // FBO" in a phone field reads like a number somebody looked up.
+    return { name, address: match?.address || "", phone: "", email: "" };
   };
 
   // The same object shape ItineraryPreview already renders for a saved
@@ -174,11 +179,21 @@ export default function BuildItineraryDialog() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const listedPassengers = passengers
+      .filter((p) => p.name.trim() || p.passport.trim())
+      .map((p) => ({ name: p.name.trim(), passport: p.passport.trim() }));
+
+    // What was typed, and nothing else. Blanks stay blank and the document
+    // renders them as em dashes — this used to save "Passenger Client", a
+    // KTEB → KPBI route, a 22:00 departure, "Passenger 1" and a random
+    // passport number for anything left empty.
     addItinerary({
-      client: client || "Passenger Client",
-      from: routeFrom || "KTEB",
-      to: routeTo || "KPBI",
-      departure: departureDate ? `${departureDate} • ${departureTime || "22:00"}` : undefined,
+      client: client || undefined,
+      from: routeFrom || undefined,
+      to: routeTo || undefined,
+      departure: departureDate
+        ? [departureDate, departureTime].filter(Boolean).join(" • ")
+        : undefined,
       departureDate: previewItem.departureDate || undefined,
       departureTime: previewItem.departureTime || undefined,
       arrivalTime: previewItem.arrivalTime || undefined,
@@ -187,11 +202,8 @@ export default function BuildItineraryDialog() {
       tailNumber: tailNumber || undefined,
       flightTime: flightTime || undefined,
       miles: miles || undefined,
-      passengersCount: `${passengers.length} pax`,
-      passengers: passengers.map((p, i) => ({
-        name: p.name || `Passenger ${i + 1}`,
-        passport: p.passport || `P-${Math.floor(1000000 + Math.random() * 9000000)}`,
-      })),
+      passengersCount: listedPassengers.length ? `${listedPassengers.length} pax` : undefined,
+      passengers: listedPassengers,
       catering,
       groundTransport,
       fbo,
