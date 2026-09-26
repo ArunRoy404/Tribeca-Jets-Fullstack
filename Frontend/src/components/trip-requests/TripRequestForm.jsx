@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import FormField from "@/components/trips/FormField";
 import PickerSelect from "@/components/trips/PickerSelect";
 import DatePicker from "@/components/common/DatePicker";
+import { optionalNumber, optionalText } from "@/lib/form";
 
 const FIELD_CLASS = "h-13 px-4 rounded-sm text-base font-medium";
 const LABEL_CLASS = "text-[16px] text-foreground mb-2";
@@ -284,17 +285,8 @@ export default function TripRequestForm({
  */
 export function toTripRequestPayload(form, { forUpdate = false } = {}) {
   const blank = forUpdate ? null : undefined;
-
-  const text = (value) => {
-    const trimmed = String(value ?? "").trim();
-    return trimmed || blank;
-  };
-  const number = (value) => {
-    const trimmed = String(value ?? "").trim();
-    if (!trimmed) return blank;
-    const parsed = Number(trimmed);
-    return Number.isFinite(parsed) ? parsed : blank;
-  };
+  const text = (value) => optionalText(value, { editing: forUpdate });
+  const number = (value) => optionalNumber(value, { editing: forUpdate });
 
   return {
     clientId: form?.clientId || undefined,

@@ -50,6 +50,7 @@ import QuoteVersionsCard from "@/components/quotes/versions/QuoteVersionsCard";
 import QuoteStatusActionsCard from "@/components/quotes/actions/QuoteStatusActionsCard";
 import QuoteNotesCard from "@/components/quotes/notes/QuoteNotesCard";
 import { cn } from "@/lib/utils";
+import { optionalNumber, optionalText } from "@/lib/form";
 
 /**
  * Writes or edits a client quote, full-screen with a live document preview —
@@ -113,15 +114,6 @@ const EMPTY_FORM = {
   versionNote: "",
 };
 
-/** Blank stays blank: an empty number box sends "", and `Number("")` is 0. */
-const optionalText = (value) => {
-  const trimmed = String(value ?? "").trim();
-  return trimmed || undefined;
-};
-const optionalNumber = (value) => {
-  const trimmed = String(value ?? "").trim();
-  return trimmed === "" ? undefined : Number(trimmed);
-};
 
 let lineItemSeq = 0;
 const newLineItem = () => ({ key: `li-${++lineItemSeq}`, label: "", amount: "", included: false });
@@ -390,6 +382,10 @@ export default function AddQuoteDialog() {
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
 
+    // On edit a cleared box is sent as null, which is what clears it; an
+    // omitted field is "leave it alone". Removing the photo, the terms or the
+    // operator cost used to save as a no-op.
+    const clear = { editing: Boolean(editing) };
     const payload = {
       clientId: form.clientId,
       assignedBrokerId: form.assignedBrokerId || null,
@@ -397,19 +393,19 @@ export default function AddQuoteDialog() {
       originAirportId: form.originAirportId || null,
       destinationAirportId: form.destinationAirportId || null,
       aircraftId: form.aircraftId || null,
-      quotedAircraft: optionalText(form.quotedAircraft),
-      exteriorImageUrl: optionalText(form.exteriorImageUrl),
-      departureDate: optionalText(form.departureDate),
-      returnDate: optionalText(form.returnDate),
-      validUntil: optionalText(form.validUntil),
-      passengers: optionalNumber(form.passengers),
+      quotedAircraft: optionalText(form.quotedAircraft, clear),
+      exteriorImageUrl: optionalText(form.exteriorImageUrl, clear),
+      departureDate: optionalText(form.departureDate, clear),
+      returnDate: optionalText(form.returnDate, clear),
+      validUntil: optionalText(form.validUntil, clear),
+      passengers: optionalNumber(form.passengers, clear),
       basePrice: Number(form.basePrice),
       fetEnabled: form.fetEnabled,
-      operatorCost: optionalNumber(form.operatorCost),
-      depositAmount: optionalNumber(form.depositAmount),
+      operatorCost: optionalNumber(form.operatorCost, clear),
+      depositAmount: optionalNumber(form.depositAmount, clear),
       lineItems: validLineItemsForPreview,
-      terms: optionalText(form.terms),
-      internalNotes: optionalText(form.internalNotes),
+      terms: optionalText(form.terms, clear),
+      internalNotes: optionalText(form.internalNotes, clear),
     };
 
     if (editing) {

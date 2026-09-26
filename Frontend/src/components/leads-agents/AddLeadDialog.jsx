@@ -7,6 +7,10 @@ import { useCreateClient, useUpdateClient } from "@/hooks/clients";
 import { useCreateTripRequest } from "@/hooks/trip-requests";
 import { useUsers } from "@/hooks/users";
 import { useAirports } from "@/hooks/airports";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { optionalNumber, optionalText } from "@/lib/form";
+import { Permission, Scope } from "@/lib/permissions";
+import { BROKER_ROLES } from "@/lib/roles";
 import {
   FOLLOW_UP_METHODS,
   LEAD_PRIORITIES,
@@ -67,8 +71,6 @@ function SectionHeader({ title, hint }) {
 const SELECT_CLASS =
   "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
 
-const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER", "ADMIN"]);
-
 /**
  * Empty, not pre-filled.
  *
@@ -103,17 +105,6 @@ const EMPTY_FORM = {
 
 const fieldValue = (value) => (!value || value === "—" ? "" : String(value));
 const dateValue = (value) => (value ? String(value).slice(0, 10) : "");
-const optional = (value) => {
-  const trimmed = (value ?? "").trim();
-  return trimmed ? trimmed : undefined;
-};
-/** A blank numeric box must never become 0 — `Number('')` is 0. */
-const numeric = (value) => {
-  const trimmed = (value ?? "").trim();
-  if (!trimmed) return undefined;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
 
 function initialForm(lead) {
   if (!lead) return EMPTY_FORM;
@@ -161,6 +152,13 @@ function LeadForm({ editingLead, onDone }) {
   const { mutate: updateClient, isPending: isUpdating } = useUpdateClient();
   const { mutateAsync: createRequest } = useCreateTripRequest();
   const editing = Boolean(editingLead);
+  // The person's fields clear on edit (null), the enquiry's are create-only.
+  const optional = (value) => optionalText(value, { editing });
+
+  // Choosing the broker is reassigning the lead, which only a role holding
+  // the whole book may do — a broker's new lead is theirs, set by the API.
+  const { scopeFor } = usePermissions();
+  const mayAssignBroker = scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL;
 
   const { data: users } = useUsers({ limit: 100 });
   const brokers = useMemo(
@@ -185,15 +183,17 @@ function LeadForm({ editingLead, onDone }) {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       companyName: optional(form.companyName),
-      email: optional(form.email)?.toLowerCase(),
+      email: optional(form.email.toLowerCase()),
       phone: optional(form.phone),
-      type: "DIRECT",
-      status: "LEAD",
+      // Type and status are set once, when the lead is created. The form has
+      // no control for either, so sending them on edit silently turned a
+      // travel-agent lead into a direct client every time it was saved.
+      ...(editing ? {} : { type: "DIRECT", status: "LEAD" }),
       leadStage: form.leadStage,
       leadSource: form.leadSource || "DIRECT",
       priority: form.priority,
       followUpMethod: form.followUpMethod || null,
-      assignedBrokerId: optional(form.assignedBrokerId),
+      ...(mayAssignBroker ? { assignedBrokerId: optional(form.assignedBrokerId) } : {}),
       nextFollowUpAt: form.nextFollowUpAt
         ? new Date(`${form.nextFollowUpAt}T00:00`).toISOString()
         : null,
@@ -210,15 +210,15 @@ function LeadForm({ editingLead, onDone }) {
     // Anything typed into the enquiry half becomes a TripRequest. Nothing
     // there is required: a lead can arrive as a name and a phone number.
     const enquiry = {
-      summary: optional(form.summary),
+      summary: optionalText(form.summary),
       originAirportId: form.originAirportId || null,
       destinationAirportId: form.destinationAirportId || null,
-      departureDate: optional(form.departureDate),
-      returnDate: optional(form.returnDate),
-      passengers: numeric(form.passengers),
+      departureDate: optionalText(form.departureDate),
+      returnDate: optionalText(form.returnDate),
+      passengers: optionalNumber(form.passengers),
       aircraftPreference: form.aircraftPreference || undefined,
-      estimatedValue: numeric(form.estimatedValue),
-      requirements: optional(form.requirements),
+      estimatedValue: optionalNumber(form.estimatedValue),
+      requirements: optionalText(form.requirements),
       source: form.leadSource || "DIRECT",
     };
     const hasEnquiry = Object.values(enquiry).some(
@@ -233,7 +233,9 @@ function LeadForm({ editingLead, onDone }) {
           await createRequest({
             ...enquiry,
             clientId: created.id,
-            assignedBrokerId: client.assignedBrokerId ?? null,
+            // Whoever the API actually assigned the client to — for a broker
+            // that is themselves, whatever the form did or did not send.
+            assignedBrokerId: created?.assignedBroker?.id ?? null,
             silent: true,
           });
         }
@@ -350,20 +352,22 @@ function LeadForm({ editingLead, onDone }) {
             </select>
           </FieldWrapper>
 
-          <FieldWrapper label="Assigned Broker" optional>
-            <select
-              value={form.assignedBrokerId}
-              onChange={(e) => set("assignedBrokerId", e.target.value)}
-              className={SELECT_CLASS}
-            >
-              <option value="">Unassigned</option>
-              {brokers.map((broker) => (
-                <option key={broker.id} value={broker.id}>
-                  {personName(broker)}
-                </option>
-              ))}
-            </select>
-          </FieldWrapper>
+          {mayAssignBroker && (
+            <FieldWrapper label="Assigned Broker" optional>
+              <select
+                value={form.assignedBrokerId}
+                onChange={(e) => set("assignedBrokerId", e.target.value)}
+                className={SELECT_CLASS}
+              >
+                <option value="">Unassigned</option>
+                {brokers.map((broker) => (
+                  <option key={broker.id} value={broker.id}>
+                    {personName(broker)}
+                  </option>
+                ))}
+              </select>
+            </FieldWrapper>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">

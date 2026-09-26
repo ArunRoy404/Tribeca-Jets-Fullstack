@@ -19,6 +19,7 @@ import {
   personName,
 } from "@/lib/lead";
 import { ARCHIVE_TABS } from "@/lib/archive";
+import { BROKER_ROLES } from "@/lib/roles";
 
 const ALL_STAGES = "All Stages";
 const ALL_SOURCES = "All Sources";
@@ -33,7 +34,6 @@ const TAB_IDS = Object.fromEntries(
   Object.entries(TAB_LABELS).map(([id, label]) => [label, id]),
 );
 
-const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER", "ADMIN"]);
 
 /** Labels for the dropdown, enum constants on the wire. Same shape three times. */
 function useEnumFilter(values, format, allLabel) {

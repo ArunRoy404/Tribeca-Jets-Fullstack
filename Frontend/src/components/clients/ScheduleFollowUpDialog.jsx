@@ -5,6 +5,9 @@ import { Calendar as CalendarIcon, X } from "lucide-react";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useUpdateClient } from "@/hooks/clients";
 import { useUsers } from "@/hooks/users";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission, Scope } from "@/lib/permissions";
+import { BROKER_ROLES } from "@/lib/roles";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/common/DatePicker";
@@ -24,14 +27,15 @@ function FieldWrapper({ label, children, optional }) {
   );
 }
 
-/** Only brokers own clients, so only brokers can be assigned one. */
-const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER"]);
-
 export default function ScheduleFollowUpDialog() {
   const open = useClientsStore((s) => s.followUpModalOpen);
   const client = useClientsStore((s) => s.followUpTarget);
   const closeModal = useClientsStore((s) => s.closeFollowUpModal);
   const { mutate: updateClient, isPending } = useUpdateClient();
+  // Reassigning is for a role holding the whole book; the picker is not shown
+  // to anyone the API would refuse.
+  const { scopeFor } = usePermissions();
+  const mayAssignBroker = scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL;
 
   // Real colleagues, not a hardcoded list of first names.
   const { data: users } = useUsers({ limit: 100 });
@@ -60,7 +64,7 @@ export default function ScheduleFollowUpDialog() {
         id: client.id,
         nextFollowUpAt: nextFollowUpAt.toISOString(),
         followUpNote: note || null,
-        ...(broker ? { assignedBrokerId: broker } : {}),
+        ...(mayAssignBroker && broker ? { assignedBrokerId: broker } : {}),
       },
       { onSuccess: closeModal },
     );
@@ -91,20 +95,22 @@ export default function ScheduleFollowUpDialog() {
           </div>
 
           {/* Row 3: Assigned Broker */}
-          <FieldWrapper label="Assigned Broker">
-            <select
-              value={broker}
-              onChange={(e) => setBroker(e.target.value)}
-              className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
-            >
-              <option value="">Leave unchanged</option>
-              {brokers.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {`${b.firstName} ${b.lastName}`.trim()}
-                </option>
-              ))}
-            </select>
-          </FieldWrapper>
+          {mayAssignBroker && (
+            <FieldWrapper label="Assigned Broker">
+              <select
+                value={broker}
+                onChange={(e) => setBroker(e.target.value)}
+                className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
+              >
+                <option value="">Leave unchanged</option>
+                {brokers.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {`${b.firstName} ${b.lastName}`.trim()}
+                  </option>
+                ))}
+              </select>
+            </FieldWrapper>
+          )}
 
           {/* Row 4: Notes ( Optional ) */}
           <FieldWrapper label="Notes" optional>

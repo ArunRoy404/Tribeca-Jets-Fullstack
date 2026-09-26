@@ -14,6 +14,7 @@ import { useUsers } from "@/hooks/users";
 import { formatQuoteStatus, QUOTE_STATUSES } from "@/lib/quote";
 import { personName } from "@/lib/lead";
 import { ARCHIVE_TABS } from "@/lib/archive";
+import { BROKER_ROLES } from "@/lib/roles";
 
 const ALL_STATUS = "All Status";
 const ALL_BROKERS = "All Brokers";
@@ -26,8 +27,6 @@ const TAB_IDS = Object.fromEntries(
   Object.entries(TAB_LABELS).map(([id, label]) => [label, id]),
 );
 
-/** Only brokers own quotes, so only brokers appear in the filter. */
-const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER", "ADMIN"]);
 
 export default function QuotesToolbar({
   search,

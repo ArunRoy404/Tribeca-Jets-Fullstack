@@ -11,6 +11,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { optionalText } from "@/lib/form";
 
 function FieldWrapper({ label, children, optional, error }) {
   return (
@@ -173,14 +174,10 @@ function OperatorForm({ editingOperator, onDone }) {
       ? formData.serviceRoutesInput.split(",").map((r) => r.trim()).filter(Boolean)
       : [];
 
+    // Absent means "leave it alone", null means "clear it" — the API
+    // distinguishes the two, so a create omits and an edit nulls.
     const editing = Boolean(editingOperator);
-    const optional = (value) => {
-      const trimmed = (value ?? "").trim();
-      if (trimmed) return trimmed;
-      // Absent means "leave it alone", null means "clear it" — the API
-      // distinguishes the two, so a create omits and an edit nulls.
-      return editing ? null : undefined;
-    };
+    const optional = (value) => optionalText(value, { editing });
 
     const payload = {
       name: formData.name.trim(),

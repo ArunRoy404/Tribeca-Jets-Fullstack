@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import FormField from "@/components/trips/FormField";
 import { useCreateAirport, useUpdateAirport } from "@/hooks/airports";
+import { optionalNumber, optionalText } from "@/lib/form";
 
 const FIELD_CLASS = "h-12 px-4 rounded-sm text-base font-medium";
 const LABEL_CLASS = "text-[14px] text-foreground mb-1.5";
@@ -18,31 +19,15 @@ const EMPTY_FORM = {
   name: "",
   city: "",
   state: "",
-  country: "USA",
+  // Blank, not "USA": the API requires a country, and a default would file
+  // London Luton as an American airport on a hurried save.
+  country: "",
   latitude: "",
   longitude: "",
   longestRunwayFt: "",
   assignedFbo: "",
   notes: "",
 };
-
-/**
- * Optional text fields are sent as null when cleared and omitted when never
- * filled in, because the API distinguishes the two: absent means "leave it
- * alone", null means "clear it".
- */
-function optional(value, { editing }) {
-  const trimmed = (value ?? "").trim();
-  if (trimmed) return trimmed;
-  return editing ? null : undefined;
-}
-
-function optionalNumber(value, { editing }) {
-  const trimmed = String(value ?? "").trim();
-  if (!trimmed) return editing ? null : undefined;
-  const number = Number(trimmed);
-  return Number.isFinite(number) ? number : undefined;
-}
 
 function initialForm(airport) {
   if (!airport) return EMPTY_FORM;
@@ -52,7 +37,7 @@ function initialForm(airport) {
     name: airport.name || "",
     city: airport.city || "",
     state: airport.state || "",
-    country: airport.country || "USA",
+    country: airport.country || "",
     latitude: airport.latitude ?? "",
     longitude: airport.longitude ?? "",
     longestRunwayFt: airport.longestRunwayFt ?? "",
@@ -115,19 +100,19 @@ function AirportForm({ editingAirport, onDone }) {
 
     const payload = {
       icao: formData.icao.trim().toUpperCase(),
-      iata: optional(formData.iata.toUpperCase(), { editing }),
+      iata: optionalText(formData.iata.toUpperCase(), { editing }),
       name: formData.name.trim(),
       city: formData.city.trim(),
-      state: optional(formData.state.toUpperCase(), { editing }),
+      state: optionalText(formData.state.toUpperCase(), { editing }),
       country: formData.country.trim(),
       latitude: optionalNumber(String(formData.latitude), { editing }),
       longitude: optionalNumber(String(formData.longitude), { editing }),
       longestRunwayFt: optionalNumber(String(formData.longestRunwayFt), { editing }),
-      assignedFbo: optional(formData.assignedFbo, { editing }),
+      assignedFbo: optionalText(formData.assignedFbo, { editing }),
       // Previously stamped with a hardcoded sentence when left blank, which
       // wrote "Primary departure airport for NYC clients." onto airports
       // nowhere near New York.
-      notes: optional(formData.notes, { editing }),
+      notes: optionalText(formData.notes, { editing }),
     };
 
     if (editing) {

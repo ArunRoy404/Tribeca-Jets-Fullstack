@@ -19,6 +19,8 @@ import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
 import { useClient } from "@/hooks/clients";
 import { useTripRequests } from "@/hooks/trip-requests";
 import { toLeadRow, toTripRequestRow } from "@/lib/lead";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission, Scope } from "@/lib/permissions";
 
 /**
  * LeadDetailPage
@@ -40,6 +42,12 @@ export default function LeadDetailPage({ params }) {
   const openConvertLeadModal = useLeadsAgentsStore((s) => s.openConvertLeadModal);
   const openArchiveLeadModal = useLeadsAgentsStore((s) => s.openArchiveLeadModal);
   const openEditLeadModal = useLeadsAgentsStore((s) => s.openEditLeadModal);
+
+  // The same two answers the leads table gives: a broker works their own
+  // leads, and only a role holding the whole book reassigns or removes one.
+  const { canWrite, scopeFor } = usePermissions();
+  const mayWrite = canWrite(Permission.MANAGE_CLIENTS);
+  const mayAdminister = scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL;
 
   // A lead is a client — there is no separate leads endpoint.
   const { data, isPending, error, refetch } = useClient(rawId);
@@ -76,16 +84,20 @@ export default function LeadDetailPage({ params }) {
     );
   }
 
+  const live = mayWrite && !lead?.isArchived;
+
   return (
     <div className="flex flex-col w-full bg-page-bg min-h-screen">
       {/* Top Header */}
+      {/* An archived lead is read-only here: it opens from the Archived tab,
+          and restoring it is that tab's action. */}
       <LeadDetailHeader
         lead={lead}
-        onEdit={() => openEditLeadModal(lead)}
-        onFollowUp={() => openFollowUpModal(lead)}
-        onConvert={() => openConvertLeadModal(lead)}
-        onAssignBroker={() => openAssignBrokerModal(lead)}
-        onArchive={() => openArchiveLeadModal(lead)}
+        onEdit={live ? () => openEditLeadModal(lead) : undefined}
+        onFollowUp={live ? () => openFollowUpModal(lead) : undefined}
+        onConvert={live ? () => openConvertLeadModal(lead) : undefined}
+        onAssignBroker={live && mayAdminister ? () => openAssignBrokerModal(lead) : undefined}
+        onArchive={live && mayAdminister ? () => openArchiveLeadModal(lead) : undefined}
       />
 
       {/* 6 Stats KPI Row */}
