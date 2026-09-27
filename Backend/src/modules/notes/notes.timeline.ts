@@ -1,3 +1,5 @@
+import { mergePages } from '../../common/database/merge-pages.js';
+
 /**
  * Merging two ordered sources into one page.
  *
@@ -48,5 +50,5 @@ export function mergeTimeline<A extends TimelineRow, B extends TimelineRow>(
   skip: number,
   take: number,
 ): (A | B)[] {
-  return [...notes, ...events].sort(newestFirst).slice(skip, skip + take);
+  return mergePages<A | B>([notes, events], skip, take, newestFirst);
 }
