@@ -1,0 +1,133 @@
+/// A referral submitted by a REFERRAL_AGENT through the partner portal —
+/// client adjustment #11.
+///
+/// Deliberately **not** a trip request. The agent's ladder (Submitted →
+/// Contacted → Quoting → Booked → Completed) has steps the desk's enquiry
+/// ladder does not, and one screen would lie about the other. So a referral
+/// is the agent's own record of what they sent, and the desk *converts* it
+/// into the CRM's real records — a client and a trip request — which the
+/// referral then points at. The agent only ever reads this row; the desk's
+/// records, notes and figures stay on the desk's side.
+model Referral {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// "RF-1001" on screen. Assigned by the database, never reused.
+  reference Int @unique @default(autoincrement())
+
+  /// Who sent it — "Referral Source: [agent]" is this column, not a label
+  /// string that goes stale when the agent's name is corrected.
+  agentId String @db.Uuid
+  agent   User   @relation("ReferralAgent", fields: [agentId], references: [id], onDelete: Restrict)
+
+  status ReferralStatus @default(SUBMITTED)
+
+  // ---- What the agent submitted ------------------------------------------
+  // Their own words, kept as sent: the CRM client the desk creates from it
+  // is edited over time, and the agent's record of what they referred is not.
+  clientFirstName String  @db.VarChar(100)
+  clientLastName  String  @db.VarChar(100)
+  clientEmail     String? @db.VarChar(254)
+  clientPhone     String? @db.VarChar(40)
+
+  originAirportId      String?  @db.Uuid
+  originAirport        Airport? @relation("ReferralOrigin", fields: [originAirportId], references: [id], onDelete: SetNull)
+  destinationAirportId String?  @db.Uuid
+  destinationAirport   Airport? @relation("ReferralDestination", fields: [destinationAirportId], references: [id], onDelete: SetNull)
+
+  departureDate DateTime? @db.Date
+  returnDate    DateTime? @db.Date
+  /// "HH:MM", local at the origin.
+  departureTime String?   @db.VarChar(5)
+
+  passengers         Int?
+  aircraftPreference AircraftCategory?
+  /// The client's approximate budget, as the agent heard it.
+  budget             Decimal?          @db.Decimal(12, 2)
+  /// The agent's own notes. They wrote them, so they read them — unlike the
+  /// desk's notes, which they never see.
+  notes              String?
+  /// Relative `/api/uploads/<id>` URLs. Uploaded PRIVATE by the agent; the
+  /// desk opens them through `GET /referrals/:id/attachments/:uploadId`.
+  attachmentUrls     String[]          @default([])
+
+  // ---- The desk's side ---------------------------------------------------
+  assignedBrokerId String? @db.Uuid
+  assignedBroker   User?   @relation("ReferralAssignedBroker", fields: [assignedBrokerId], references: [id], onDelete: SetNull)
+
+  /// The CRM client and enquiry this referral became. Set by converting it.
+  clientId      String?      @db.Uuid
+  client        Client?      @relation("ReferralClient", fields: [clientId], references: [id], onDelete: SetNull)
+  tripRequestId String?      @unique @db.Uuid
+  tripRequest   TripRequest? @relation("ReferralTripRequest", fields: [tripRequestId], references: [id], onDelete: SetNull)
+
+  /// The trip it booked — what "Trips booked" and the trip date on the
+  /// agent's Commission Center read.
+  tripId String? @db.Uuid
+  trip   Trip?   @relation("ReferralTrip", fields: [tripId], references: [id], onDelete: SetNull)
+
+  commissions Commission[] @relation("CommissionReferral")
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("ReferralCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("ReferralUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("ReferralDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("ReferralRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([agentId, deletedAt, status])
+  @@index([assignedBrokerId, status])
+  @@index([status, deletedAt])
+  @@map("referrals")
+}
+
+/// Client adjustment #11's ladder, verbatim, plus "Lost / Cancelled".
+enum ReferralStatus {
+  SUBMITTED
+  CONTACTED
+  QUOTING
+  BOOKED
+  COMPLETED
+  LOST
+  CANCELLED
+}
+
+/// A document in the portal's Resources section — the brochure, the aircraft
+/// category guide, the programme terms (#11).
+///
+/// The file itself is an ordinary PUBLIC upload; this row is what lists it.
+/// Uploads deliberately carry no category, so "which files are portal
+/// resources" is a record the portal keeps, not a flag on the file.
+model ReferralResource {
+  id String @id @default(uuid()) @db.Uuid
+
+  title       String  @db.VarChar(200)
+  description String? @db.VarChar(1000)
+  /// Relative `/api/uploads/<id>` URL of a PUBLIC document or image.
+  fileUrl     String
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("ReferralResourceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("ReferralResourceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("ReferralResourceDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("ReferralResourceRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([deletedAt, createdAt])
+  @@map("referral_resources")
+}

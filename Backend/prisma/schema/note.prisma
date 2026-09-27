@@ -90,6 +90,12 @@ model Note {
 /// this is polymorphic rather than a `clientId` column.
 enum NoteSubjectType {
   CLIENT
+  /// Client adjustment #5's "trip section" — added when Trips (#11) shipped,
+  /// exactly the one enum value the polymorphic design promised.
+  TRIP
+  /// A portal referral (#11). Its SHARED notes are the agent's "Agent
+  /// Update" feed; its INTERNAL notes never reach them.
+  REFERRAL
 }
 
 /// Who a note is written for.

@@ -53,16 +53,13 @@ model ClientCredit {
   /// processor, whatever they write down.
   reference String? @db.VarChar(100)
 
-  // ---------------------------------------------------------------------------
-  // Deliberately NOT here yet: `appliedToTripId`.
-  //
-  // Trips do not exist. A `tripReference` string "for now" would become a
-  // column pointing at nothing the database can check, and every row written
-  // that way becomes a migration, a backfill and a set of broken joins the day
-  // the real table arrives — which is precisely what `Client.homeAirport` cost
-  // us when it held an ICAO string. The FK lands with Trips, backfilled from
-  // `reason` by hand if the desk wants it.
-  // ---------------------------------------------------------------------------
+  /// The trip an APPLICATION was used towards — "select if it was used
+  /// towards another trip". Absent until Trips existed, deliberately, rather
+  /// than stubbed as a string; `reason` carried it until then. Only an
+  /// APPLICATION may carry one, and only a trip of the same client — both
+  /// checked in the service. SetNull: archiving a trip never erases money.
+  appliedToTripId String? @db.Uuid
+  appliedToTrip   Trip?   @relation("ClientCreditAppliedToTrip", fields: [appliedToTripId], references: [id], onDelete: SetNull)
 
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
@@ -82,6 +79,7 @@ model ClientCredit {
   /// The ledger read: one client's movements, newest first, live or archived.
   /// Also the index the balance sums over.
   @@index([clientId, deletedAt, occurredAt])
+  @@index([appliedToTripId])
   @@map("client_credits")
 }
 

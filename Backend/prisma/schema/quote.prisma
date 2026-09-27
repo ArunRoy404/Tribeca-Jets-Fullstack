@@ -160,6 +160,9 @@ model Quote {
 
   versions QuoteVersion[] @relation("QuoteVersionQuote")
 
+  /// The booking this offer became, if any. One offer books one trip.
+  trip Trip? @relation("TripQuote")
+
   // ---- Audit trail (every model carries these four) ------------------------
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

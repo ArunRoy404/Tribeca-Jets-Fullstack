@@ -1,0 +1,118 @@
+/// A commission owed on a trip (scope §6.12) — to a referral agent (client
+/// adjustment #11's Commission Center), to a client such as a travel agent,
+/// or to somebody outside the CRM entirely.
+///
+/// **What is stored is what a person decided**: the basis, the percentage or
+/// the amount, and — once it is settled — the final figure. The *estimated*
+/// commission is computed on every read from the trip's own computed profit,
+/// exactly as a quote's total is, so editing the trip's operator cost moves
+/// the estimate with it rather than leaving a stale number behind.
+model Commission {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// "COM-1001" on screen. Assigned by the database, never reused.
+  reference Int @unique @default(autoincrement())
+
+  /// Every commission is on a trip: it is a share of what that trip earned.
+  /// Restrict — a trip carrying a commission is financial history.
+  tripId String @db.Uuid
+  trip   Trip   @relation("CommissionTrip", fields: [tripId], references: [id], onDelete: Restrict)
+
+  /// Who is paid. Exactly one of the three recipient columns is set, and
+  /// `recipientType` says which — the service enforces it.
+  recipientType     CommissionRecipientType
+  recipientUserId   String?                 @db.Uuid
+  recipientUser     User?                   @relation("CommissionRecipientUser", fields: [recipientUserId], references: [id], onDelete: Restrict)
+  recipientClientId String?                 @db.Uuid
+  recipientClient   Client?                 @relation("CommissionRecipientClient", fields: [recipientClientId], references: [id], onDelete: Restrict)
+  /// A payee who is in no table: a name and, optionally, their company.
+  recipientName     String?                 @db.VarChar(200)
+  recipientCompany  String?                 @db.VarChar(200)
+
+  /// The referral this commission rewards, when it came from the portal.
+  referralId String?   @db.Uuid
+  referral   Referral? @relation("CommissionReferral", fields: [referralId], references: [id], onDelete: SetNull)
+
+  /// The broker the commission is booked against — who sees it on their own
+  /// list. Not the payee.
+  brokerId String? @db.Uuid
+  broker   User?   @relation("CommissionBroker", fields: [brokerId], references: [id], onDelete: SetNull)
+
+  /// How it is worked out. PERCENT_OF_PROFIT reads `percentage`; FLAT_FEE and
+  /// CUSTOM read `amount`.
+  basis      CommissionBasis @default(FLAT_FEE)
+  percentage Decimal?        @db.Decimal(5, 2)
+  amount     Decimal?        @db.Decimal(12, 2)
+
+  /// What was actually agreed once the trip flew. A decision, so it is
+  /// stored; until it is set, the estimate is the working figure.
+  finalAmount Decimal? @db.Decimal(12, 2)
+
+  status CommissionStatus @default(PENDING)
+  method CommissionPaymentMethod?
+  /// The day it was paid. A day, not a moment.
+  paidAt DateTime?                @db.Date
+
+  /// Desk commentary. Never shown to the payee.
+  notes String?
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("CommissionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("CommissionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("CommissionDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("CommissionRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@index([tripId])
+  @@index([recipientUserId, deletedAt])
+  @@index([brokerId])
+  @@index([referralId])
+  @@map("commissions")
+}
+
+enum CommissionRecipientType {
+  /// A REFERRAL_AGENT user — visible to them in the portal.
+  REFERRAL_AGENT
+  /// A CRM client, typically a travel agent.
+  CLIENT
+  /// Anyone else, by name.
+  MANUAL
+}
+
+/// Client adjustment #11: "percentage of Tribeca profit, flat fee, custom
+/// commission amount".
+enum CommissionBasis {
+  PERCENT_OF_PROFIT
+  FLAT_FEE
+  CUSTOM
+}
+
+/// #11's Pending / Earned / Paid, plus the way out. The old dummy screen's
+/// "Due", "Overdue" and "Partially Paid" were dropped: "Due" is Earned, and
+/// the other two need a due date and part-payments nobody records.
+enum CommissionStatus {
+  /// The trip has not flown yet, or the figure is not settled.
+  PENDING
+  /// Owed: the trip flew and the commission stands.
+  EARNED
+  PAID
+  CANCELLED
+}
+
+enum CommissionPaymentMethod {
+  WIRE_TRANSFER
+  ACH
+  CHECK
+  ZELLE
+  CREDIT_CARD
+  OTHER
+}

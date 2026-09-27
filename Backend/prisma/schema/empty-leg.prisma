@@ -1,0 +1,82 @@
+/// An empty leg: an aircraft repositioning with no passengers on board, which
+/// an operator offers at a discount rather than fly empty (scope §6.13).
+///
+/// Built ahead of its place in the queue for client adjustment #10b — "when
+/// we have empty legs that can match a previous trip request, we can still
+/// contact that client". The matching is not stored: it is a route-and-date
+/// query against trip requests, run on every read, so a request filed after
+/// the leg was entered still matches it.
+model EmptyLeg {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// "EL-1001" on screen. Assigned by the database, never reused.
+  reference Int @unique @default(autoincrement())
+
+  /// The route. Real airports, never names typed into a box — matching is by
+  /// airport id, and "Teterboro" typed twice two ways would never match.
+  originAirportId      String  @db.Uuid
+  originAirport        Airport @relation("EmptyLegOrigin", fields: [originAirportId], references: [id], onDelete: Restrict)
+  destinationAirportId String  @db.Uuid
+  destinationAirport   Airport @relation("EmptyLegDestination", fields: [destinationAirportId], references: [id], onDelete: Restrict)
+
+  /// The day it flies, and the local wheels-up time as "HH:MM" — kept apart
+  /// for the same reason a trip leg keeps them apart.
+  departureDate DateTime @db.Date
+  departureTime String?  @db.VarChar(5)
+
+  /// When the operator's offer lapses. A moment, not a day: operators say
+  /// "until 6pm". Past it, an open leg reads as expired without anyone
+  /// having to mark it — see `EmptyLegsService`.
+  expiresAt DateTime?
+
+  operatorId String?   @db.Uuid
+  operator   Operator? @relation("EmptyLegOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+
+  /// A fleet aircraft, or free text for a tail nobody has catalogued — the
+  /// same split a quote and a trip make.
+  aircraftId          String?   @db.Uuid
+  aircraft            Aircraft? @relation("EmptyLegAircraft", fields: [aircraftId], references: [id], onDelete: SetNull)
+  aircraftDescription String?   @db.VarChar(200)
+
+  /// Seats on offer, when the operator says.
+  seats Int?
+
+  /// The asking price for the whole aircraft. Null when the operator has not
+  /// named one — never 0, which would read as a free flight.
+  price Decimal? @db.Decimal(12, 2)
+
+  status EmptyLegStatus @default(AVAILABLE)
+
+  /// Desk commentary. Never shown to a client.
+  notes String?
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("EmptyLegCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("EmptyLegUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("EmptyLegDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("EmptyLegRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@index([originAirportId, destinationAirportId])
+  @@index([departureDate])
+  @@map("empty_legs")
+}
+
+/// Where the offer stands. EXPIRED is also *read* for an AVAILABLE or MATCHED
+/// leg whose `expiresAt` has passed — stored only when someone marks it.
+enum EmptyLegStatus {
+  AVAILABLE
+  /// A client has been matched and is being offered it.
+  MATCHED
+  BOOKED
+  EXPIRED
+}

@@ -77,6 +77,16 @@ model Client {
   /// page, which was an empty state until this module shipped.
   quotes Quote[] @relation("QuoteClient")
 
+  /// Booked flights. The Trips tab and total spend read these.
+  trips Trip[] @relation("TripClient")
+
+  /// The portal referrals this client came in through (#11) — "Referral
+  /// Source: [agent]" is read from here.
+  referrals Referral[] @relation("ReferralClient")
+
+  /// Commissions paid *to* this client — a travel agent's cut.
+  commissionsReceived Commission[] @relation("CommissionRecipientClient")
+
   /// Money this client has on account with us. A ledger of movements — the
   /// balance is summed from it and never stored. See `client-credit.prisma`.
   credits ClientCredit[] @relation("ClientCreditClient")

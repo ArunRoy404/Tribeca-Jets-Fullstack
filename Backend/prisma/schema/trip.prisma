@@ -1,0 +1,214 @@
+/// The booked flight — the centre of the system (scope §6.5). Client, broker,
+/// operator, aircraft, legs, passengers and the money, and the record every
+/// later module hangs off: itineraries, schedule, flight tracking, receivables,
+/// operator payments and commissions.
+///
+/// A trip is *booked*, which is what separates it from a `TripRequest` (what a
+/// client asked for) and a `Quote` (what we offered). It is usually born from
+/// an approved quote — `quoteId` — and when it is, it copies that quote's
+/// route, party and priced inputs at the moment of booking. From then on the
+/// trip owns its own figures: extras added after booking belong to the trip,
+/// and the quote stays the record of what was offered.
+model Trip {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// "TJ-1048" on screen. Assigned by the database, never reused.
+  reference Int @unique @default(autoincrement())
+
+  /// Who is flying (or the travel agent booking for them). Restrict: a trip
+  /// is financial history, and its client cannot be removed from under it.
+  clientId String @db.Uuid
+  client   Client @relation("TripClient", fields: [clientId], references: [id], onDelete: Restrict)
+
+  assignedBrokerId String? @db.Uuid
+  assignedBroker   User?   @relation("TripAssignedBroker", fields: [assignedBrokerId], references: [id], onDelete: SetNull)
+
+  /// Where it came from. Both optional: a trip can be booked directly.
+  tripRequestId String?      @db.Uuid
+  tripRequest   TripRequest? @relation("TripTripRequest", fields: [tripRequestId], references: [id], onDelete: SetNull)
+
+  /// The approved offer this booking realises. Unique: one offer books one
+  /// trip, and a second booking of the same quote is refused rather than
+  /// quietly producing two flights.
+  quoteId String? @unique @db.Uuid
+  quote   Quote?  @relation("TripQuote", fields: [quoteId], references: [id], onDelete: SetNull)
+
+  operatorId String?   @db.Uuid
+  operator   Operator? @relation("TripOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+
+  /// A fleet aircraft, or — for a tail we have not catalogued — free text in
+  /// `aircraftDescription`, the same split `Quote.quotedAircraft` makes.
+  aircraftId          String?   @db.Uuid
+  aircraft            Aircraft? @relation("TripAircraft", fields: [aircraftId], references: [id], onDelete: SetNull)
+  aircraftDescription String?   @db.VarChar(200)
+
+  type   TripType   @default(ONE_WAY)
+  status TripStatus @default(DRAFT)
+
+  /// The operator has confirmed the aircraft and times. A fact with a date,
+  /// not a status: a trip is CONFIRMED with the client and separately
+  /// confirmed by the operator, and the two happen in either order.
+  operatorConfirmedAt DateTime?
+
+  /// How many are flying. Kept apart from the named passengers because names
+  /// usually arrive days after the booking.
+  passengerCount Int?
+
+  /// The first leg's departure day, kept by the service on every write.
+  ///
+  /// A sort and filter key, not a figure: the board orders by departure and a
+  /// list cannot sort on the minimum of a child table. Only the service writes
+  /// legs, and it rewrites this in the same transaction, so the two cannot
+  /// disagree. Nothing displays it — the legs are what the screen reads.
+  departureDate DateTime? @db.Date
+
+  // ---- The priced inputs, exactly as on a quote ---------------------------
+  // Only what a person typed. FET amount, total, profit and margin are
+  // computed on every read by the same `priceQuote()` a quote uses.
+  basePrice    Decimal? @db.Decimal(12, 2)
+  fetEnabled   Boolean  @default(true)
+  fetRate      Decimal  @default(0.075) @db.Decimal(6, 5)
+  operatorCost Decimal? @db.Decimal(12, 2)
+  lineItems    Json     @default("[]")
+
+  internalNotes String?
+  /// Shared with the client — catering, special requests.
+  clientNotes   String?
+
+  /// Relative `/api/uploads/<id>` URLs: signed contracts, the operator's
+  /// confirmation. The file itself lives in uploads.
+  documentUrls String[] @default([])
+
+  legs       TripLeg[]       @relation("TripLegTrip")
+  passengers TripPassenger[] @relation("TripPassengerTrip")
+
+  /// Credit a client spent on this trip (client adjustment #9's "used towards
+  /// another trip") — the foreign key that was deliberately absent until now.
+  creditApplications ClientCredit[] @relation("ClientCreditAppliedToTrip")
+
+  /// Commissions owed on this trip, and the referral that brought it in.
+  commissions Commission[] @relation("CommissionTrip")
+  referrals   Referral[]   @relation("ReferralTrip")
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("TripCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("TripUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("TripDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("TripRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@index([assignedBrokerId, status])
+  @@index([clientId])
+  @@index([operatorId])
+  @@index([aircraftId])
+  @@index([departureDate])
+  @@map("trips")
+}
+
+/// One flight of a trip, in order. A one-way trip has one leg, a round trip
+/// two, a multi-leg trip as many as it needs (scope §10, "Trip Leg").
+///
+/// Legs removed on an edit are archived, not deleted — nothing in this system
+/// is destroyed, and "what was the original routing?" is a question a charter
+/// desk gets asked.
+model TripLeg {
+  id String @id @default(uuid()) @db.Uuid
+
+  tripId String @db.Uuid
+  trip   Trip   @relation("TripLegTrip", fields: [tripId], references: [id], onDelete: Restrict)
+
+  /// 1-based position in the itinerary.
+  sequence Int
+
+  originAirportId      String  @db.Uuid
+  originAirport        Airport @relation("TripLegOrigin", fields: [originAirportId], references: [id], onDelete: Restrict)
+  destinationAirportId String  @db.Uuid
+  destinationAirport   Airport @relation("TripLegDestination", fields: [destinationAirportId], references: [id], onDelete: Restrict)
+
+  /// The day, and the local wheels-up time at the origin as "HH:MM". Kept
+  /// apart deliberately: a charter departure is quoted in the origin's local
+  /// time, and a single UTC timestamp would render 10:00 Teterboro as 07:00
+  /// for anyone reading it in California.
+  departureDate DateTime? @db.Date
+  departureTime String?   @db.VarChar(5)
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("TripLegCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("TripLegUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("TripLegDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("TripLegRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([tripId, deletedAt, sequence])
+  @@map("trip_legs")
+}
+
+/// A named passenger. Sensitive: a passport number is identity data, readable
+/// only by whoever may read the trip itself.
+model TripPassenger {
+  id String @id @default(uuid()) @db.Uuid
+
+  tripId String @db.Uuid
+  trip   Trip   @relation("TripPassengerTrip", fields: [tripId], references: [id], onDelete: Restrict)
+
+  sequence       Int
+  fullName       String    @db.VarChar(200)
+  dateOfBirth    DateTime? @db.Date
+  passportNumber String?   @db.VarChar(40)
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("TripPassengerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("TripPassengerUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("TripPassengerDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("TripPassengerRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([tripId, deletedAt, sequence])
+  @@map("trip_passengers")
+}
+
+enum TripType {
+  ONE_WAY
+  ROUND_TRIP
+  MULTI_LEG
+}
+
+/// Where the booking stands. `REQUESTED` and `SOURCING` from the old dummy
+/// board are not here on purpose: those are a *trip request's* states
+/// (`TripRequestStatus`), and a trip exists only once something is booked.
+enum TripStatus {
+  /// Being assembled; nothing promised yet.
+  DRAFT
+  /// The client has committed.
+  BOOKED
+  /// Everything is locked in — client, aircraft, times.
+  CONFIRMED
+  IN_FLIGHT
+  COMPLETED
+  CANCELLED
+}

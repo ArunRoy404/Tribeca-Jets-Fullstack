@@ -1,0 +1,46 @@
+/// What the desk pays per flight hour for each size of aircraft — the data
+/// behind client adjustment #6's instant estimate ("put in size of plane,
+/// airports and such and it give is an estimate").
+///
+/// **The desk's own numbers, never invented ones.** The client offered to
+/// supply the rates; until someone types them in, a category has no rate and
+/// the estimate says so rather than guessing. Scope §18: AI must not be the
+/// source of truth for financial calculations, and neither may a constant in
+/// the code.
+///
+/// One row per category, created the first time a rate is set. Nothing is
+/// ever removed: clearing a rate sets it to null, and every change lands in
+/// the audit log with its before and after, which is the history a desk needs
+/// to answer "what rate did we estimate that trip on?".
+model CharterRate {
+  id String @id @default(uuid()) @db.Uuid
+
+  category AircraftCategory @unique
+
+  /// Operator cost per flight hour, in dollars. Null = no rate on file.
+  hourlyRate Decimal? @db.Decimal(12, 2)
+
+  /// Average block speed in knots, which turns a distance into flight time.
+  /// A category-level figure the desk sets, not any one tail's cruise speed.
+  averageSpeedKnots Int?
+
+  /// Seats a typical aircraft of this size offers — what "does it fit the
+  /// party" is checked against.
+  typicalSeats Int?
+
+  /// The fewest hours an operator bills for a leg, however short. Optional:
+  /// null means bill the flight time as flown.
+  minimumHours Decimal? @db.Decimal(4, 1)
+
+  notes String? @db.VarChar(500)
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("CharterRateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("CharterRateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("charter_rates")
+}

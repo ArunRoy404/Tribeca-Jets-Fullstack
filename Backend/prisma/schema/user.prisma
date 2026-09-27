@@ -18,6 +18,15 @@ model User {
   maxActiveLeads        Int?
   /// Prefills the follow-up dialog for leads this broker owns.
   defaultFollowUpMethod FollowUpMethod?
+
+  /// A referral agent's standard commission (#11: "admin should be able to
+  /// assign a different commission structure to each referral agent"). Copied
+  /// onto each commission when one is raised for their referral, so changing
+  /// the structure later does not rewrite what was already agreed. Null on
+  /// every other role.
+  commissionBasis      CommissionBasis?
+  commissionPercentage Decimal?         @db.Decimal(5, 2)
+  commissionAmount     Decimal?         @db.Decimal(12, 2)
   status                UserStatus      @default(ACTIVE)
 
   /// Storage key (not a URL) — resolved by StorageService at read time so the
@@ -67,8 +76,50 @@ model User {
   updatedNotes Note[] @relation("NoteUpdatedBy")
 
   /// Movements on a client's money-on-account ledger.
-  createdClientCredits ClientCredit[] @relation("ClientCreditCreatedBy")
-  updatedClientCredits ClientCredit[] @relation("ClientCreditUpdatedBy")
+  createdClientCredits   ClientCredit[]  @relation("ClientCreditCreatedBy")
+  updatedClientCredits   ClientCredit[]  @relation("ClientCreditUpdatedBy")
+  createdCharterRates    CharterRate[]   @relation("CharterRateCreatedBy")
+  updatedCharterRates    CharterRate[]   @relation("CharterRateUpdatedBy")
+  assignedTrips          Trip[]          @relation("TripAssignedBroker")
+  createdTrips           Trip[]          @relation("TripCreatedBy")
+  updatedTrips           Trip[]          @relation("TripUpdatedBy")
+  deletedTrips           Trip[]          @relation("TripDeletedBy")
+  restoredTrips          Trip[]          @relation("TripRestoredBy")
+  createdTripLegs        TripLeg[]       @relation("TripLegCreatedBy")
+  updatedTripLegs        TripLeg[]       @relation("TripLegUpdatedBy")
+  deletedTripLegs        TripLeg[]       @relation("TripLegDeletedBy")
+  restoredTripLegs       TripLeg[]       @relation("TripLegRestoredBy")
+  createdTripPassengers  TripPassenger[] @relation("TripPassengerCreatedBy")
+  updatedTripPassengers  TripPassenger[] @relation("TripPassengerUpdatedBy")
+  deletedTripPassengers  TripPassenger[] @relation("TripPassengerDeletedBy")
+  restoredTripPassengers TripPassenger[] @relation("TripPassengerRestoredBy")
+
+  createdEmptyLegs  EmptyLeg[] @relation("EmptyLegCreatedBy")
+  updatedEmptyLegs  EmptyLeg[] @relation("EmptyLegUpdatedBy")
+  deletedEmptyLegs  EmptyLeg[] @relation("EmptyLegDeletedBy")
+  restoredEmptyLegs EmptyLeg[] @relation("EmptyLegRestoredBy")
+
+  /// Commissions paid to this person (a referral agent), and those booked
+  /// against them as the broker.
+  commissionsReceived Commission[] @relation("CommissionRecipientUser")
+  brokerCommissions   Commission[] @relation("CommissionBroker")
+  createdCommissions  Commission[] @relation("CommissionCreatedBy")
+  updatedCommissions  Commission[] @relation("CommissionUpdatedBy")
+  deletedCommissions  Commission[] @relation("CommissionDeletedBy")
+  restoredCommissions Commission[] @relation("CommissionRestoredBy")
+
+  /// Referrals this agent submitted, and those a broker is working.
+  submittedReferrals Referral[] @relation("ReferralAgent")
+  assignedReferrals  Referral[] @relation("ReferralAssignedBroker")
+  createdReferrals   Referral[] @relation("ReferralCreatedBy")
+  updatedReferrals   Referral[] @relation("ReferralUpdatedBy")
+  deletedReferrals   Referral[] @relation("ReferralDeletedBy")
+  restoredReferrals  Referral[] @relation("ReferralRestoredBy")
+
+  createdReferralResources  ReferralResource[] @relation("ReferralResourceCreatedBy")
+  updatedReferralResources  ReferralResource[] @relation("ReferralResourceUpdatedBy")
+  deletedReferralResources  ReferralResource[] @relation("ReferralResourceDeletedBy")
+  restoredReferralResources ReferralResource[] @relation("ReferralResourceRestoredBy")
 
   /// Files this person put into the system. Distinct from `createdUploads`
   /// only in name today, and kept separate because deduplication is scoped to
@@ -153,6 +204,11 @@ enum UserRole {
   SENIOR_BROKER
   BROKER
   ASSISTANT
+  /// An outside partner who refers clients (client adjustment #11). Sees
+  /// the partner portal and nothing of the CRM: their own referrals, the
+  /// updates the desk shares with them, their own commissions, and the
+  /// Resources library. Every other permission is NONE.
+  REFERRAL_AGENT
 }
 
 /// INVITED covers an account that exists but has never signed in — it holds no
