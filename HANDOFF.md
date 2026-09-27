@@ -212,7 +212,10 @@ Paste everything between the lines into the first message of a new session.
 >    `build_operator_payments_folder.py`, is written and not run; `03 ·
 >    Operators`' detail example also needs recapturing (`payments: []` is
 >    gone, `totalPaid` is real).
-> 5. Then Phase 3's queue: Transactions (#19).
+> 5. Transactions (#19) is built too (28 Sep, untested) — no migration. Test
+>    the ledger after recording payments; its builder,
+>    `build_transactions_folder.py`, is written and not run.
+> 6. Then Phase 3's queue: Itineraries (#12), then Schedule (#13).
 >
 > **For the client:** the Archived-tab demo (#1), the rate data for #6, the
 > FET-in-profit question, and each referral agent's commission figures

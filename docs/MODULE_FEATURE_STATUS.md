@@ -619,15 +619,15 @@ third-party feed. That is a procurement decision, not a coding one.
 
 ---
 
-## 16–19. The financial modules ◐
+## 16–19. The financial modules ✅
 
 - **16 Receivables** ✅ *(28 Sep 2026)* — what clients owe, and what has come
   in. Below.
 - **17 Operator Payments** ✅ *(28 Sep 2026)* — what Tribeca owes operators,
   and what has been sent. Below.
 - **18 Commissions** ✅ *(27 Sep 2026, for client adjustment #11)* — below.
-- **19 Transactions** — a union **view** over the three above, not a fourth
-  table, which is why it comes last of the four. ⬜
+- **19 Transactions** ✅ *(28 Sep 2026)* — the money ledger, a **view** over
+  the three above with no table of its own. Below.
 
 ### 16. Receivables ✅ *(28 Sep 2026)*
 
@@ -726,6 +726,46 @@ as open; this module records them.
 | Remittance / operator-payment reminders (§6.13) | **Email Templates (#21)** |
 | The operator's bill as an attached PDF | **Document Vault (#22)** — the bill's number is stored; the file is not |
 | Payables on the dashboard | **Dashboard (#24)** |
+
+### 19. Transactions ✅ *(28 Sep 2026)*
+
+**Working now**
+
+- **The money ledger**: every payment received on a client invoice (money in),
+  every payment sent against an operator's bill and every commission paid
+  (money out), one row per movement, by the day the money moved
+- **No table.** Each kind is read through the module that owns it —
+  `ReceivablesService.movements`, `OperatorPaymentsService.movements`,
+  `CommissionsService.movements` — under that module's own row-level scope, in
+  one shared shape (`common/money/movements.ts`). A kind the caller has no
+  permission for is never read. The page is merged exactly with the shared
+  `mergePages` (lifted from the notes timeline, which moved onto it)
+- `VIEW_FINANCIALS` opens it; inside, each kind needs its own view permission.
+  Read-only: a row opens the bill it settles, where it is corrected or
+  withdrawn. A paid commission whose value cannot be known shows "Not yet
+  known" and is counted, never summed
+- Filters — type, direction, a date range, trip, search — and the order, all in
+  the URL; the tiles (money in, money out, net, a count per type) use the same
+  filters. A side the caller cannot see is null, and so is the net
+- Frontend: the ledger, its tiles and cards below `lg`. The dummy data, store,
+  detail sheet, Record Payment and Delete dialogs are deleted — they wrote to
+  rows that were never money. `dateField()` joins the shared table-param
+  builders for the date range
+- Postman builder `build_transactions_folder.py` → `21 · Transactions` (5
+  requests), **written, not run**
+
+**Deviation from the old screen, stated:** the dummy page listed *bills* with a
+status and a balance — the same rows as the Receivables, Operator Payments and
+Commissions boards, a fourth time. A ledger lists *movements*; a bill's
+status and balance live on its own board, one click away.
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Export (CSV / accounting) | **Settings / Import / Export (#26)** |
+| Monthly revenue and profit from the ledger | **Reports (#23)** |
+| Refunds as movements | **A decision** — see Client Credits (#30) |
 
 ### 18. Commissions ✅
 
@@ -1216,18 +1256,18 @@ the call site.
 **Usable against the real database today:** Auth, Users & Roles, Airports,
 Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
 Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
-Empty Legs, Commissions, Referrals** (desk and portal), **Receivables** and
-**Operator Payments**.
+Empty Legs, Commissions, Referrals** (desk and portal), **Receivables**,
+**Operator Payments** and **Transactions**.
 
-**Most recent change (28 September), uncommitted:** Operator Payments (#17),
-with its second passes into Trips and Operators, and the shared settling
-pieces Receivables now uses too. Receivables (#16) was committed earlier the
-same day. Two migrations must be deployed (`npm run db:deploy`):
-`20260928100000_add_receivables` and `20260928120000_add_operator_payments`.
-Both written **without live testing, by the owner's instruction**: backend
-`tsc`, oxlint and vitest (178 tests, 17 files) are clean, frontend eslint
-reports nothing in the files changed, and `npm run build` passes. Neither
-Postman builder has been run.
+**Most recent change (28 September), uncommitted:** Transactions (#19), the
+read-only money ledger — no migration. Receivables (#16) and Operator Payments
+(#17) were committed earlier the same day; their two migrations must be
+deployed (`npm run db:deploy`): `20260928100000_add_receivables` and
+`20260928120000_add_operator_payments`. All three written **without live
+testing, by the owner's instruction**: backend `tsc`, oxlint and vitest (185
+tests, 18 files) are clean, frontend eslint reports nothing in the files
+changed, and `npm run build` passes. None of their Postman builders has been
+run.
 
 **Most recent change (27 September), all uncommitted:** Trips (#11) with every
 second pass it owed; Empty Legs (#15) with client adjustment #10b's matching;
@@ -1249,9 +1289,10 @@ also without live testing: build, eslint, backend lint and tests pass.
 **Left of client adjustment #11:** nothing to build. The three Postman builders
 are written and need one run against a freshly seeded API, then Newman.
 
-**Next in the module queue:** Transactions (#19) — a view over client
-payments, operator payments and commissions, now that all three exist;
-Itineraries (#12) and Schedule (#13) are unblocked by Trips too.
+**Next in the module queue:** the financial modules (#16–19) are complete.
+Next is **Itineraries (#12)** — its build form and preview already exist
+against a store, and Trips is its dependency — then Schedule (#13), a
+read-only calendar over Trips.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational

@@ -1029,6 +1029,13 @@ overdue, the overpayment check), `common/database/document-number.ts`
 `PaymentLedger` and `toPaymentRow`. Receivables and Operator Payments both
 use them; a third money module adds only what is its own.
 
+**A view over several modules reads each through its owner.** Transactions
+stores nothing: each owner builds its rows in the shared `Movement` shape
+(`common/money/movements.ts`) under its own scope, and the ledger merges pages
+with `common/database/merge-pages.ts` — the same exact merge the notes
+timeline uses. A kind the caller may not see is never read, rather than read
+and hidden.
+
 ## Read every generated migration before it ships
 
 `prisma migrate diff` renamed nothing: asked to turn `CommissionPaymentMethod`
@@ -1329,7 +1336,7 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables and Operator Payments. Not yet: the Clients table, Airports,
+Referrals, Receivables, Operator Payments and Transactions. Not yet: the Clients table, Airports,
 Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by
