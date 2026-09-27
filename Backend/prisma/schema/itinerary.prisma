@@ -1,0 +1,91 @@
+/// The passenger-facing document for a trip (#12, scope §11): tail, times,
+/// passengers and passport numbers, catering, ground transport, FBO handling,
+/// confirmed or pending.
+///
+/// One trip, one itinerary — `tripId` is unique. Aircraft, operator, tail
+/// number, route, party and passport numbers are never stored here: they are
+/// the trip's own facts (`Trip`, `TripLeg`, `TripPassenger`), read through the
+/// relation on every render. A second copy on this table is the same mistake
+/// `AGENTS.md` already names for money — the day a trip is rebooked onto a
+/// different tail, a copied aircraft name here would go on saying the old
+/// one, and nothing on screen would say which is right.
+model Itinerary {
+  id String @id @default(uuid()) @db.Uuid
+
+  tripId String @unique @db.Uuid
+  trip   Trip   @relation("ItineraryTrip", fields: [tripId], references: [id], onDelete: Restrict)
+
+  status      ItineraryStatus @default(PENDING)
+  confirmedAt DateTime?
+
+  /// When the desk marked it sent to the client, and who. The same "marks it,
+  /// does not deliver" a quote's Send makes — no Email Templates module (#21)
+  /// exists yet to actually deliver it.
+  sentAt   DateTime?
+  sentById String?   @db.Uuid
+  sentBy   User?     @relation("ItinerarySentBy", fields: [sentById], references: [id], onDelete: SetNull)
+
+  /// A relative `/api/uploads/<id>` URL for the letterhead logo. Absent means
+  /// the standing Tribeca Jets mark.
+  logoUrl String?
+
+  /// The outbound leg's estimated arrival, "HH:MM" 24-hour local at the
+  /// destination — nothing else in the schema tracks one; `TripLeg` keeps only
+  /// the departure. Flight time and distance are the same split Aircraft's
+  /// speeds make: free text, because nothing here converts them.
+  arrivalTime String? @db.VarChar(5)
+  flightTime  String? @db.VarChar(20)
+  miles       String? @db.VarChar(20)
+
+  /// Overrides the origin/destination airport's own `assignedFbo` for this one
+  /// document — absent means "use the airport's default". There is no FBO
+  /// directory in this system: address, phone and email are not modelled
+  /// anywhere and are never invented here, on the airport row or on this one.
+  departureFbo String?
+  arrivalFbo   String?
+
+  catering        String?
+  groundTransport String?
+
+  /// The operator's own itinerary document, attached for reference — never
+  /// parsed. No extraction pipeline exists anywhere in this system; typing the
+  /// text below by hand is the fallback when it will not import cleanly.
+  operatorItineraryUrl  String?
+  operatorItineraryText String?
+
+  /// A specific photo for this document — the same override
+  /// `Quote.exteriorImageUrl` makes. Absent falls back, on read, to the trip's
+  /// own aircraft's fleet photos.
+  exteriorImageUrl String?
+  interiorImageUrl String?
+
+  /// Notes on the document itself, distinct from `Trip.internalNotes`, which
+  /// is about the booking rather than this particular passenger document.
+  notes String?
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("ItineraryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("ItineraryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("ItineraryDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("ItineraryRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@map("itineraries")
+}
+
+/// Where the document stands. Confirming is one act, `POST /itineraries/:id/confirm`
+/// — there is no back-and-forth ladder here the way a trip has one; a document
+/// is either still being assembled or locked in.
+enum ItineraryStatus {
+  PENDING
+  CONFIRMED
+}

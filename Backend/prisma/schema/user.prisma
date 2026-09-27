@@ -94,6 +94,13 @@ model User {
   deletedTripPassengers  TripPassenger[] @relation("TripPassengerDeletedBy")
   restoredTripPassengers TripPassenger[] @relation("TripPassengerRestoredBy")
 
+  /// The passenger document for a trip (#12).
+  createdItineraries  Itinerary[] @relation("ItineraryCreatedBy")
+  updatedItineraries  Itinerary[] @relation("ItineraryUpdatedBy")
+  deletedItineraries  Itinerary[] @relation("ItineraryDeletedBy")
+  restoredItineraries Itinerary[] @relation("ItineraryRestoredBy")
+  sentItineraries     Itinerary[] @relation("ItinerarySentBy")
+
   createdEmptyLegs  EmptyLeg[] @relation("EmptyLegCreatedBy")
   updatedEmptyLegs  EmptyLeg[] @relation("EmptyLegUpdatedBy")
   deletedEmptyLegs  EmptyLeg[] @relation("EmptyLegDeletedBy")

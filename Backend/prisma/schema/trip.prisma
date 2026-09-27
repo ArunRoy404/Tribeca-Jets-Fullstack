@@ -82,6 +82,11 @@ model Trip {
   legs       TripLeg[]       @relation("TripLegTrip")
   passengers TripPassenger[] @relation("TripPassengerTrip")
 
+  /// The passenger-facing document for this trip (Itineraries, #12). At most
+  /// one — a second document for the same trip replaces the first rather than
+  /// competing with it.
+  itinerary Itinerary? @relation("ItineraryTrip")
+
   /// Credit a client spent on this trip (client adjustment #9's "used towards
   /// another trip") — the foreign key that was deliberately absent until now.
   creditApplications ClientCredit[] @relation("ClientCreditAppliedToTrip")

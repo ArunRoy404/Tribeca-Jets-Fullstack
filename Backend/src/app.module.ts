@@ -22,6 +22,7 @@ import { NotesModule } from './modules/notes/notes.module.js';
 import { ClientCreditsModule } from './modules/client-credits/client-credits.module.js';
 import { CharterRatesModule } from './modules/charter-rates/charter-rates.module.js';
 import { TripsModule } from './modules/trips/trips.module.js';
+import { ItinerariesModule } from './modules/itineraries/itineraries.module.js';
 import { EmptyLegsModule } from './modules/empty-legs/empty-legs.module.js';
 import { CommissionsModule } from './modules/commissions/commissions.module.js';
 import { ReferralsModule } from './modules/referrals/referrals.module.js';
@@ -72,6 +73,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     ClientCreditsModule,
     CharterRatesModule,
     TripsModule,
+    ItinerariesModule,
     EmptyLegsModule,
     CommissionsModule,
     ReferralsModule,

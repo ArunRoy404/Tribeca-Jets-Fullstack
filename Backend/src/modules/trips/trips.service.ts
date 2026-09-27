@@ -190,6 +190,14 @@ const TRIP_DETAIL_SELECT = {
   documentUrls: true,
   createdBy: ACTOR_SELECT,
   updatedBy: ACTOR_SELECT,
+  /**
+   * Whether this trip's passenger document (Itineraries, #12) is built, and
+   * whether it has been sent — enough for the confirmation checklist and the
+   * flight-info card, without those cards making a second request.
+   */
+  itinerary: {
+    select: { id: true, status: true, confirmedAt: true, sentAt: true, flightTime: true, arrivalTime: true },
+  },
 } satisfies Prisma.TripSelect;
 
 type ListRow = Prisma.TripGetPayload<{ select: typeof TRIP_LIST_SELECT }>;
@@ -1015,6 +1023,23 @@ export class TripsService {
     const trip = await this.prisma.trip.findFirst({
       where: { id: tripId, ...this.visibilityScope(user) },
       select: { id: true, reference: true, clientId: true, operatorId: true, deletedAt: true },
+    });
+    if (!trip) throw new BadRequestException('That trip does not exist');
+    if (trip.deletedAt) throw new BadRequestException(`TJ-${trip.reference} has been archived. Restore it first.`);
+    return trip;
+  }
+
+  /**
+   * A live trip, visible to the caller, that an itinerary document can be
+   * built for — its reference — or a 400 naming the problem. Whether it
+   * already has one is `ItinerariesService`'s own check (the unique `tripId`),
+   * not this method's: "does it exist" and "is it taken" are different
+   * questions and the second needs a different message.
+   */
+  async itineraryTarget(user: AuthenticatedUser, tripId: string) {
+    const trip = await this.prisma.trip.findFirst({
+      where: { id: tripId, ...this.visibilityScope(user) },
+      select: { id: true, reference: true, deletedAt: true },
     });
     if (!trip) throw new BadRequestException('That trip does not exist');
     if (trip.deletedAt) throw new BadRequestException(`TJ-${trip.reference} has been archived. Restore it first.`);
