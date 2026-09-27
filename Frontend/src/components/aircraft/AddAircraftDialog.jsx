@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DatePicker from "@/components/common/DatePicker";
+import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
 import { optionalNumber, optionalText } from "@/lib/form";
 
 function FieldWrapper({ label, children, optional }) {
@@ -87,6 +88,8 @@ const EMPTY_FORM = {
   lastAnnualAt: "",
   nextInspectionDueAt: "",
   notes: "",
+  exteriorImageUrl: "",
+  interiorImageUrl: "",
 };
 
 /**
@@ -146,6 +149,8 @@ function initialForm(aircraft) {
     lastAnnualAt: dateValue(aircraft.lastAnnualAt),
     nextInspectionDueAt: dateValue(aircraft.nextInspectionDueAt),
     notes: aircraft.notes || "",
+    exteriorImageUrl: aircraft.exteriorImageUrl ?? "",
+    interiorImageUrl: aircraft.interiorImageUrl ?? "",
   };
 }
 
@@ -277,6 +282,9 @@ function AircraftForm({ editingAircraft, onDone }) {
       nextInspectionDueAt: optionalText(form.nextInspectionDueAt, { editing }),
 
       notes: optionalText(form.notes, { editing }),
+
+      exteriorImageUrl: optionalText(form.exteriorImageUrl, { editing }),
+      interiorImageUrl: optionalText(form.interiorImageUrl, { editing }),
     };
 
     if (editing) {
@@ -569,6 +577,44 @@ function AircraftForm({ editingAircraft, onDone }) {
               value={form.nextInspectionDueAt}
               onChange={(value) => set("nextInspectionDueAt", value)}
               placeholder="Choose Date"
+            />
+          </FieldWrapper>
+        </div>
+
+        {/* Uploaded before the aircraft exists — the upload returns a URL and
+            the save stores it, which is what lets a new tail get its photos
+            in the same form that creates it. PUBLIC: fleet photos go on
+            quotes and itineraries every broker sends. */}
+        <SectionHeader title="Photos" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+          <FieldWrapper label="Exterior" optional>
+            <FileUpload
+              variant="dropzone"
+              kind="image"
+              visibility="PUBLIC"
+              accept={ACCEPT.image}
+              heading="Drag & drop exterior photo"
+              description="or click to upload"
+              value={form.exteriorImageUrl}
+              library
+              onUploaded={(data) => set("exteriorImageUrl", data?.url ?? "")}
+              onRemove={() => set("exteriorImageUrl", "")}
+            />
+          </FieldWrapper>
+
+          <FieldWrapper label="Interior" optional>
+            <FileUpload
+              variant="dropzone"
+              kind="image"
+              visibility="PUBLIC"
+              accept={ACCEPT.image}
+              heading="Drag & drop interior photo"
+              description="or click to upload"
+              value={form.interiorImageUrl}
+              library
+              onUploaded={(data) => set("interiorImageUrl", data?.url ?? "")}
+              onRemove={() => set("interiorImageUrl", "")}
             />
           </FieldWrapper>
         </div>

@@ -10,6 +10,7 @@ export { useQuoteStats } from "./useQuoteStats";
 export { useQuotesTableParams } from "./useQuotesTableParams";
 export { useCreateQuote } from "./useCreateQuote";
 export { useQuotePricePreview } from "./useQuotePricePreview";
+export { useSuggestedQuotePrice } from "./useSuggestedQuotePrice";
 export { useUpdateQuote } from "./useUpdateQuote";
 export { useSendQuote } from "./useSendQuote";
 export { useDecideQuote } from "./useDecideQuote";

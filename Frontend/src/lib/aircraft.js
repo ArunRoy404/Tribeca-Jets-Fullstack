@@ -145,11 +145,9 @@ export function toMaintenanceSchedule(aircraft) {
  * hardcoded "Mach 0.885" and "51,000 ft" for every tail in the fleet, which
  * looked exactly like real data and was not.
  *
- * `totalTrips`, `tripsThisYear` and `avgUtilization` are columns the design
- * calls for that nothing can supply yet — they are aggregates over trips,
- * which do not exist. The API returns null and they render as an em dash,
- * because a confident "0 trips" against a tail the desk has flown twelve times
- * is a wrong answer and "—" is an honest one.
+ * `totalTrips` and `tripsThisYear` are real counts since Trips (#11) shipped —
+ * a 0 is an answer. `avgUtilization` still needs flight hours nobody records,
+ * so the API returns null and it renders as an em dash.
  */
 export function toAircraftRow(aircraft) {
   return {
@@ -191,6 +189,9 @@ export function toAircraftRow(aircraft) {
 
     amenities: aircraft?.amenities ?? [],
     notes: aircraft?.notes ?? "",
+    // Raw relative upload URLs; the photo card builds the src from them.
+    exteriorImageUrl: aircraft?.exteriorImageUrl ?? null,
+    interiorImageUrl: aircraft?.interiorImageUrl ?? null,
 
     maintenance: toMaintenanceSchedule(aircraft),
     // The raw dates, for the edit form's date inputs.
@@ -210,6 +211,5 @@ export function toAircraftRow(aircraft) {
     totalTrips: aircraft?.totalTrips ?? DASH,
     tripsThisYear: aircraft?.tripsThisYear ?? DASH,
     avgUtilization: aircraft?.avgUtilization ?? DASH,
-    tripHistory: aircraft?.tripHistory ?? [],
   };
 }

@@ -22,6 +22,7 @@ import QuotesToolbar from "./QuotesToolbar";
 import QuotesCardsContainer from "./QuotesCardsContainer";
 import QuotesTable from "./QuotesTable";
 import AddQuoteDialog from "@/components/quotes/AddQuoteDialog";
+import InstantEstimateDialog from "@/components/quotes/estimate/InstantEstimateDialog";
 import DeleteQuoteDialog from "@/components/quotes/DeleteQuoteDialog";
 import { useQuotesStore } from "@/store/useQuotesStore";
 import {
@@ -49,6 +50,7 @@ export default function QuotesContainer({ revealDelay = 0 }) {
 
   const openAddQuoteModal = useQuotesStore((s) => s.openAddQuoteModal);
   const openDeleteQuoteModal = useQuotesStore((s) => s.openDeleteQuoteModal);
+  const openEstimateModal = useQuotesStore((s) => s.openEstimateModal);
 
   const rows = useMemo(
     () => (data?.data ?? []).map(toQuoteRow),
@@ -61,6 +63,9 @@ export default function QuotesContainer({ revealDelay = 0 }) {
   const { canWrite } = usePermissions();
   const mayWrite = canWrite(Permission.MANAGE_TRIPS);
   const mayArchive = canWrite(Permission.DELETE_TRIPS);
+  // The estimate is an operator cost — margin information — so it goes with
+  // VIEW_FINANCIALS, exactly as the API gates it.
+  const mayEstimate = canWrite(Permission.VIEW_FINANCIALS);
 
   const [selected, setSelected] = useState(() => new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -211,6 +216,7 @@ export default function QuotesContainer({ revealDelay = 0 }) {
           tab={params.tab}
           setTab={params.setTab}
           onNewQuote={() => openAddQuoteModal?.(null)}
+          onEstimate={mayEstimate ? () => openEstimateModal?.() : undefined}
           selectedCount={selected.size}
           onBulkAction={() => setBulkOpen(true)}
           mayWrite={mayWrite}
@@ -291,6 +297,7 @@ export default function QuotesContainer({ revealDelay = 0 }) {
         />
 
         <AddQuoteDialog />
+        {mayEstimate && <InstantEstimateDialog />}
         <DeleteQuoteDialog />
       </CommonCard>
     </Reveal>

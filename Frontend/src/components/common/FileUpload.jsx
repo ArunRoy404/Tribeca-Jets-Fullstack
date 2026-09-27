@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useUploadFile } from "@/hooks/uploads";
 import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
 import { ImagePreview } from "@/components/common/image-preview";
+import { PhotoLibraryDialog } from "@/components/common/photo-library";
 import { cn } from "@/lib/utils";
 
 /**
@@ -47,6 +48,14 @@ import { cn } from "@/lib/utils";
  * but the Build Itinerary form's photo fields are exactly the single case,
  * and the next uploader that needs several files (a document folder, a
  * gallery) composes this instead of writing a second uploader.
+ *
+ * `library` (dropzone, images only) adds "choose from the photo library"
+ * under the box — client adjustment #3's stock image database. A photo picked
+ * there comes back through the same `onUploaded`, with the same relative URL
+ * an upload returns, so the caller needs no second code path. `suggested`
+ * lists photos to offer first (`[{ url, label }]`), such as the fleet photos
+ * of the aircraft a quote is about. Both are optional; without them the
+ * component behaves exactly as before.
  */
 export default function FileUpload({
   kind = "document",
@@ -64,12 +73,15 @@ export default function FileUpload({
   onRemove,
   heading,
   description,
+  library = false,
+  suggested,
 }) {
   const inputRef = useRef(null);
   const [progress, setProgress] = useState(null);
   const [pendingName, setPendingName] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   // The stored URL is content-addressed (`/uploads/<id>`) and never carries
   // the original filename, so the picked File's own name/type is the only
   // place that information exists — captured here, at pick time, keyed by
@@ -151,6 +163,16 @@ export default function FileUpload({
     if (busy) return;
     handleFiles(event.dataTransfer?.files);
   };
+
+  // A photo chosen from the library is already on the server, so it goes
+  // straight to the caller — remembered like a fresh upload so its caption
+  // and image treatment render the same way.
+  const handleLibraryPick = ({ url, filename }) => {
+    if (!url) return;
+    setFileMeta((prev) => ({ ...prev, [url]: { name: filename || "Photo", isImage: true } }));
+    onUploaded?.({ url, filename });
+  };
+  const offersLibrary = library && kind === "image";
 
   const busyLabel = multiple && pendingCount > 0 ? `Uploading ${pendingCount} file${pendingCount === 1 ? "" : "s"}…` : null;
 
@@ -290,6 +312,23 @@ export default function FileUpload({
             </button>
           )}
         </div>
+        {offersLibrary && !busy && (
+          <>
+            <button
+              type="button"
+              onClick={() => setLibraryOpen(true)}
+              className="self-start font-montserrat font-medium text-[12px] text-purple hover:underline cursor-pointer"
+            >
+              {hasValue && !multiple ? "Replace from the photo library" : "or choose from the photo library"}
+            </button>
+            <PhotoLibraryDialog
+              open={libraryOpen}
+              onOpenChange={setLibraryOpen}
+              onPick={handleLibraryPick}
+              suggested={suggested}
+            />
+          </>
+        )}
       </div>
     );
   }

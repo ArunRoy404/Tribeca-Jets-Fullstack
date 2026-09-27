@@ -42,6 +42,7 @@ import DetailTabNav from "@/components/common/DetailTabNav";
 import TribecaLetterhead from "@/components/common/TribecaLetterhead";
 import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
 import { PhotoTile } from "@/components/common/photo-tile";
+import SuggestedPricePicker from "@/components/quotes/pricing/SuggestedPricePicker";
 import QuoteDetailStats from "@/components/quotes/header/QuoteDetailStats";
 import QuoteBreakdownCard from "@/components/quotes/breakdown/QuoteBreakdownCard";
 import FlightDetailsCard from "@/components/quotes/flight/FlightDetailsCard";
@@ -121,6 +122,7 @@ const newLineItem = () => ({ key: `li-${++lineItemSeq}`, label: "", amount: "", 
 export default function AddQuoteDialog() {
   const open = useQuotesStore((s) => s.addModalOpen);
   const editing = useQuotesStore((s) => s.editingQuote);
+  const draft = useQuotesStore((s) => s.draftQuote);
   const closeModal = useQuotesStore((s) => s.closeAddQuoteModal);
 
   const [activeTab, setActiveTab] = useState("form");
@@ -196,7 +198,9 @@ export default function AddQuoteDialog() {
     setActiveTab("form");
     setForm(
       !editing
-        ? EMPTY_FORM
+        ? // A new quote starts empty, or from what the instant estimate
+          // handed over — only fields the estimate actually knows.
+          { ...EMPTY_FORM, ...(draft ?? {}) }
         : {
             clientId: editing.clientId ?? "",
             assignedBrokerId: editing.brokerId ?? "",
@@ -298,6 +302,13 @@ export default function AddQuoteDialog() {
   const selectedOriginAirport = (airports?.data ?? []).find((a) => a.id === form.originAirportId);
   const selectedDestinationAirport = (airports?.data ?? []).find((a) => a.id === form.destinationAirportId);
   const selectedAircraft = (aircraftList?.data ?? []).find((a) => a.id === form.aircraftId);
+  // The picked tail's own fleet photos, offered first in the photo library —
+  // the photo a broker wants on a quote is usually the one already on file
+  // for that aircraft.
+  const fleetPhotos = [
+    { url: selectedAircraft?.exteriorImageUrl, label: `${selectedAircraft?.tailNumber ?? ""} exterior`.trim() },
+    { url: selectedAircraft?.interiorImageUrl, label: `${selectedAircraft?.tailNumber ?? ""} interior`.trim() },
+  ].filter((photo) => photo.url);
 
   const previewLineItems = useMemo(
     () =>
@@ -539,6 +550,8 @@ export default function AddQuoteDialog() {
                 heading="Drag & drop exterior photo"
                 description="or click to upload"
                 value={form.exteriorImageUrl}
+                library
+                suggested={fleetPhotos}
                 onUploaded={(data) => setField("exteriorImageUrl")(data.url)}
                 onRemove={() => setField("exteriorImageUrl")("")}
               />
@@ -641,6 +654,16 @@ export default function AddQuoteDialog() {
                   />
                 </FormField>
               </div>
+            )}
+
+            {seesFinancials && (
+              <SuggestedPricePicker
+                operatorCost={form.operatorCost}
+                fetEnabled={form.fetEnabled}
+                lineItems={validLineItemsForPreview}
+                basePrice={form.basePrice}
+                onPick={(price) => setField("basePrice")(String(price))}
+              />
             )}
 
             {/* Federal Excise Tax. A switch rather than a number, because the

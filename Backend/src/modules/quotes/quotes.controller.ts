@@ -27,6 +27,7 @@ import {
   PreviewQuoteDto,
   QueryQuotesDto,
   SendQuoteDto,
+  SuggestPriceDto,
   UpdateQuoteDto,
 } from './dto/quote.dto.js';
 
@@ -137,6 +138,18 @@ export class QuotesController {
     @Body() body: PreviewQuoteDto,
   ) {
     return this.quotes.pricePreview(user, body);
+  }
+
+  @Post('suggested-price')
+  @HttpCode(HttpStatus.OK)
+  @RequireWritePermissions(Permission.MANAGE_TRIPS, Permission.VIEW_FINANCIALS)
+  @ApiOperation({
+    summary: 'Suggest a client price at each markup over the operator cost',
+    description:
+      'Client adjustment #6: the base price at each markup rate (0.15 = 15%) over `operatorCost`, and what each totals with FET and extras through the same pricing engine a saved quote uses. Nothing is persisted — the broker picks one and it becomes the base price they submit. Needs VIEW_FINANCIALS, because a markup over cost is the margin.',
+  })
+  suggestPrice(@Body() body: SuggestPriceDto) {
+    return this.quotes.suggestPrice(body);
   }
 
   @Patch(':id')

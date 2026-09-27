@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Plus } from "lucide-react";
+import { Calculator, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchInput from "@/components/table/common/SearchInput";
 import FilterDropdown from "@/components/table/common/FilterDropdown";
@@ -40,6 +40,7 @@ export default function QuotesToolbar({
   tab,
   setTab,
   onNewQuote,
+  onEstimate,
   selectedCount = 0,
   onBulkAction,
   mayWrite = true,
@@ -115,6 +116,20 @@ export default function QuotesToolbar({
           {/* Writing a quote is a live-tab verb, and hidden — not disabled —
               for a role that cannot: a greyed-out button invites a click and
               explains nothing. */}
+          {/* Client adjustment #6. Only offered where the caller can see
+              financials — the estimate is an operator cost — and only when a
+              handler is passed, so other callers are unchanged. */}
+          {onEstimate && !isArchived && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="px-3 sm:px-4 gap-2"
+              onClick={() => onEstimate?.()}
+            >
+              <Calculator className="size-3.5" />
+              <span>Instant Estimate</span>
+            </Button>
+          )}
           {mayWrite && !isArchived && (
             <Button
               variant="outline"

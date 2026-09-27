@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Building2, ArrowRight } from "lucide-react";
 import DetailCard from "@/components/common/DetailCard";
 import DetailField from "@/components/common/DetailField";
+import AircraftPhotosCard from "@/components/aircraft/AircraftPhotosCard";
 
 /**
  * AircraftOverviewTab
@@ -66,8 +67,10 @@ export default function AircraftOverviewTab({ aircraft }) {
         </DetailCard>
       </div>
 
-      {/* Right Column: Operator, Home Base, Trip Stats */}
+      {/* Right Column: Photos, Operator, Home Base, Trip Stats */}
       <div className="w-full shrink-0 flex flex-col gap-6 min-w-0">
+        <AircraftPhotosCard aircraft={aircraft} />
+
         <DetailCard title="OPERATOR">
           {aircraft.operatorId ? (
             <div className="flex flex-col gap-3 w-full">

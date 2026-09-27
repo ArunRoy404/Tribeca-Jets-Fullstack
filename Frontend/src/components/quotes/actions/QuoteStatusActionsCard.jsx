@@ -1,6 +1,8 @@
 "use client";
 
-import { Check, Clock, RotateCcw, Send, XCircle } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Check, Clock, Plane, RotateCcw, Send, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DetailCard from "@/components/quotes/DetailCard";
 import {
@@ -9,6 +11,7 @@ import {
   useRestoreQuote,
   useSendQuote,
 } from "@/hooks/quotes";
+import { useBookQuote } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Permission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
@@ -23,15 +26,19 @@ const BUTTON = "w-full h-11 justify-center gap-2 font-montserrat font-medium tex
  * seen it, so there is nothing to accept — and a settled quote is reopened
  * rather than re-decided.
  *
- * "Book Leg" is gone. It routed to `/dashboard/trips/new?quoteId=…`, a screen
- * that does not read the parameter, so it lost the quote and opened an empty
- * trip form. Turning an approved quote into a booking arrives with Trips (#11).
+ * **Book Trip** turns an approved quote into a booking (Trips, #11): the API
+ * copies the quote's client, route, aircraft, party and price, and refuses a
+ * second booking of the same quote. Once booked, the card links the trip
+ * instead of offering the button again. (An earlier "Book Leg" button routed
+ * to an empty trip form that ignored the quote; it is not coming back.)
  */
 export default function QuoteStatusActionsCard({ quote }) {
   const { mutate: send, isPending: isSending } = useSendQuote();
   const { mutate: decide, isPending: isDeciding } = useDecideQuote();
   const { mutate: reopen, isPending: isReopening } = useReopenQuote();
   const { mutate: restore, isPending: isRestoring } = useRestoreQuote();
+  const { mutate: book, isPending: isBooking } = useBookQuote();
+  const router = useRouter();
 
   const { canWrite } = usePermissions();
   const mayWrite = canWrite(Permission.MANAGE_TRIPS);
@@ -39,7 +46,7 @@ export default function QuoteStatusActionsCard({ quote }) {
 
   if (!quote) return null;
 
-  const busy = isSending || isDeciding || isReopening || isRestoring;
+  const busy = isSending || isDeciding || isReopening || isRestoring || isBooking;
 
   // An archived quote offers one thing: bringing it back. Everything else
   // would fail server-side anyway, because writes refuse an archived row.
@@ -147,7 +154,29 @@ export default function QuoteStatusActionsCard({ quote }) {
           </>
         )}
 
-        {!quote.isOpen && (
+        {quote.trip ? (
+          <Link
+            href={`/dashboard/trips/${quote.trip.id}`}
+            className={cn(BUTTON, "inline-flex items-center rounded-md border border-success/40 text-success bg-success/5 hover:bg-success/15")}
+          >
+            <Plane className="size-4" />
+            <span>Booked as {quote.trip.reference}</span>
+          </Link>
+        ) : (
+          quote.rawStatus === "APPROVED" && (
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => book({ quoteId: quote.id }, { onSuccess: (trip) => router.push(`/dashboard/trips/${trip?.id}`) })}
+              className={cn(BUTTON, "shadow-button")}
+            >
+              <Plane className="size-4" />
+              <span>Book Trip</span>
+            </Button>
+          )
+        )}
+
+        {!quote.isOpen && !quote.trip && (
           <>
             {/* Every decision is reversible, so a mis-click on Accepted is not
                 a permanent record of a sale that never happened. */}

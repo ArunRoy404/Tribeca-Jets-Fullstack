@@ -22,8 +22,8 @@ export const aircraftService = {
   /**
    * GET /aircraft/:id
    *
-   * Carries an empty `tripHistory` array for the detail page's Trips tab until
-   * the Trips module exists.
+   * Carries real `totalTrips` / `tripsThisYear` counts; the Trips tab lists
+   * the trips through `GET /trips?aircraftId=`.
    */
   detail: (id) => request({ url: `/aircraft/${id}`, method: "GET" }),
 

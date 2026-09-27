@@ -35,6 +35,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import {
   priceQuote,
   readLineItems,
+  suggestBasePrice,
   type PricedQuote,
   type QuoteLineItem,
 } from './quotes.pricing.js';
@@ -44,6 +45,7 @@ import type {
   PreviewQuoteInput,
   QueryQuotesInput,
   SendQuoteInput,
+  SuggestPriceInput,
   UpdateQuoteInput,
 } from './dto/quote.dto.js';
 
@@ -164,6 +166,8 @@ const QUOTE_DETAIL_SELECT = {
   internalNotes: true,
   decisionNote: true,
   operatorQuote: OPERATOR_QUOTE_SELECT,
+  /** The booking this offer became (Trips, #11) — the detail page links it. */
+  trip: { select: { id: true, reference: true, status: true, deletedAt: true } },
   createdBy: ACTOR_SELECT,
   updatedBy: ACTOR_SELECT,
 } satisfies Prisma.QuoteSelect;
@@ -399,6 +403,51 @@ export class QuotesService {
    * outside the caller's scope returns 404, never 403: a 403 confirms it
    * exists and turns any id into an oracle.
    */
+  /**
+   * What booking a quote needs, for the trips service (#11).
+   *
+   * Same row-level scope as every other read: a quote the caller cannot see is
+   * a 404. Only an **approved**, live quote can be booked — a draft is an offer
+   * nobody accepted, and booking a rejected one is booking a flight the client
+   * said no to. The trips service owns the booking itself; this module only
+   * answers "is this offer bookable, and what does it say?".
+   */
+  async bookingSource(user: AuthenticatedUser, id: string) {
+    const row = await this.prisma.quote.findFirst({
+      where: { id, deletedAt: null, ...this.visibilityScope(user) },
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        clientId: true,
+        tripRequestId: true,
+        assignedBrokerId: true,
+        operatorId: true,
+        aircraftId: true,
+        quotedAircraft: true,
+        originAirportId: true,
+        destinationAirportId: true,
+        departureDate: true,
+        returnDate: true,
+        passengers: true,
+        basePrice: true,
+        fetEnabled: true,
+        fetRate: true,
+        operatorCost: true,
+        lineItems: true,
+        terms: true,
+        trip: { select: { id: true, reference: true } },
+      },
+    });
+    if (!row) throw new NotFoundException('Quote not found');
+    if (row.status !== QuoteStatus.APPROVED) {
+      throw new BadRequestException(
+        "Only an approved quote can be booked. Record the client's approval first.",
+      );
+    }
+    return row;
+  }
+
   async findOne(user: AuthenticatedUser, id: string) {
     const row = await this.prisma.quote.findFirst({
       where: { id, ...this.visibilityScope(user) },
@@ -582,6 +631,39 @@ export class QuotesService {
             marginPercentage: priced.marginPercentage,
           }
         : { operatorCost: undefined, grossProfit: undefined, marginPercentage: undefined }),
+    };
+  }
+
+  /**
+   * The base price at each markup the broker is weighing, and what each one
+   * totals to the client — client adjustment #6's suggested-price selector.
+   *
+   * Each suggestion goes through `priceQuote`, so its FET and total are the
+   * figures a saved quote at that price would show; the selector never
+   * re-derives them. The route already demands VIEW_FINANCIALS, because a
+   * markup over the operator's cost *is* the margin.
+   */
+  suggestPrice(input: SuggestPriceInput) {
+    return {
+      operatorCost: input.operatorCost,
+      suggestions: input.markupRates.map((markupRate) => {
+        const priced = priceQuote({
+          basePrice: suggestBasePrice(input.operatorCost, markupRate),
+          fetEnabled: input.fetEnabled,
+          fetRate: input.fetRate ?? 0.075,
+          operatorCost: input.operatorCost,
+          lineItems: input.lineItems ?? [],
+        });
+        return {
+          markupRate,
+          basePrice: priced.basePrice,
+          fetAmount: priced.fetAmount,
+          extrasTotal: priced.extrasTotal,
+          totalPrice: priced.totalPrice,
+          grossProfit: priced.grossProfit,
+          marginPercentage: priced.marginPercentage,
+        };
+      }),
     };
   }
 
@@ -1115,6 +1197,19 @@ export class QuotesService {
 
     if ((OPEN_STATUSES as readonly QuoteStatus[]).includes(current.status)) {
       throw new ConflictException('This quote is already open');
+    }
+
+    // A booked quote's approval is what the trip stands on. Undoing it would
+    // leave a live trip realising an offer nobody accepted — so the trip goes
+    // first (cancel or archive it), then the decision can be undone.
+    const booking = await this.prisma.trip.findFirst({
+      where: { quoteId: id, deletedAt: null },
+      select: { reference: true },
+    });
+    if (booking) {
+      throw new ConflictException(
+        `This quote is booked as TJ-${booking.reference}. Archive that trip before undoing the approval.`,
+      );
     }
 
     const quote = await this.prisma.quote.update({

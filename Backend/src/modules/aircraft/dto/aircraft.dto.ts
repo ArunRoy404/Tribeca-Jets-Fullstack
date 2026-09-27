@@ -10,6 +10,7 @@ import {
   nullableNumber,
   optionalNumber,
 } from '../../../common/dto/numbers.js';
+import { uploadUrl } from '../../../common/dto/uploads.js';
 import {
   AircraftCategory,
   AircraftStatus,
@@ -178,6 +179,10 @@ export const createAircraftSchema = z.object({
   nextInspectionDueAt: calendarDate.optional(),
 
   notes: z.string().trim().max(2_000).optional(),
+
+  /** Relative `/api/uploads/<id>` URLs from the uploads surface — see `uploadUrl`. */
+  exteriorImageUrl: uploadUrl.optional(),
+  interiorImageUrl: uploadUrl.optional(),
 });
 
 export type CreateAircraftInput = z.infer<typeof createAircraftSchema>;
@@ -224,6 +229,9 @@ export const updateAircraftSchema = z
     nextInspectionDueAt: calendarDate.nullable().optional(),
 
     notes: z.string().trim().max(2_000).nullable().optional(),
+
+    exteriorImageUrl: uploadUrl.nullable().optional(),
+    interiorImageUrl: uploadUrl.nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Provide at least one field to update',

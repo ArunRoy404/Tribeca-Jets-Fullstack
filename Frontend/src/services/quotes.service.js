@@ -38,6 +38,13 @@ export const quotesService = {
   pricePreview: (payload) =>
     request({ url: "/quotes/price-preview", method: "POST", data: payload }),
 
+  /**
+   * POST /quotes/suggested-price — the base price at each markup over the
+   * operator's cost, priced by the server's engine. Persists nothing.
+   */
+  suggestedPrice: (payload) =>
+    request({ url: "/quotes/suggested-price", method: "POST", data: payload }),
+
   /** PATCH /quotes/:id — a priced change cuts a new version. */
   update: ({ id, ...payload }) =>
     request({ url: `/quotes/${id}`, method: "PATCH", data: payload }),

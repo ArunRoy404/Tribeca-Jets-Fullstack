@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { Plus, Trash2, FileText, X, Clock } from "lucide-react";
 import { useItinerariesStore } from "@/store/useItinerariesStore";
-import { trips } from "@/dummyData/trips";
+import { useTrips } from "@/hooks/trips";
+import { toTripRow } from "@/lib/trip";
 import { FBO_OPTIONS, ITINERARY_AIRCRAFT_OPTIONS } from "@/dummyData/itineraries";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,8 @@ export default function BuildItineraryDialog() {
   const [activeTab, setActiveTab] = useState("form");
 
   const [linkedTrip, setLinkedTrip] = useState("");
+  // Live trips to build from, newest first — fetched only while the form is open.
+  const { data: tripsPage } = useTrips({ limit: 100 }, { enabled: Boolean(open) });
   const [client, setClient] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   // Every field opens blank. The form used to open on a route (to "KTTB",
@@ -119,13 +122,19 @@ export default function BuildItineraryDialog() {
 
   const handleTripSelect = (value) => {
     setLinkedTrip(value);
-    const found = trips.find((t) => t.id === value);
+    const found = (tripsPage?.data ?? []).find((t) => t.id === value);
     if (found) {
-      setClient(found.client);
-      setRouteFrom(found.from);
-      setRouteTo(found.to);
-      if (found.aircraft) setAircraft(found.aircraft);
-      if (found.operator) setOperator(found.operator);
+      // Real trips now (Trips, #11) — the picker used to list the dummy board.
+      // Only what the trip actually records is carried over; a blank stays blank.
+      const first = found.legs?.[0];
+      const last = found.legs?.[found.legs.length - 1];
+      const row = toTripRow(found);
+      if (row.client !== "—") setClient(row.client);
+      if (first?.originAirport?.icao) setRouteFrom(first.originAirport.icao);
+      const to = found.type === "ROUND_TRIP" ? first?.destinationAirport?.icao : last?.destinationAirport?.icao;
+      if (to) setRouteTo(to);
+      if (row.aircraft !== "—") setAircraft(row.aircraft);
+      if (row.operator !== "—") setOperator(row.operator);
     }
   };
 
@@ -261,7 +270,10 @@ export default function BuildItineraryDialog() {
                   value={linkedTrip}
                   onChange={handleTripSelect}
                   placeholder="Select a trip"
-                  options={trips.map((t) => ({ value: t.id, label: `${t.id} - ${t.client} (${t.from} → ${t.to})` }))}
+                  options={(tripsPage?.data ?? []).map((t) => {
+                    const row = toTripRow(t);
+                    return { value: t.id, label: `${row.reference} - ${row.client} (${row.route})` };
+                  })}
                   className="h-11 text-[13px]"
                 />
               </FieldWrapper>
@@ -469,6 +481,7 @@ export default function BuildItineraryDialog() {
                   heading="Drag & drop exterior photo"
                   description="or click to upload"
                   value={exteriorImage}
+                  library
                   onUploaded={(data) => setExteriorImage(data.url)}
                   onRemove={() => setExteriorImage("")}
                 />
@@ -482,6 +495,7 @@ export default function BuildItineraryDialog() {
                   heading="Drag & drop cabin/interior photo"
                   description="or click to upload"
                   value={interiorImage}
+                  library
                   onUploaded={(data) => setInteriorImage(data.url)}
                   onRemove={() => setInteriorImage("")}
                 />

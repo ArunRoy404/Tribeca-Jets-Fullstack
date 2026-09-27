@@ -117,6 +117,24 @@ export function priceQuote(row: PricingInputs): PricedQuote {
   };
 }
 
+/**
+ * The base price that puts a markup on top of what the operator charges —
+ * client adjustment #6's "suggested price" selector.
+ *
+ * `markupRate` is a rate like `fetRate` — 0.15, not 15 — applied to the
+ * operator's cost: a $65,000 charter at 15% suggests $74,750. It suggests the
+ * *base* price only; FET and the extras are then added by `priceQuote` exactly
+ * as for a price the broker typed, so a suggestion and a saved quote can never
+ * disagree about the total.
+ *
+ * Nothing here is stored. The broker picks a suggestion and it becomes the
+ * base price they submit — the percentage is a way to arrive at a number, not
+ * a second fact about the quote to keep in step with the first.
+ */
+export function suggestBasePrice(operatorCost: number, markupRate: number): number {
+  return cents(operatorCost * (1 + markupRate));
+}
+
 /** The fields whose change means the offer is a new version of itself. */
 export const PRICED_FIELDS = [
   'basePrice',

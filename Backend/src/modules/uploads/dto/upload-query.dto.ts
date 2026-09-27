@@ -34,6 +34,14 @@ export const listUploadsSchema = paginationSchema
 
     /** Narrow to one kind of file — the Documents tab wants documents only. */
     kind: z.enum(['IMAGE', 'DOCUMENT']).optional(),
+
+    /**
+     * Narrow to one audience. `PUBLIC` images are the photo library (client
+     * adjustment #3's "stock image database"): the pictures uploaded for
+     * quotes, itineraries and the fleet, which any broker may reuse. Only ever
+     * narrows — the caller's own visibility rule still applies on top.
+     */
+    visibility: z.enum(['PUBLIC', 'PRIVATE']).optional(),
   })
   .extend(archiveQuerySchema.shape);
 

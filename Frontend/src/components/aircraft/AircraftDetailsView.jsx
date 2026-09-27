@@ -70,9 +70,8 @@ export default function AircraftDetailsView({
             <AircraftOverviewTab aircraft={aircraft} />
           )}
 
-          {/* Trip History: Awaits Trips Module (#11) */}
           {activeTab === "trips" && (
-            <AircraftTripsTab />
+            <AircraftTripsTab aircraft={aircraft} />
           )}
 
           {activeTab === "specs" && (
