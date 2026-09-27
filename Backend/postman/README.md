@@ -87,7 +87,7 @@ There is no `02`: `02 · Regression checks` restated failures already captured
 beside the requests they belong to, and `reorganize.py` removed it. The gap is
 kept rather than renumbering every folder after it.
 
-126 requests and 305 captured examples as of 26 Sep 2026. Newman reports 149
+127 requests and 311 captured examples as of 27 Sep 2026. Newman reports 151
 requests because the pre-request fetches that let a folder run alone are
 counted too.
 
@@ -284,6 +284,10 @@ Two things every live builder does, and a new one must copy:
 - **`collection_order.place_folder()` puts the folder back by its serial
   number.** Appending it moved each rebuilt folder to the end of the
   collection.
+- **It writes its own folder login**, copied from an existing folder. A login
+  patched in by hand is lost on the next rebuild, and the folder then 401s
+  when run alone.
+- **Fixture paths use forward slashes**, whatever machine runs it.
 
 Then, **from inside `postman/`** (it opens the collection by a relative path):
 

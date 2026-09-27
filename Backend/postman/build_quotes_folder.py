@@ -229,6 +229,21 @@ PREVIEW_BODY = """{
 }"""
 
 
+SUGGEST_BODY = """{
+  // Client adjustment #6's suggested-price selector. What the base price would
+  // be at each markup over the operator's cost. Nothing here is persisted.
+  "operatorCost": 65000,                               // required · number 0-100000000. The markup sits on this.
+  "markupRates": [0.10, 0.15, 0.20],                   // required · 1-8 RATES, each 0-5. 0.15 is 15% — "15" is refused as the typo it is.
+
+  // Optional, mirroring the price preview, so each suggestion's total is the
+  // total the client would actually see.
+  "fetEnabled": true,                                  // optional · boolean, default true
+  "lineItems": [                                       // optional · up to 40 entries, same shape as the create body
+    { "label": "Ground transportation", "amount": 850, "included": false }
+  ]
+}"""
+
+
 def build(owner, broker, assistant):
     client_id = owner.request('GET', '/clients?limit=1')[1]['data'][0]['id']
     req = owner.request('GET', '/trip-requests?limit=1&openOnly=true')[1]['data'][0]
@@ -320,6 +335,20 @@ def build(owner, broker, assistant):
     cap['preview'] = owner.request('POST', '/quotes/price-preview', preview_payload)
     cap['preview_400'] = owner.request('POST', '/quotes/price-preview', {'fetEnabled': True})
     cap['preview_403'] = assistant.request('POST', '/quotes/price-preview', preview_payload)
+
+    # Stateless like the preview. Needs VIEW_FINANCIALS on top of MANAGE_TRIPS,
+    # because a markup over the operator's cost is the margin.
+    suggest_payload = {
+        'operatorCost': 65000,
+        'markupRates': [0.10, 0.15, 0.20],
+        'fetEnabled': True,
+        'lineItems': [{'label': 'Ground transportation', 'amount': 850, 'included': False}],
+    }
+    cap['suggest'] = owner.request('POST', '/quotes/suggested-price', suggest_payload)
+    cap['suggest_400_cost'] = owner.request('POST', '/quotes/suggested-price', {'markupRates': [0.15]})
+    cap['suggest_400_rate'] = owner.request('POST', '/quotes/suggested-price',
+                                            {'operatorCost': 65000, 'markupRates': [15]})
+    cap['suggest_403'] = assistant.request('POST', '/quotes/suggested-price', suggest_payload)
 
     cap['versions_v1'] = owner.request('GET', f'/quotes/{new_id}/versions')
 
@@ -887,6 +916,35 @@ def build(owner, broker, assistant):
                         req_body={'fetEnabled': True}),
                 example('403 · Assistant cannot price a quote', 'POST', '/quotes/price-preview',
                         *cap['preview_403'], req_body=preview_payload),
+            ],
+        },
+        {
+            'name': '18 · Suggest a price',
+            'request': {
+                'method': 'POST', 'header': WRITE_HEADERS,
+                'body': {'mode': 'raw', 'raw': SUGGEST_BODY,
+                         'options': {'raw': {'language': 'json'}}},
+                'url': url('/quotes/suggested-price', 'suggested-price'),
+                'description': (
+                    'Client adjustment #6: *"a suggested price option where I can select different '
+                    'percentages"*. Returns the base price at each markup over `operatorCost` '
+                    '(`markupRates`, as rates: 0.15 is 15%), and what each totals to the client with FET '
+                    'and extras — every figure from the same `priceQuote()` a saved quote uses.\n\n'
+                    '**Persists nothing.** The broker picks one and it becomes the base price they submit; '
+                    'the percentage is a way to arrive at the price, not a fact stored on the quote.\n\n'
+                    'Needs `MANAGE_TRIPS` **and** `VIEW_FINANCIALS` — a markup over cost is the margin, '
+                    'which an assistant never sees.\n\nThe *estimate* half of the request (a price from '
+                    'aircraft size and airports) is not this endpoint: it needs the client\'s rate data.'),
+            },
+            'response': [
+                example('200 · Suggestions', 'POST', '/quotes/suggested-price', *cap['suggest'],
+                        req_body=suggest_payload),
+                example('400 · Operator cost is required', 'POST', '/quotes/suggested-price',
+                        *cap['suggest_400_cost'], req_body={'markupRates': [0.15]}),
+                example('400 · Markup typed as a percentage', 'POST', '/quotes/suggested-price',
+                        *cap['suggest_400_rate'], req_body={'operatorCost': 65000, 'markupRates': [15]}),
+                example('403 · Assistant cannot see margins', 'POST', '/quotes/suggested-price',
+                        *cap['suggest_403'], req_body=suggest_payload),
             ],
         },
     ]

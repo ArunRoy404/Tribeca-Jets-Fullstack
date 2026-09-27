@@ -154,7 +154,12 @@ CREATE_BODY = """{
   "lastAnnualAt": "2026-01-20",                        // optional
   "nextInspectionDueAt": "2026-11-15",                 // optional
 
-  "notes": "Cabin refurbished 2025."                   // optional · max 2000 chars
+  "notes": "Cabin refurbished 2025.",                  // optional · max 2000 chars
+
+  // The fleet's photos (client adjustment #3). Upload first with
+  // POST /uploads/image (folder 11), then send the relative URL it returned.
+  "exteriorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000001", // optional · exactly /api/uploads/<uuid>. An absolute or external URL is a 400 — it would pin a host into the row, or serve an image this API never checked.
+  "interiorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000002"  // optional · same rule
 }"""
 
 UPDATE_BODY = """{
@@ -166,7 +171,8 @@ UPDATE_BODY = """{
 
   // `null` clears a field; omitting it leaves the stored value alone. The two
   // are different instructions and the API treats them that way.
-  "cruiseSpeed": null
+  "cruiseSpeed": null,
+  "interiorImageUrl": null                             // removes the interior photo; the uploaded file itself is kept
 }"""
 
 
@@ -195,6 +201,8 @@ def build(owner: Session, assistant: Session) -> dict:
         'amenities': ['WiFi', 'Full Galley', 'Private Lavatory'],
         'lastInspectionAt': '2026-07-15', 'lastAnnualAt': '2026-01-20',
         'nextInspectionDueAt': '2026-11-15', 'notes': 'Cabin refurbished 2025.',
+        'exteriorImageUrl': '/api/uploads/00000000-0000-4000-8000-000000000001',
+        'interiorImageUrl': '/api/uploads/00000000-0000-4000-8000-000000000002',
     }
 
     cap = {}
@@ -224,12 +232,17 @@ def build(owner: Session, assistant: Session) -> dict:
         'tailNumber': 'N404OP', 'model': 'Citation XLS',
         'category': 'MIDSIZE_JET', 'operatorId': missing,
     })
+    cap['create_400_image'] = owner.request('POST', '/aircraft', {
+        'tailNumber': 'N404PX', 'model': 'Citation XLS', 'category': 'MIDSIZE_JET',
+        'exteriorImageUrl': 'https://example.com/xls.jpg',
+    })
     cap['create_403'] = assistant.request('POST', '/aircraft', create_payload)
 
     cap['update'] = owner.request('PATCH', f'/aircraft/{new_id}', {
         'status': 'MAINTENANCE',
         'notes': 'AOG at KTEB — awaiting a hydraulic pump.',
         'cruiseSpeed': None,
+        'interiorImageUrl': None,
     })
     cap['update_400'] = owner.request('PATCH', f'/aircraft/{new_id}', {})
 
@@ -402,6 +415,9 @@ def build(owner: Session, assistant: Session) -> dict:
                 example('409 · Tail number already in use', 'POST', '/aircraft', *cap['create_409']),
                 example('400 · Validation failed', 'POST', '/aircraft', *cap['create_400']),
                 example('400 · Operator does not exist', 'POST', '/aircraft', *cap['create_400_operator']),
+                example('400 · Photo is not an upload URL', 'POST', '/aircraft', *cap['create_400_image'],
+                        req_body={'tailNumber': 'N404PX', 'model': 'Citation XLS', 'category': 'MIDSIZE_JET',
+                                  'exteriorImageUrl': 'https://example.com/xls.jpg'}),
                 example('403 · Role may read but not write', 'POST', '/aircraft', *cap['create_403']),
             ],
             'event': [

@@ -21,6 +21,7 @@ Re-runnable, twice over:
 """
 
 import json
+import re
 import mimetypes
 import pathlib
 import urllib.error
@@ -143,7 +144,9 @@ def formdata(*, description: str, src: pathlib.Path, visibility=None,
     form = [{
         'key': 'file',
         'type': 'file',
-        'src': str(pathlib.Path('postman/fixtures') / src.name),
+        # Forward slashes whatever machine runs the builder: a Windows run
+        # otherwise writes a backslash path Newman cannot open on macOS/Linux.
+        'src': (pathlib.PurePosixPath('postman/fixtures') / src.name).as_posix(),
         'description': description,
     }]
     if visibility is not None:
@@ -159,7 +162,19 @@ def formdata(*, description: str, src: pathlib.Path, visibility=None,
 
 
 def example(name, method, path, status, body, form=None, preview='json'):
-    """One Postman response example, carrying the request that produced it."""
+    """
+    One Postman response example, carrying the request that produced it.
+
+    Raises when the status written in the name disagrees with the status the
+    API returned — a captured example is not an assertion, so this is the only
+    place a mislabelled one can be caught (see AGENTS.md, Postman).
+    """
+    promised = re.search(r'\b(\d{3})\b', name)
+    if promised and int(promised.group(1)) != status:
+        raise SystemExit(
+            f"example '{name}' promises {promised.group(1)} but the API returned "
+            f"{status}: {json.dumps(body)[:300]}"
+        )
     original = {
         'method': method,
         'header': [],
@@ -255,8 +270,13 @@ def build(admin, mark_id):
     folder = admin.request(
         'GET', f'/uploads?ownerUserId={mark_id}&kind=DOCUMENT&page=1&limit=10')
     listing = admin.request('GET', '/uploads?page=1&limit=10')
-    forbidden_owner = admin.request(
-        'GET', '/uploads?ownerUserId=11111111-1111-4111-8111-111111111111')
+    # Client adjustment #3's photo library: PUBLIC images only.
+    library = admin.request('GET', '/uploads?kind=IMAGE&visibility=PUBLIC&page=1&limit=10')
+    # A broker opening somebody else's folder. It used to be the administrator
+    # asking — who manages users, so may open any folder — and the example
+    # labelled 403 held a 200. Fixed at the request, not the label.
+    forbidden_owner = Session('broker@tribecajets.com').request(
+        'GET', f'/uploads?ownerUserId={mark_id}')
 
     # Rejections, all captured from real responses.
     svg = admin.upload('/uploads/image', SVG_SRC)
@@ -304,6 +324,10 @@ def build(admin, mark_id):
                                         'Anyone but yourself needs MANAGE_USERS.'},
                         {'key': 'kind', 'value': None, 'disabled': True,
                          'description': 'optional · IMAGE | DOCUMENT.'},
+                        {'key': 'visibility', 'value': None, 'disabled': True,
+                         'description': 'optional · PUBLIC | PRIVATE (case-sensitive). Only narrows: '
+                                        'the caller\'s own read rule still applies. '
+                                        'kind=IMAGE&visibility=PUBLIC is the photo library.'},
                         {'key': 'archived', 'value': None, 'disabled': True,
                          'description': 'optional · true | false. Default false. '
                                         'true returns only removed files.'},
@@ -326,13 +350,15 @@ def build(admin, mark_id):
             },
             'response': [
                 example('Success (200 · everything this caller may see)', 'GET',
-                        '/uploads?page=1&limit=10', 200, listing[1]),
+                        '/uploads?page=1&limit=10', *listing),
                 example('Success (200 · one broker\'s document folder)', 'GET',
                         f'/uploads?ownerUserId={mark_id}&kind=DOCUMENT&page=1&limit=10',
-                        200, folder[1]),
+                        *folder),
+                example('Success (200 · the photo library: PUBLIC images)', 'GET',
+                        '/uploads?kind=IMAGE&visibility=PUBLIC&page=1&limit=10', *library),
                 example('Error (403 · another user\'s folder)', 'GET',
-                        '/uploads?ownerUserId=11111111-1111-4111-8111-111111111111',
-                        403, forbidden_owner[1]),
+                        f'/uploads?ownerUserId={mark_id}',
+                        *forbidden_owner),
             ],
         },
         {
@@ -385,19 +411,29 @@ def build(admin, mark_id):
                         form=formdata(description='The same bytes, under a different filename.',
                                       src=PHOTO_SRC, visibility='PUBLIC',
                                       label='Global 7500 cabin')),
-                example('Error (415 · SVG refused)', 'POST', '/uploads/image', 415, svg[1],
+                example('Error (415 · SVG refused)', 'POST', '/uploads/image', *svg,
                         form=formdata(description='An SVG — a document that executes script.',
                                       src=SVG_SRC)),
                 example('Error (415 · a PDF is not an image)', 'POST', '/uploads/image',
-                        415, pdf_to_image[1],
+                        *pdf_to_image,
                         form=formdata(description='A PDF posted to the image route.',
                                       src=DOCUMENT_SRC)),
-                example('Error (400 · no file part)', 'POST', '/uploads/image', 400, no_file[1]),
+                example('Error (400 · no file part)', 'POST', '/uploads/image', *no_file),
             ],
         },
         {
             'name': '03 · File a document in a broker\'s folder',
-            'event': [script('test', [
+            'event': [script('prerequest', [
+                '// A broker to file the document about, fetched here rather than',
+                '// trusting {{userId}}, which `04 · Users` sets. Without this the',
+                '// folder passed inside a full run and answered 400 run on its own.',
+                "const base = pm.collectionVariables.get('baseUrl');",
+                "pm.sendRequest({ url: base + '/users?limit=1&role=BROKER', method: 'GET' }, function (err, res) {",
+                '    if (!err && res.code === 200 && res.json().data.length) {',
+                "        pm.collectionVariables.set('userId', res.json().data[0].id);",
+                '    }',
+                '});',
+            ]), script('test', [
                 "const body = pm.response.json();",
                 "pm.test('201 Created', () => pm.response.to.have.status(201));",
                 "pm.test('kind is DOCUMENT', () => pm.expect(body.data.kind).to.eql('DOCUMENT'));",
@@ -445,7 +481,7 @@ def build(admin, mark_id):
                         form=formdata(description='The document.', src=DOCUMENT_SRC,
                                       owner=mark_id, label='2025 Form 1099')),
                 example('Error (415 · an image is not a document)', 'POST', '/uploads/document',
-                        415, image_to_doc[1],
+                        *image_to_doc,
                         form=formdata(description='A PNG posted to the document route.',
                                       src=PHOTO_SRC)),
             ],
@@ -485,8 +521,8 @@ def build(admin, mark_id):
                               'Postman renders binary rather than JSON here.'},
                         preview='text'),
                 example('Error (404 · no such file)', 'GET',
-                        '/uploads/11111111-1111-4111-8111-111111111111', 404, missing[1]),
-                example('Error (400 · not a uuid)', 'GET', '/uploads/not-a-uuid', 400, bad_uuid[1]),
+                        '/uploads/11111111-1111-4111-8111-111111111111', *missing),
+                example('Error (400 · not a uuid)', 'GET', '/uploads/not-a-uuid', *bad_uuid),
             ],
         },
         {
@@ -511,7 +547,7 @@ def build(admin, mark_id):
                 ),
             },
             'response': [
-                example('Success (200)', 'GET', '/uploads/{{uploadDocumentId}}/meta', 200, meta[1]),
+                example('Success (200)', 'GET', '/uploads/{{uploadDocumentId}}/meta', *meta),
             ],
         },
         {
@@ -537,9 +573,9 @@ def build(admin, mark_id):
             },
             'response': [
                 example('Success (200 · archived)', 'DELETE', '/uploads/{{uploadDocumentId}}',
-                        200, removed[1]),
+                        *removed),
                 example('Then the file no longer serves (404)', 'GET',
-                        '/uploads/{{uploadDocumentId}}', 404, gone[1]),
+                        '/uploads/{{uploadDocumentId}}', *gone),
             ],
         },
         {
@@ -562,9 +598,9 @@ def build(admin, mark_id):
             },
             'response': [
                 example('Success (200 · restored)', 'POST', '/uploads/{{uploadDocumentId}}/restore',
-                        200, restored[1]),
+                        *restored),
                 example('Error (400 · it was never removed)', 'POST',
-                        '/uploads/{{uploadDocumentId}}/restore', 400, already_live[1]),
+                        '/uploads/{{uploadDocumentId}}/restore', *already_live),
             ],
         },
         {
@@ -638,6 +674,13 @@ def main() -> None:
     folder, probes = build(admin, mark_id)
 
     collection = json.loads(COLLECTION.read_text())
+    # The folder login is copied from an existing folder rather than retyped,
+    # as the notes and credits builders do. Without it the folder passes only
+    # inside a full run, and every request answers 401 when it is run alone —
+    # which is what happened the first time this builder was re-run after the
+    # login had been patched in by hand.
+    source = next(f for f in collection['item'] if f['name'].startswith('10 ·'))
+    folder['event'] = json.loads(json.dumps(source['event']))
     place_folder(collection, folder)
 
     # Escaped non-ASCII, like every other builder: writing it raw re-encodes
