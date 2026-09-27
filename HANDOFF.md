@@ -206,7 +206,13 @@ Paste everything between the lines into the first message of a new session.
 >    deploy its migration, then test the board, the trip page's invoices and
 >    the client's Payments tab. Its Postman builder,
 >    `build_receivables_folder.py`, is written and not run.
-> 4. Then Phase 3's queue: Operator Payments (#17), then Transactions (#19).
+> 4. Operator Payments (#17) is built too (28 Sep, untested): deploy its
+>    migration, then test the board, the trip page's operator bills and the
+>    operator's Payments tab and Total Paid. Its builder,
+>    `build_operator_payments_folder.py`, is written and not run; `03 ·
+>    Operators`' detail example also needs recapturing (`payments: []` is
+>    gone, `totalPaid` is real).
+> 5. Then Phase 3's queue: Transactions (#19).
 >
 > **For the client:** the Archived-tab demo (#1), the rate data for #6, the
 > FET-in-profit question, and each referral agent's commission figures

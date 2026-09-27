@@ -53,9 +53,9 @@ set of broken joins the day the real table arrives.
 | 14 | **Flight Tracking** | Not started | Trips, Aircraft |
 | 15 | **Empty Legs** | ✅ Done (27 Sep) | Operators, Aircraft, Airports; matching reads Trip Requests (adjustment #10b) |
 | 16 | **Receivables** | ✅ Done (28 Sep) | Trips, Clients |
-| 17 | **Operator Payments** | ⬅ **Next** | Trips, Operators |
+| 17 | **Operator Payments** | ✅ Done (28 Sep) | Trips, Operators |
 | 18 | **Commissions** | ✅ Done (27 Sep) | Trips, Users (built ahead of 16–17 for adjustment #11) |
-| 19 | **Transactions** | Not started | 16, 17, 18 (a union view) |
+| 19 | **Transactions** | ⬅ **Next** | 16, 17, 18 (a union view) |
 | 20 | **Tasks Board** | Not started | Users; links to Trips/Clients |
 | 21 | **Email Templates** | Not started | — (could move earlier) |
 | 22 | **Document Vault** | No screen yet | Trips, Clients, Operators |
@@ -73,9 +73,9 @@ set of broken joins the day the real table arrives.
 **Trips shipped on 27 September 2026**, with Empty Legs and Commissions
 pulled forward after it so client adjustments #10b and #11 could be built
 without waiting on the client; #11's agent portal followed the same day, and
-**Receivables (#16)** on 28 September. **What is next:** **Operator Payments
-(#17)** — nothing blocks it — then Transactions (#19). Itineraries (#12) and
-Schedule (#13) are unblocked by Trips as well.
+**Receivables (#16)** and **Operator Payments (#17)** on 28 September. **What
+is next:** **Transactions (#19)** — every dependency now exists. Itineraries
+(#12) and Schedule (#13) are unblocked by Trips as well.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -478,7 +478,11 @@ module's table.
   (Due, Partially Paid, Paid, Overdue) are computed from the payments and the
   due date on every read; only the charge, the due date and Draft / Sent /
   Cancelled are stored.
-- **Operator Payments** — what Tribeca owes operators for each trip.
+- **Operator Payments** ✅ — what Tribeca owes operators for each trip: the
+  operator's bill, with a ledger of money sent under it. Settled with the same
+  arithmetic as Receivables (`common/money/settlement.ts`); a separate table
+  because an operator bill has no draft, no FET and the operator's own
+  invoice number.
 - **Commissions** ✅ — what is paid out on a trip: to a referral agent, a
   client (a travel agent) or a named person, as a percent of profit, a flat fee
   or a custom amount. Built ahead of 16 and 17 because adjustment #11 needs it.

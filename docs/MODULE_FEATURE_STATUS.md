@@ -139,9 +139,9 @@ audit trail pointing at them.
 | Feature | Unblocked by |
 |---|---|
 | ~~`totalTrips`~~ | ✅ Shipped with **Trips (#11)** |
-| `totalPaid` | **Operator Payments (#17)** |
+| ~~`totalPaid`~~ | ✅ Shipped with **Operator Payments (#17)** — every live payment sent to the operator; null (an em dash) for a caller who does not see every operator bill, because a broker's scope would make it a partial total |
 | ~~Trip history tab~~ | ✅ Shipped with **Trips (#11)** |
-| Payments tab | **Operator Payments (#17)** |
+| ~~Payments tab~~ | ✅ Shipped with **Operator Payments (#17)** — the operator's bills and totals from `GET /operator-payments?operatorId=`; the API's `payments: []` stand-in is gone. Hidden without `VIEW_OPERATOR_PAYMENTS` |
 | ~~Sourcing response history~~ | ✅ Shipped — response rate, win rate, average response time and last asked |
 
 **Two bugs fixed here on 2026-09-17:** the status dropdown's options carried
@@ -540,9 +540,14 @@ counts trips with an overdue invoice. All absent for a role without
 
 **Still waiting:** `avgUtilization` (no module records flight hours),
 `IN_SERVICE` derived from trips, the Agent "associated trips" panel (buildable
-now), the board's "All Payments" filter (buildable now — needs the trips API
-to work out matching ids, as the receivables list does), and operator
-payments — **Operator Payments (#17)**.
+now), and the board's "All Payments" filter (buildable now — needs the
+trips API to work out matching ids, as the receivables list does).
+
+**Second pass from Operator Payments (#17), 28 Sep 2026:** each trip carries
+`operatorPayment` (Not Recorded, Due, Partially Paid, Paid, Overdue, with
+owed, paid and balance) — the board's "Op Pmt" column and the trip page's
+operator bills, where a bill is recorded and paid. Absent for a role without
+`VIEW_OPERATOR_PAYMENTS`.
 
 ---
 
@@ -618,8 +623,8 @@ third-party feed. That is a procurement decision, not a coding one.
 
 - **16 Receivables** ✅ *(28 Sep 2026)* — what clients owe, and what has come
   in. Below.
-- **17 Operator Payments** — what Tribeca owes operators. Trips ✅,
-  Operators ✅. ⬜
+- **17 Operator Payments** ✅ *(28 Sep 2026)* — what Tribeca owes operators,
+  and what has been sent. Below.
 - **18 Commissions** ✅ *(27 Sep 2026, for client adjustment #11)* — below.
 - **19 Transactions** — a union **view** over the three above, not a fourth
   table, which is why it comes last of the four. ⬜
@@ -678,6 +683,49 @@ third-party feed. That is a procurement decision, not a coding one.
 **Deferred by decision:** processing card or wire payments. Scope §17 lists
 "whether the CRM only records payments or also processes card/wire payments"
 as open; this module records them.
+
+### 17. Operator Payments ✅ *(28 Sep 2026)*
+
+**Working now**
+
+- `OperatorPayable` on a trip — the operator's bill: who billed it (the trip's
+  operator by default), the amount, the due date, their own invoice number,
+  and OPEN or CANCELLED. Numbered `OP-<year>-<sequence>`
+- `OperatorPayablePayment`, the ledger of money sent, withdrawn (never
+  deleted) and restorable
+- Paid, balance and the state (Due, Partially Paid, Paid, Overdue, Cancelled)
+  **computed on every read** with the settling arithmetic shared with
+  Receivables (`common/money/settlement.ts`); the state filter works out ids
+- The money rules: never paid past the bill, the bill never below what was
+  paid, no cancelling or archiving while live payments stand, restore
+  re-checked
+- Stats — payable, paid, outstanding, overdue, **due this week** — optionally
+  for one operator or one trip
+- `VIEW_OPERATOR_PAYMENTS` (ALL; OWN for a broker, through the trip's scope) /
+  `MANAGE_OPERATOR_PAYMENTS` (administrators and senior brokers only — money
+  leaving the company, as with commissions). Assistants and agents: none
+- Frontend: the board (URL state, Archived tab, bulk, cards below `lg`), the
+  bill dialog with "Use the trip's operator cost", the pay/correct dialog and
+  the detail sheet. `dummyData/operatorPayments.js` is deleted; "Send
+  Remittance" is gone until Email Templates (#21)
+- **Second passes:** Trips ("Op Pmt", the trip page's operator bills),
+  Operators (`totalPaid`, the Payments tab)
+- **Shared, not copied** — lifted when this module became the second caller:
+  `common/money/settlement.ts`, `common/database/document-number.ts`,
+  `common/dto/payments.ts` on the API; `PaymentForm` and `PaymentLedger`
+  (`components/common/payments/`) and `toPaymentRow` (`lib/payment.js`) on the
+  screen. Receivables moved onto all of them in the same pass
+- Migration `20260928120000_add_operator_payments`; Postman builder
+  `build_operator_payments_folder.py` → `20 · Operator Payments` (14
+  requests), **written, not run**
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Remittance / operator-payment reminders (§6.13) | **Email Templates (#21)** |
+| The operator's bill as an attached PDF | **Document Vault (#22)** — the bill's number is stored; the file is not |
+| Payables on the dashboard | **Dashboard (#24)** |
 
 ### 18. Commissions ✅
 
@@ -1168,15 +1216,18 @@ the call site.
 **Usable against the real database today:** Auth, Users & Roles, Airports,
 Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
 Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
-Empty Legs, Commissions, Referrals** (desk and portal) and **Receivables**.
+Empty Legs, Commissions, Referrals** (desk and portal), **Receivables** and
+**Operator Payments**.
 
-**Most recent change (28 September), uncommitted:** Receivables (#16) — invoices
-and payments, with its second passes into Trips and Clients. One migration,
-`20260928100000_add_receivables`, must be deployed (`npm run db:deploy`)
-before the API starts. Written **without live testing, by the owner's
-instruction**: backend `tsc`, oxlint and vitest (171 tests, 16 files) are
-clean, frontend eslint reports nothing in the files changed, and `npm run
-build` passes. The Postman builder is written and not run.
+**Most recent change (28 September), uncommitted:** Operator Payments (#17),
+with its second passes into Trips and Operators, and the shared settling
+pieces Receivables now uses too. Receivables (#16) was committed earlier the
+same day. Two migrations must be deployed (`npm run db:deploy`):
+`20260928100000_add_receivables` and `20260928120000_add_operator_payments`.
+Both written **without live testing, by the owner's instruction**: backend
+`tsc`, oxlint and vitest (178 tests, 17 files) are clean, frontend eslint
+reports nothing in the files changed, and `npm run build` passes. Neither
+Postman builder has been run.
 
 **Most recent change (27 September), all uncommitted:** Trips (#11) with every
 second pass it owed; Empty Legs (#15) with client adjustment #10b's matching;
@@ -1198,8 +1249,9 @@ also without live testing: build, eslint, backend lint and tests pass.
 **Left of client adjustment #11:** nothing to build. The three Postman builders
 are written and need one run against a freshly seeded API, then Newman.
 
-**Next in the module queue:** Operator Payments (#17), then Transactions
-(#19); Itineraries (#12) and Schedule (#13) are unblocked by Trips too.
+**Next in the module queue:** Transactions (#19) — a view over client
+payments, operator payments and commissions, now that all three exist;
+Itineraries (#12) and Schedule (#13) are unblocked by Trips too.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational

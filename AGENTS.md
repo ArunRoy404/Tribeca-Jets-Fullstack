@@ -1022,6 +1022,13 @@ filter removed.
 A module whose rows hang off a trip inherits the trip's scope through
 `TripsService.visibleWhere(user)`, never a copy of the trip `where` clause.
 
+**A bill with a payment ledger is built from the shared settling pieces** —
+`common/money/settlement.ts` (paid, balance, due / partly paid / paid /
+overdue, the overpayment check), `common/database/document-number.ts`
+("INV-2026-0042"), `common/dto/payments.ts`, and on the screen `PaymentForm`,
+`PaymentLedger` and `toPaymentRow`. Receivables and Operator Payments both
+use them; a third money module adds only what is its own.
+
 ## Read every generated migration before it ships
 
 `prisma migrate diff` renamed nothing: asked to turn `CommissionPaymentMethod`
@@ -1322,7 +1329,7 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals and Receivables. Not yet: the Clients table, Airports,
+Referrals, Receivables and Operator Payments. Not yet: the Clients table, Airports,
 Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by

@@ -280,14 +280,15 @@ running, seeded API — `build_aircraft_folder.py` (07),
 `build_notes_folder.py` (12), `build_client_credits_folder.py` (13),
 `build_charter_rates_folder.py` (14), `build_trips_folder.py` (15),
 `build_empty_legs_folder.py` (16), `build_commissions_folder.py` (17),
-`build_referrals_folder.py` (18), `build_receivables_folder.py` (19), and
-`build_users_folder.py` + `reorganize.py` for 04 (above).
+`build_referrals_folder.py` (18), `build_receivables_folder.py` (19),
+`build_operator_payments_folder.py` (20), and `build_users_folder.py` +
+`reorganize.py` for 04 (above).
 
-**16, 17 and 18 were written on 27 Sep 2026, and 19 on 28 Sep; none has been
-run yet** — the collection does not contain those folders until they are. Run
+**16, 17 and 18 were written on 27 Sep 2026, and 19 and 20 on 28 Sep; none has
+been run yet** — the collection does not contain those folders until they are. Run
 them against a freshly seeded API with the latest migrations deployed (16–18
-need `agent@tribecajets.com`; 19 signs in as `admin@`, `broker@` and
-`assistant@` and needs the seeded broker `mark@`), then
+need `agent@tribecajets.com`; 19 and 20 sign in as `admin@`, `broker@` and
+`assistant@` and need the seeded broker `mark@`), then
 `rewrite_body_comments.py`, then Newman twice. Two older folders now also
 under-document their responses: `01 · Auth`'s `/auth/me` and sign-in examples
 lack `commissionTerms` (null for staff), and `04 · Users`' invite does not yet
