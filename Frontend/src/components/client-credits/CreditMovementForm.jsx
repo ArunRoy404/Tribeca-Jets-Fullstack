@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import CommonSelect from "@/components/common/CommonSelect";
+import { useTrips } from "@/hooks/trips";
+import { toTripRow } from "@/lib/trip";
 import { Button } from "@/components/ui/button";
 import CommonInput from "@/components/common/CommonInput";
 import { CommonDatePicker } from "@/components/common/DatePicker";
@@ -29,6 +32,7 @@ function todayIso() {
  */
 export default function CreditMovementForm({
   initial,
+  clientId,
   submitLabel = "Record movement",
   onSubmit,
   onCancel,
@@ -46,6 +50,19 @@ export default function CreditMovementForm({
   );
   const [reason, setReason] = useState(initial?.reason ?? "");
   const [reference, setReference] = useState(initial?.reference ?? "");
+  // "Used towards another trip" as a real link (Trips, #11) — this client's
+  // own trips only, the same rule the API enforces.
+  const [tripId, setTripId] = useState(initial?.appliedToTripId ?? "");
+  const owner = clientId ?? initial?.clientId;
+  const { data: trips } = useTrips({ clientId: owner, limit: 100 }, { enabled: Boolean(owner) && type === "APPLICATION" });
+  const tripOptions = useMemo(
+    () =>
+      (trips?.data ?? []).map((trip) => {
+        const row = toTripRow(trip);
+        return { value: trip.id, label: `${row.reference} · ${row.route} · ${row.departure}` };
+      }),
+    [trips?.data],
+  );
 
   // Mirrors the API exactly: positive, at most two decimals. A form that
   // promises one contract while the server enforces another is a form that
@@ -76,6 +93,14 @@ export default function CreditMovementForm({
       // refuses a blank reason and would reject the whole movement for it.
       reason: reason.trim() || undefined,
       reference: reference.trim() || undefined,
+      // Only an application links a trip. On an edit, turning it back into a
+      // credit — or clearing the picker — sends null so the link is removed.
+      appliedToTripId:
+        type === "APPLICATION" && tripId
+          ? tripId
+          : initial?.appliedToTripId
+            ? null
+            : undefined,
     });
   };
 
@@ -124,6 +149,19 @@ export default function CreditMovementForm({
           <CommonDatePicker value={occurredAt} onChange={setOccurredAt} />
         </div>
       </div>
+
+      {type === "APPLICATION" && (
+        <div className="flex w-full flex-col gap-2">
+          <span className="font-montserrat text-base font-medium text-foreground">Trip it was used towards (Optional)</span>
+          <CommonSelect
+            value={tripId}
+            onChange={setTripId}
+            placeholder={tripOptions.length ? "Select one of this client's trips" : "No trips for this client yet"}
+            options={tripOptions}
+            className="h-11 text-[13px]"
+          />
+        </div>
+      )}
 
       <CommonInput
         label="Reason (Optional)"

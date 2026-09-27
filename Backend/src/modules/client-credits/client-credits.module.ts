@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ClientCreditsController } from './client-credits.controller.js';
 import { ClientCreditsService } from './client-credits.service.js';
 import { ClientsModule } from '../clients/clients.module.js';
+import { TripsModule } from '../trips/trips.module.js';
 
 /**
  * One direction only: credits know about clients, clients know nothing about
@@ -10,7 +11,7 @@ import { ClientsModule } from '../clients/clients.module.js';
  * keeps the client detail select from having to learn how money is summed.
  */
 @Module({
-  imports: [ClientsModule],
+  imports: [ClientsModule, TripsModule],
   controllers: [ClientCreditsController],
   providers: [ClientCreditsService],
   exports: [ClientCreditsService],

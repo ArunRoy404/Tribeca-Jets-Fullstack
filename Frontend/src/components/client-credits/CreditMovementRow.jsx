@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import CreditMovementForm from "@/components/client-credits/CreditMovementForm";
 import { formatMoneyExact } from "@/lib/money";
@@ -88,6 +89,12 @@ export default function CreditMovementRow({
           {movementDate(movement?.occurredAt)}
           {movement?.reference ? ` · ${movement.reference}` : ""}
         </span>
+
+        {movement?.appliedToTrip && (
+          <Link href={`/dashboard/trips/${movement.appliedToTrip.id}`} className="font-montserrat text-[12px] font-medium text-purple hover:underline w-fit">
+            Applied to TJ-{movement.appliedToTrip.reference}
+          </Link>
+        )}
 
         {/* An honest blank, never a stand-in sentence. */}
         {movement?.reason && (

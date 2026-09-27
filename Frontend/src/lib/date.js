@@ -74,3 +74,29 @@ export function getMonthGrid(date) {
   }
   return weeks;
 }
+
+/**
+ * A calendar day from the API, as the desk reads it: "Nov 12, 2026".
+ *
+ * The API stores a day the user named — a departure, a payment date — as
+ * midnight UTC against a DATE column. `formatDate` reads that in the browser's
+ * own zone, so anyone west of Greenwich sees the 11th for a flight on the
+ * 12th. Formatting in UTC gives back exactly the day that was typed. Use this
+ * for days; `formatTimestamp` stays right for moments.
+ */
+export function formatCalendarDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** "YYYY-MM-DD" from an API day, for a date picker's value. Empty when absent. */
+export function toDateInput(value) {
+  return value ? String(value).slice(0, 10) : "";
+}

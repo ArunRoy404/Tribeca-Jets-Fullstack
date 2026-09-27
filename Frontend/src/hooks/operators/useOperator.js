@@ -6,8 +6,9 @@ import { queryKeys } from "@/lib/queryKeys";
 import { queryPresets } from "@/config/query.config";
 
 /**
- * One operator, with its audit trail and the empty `fleet` / `tripHistory` /
- * `payments` arrays the detail tabs bind to. Idle until an id is selected.
+ * One operator, with its audit trail, fleet, trip count and the empty
+ * `payments` array (Operator Payments, #17). The Trip History tab pages
+ * `GET /trips?operatorId=` itself. Idle until an id is selected.
  */
 export function useOperator(id, options = {}) {
   return useQuery({

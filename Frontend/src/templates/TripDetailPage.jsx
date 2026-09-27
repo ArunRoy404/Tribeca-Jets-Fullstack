@@ -1,13 +1,19 @@
+"use client";
+
 import TripDetailsView from "@/components/trips/TripDetailsView";
 import NotFoundState from "@/components/common/NotFoundState";
-import { getTripDetails } from "@/dummyData/tripDetails";
+import { useTrip } from "@/hooks/trips";
+import { toTripDetail } from "@/lib/trip";
 
+/** One trip, from the API. A trip outside the caller's scope is a 404, like any other. */
 export default function TripDetailPage({ tripId }) {
-  const trip = getTripDetails(tripId);
+  const { data, isPending, error } = useTrip(tripId);
 
-  if (!trip) {
+  if (error) {
     return <NotFoundState itemType="Trip" backUrl="/dashboard/trips" backLabel="Back to Trips" />;
   }
-
-  return <TripDetailsView trip={trip} />;
+  if (isPending || !data) {
+    return <p className="p-6 font-montserrat text-[13px] text-muted-foreground">Loading trip…</p>;
+  }
+  return <TripDetailsView trip={toTripDetail(data)} />;
 }

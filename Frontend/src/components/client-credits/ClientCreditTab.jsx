@@ -98,6 +98,7 @@ export default function ClientCreditTab({ client }) {
       {adding && (
         <div className="rounded-md border border-border p-4">
           <CreditMovementForm
+            clientId={clientId}
             isPending={create.isPending}
             onCancel={() => setAdding(false)}
             onSubmit={(values) =>

@@ -15,8 +15,8 @@ export const operatorsService = {
   /**
    * GET /operators/:id
    *
-   * Carries empty `fleet`, `tripHistory` and `payments` arrays for the detail
-   * page's tabs until the Aircraft, Trips and Payments modules exist.
+   * Carries the real `fleet` and `totalTrips`, and an empty `payments` array
+   * until Operator Payments (#17) exists. Trips list through `GET /trips?operatorId=`.
    */
   detail: (id) => request({ url: `/operators/${id}`, method: "GET" }),
 

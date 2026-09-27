@@ -28,6 +28,7 @@ import {
 import { CreditEntryType } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { ClientsService } from '../clients/clients.service.js';
+import { TripsService } from '../trips/trips.service.js';
 import {
   fromCents,
   overdraws,
@@ -54,6 +55,8 @@ const CREDIT_SELECT = {
   occurredAt: true,
   reason: true,
   reference: true,
+  appliedToTripId: true,
+  appliedToTrip: { select: { id: true, reference: true, status: true } },
   createdAt: true,
   createdById: true,
   createdBy: ACTOR_SELECT,
@@ -72,7 +75,31 @@ export class ClientCreditsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly clients: ClientsService,
+    // Trips (#11)'s second pass: the trip a credit was used towards is a real
+    // link now, checked by the module that owns trips.
+    private readonly trips: TripsService,
   ) {}
+
+  /**
+   * A trip link is only meaningful on an APPLICATION — a credit coming *in*
+   * was not "used towards" anything — and only for one of the same client's
+   * trips. The link is re-checked only when it changes (AGENTS.md).
+   */
+  private async assertTripLink(
+    user: AuthenticatedUser,
+    clientId: string,
+    type: string,
+    tripId: string | null | undefined,
+    changed: boolean,
+  ): Promise<void> {
+    if (!tripId) return;
+    if (type !== 'APPLICATION') {
+      throw new BadRequestException(
+        'Only an application can be linked to a trip — a credit coming in was not used towards anything.',
+      );
+    }
+    if (changed) await this.trips.assertCreditTarget(user, tripId, clientId);
+  }
 
   /**
    * `amount` is a Prisma `Decimal`, which serialises as a string. The profile
@@ -296,6 +323,7 @@ export class ClientCreditsService {
 
     const balanceCents = await this.balanceCentsFor(dto.clientId);
     this.assertWithinBalance(balanceCents, dto);
+    await this.assertTripLink(user, dto.clientId, dto.type, dto.appliedToTripId, true);
 
     const entry = await this.prisma.clientCredit.create({
       data: {
@@ -305,6 +333,7 @@ export class ClientCreditsService {
         occurredAt: dto.occurredAt,
         reason: dto.reason ?? null,
         reference: dto.reference ?? null,
+        appliedToTripId: dto.appliedToTripId ?? null,
         createdById: user.id,
         updatedById: user.id,
       },
@@ -349,6 +378,15 @@ export class ClientCreditsService {
       type: dto.type ?? target.type,
       amount: dto.amount ?? target.amount,
     });
+    // Turning a linked application into a CREDIT must drop the link too, so
+    // the effective pair is checked — not just the fields that were sent.
+    await this.assertTripLink(
+      user,
+      target.clientId,
+      dto.type ?? target.type,
+      dto.appliedToTripId === undefined ? target.appliedToTripId : dto.appliedToTripId,
+      dto.appliedToTripId !== undefined && dto.appliedToTripId !== target.appliedToTripId,
+    );
 
     const entry = await this.prisma.clientCredit.update({
       where: { id },

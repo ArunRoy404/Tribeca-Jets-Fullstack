@@ -6,8 +6,9 @@ import { queryKeys } from "@/lib/queryKeys";
 import { queryPresets } from "@/config/query.config";
 
 /**
- * One aircraft, with its operator, home base, audit trail and the empty
- * `tripHistory` array the Trips tab binds to. Idle until an id is selected.
+ * One aircraft, with its operator, home base, audit trail and trip counts.
+ * The Trips tab pages `GET /trips?aircraftId=` itself. Idle until an id is
+ * selected.
  *
  * Archived aircraft load here too — the Archived tab links straight to this
  * page, so refusing them would list a row and then 404 it.

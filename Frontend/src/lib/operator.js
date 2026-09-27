@@ -33,11 +33,9 @@ export function formatReliability(value) {
 /**
  * Maps one API operator onto the props the table, cards and detail page render.
  *
- * `totalTrips` and `totalPaid` are columns the design calls for that nothing
- * can supply yet — they are aggregates over trips and operator payments, which
- * do not exist. The API returns null and they render as an em dash, because a
- * confident "0 trips" against an operator the desk has flown twice is a wrong
- * answer and "—" is an honest one.
+ * `totalTrips` is a real count since Trips (#11) shipped. `totalPaid` still
+ * needs Operator Payments (#17): the API returns null and it renders as an
+ * em dash, never "$0".
  */
 export function toOperatorRow(operator) {
   return {
@@ -79,7 +77,6 @@ export function toOperatorRow(operator) {
     // Awaiting the trips and payments modules.
     totalTrips: operator?.totalTrips ?? "—",
     totalPaid: operator?.totalPaid ?? "—",
-    tripHistory: operator?.tripHistory ?? [],
     payments: operator?.payments ?? [],
 
     // The fleet is real now that Aircraft has shipped. Mapped through the

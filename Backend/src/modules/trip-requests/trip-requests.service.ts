@@ -606,6 +606,83 @@ export class TripRequestsService {
     return bulkResult(ids, targets.map((row) => row.id));
   }
 
+  /**
+   * The enquiry became a booked trip (Trips, #11).
+   *
+   * Only from a live, still-open state — a request already lost is not
+   * revived by a late booking, and converting twice is a no-op. Called by the
+   * trips service rather than written from there, so this module stays the
+   * only one that decides what a request's status means.
+   */
+  async markConverted(user: AuthenticatedUser, id: string): Promise<void> {
+    const moved = await this.prisma.tripRequest.updateMany({
+      where: {
+        id,
+        deletedAt: null,
+        status: { in: [...OPEN_STATUSES] },
+      },
+      data: { status: TripRequestStatus.CONVERTED, updatedById: user.id },
+    });
+    if (moved.count > 0) {
+      await this.audit.record({
+        actorId: user.id,
+        action: 'trip_request.converted',
+        entityType: 'TripRequest',
+        entityId: id,
+      });
+    }
+  }
+
+  /**
+   * Every enquiry on any of these routes, whatever became of it — LOST,
+   * CONVERTED and archived included. Client adjustment #10b: an empty leg on
+   * a route somebody once asked about is a reason to call them back, and the
+   * enquiries that went nowhere are exactly the ones worth calling.
+   *
+   * Scoped like every other read here, so a broker is offered only the
+   * clients they may already see. The date rule is not applied here — the
+   * empty-legs module owns what counts as a match (`empty-legs.matching.ts`);
+   * this only answers "who asked for this route".
+   *
+   * Capped, newest first: a route asked for five hundred times has more
+   * callbacks than any desk will make.
+   */
+  async onRoutes(
+    user: AuthenticatedUser,
+    routes: { originAirportId: string; destinationAirportId: string }[],
+  ) {
+    if (routes.length === 0) return [];
+    return this.prisma.tripRequest.findMany({
+      where: {
+        AND: [
+          this.visibilityScope(user),
+          {
+            OR: routes.map((route) => ({
+              originAirportId: route.originAirportId,
+              destinationAirportId: route.destinationAirportId,
+            })),
+          },
+        ],
+      },
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        originAirportId: true,
+        destinationAirportId: true,
+        departureDate: true,
+        returnDate: true,
+        passengers: true,
+        createdAt: true,
+        deletedAt: true,
+        client: CLIENT_SELECT,
+        assignedBroker: ACTOR_SELECT,
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 500,
+    });
+  }
+
   /** The enquiries attached to one client, for the client detail page. */
   async listForClient(clientId: string) {
     const rows = await this.prisma.tripRequest.findMany({

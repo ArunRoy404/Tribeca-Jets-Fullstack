@@ -1,20 +1,25 @@
 import StatCard from "@/components/common/StatCard";
+import { useTrips } from "@/hooks/trips";
 
 /**
  * Client Stats KPI Row
  *
  * API Integration Guidelines:
  * - Next Follow-up is wired to the active Client entity (client.nextFollowUpLabel, client.followUpWindowLabel).
- * - Total Trips, Total Spent, and Active Quotes are aggregates over Trips, Quotes, and Invoices.
- *   These modules have not landed yet. When those services ship, wire their API aggregates here:
- *   - Total Trips: GET /api/trips?clientId={clientId} (meta.total & completed count)
- *   - Total Spent: GET /api/invoices/client-summary?clientId={clientId} (sum of paid invoices)
- *   - Active Quotes: GET /api/quotes?clientId={clientId}&status=SENT (meta.total)
- *   Until then, render honest em dashes per project agreement ("never display a number the data did not supply").
+ * - Total Trips is live since Trips (#11): the count of this client's trips
+ *   from `GET /trips?clientId=` (the pager's `meta.total`), within the caller's
+ *   scope, and how many of them are completed.
+ * - Total Spent needs Receivables (#16) — money actually paid — and stays an
+ *   em dash until then; a sum of booked prices would be a different figure.
  */
 export default function ClientStatsRow({ client }) {
-  const totalTrips = client?.totalTrips ?? "—";
-  const tripsOnRecord = client?.tripsOnRecord ?? "—";
+  const { data: allTrips } = useTrips({ clientId: client?.id, limit: 1 }, { enabled: Boolean(client?.id) });
+  const { data: completedTrips } = useTrips(
+    { clientId: client?.id, status: "COMPLETED", limit: 1 },
+    { enabled: Boolean(client?.id) },
+  );
+  const totalTrips = allTrips?.meta ? String(allTrips.meta.total) : "—";
+  const tripsOnRecord = completedTrips?.meta ? `${completedTrips.meta.total} completed` : "—";
   const totalSpent = client?.totalSpent ?? "—";
   const activeQuotes = client?.activeQuotesCount ?? "—";
   const nextFollowUp =

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
+import { TripsService } from '../trips/trips.service.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -102,6 +103,19 @@ const CLIENT_DETAIL_SELECT = {
   originatingBroker: {
     select: { id: true, firstName: true, lastName: true, email: true },
   },
+  /**
+   * #11's "Referral Source: [agent]" — read from the referral this client
+   * was converted from, so correcting the agent's name corrects it here.
+   */
+  referrals: {
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      reference: true,
+      agent: { select: { id: true, firstName: true, lastName: true } },
+    },
+  },
 } satisfies Prisma.ClientSelect;
 
 /**
@@ -141,6 +155,9 @@ export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    // Trips (#11)'s second pass: the roster's active-trip counts. One-way —
+    // trips never imports this module.
+    private readonly trips: TripsService,
   ) {}
 
   /**
@@ -542,6 +559,7 @@ export class ClientsService {
     const activeLeads = countsFor(leadRows);
     const convertedLeads = countsFor(wonRows);
     const followUpsDue = countsFor(followUpRows);
+    const activeTrips = await this.trips.activeCountByBroker(brokers.map((broker) => broker.id));
 
     return brokers.map((broker) => {
       const active = activeLeads.get(broker.id) ?? 0;
@@ -571,9 +589,10 @@ export class ClientsService {
           broker.maxActiveLeads && broker.maxActiveLeads > 0
             ? Math.round((active / broker.maxActiveLeads) * 100)
             : null,
-        // An aggregate over trips, which do not exist yet. Null so the roster
-        // renders an em dash rather than claiming a broker has flown nobody.
-        activeTrips: null,
+        // Trips (#11)'s second pass: live trips not yet completed or
+        // cancelled. Zero is a real answer now — the broker genuinely has
+        // none on the board.
+        activeTrips: activeTrips.get(broker.id) ?? 0,
       };
     });
   }

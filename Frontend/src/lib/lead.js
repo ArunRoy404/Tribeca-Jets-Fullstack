@@ -269,7 +269,7 @@ export function toAgentRow(agent) {
     maxActiveLeads: agent?.maxActiveLeads ?? DASH,
     defaultFollowUpMethod: formatFollowUpMethod(agent?.defaultFollowUpMethod),
 
-    // Awaiting the trips module.
+    // A real count since Trips (#11) shipped; a dash only if it is missing.
     activeTrips: agent?.activeTrips ?? DASH,
   };
 }

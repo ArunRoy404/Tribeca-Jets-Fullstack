@@ -3,6 +3,7 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { AircraftService } from '../aircraft/aircraft.service.js';
 import { OperatorQuotesService } from '../operator-quotes/operator-quotes.service.js';
+import { TripsService } from '../trips/trips.service.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -73,18 +74,16 @@ const OPERATOR_DETAIL_SELECT = {
 } satisfies Prisma.OperatorSelect;
 
 /**
- * Columns the UI shows that nothing can supply yet.
+ * The column the UI shows that nothing can supply yet.
  *
- * `totalTrips` and `totalPaid` are aggregates over trips and operator
- * payments, neither of which exists. They are returned as null rather than 0,
- * because a confident "0 trips" against an operator the desk has flown twice is
- * a wrong answer, and null lets the UI render an honest em dash. They become
- * real counts when those modules land — see AGENTS.md on build order.
+ * `totalPaid` is an aggregate over operator payments (#17), which do not
+ * exist. Null rather than 0, so the UI renders an em dash. `totalTrips` was
+ * here too until Trips shipped; it is a real count now (see `withTrips`).
  *
  * `fleetSize` is no longer among them: Aircraft has shipped, so it is a real
  * count on the detail payload below.
  */
-const UNAVAILABLE_AGGREGATES = { totalTrips: null, totalPaid: null } as const;
+const UNAVAILABLE_AGGREGATES = { totalPaid: null } as const;
 
 @Injectable()
 export class OperatorsService {
@@ -98,7 +97,15 @@ export class OperatorsService {
     // Same arrangement as the fleet: sourcing owns the quotes table and the
     // operator detail page borrows its scorecard. One-way edge, no cycle.
     private readonly sourcing: OperatorQuotesService,
+    // Trips (#11)'s second pass: trip counts come through its service.
+    private readonly trips: TripsService,
   ) {}
+
+  /** Real trip counts, one grouped query. Cancelled trips are not counted. */
+  private async withTrips<T extends { id: string }>(rows: T[]) {
+    const counts = await this.trips.countByOperator(rows.map((row) => row.id));
+    return rows.map((row) => ({ ...row, totalTrips: counts.get(row.id)?.total ?? 0 }));
+  }
 
   // The caller is not read here: reference data is the same rows for
   // everyone signed in, and the guard has already settled access.
@@ -131,7 +138,7 @@ export class OperatorsService {
     ]);
 
     return paginate(
-      rows.map((row) => ({ ...row, ...UNAVAILABLE_AGGREGATES })),
+      await this.withTrips(rows.map((row) => ({ ...row, ...UNAVAILABLE_AGGREGATES }))),
       total,
       query.page,
       query.limit,
@@ -165,16 +172,17 @@ export class OperatorsService {
     // it is absent rather than invented.
     const scorecard = await this.sourcing.scorecardFor(id);
 
+    const [withCounts] = await this.withTrips([{ ...row, ...UNAVAILABLE_AGGREGATES }]);
     return {
-      ...row,
-      ...UNAVAILABLE_AGGREGATES,
+      ...withCounts,
       fleet,
       fleetSize: fleet.length,
       scorecard,
-      // Trips and Payments still have no module behind them. Empty arrays
-      // rather than omitted keys, so those tabs render their own empty state
-      // instead of crashing on undefined.
-      tripHistory: [],
+      // The Trip History tab pages `GET /trips?operatorId=` itself now; the
+      // empty `tripHistory` array that stood in for it is gone, because left
+      // in place it would claim an operator with bookings has flown nothing.
+      // Payments still has no module behind it (#17): an empty array rather
+      // than an omitted key, so that tab renders its own empty state.
       payments: [],
     };
   }

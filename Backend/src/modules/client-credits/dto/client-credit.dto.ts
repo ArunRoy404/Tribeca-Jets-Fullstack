@@ -90,6 +90,13 @@ export const createClientCreditSchema = z.object({
 
   reason: z.string().trim().min(1).max(500).optional(),
   reference: z.string().trim().min(1).max(100).optional(),
+
+  /**
+   * The trip an APPLICATION was used towards — "select if it was used towards
+   * another trip". Only on an APPLICATION, and only one of the same client's
+   * trips; both checked in the service.
+   */
+  appliedToTripId: z.uuid().optional(),
 });
 
 export type CreateClientCreditInput = z.infer<typeof createClientCreditSchema>;
@@ -113,6 +120,8 @@ export const updateClientCreditSchema = z
     /** `null` clears it; absent leaves it alone. */
     reason: z.string().trim().min(1).max(500).nullable().optional(),
     reference: z.string().trim().min(1).max(100).nullable().optional(),
+    /** `null` unlinks the trip; absent leaves it alone. */
+    appliedToTripId: z.uuid().nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Provide at least one field to update',
