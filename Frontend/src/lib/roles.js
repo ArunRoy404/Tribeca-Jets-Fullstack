@@ -20,7 +20,28 @@ export function isPartnerRole(role) {
   return role === REFERRAL_AGENT;
 }
 
+export const PORTAL_HOME = "/portal";
+export const CRM_HOME = "/dashboard";
+
 /** Where a signed-in user belongs: the portal for a partner, the CRM for staff. */
 export function homeFor(role) {
-  return isPartnerRole(role) ? "/portal" : "/dashboard";
+  return isPartnerRole(role) ? PORTAL_HOME : CRM_HOME;
+}
+
+const inArea = (path, home) => path === home || String(path ?? "").startsWith(`${home}/`);
+
+/** Whether `path` lies inside the area `role` is allowed to use. */
+export function belongsIn(role, path) {
+  return inArea(path, homeFor(role));
+}
+
+/**
+ * Where to send someone after sign-in: the page they were bounced from when it
+ * is in their own area (a broker's `?next=/dashboard/trips/…`), otherwise their
+ * home. A partner holding a CRM link lands on the portal, never on a CRM page
+ * whose every panel would refuse them — and a broker holding a portal link
+ * lands on the CRM.
+ */
+export function landingFor(role, target) {
+  return target && belongsIn(role, target) ? target : homeFor(role);
 }

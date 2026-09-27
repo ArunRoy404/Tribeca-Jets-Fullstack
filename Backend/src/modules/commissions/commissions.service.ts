@@ -323,6 +323,11 @@ export class CommissionsService {
     return {
       ...totals,
       total: fromCents(totalCents),
+      /**
+       * #11's "Total commission earned": everything earned so far, paid out or
+       * not. Summed here, in cents, so the portal never adds money itself.
+       */
+      earnedToDate: fromCents(toCents(totals.earned) + toCents(totals.paid)),
       /** Over the commissions whose value is known — never divided by the unknowable ones. */
       average: valuedCount > 0 ? fromCents(Math.round(totalCents / valuedCount)) : null,
     };

@@ -10,7 +10,14 @@ const BASE_COLUMNS = ["ID", "Client", "Agent", "Route", "Departure", "Pax"];
 const LIVE_TAIL = ["Broker", "Status", ""];
 const ARCHIVED_TAIL = ["Removed On", "Removed By", ""];
 const CELL = "p-[12px] font-montserrat text-[12px] whitespace-nowrap";
+/** The agent's own list in the portal (#11): no agent, no broker, no actions. */
+const PARTNER_COLUMNS = ["ID", "Client", "Route", "Departure", "Pax", "Submitted", "Status"];
 
+/**
+ * The referrals table — the desk's board, or with `partner` the agent's "My
+ * Referrals" in the portal, which shows what they sent and where it stands and
+ * nothing the desk keeps to itself.
+ */
 export default function ReferralsTable({
   pageItems,
   getRowActions,
@@ -20,12 +27,13 @@ export default function ReferralsTable({
   onSelectAll,
   selectable = false,
   archived = false,
+  partner = false,
 }) {
-  const columns = [...BASE_COLUMNS, ...(archived ? ARCHIVED_TAIL : LIVE_TAIL)];
+  const columns = partner ? PARTNER_COLUMNS : [...BASE_COLUMNS, ...(archived ? ARCHIVED_TAIL : LIVE_TAIL)];
 
   return (
     <div className="relative w-full overflow-x-auto hidden lg:block">
-      <Table className="min-w-[1000px]">
+      <Table className={partner ? "min-w-[760px]" : "min-w-[1000px]"}>
         <TableHeader>
           <TableRow className="bg-black/5 border-border hover:bg-black/5">
             {selectable && (
@@ -67,11 +75,18 @@ export default function ReferralsTable({
                 </div>
               </TableCell>
               <TableCell className={`${CELL} font-bold text-foreground`}>{item?.clientName}</TableCell>
-              <TableCell className={`${CELL} text-foreground`}>{item?.agent}</TableCell>
+              {!partner && <TableCell className={`${CELL} text-foreground`}>{item?.agent}</TableCell>}
               <TableCell className={`${CELL} font-semibold text-foreground`}>{item?.route}</TableCell>
               <TableCell className={`${CELL} text-muted-foreground`}>{item?.departure}</TableCell>
               <TableCell className={`${CELL} text-foreground`}>{item?.passengers}</TableCell>
-              {archived ? (
+              {partner ? (
+                <>
+                  <TableCell className={`${CELL} text-muted-foreground`}>{item?.submittedAt}</TableCell>
+                  <TableCell className="p-[12px]">
+                    <StatusBadge status={item?.status} bordered />
+                  </TableCell>
+                </>
+              ) : archived ? (
                 <>
                   <TableCell className={`${CELL} text-muted-foreground`}>{item?.deletedAtLabel}</TableCell>
                   <TableCell className={`${CELL} text-foreground`}>{item?.deletedByName}</TableCell>
@@ -84,9 +99,11 @@ export default function ReferralsTable({
                   </TableCell>
                 </>
               )}
-              <TableCell className="p-[12px]" onClick={(e) => e.stopPropagation()}>
-                <RowActionsMenu items={getRowActions?.(item)} />
-              </TableCell>
+              {!partner && (
+                <TableCell className="p-[12px]" onClick={(e) => e.stopPropagation()}>
+                  <RowActionsMenu items={getRowActions?.(item)} />
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

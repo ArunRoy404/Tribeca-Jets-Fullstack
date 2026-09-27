@@ -9,6 +9,7 @@ import { toastApiError, toastDevCode, toastSuccess } from "@/lib/toast";
 import { useAuthStore } from "@/store/useAuthStore";
 import { markSessionActivityNow } from "@/hooks/common/useIdleLogout";
 import { useRedirectTarget } from "./useRedirectTarget";
+import { landingFor } from "@/lib/roles";
 
 /**
  * Sign-in for `/sign-in`.
@@ -53,7 +54,8 @@ export function useLogin() {
       markSessionActivityNow();
 
       toastSuccess(`Welcome back, ${data?.user?.firstName ?? "there"}`);
-      router.push(redirectTarget);
+      // A referral agent's home is the partner portal, never the CRM.
+      router.push(landingFor(data?.user?.role, redirectTarget));
     },
     onError: (error) => toastApiError(error, "Could not sign you in"),
   });
