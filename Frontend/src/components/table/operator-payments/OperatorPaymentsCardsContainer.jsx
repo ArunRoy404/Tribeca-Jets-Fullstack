@@ -2,22 +2,19 @@
 
 import OperatorPaymentCard from "./OperatorPaymentCard";
 
-export default function OperatorPaymentsCardsContainer({ items, getRowActions, onSelectPayment }) {
+/** The board below `lg`: one card per bill, the same actions as the table row. */
+export default function OperatorPaymentsCardsContainer({ items, getRowActions, onSelectBill, archived = false }) {
   return (
     <div className="flex flex-col gap-3 w-full">
       {items?.map((item) => (
         <OperatorPaymentCard
           key={item?.id}
           item={item}
+          archived={archived}
           actions={getRowActions?.(item)}
-          onClick={() => onSelectPayment?.(item?.id)}
+          onClick={() => onSelectBill?.(item?.id)}
         />
       ))}
-      {items?.length === 0 && (
-        <p className="p-6 text-center font-montserrat text-[12px] text-muted-foreground w-full">
-          No operator payment records found matching search filters.
-        </p>
-      )}
     </div>
   );
 }

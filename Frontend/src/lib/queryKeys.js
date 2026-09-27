@@ -108,6 +108,17 @@ export const queryKeys = {
     stats: (params) => ["receivables", "stats", params ?? {}],
   },
 
+  /**
+   * Operator Payments (#17) — operator bills and the money sent against them.
+   * Stats take an operator or a trip, under the same prefix.
+   */
+  operatorPayments: {
+    all: ["operator-payments"],
+    list: (params) => ["operator-payments", "list", params ?? {}],
+    detail: (id) => ["operator-payments", "detail", id],
+    stats: (params) => ["operator-payments", "stats", params ?? {}],
+  },
+
   /** Portal referrals (#11) — the desk's board and the agent's own list. */
   referrals: {
     all: ["referrals"],

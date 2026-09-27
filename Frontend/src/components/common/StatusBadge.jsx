@@ -84,6 +84,8 @@ const STATUS_TONES = {
   Quoting: "purple",
   // Receivables (#16): a trip whose client has been sent nothing yet
   "Not Invoiced": "pending",
+  // Operator Payments (#17): a trip with no operator bill recorded
+  "Not Recorded": "pending",
 };
 
 const BORDER_CLASSES = {
