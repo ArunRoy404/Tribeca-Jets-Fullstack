@@ -141,41 +141,6 @@ export const todaysPriorities = [
   },
 ];
 
-export const emptyLegOpportunities = [
-  {
-    id: "el-1",
-    route: "Miami → Teterboro",
-    aircraft: "Challenger 605 · VistaJet",
-    date: "Aug 12",
-    matches: "3 client matches",
-    matchTone: "text-success",
-  },
-  {
-    id: "el-2",
-    route: "Fort Lauderdale → Teterboro",
-    aircraft: "Citation XLS · NetJets",
-    date: "Aug 14",
-    matches: "1 client match",
-    matchTone: "text-warning",
-  },
-  {
-    id: "el-3",
-    route: "Fort Lauderdale → Teterboro",
-    aircraft: "Citation XLS · NetJets",
-    date: "Aug 14",
-    matches: "1 client match",
-    matchTone: "text-warning",
-  },
-  {
-    id: "el-4",
-    route: "Los Angeles → Miami",
-    aircraft: "Gulfstream G450 · ExecuJet",
-    date: "Aug 16",
-    matches: "2 client matches",
-    matchTone: "text-info",
-  },
-];
-
 export const recentActivities = [
   { id: "act-1", name: "Barry", action: "created", subject: "Trip #TJ-1050", time: "2h ago" },
   { id: "act-2", name: "Ari", action: "marked client payment received for", subject: "Mike Anderson", time: "4h ago" },

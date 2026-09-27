@@ -2,7 +2,7 @@
 
 import StatusBadge from "@/components/common/StatusBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
-import { Badge } from "@/components/ui/badge";
+import EmptyLegMatchBadge from "@/components/empty-legs/EmptyLegMatchBadge";
 import { cn } from "@/lib/utils";
 
 function Field({ label, value, valueClassName }) {
@@ -17,6 +17,7 @@ function Field({ label, value, valueClassName }) {
   );
 }
 
+/** One empty leg below `lg` — the same data and actions as the table row. */
 export default function EmptyLegCard({ item, actions, onClick }) {
   return (
     <div
@@ -24,10 +25,13 @@ export default function EmptyLegCard({ item, actions, onClick }) {
       className="flex flex-col gap-3 p-3.5 w-full rounded-lg border border-border bg-white shadow-card cursor-pointer hover:border-purple/40 transition-colors"
     >
       <div className="flex items-center justify-between gap-2 w-full">
-        <div className="flex items-center gap-1.5 font-montserrat font-bold text-[15px]">
-          <span className="text-purple">{item?.origin}</span>
-          <span className="text-muted-foreground font-normal">→</span>
-          <span className="text-foreground">{item?.destination}</span>
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex items-center gap-1.5 font-montserrat font-bold text-[15px]">
+            <span className="text-purple">{item?.origin}</span>
+            <span className="text-muted-foreground font-normal">→</span>
+            <span className="text-foreground">{item?.destination}</span>
+          </div>
+          <p className="font-montserrat text-[11px] text-muted-foreground truncate">{item?.reference}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
           {item?.status && <StatusBadge status={item?.status} bordered />}
@@ -40,17 +44,17 @@ export default function EmptyLegCard({ item, actions, onClick }) {
         <Field label="Operator" value={item?.operator} valueClassName="text-purple font-bold" />
       </div>
 
-      <div className="grid grid-cols-4 gap-2 w-full items-center">
-        <Field label="Date" value={item?.date} />
+      <div className="grid grid-cols-3 gap-2 w-full items-center">
+        <Field label="Departure" value={item?.date} />
         <Field label="Price" value={item?.price} valueClassName="text-success font-bold text-[13px]" />
-        <Field label="Expiry" value={item?.expiry} valueClassName="text-destructive font-semibold" />
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <p className="font-montserrat text-[10px] text-muted-foreground whitespace-nowrap">Matches</p>
-          <Badge tone="success" size="sm" className="w-fit font-bold text-[10px]">
-            {item?.matches} Matches
-          </Badge>
-        </div>
+        <Field
+          label="Expiry"
+          value={item?.expiry}
+          valueClassName={item?.lapsed ? "text-destructive font-semibold" : "text-muted-foreground"}
+        />
       </div>
+
+      <EmptyLegMatchBadge count={item?.matchCount} dateCount={item?.dateMatchCount} className="w-fit" />
     </div>
   );
 }
