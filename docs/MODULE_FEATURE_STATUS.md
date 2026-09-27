@@ -87,7 +87,7 @@ email stays reserved, so a mistyped invitation address is unrecoverable.
 | `activeLeads` on the team member card | Leads aggregates exist, not yet joined into this screen |
 | ~~`activeTrips` per user~~ | ✅ Shipped with **Trips (#11)** |
 | `conversionRate` per user | Not on this endpoint — the Agents roster carries it |
-| `revenue` per user | **Receivables (#16)** — booked value is not money received |
+| `revenue` per user | **A decision, not a dependency** — Receivables (#16) ✅ can sum what a broker's trips collected, but the staff directory is `VIEW_TEAM`, which assistants hold, and a colleague's collections are financial. Who may see them needs deciding first |
 | ~~Commission-structure fields on the team member sheet~~ | ✅ 27 Sep 2026 — set on invite or edit when the role is Referral Agent (`CommissionTermsFields`), shown on the detail sheet |
 
 The three unfilled figures render "—" in `toTeamMember`.
@@ -183,10 +183,11 @@ entered into the operator's fleet.
 |---|---|
 | ~~Trips tab ("No Trip History")~~ | ✅ Shipped with **Trips (#11)** — and Total Trips on the stats row is a real count |
 | ~~Quotes tab~~ | ✅ Shipped with **Quotes (#10)** — the tab lists the client's real offers |
-| Payments tab ("No Payments Yet") | **Receivables (#16)** |
+| ~~Payments tab ("No Payments Yet")~~ | ✅ Shipped with **Receivables (#16)** — the invoices billed to this client, with the API's totals; hidden for a role without `VIEW_RECEIVABLES` |
 | ~~Credit / money on account~~ | ✅ Shipped with **Client Credits (#30)** — a Credit tab with a real ledger |
 | ~~Activity timeline ("No Activity Yet")~~ | ✅ Shipped with **Notes / Timeline (#29)** — notes merged with the audit trail |
-| Total spend, average trip value | **Receivables (#16)** |
+| ~~Total spend~~ | ✅ Shipped with **Receivables (#16)** — money actually received (`collected` from `GET /receivables/stats?clientId=`), not booked value |
+| Average trip value | Not built — booked value or received value per trip is a definition nobody has chosen |
 
 **Removed rather than faked:** the detail page had an attachment drop zone
 wired to nothing. It belongs to **Document Vault (#22)**.
@@ -295,7 +296,7 @@ makes the create form work. See **Uploads (#28)**.
 |---|---|
 | ~~`activeTrips` on the roster and the agent page~~ | ✅ Shipped with **Trips (#11)** |
 | Agent "associated trips" panel | **Buildable now** — `GET /trips?brokerId=` exists; `AgentAssociatedTrips` is not wired to it yet |
-| Revenue per agent | **Receivables (#16)** |
+| Revenue per agent | **A decision** — the same one as `revenue` on Users & Roles (#2) |
 | Contact / activity timeline on a lead | **Communications / Email Templates (#21)** |
 | Quote-linked lead stages (Proposal, Quoted moving on their own) | **Quotes (#10)** ✅ exists — wiring the *client's* lead stage to it is a Clients change, still to do |
 | Log Call Activity on an agent | **Communications** — disabled and labelled, not silently inert |
@@ -396,7 +397,7 @@ rows, the way a leads table would have split one client.
 | Feature | Unblocked by |
 |---|---|
 | ~~Turning an approved operator price into a client-facing offer~~ | ✅ Shipped with **Quotes (#10)** — a quote carries `operatorQuoteId`, which is what makes its margin traceable |
-| Deposit / payment column on the board | **Receivables (#16)** — null today, renders an em dash |
+| Deposit / payment column on the board | **A decision** — Receivables (#16) ✅ shipped, but an invoice has no "deposit" kind, so nothing can say which payment was the deposit. Still an em dash |
 | Departure and arrival *times* on the route strip | **Trips (#11)** ✅ — not wired here yet — a request records the day, not a schedule |
 | Emailing the request to the operator | **Email Templates (#21)** |
 | Operator document upload and field extraction (§6.9) | **Document Vault (#22)** — the pipeline exists now (**Files #28**); the sourcing screen and the extraction step do not |
@@ -489,7 +490,7 @@ client see on the 9th?" — is `QuoteVersion`.
 | Emailing the quote to the client | **Email Templates (#21)** — Send marks it sent and says so; it does not deliver |
 | `viewedAt` — "the client opened it" | **Client Portal (#25)**, and scope §16 already hedges it with "where technically trackable" |
 | ~~Turning an approved quote into a booking~~ | ✅ Shipped with **Trips (#11)** — `POST /trips/from-quote/:quoteId`, "Book Trip" on the quote |
-| Deposit *received* against the deposit quoted | **Receivables (#16)** |
+| Deposit *received* against the deposit quoted | **A decision** — as on the sourcing board: invoices do not mark a deposit yet |
 | Distance and aircraft recommendation from the route (§6.10) | **Airports** holds the coordinates; the recommendation rules are undecided |
 
 **Deferred by decision: the AI quote builder.** Scope §6.10 calls it
@@ -529,9 +530,19 @@ rules the scope says nobody has agreed.
 Trips tab; Clients' Trips tab and trip count; Notes `TRIP` subject; Client
 Credits `appliedToTripId`; Trip Requests closing the loop.
 
+**Second pass from Receivables (#16), 28 Sep 2026:** each trip carries
+`clientPayment` — its billing across its invoices (Not Invoiced, Due,
+Partially Paid, Paid, Overdue) with invoiced, paid and balance — shown as the
+board's "Client Pmt" column and the trip page's Client Paid / Client Balance,
+where the trip's invoices are listed and raised. The "Payment Attention" tile
+counts trips with an overdue invoice. All absent for a role without
+`VIEW_RECEIVABLES`.
+
 **Still waiting:** `avgUtilization` (no module records flight hours),
 `IN_SERVICE` derived from trips, the Agent "associated trips" panel (buildable
-now), and money received — **Receivables (#16)**.
+now), the board's "All Payments" filter (buildable now — needs the trips API
+to work out matching ids, as the receivables list does), and operator
+payments — **Operator Payments (#17)**.
 
 ---
 
@@ -605,13 +616,68 @@ third-party feed. That is a procurement decision, not a coding one.
 
 ## 16–19. The financial modules ◐
 
-- **16 Receivables** — what clients owe. Nothing blocks it now (Trips ✅,
-  Clients ✅). ⬜
+- **16 Receivables** ✅ *(28 Sep 2026)* — what clients owe, and what has come
+  in. Below.
 - **17 Operator Payments** — what Tribeca owes operators. Trips ✅,
   Operators ✅. ⬜
 - **18 Commissions** ✅ *(27 Sep 2026, for client adjustment #11)* — below.
 - **19 Transactions** — a union **view** over the three above, not a fourth
   table, which is why it comes last of the four. ⬜
+
+### 16. Receivables ✅ *(28 Sep 2026)*
+
+**Working now**
+
+- `Invoice` on a trip, billed to a client (the trip's by default, or a travel
+  agent paying for them): the charge before FET, the FET on it, the due date,
+  and a status a person sets — Draft, Sent or Cancelled. The number is
+  `INV-<year>-<sequence>`, fixed at creation
+- `InvoicePayment`, a ledger under the invoice: amount, the day it arrived,
+  method, reference, notes. Withdrawn (never deleted) with who withdrew it,
+  and restorable
+- **Paid, balance and the state are computed on every read**, never stored
+  (`receivables.amounts.ts`, pure and tested): Draft, Due, Partially Paid,
+  Paid, Overdue (sent, owing, past its due date) or Cancelled. Filtering by
+  state works out the matching ids with the same function, so the pager and
+  the total stay right
+- The money rules, each enforced on create, edit and restore: a payment only
+  on a sent invoice; never past what is owed (an overpayment belongs on the
+  client's credit); the total never below what is paid; no cancelling, no
+  back-to-draft and no archiving while live payments stand
+- Stats — invoiced, collected, outstanding, overdue and a count per state —
+  summed in cents, optionally for one client or one trip
+- `VIEW_RECEIVABLES` / `MANAGE_RECEIVABLES`: every invoice for administrators
+  and senior brokers; the invoices on the trips they may see for a broker,
+  through `TripsService.visibleWhere`, so the two scopes cannot drift. A broker
+  raises invoices and records payments on their own trips; archiving an invoice
+  and withdrawing or restoring a payment are ALL-only. Assistants and referral
+  agents: none
+- Frontend: the board (URL state, Archived tab, bulk archive/restore, cards
+  below `lg`), the add/edit dialog with "Bill the full trip" from the server's
+  own figures, the record/correct payment dialog, and the detail sheet with the
+  payment ledger. `dummyData/receivables.js` and the store's copy are deleted;
+  the old "Send Reminder" and "Export" buttons are gone rather than faked
+- **Second passes:** Trips (payment column, paid/balance, invoices on the trip
+  page, Payment Attention), Clients (the Payments tab and Total Spent)
+- `CommissionPaymentMethod` became the shared `PaymentMethod` (a rename in
+  place — the method on every paid commission is kept)
+- Migration `20260928100000_add_receivables`; Postman builder
+  `build_receivables_folder.py` → `19 · Receivables` (14 requests), **written,
+  not run**
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Payment reminders (§9.3 "trigger reminders") | **Email Templates (#21)** |
+| A printable / PDF invoice | **Document Vault (#22)** |
+| Export | **Settings / Import / Export (#26)** |
+| Receivables on the dashboard and the daily brief | **Dashboard (#24)** |
+| Paying an invoice from a client's credit | **A decision** — see Client Credits (#30) |
+
+**Deferred by decision:** processing card or wire payments. Scope §17 lists
+"whether the CRM only records payments or also processes card/wire payments"
+as open; this module records them.
 
 ### 18. Commissions ✅
 
@@ -924,7 +990,7 @@ his own request that settles it.
 | Feature | Blocked by |
 |---|---|
 | ~~"Used towards **which** trip" as a real link~~ | ✅ Shipped with **Trips (#11)** — `appliedToTripId`, a real foreign key, picked from the client's trips on the form |
-| Credit shown against an invoice | **Receivables (#16)** |
+| Credit shown against an invoice | **A decision** — Receivables (#16) ✅ shipped. Paying an invoice from credit would record the same money twice (an APPLICATION and a payment) unless one is made to create the other; how the desk wants that to work has not been described |
 
 **Deferred by decision: a REFUND type.** Money actually paid back out is a
 third real movement, and it is absent until somebody asks. Recording one today
@@ -1102,7 +1168,15 @@ the call site.
 **Usable against the real database today:** Auth, Users & Roles, Airports,
 Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
 Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
-Empty Legs, Commissions**, and the desk half of **Referrals**.
+Empty Legs, Commissions, Referrals** (desk and portal) and **Receivables**.
+
+**Most recent change (28 September), uncommitted:** Receivables (#16) — invoices
+and payments, with its second passes into Trips and Clients. One migration,
+`20260928100000_add_receivables`, must be deployed (`npm run db:deploy`)
+before the API starts. Written **without live testing, by the owner's
+instruction**: backend `tsc`, oxlint and vitest (171 tests, 16 files) are
+clean, frontend eslint reports nothing in the files changed, and `npm run
+build` passes. The Postman builder is written and not run.
 
 **Most recent change (27 September), all uncommitted:** Trips (#11) with every
 second pass it owed; Empty Legs (#15) with client adjustment #10b's matching;
@@ -1124,9 +1198,8 @@ also without live testing: build, eslint, backend lint and tests pass.
 **Left of client adjustment #11:** nothing to build. The three Postman builders
 are written and need one run against a freshly seeded API, then Newman.
 
-**Next in the module queue:** Receivables (#16) and Operator Payments (#17),
-then Transactions (#19); Itineraries (#12) and Schedule (#13) are unblocked by
-Trips too.
+**Next in the module queue:** Operator Payments (#17), then Transactions
+(#19); Itineraries (#12) and Schedule (#13) are unblocked by Trips too.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational

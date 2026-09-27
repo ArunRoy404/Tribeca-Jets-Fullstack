@@ -52,8 +52,8 @@ set of broken joins the day the real table arrives.
 | 13 | **Schedule** | Not started | Trips (read-only view) |
 | 14 | **Flight Tracking** | Not started | Trips, Aircraft |
 | 15 | **Empty Legs** | ✅ Done (27 Sep) | Operators, Aircraft, Airports; matching reads Trip Requests (adjustment #10b) |
-| 16 | **Receivables** | ⬅ **Next** | Trips, Clients |
-| 17 | **Operator Payments** | Not started | Trips, Operators |
+| 16 | **Receivables** | ✅ Done (28 Sep) | Trips, Clients |
+| 17 | **Operator Payments** | ⬅ **Next** | Trips, Operators |
 | 18 | **Commissions** | ✅ Done (27 Sep) | Trips, Users (built ahead of 16–17 for adjustment #11) |
 | 19 | **Transactions** | Not started | 16, 17, 18 (a union view) |
 | 20 | **Tasks Board** | Not started | Users; links to Trips/Clients |
@@ -72,9 +72,9 @@ set of broken joins the day the real table arrives.
 
 **Trips shipped on 27 September 2026**, with Empty Legs and Commissions
 pulled forward after it so client adjustments #10b and #11 could be built
-without waiting on the client. **What is next:** finishing #11's agent portal
-(see #32), then **Receivables (#16)** and **Operator Payments (#17)** —
-nothing blocks either now — then Transactions (#19). Itineraries (#12) and
+without waiting on the client; #11's agent portal followed the same day, and
+**Receivables (#16)** on 28 September. **What is next:** **Operator Payments
+(#17)** — nothing blocks it — then Transactions (#19). Itineraries (#12) and
 Schedule (#13) are unblocked by Trips as well.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
@@ -473,7 +473,11 @@ module's table.
 
 ### 16–19. The financial modules
 
-- **Receivables** — what clients owe: invoices, due dates, collection state.
+- **Receivables** ✅ — what clients owe: an invoice on a trip, billed to a
+  client, with a ledger of payments under it. Paid, balance and the state
+  (Due, Partially Paid, Paid, Overdue) are computed from the payments and the
+  due date on every read; only the charge, the due date and Draft / Sent /
+  Cancelled are stored.
 - **Operator Payments** — what Tribeca owes operators for each trip.
 - **Commissions** ✅ — what is paid out on a trip: to a referral agent, a
   client (a travel agent) or a named person, as a percent of profit, a flat fee

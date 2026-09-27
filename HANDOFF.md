@@ -202,7 +202,11 @@ Paste everything between the lines into the first message of a new session.
 >    (`build_empty_legs_folder.py`, `build_commissions_folder.py`,
 >    `build_referrals_folder.py`), recapture `/auth/me` and the Users invite,
 >    then `rewrite_body_comments.py` and Newman twice.
-> 3. Then Phase 3's queue: Receivables (#16), Operator Payments (#17).
+> 3. Receivables (#16) is built (28 Sep, untested, by the same instruction):
+>    deploy its migration, then test the board, the trip page's invoices and
+>    the client's Payments tab. Its Postman builder,
+>    `build_receivables_folder.py`, is written and not run.
+> 4. Then Phase 3's queue: Operator Payments (#17), then Transactions (#19).
 >
 > **For the client:** the Archived-tab demo (#1), the rate data for #6, the
 > FET-in-profit question, and each referral agent's commission figures

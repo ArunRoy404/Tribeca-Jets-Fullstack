@@ -1008,6 +1008,29 @@ the 9th is a credit dated the 3rd; the audit column still records the typing.
 The ledger sorts by the movement, which is why `sortableBy` is given an
 explicit fallback here rather than the usual `createdAt`.
 
+## A computed state is filtered by computing it, never by storing it
+
+Receivables' "Overdue" and "Partially Paid" are worked out from the payments
+and today's date, so no column holds them — and a stored copy would be wrong
+from midnight until a job ran. Filtering on one is still exact: narrow by the
+stored columns first, work each candidate's state out with **the same pure
+function every read uses**, and filter the page query by the matching ids
+(`stateWhere` in `receivables.service.ts`). Never page first and filter the
+page afterwards — that shows short pages and a total that counts rows the
+filter removed.
+
+A module whose rows hang off a trip inherits the trip's scope through
+`TripsService.visibleWhere(user)`, never a copy of the trip `where` clause.
+
+## Read every generated migration before it ships
+
+`prisma migrate diff` renamed nothing: asked to turn `CommissionPaymentMethod`
+into the shared `PaymentMethod`, it **dropped `commissions.method` and added it
+back empty** — every paid commission would have lost its method on deploy.
+`20260928100000_add_receivables` does it with `ALTER TYPE ... RENAME TO`
+instead. A rename of a column, a table or an enum is always hand-written, and
+any `DROP COLUMN` in generated SQL is read as a question, not an instruction.
+
 ## Service layer rules
 
 - Soft delete (`deletedAt`), never a hard `delete`. Every query filters `deletedAt: null`.
@@ -1298,8 +1321,8 @@ checkbox column that feeds them.
 Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
-detail page and the client/lead dialogs, Trips, Empty Legs, Commissions and
-Referrals. Not yet: the Clients table, Airports,
+detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
+Referrals and Receivables. Not yet: the Clients table, Airports,
 Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by
