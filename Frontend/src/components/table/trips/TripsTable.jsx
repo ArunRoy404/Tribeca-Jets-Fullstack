@@ -7,10 +7,11 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components
 const BASE_COLUMNS = ["Trip ID", "Client", "Broker", "Route", "Departure", "Return", "Aircraft · Operator"];
 
 /**
- * "Client Pmt" and "Op Pmt" stay as columns reading "—": payments are
- * Receivables (#16) and Operator Payments (#17), and an honest blank says the
- * data is not there yet where a missing column would say it does not matter.
- * The Archived tab swaps the lifecycle columns for who removed it and when.
+ * "Client Pmt" is the trip's billing position from Receivables (#16),
+ * computed by the API across its invoices. "Op Pmt" stays a column reading
+ * "—" until Operator Payments (#17): an honest blank says the data is not
+ * there yet where a missing column would say it does not matter. The Archived
+ * tab swaps the lifecycle columns for who removed it and when.
  */
 const LIVE_TAIL = ["Status", "Client Pmt", "Op Pmt", "FET", "Total", "Profit", ""];
 const ARCHIVED_TAIL = ["Removed On", "Removed By", ""];

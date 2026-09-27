@@ -60,7 +60,9 @@ export default function TripsTableRow({
               <StatusBadge status={item?.status} bordered />
             </div>
           </TableCell>
-          <TableCell className={`${CELL} text-muted-foreground`}>{item?.clientPayment}</TableCell>
+          <TableCell className={`${CELL} text-muted-foreground`}>
+            {item?.clientBilling?.known ? <StatusBadge status={item.clientPayment} bordered /> : item?.clientPayment}
+          </TableCell>
           <TableCell className={`${CELL} text-muted-foreground`}>{item?.operatorPayment}</TableCell>
           <TableCell className={`${CELL} text-muted-foreground`}>{item?.fet}</TableCell>
           <TableCell className={`${CELL} font-semibold text-foreground`}>{item?.total}</TableCell>

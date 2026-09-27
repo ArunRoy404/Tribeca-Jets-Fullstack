@@ -1,5 +1,9 @@
 import StatCard from "@/components/common/StatCard";
 import { useTrips } from "@/hooks/trips";
+import { useReceivableStats } from "@/hooks/receivables";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
+import { formatMoney } from "@/lib/money";
 
 /**
  * Client Stats KPI Row
@@ -9,8 +13,11 @@ import { useTrips } from "@/hooks/trips";
  * - Total Trips is live since Trips (#11): the count of this client's trips
  *   from `GET /trips?clientId=` (the pager's `meta.total`), within the caller's
  *   scope, and how many of them are completed.
- * - Total Spent needs Receivables (#16) — money actually paid — and stays an
- *   em dash until then; a sum of booked prices would be a different figure.
+ * - Total Spent is money actually received from this client — every live
+ *   payment on the invoices billed to them, summed by the API
+ *   (`GET /receivables/stats?clientId=`, Receivables #16). A sum of booked
+ *   prices would be a different figure. An em dash for a role that may not
+ *   read receivables.
  */
 export default function ClientStatsRow({ client }) {
   const { data: allTrips } = useTrips({ clientId: client?.id, limit: 1 }, { enabled: Boolean(client?.id) });
@@ -20,7 +27,13 @@ export default function ClientStatsRow({ client }) {
   );
   const totalTrips = allTrips?.meta ? String(allTrips.meta.total) : "—";
   const tripsOnRecord = completedTrips?.meta ? `${completedTrips.meta.total} completed` : "—";
-  const totalSpent = client?.totalSpent ?? "—";
+  const { can } = usePermissions();
+  const maySeeInvoices = can(Permission.VIEW_RECEIVABLES);
+  const { data: billing } = useReceivableStats(
+    { clientId: client?.id },
+    { enabled: Boolean(client?.id) && maySeeInvoices },
+  );
+  const totalSpent = maySeeInvoices && billing ? formatMoney(billing.collected) : "—";
   const activeQuotes = client?.activeQuotesCount ?? "—";
   const nextFollowUp =
     client?.nextFollowUpLabel && client?.nextFollowUpLabel !== "—"
@@ -43,7 +56,7 @@ export default function ClientStatsRow({ client }) {
       <StatCard
         title="TOTAL SPENT"
         value={totalSpent}
-        subtitle="all time"
+        subtitle="received, all time"
         valueTone="success"
       />
       <StatCard

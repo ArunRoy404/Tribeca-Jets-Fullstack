@@ -41,6 +41,7 @@ export default function ClientDetailPage({ params }) {
   // only ever renders a 403 reads as a broken app, not as a boundary.
   const { can } = usePermissions();
   const maySeeMoney = can(Permission.VIEW_FINANCIALS);
+  const maySeeInvoices = can(Permission.VIEW_RECEIVABLES);
 
   const { data, isPending, error, refetch } = useClient(rawId);
   const client = data ? toClientRow(data) : null;
@@ -72,10 +73,11 @@ export default function ClientDetailPage({ params }) {
     { id: "overview", label: "Overview" },
     { id: "trips", label: "Trips" },
     { id: "quotes", label: "Quotes" },
-    { id: "payments", label: "Payments" },
+    // The invoices billed to this client and what has come in (Receivables,
+    // #16) — hidden, not refused, for a role that may not read them.
+    ...(maySeeInvoices ? [{ id: "payments", label: "Payments" }] : []),
     // Money on account is its own thing, not a payment: a payment settles an
-    // invoice, a credit is money the client is holding with us. Receivables
-    // (#16) will fill the Payments tab; this one is already real.
+    // invoice, a credit is money the client is holding with us.
     ...(maySeeMoney ? [{ id: "credit", label: "Credit" }] : []),
     { id: "activity", label: "Activity" },
   ];
@@ -154,7 +156,7 @@ export default function ClientDetailPage({ params }) {
                   isCompleting={isCompleting}
                 />
               )}
-              {activeTab === "payments" && (
+              {activeTab === "payments" && maySeeInvoices && (
                 <ClientPaymentsTab
                   client={client}
                   onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}

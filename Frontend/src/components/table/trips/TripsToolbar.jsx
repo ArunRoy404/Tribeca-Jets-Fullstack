@@ -31,9 +31,11 @@ const TAB_IDS = Object.fromEntries(Object.entries(TAB_LABELS).map(([id, label]) 
 /**
  * The trips board's filters, all in the URL.
  *
- * The old board's "All Payments" filter is gone rather than faked: a trip's
- * payment state belongs to Receivables (#16), which does not exist yet, and a
- * filter over a column nobody fills in filters nothing. The Export button went
+ * The old board's "All Payments" filter is not back yet. A trip's client
+ * payment state now exists (Receivables, #16) and shows in its column, but it
+ * is computed from invoices, so filtering on it needs the trips API to work
+ * out matching ids the way the receivables list does — a filter added here
+ * alone would filter one page, not the board. The Export button went
  * with the dialog it opened, which promised "all 16 operations" whatever the
  * data said — export is its own module (#26).
  */

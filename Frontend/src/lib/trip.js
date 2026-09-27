@@ -4,6 +4,7 @@ import { formatMoney } from "@/lib/money";
 import { personName } from "@/lib/lead";
 import { displayName } from "@/lib/client";
 import { formatAircraftCategory } from "@/lib/aircraft";
+import { toTripPayment } from "@/lib/receivable";
 
 /**
  * Display helpers for Trips (#11).
@@ -153,9 +154,12 @@ export function toTripRow(trip) {
     total: money(trip?.totalPrice),
     fet: money(trip?.fetAmount),
     profit: money(trip?.grossProfit),
-    // Payments live in Receivables (#16) and Operator Payments (#17), which do
-    // not exist yet. A dash, not "Pending" — nobody has said it is pending.
-    clientPayment: DASH,
+    // The client's billing across this trip's invoices, computed by the API
+    // (Receivables, #16) — a dash for a role that may not read receivables.
+    // Operator payments are #17, not built yet: a dash, not "Pending", because
+    // nobody has said it is pending.
+    clientPayment: toTripPayment(trip?.clientPayment).state,
+    clientBilling: toTripPayment(trip?.clientPayment),
     operatorPayment: DASH,
     nextStatuses: trip?.nextStatuses ?? [],
     editable: Boolean(trip?.editable),
