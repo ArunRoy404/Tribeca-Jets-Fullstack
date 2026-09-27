@@ -141,6 +141,10 @@ that line or scope the feature.
 | broker@tribecajets.com | ChangeMe123! | BROKER | off |
 | security@tribecajets.com | ChangeMe123! | ADMIN | **on** |
 | reset-demo@tribecajets.com | ChangeMe123! | BROKER | off |
+| agent@tribecajets.com | ChangeMe123! | REFERRAL_AGENT (10% of profit) | off |
+
+`agent@` is the referral partner (#11). `17 · Commissions` and `18 · Referrals`
+sign in as it for the requests marked "(as the agent)" — see below.
 
 ## Running the whole collection
 
@@ -273,8 +277,26 @@ Every other module folder has its own builder, which captures live against a
 running, seeded API — `build_aircraft_folder.py` (07),
 `build_trip_requests_folder.py` (08), `build_operator_sourcing_folder.py` (09),
 `build_quotes_folder.py` (10), `build_uploads_folder.py` (11),
-`build_notes_folder.py` (12), `build_client_credits_folder.py` (13), and
-`build_users_folder.py` + `reorganize.py` for 04 (above).
+`build_notes_folder.py` (12), `build_client_credits_folder.py` (13),
+`build_charter_rates_folder.py` (14), `build_trips_folder.py` (15),
+`build_empty_legs_folder.py` (16), `build_commissions_folder.py` (17),
+`build_referrals_folder.py` (18), and `build_users_folder.py` +
+`reorganize.py` for 04 (above).
+
+**16, 17 and 18 were written on 27 Sep 2026 and have not been run yet** — the
+collection does not contain those folders until they are. Run them against a
+freshly seeded API (they need `agent@tribecajets.com`), then
+`rewrite_body_comments.py`, then Newman twice. Two older folders now also
+under-document their responses: `01 · Auth`'s `/auth/me` and sign-in examples
+lack `commissionTerms` (null for staff), and `04 · Users`' invite does not yet
+show the optional commission terms a referral agent can be invited with —
+rebuild those with `update_session_example.py` / `build_users_folder.py`.
+
+**A request made as a second account** uses `sign_in_as()` from
+`builder_common.py`: a request-level pre-request that signs in as that account
+and sets `_sessionAs`, so the folder's own login signs the owner back in on
+the next request. Each switch is a login, so a full run needs
+`RATE_LIMIT_MULTIPLIER=20`.
 
 Two things every live builder does, and a new one must copy:
 

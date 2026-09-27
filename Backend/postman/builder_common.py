@@ -9,14 +9,18 @@ we reach it").
 """
 
 import json
+import mimetypes
+import pathlib
 import re
 import urllib.error
 import urllib.request
+import uuid
 from http.cookiejar import CookieJar
 
 BASE = 'http://localhost:4000/api'
 PASSWORD = 'ChangeMe123!'
 MISSING = '00000000-0000-4000-8000-000000000000'
+FIXTURES = pathlib.Path(__file__).with_name('fixtures')
 
 STATUS_TEXT = {200: 'OK', 201: 'Created', 204: 'No Content', 400: 'Bad Request',
                401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',
@@ -57,6 +61,32 @@ class Session:
         req = urllib.request.Request(BASE + path, data=data, method=method)
         if data is not None:
             req.add_header('Content-Type', 'application/json')
+        return self._send(req)
+
+    def upload(self, route: str, path: pathlib.Path, fields: dict | None = None):
+        """
+        A real multipart POST, so the server sniffs real bytes. Lifted from
+        `build_uploads_folder.py` when a second builder needed it; that one
+        moves over when its own folder is next rebuilt.
+        """
+        boundary = f'----tribeca{uuid.uuid4().hex}'
+        content_type = mimetypes.guess_type(path.name)[0] or 'application/octet-stream'
+        crlf = '\r\n'
+        parts = [
+            f'--{boundary}{crlf}Content-Disposition: form-data; name="{key}"{crlf}{crlf}{value}{crlf}'.encode()
+            for key, value in (fields or {}).items()
+        ]
+        parts.append(
+            f'--{boundary}{crlf}Content-Disposition: form-data; name="file"; '
+            f'filename="{path.name}"{crlf}Content-Type: {content_type}{crlf}{crlf}'.encode()
+            + path.read_bytes() + crlf.encode()
+        )
+        parts.append(f'--{boundary}--{crlf}'.encode())
+        req = urllib.request.Request(BASE + route, data=b''.join(parts), method='POST')
+        req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+        return self._send(req)
+
+    def _send(self, req):
         req.add_header('X-CSRF-Token', self.csrf)
         try:
             with self.opener.open(req) as response:
@@ -121,6 +151,48 @@ def script(listen: str, lines: list[str]) -> dict:
 def status_test(code: int, label: str) -> dict:
     """The smallest honest test script: the status the request exists to show."""
     return script('test', [f"pm.test('{label}', () => pm.response.to.have.status({code}));"])
+
+
+def sign_in_as(email_variable: str, tag: str) -> list[str]:
+    """
+    Request-level pre-request lines that sign in as another seeded account for
+    this one request — the referral agent's side of a desk folder.
+
+    The folder's own login only acts when `_sessionAs` differs from its
+    account, so setting it to `tag` here makes the *next* request's folder
+    script sign the owner back in. Request-level rather than folder-level for
+    the same reason the lookups are: it has to run after the folder login.
+    """
+    return [
+        '// This request is made as a different account; the folder script',
+        '// signs the owner back in on the next request.',
+        f"if (pm.variables.get('_sessionAs') !== '{tag}') {{",
+        '    pm.sendRequest({',
+        "        url: pm.collectionVariables.get('baseUrl') + '/auth/login', method: 'POST',",
+        "        header: { 'Content-Type': 'application/json' },",
+        "        body: { mode: 'raw', raw: JSON.stringify({",
+        f"            email: pm.collectionVariables.get('{email_variable}'),",
+        "            password: pm.collectionVariables.get('password'),",
+        '        }) },',
+        '    }, function (err, res) {',
+        '        if (err || !res) { return; }',
+        f"        pm.variables.set('_sessionAs', '{tag}');",
+        "        res.headers.all().filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+        '            .forEach(function (h) {',
+        '                const match = /tj_csrf=([^;]+)/.exec(h.value);',
+        "                if (match) { pm.collectionVariables.set('csrfToken', match[1]); }",
+        '            });',
+        '    });',
+        '}',
+    ]
+
+
+def ensure_variables(collection: dict, defaults: dict[str, str]) -> None:
+    """Adds any collection variable the folder uses that is not there yet."""
+    existing = {v['key'] for v in collection['variable']}
+    for key, value in defaults.items():
+        if key not in existing:
+            collection['variable'].append({'key': key, 'value': value, 'type': 'string'})
 
 
 def copy_folder_login(collection: dict, folder: dict, source_prefix: str = '10 ·') -> None:
