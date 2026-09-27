@@ -2,6 +2,8 @@
 
 import { Send, X } from "lucide-react";
 import { useItinerariesStore } from "@/store/useItinerariesStore";
+import { useItinerary, useSendItinerary } from "@/hooks/itineraries";
+import { toItineraryRow } from "@/lib/itinerary";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -9,15 +11,13 @@ export default function SendItineraryDialog() {
   const open = useItinerariesStore((s) => s.sendModalOpen);
   const sendTargetId = useItinerariesStore((s) => s.sendTargetId);
   const closeModal = useItinerariesStore((s) => s.closeSendModal);
-  const getItineraryById = useItinerariesStore((s) => s.getItineraryById);
 
-  const item = sendTargetId ? getItineraryById(sendTargetId) : null;
-  const tripId = item?.id || "TJ-1040";
-  const clientName = item?.client || "Kevin Monroe";
+  const { data: item } = useItinerary(open ? sendTargetId : null);
+  const row = item ? toItineraryRow(item) : null;
+  const { mutate: send, isPending } = useSendItinerary();
 
   const handleSend = () => {
-    alert(`Itinerary ${tripId} successfully sent to ${clientName}!`);
-    closeModal();
+    send(sendTargetId, { onSuccess: () => closeModal() });
   };
 
   return (
@@ -33,18 +33,19 @@ export default function SendItineraryDialog() {
             Send itinerary to client
           </DialogTitle>
           <DialogDescription className="font-montserrat text-[13px] text-muted-foreground text-center max-w-sm">
-            Email the itinerary for <span className="font-bold text-foreground">{tripId}</span> to{" "}
-            <span className="font-bold text-foreground">{clientName}</span>? A sent-confirmation will be logged to the activity trail.
+            Mark the itinerary for <span className="font-bold text-foreground">{row?.tripReference ?? "—"}</span> as sent to{" "}
+            <span className="font-bold text-foreground">{row?.client ?? "—"}</span>? This records the act in the trip&apos;s
+            activity trail — it does not deliver an email.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-center gap-3 pt-2 w-full">
-          <Button type="button" variant="outline" className="gap-1.5 px-5" onClick={closeModal}>
+          <Button type="button" variant="outline" className="gap-1.5 px-5" onClick={closeModal} disabled={isPending}>
             <X className="size-4" />
             Cancel
           </Button>
 
-          <Button type="button" className="gap-1.5 px-6" onClick={handleSend}>
+          <Button type="button" className="gap-1.5 px-6" onClick={handleSend} disabled={isPending || !row}>
             <Send className="size-4" />
             Send Itinerary
           </Button>

@@ -1,21 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, FileText, X, Clock } from "lucide-react";
+import { FileText, X, Clock } from "lucide-react";
 import { useItinerariesStore } from "@/store/useItinerariesStore";
-import { useTrips } from "@/hooks/trips";
-import { toTripRow } from "@/lib/trip";
-import { FBO_OPTIONS, ITINERARY_AIRCRAFT_OPTIONS } from "@/dummyData/itineraries";
+import { useCreateItinerary, useUpdateItinerary } from "@/hooks/itineraries";
+import { useTrips, useTrip } from "@/hooks/trips";
+import { toTripRow, formatTripStatus } from "@/lib/trip";
+import { displayName } from "@/lib/client";
+import { formatCalendarDate } from "@/lib/date";
+import { formatTime24 } from "@/lib/time";
+import { optionalText } from "@/lib/form";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import CommonInput from "@/components/common/CommonInput";
 import CommonSelect from "@/components/common/CommonSelect";
-import { CommonDatePicker } from "@/components/common/DatePicker";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import TribecaLetterhead from "@/components/common/TribecaLetterhead";
 import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
 import ItineraryPreview from "@/components/itineraries/ItineraryPreview";
-import { formatShortDay, formatTime12, parseLocalDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 function FieldWrapper({ label, children }) {
@@ -54,519 +56,361 @@ const TABS = [
   { id: "preview", label: "Preview" },
 ];
 
+/** "N780EX · Gulfstream G550", the free-text description, or a dash. */
+function aircraftLabel(tripLike) {
+  if (tripLike?.aircraft) return [tripLike.aircraft.tailNumber, tripLike.aircraft.model].filter(Boolean).join(" · ") || "—";
+  return tripLike?.aircraftDescription || "—";
+}
+
+/** The live preview while building against a freshly-picked trip (its full
+ * detail, legs and passengers included — the list picker's rows do not carry
+ * them). Nothing here is stored; it is only what the saved document would
+ * show, built from the same fields the API itself would compute. */
+function previewFromTripDetail(trip, form) {
+  const legs = trip?.legs ?? [];
+  const first = legs[0] ?? null;
+  const last = legs.length ? legs[legs.length - 1] : null;
+  return {
+    tripReference: trip?.reference !== undefined && trip?.reference !== null ? `TJ-${trip.reference}` : "New Itinerary",
+    client: trip?.client ? displayName(trip.client) : "—",
+    originCode: first?.originAirport?.icao ?? "—",
+    destinationCode: last?.destinationAirport?.icao ?? "—",
+    departureDateLabel: first?.departureDate ? formatCalendarDate(first.departureDate) : "—",
+    departureTime: first?.departureTime ?? "—",
+    arrivalTimeLabel: form.arrivalTime ? formatTime24(form.arrivalTime) : "—",
+    aircraft: aircraftLabel(trip),
+    aircraftTail: trip?.aircraft?.tailNumber ?? "—",
+    operator: trip?.operator?.name ?? "—",
+    flightTime: form.flightTime || "—",
+    miles: form.miles || "—",
+    passengers: trip?.passengers ?? [],
+    catering: form.catering || "—",
+    groundTransport: form.groundTransport || "—",
+    // The airport's own assigned-FBO default is not carried on the trip
+    // picker's fetch, so an untyped override shows a dash here rather than a
+    // guess — it renders correctly once the document is saved and reopened.
+    departureFbo: form.departureFbo || "—",
+    arrivalFbo: form.arrivalFbo || "—",
+    tripStatus: formatTripStatus(trip?.status),
+    exteriorImageUrl: form.exteriorImageUrl || trip?.aircraft?.exteriorImageUrl || null,
+    interiorImageUrl: form.interiorImageUrl || trip?.aircraft?.interiorImageUrl || null,
+  };
+}
+
+/** The live preview while editing an existing document — `editingItinerary`
+ * already carries every trip-derived field flattened onto it (the API's own
+ * response shape), so it needs no second trip fetch. */
+function previewFromItinerary(itinerary, form) {
+  return {
+    tripReference: itinerary?.tripReference ?? "—",
+    client: itinerary?.client ? displayName(itinerary.client) : "—",
+    originCode: itinerary?.originAirport?.icao ?? "—",
+    destinationCode: itinerary?.destinationAirport?.icao ?? "—",
+    departureDateLabel: itinerary?.departureDate ? formatCalendarDate(itinerary.departureDate) : "—",
+    departureTime: itinerary?.departureTime ?? "—",
+    arrivalTimeLabel: form.arrivalTime ? formatTime24(form.arrivalTime) : "—",
+    aircraft: aircraftLabel(itinerary),
+    aircraftTail: itinerary?.aircraft?.tailNumber ?? "—",
+    operator: itinerary?.operator?.name ?? "—",
+    flightTime: form.flightTime || "—",
+    miles: form.miles || "—",
+    passengers: itinerary?.passengers ?? [],
+    catering: form.catering || "—",
+    groundTransport: form.groundTransport || "—",
+    // A blank override still falls back to the record's own effective value —
+    // which itself already resolved to the airport default when it was loaded.
+    departureFbo: form.departureFbo || itinerary?.departureFbo || "—",
+    arrivalFbo: form.arrivalFbo || itinerary?.arrivalFbo || "—",
+    tripStatus: formatTripStatus(itinerary?.tripStatus),
+    exteriorImageUrl: form.exteriorImageUrl || itinerary?.exteriorImageUrl || null,
+    interiorImageUrl: form.interiorImageUrl || itinerary?.interiorImageUrl || null,
+  };
+}
+
+/** Add or edit a trip's passenger document. Mounted only while `open`, and
+ * keyed by the record being edited (`ItineraryForm` below), so a fresh open
+ * always starts from the right initial state without an effect racing the
+ * first render. */
 export default function BuildItineraryDialog() {
   const open = useItinerariesStore((s) => s.buildModalOpen);
+  const editingItinerary = useItinerariesStore((s) => s.editingItinerary);
   const closeModal = useItinerariesStore((s) => s.closeBuildModal);
-  const addItinerary = useItinerariesStore((s) => s.addItinerary);
-
-  const [activeTab, setActiveTab] = useState("form");
-
-  const [linkedTrip, setLinkedTrip] = useState("");
-  // Live trips to build from, newest first — fetched only while the form is open.
-  const { data: tripsPage } = useTrips({ limit: 100 }, { enabled: Boolean(open) });
-  const [client, setClient] = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
-  // Every field opens blank. The form used to open on a route (to "KTTB",
-  // which is not an airport), a caterer, a car and an FBO, so a hurried save
-  // put a Mercedes and seafood on an itinerary nobody had ordered them for.
-  const [routeFrom, setRouteFrom] = useState("");
-  const [routeTo, setRouteTo] = useState("");
-  const [departureDate, setDepartureDate] = useState("");
-  const [departureTime, setDepartureTime] = useState("");
-  const [arrivalTime, setArrivalTime] = useState("");
-  const [aircraft, setAircraft] = useState("");
-  const [operator, setOperator] = useState("");
-  const [tailNumber, setTailNumber] = useState("");
-  const [flightTime, setFlightTime] = useState("");
-  const [miles, setMiles] = useState("");
-  const [departureFboName, setDepartureFboName] = useState("");
-  const [arrivalFboName, setArrivalFboName] = useState("");
-  const [operatorItineraryUrl, setOperatorItineraryUrl] = useState("");
-  const [operatorItineraryText, setOperatorItineraryText] = useState("");
-  const [exteriorImage, setExteriorImage] = useState("");
-  const [interiorImage, setInteriorImage] = useState("");
-  const [catering, setCatering] = useState("");
-  const [groundTransport, setGroundTransport] = useState("");
-  const [fbo, setFbo] = useState("");
-  const [notes, setNotes] = useState("");
-
-  const [passengers, setPassengers] = useState([{ name: "", passport: "" }]);
-
-  const resetForm = () => {
-    setLinkedTrip("");
-    setClient("");
-    setLogoUrl("");
-    setRouteFrom("");
-    setRouteTo("");
-    setDepartureDate("");
-    setDepartureTime("");
-    setArrivalTime("");
-    setAircraft("");
-    setOperator("");
-    setTailNumber("");
-    setFlightTime("");
-    setMiles("");
-    setDepartureFboName("");
-    setArrivalFboName("");
-    setOperatorItineraryUrl("");
-    setOperatorItineraryText("");
-    setExteriorImage("");
-    setInteriorImage("");
-    setCatering("");
-    setGroundTransport("");
-    setFbo("");
-    setNotes("");
-    setPassengers([{ name: "", passport: "" }]);
-    setActiveTab("form");
-  };
-
-  const handleTripSelect = (value) => {
-    setLinkedTrip(value);
-    const found = (tripsPage?.data ?? []).find((t) => t.id === value);
-    if (found) {
-      // Real trips now (Trips, #11) — the picker used to list the dummy board.
-      // Only what the trip actually records is carried over; a blank stays blank.
-      const first = found.legs?.[0];
-      const last = found.legs?.[found.legs.length - 1];
-      const row = toTripRow(found);
-      if (row.client !== "—") setClient(row.client);
-      if (first?.originAirport?.icao) setRouteFrom(first.originAirport.icao);
-      const to = found.type === "ROUND_TRIP" ? first?.destinationAirport?.icao : last?.destinationAirport?.icao;
-      if (to) setRouteTo(to);
-      if (row.aircraft !== "—") setAircraft(row.aircraft);
-      if (row.operator !== "—") setOperator(row.operator);
-    }
-  };
-
-  const addPassengerRow = () => setPassengers((prev) => [...prev, { name: "", passport: "" }]);
-  const removePassengerRow = (index) => setPassengers((prev) => prev.filter((_, i) => i !== index));
-  const updatePassenger = (index, field, value) =>
-    setPassengers((prev) => prev.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
-
-  const fboByName = (name) => {
-    if (!name) return null;
-    const match = FBO_OPTIONS.find((f) => f.name === name);
-    // Phone and email stay empty until the FBO directory has them — "Contact
-    // FBO" in a phone field reads like a number somebody looked up.
-    return { name, address: match?.address || "", phone: "", email: "" };
-  };
-
-  // The same object shape ItineraryPreview already renders for a saved
-  // record — the live preview and the eventual detail sheet are the same
-  // component reading the same fields, so nothing can drift between "what
-  // the broker saw while building it" and "what got saved."
-  const previewItem = useMemo(
-    () => ({
-      client,
-      from: routeFrom,
-      to: routeTo,
-      departureDate: departureDate ? formatShortDay(parseLocalDate(departureDate)) : "",
-      departureTime: departureTime ? formatTime12(departureTime) : "",
-      arrivalTime: arrivalTime ? formatTime12(arrivalTime) : "",
-      aircraft,
-      operator,
-      tailNumber,
-      flightTime,
-      miles,
-      passengers,
-      catering,
-      groundTransport,
-      fbo,
-      departureFbo: fboByName(departureFboName),
-      arrivalFbo: fboByName(arrivalFboName),
-      exteriorImageUrl: exteriorImage,
-      interiorImageUrl: interiorImage,
-      tripStatus: "Booked",
-    }),
-    [
-      client, routeFrom, routeTo, departureDate, departureTime, arrivalTime,
-      aircraft, operator, tailNumber, flightTime, miles, passengers,
-      catering, groundTransport, fbo, departureFboName, arrivalFboName,
-      exteriorImage, interiorImage,
-    ],
-  );
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const listedPassengers = passengers
-      .filter((p) => p.name.trim() || p.passport.trim())
-      .map((p) => ({ name: p.name.trim(), passport: p.passport.trim() }));
-
-    // What was typed, and nothing else. Blanks stay blank and the document
-    // renders them as em dashes — this used to save "Passenger Client", a
-    // KTEB → KPBI route, a 22:00 departure, "Passenger 1" and a random
-    // passport number for anything left empty.
-    addItinerary({
-      client: client || undefined,
-      from: routeFrom || undefined,
-      to: routeTo || undefined,
-      departure: departureDate
-        ? [departureDate, departureTime].filter(Boolean).join(" • ")
-        : undefined,
-      departureDate: previewItem.departureDate || undefined,
-      departureTime: previewItem.departureTime || undefined,
-      arrivalTime: previewItem.arrivalTime || undefined,
-      aircraft: aircraft || undefined,
-      operator: operator || undefined,
-      tailNumber: tailNumber || undefined,
-      flightTime: flightTime || undefined,
-      miles: miles || undefined,
-      passengersCount: listedPassengers.length ? `${listedPassengers.length} pax` : undefined,
-      passengers: listedPassengers,
-      catering,
-      groundTransport,
-      fbo,
-      departureFbo: previewItem.departureFbo || undefined,
-      arrivalFbo: previewItem.arrivalFbo || undefined,
-      exteriorImageUrl: exteriorImage || undefined,
-      interiorImageUrl: interiorImage || undefined,
-      logoUrl: logoUrl || undefined,
-      notes,
-    });
-    resetForm();
-  };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { closeModal(); resetForm(); } }}>
+    <Dialog open={open} onOpenChange={(o) => !o && closeModal()}>
       <DialogContent
         showCloseButton={false}
         className="w-[97vw] h-[94vh] max-w-none sm:max-w-none p-0 gap-0 flex flex-col overflow-hidden rounded-xl"
       >
-        {/* Responsive switcher — only large screens show both panes at once */}
-        <div className="lg:hidden border-b border-border px-4 pt-2">
-          <DetailTabNav tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
-        </div>
+        {open && <ItineraryForm key={editingItinerary?.id ?? "new"} itinerary={editingItinerary} onDone={closeModal} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
-          {/* Left: the form */}
-          <form
-            onSubmit={handleSubmit}
-            className={cn(
-              "flex-1 min-w-0 overflow-y-auto p-6 flex flex-col gap-5",
-              activeTab !== "form" && "hidden lg:flex"
-            )}
-          >
-            <div className="flex items-start justify-between gap-4 pb-3 border-b border-border">
-              <div className="flex flex-col gap-1">
-                <h2 className="font-montserrat font-bold text-[20px] text-foreground">Build Itinerary</h2>
-                <p className="font-montserrat text-[13px] text-muted-foreground">
-                  Compose the passenger itinerary from a trip
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => { closeModal(); resetForm(); }}
-                aria-label="Close"
-              >
-                <X className="size-4" />
-              </Button>
+function initialForm(itinerary) {
+  return {
+    linkedTripId: itinerary?.tripId ?? "",
+    logoUrl: itinerary?.logoUrl || "",
+    arrivalTime: itinerary?.arrivalTime || "",
+    flightTime: itinerary?.flightTime || "",
+    miles: itinerary?.miles || "",
+    departureFbo: itinerary?.departureFboOverride || "",
+    arrivalFbo: itinerary?.arrivalFboOverride || "",
+    operatorItineraryUrl: itinerary?.operatorItineraryUrl || "",
+    operatorItineraryText: itinerary?.operatorItineraryText || "",
+    exteriorImage: itinerary?.exteriorImageOverride || "",
+    interiorImage: itinerary?.interiorImageOverride || "",
+    catering: itinerary?.catering || "",
+    groundTransport: itinerary?.groundTransport || "",
+    notes: itinerary?.notes || "",
+  };
+}
+
+function ItineraryForm({ itinerary, onDone }) {
+  const isEditing = Boolean(itinerary);
+  const [activeTab, setActiveTab] = useState("form");
+  const [form, setForm] = useState(() => initialForm(itinerary));
+  const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
+
+  // Trips to build from, for the picker — only while creating. The full
+  // detail (legs, passengers) is fetched separately once one is chosen; the
+  // list rows do not carry it.
+  const { data: tripsPage } = useTrips({ limit: 100 }, { enabled: !isEditing });
+  const { data: selectedTrip } = useTrip(form.linkedTripId, { enabled: Boolean(form.linkedTripId) && !isEditing });
+
+  const previewItem = useMemo(
+    () => (isEditing ? previewFromItinerary(itinerary, form) : previewFromTripDetail(selectedTrip, form)),
+    [isEditing, itinerary, selectedTrip, form],
+  );
+
+  const { mutate: createItinerary, isPending: creating } = useCreateItinerary();
+  const { mutate: updateItinerary, isPending: updating } = useUpdateItinerary();
+  const saving = creating || updating;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const fields = {
+      logoUrl: optionalText(form.logoUrl, { editing: isEditing }),
+      arrivalTime: optionalText(form.arrivalTime, { editing: isEditing }),
+      flightTime: optionalText(form.flightTime, { editing: isEditing }),
+      miles: optionalText(form.miles, { editing: isEditing }),
+      departureFbo: optionalText(form.departureFbo, { editing: isEditing }),
+      arrivalFbo: optionalText(form.arrivalFbo, { editing: isEditing }),
+      operatorItineraryUrl: optionalText(form.operatorItineraryUrl, { editing: isEditing }),
+      operatorItineraryText: optionalText(form.operatorItineraryText, { editing: isEditing }),
+      exteriorImageUrl: optionalText(form.exteriorImage, { editing: isEditing }),
+      interiorImageUrl: optionalText(form.interiorImage, { editing: isEditing }),
+      catering: optionalText(form.catering, { editing: isEditing }),
+      groundTransport: optionalText(form.groundTransport, { editing: isEditing }),
+      notes: optionalText(form.notes, { editing: isEditing }),
+    };
+
+    if (isEditing) {
+      updateItinerary({ id: itinerary.id, ...fields }, { onSuccess: onDone });
+    } else {
+      if (!form.linkedTripId) return;
+      createItinerary({ tripId: form.linkedTripId, ...fields }, { onSuccess: onDone });
+    }
+  };
+
+  return (
+    <>
+      {/* Responsive switcher — only large screens show both panes at once */}
+      <div className="lg:hidden border-b border-border px-4 pt-2">
+        <DetailTabNav tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
+
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
+        {/* Left: the form */}
+        <form
+          onSubmit={handleSubmit}
+          className={cn(
+            "flex-1 min-w-0 overflow-y-auto p-6 flex flex-col gap-5",
+            activeTab !== "form" && "hidden lg:flex"
+          )}
+        >
+          <div className="flex items-start justify-between gap-4 pb-3 border-b border-border">
+            <div className="flex flex-col gap-1">
+              <h2 className="font-montserrat font-bold text-[20px] text-foreground">
+                {isEditing ? "Edit Itinerary" : "Build Itinerary"}
+              </h2>
+              <p className="font-montserrat text-[13px] text-muted-foreground">
+                {isEditing ? `For ${itinerary?.tripReference ?? "this trip"}` : "Compose the passenger itinerary from a saved trip"}
+              </p>
             </div>
+            <Button type="button" variant="ghost" size="icon-sm" onClick={onDone} aria-label="Close">
+              <X className="size-4" />
+            </Button>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <FieldWrapper label="Choose Saved Trip">
-                <CommonSelect
-                  value={linkedTrip}
-                  onChange={handleTripSelect}
-                  placeholder="Select a trip"
-                  options={(tripsPage?.data ?? []).map((t) => {
-                    const row = toTripRow(t);
-                    return { value: t.id, label: `${row.reference} - ${row.client} (${row.route})` };
-                  })}
-                  className="h-11 text-[13px]"
-                />
-              </FieldWrapper>
-              <FieldWrapper label="Client">
-                <CommonInput
-                  placeholder="Select client"
-                  value={client}
-                  onChange={(e) => setClient(e.target.value)}
-                  className="h-11 text-[13px] font-montserrat"
-                />
-              </FieldWrapper>
+          {isEditing ? (
+            <div className="flex flex-col gap-1 p-3 rounded-md bg-secondary/40 border border-border/50">
+              <p className="font-montserrat font-bold text-[13px] text-foreground">{itinerary?.tripReference}</p>
+              <p className="font-montserrat text-[12px] text-muted-foreground">
+                {itinerary?.client ? displayName(itinerary.client) : "—"} •{" "}
+                {itinerary?.originAirport?.icao ?? "—"} → {itinerary?.destinationAirport?.icao ?? "—"}
+              </p>
             </div>
+          ) : (
+            <FieldWrapper label="Choose Saved Trip">
+              <CommonSelect
+                value={form.linkedTripId}
+                onChange={set("linkedTripId")}
+                placeholder="Select a trip"
+                options={(tripsPage?.data ?? []).map((t) => {
+                  const row = toTripRow(t);
+                  return { value: t.id, label: `${row.reference} - ${row.client} (${row.route})` };
+                })}
+                className="h-11 text-[13px]"
+              />
+              <p className="font-montserrat text-[11px] text-muted-foreground">
+                Aircraft, operator, tail, route and the passenger manifest come from the trip and cannot be typed here.
+              </p>
+            </FieldWrapper>
+          )}
 
-            <FieldWrapper label="Optional Logo Upload">
+          <FieldWrapper label="Optional Logo Upload">
+            <FileUpload
+              variant="dropzone"
+              kind="image"
+              visibility="PUBLIC"
+              accept={ACCEPT.image}
+              heading="Drag & drop a logo"
+              description="or click to upload"
+              value={form.logoUrl}
+              onUploaded={(data) => set("logoUrl")(data.url)}
+              onRemove={() => set("logoUrl")("")}
+            />
+          </FieldWrapper>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+            <TimeField label="Outbound Arrival Time" value={form.arrivalTime} onChange={set("arrivalTime")} />
+            <FieldWrapper label="Flight Time">
+              <CommonInput placeholder="2h 45m" value={form.flightTime} onChange={(e) => set("flightTime")(e.target.value)} className="h-11 text-[13px] font-montserrat" />
+            </FieldWrapper>
+            <FieldWrapper label="Miles">
+              <CommonInput placeholder="1,096 nm" value={form.miles} onChange={(e) => set("miles")(e.target.value)} className="h-11 text-[13px] font-montserrat" />
+            </FieldWrapper>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <FieldWrapper label="Departure FBO (overrides the airport's default)">
+              <CommonInput placeholder="Leave blank to use the airport's assigned FBO" value={form.departureFbo} onChange={(e) => set("departureFbo")(e.target.value)} className="h-11 text-[13px] font-montserrat" />
+            </FieldWrapper>
+            <FieldWrapper label="Arrival FBO (overrides the airport's default)">
+              <CommonInput placeholder="Leave blank to use the airport's assigned FBO" value={form.arrivalFbo} onChange={(e) => set("arrivalFbo")(e.target.value)} className="h-11 text-[13px] font-montserrat" />
+            </FieldWrapper>
+          </div>
+
+          {/* Operator Itinerary Import — the upload is real (the file is
+              stored); nothing extracts data from it. No parsing pipeline
+              exists anywhere in this system, and inventing one client-side
+              would mean guessing at flight data from a PDF. */}
+          <FieldWrapper label="Operator Itinerary Import">
+            <p className="font-montserrat text-[13px] text-muted-foreground -mt-1">
+              Attach the operator&apos;s itinerary (PDF, screenshot/photo, or text file) for reference on this record.
+            </p>
+            <FileUpload
+              variant="dropzone"
+              kind="auto"
+              visibility="PRIVATE"
+              accept={`${ACCEPT.image},${ACCEPT.document}`}
+              heading="Drag & drop operator itinerary"
+              description="PDF, screenshot/photo, or text file"
+              value={form.operatorItineraryUrl}
+              onUploaded={(data) => set("operatorItineraryUrl")(data.url)}
+              onRemove={() => set("operatorItineraryUrl")("")}
+            />
+          </FieldWrapper>
+
+          <FieldWrapper label="Operator Itinerary Text">
+            <CommonInput
+              type="textarea"
+              placeholder="Paste operator itinerary text here if the file does not import cleanly..."
+              value={form.operatorItineraryText}
+              onChange={(e) => set("operatorItineraryText")(e.target.value)}
+              rows={3}
+              className="text-[13px] font-montserrat"
+            />
+          </FieldWrapper>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <FieldWrapper label="Aircraft Exterior Photo (overrides the fleet photo)">
               <FileUpload
                 variant="dropzone"
                 kind="image"
                 visibility="PUBLIC"
                 accept={ACCEPT.image}
-                heading="Drag & drop a logo"
+                heading="Drag & drop exterior photo"
                 description="or click to upload"
-                value={logoUrl}
-                onUploaded={(data) => setLogoUrl(data.url)}
-                onRemove={() => setLogoUrl("")}
+                value={form.exteriorImage}
+                library
+                onUploaded={(data) => set("exteriorImage")(data.url)}
+                onRemove={() => set("exteriorImage")("")}
               />
             </FieldWrapper>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-              <FieldWrapper label="Route from">
-                <CommonInput
-                  value={routeFrom}
-                  onChange={(e) => setRouteFrom(e.target.value.toUpperCase())}
-                  className="h-11 text-[13px] font-montserrat"
-                />
-              </FieldWrapper>
-              <FieldWrapper label="Route to">
-                <CommonInput
-                  value={routeTo}
-                  onChange={(e) => setRouteTo(e.target.value.toUpperCase())}
-                  className="h-11 text-[13px] font-montserrat"
-                />
-              </FieldWrapper>
-              <FieldWrapper label="Departure date">
-                <CommonDatePicker value={departureDate} onChange={setDepartureDate} placeholder="Choose Date" />
-              </FieldWrapper>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <TimeField label="Outbound Departure Time" value={departureTime} onChange={setDepartureTime} />
-              <TimeField label="Outbound Arrival Time" value={arrivalTime} onChange={setArrivalTime} />
-            </div>
-
-            <div className="flex flex-col gap-2.5 w-full pt-1">
-              <div className="flex items-center justify-between">
-                <span className="font-montserrat font-bold text-[14px] text-foreground">
-                  Passengers ({passengers.length})
-                </span>
-                <button
-                  type="button"
-                  onClick={addPassengerRow}
-                  className="flex items-center gap-1 font-montserrat font-bold text-[12px] text-purple hover:opacity-80 cursor-pointer"
-                >
-                  <Plus className="size-3.5" /> Add
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-2.5 w-full">
-                {passengers.map((p, idx) => (
-                  <div key={idx} className="flex items-center gap-3 w-full">
-                    <div className="flex-1 min-w-0">
-                      <CommonInput
-                        placeholder="Passengers name"
-                        value={p.name}
-                        onChange={(e) => updatePassenger(idx, "name", e.target.value)}
-                        className="h-11 text-[13px] font-montserrat"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <CommonInput
-                        placeholder="Passport"
-                        value={p.passport}
-                        onChange={(e) => updatePassenger(idx, "passport", e.target.value)}
-                        className="h-11 text-[13px] font-montserrat"
-                      />
-                    </div>
-                    {passengers.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => removePassengerRow(idx)}
-                        className="p-2.5 text-destructive hover:bg-destructive/10 rounded-md transition-colors shrink-0 cursor-pointer"
-                        aria-label="Remove passenger"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    ) : (
-                      <div className="w-9 shrink-0" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <FieldWrapper label="Aircraft">
-                <CommonSelect
-                  value={aircraft}
-                  onChange={setAircraft}
-                  placeholder="Select aircraft"
-                  options={ITINERARY_AIRCRAFT_OPTIONS}
-                  className="h-11 text-[13px]"
-                />
-              </FieldWrapper>
-              <FieldWrapper label="Tail Number">
-                <CommonInput
-                  placeholder="e.g. N1048TJ"
-                  value={tailNumber}
-                  onChange={(e) => setTailNumber(e.target.value.toUpperCase())}
-                  className="h-11 text-[13px] font-montserrat"
-                />
-              </FieldWrapper>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <FieldWrapper label="Flight Time">
-                <CommonInput
-                  placeholder="2h 45m"
-                  value={flightTime}
-                  onChange={(e) => setFlightTime(e.target.value)}
-                  className="h-11 text-[13px] font-montserrat"
-                />
-              </FieldWrapper>
-              <FieldWrapper label="Miles">
-                <CommonInput
-                  placeholder="1,096 nm"
-                  value={miles}
-                  onChange={(e) => setMiles(e.target.value)}
-                  className="h-11 text-[13px] font-montserrat"
-                />
-              </FieldWrapper>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <FieldWrapper label="FBO Departure">
-                <CommonSelect
-                  value={departureFboName}
-                  onChange={setDepartureFboName}
-                  placeholder="Select FBO"
-                  options={FBO_OPTIONS.map((f) => f.name)}
-                  className="h-11 text-[13px]"
-                />
-              </FieldWrapper>
-              <FieldWrapper label="FBO Arrival">
-                <CommonSelect
-                  value={arrivalFboName}
-                  onChange={setArrivalFboName}
-                  placeholder="Select FBO"
-                  options={FBO_OPTIONS.map((f) => f.name)}
-                  className="h-11 text-[13px]"
-                />
-              </FieldWrapper>
-            </div>
-
-            {/* Operator Itinerary Import — the upload is real (the file is
-                stored); the auto-fill this section's Figma copy describes is
-                not. No parsing/extraction endpoint exists anywhere in this
-                system yet, and inventing one client-side would mean guessing
-                at flight data from a PDF, which is exactly the kind of
-                confident-wrong-number this project's rules exist to prevent.
-                The file still attaches to the record for reference. */}
-            <FieldWrapper label="Operator Itinerary Import">
-              <p className="font-montserrat text-[13px] text-muted-foreground -mt-1">
-                Attach the operator&apos;s itinerary (PDF, screenshot/photo, or text file) for reference on this record.
-              </p>
+            <FieldWrapper label="Cabin / Interior Photo (overrides the fleet photo)">
               <FileUpload
                 variant="dropzone"
-                kind="auto"
-                visibility="PRIVATE"
-                accept={`${ACCEPT.image},${ACCEPT.document}`}
-                heading="Drag & drop operator itinerary"
-                description="PDF, screenshot/photo, or text file"
-                value={operatorItineraryUrl}
-                onUploaded={(data) => setOperatorItineraryUrl(data.url)}
-                onRemove={() => setOperatorItineraryUrl("")}
+                kind="image"
+                visibility="PUBLIC"
+                accept={ACCEPT.image}
+                heading="Drag & drop cabin/interior photo"
+                description="or click to upload"
+                value={form.interiorImage}
+                library
+                onUploaded={(data) => set("interiorImage")(data.url)}
+                onRemove={() => set("interiorImage")("")}
               />
             </FieldWrapper>
-
-            <FieldWrapper label="Operator Itinerary Text">
-              <CommonInput
-                type="textarea"
-                placeholder="Paste operator itinerary text here if the file does not import cleanly..."
-                value={operatorItineraryText}
-                onChange={(e) => setOperatorItineraryText(e.target.value)}
-                rows={3}
-                className="text-[13px] font-montserrat"
-              />
-            </FieldWrapper>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <FieldWrapper label="Aircraft Exterior Photo">
-                <FileUpload
-                  variant="dropzone"
-                  kind="image"
-                  visibility="PUBLIC"
-                  accept={ACCEPT.image}
-                  heading="Drag & drop exterior photo"
-                  description="or click to upload"
-                  value={exteriorImage}
-                  library
-                  onUploaded={(data) => setExteriorImage(data.url)}
-                  onRemove={() => setExteriorImage("")}
-                />
-              </FieldWrapper>
-              <FieldWrapper label="Cabin / Interior Photo">
-                <FileUpload
-                  variant="dropzone"
-                  kind="image"
-                  visibility="PUBLIC"
-                  accept={ACCEPT.image}
-                  heading="Drag & drop cabin/interior photo"
-                  description="or click to upload"
-                  value={interiorImage}
-                  library
-                  onUploaded={(data) => setInteriorImage(data.url)}
-                  onRemove={() => setInteriorImage("")}
-                />
-              </FieldWrapper>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-              <FieldWrapper label="Catering">
-                <CommonInput
-                  value={catering}
-                  onChange={(e) => setCatering(e.target.value)}
-                  className="h-11 text-[13px] font-montserrat"
-                />
-              </FieldWrapper>
-              <FieldWrapper label="Ground transport">
-                <CommonInput
-                  value={groundTransport}
-                  onChange={(e) => setGroundTransport(e.target.value)}
-                  className="h-11 text-[13px] font-montserrat"
-                />
-              </FieldWrapper>
-              <FieldWrapper label="FBO">
-                <CommonInput
-                  value={fbo}
-                  onChange={(e) => setFbo(e.target.value)}
-                  className="h-11 text-[13px] font-montserrat"
-                />
-              </FieldWrapper>
-            </div>
-
-            <FieldWrapper label="Notes">
-              <CommonInput
-                type="textarea"
-                placeholder="Internal notes visible to brokers only..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                className="text-[13px] font-montserrat"
-              />
-            </FieldWrapper>
-
-            <div className="flex items-center gap-3 pt-4 border-t border-border w-full mt-auto">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 px-5 gap-2"
-                onClick={() => { closeModal(); resetForm(); }}
-              >
-                <X className="size-4" />
-                Cancel
-              </Button>
-              <Button type="submit" className="h-10 px-5 gap-2">
-                <FileText className="size-4" />
-                Build Itinerary
-              </Button>
-            </div>
-          </form>
-
-          {/* Right: the live preview — same component the saved-record sheet
-              renders, so what a broker composes here is exactly what gets saved. */}
-          <div
-            className={cn(
-              "flex-1 min-w-0 overflow-y-auto p-6 border-t lg:border-t-0 lg:border-l border-border bg-secondary/20 flex flex-col gap-6",
-              activeTab !== "preview" && "hidden lg:flex"
-            )}
-          >
-            <TribecaLetterhead />
-            <ItineraryPreview item={previewItem} />
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <FieldWrapper label="Catering">
+              <CommonInput value={form.catering} onChange={(e) => set("catering")(e.target.value)} className="h-11 text-[13px] font-montserrat" />
+            </FieldWrapper>
+            <FieldWrapper label="Ground transport">
+              <CommonInput value={form.groundTransport} onChange={(e) => set("groundTransport")(e.target.value)} className="h-11 text-[13px] font-montserrat" />
+            </FieldWrapper>
+          </div>
+
+          <FieldWrapper label="Notes">
+            <CommonInput
+              type="textarea"
+              placeholder="Internal notes visible to brokers only..."
+              value={form.notes}
+              onChange={(e) => set("notes")(e.target.value)}
+              rows={3}
+              className="text-[13px] font-montserrat"
+            />
+          </FieldWrapper>
+
+          <div className="flex items-center gap-3 pt-4 border-t border-border w-full mt-auto">
+            <Button type="button" variant="outline" className="h-10 px-5 gap-2" onClick={onDone}>
+              <X className="size-4" />
+              Cancel
+            </Button>
+            <Button type="submit" className="h-10 px-5 gap-2" disabled={saving || (!isEditing && !form.linkedTripId)}>
+              <FileText className="size-4" />
+              {isEditing ? "Save Changes" : "Build Itinerary"}
+            </Button>
+          </div>
+        </form>
+
+        {/* Right: the live preview — same component the saved-record sheet
+            renders, so what a broker composes here is exactly what gets saved. */}
+        <div
+          className={cn(
+            "flex-1 min-w-0 overflow-y-auto p-6 border-t lg:border-t-0 lg:border-l border-border bg-secondary/20 flex flex-col gap-6",
+            activeTab !== "preview" && "hidden lg:flex"
+          )}
+        >
+          <TribecaLetterhead />
+          <ItineraryPreview item={previewItem} />
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </>
   );
 }
