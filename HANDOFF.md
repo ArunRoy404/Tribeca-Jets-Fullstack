@@ -3,7 +3,8 @@
 Two parts: **get it running**, then **the prompt to paste**.
 
 Written 24 September 2026, after client adjustments #5, #7 and #9 shipped.
-Refreshed 26 September 2026 — see "Where we are right now" in Part 2, which is
+Refreshed 27 September 2026, end of day (Trips, Empty Legs, Commissions and
+#11's desk half built, all uncommitted) — see "Where we are right now" in Part 2, which is
 the part that goes stale fastest. **Update that paragraph (and this line) in
 the same pass as any session that ships something**, rather than leaving the
 next device to discover it from git log.
@@ -79,7 +80,9 @@ npm run lint                     # oxlint --type-aware; must be 0
 npm test                         # vitest
 npx newman run postman/Tribeca-Jets-API.postman_collection.json \
   -e postman/Local.postman_environment.json      # run it TWICE; needs RATE_LIMIT_MULTIPLIER=20
-# 26 Sep 2026 baseline: 149 requests / 81 assertions / 0 failures, vitest 116/116
+# 27 Sep 2026 baseline: 157 requests / 85 assertions / 0 failures (before Trips).
+# Since then: vitest 150/150 in 15 files; Newman NOT re-run after Empty Legs /
+# Commissions / Referrals, and those three have no Postman folder yet.
 # After any builder: cd postman && python rewrite_body_comments.py   (must run from postman/)
 cd ../Frontend && npx eslint src/<what you touched> && npm run build
 ```
@@ -118,8 +121,9 @@ Paste everything between the lines into the first message of a new session.
 > **The three phases**, in my own framing, and the reason the order matters:
 >
 > - **Phase 1 — the client's adjustments.** Thirteen messages from the client,
->   reproduced verbatim in `CLIENT_ADJUSTMENTS.md` §3. Seven of eleven items are
->   done; #3's fleet-photo half is the only unblocked, undone piece left in it.
+>   reproduced verbatim in `CLIENT_ADJUSTMENTS.md` §3. Ten of eleven are done.
+>   Left: #11's agent portal (the desk half is built), and a demo of the
+>   Archived tab for #1.
 > - **Phase 2 — frontend changes.** Existing screens change and new screens get
 >   built. Arrives as Figma links dropped mid-session, not a written spec. Two
 >   redesigns have shipped this way — Build Itinerary (24 Sep) and Quotes
@@ -167,31 +171,44 @@ Paste everything between the lines into the first message of a new session.
 > against real accounts, not by reading the code. Report what is actually true:
 > if a check was skipped, say so; if something fails, show the output.
 >
-> **Where we are right now (26 September 2026):** a whole-project audit just
-> finished, and **it is uncommitted** — check `git status` first. It fixed
-> real bugs (a broker could not save their own client; edits could not clear
-> fields; archiving an airport, client or aircraft made records pointing at it
-> uneditable; quote delete returned 200), removed invented values from the
-> airport and itinerary screens, hid role-restricted lead actions, and got
-> Newman to 0 failures twice with every folder passing alone. Full account in
-> `CLIENT_ADJUSTMENTS.md` §4's 26 September entry. Still open from it: the
-> 375/768/1440 browser check of the changed screens, and two owner decisions
-> (twelve unreferenced components; external links on the quote photo).
+> **Where we are right now (27 September 2026, end of day):** everything below
+> is **uncommitted** — check `git status` first, and run `npm run db:deploy`
+> (five new migrations, the last `20260927160000_add_empty_legs_commissions_referrals`).
 >
-> Before that (25 Sep) the Quotes screen got its Figma redesign — full-screen
-> form, live preview, `POST /quotes/price-preview`, `Quote.exteriorImageUrl`.
-> The Build Itinerary form uploads its photos for real, but Itineraries has no
-> backend yet, so a built itinerary is not saved anywhere.
+> Built on 27 Sep: #3 finished (fleet photos, photo library), #6 finished
+> (suggested price, and the Instant Estimate over the desk's rate table),
+> **Trips** with every second pass it owed (trip notes, credit → trip link, trip
+> counts and tabs on users, agents, operators, aircraft and clients), **Empty
+> Legs** with #10b's matching, **Commissions**, and #11's desk half: the
+> `REFERRAL_AGENT` role, referrals, resources, Agent Updates and the desk's
+> Referrals page.
 >
-> Two things are unblocked and small, if you want a quick win before Trips:
-> **#3's fleet half** (add `Aircraft.photoUrl`, a `FileUpload` field on the
-> Add/Edit Aircraft form — the pattern is already in `AddQuoteDialog.jsx`) and
-> **demonstrating the Archived tab to the client for #1** (no code).
+> **How far it was verified:** Trips was tested live, in the browser and with
+> Postman `15 · Trips`. From Empty Legs on, **no live testing by my
+> instruction** — only backend `tsc` / oxlint / vitest (150 tests, clean) and
+> frontend eslint on the changed files (clean; nine older errors elsewhere),
+> and frontend `npm run build`, which passes. Newman has **not** been run since.
 >
-> The next real thing in the queue is **Trips (#11)** — not a client request,
-> but the single largest unblocker: nine modules wait on it, plus the last
-> piece of two adjustments already shipped (a notes timeline on a trip, and
-> "used towards another trip" as a real foreign key instead of a sentence).
+> **The queue, in order:**
+>
+> 1. **#11's agent portal** — a `/portal` route group with its own nav
+>    (Dashboard, Submit Referral, My Referrals, Commissions, Resources);
+>    send agents there after sign-in (`homeFor` in `lib/roles.js`, not yet
+>    called) and add `/portal` to the `proxy.js` matcher. Agent Updates read
+>    `useNotes` (SHARED only), not `NotesTimeline`. **Do not invite a referral
+>    agent before this exists.**
+> 2. Commission-structure inputs on the team member sheet
+>    (`UserDetailSheet.jsx`) — the API already accepts them.
+> 3. Postman folders for Empty Legs, Commissions and Referrals, then Newman
+>    twice.
+> 4. My own testing pass over Empty Legs, Commissions and Referrals.
+>
+> **For the client:** the Archived-tab demo (#1), the rate data for #6, the
+> FET-in-profit question, and each referral agent's commission figures
+> (`CLIENT_ADJUSTMENTS.md` §5). A client update (`update-26-sep.txt`) and the
+> production hosting list (`subscriptions.txt` — one Hostinger VPS; the
+> Vercel / Render / Neon setup is temporary development hosting) are in the
+> repo root.
 >
 > Start by reading the four documents above, then tell me what you understand
 > the current state to be and what you think we should do next. Don't write any
@@ -203,11 +220,15 @@ Paste everything between the lines into the first message of a new session.
 
 Short list of the things that have actually bitten, so they are not re-learned.
 
-- **Two second passes are owed the day Trips lands**, and both are written down
-  rather than remembered: `Note` gains a `TRIP` subject type (one enum value,
-  three lines in `notes.subjects.ts`, then render `NotesTimeline`), and
-  `ClientCredit` gains a real `appliedToTripId`, deliberately absent today
-  rather than stubbed as a string.
+- **A referral agent is a partner, not staff.** Every staff permission is
+  NONE for the role; the staff directory is behind `VIEW_TEAM`; its uploads are
+  forced private; it reads SHARED notes only. Referral attachments reach the
+  desk through `UploadsService.openVouched()`, the one sanctioned bypass of
+  `mayRead` — never call it without resolving the owning record first. See
+  `AGENTS.md`, "The referral agent is a partner".
+- **Times are `"HH:MM"` on the wire and `@db.Date` values render in UTC**
+  (`lib/time.js`, `formatCalendarDate` in `lib/date.js`). The time picker once
+  sent `"08:00 AM"` and a follow-up with a time silently never saved.
 - **A captured Postman example is not an assertion.** Newman runs a request's
   test script and never compares an example's label to its stored response, so
   a request that fails to provoke the error it is named for writes a lie that

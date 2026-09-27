@@ -47,31 +47,35 @@ set of broken joins the day the real table arrives.
 | 8 | **Trip Requests** *(Open Requests)* | ✅ Done | Clients, Airports, Users |
 | 9 | **Operator Sourcing** | ✅ Done | Trip Requests, Operators, Aircraft |
 | 10 | **Quotes** | ✅ Done | Trip Requests, Sourcing, Clients, Aircraft |
-| 11 | **Trips** | ⬅ **Next** | Quotes, everything above |
+| 11 | **Trips** | ✅ Done (27 Sep) | Quotes, everything above |
 | 12 | **Itineraries** | Not started | Trips |
 | 13 | **Schedule** | Not started | Trips (read-only view) |
 | 14 | **Flight Tracking** | Not started | Trips, Aircraft |
-| 15 | **Empty Legs** | Not started | Operators, Aircraft, Airports |
-| 16 | **Receivables** | Not started | Trips, Clients |
+| 15 | **Empty Legs** | ✅ Done (27 Sep) | Operators, Aircraft, Airports; matching reads Trip Requests (adjustment #10b) |
+| 16 | **Receivables** | ⬅ **Next** | Trips, Clients |
 | 17 | **Operator Payments** | Not started | Trips, Operators |
-| 18 | **Commissions** | Not started | Trips, Users |
+| 18 | **Commissions** | ✅ Done (27 Sep) | Trips, Users (built ahead of 16–17 for adjustment #11) |
 | 19 | **Transactions** | Not started | 16, 17, 18 (a union view) |
 | 20 | **Tasks Board** | Not started | Users; links to Trips/Clients |
 | 21 | **Email Templates** | Not started | — (could move earlier) |
 | 22 | **Document Vault** | No screen yet | Trips, Clients, Operators |
 | 23 | **Reports** | Not started | All financial modules |
-| 24 | **Dashboard** | Not started | Nearly everything — build it last |
+| 24 | **Dashboard** | Empty Legs section only | Nearly everything — build it last |
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
 | 27 | **AI Assistant** | Stub only | All |
 | 28 | **Uploads** | ✅ Done | — (built out of order; see below) |
-| 29 | **Notes / Timeline** | ✅ Done for Clients | Clients, Users (built out of order; adjustment #5) |
-| 30 | **Client Credits** | ✅ Done | Clients (built out of order; adjustment #9). Trip link waits on **Trips** |
+| 29 | **Notes / Timeline** | ✅ Done — Clients, Trips, Referrals | Clients, Users (built out of order; adjustment #5) |
+| 30 | **Client Credits** | ✅ Done | Clients, Trips (built out of order; adjustment #9) |
+| 31 | **Charter Rates / Instant Estimate** | ✅ Done | Airports (built out of order; adjustment #6) |
+| 32 | **Referrals / Referral Agent** | ◐ Desk half done (27 Sep); agent portal not started | Users, Clients, Trip Requests, Trips, Commissions, Uploads, Notes (adjustment #11) |
 
-**Why Trips is next:** it is the single largest unblocker in the project. Nine
-modules (12, 13, 14, 16, 17, 18, 19, 23 and the Dashboard) and roughly a dozen
-individual fields on modules already shipped are waiting on it — every "—" on a
-screen that should read a trip count is waiting for this one table.
+**Trips shipped on 27 September 2026**, with Empty Legs and Commissions
+pulled forward after it so client adjustments #10b and #11 could be built
+without waiting on the client. **What is next:** finishing #11's agent portal
+(see #32), then **Receivables (#16)** and **Operator Payments (#17)** —
+nothing blocks either now — then Transactions (#19). Itineraries (#12) and
+Schedule (#13) are unblocked by Trips as well.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -257,11 +261,11 @@ feature nothing has.
 Quotes, Trips, Empty Legs and Flight Tracking all reference aircraft, so this
 unblocks a large part of the remaining queue.
 
-> **Aircraft images: the upload API is live, the fleet screen is not.** This
-> paragraph used to say the project had no file-upload pipeline at all. It has
-> one now — **Uploads (#28)**, built when four client requests turned out to be
-> queued behind it. `POST /api/uploads/image` returns a URL, and the aircraft
-> record would store it in a `photoUrl` column that does not exist yet.
+> **Aircraft photos shipped 27 September 2026.** This paragraph used to say
+> the project had no file-upload pipeline at all. It has one — **Uploads
+> (#28)**, built when four client requests turned out to be queued behind it —
+> and each aircraft now stores an exterior and an interior photo
+> (`exteriorImageUrl` / `interiorImageUrl`) from it.
 >
 > The upload deliberately does not know it is for an aircraft, which is exactly
 > what lets a photograph be chosen on the **Add Aircraft** form — before the
@@ -271,11 +275,10 @@ unblocks a large part of the remaining queue.
 > (25 September, with the Quotes Figma redesign) have both shipped** — the
 > itinerary gallery and `Quote.exteriorImageUrl`, both through a shared
 > `PhotoTile` component. See
-> [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §3 item 3 and §4. What is
-> still missing is the fleet screen itself: no uploader, no gallery, no
-> `Aircraft.photoUrl` column. That piece is small and unblocked — it does not
-> need a client UI change, just doing. Thumbnails and resizing stay deferred
-> until something renders enough images at once to need them.
+> [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §3 item 3 and §4. The fleet
+> screen followed on 27 September: an upload field for each photo on the
+> Add/Edit form and a Photos card on the detail page. Thumbnails and resizing
+> stay deferred until something renders enough images at once to need them.
 
 ### 7. Leads & Agents ✅
 
@@ -402,8 +405,13 @@ rather than zeroed — a `0` margin is a number someone could repeat out loud.
 > detail page (it was visible only inside the form); `exteriorImageUrl` accepts
 > only a relative upload URL; delete answers 204 like every other module; and a
 > quote whose airport, operator or aircraft is later archived stays editable.
+>
+> **27 September 2026:** the suggested-price selector (client adjustment #6)
+> — pick a markup over the operator cost and it fills the base price, every
+> figure from `POST /quotes/suggested-price` — and the photo library on the
+> quote photo (#3). The *estimate* half of #6 shipped the same day (#31).
 
-### 11. Trips ⬅ **Next**
+### 11. Trips ✅
 
 The booked flight, and the centre of the system: client, broker, operator,
 aircraft, route, dates, status, client payment state, operator payment state,
@@ -416,11 +424,16 @@ Operators `totalTrips` and trip history, Aircraft
 Clients' trips tab and total spend, Agents' `activeTrips` — plus it is the
 dependency for modules 12, 13, 14, 16, 17, 18, 19, 23 and 24.
 
-**That second pass is not optional and is part of shipping Trips.** A
-dependency returning `totalTrips: null` today is telling the truth; the day
-Trips exists, the same null becomes a *wrong answer* on a screen. Grep the
-dependants for the nulls and empty arrays their services return before calling
-this module done.
+**That second pass was made in the same pass as Trips** (27 Sep 2026):
+`activeTrips` on Users and Agents, `totalTrips` and trip history on Operators,
+`totalTrips` / `tripsThisYear` and the Trips tab on Aircraft, the Trips tab on
+Clients, the `TRIP` notes subject and `ClientCredit.appliedToTripId`. What is
+left is honest: `avgUtilization` needs flight hours nobody records, spend and
+revenue need **Receivables (#16)**, and a derived `IN_SERVICE` is not built.
+
+A trip is legs plus passengers plus the quote's pricing inputs; every total is
+computed on read by the quote pricing engine. Its status machine lives in
+`trips.lifecycle.ts` as pure functions.
 
 ### 12. Itineraries
 
@@ -432,8 +445,8 @@ passport numbers, catering, ground transport, FBO. Confirmed or pending.
 > component, the same one Quotes' picker was built from the next day. The
 > uploads are real (`POST /api/uploads/*`); **the itinerary is not** — it is
 > kept in a zustand store and lost on reload, so the files it pointed at are
-> orphaned. Nothing else about this module is wired: it still waits on
-> **Trips (#11)** for everything past the preview screen.
+> orphaned. Nothing else about this module is wired: it has no
+> backend yet, and **Trips (#11)**, the dependency it waited on, shipped 27 Sep 2026.
 
 ### 13. Schedule
 
@@ -446,16 +459,26 @@ Live position and status for trips in the air — departure, ETA, delays,
 on-time rate. Likely needs a third-party feed, which is a decision to make
 before building it.
 
-### 15. Empty Legs
+### 15. Empty Legs ✅
 
 Repositioning flights an operator is flying anyway, offered at a discount.
-Available → Matched → Booked → Expired, with matching against open requests.
+Available → Matched → Booked → Expired. **Expired is computed** from
+`expiresAt` on every read rather than written by a job.
+
+**Matching is client adjustment #10b:** every trip request on the same route —
+lost, converted and archived included, because the client asked exactly for
+the ones that did not fly — with requests within ±3 days of the leg first. It
+reads through `TripRequestsService.onRoutes`, never a raw query into another
+module's table.
 
 ### 16–19. The financial modules
 
 - **Receivables** — what clients owe: invoices, due dates, collection state.
 - **Operator Payments** — what Tribeca owes operators for each trip.
-- **Commissions** — what each broker earns on a trip.
+- **Commissions** ✅ — what is paid out on a trip: to a referral agent, a
+  client (a travel agent) or a named person, as a percent of profit, a flat fee
+  or a custom amount. Built ahead of 16 and 17 because adjustment #11 needs it.
+  Percent of profit is computed in cents from the trip on read.
 - **Transactions** — a single ledger view over the three above. A union view,
   not a fourth table, which is why it comes last of the four.
 
@@ -578,16 +601,19 @@ purpose — which is what keeps it from becoming categories again — and it is
 what makes a personal folder a **query**, `GET /uploads?ownerUserId=<id>`,
 instead of a second table.
 
-**Three screens consume it**: the Documents tab on the team member sheet
-(#7), the quote form's aircraft photo (stored on `Quote.exteriorImageUrl`,
+**Four screens consume it**: the Documents tab on the team member sheet
+(#7), the aircraft form's exterior and interior photos, the quote form's
+aircraft photo (stored on `Quote.exteriorImageUrl`,
 validated by the shared `uploadUrl` so only a relative upload URL is
 accepted), and the Build Itinerary form (uploads real, itinerary not yet
-saved — see #12). The aircraft fleet gallery and the referral Resources section
-still need their own UI.
+saved — see #12). The referral Resources section still needs its own UI.
+
+**The photo library** (27 Sep 2026, #3's "stock image database") is a query
+over it, not a table: every `PUBLIC` image, offered on every photo field.
 
 ---
 
-### 29. Notes / Timeline ✅ *(Clients; Trips on its turn)*
+### 29. Notes / Timeline ✅ *(Clients, Trips, Referrals)*
 
 **Not in the signed scope's module list.** It is the client's adjustment #5:
 *"in the trip section and client CRM section, I want to make sure there is a
@@ -645,7 +671,7 @@ with `subjectType="TRIP"` when Trips ships.
 
 ---
 
-### 30. Client Credits ✅ *(the trip link waits on Trips)*
+### 30. Client Credits ✅
 
 **Not in the signed scope's module list.** It is the client's adjustment #9:
 *"a section on their profile that says credit/money on account ... we can enter
@@ -687,11 +713,52 @@ client is holding; a broker sees only their own clients, and another broker's
 ledger answers **404**, never 403. The tab is hidden rather than shown and
 refused.
 
-> **The trip link is missing on purpose.** "Used towards another trip" has no
+> **The trip link was missing on purpose until Trips shipped.** "Used towards another trip" has no
 > trip to point at, and a `tripReference` string "for now" would be a column
 > pointing at nothing the database can check — which is exactly what
 > `Client.homeAirport` cost when it held an ICAO string. `reason` carries it
-> until **Trips (#11)** ships, then it becomes a real foreign key.
+> until **Trips (#11)** shipped; since 27 Sep 2026 it is `appliedToTripId`, a real foreign key.
+
+
+---
+
+### 31. Charter Rates / Instant Estimate ✅
+
+**Not in the signed scope's module list** as a table — it is §6.10's
+"Instant Quote Calculator" and the client's adjustment #6. The desk's own rate
+per flight hour, average speed and typical seats for each aircraft size, and an
+estimate built on them from two airports' coordinates.
+
+**The rates are data the desk enters, never constants in code.** Scope §18
+forbids AI as the source of truth for financial figures, and the same holds for
+a number a developer guessed. The table ships empty; a size with no rate says
+"No rate on file". One row per category, never removed, every change audited
+with before and after.
+
+**Deliberately not modelled:** positioning legs, overnight fees, winds. The
+estimate is flight time × hourly rate with a minimum per leg, and says what it
+leaves out. If the client's real formula differs, `charter-rates.estimate.ts`
+changes and nothing else.
+
+### 32. Referrals / Referral Agent ◐
+
+**Not in the signed scope's module list** — the client's adjustment #11: a
+`REFERRAL_AGENT` role that works like a partner portal rather than a CRM login.
+
+**Why it is its own table:** a referral is what an agent *sent*, before anyone
+knows whether it is a client or an enquiry. Its ladder (Submitted → Contacted →
+Quoting → Booked → Completed) has steps the trip request's does not, so forcing
+one into the other would make one screen lie about the other. Converting a
+referral writes the real Client and TripRequest through their own services;
+linking the booked trip raises the agent's commission.
+
+**Everything an agent may see is decided in the service, not the screen** —
+`partnerView()` strips desk data, notes are SHARED only, uploads are forced
+private, and the staff directory is behind `VIEW_TEAM`. See `AGENTS.md`,
+"The referral agent is a partner".
+
+**Built:** the role, the API, and the desk's Referrals page. **Not built:** the
+agent's own portal at `/portal` — which is why no agent should be invited yet.
 
 ---
 

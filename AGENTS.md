@@ -243,6 +243,25 @@ Count in the service rather than summing the nearest column — summing
   stopped reading in the order its serial numbers promise.
 - **`rewrite_body_comments.py` runs from inside `postman/`**; it opens the
   collection by a relative path.
+- **New builders import `postman/builder_common.py`** — the session,
+  `example()` with its label check, `url()`, `status_test()` and
+  `copy_folder_login()`. The older builders each carry a private copy; each
+  moves over when its own folder is next rebuilt.
+- **A folder that changes business data it does not own restores it exactly.**
+  `14 · Charter Rates` saves the desk's real Midsize rate before changing it
+  and writes the same figures back in its teardown — a Postman run must never
+  alter a number the desk entered.
+- **A builder writes everything its folder needs, including the folder
+  login.** `11 · Uploads`' login had been patched in by hand after its builder
+  ran, so the next rebuild silently produced a folder that 401'd when run
+  alone. Copy it from an existing folder in the builder, as the notes and
+  credits builders do.
+- **Fixture paths are written with forward slashes** (`PurePosixPath`). A
+  builder run on Windows otherwise writes `postman\fixtures\...`, which Newman
+  cannot open anywhere else.
+- **The label check reads the status wherever it sits in the name.** The
+  Uploads examples are named `Success (200 · …)`; an audit that only looked at
+  the start of the name skipped them, and one of them was a 403 label on a 200.
 - **A local Newman run needs `RATE_LIMIT_MULTIPLIER=20`** in `Backend/.env`.
   A full run signs in more often than the login limit allows, so at `1` it
   fails with 429s that look like real failures. Never raise the limits
@@ -894,11 +913,46 @@ intentionally share with the referral agent" is a note with a flag on it, and
 discovering that after building both is how two note systems end up in one
 codebase.
 
-It is stored and displayed today and **filters nobody**, because the
-REFERRAL_AGENT role does not exist yet. That is deliberate and not a gap: the
-day the role lands, its read scope is `visibility: SHARED` and nothing else
-changes. Do not build the filtering ahead of the role — there is nothing to
-filter, and a rule with no caller is a rule nobody has tested.
+**Since 27 Sep 2026 it filters the REFERRAL_AGENT role**, which is exactly the
+rule this section promised before the role existed, and nothing else changed.
+In `notes.service.ts`, for a partner: `findAll` forces `visibility: SHARED` and
+live notes only, the timeline carries no audit events and SHARED notes only,
+`load` answers 404 for anything else, and `assertMayWrite` refuses every write.
+The only subject an agent reaches is `REFERRAL`, resolved through
+`ReferralsService.subjectRef`, which scopes to their own referrals.
+
+## The referral agent is a partner, not staff
+
+`REFERRAL_AGENT` (`isPartner(role)` in `permissions.ts`) holds **NONE on every
+permission except its own referrals and commissions** (`VIEW_REFERRALS` /
+`MANAGE_REFERRALS` / `VIEW_COMMISSIONS` at `OWN`) and `MANAGE_AIRPORTS` at
+`READ` for the submit form's airport picker. Four rules hang off that, and each
+closes a leak that the permission matrix alone would not:
+
+- **The staff directory is its own permission, `VIEW_TEAM`** — ALL for every
+  staff role, NONE for the agent — on `GET /users`, `/users/stats`,
+  `/users/roles` and `/users/:id`. Those routes used to need only a session,
+  which was fine while every session was staff.
+- **A partner's upload is forced `PRIVATE` with no owner**, and a partner's
+  `GET /uploads` lists only their own files. An agent must never be able to
+  publish into the photo library or file something into a broker's folder.
+- **Referral attachments are streamed through the referral, not the upload.**
+  `GET /referrals/:id/attachments/:uploadId` resolves the referral in scope
+  first, checks the upload URL is on it, then calls
+  `UploadsService.openVouched()` — the **one sanctioned bypass of `mayRead`**,
+  because the desk broker is neither the uploader nor the owner of a file the
+  agent uploaded privately. Any second caller of `openVouched` must vouch for
+  the file through a record the same way; never call it with a bare id.
+- **A partner response never carries desk data.** `partnerView()` in the
+  referrals and commissions services strips notes, the broker and every price
+  input. The agent sees their commission, never the profit it was derived
+  from — `serialise` in commissions never returns the trip's pricing at all.
+
+A commission structure (`commissionBasis` / `commissionPercentage` /
+`commissionAmount`) lives on the **user row, for agents only** — the Users
+service accepts it only on a `REFERRAL_AGENT` and clears it when the role
+changes away. A commission copies it at creation; editing the agent's standard
+later never rewrites a commission already raised.
 
 ## A balance is summed, never stored — and money is counted in cents
 
@@ -1018,6 +1072,7 @@ This project uses shadcn/ui (the `base-nova` style, built on Base UI — `@base-
 - **Images**: always `next/image`, never `<img>`, never the `unoptimized` prop. Local assets under `public/` need no remote-pattern config. Use `fill` + a sized `relative` parent for background/cover photos, explicit `width`/`height` for everything else.
 - **An authenticated upload needs `next/image`'s `loader` prop, not the default.** `GET /uploads/:id` requires a session, and the default loader resolves a relative `src` with its own *server-side* fetch — one with no access to the browser's httpOnly cookie, so it 401s and the image never renders. Every image built from `uploadUrl()` needs `loader={passthroughImageLoader}` (`src/services/uploads.service.js`), which hands the URL straight to the browser instead — the same reasoning this app's download links already rely on a real browser request for. A static file under `public/` never needs this.
 - **Every uploaded or gallery image is previewable, through one component.** Wrap it in `<ImagePreview>` (`src/components/common/image-preview/`) rather than a bare `<Image>` — hover shows an expand icon, click opens a full-screen zoom/pan lightbox, and passing the whole set an image belongs to (not just the one image) gets prev/next navigation for free. `FileUpload`'s upload bricks and `ItineraryPreview`'s aircraft gallery are the pattern to follow. This is the same "one reusable component, not one per screen" rule as everything else in this file — do not hand-roll a second hover-to-zoom treatment.
+- **A photo field that feeds a document offers the photo library.** Pass `library` to `FileUpload` (and `suggested` when the form knows which photos are relevant, as the quote form does with the chosen aircraft's). The library is every `PUBLIC` image already on the server — client adjustment #3's "stock image database" — so the desk picks a photo again rather than uploading it twice. Never build a second picker.
 - **Layouts, not wrappers**: if a visual shell wraps every page in a route group (the auth hero-split panel, the dashboard sidebar), it belongs in that group's `layout.js` — never re-imported and wrapped around each page's JSX by hand. `src/app/(auth)/layout.js` and `src/app/dashboard/layout.js` are the examples to follow.
 - **Reuse, don't duplicate.** Before adding a new status-color map, badge variant, or avatar treatment, check `src/components/common/StatusBadge.jsx` / `UserAvatar.jsx` first — these exist specifically because 4+ components used to hand-roll their own copies.
 
@@ -1232,7 +1287,8 @@ checkbox column that feeds them.
 Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
-detail page and the client/lead dialogs. Not yet: the Clients table, Airports,
+detail page and the client/lead dialogs, Trips, Empty Legs, Commissions and
+Referrals. Not yet: the Clients table, Airports,
 Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by
@@ -1256,6 +1312,17 @@ every control: **the value a component emits is what the API accepts**, and the
 friendly version is produced at render time, for reading only. A control that
 emits a display string has made every one of its call sites responsible for
 translating it back, and they will not all remember.
+
+**Times of day are `"HH:MM"`, 24-hour, on the wire** — `parseTime` /
+formatting in `src/lib/time.js`. `TimePicker` used to emit `"08:00 AM"`, so a
+client follow-up scheduled with a time was refused by the API and the dialog
+closed as if it had saved. The 12-hour text is produced at render time only.
+
+**A calendar date (`@db.Date`) is rendered with `formatCalendarDate`**, which
+formats in UTC, and loaded into an input with `toDateInput` (both in
+`src/lib/date.js`). The API stores the 14th as midnight UTC; formatting it in
+local time shows the 13th everywhere west of Greenwich. Timestamps keep using
+the local-time formatters.
 
 The same component also opened on a hardcoded month, offered a hardcoded
 "Today", and matched the selected day by substring so the 1st highlighted the

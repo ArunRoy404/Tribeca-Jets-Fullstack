@@ -8,7 +8,7 @@ ordered by dependency.
 `docs/Client_Adjustments.txt`, which held the raw messages and nothing else.
 The original is not needed and has been deleted.
 
-*Last updated: 26 September 2026.*
+*Last updated: 27 September 2026.*
 
 ---
 
@@ -26,7 +26,7 @@ exactly the failure this document exists to prevent.
 
 | | Phase | State |
 |---|---|---|
-| **1** | **The client's adjustments.** The thirteen messages in §3, built in the dependency order in §2. | **7 of 11 done.** See §1. |
+| **1** | **The client's adjustments.** The thirteen messages in §3, built in the dependency order in §2. | **10 of 11 done** — #3, #6 and #10b completed 27 Sep, after Trips, Empty Legs and Commissions were pulled forward from Phase 3 to unblock them. **In progress: #11** — the role, the API and the desk's Referrals page are built; the agent's own portal is not. #1 needs only its demo. See §1. |
 | **2** | **Frontend changes.** Existing screens change, and new screens that do not exist yet get built. | **Done for the two screens the client's Figma redesigns targeted** — the Build Itinerary preview (24 Sep) and the Quotes form + live preview (25 Sep). See the 25 September entry in §4. No further phase-2 item is queued; if he sends another redesign it reopens this phase for that screen only. |
 | **3** | **Backend + Postman + API integration**, module by module, in dependency order. | **Partly done — and that is the complication.** |
 
@@ -49,7 +49,7 @@ Two consequences that are easy to get wrong:
   Read the phase-2 change list first. Building an API against a screen that is
   about to change is how the work gets done twice.
 - **Phase 1 is not blocking phase 2.** The remaining adjustments are either
-  blocked on Trips, deferred by the client, or a conversation rather than code
+  #11's agent portal, deferred by the client, or a conversation rather than code
   (see §1). Nothing in phase 1 is both unblocked and independent of the phase-2
   redesign.
 
@@ -204,10 +204,14 @@ script placed **in `Backend/`** (not `/tmp`) using `dotenv` + `pg`.
 
 ### 0.6 Git state at handoff
 
-Branch **`roy`**, `origin/roy` up to date through `e948ba1` as of
-26 September 2026. **The working tree is not clean:** the 26 September audit
-(§4) is uncommitted — backend fixes, Postman, frontend and these docs —
-because nobody has asked for a commit yet. Commits are pushed only when the
+Branch **`roy`**, `origin/roy` up to date through `07f608f` (the
+26 September audit, in six commits) as of 27 September 2026. **The working
+tree is not clean:** all of the 27 September work — #3's fleet photos and photo
+library, #6's suggested price and estimate, the Postman fixes, Trips, Empty
+Legs with #10b, Commissions, and #11's referral work so far (§4) — is
+uncommitted, because nobody has asked for a commit yet. Five new migrations
+(`20260927090000` … `20260927160000`) must be deployed before the API starts
+against an existing database. Commits are pushed only when the
 user asks for it in that message — a session ending with unpushed work
 committed locally is the normal resting state, not a problem to fix. Check
 `git status` and `git log origin/roy..HEAD` on pickup rather than trusting this
@@ -236,16 +240,16 @@ paragraph, since it goes stale the moment the next session commits.
 | — | Upload infrastructure | ✅ | ✅ | **Done, rebuilt 23 Sep.** Consumed by #7's document folders, the quote photo (stored on the quote) and the Build Itinerary form (uploads real, itinerary itself not yet saved — no backend). Still unblocks 3's fleet half and 11. |
 | 1 | Client stays visible after a broker deletes it | ✅ | ✅ | **Already works.** Needs a demonstration, not code. |
 | 2 | Operator cancellation policies | ✅ | ✅ | **Done** 19 Sep 2026. |
-| 3 | Aircraft pictures + stock image library | ◐ | ◐ | **Quote and itinerary picture-picker done** 25 Sep 2026 (the two consumers he named). **Still open:** the fleet-side uploader and gallery on the Aircraft screen itself — `Aircraft.photoUrl` doesn't exist yet. |
+| 3 | Aircraft pictures + stock image library | ✅ | ✅ | **Done** 27 Sep 2026. Quote and itinerary picture-picker (25 Sep), fleet photos on every aircraft, and a **photo library** on every photo field — pick any photo already on file, with the chosen aircraft's own photos offered first. |
 | 4 | Ten-minute idle logout | ✅ | ✅ | **Done** 19 Sep 2026. |
-| 5 | Notes on a timeline | ✅ | ✅ | **Done for Clients** 23 Sep 2026. Trips gets it by rendering the same component. |
-| 6 | Instant quote calculator | ☐ | ☐ | **Still deferred** — the Quotes UI it needed shipped 25 Sep 2026; now blocked only on **his rate data** (he offered it, on the call he asked for). |
+| 5 | Notes on a timeline | ✅ | ✅ | **Done** — Clients 23 Sep, Trips 27 Sep 2026 (and Referrals, as the Agent Updates). |
+| 6 | Instant quote calculator | ✅ | ✅ | **Done** 27 Sep 2026. Suggested-price selector, plus the **Instant Estimate**: pick two airports and a party size, get flight time and cost for every aircraft size from **the desk's own rate table** (Rates tab), then markups and "Start a quote". Rates are empty until the desk enters them — nothing is invented. |
 | 7 | A document folder per user (tax forms) | ✅ | ✅ | **Done** 23 Sep 2026. |
 | 8 | "Active trip request" section | ✅ | ✅ | **Done** 19 Sep 2026 — same as 10a. |
-| 9 | Client credit / money on account | ✅ | ✅ | **Done** 24 Sep 2026, as a ledger. Trip link waits on Trips. |
+| 9 | Client credit / money on account | ✅ | ✅ | **Done** 24 Sep 2026, as a ledger; the trip link (`appliedToTripId`) landed with Trips on 27 Sep. |
 | 10a | Trip request page | ✅ | ✅ | **Done** 19 Sep 2026. |
-| 10b | Empty-leg matching against past requests | ☐ | ☐ | **Blocked** — Empty Legs has no backend. |
-| 11 | Referral Agent role and partner portal | ☐ | ☐ | **Blocked** — needs Trips, Commissions, upload. Largest item by a distance. |
+| 10b | Empty-leg matching against past requests | ✅ | ✅ | **Done** 27 Sep 2026, with the Empty Legs module. Not live-tested; no Postman folder yet. |
+| 11 | Referral Agent role and partner portal | ✅ | ◐ | **In progress.** Role, permissions, referrals, commissions, resources, Agent Updates and the desk's Referrals page built 27 Sep 2026. **Left:** the agent portal (`/portal`), commission inputs on the team member sheet, Postman. Not live-tested. |
 
 ---
 
@@ -263,12 +267,12 @@ Dependency-first, as `AGENTS.md` requires. Cheapest unblocker at the top.
 | **5** | **#1 Demonstrate the Archived tab** | **No code.** Five minutes on the next call with him. |
 | 6 | ~~**#7 User document folders**~~ ✅ 23 Sep 2026 | A Documents tab on the team member sheet, over a folder query rather than a second table. |
 | 7 | ~~**#5 Notes timeline**~~ ✅ 23 Sep 2026 | Polymorphic, so Trips gets it for one enum value. #11's Agent Update field is the `visibility` flag, built with it. |
-| 8 | ~~**#9 Client credit ledger**~~ ✅ 24 Sep 2026 | Client-scoped, as planned. The trip link is a second pass the day Trips lands. |
+| 8 | ~~**#9 Client credit ledger**~~ ✅ 24 Sep 2026 | Client-scoped, as planned. The trip link landed with Trips, 27 Sep. |
 | 9 | ~~**#3 (quote/itinerary half) — picture-picker**~~ ✅ 25 Sep 2026 | Shipped with the Quotes Figma redesign (phase 2). See §4. |
-| **10** | **Trips** | Not a client request — but #5's trip timeline and #9's trip link both wait on it, and it unblocks nine modules. **Next.** |
-| 11 | **#10b Empty-leg matching** | After Empty Legs has a backend. |
-| 12 | **#11 Referral Agent portal** | Last. Needs Trips, Commissions and upload all in place. |
-| — | **#3 (fleet half), #6** | **#3's fleet uploader/gallery** is small and unblocked — needs `Aircraft.photoUrl` and a form field, nothing else. **#6** waits on the client's rate data (see §5). |
+| 10 | ~~**Trips**~~ ✅ 27 Sep 2026 | Not a client request — #5's trip timeline and #9's trip link waited on it. |
+| 11 | ~~**#10b Empty-leg matching**~~ ✅ 27 Sep 2026 | Built with the Empty Legs module. |
+| **12** | **#11 Referral Agent portal** | **In progress.** Commissions ✅ and the desk half ✅ 27 Sep; **next: the agent portal.** |
+| — | ~~**#3**~~, ~~**#6**~~ ✅ 27 Sep 2026 | Both complete. #6's rate table is empty until the desk fills it in. |
 
 ---
 
@@ -310,7 +314,7 @@ was not the same as the feature working.
 
 ---
 
-### ◐ 3. Aircraft pictures and a stock image library — **PARTLY DONE**
+### ✅ 3. Aircraft pictures and a stock image library — **DONE 27 Sep 2026**
 
 > And are you gonna add a section for aircraft pictures? It would be cool to
 > have a stock image database for when you have to add pics to quote or
@@ -336,15 +340,19 @@ He names the consumers himself — quote and itinerary.
 - ✅ **The saved quote shows its photo** (26 Sep 2026) — an Aircraft Photo
   card on the quote detail page. Before that it appeared only inside the edit
   form's preview.
-- ☐ **Still open: the fleet-side uploader and gallery.** The Add/Edit Aircraft
-  form has no photo field yet, and there is no `Aircraft.photoUrl` column to
-  put it in. This is the one piece of #3 not blocked on anything — it needs a
-  small schema addition and a `FileUpload` field on the aircraft form, not a
-  client UI change.
-- ☐ **Still deferred:** the "stock image database" half of his message — a
-  shared library to pick from rather than uploading per-quote. Nobody has
-  asked for it since; treat it as a follow-up question for him rather than
-  something to guess at building.
+- ✅ **The fleet photos shipped 27 Sep 2026.** Every aircraft carries an
+  exterior and an interior photograph (`Aircraft.exteriorImageUrl` /
+  `interiorImageUrl`), uploaded from the Add/Edit Aircraft form — before the
+  tail exists, on a new one — and shown in a Photos card on the aircraft
+  detail page. See §4.
+- ✅ **The "stock image database" shipped 27 Sep 2026, as a photo library.**
+  Every photo field — quote, itinerary exterior/interior, aircraft
+  exterior/interior — offers "or choose from the photo library": every
+  `PUBLIC` image already uploaded, searchable, previewable, newest first. On a
+  quote the chosen aircraft's own fleet photos are offered first. It is a
+  *view* over the uploads already stored, not a second table — the photos were
+  on the server all along; what was missing was a way to pick one again
+  instead of re-uploading it from the operator's email. See §4.
 
 Thumbnails and image resizing are deliberately deferred until a screen renders
 enough images at once to need them.
@@ -375,13 +383,12 @@ non-obvious requirements this implies and how each is met.
 The Activity tab on the client detail page is the timeline. See §4 for what was
 built and the three decisions behind it.
 
-**Remaining:** the trip half, which is one enum value and rendering the same
-component — `NotesTimeline` takes `subjectType`/`subjectId`, not a client. It
-lands with **Trips**.
+**The trip half shipped 27 September 2026** with Trips — `NoteSubjectType.TRIP`
+and the same `NotesTimeline` on the trip detail page, as planned.
 
 ---
 
-### ⏸ 6. Instant quote calculator with a suggested-price selector — **DEFERRED**
+### ✅ 6. Instant quote calculator with a suggested-price selector — **DONE 27 Sep 2026**
 
 > Also, I want to add an instant quote calculator . I want to be able to put in
 > size of plane, airports and such and it give is an estimate of what it could
@@ -399,15 +406,32 @@ engine that already exists in
 full-screen form now has a live pricing preview
 (`POST /quotes/price-preview`), computed by that same `priceQuote()` engine
 against draft inputs before anything is saved. That closes the UI half of this
-request; a percentage-selector control over it is a small addition once the
-data below exists.
+request.
 
-**The *estimate* half is a data question before it is a build question.** He
-offered to supply rates ("I can help with the data"), and scope §18 says AI
-must not be the source of truth for financial calculations. **Get the rate
-table from him on the call he asked for.** An AI-guessed charter price quoted
-down a phone is the same class of mistake as the invented 4.9 safety rating
-that `AGENTS.md` records.
+**The suggested-price selector shipped 27 September 2026.** It did not need
+his data after all — a markup is a percentage over the operator's cost, which
+the desk already types. Enter the operator cost on the quote form and it shows
+the base price at +10 / 15 / 20 / 25% plus any custom percentage, and what
+each totals to the client with FET and extras. One click fills the base
+price. Every figure comes from `POST /quotes/suggested-price`, which runs the
+same `priceQuote()` as a saved quote; the percentage itself is not stored. See
+§4.
+
+**The *estimate* half shipped 27 September 2026 — without inventing a
+number.** It was a data question before it was a build question: he offered
+to supply rates, and scope §18 says AI must not be the source of truth for
+financial calculations. So the estimate is built on a **rate table the desk
+fills in** — per aircraft size: dollars per flight hour, average speed, typical
+seats and an optional minimum billed hours. The only computed input is the
+great-circle distance between the two airports' coordinates. A size with no
+rate says **"No rate on file"**, never $0 and never a guess. When his numbers
+arrive, they go into the Rates tab — no code change. See §4.
+
+**Assumption, stated because he could not be asked:** an estimate is
+flight time × hourly rate per leg, with a minimum billed time. Positioning
+legs, overnight fees and winds are not modelled, and the screen says so. If
+his formula differs, it changes `charter-rates.estimate.ts` and nothing
+else.
 
 ---
 
@@ -486,10 +510,10 @@ from.** The balance is a `SUM` over the ledger, computed on read.
 **Raise the difference with him in a sentence** — he gets the edit he asked
 for, on a row, and an audit trail he did not know to ask for.
 
-**⚠️ "Used towards another trip" needs Trips to point at.** Shipped
-client-scoped; an APPLICATION says which trip in its `reason` text. There is
-deliberately **no `appliedToTripId` column and no reference string** — the FK
-lands with Trips. This is the one part of #9 still outstanding.
+**✅ "Used towards another trip" is a real link since 27 September 2026.**
+Shipped client-scoped first, with deliberately no reference string; the
+`appliedToTripId` foreign key landed with Trips, and the credit form picks from
+the client's own trips.
 
 **Still to raise with him:** (a) the ledger itself, which is more than he asked
 for and needs one sentence of explanation; (b) whether a **refund** — money
@@ -498,15 +522,16 @@ built: recording one today means an APPLICATION whose reason says so.
 
 ---
 
-### ☐ 10b. Empty-leg matching against past trip requests
+### ✅ 10b. Empty-leg matching against past trip requests — **DONE 27 Sep 2026**
 
 > ...just in case in future when we have empty legs that can match a previous
 > trip request, we can still contact that client to let them know.
 
-**Status: blocked. Order item 10.**
+**Status: shipped 27 September 2026, with the Empty Legs module. Order item 11.**
 
-**⚠️ Blocked on Empty Legs**, which has a frontend folder
-(`Frontend/src/templates/EmptyLegsPage.jsx`) and **no backend at all**.
+Every empty leg lists every trip request on the same route — **including lost,
+converted and archived ones**, which is the point of the request — with the client's
+phone and email; requests within ±3 days of the leg come first. See §4.
 
 The matching itself is a route-and-date query against archived and lost trip
 requests — cheap, once there is something to match against. The trip requests
@@ -516,13 +541,17 @@ still there.
 
 ---
 
-### ☐ 11. Referral Agent role and partner portal
+### ◐ 11. Referral Agent role and partner portal — **IN PROGRESS**
 
 > Please create a new CRM user type called Referral Agent. This role should
 > have very limited access and function more like a simple partner portal than
 > access to the full Tribeca Jets CRM.
 
-**Status: blocked. Order item 11 — last.**
+**Status: in progress. Order item 12 — last.** The role, the permissions, the
+referral / commission / resource API, the Agent Updates and the desk's
+Referrals page shipped 27 September 2026 (§4). **Not built: the portal
+itself** — the five screens below and their navigation. Until it exists, do
+not invite a referral agent.
 
 **The largest item on this list by a distance — effectively a second product.**
 It should be built last of these, not first.
@@ -674,7 +703,7 @@ His full specification, verbatim:
 - **A separate navigation shell**, since the portal shows five items and none
   of the CRM's.
 
-**⚠️ Depends on: Trips, Commissions, and file upload.**
+**Dependencies: Trips ✅, Commissions ✅ and file upload ✅ — all shipped.**
 
 ---
 
@@ -1334,6 +1363,207 @@ the new pre-request fetches are counted as requests.)
   now, not just avatars — on each deploy. See `DEPLOYMENT.md`.
 - **Not yet done:** the 375 / 768 / 1440 browser check of the changed screens.
 
+
+### ✅ Fleet photos — 27 September 2026 · #3's fleet half
+
+The last buildable piece of #3. He asked for "a section for aircraft pictures"
+and to "upload pics from operator email to use for quote or itinerary".
+
+- **Two columns, not one `photoUrl`**: `Aircraft.exteriorImageUrl` and
+  `interiorImageUrl`. The earlier plan said a single `photoUrl`; two is what
+  the consumers show — the quote carries an exterior shot, the itinerary an
+  exterior and an interior — and naming them like `Quote.exteriorImageUrl`
+  means a photo moves between records without a mapping. Migration
+  `20260927090000_add_aircraft_photos`, nullable, no backfill.
+- **Validated by the shared `uploadUrl`**: only a relative
+  `/api/uploads/<id>` is accepted; an absolute or external link is a 400.
+  `null` on update removes a photo and leaves the uploaded file alone.
+- **Frontend:** a Photos section on the Add/Edit Aircraft form (two upload
+  dropzones, `PUBLIC` because fleet photos go on documents every broker
+  sends), and a **Photos** card at the top of the aircraft detail page's right
+  column — `PhotoTile` with hover-to-zoom and a lightbox over the photos that
+  exist, and a dashed "No exterior photo on file" for an empty slot, never a
+  stock picture of another airframe. The card switches between one and two
+  columns on its own width (a container query), because a viewport breakpoint
+  put two 176 × 82 px tiles side by side at tablet width.
+- **Postman:** both fields in the `07 · Aircraft` create/update bodies, and a
+  captured `400 · Photo is not an upload URL`.
+
+**Verified:** real requests — created with both photos (201), external link
+and absolute URL refused (400), interior cleared with `null` (200), both
+returned by list and detail. Browser at 375 / 768 / 1440: photos load in the
+card and in the edit form, no horizontal scroll; an aircraft without photos
+shows two empty slots and no image. Backend `tsc` 0, oxlint 0, vitest
+116/116; frontend eslint 0, `next build` passes. Newman 149 / 81 / 0 twice,
+`07 · Aircraft` alone 14 / 4 / 0; 306 examples, 0 mislabelled.
+
+**Not done in this entry:** picking one of the fleet's photos *onto* a quote
+or itinerary — that shipped the same day as the photo library, next entry.
+
+
+### ✅ Photo library and suggested price — 27 September 2026 · #3 complete, #6's selector
+
+**#3 — the photo library** ("a stock image database for when you have to add
+pics to quote or itinerary").
+
+- **A view, not a table.** Every `PUBLIC` image already uploaded is the
+  library: `GET /uploads?kind=IMAGE&visibility=PUBLIC`. One new query filter,
+  `visibility`, that only ever narrows — the caller's own read rule still
+  applies on top, so a private upload never appears in anyone else's picker.
+- **One shared picker** (`components/common/photo-library/`), wired into the
+  shared uploader as an optional `library` prop — every existing caller
+  unchanged. On: the quote photo, both itinerary photos, both aircraft photos.
+  Search by file name, paged, each photo previewable (`ImagePreview`) and
+  chosen with its own button, so looking and choosing are separate clicks.
+  A picked photo comes back as the same relative URL an upload returns.
+- **The chosen aircraft's own photos come first** on the quote form ("From
+  this aircraft"), so the fleet photos from earlier the same day are one click
+  from any quote on that tail.
+- A new public image refreshes the library straight away.
+
+**#6 — the suggested-price selector** ("a 'suggested price' option where I can
+select different percentages").
+
+- **`POST /quotes/suggested-price`** — given `operatorCost` and 1–8
+  `markupRates` (0.15 = 15%), returns each suggested base price and its FET,
+  extras and total through `priceQuote()`. `suggestBasePrice()` in
+  `quotes.pricing.ts`, 4 new tests. Needs `MANAGE_TRIPS` **and**
+  `VIEW_FINANCIALS` — a markup over cost is the margin, and an assistant gets
+  403. A rate of `15` (meaning 15%) is refused as the typo it is.
+- **On the quote form**, under the operator cost (financial roles only):
+  +10 / 15 / 20 / 25% cards and a custom-% box, each showing the base price and
+  the total to the client; one click fills the base price, which stays
+  editable. The component does no arithmetic of its own. The presets are
+  control options, not data — change the list in `SuggestedPricePicker.jsx`
+  if the desk works in other steps.
+- **Not built: the estimate** from aircraft size and airports — see §5.
+- **Found, not changed:** gross profit counts the FET as the desk's money —
+  §5 question 5.
+
+**Postman, three real defects found by the new label check on its first run:**
+
+- **`11 · Uploads` had no label check and hard-coded its statuses.** Its
+  `Error (403 · another user's folder)` example held a **200** — it was
+  captured as the administrator, who may open any folder. Fixed at the
+  request (a broker now asks). The builder now asserts every label against the
+  captured status, and the collection audit matches the code anywhere in the
+  name, not only at the start (the Uploads names begin "Success (").
+- **The Uploads builder dropped its own folder login.** It had been patched in
+  by hand, so any rebuild left a folder that 401'd when run alone. The builder
+  now copies it, like the Notes and Credits builders.
+- **A Windows run wrote fixture paths with backslashes**, which Newman cannot
+  open on macOS or Linux. Now always forward slashes. The file document request
+  also fetches its own broker instead of trusting `{{userId}}` from `04 ·
+  Users`.
+- New: `18 · Suggest a price` (200, two 400s, 403) and the photo-library
+  example on `01 · List files`.
+
+**Verified:** real requests for both endpoints, including the 403 and 400s.
+Browser at 375 / 768 / 1440: typing a $65,000 cost shows +10% $71,500 … +25%
+$81,250 and a custom 18% card; clicking +15% puts 74750 in the base price; the
+library opens from the quote photo field with the aircraft's photos first, and
+choosing one fills the field. No horizontal scroll. Backend `tsc` 0, oxlint 0,
+vitest 120/120; frontend eslint 0, `next build` passes. Newman **151 / 81 / 0
+twice**, and **all 13 folders pass run alone**; 127 requests, 311 examples,
+0 mislabelled.
+
+
+### ✅ Instant estimate and the rate table — 27 September 2026 · #6 complete
+
+The client could not be asked for his rates, so the estimate is built on a
+table **the desk fills in**, and is honest about every category nobody has
+priced.
+
+- **`CharterRate`**, one row per aircraft category (`@unique`), created the
+  first time a rate is set: `hourlyRate`, `averageSpeedKnots`, `typicalSeats`,
+  `minimumHours`, `notes`. Migration `20260927120000_add_charter_rates`,
+  **empty** — no seeded rates. Rows are never removed: clearing a figure sets
+  it to null, and every change is audited with its before and after, which is
+  the history "what rate did we estimate that on?" needs.
+- **`GET /charter-rates`** — all seven categories, priced or not (unpriced ones
+  all-null, so the table shows the gap). **`PUT /charter-rates/:category`** —
+  VIEW_FINANCIALS at **ALL** scope only (a broker gets 403: a company-wide
+  rate is not one broker's to set), enforced in the service with
+  `scopeFor(...) !== Scope.ALL`. **`POST /charter-rates/estimate`** —
+  great-circle distance, then per category: flight hours, billed hours (never
+  below the minimum) and estimated cost, doubled for a round trip;
+  `estimate: null` where no rate exists; `fitsParty` against typical seats.
+  Reading and estimating need VIEW_FINANCIALS; an assistant gets 403.
+- **The arithmetic** is `charter-rates.estimate.ts`, pure functions, 6 tests —
+  including that no rate returns null rather than zero.
+- **Frontend:** an **Instant Estimate** button on the Quotes toolbar (financial
+  roles only). *Estimate* tab: two airports, passengers, round trip → a card
+  per aircraft size with cost, hours and "Seats 8 / too small", or "No rate on
+  file"; choosing one shows the suggested-price markups over that estimate,
+  and **Start a quote** opens a new quote with the route, party and chosen
+  price filled in. The estimate is deliberately *not* written into the quote's
+  operator cost — that field is what the operator actually charges. *Rates*
+  tab: editable for administrators and senior brokers, read-only otherwise.
+- **Postman `14 · Charter Rates`** — set, list, estimate, and a teardown that
+  **puts the real rate back exactly**: the folder saves the Midsize Jet rate
+  before changing it. Verified with a real rate on file: it survived a run
+  unchanged. First folder built on the new shared `postman/builder_common.py`.
+
+**Verified:** live requests for every endpoint and role; browser at 375 / 768 /
+1440 — KTEB→KPBI 901.8 nm, Midsize at $4,500/h and 420 kt → 2.1 h → $9,450,
++15% → $10,867.50 carried into a new quote's base price; six unpriced sizes
+read "No rate on file"; broker sees rates read-only; assistant sees no button.
+Backend 126/126 tests, `tsc` and oxlint 0; frontend eslint 0, build passes.
+Newman **157 / 85 / 0 twice**, every folder alone; 131 requests, 324 examples,
+0 mislabelled.
+
+### ✅ Trips, Empty Legs + #10b, Commissions, and #11's desk half — 27 September 2026 · order items 10–12
+
+Pulled forward from Phase 3 so the last two adjustments could be built without
+waiting on the client. Module-by-module detail is in
+[MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md) (#11, #15, #18, #32); this
+entry records the decisions.
+
+**Trips (#11).** Legs and named passengers as their own tables; pricing inputs
+copied from the quote and every total computed on read by the quote pricing
+engine. One-click booking from an approved quote marks the enquiry CONVERTED.
+The status machine is pure and tested. Second passes made in the same pass:
+activeTrips, trip counts and trip tabs on Users, Agents, Operators, Aircraft
+and Clients; the `TRIP` notes subject (#5's trip half); `appliedToTripId` (#9's
+trip link). Verified with live requests, in the browser at 375 / 768 / 1440,
+and with Postman `15 · Trips`. Two bugs found by that browser check and fixed:
+`TimePicker` sent `"08:00 AM"` (so a follow-up with a time never saved), and a
+nested button broke the trip form.
+
+**Empty Legs (#15) and #10b.** Exact-airport route match, ±3 days sorts first,
+lost / converted / archived requests included. "Expired" is computed from the
+offer's expiry on every read, not written by a job. The dashboard's Empty Leg
+Opportunities reads the API; the module's dummy data is gone.
+
+**Commissions (#18).** Recipient is a referral agent, a client (the client's travel-agent
+case) or a named person; basis percent-of-profit / flat / custom. Percent of
+profit is computed in cents on read — the agent sees the commission, never the
+profit behind it. An agent's standard structure lives on their user row and is
+copied at creation.
+
+**#11, the desk half.** `REFERRAL_AGENT` is a partner, not staff: NONE on every
+staff permission, a new `VIEW_TEAM` permission to keep the staff directory from
+them, uploads forced private, notes SHARED-only and read-only. A referral is its
+own table with its own ladder; converting it writes a real Client and
+TripRequest through their services; linking its booked trip raises the
+commission. Attachments stay private and reach the desk through the referral
+(`openVouched`). The Agent Update field is the SHARED note flag built with #5 —
+no second note system.
+
+**Verification — stated plainly.** From Empty Legs onward the owner asked for no
+live testing (no browser, no API probes); testing comes later. Checked: backend
+`tsc`, oxlint and vitest (150 tests in 15 files) clean; frontend eslint clean
+in every changed file (nine pre-existing errors elsewhere, listed in
+MODULE_FEATURE_STATUS's short version); frontend `npm run build` passes.
+**Not run:** Newman, and any browser check of Empty Legs, Commissions or
+Referrals.
+
+**Left of #11:** the `/portal` route group (Dashboard, Submit Referral, My
+Referrals, Commission Center, Resources) with its own navigation, sending agents
+there after sign-in (`homeFor` in `lib/roles.js` exists and is not yet called)
+and adding `/portal` to `proxy.js`; the commission-structure inputs on the team
+member sheet; Postman folders for Empty Legs, Commissions and Referrals.
+
 ---
 
 ## 5. Open questions for the client
@@ -1342,14 +1572,26 @@ Each is cheap to close and each is blocking something.
 
 1. **#1 may already be closed.** He is describing a data-loss risk that cannot
    happen here. Five minutes on the Archived tab may settle it outright.
-2. **#6 needs his rate data**, and he offered it — "I can help with the data".
-   He also asked for a call: *"We can go over all of this on phone"*. Take it,
-   and come back with the numbers rather than an AI estimate. The UI side is no
-   longer part of the ask — it shipped 25 Sep 2026 with the Quotes redesign.
+2. **#6's rate table is empty until the desk fills it.** The estimate is
+   built and works, but only for the aircraft sizes someone has entered a rate
+   for. Ask him for his numbers ("I can help with the data") and whether the
+   formula — flight time × hourly rate, with a minimum — matches how he prices;
+   positioning and overnight fees are not modelled.
 3. **#9 is a ledger, not a number** — worth one sentence to him, because what he
    gets is better than what he asked for and he should hear it from us rather
    than discover it.
-4. **#3's "stock image database" half** — the quote/itinerary picture-picker he
-   asked for is done, but he also described a shared library to pick a stock
-   photo from rather than uploading a fresh one each time. Nobody has confirmed
-   that's still wanted since; worth a one-line check before building it.
+4. **#3's photo library shipped 27 Sep 2026** as a library of every photo
+   already uploaded. Worth one sentence to him: if he meant a set of generic
+   stock photos by aircraft type (not tails we have on file), that is a
+   different thing, and those images would have to come from somewhere.
+5. **Is FET profit?** Found while building #6: `grossProfit` is total price
+   minus operator cost, and the total **includes the FET**, so every quote's
+   gross profit and margin count the excise tax as the desk's money. At a 10%
+   markup on $65,000 the margin reads 15.4% where the desk keeps 9.1%. If the
+   operator's cost already includes the FET they remit, the current figure is
+   right; if the desk remits it, every margin on screen is overstated. **A
+   question about how the money flows — not changed until he answers.** Since
+   27 Sep it also moves every percent-of-profit commission.
+6. **Referral agents' standard commission.** Each agent's structure (percent of
+   profit, flat fee or custom) is entered per agent; we need the client's figures, and
+   whether "profit" for a commission is before or after the FET (question 5).

@@ -1,0 +1,36 @@
+Tribeca Jets Command Center - Services Needed for Hosting
+
+Hello there,
+
+To put the Command Center live, we recommend hosting everything on one server at Hostinger. The screens, the system behind them, the database and all uploaded files run together in one place, so there is one bill and one account to manage.
+
+We recommend each account is opened in Tribeca Jets' name and with your payment card, so the company owns everything; we only need access to set it up.
+
+Prices below are approximate, based on Hostinger's published plans at the time of writing. Please confirm on Hostinger's website before subscribing. Their first-term prices are discounted, and renewal prices are higher.
+
+
+1. Server - Hostinger VPS, KVM 2 plan (2 CPU, 8 GB memory)
+   - What it does: runs the whole Command Center: the screens your team uses, logins and permissions, calculations, the database with all your data, and the uploaded files (photos, documents, tax forms, referral attachments)
+   - Why this plan: the smaller plan does not have enough memory to run and update the system reliably
+   - Approx. cost: about $7-12 per month on a long-term plan; higher on renewal
+
+2. Business email - Hostinger Email
+   - What it does: sends team invitations, password reset codes and two-step login codes from a Tribeca Jets address
+   - Why needed: the system will not start in live mode without an email account connected
+   - Approx. cost: a few dollars per month for one mailbox (for example, no-reply@yourdomain)
+
+3. Domain name
+   - What it does: the web address your team opens (for example, tribecajetscommandcenter.com)
+   - Approx. cost: about $10-20 per year, if not already owned
+   - If you already own a domain elsewhere, we only need access to its DNS settings
+
+
+Estimated total: roughly $10-20 per month, plus the domain once a year.
+
+
+Good to know:
+ - Backups: Hostinger VPS includes server backups. In addition, we will set up an automatic daily backup of the database, so your data can be recovered after a mistake.
+ - Maintenance: a single server needs occasional upkeep (security updates, checking backups and disk space). We can handle this for you.
+
+
+Best Regards.
