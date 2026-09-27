@@ -340,7 +340,7 @@ export class ReceivablesService {
   // ---- Invoice writes -----------------------------------------------------
 
   async create(user: AuthenticatedUser, dto: CreateInvoiceInput) {
-    const trip = await this.trips.invoiceTarget(user, dto.tripId);
+    const trip = await this.trips.billingTarget(user, dto.tripId);
     if (dto.clientId && dto.clientId !== trip.clientId) await this.assertClient(dto.clientId);
 
     const created = await this.prisma.invoice.create({

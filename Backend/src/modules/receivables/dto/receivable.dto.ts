@@ -7,7 +7,7 @@ import {
 } from '../../../common/dto/pagination.dto.js';
 import { archiveQuerySchema } from '../../../common/database/archive.js';
 import { money } from '../../../common/dto/numbers.js';
-import { InvoiceStatus, PaymentMethod } from '../../../generated/prisma/enums.js';
+import { InvoiceStatus } from '../../../generated/prisma/enums.js';
 import { INVOICE_STATES } from '../receivables.amounts.js';
 
 /** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
@@ -108,33 +108,15 @@ export const updateInvoiceSchema = z
 export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
 export class UpdateInvoiceDto extends createZodDto(updateInvoiceSchema) {}
 
-const reference = z.string().trim().max(100);
-
-/** Money received against an invoice. */
-export const createPaymentSchema = z.object({
-  amount: money('The payment must be a number greater than zero', AMOUNT),
-  /** The day the money arrived. Defaults to today. */
-  paidAt: calendarDate.optional(),
-  method: z.enum(PaymentMethod),
-  /** A wire confirmation, a cheque number. */
-  reference: reference.optional(),
-  notes: notes.optional(),
-});
-
-export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
-export class CreatePaymentDto extends createZodDto(createPaymentSchema) {}
-
-export const updatePaymentSchema = z
-  .object({
-    amount: money('The payment must be a number greater than zero', AMOUNT).optional(),
-    paidAt: calendarDate.optional(),
-    method: z.enum(PaymentMethod).optional(),
-    reference: reference.nullable().optional(),
-    notes: notes.nullable().optional(),
-  })
-  .refine((value) => Object.keys(value).length > 0, {
-    message: 'Provide at least one field to update',
-  });
-
-export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
-export class UpdatePaymentDto extends createZodDto(updatePaymentSchema) {}
+/**
+ * The payment schemas are shared with Operator Payments and live in
+ * `common/dto/payments.ts`; re-exported so this module's imports did not move.
+ */
+export {
+  CreatePaymentDto,
+  UpdatePaymentDto,
+  createPaymentSchema,
+  updatePaymentSchema,
+  type CreatePaymentInput,
+  type UpdatePaymentInput,
+} from '../../../common/dto/payments.js';

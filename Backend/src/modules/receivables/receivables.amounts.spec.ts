@@ -83,11 +83,13 @@ describe('paymentProblem', () => {
   });
 
   it('refuses a payment past the total, naming what is owed', () => {
-    expect(paymentProblem(1_075_000, 75_000, 1_000_001)).toContain('$10,000.00');
+    expect(paymentProblem(1_075_000, 75_000, 1_000_001)).toBe(
+      'That is more than the $10,000.00 still owed. Record the rest as a client credit.',
+    );
   });
 
   it('says so when nothing is owed at all', () => {
-    expect(paymentProblem(1_075_000, 1_075_000, 1)).toBe('This invoice is already paid in full.');
+    expect(paymentProblem(1_075_000, 1_075_000, 1)).toBe('This is already paid in full.');
   });
 });
 

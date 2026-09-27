@@ -1,17 +1,27 @@
 import { fromCents, toCents } from '../../common/money/cents.js';
+import {
+  paidCents,
+  paymentProblem as settlementProblem,
+  settlementState,
+  summarise,
+  todayUtc,
+} from '../../common/money/settlement.js';
+import {
+  documentNumber,
+  referenceFromSearch as sequenceFromSearch,
+} from '../../common/database/document-number.js';
 import { InvoiceStatus } from '../../generated/prisma/enums.js';
 
 /**
- * What an invoice is worth, what has come in against it and where it stands —
- * as pure functions, for the same reason the credit ledger's arithmetic is: a
- * balance off by a cent, or an invoice that reads "Paid" because a withdrawn
- * wire was still being counted, looks right until somebody is chased for money
- * they already sent.
+ * What an invoice is worth, what has come in against it and where it stands.
  *
- * Nothing here is stored. The paid figure is the sum of the live payments,
- * the balance is the total less that, and "overdue" is the due date against
- * today — all worked out on every read.
+ * The settling arithmetic — paid, balance, due / partly paid / paid / overdue
+ * — is shared with Operator Payments in `common/money/settlement.ts`; this
+ * file adds what only an invoice has: a draft that has not been sent, a
+ * cancellation, the FET on the charge, the INV number, and the tiles.
  */
+
+export { paidCents, todayUtc };
 
 type Money = { toString(): string } | number;
 
@@ -58,17 +68,8 @@ export interface InvoiceFigures {
   state: InvoiceState;
 }
 
-/** Midnight UTC today — the same clock a `@db.Date` due date is stored on. */
-export function todayUtc(now: Date = new Date()): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
-
 export function totalCents(invoice: Pick<InvoiceInputs, 'amount' | 'fetAmount'>): number {
   return toCents(invoice.amount) + toCents(invoice.fetAmount);
-}
-
-export function paidCents(payments: { amount: Money }[]): number {
-  return payments.reduce((sum, payment) => sum + toCents(payment.amount), 0);
 }
 
 /**
@@ -87,9 +88,7 @@ export function invoiceState(
   if (status === InvoiceStatus.CANCELLED) return InvoiceState.CANCELLED;
   if (total > 0 && paid >= total) return InvoiceState.PAID;
   if (status === InvoiceStatus.DRAFT) return InvoiceState.DRAFT;
-  if (dueDate && dueDate.getTime() < today.getTime()) return InvoiceState.OVERDUE;
-  if (paid > 0) return InvoiceState.PARTIALLY_PAID;
-  return InvoiceState.DUE;
+  return settlementState(total, paid, dueDate, today);
 }
 
 /** Everything the screen reads about one invoice's money, in whole currency. */
@@ -105,42 +104,22 @@ export function invoiceFigures(invoice: InvoiceInputs, today: Date = todayUtc())
 }
 
 /**
- * What would be wrong with `amountCents` more coming in against an invoice
- * whose total is `totalCents` and which already holds `otherPaidCents` — or
- * null when it fits. An invoice is never paid past its total: an overpayment
- * is a credit on the client's account, and recording it here would make the
- * invoice say the client owes a negative amount.
+ * An invoice is never paid past its total: an overpayment is a credit on the
+ * client's account, and recording it here would make the invoice say the
+ * client owes a negative amount.
  */
 export function paymentProblem(total: number, otherPaid: number, amount: number): string | null {
-  const room = total - otherPaid;
-  if (amount <= room) return null;
-  return room <= 0
-    ? 'This invoice is already paid in full.'
-    : `That is more than the ${formatDollars(room)} still owed on this invoice. Record the rest as a client credit.`;
+  return settlementProblem(total, otherPaid, amount, 'Record the rest as a client credit.');
 }
 
-/** "$1,234.50" from cents, for a message. */
-export function formatDollars(cents: number): string {
-  return `$${fromCents(cents).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-/**
- * "INV-2026-0042": the year the invoice was created and its sequence. Both are
- * fixed at creation, so the number the client was sent never changes.
- */
+/** "INV-2026-0042". */
 export function invoiceNumber(reference: number, createdAt: Date): string {
-  return `INV-${createdAt.getUTCFullYear()}-${String(reference).padStart(4, '0')}`;
+  return documentNumber('INV', reference, createdAt);
 }
 
-/**
- * The sequence a search term names — "INV-2026-0042", "INV-42", "0042", "42" —
- * or null when it names none.
- */
+/** The invoice sequence a search term names, or null. */
 export function referenceFromSearch(term: string): number | null {
-  const match = /^(?:INV-?)?(?:\d{4}-)?0*(\d{1,9})$/i.exec(term.trim());
-  if (!match) return null;
-  const reference = Number(match[1]);
-  return reference > 0 ? reference : null;
+  return sequenceFromSearch(term, 'INV');
 }
 
 export interface ReceivableTotals {
@@ -207,33 +186,17 @@ export interface TripPayment {
  * NOT_INVOICED rather than "Due".
  */
 export function tripPayment(invoices: InvoiceInputs[], today: Date = todayUtc()): TripPayment {
-  const billed = invoices.filter((invoice) => invoice.status === InvoiceStatus.SENT);
-  let invoiced = 0;
-  let paid = 0;
-  let late = false;
-  for (const invoice of billed) {
-    const total = totalCents(invoice);
-    const received = paidCents(invoice.payments);
-    invoiced += total;
-    paid += received;
-    if (invoiceState(invoice.status, total, received, invoice.dueDate, today) === InvoiceState.OVERDUE) late = true;
-  }
-  const balance = Math.max(0, invoiced - paid);
-  const state =
-    billed.length === 0
-      ? TripPaymentState.NOT_INVOICED
-      : late
-        ? TripPaymentState.OVERDUE
-        : balance === 0
-          ? TripPaymentState.PAID
-          : paid > 0
-            ? TripPaymentState.PARTIALLY_PAID
-            : TripPaymentState.DUE;
+  const summary = summarise(
+    invoices
+      .filter((invoice) => invoice.status === InvoiceStatus.SENT)
+      .map((invoice) => ({ total: totalCents(invoice), paid: paidCents(invoice.payments), dueDate: invoice.dueDate })),
+    today,
+  );
   return {
-    state,
-    invoiced: fromCents(invoiced),
-    paid: fromCents(paid),
-    balance: fromCents(balance),
-    invoiceCount: billed.length,
+    state: summary.state === 'NONE' ? TripPaymentState.NOT_INVOICED : summary.state,
+    invoiced: summary.total,
+    paid: summary.paid,
+    balance: summary.balance,
+    invoiceCount: summary.count,
   };
 }
