@@ -3,10 +3,9 @@ import DetailCard from "@/components/trips/DetailCard";
 import { cn } from "@/lib/utils";
 
 /**
- * The checklist, each item a fact the trip actually records. "Itinerary sent"
- * and "Payment received" left: those belong to Itineraries (#12) and
- * Receivables (#16), and a tick derived from the trip's status would claim
- * something nobody did.
+ * The checklist, each item a fact the trip actually records. Each tick is a
+ * real event, never derived from the trip's status — a status implies
+ * nothing about whether the document went out or the bill was settled.
  */
 export default function TripConfirmationCard({ trip }) {
   const committed = ["BOOKED", "CONFIRMED", "IN_FLIGHT", "COMPLETED"].includes(trip?.rawStatus);
@@ -17,6 +16,8 @@ export default function TripConfirmationCard({ trip }) {
     { label: "Operator confirmed", done: Boolean(trip?.operatorConfirmed) },
     { label: "Passengers named", done: named },
     { label: "Price set", done: trip?.financial?.total && trip.financial.total !== "—" },
+    { label: "Itinerary sent", done: Boolean(trip?.itinerary?.sentAt) },
+    { label: "Payment received", done: trip?.clientBilling?.rawState === "PAID" },
   ];
 
   return (
