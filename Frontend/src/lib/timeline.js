@@ -25,6 +25,8 @@ import { Permission } from "@/lib/permissions";
  */
 export const SUBJECT_PERMISSION = {
   CLIENT: Permission.MANAGE_CLIENTS,
+  TRIP: Permission.MANAGE_TRIPS,
+  REFERRAL: Permission.MANAGE_REFERRALS,
 };
 
 /**
@@ -44,6 +46,41 @@ const EVENT_PHRASES = {
   "client.removed_bulk": "archived this client",
   "client.restored": "restored this client",
   "client.restored_bulk": "restored this client",
+  "trip.created": "booked this trip",
+  "trip.booked_from_quote": "booked this trip from its quote",
+  "trip.updated": "updated this trip",
+  "trip.status_changed": "moved this trip",
+  "trip.archived": "archived this trip",
+  "trip.bulk_archived": "archived this trip",
+  "trip.restored": "restored this trip",
+  "trip.bulk_restored": "restored this trip",
+  "referral.submitted": "submitted this referral",
+  "referral.updated": "updated this referral",
+  "referral.status_changed": "moved this referral",
+  "referral.converted": "converted this referral into a client and a trip request",
+  "referral.archived": "archived this referral",
+  "referral.bulk_archived": "archived this referral",
+  "referral.restored": "restored this referral",
+  "referral.bulk_restored": "restored this referral",
+};
+
+const TRIP_STATUS_WORDS = {
+  DRAFT: "Draft",
+  BOOKED: "Booked",
+  CONFIRMED: "Confirmed",
+  IN_FLIGHT: "In Flight",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const REFERRAL_STATUS_WORDS = {
+  SUBMITTED: "Submitted",
+  CONTACTED: "Contacted",
+  QUOTING: "Quoting",
+  BOOKED: "Booked",
+  COMPLETED: "Completed",
+  LOST: "Lost",
+  CANCELLED: "Cancelled",
 };
 
 /** `client.follow_up_scheduled` → `client follow up scheduled`. */
@@ -69,8 +106,30 @@ export function describeEvent(entry) {
     return `${phrase} — status ${status.from ?? "unset"} → ${status.to}`;
   }
 
+  // A trip's lifecycle move records `from`/`to` (and an optional note) rather
+  // than a `changes` block — read straight from what the audit entry stored.
+  if (entry?.action === "trip.status_changed" && entry?.metadata?.to) {
+    const from = TRIP_STATUS_WORDS[entry.metadata.from] ?? entry.metadata.from;
+    const to = TRIP_STATUS_WORDS[entry.metadata.to] ?? entry.metadata.to;
+    const note = entry.metadata.note ? ` — “${entry.metadata.note}”` : "";
+    return `${phrase} from ${from} to ${to}${note}`;
+  }
+  // A referral's status move records `from`/`to` the same way (#11).
+  if (entry?.action === "referral.status_changed" && entry?.metadata?.to) {
+    const from = REFERRAL_STATUS_WORDS[entry.metadata.from] ?? entry.metadata.from;
+    const to = REFERRAL_STATUS_WORDS[entry.metadata.to] ?? entry.metadata.to;
+    return `${phrase} from ${from} to ${to}`;
+  }
+  if (entry?.action === "trip.booked_from_quote" && entry?.metadata?.quoteReference) {
+    return `booked this trip from Q-${entry.metadata.quoteReference}`;
+  }
+
   const fields = entry?.metadata?.fields;
-  if (entry?.action === "client.updated" && Array.isArray(fields) && fields.length) {
+  if (
+    (entry?.action === "client.updated" || entry?.action === "trip.updated") &&
+    Array.isArray(fields) &&
+    fields.length
+  ) {
     return `${phrase} (${fields.join(", ")})`;
   }
 

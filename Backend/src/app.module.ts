@@ -20,6 +20,11 @@ import { OperatorQuotesModule } from './modules/operator-quotes/operator-quotes.
 import { QuotesModule } from './modules/quotes/quotes.module.js';
 import { NotesModule } from './modules/notes/notes.module.js';
 import { ClientCreditsModule } from './modules/client-credits/client-credits.module.js';
+import { CharterRatesModule } from './modules/charter-rates/charter-rates.module.js';
+import { TripsModule } from './modules/trips/trips.module.js';
+import { EmptyLegsModule } from './modules/empty-legs/empty-legs.module.js';
+import { CommissionsModule } from './modules/commissions/commissions.module.js';
+import { ReferralsModule } from './modules/referrals/referrals.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -62,6 +67,11 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     QuotesModule,
     NotesModule,
     ClientCreditsModule,
+    CharterRatesModule,
+    TripsModule,
+    EmptyLegsModule,
+    CommissionsModule,
+    ReferralsModule,
   ],
   providers: [
     /**

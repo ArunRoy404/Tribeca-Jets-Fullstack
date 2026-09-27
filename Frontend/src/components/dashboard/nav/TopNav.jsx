@@ -17,6 +17,7 @@ const routeNameMap = {
   "/dashboard/clients": "Clients",
   "/dashboard/leads-agents": "Leads & Agents",
   "/dashboard/quotes": "Quotes",
+  "/dashboard/referrals": "Referrals",
   "/dashboard/email-templates": "Email Templates",
   "/dashboard/operators": "Operators",
   "/dashboard/aircraft": "Aircraft",

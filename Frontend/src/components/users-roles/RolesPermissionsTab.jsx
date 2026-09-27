@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X, ShieldCheck, Shield, Users, Lock, Crown } from "lucide-react";
+import { Check, X, ShieldCheck, Shield, Users, Lock, Crown, Handshake } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StatusBadge from "@/components/common/StatusBadge";
 import TableStatus from "@/components/table/common/TableStatus";
@@ -13,6 +13,7 @@ const ROLE_ICONS = {
   SENIOR_BROKER: Shield,
   BROKER: Users,
   ASSISTANT: Lock,
+  REFERRAL_AGENT: Handshake,
 };
 
 /**

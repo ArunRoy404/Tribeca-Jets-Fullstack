@@ -20,7 +20,8 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import type { NoteSubjectType } from '../../generated/prisma/enums.js';
+import { NoteVisibility, type NoteSubjectType } from '../../generated/prisma/enums.js';
+import { isPartner } from '../../common/authorization/permissions.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import {
   NoteSubjectsService,
@@ -89,6 +90,13 @@ export class NotesService {
   }
 
   private assertMayWrite(user: AuthenticatedUser, type: NoteSubjectType): void {
+    // A referral agent reads the updates the desk shares with them (#11's
+    // "Agent Update") and writes none: every note is desk commentary, and
+    // moderating one is the desk's too. Their MANAGE_REFERRALS is for
+    // submitting referrals, not for this.
+    if (isPartner(user.role)) {
+      throw new ForbiddenException('Notes are written by the Tribeca desk.');
+    }
     if (!this.subjects.mayWrite(user, type)) {
       throw new ForbiddenException(
         `Your role cannot add notes to a ${subjectDefinition(type).noun}`,
@@ -136,11 +144,18 @@ export class NotesService {
     await this.subject(user, query.subjectType, query.subjectId);
     const { skip, take } = toPrismaPagination(query);
 
+    // A referral agent sees what the desk chose to share with them, and only
+    // while it stands: never INTERNAL, never a withdrawn note.
+    const partner = isPartner(user.role);
     const where: Prisma.NoteWhereInput = {
       subjectType: query.subjectType,
       subjectId: query.subjectId,
-      ...archiveFilter(query.archived),
-      ...(query.visibility ? { visibility: query.visibility } : {}),
+      ...archiveFilter(partner ? false : query.archived),
+      ...(partner
+        ? { visibility: NoteVisibility.SHARED }
+        : query.visibility
+          ? { visibility: query.visibility }
+          : {}),
       ...searchAcross(query.search, ['body']),
     };
 
@@ -187,8 +202,11 @@ export class NotesService {
     const { skip, take } = toPrismaPagination(query);
     const need = skip + take;
 
+    // A referral agent's timeline is the shared notes and nothing else: the
+    // audit trail is the desk's own record of its work.
+    const partner = isPartner(user.role);
     const wantNotes = query.entries !== 'EVENT';
-    const wantEvents = query.entries !== 'NOTE';
+    const wantEvents = query.entries !== 'NOTE' && !partner;
 
     const noteWhere: Prisma.NoteWhereInput = {
       subjectType: query.subjectType,
@@ -197,6 +215,7 @@ export class NotesService {
       // beside the events it was withdrawn from would say the opposite of what
       // withdrawing it meant.
       deletedAt: null,
+      ...(partner ? { visibility: NoteVisibility.SHARED } : {}),
     };
     const eventWhere: Prisma.AuditLogWhereInput = {
       entityType: subjectDefinition(query.subjectType).entityType,
@@ -279,6 +298,11 @@ export class NotesService {
 
     // 404s for a caller outside the subject's scope.
     const subject = await this.subject(user, note.subjectType, note.subjectId);
+    // A referral agent reaches a shared, standing note or nothing — the same
+    // 404 as a note that does not exist.
+    if (isPartner(user.role) && (note.visibility !== NoteVisibility.SHARED || note.deletedAt !== null)) {
+      throw new NotFoundException('Note not found');
+    }
     return { note, subject };
   }
 

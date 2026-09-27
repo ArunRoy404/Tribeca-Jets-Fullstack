@@ -22,6 +22,7 @@ export const queryKeys = {
     all: ["uploads"],
     list: (params) => ["uploads", "list", params ?? {}],
     folder: (userId, params) => ["uploads", "folder", userId, params ?? {}],
+    library: (params) => ["uploads", "library", params ?? {}],
     meta: (id) => ["uploads", "meta", id],
   },
 
@@ -64,6 +65,54 @@ export const queryKeys = {
     all: ["client-credits"],
     summary: (clientId) => ["client-credits", "summary", clientId],
     list: (clientId, params) => ["client-credits", "list", clientId, params ?? {}],
+  },
+
+  /** Booked flights (#11). */
+  trips: {
+    all: ["trips"],
+    list: (params) => ["trips", "list", params ?? {}],
+    detail: (id) => ["trips", "detail", id],
+    stats: ["trips", "stats"],
+  },
+
+  /** Operators' empty legs, and #10b's matches on each. */
+  emptyLegs: {
+    all: ["empty-legs"],
+    list: (params) => ["empty-legs", "list", params ?? {}],
+    detail: (id) => ["empty-legs", "detail", id],
+    stats: ["empty-legs", "stats"],
+  },
+
+  /**
+   * Commissions (#11's Commission Center). `stats` sits under the same prefix
+   * because every write moves it — marking one paid moves money between two
+   * tiles.
+   */
+  commissions: {
+    all: ["commissions"],
+    list: (params) => ["commissions", "list", params ?? {}],
+    detail: (id) => ["commissions", "detail", id],
+    stats: ["commissions", "stats"],
+  },
+
+  /** Portal referrals (#11) — the desk's board and the agent's own list. */
+  referrals: {
+    all: ["referrals"],
+    list: (params) => ["referrals", "list", params ?? {}],
+    detail: (id) => ["referrals", "detail", id],
+    stats: ["referrals", "stats"],
+  },
+
+  /** The portal's Resources section. */
+  referralResources: {
+    all: ["referral-resources"],
+    list: (params) => ["referral-resources", "list", params ?? {}],
+  },
+
+  /** The desk's charter rates — client adjustment #6's instant estimate. */
+  charterRates: {
+    all: ["charter-rates"],
+    list: (params) => ["charter-rates", "list", params ?? {}],
   },
 
   users: {

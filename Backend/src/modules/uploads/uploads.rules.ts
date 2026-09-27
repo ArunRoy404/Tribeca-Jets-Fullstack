@@ -100,3 +100,23 @@ export function formatBytes(bytes: number): string {
   const mb = bytes / MB;
   return Number.isInteger(mb) ? `${mb} MB` : `${mb.toFixed(1)} MB`;
 }
+
+/**
+ * Images render in the page; everything else downloads.
+ *
+ * This is the second half of `nosniff`: a PDF that is secretly HTML is stored
+ * as `text/plain`, and an attachment disposition means the browser saves it
+ * instead of executing it on the API's own origin with the session cookie
+ * attached.
+ *
+ * Exported for the one other route that streams a stored file — a referral's
+ * attachments (#11) — so both answer with the same header.
+ */
+export function contentDisposition(file: {
+  contentType: string;
+  filename: string;
+}): string {
+  const mode = file.contentType.startsWith('image/') ? 'inline' : 'attachment';
+  // RFC 5987, so a filename with a space, a quote or an accent survives.
+  return `${mode}; filename*=UTF-8''${encodeURIComponent(file.filename)}`;
+}

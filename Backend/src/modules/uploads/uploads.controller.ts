@@ -31,7 +31,7 @@ import { UploadKind } from '../../generated/prisma/enums.js';
 import { UploadsService, type IncomingFile } from './uploads.service.js';
 import { UploadResponseDto, UploadFieldsDto } from './dto/upload.dto.js';
 import { ListUploadsDto } from './dto/upload-query.dto.js';
-import { MAX_UPLOAD_BYTES, UPLOAD_KIND_RULES } from './uploads.rules.js';
+import { MAX_UPLOAD_BYTES, UPLOAD_KIND_RULES, contentDisposition } from './uploads.rules.js';
 
 /**
  * One upload surface for the whole product.
@@ -261,21 +261,4 @@ function requireFile(file: IncomingFile | undefined): IncomingFile {
     );
   }
   return file;
-}
-
-/**
- * Images render in the page; everything else downloads.
- *
- * This is the second half of `nosniff`: a PDF that is secretly HTML is stored
- * as `text/plain`, and an attachment disposition means the browser saves it
- * instead of executing it on the API's own origin with the session cookie
- * attached.
- */
-function contentDisposition(file: {
-  contentType: string;
-  filename: string;
-}): string {
-  const mode = file.contentType.startsWith('image/') ? 'inline' : 'attachment';
-  // RFC 5987, so a filename with a space, a quote or an accent survives.
-  return `${mode}; filename*=UTF-8''${encodeURIComponent(file.filename)}`;
 }

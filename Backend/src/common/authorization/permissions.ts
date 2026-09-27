@@ -27,6 +27,11 @@ export const Permission = {
   MANAGE_AIRPORTS: 'MANAGE_AIRPORTS',
   MANAGE_OPERATORS: 'MANAGE_OPERATORS',
   MANAGE_AIRCRAFT: 'MANAGE_AIRCRAFT',
+  VIEW_COMMISSIONS: 'VIEW_COMMISSIONS',
+  MANAGE_COMMISSIONS: 'MANAGE_COMMISSIONS',
+  VIEW_REFERRALS: 'VIEW_REFERRALS',
+  MANAGE_REFERRALS: 'MANAGE_REFERRALS',
+  VIEW_TEAM: 'VIEW_TEAM',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -70,6 +75,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: ALL,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   [Permission.VIEW_TRIPS]: {
     [UserRole.SUPER_ADMIN]: ALL,
@@ -77,6 +83,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: ASSIGNED,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   [Permission.MANAGE_TRIPS]: {
     [UserRole.SUPER_ADMIN]: ALL,
@@ -84,6 +91,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   [Permission.DELETE_TRIPS]: {
     [UserRole.SUPER_ADMIN]: ALL,
@@ -91,6 +99,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: NONE,
     [UserRole.BROKER]: NONE,
     [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   [Permission.VIEW_FINANCIALS]: {
     [UserRole.SUPER_ADMIN]: ALL,
@@ -98,6 +107,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   [Permission.EXPORT_DATA]: {
     [UserRole.SUPER_ADMIN]: ALL,
@@ -105,6 +115,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: NONE,
     [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   [Permission.MANAGE_USERS]: {
     [UserRole.SUPER_ADMIN]: ALL,
@@ -112,6 +123,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: NONE,
     [UserRole.BROKER]: NONE,
     [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   [Permission.OPERATOR_SOURCING]: {
     [UserRole.SUPER_ADMIN]: ALL,
@@ -119,6 +131,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: READ,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   /**
    * Clients are not on the UI matrix yet. They follow the trips rules, which
@@ -131,6 +144,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ASSIGNED,
     [UserRole.ASSISTANT]: ASSIGNED,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   [Permission.MANAGE_CLIENTS]: {
     [UserRole.SUPER_ADMIN]: ALL,
@@ -138,6 +152,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ASSIGNED,
     [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   /**
    * Reference data: shared by the whole desk and owned by nobody, so there is
@@ -157,6 +172,9 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     // deliberately narrower than editing an operator.
     [UserRole.BROKER]: READ,
     [UserRole.ASSISTANT]: READ,
+    // The Submit Referral form picks its departure and arrival airports from
+    // this list. Airports are public facts; nothing here is desk data.
+    [UserRole.REFERRAL_AGENT]: READ,
   },
   [Permission.MANAGE_OPERATORS]: {
     [UserRole.SUPER_ADMIN]: ALL,
@@ -166,6 +184,7 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     // OPERATOR_SOURCING, which already grants them ALL.
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: READ,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
   /**
    * The fleet follows the operators row above, because the two are catalogued
@@ -179,6 +198,67 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: READ,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
+  /**
+   * Commissions (#11's Commission Center, scope §6.12). OWN means a different
+   * column per role, resolved in `CommissionsService`: a broker sees the
+   * commissions booked against them, a referral agent the ones paid to them.
+   * Recording and paying one is an administrator's or senior broker's call —
+   * it is money leaving the company.
+   */
+  [Permission.VIEW_COMMISSIONS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: OWN,
+  },
+  [Permission.MANAGE_COMMISSIONS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: NONE,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
+  /**
+   * Portal referrals (#11). A broker sees the referrals assigned to them and
+   * the unassigned ones — the same rule as trip requests, so a new referral
+   * cannot sit unseen. A referral agent's OWN is "I submitted it", and their
+   * MANAGE is submitting only: every later change is the desk's, enforced in
+   * `ReferralsService`.
+   */
+  [Permission.VIEW_REFERRALS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: OWN,
+  },
+  [Permission.MANAGE_REFERRALS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: OWN,
+  },
+  /**
+   * The staff directory — `GET /users`, the pickers every form needs, the
+   * roles screen. Every desk role reads it; a referral agent does not, which
+   * is #11's "no access to other referral agents" as a matrix row rather than
+   * an `if` in a service.
+   */
+  [Permission.VIEW_TEAM]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: ALL,
+    [UserRole.ASSISTANT]: ALL,
+    [UserRole.REFERRAL_AGENT]: NONE,
   },
 };
 
@@ -218,7 +298,20 @@ export const ASSIGNABLE_ROLES: UserRole[] = [
   UserRole.SENIOR_BROKER,
   UserRole.BROKER,
   UserRole.ASSISTANT,
+  UserRole.REFERRAL_AGENT,
 ];
+
+/**
+ * Whether this caller is an outside partner rather than desk staff.
+ *
+ * The permission matrix already denies a referral agent everything outside
+ * the portal; this exists for the few routes that carry no permission
+ * decorator by design — uploads and notes — where the rule has to be stated
+ * in the service instead.
+ */
+export function isPartner(role: UserRole): boolean {
+  return role === UserRole.REFERRAL_AGENT;
+}
 
 /**
  * Human-readable labels for the roles screen. Kept beside the matrix so a new
@@ -235,6 +328,8 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
     'Create and manage own trips, leads, quotes, and operator queries.',
   [UserRole.ASSISTANT]:
     'View assigned trips, flight tracking, and support operational workflows.',
+  [UserRole.REFERRAL_AGENT]:
+    'Outside partner. Partner portal only: submit referrals, follow their status, see their own commissions and the resources library.',
 };
 
 /** The coarse label the Users table shows in its "Permission Level" column. */
@@ -244,6 +339,7 @@ export const ROLE_PERMISSION_LEVEL: Record<UserRole, string> = {
   [UserRole.SENIOR_BROKER]: 'High',
   [UserRole.BROKER]: 'Medium',
   [UserRole.ASSISTANT]: 'Low',
+  [UserRole.REFERRAL_AGENT]: 'Partner',
 };
 
 /** Display labels for the permission rows, in the order the UI lists them. */
@@ -261,4 +357,9 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.MANAGE_AIRPORTS]: 'Manage Airports',
   [Permission.MANAGE_OPERATORS]: 'Manage Operators',
   [Permission.MANAGE_AIRCRAFT]: 'Manage Aircraft',
+  [Permission.VIEW_COMMISSIONS]: 'View Commissions',
+  [Permission.MANAGE_COMMISSIONS]: 'Record/Pay Commissions',
+  [Permission.VIEW_REFERRALS]: 'View Referrals',
+  [Permission.MANAGE_REFERRALS]: 'Submit/Work Referrals',
+  [Permission.VIEW_TEAM]: 'View Team Directory',
 };

@@ -3,6 +3,8 @@ import { NotesController } from './notes.controller.js';
 import { NotesService } from './notes.service.js';
 import { NoteSubjectsService } from './notes.subjects.js';
 import { ClientsModule } from '../clients/clients.module.js';
+import { ReferralsModule } from '../referrals/referrals.module.js';
+import { TripsModule } from '../trips/trips.module.js';
 
 /**
  * One direction only: notes know about clients, clients know nothing about
@@ -11,7 +13,7 @@ import { ClientsModule } from '../clients/clients.module.js';
  * what keeps adding Trips to the enum from touching either module.
  */
 @Module({
-  imports: [ClientsModule],
+  imports: [ClientsModule, TripsModule, ReferralsModule],
   controllers: [NotesController],
   providers: [NotesService, NoteSubjectsService],
   exports: [NotesService],

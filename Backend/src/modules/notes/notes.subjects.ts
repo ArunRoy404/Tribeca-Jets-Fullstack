@@ -8,6 +8,8 @@ import {
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { NoteSubjectType } from '../../generated/prisma/enums.js';
 import { ClientsService } from '../clients/clients.service.js';
+import { TripsService } from '../trips/trips.service.js';
+import { ReferralsService } from '../referrals/referrals.service.js';
 
 /** What a subject is, once it has been resolved and found readable. */
 export interface SubjectRef {
@@ -42,6 +44,22 @@ const SUBJECTS: Record<NoteSubjectType, SubjectDefinition> = {
     view: Permission.VIEW_CLIENTS,
     manage: Permission.MANAGE_CLIENTS,
   },
+  [NoteSubjectType.TRIP]: {
+    noun: 'trip',
+    // Matches the `entityType` the trips service writes to the audit log, so
+    // a trip's timeline merges its status changes with its notes.
+    entityType: 'Trip',
+    view: Permission.VIEW_TRIPS,
+    manage: Permission.MANAGE_TRIPS,
+  },
+  [NoteSubjectType.REFERRAL]: {
+    noun: 'referral',
+    entityType: 'Referral',
+    // A referral agent holds both at OWN; `NotesService` narrows them to
+    // reading SHARED notes on their own referrals and writing nothing.
+    view: Permission.VIEW_REFERRALS,
+    manage: Permission.MANAGE_REFERRALS,
+  },
 };
 
 export function subjectDefinition(type: NoteSubjectType): SubjectDefinition {
@@ -63,7 +81,11 @@ export function subjectDefinition(type: NoteSubjectType): SubjectDefinition {
  */
 @Injectable()
 export class NoteSubjectsService {
-  constructor(private readonly clients: ClientsService) {}
+  constructor(
+    private readonly clients: ClientsService,
+    private readonly trips: TripsService,
+    private readonly referrals: ReferralsService,
+  ) {}
 
   /**
    * The subject, or 404 — including when it exists and the caller may not see
@@ -77,6 +99,10 @@ export class NoteSubjectsService {
     switch (type) {
       case NoteSubjectType.CLIENT:
         return this.clients.subjectRef(user, id);
+      case NoteSubjectType.TRIP:
+        return this.trips.subjectRef(user, id);
+      case NoteSubjectType.REFERRAL:
+        return this.referrals.subjectRef(user, id);
       default:
         // Unreachable while the DTO validates against the enum; kept so adding
         // a subject type without registering it fails loudly rather than

@@ -20,6 +20,7 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import { searchAcross, orderByField } from '../../common/database/filters.js';
+import { isPartner } from '../../common/authorization/permissions.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import { paginate, type AuthenticatedUser } from '../../common/types/api.types.js';
 import { UploadKind, UploadVisibility } from '../../generated/prisma/enums.js';
@@ -240,6 +241,13 @@ export class UploadsService {
     const contentType = this.resolveContentType(file, kind);
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
 
+    // A referral agent (#11) uploads attachments for the desk and nothing
+    // else: never into the shared library, never into someone's folder.
+    if (isPartner(actor.role)) {
+      if (options.visibility === UploadVisibility.PUBLIC || options.ownerUserId) {
+        throw new ForbiddenException('Partner uploads are private attachments.');
+      }
+    }
     const visibility = options.visibility ?? UploadVisibility.PRIVATE;
     const ownerUserId = await this.resolveOwner(actor, options.ownerUserId);
 
@@ -394,6 +402,30 @@ export class UploadsService {
   }
 
   /**
+   * Opens bytes that a record has already vouched for.
+   *
+   * **The one sanctioned way round `mayRead`**, and narrow by construction.
+   * A referral agent's attachments are PRIVATE — they must not reach the
+   * photo library or another agent — yet the broker working the referral has
+   * to open them. The referrals module checks that the caller may read the
+   * referral *and* that this file's URL is one of its attachments, then calls
+   * this. Anything else must go through `openStream`.
+   */
+  async openVouched(id: string) {
+    const row = await this.prisma.upload.findFirst({
+      where: { id, deletedAt: null },
+      select: { storageKey: true, contentType: true, filename: true, size: true },
+    });
+    if (!row) throw new NotFoundException('That file does not exist.');
+    return {
+      stream: await this.storage.download(row.storageKey),
+      contentType: row.contentType,
+      filename: row.filename,
+      size: row.size,
+    };
+  }
+
+  /**
    * The record without its bytes — for a caller that wants the metadata.
    *
    * Unlike the stream, this answers for an archived row: a list showing an
@@ -438,8 +470,16 @@ export class UploadsService {
       AND: [
         archiveFilter(query.archived),
         visibilityWhere(actor),
+        // A referral agent may *open* a public file by its address — the
+        // portal's Resources are exactly that — but may not *browse* the
+        // desk's public files. Narrower than the read rule, never wider, so
+        // the list still never shows what a fetch refuses.
+        ...(isPartner(actor.role) ? [{ uploadedById: actor.id }] : []),
         ...(query.ownerUserId ? [{ ownerUserId: query.ownerUserId }] : []),
         ...(query.kind ? [{ kind: query.kind as UploadKind }] : []),
+        ...(query.visibility
+          ? [{ visibility: query.visibility as UploadVisibility }]
+          : []),
         ...(query.search
           ? [searchAcross(query.search, ['filename', 'label'])]
           : []),

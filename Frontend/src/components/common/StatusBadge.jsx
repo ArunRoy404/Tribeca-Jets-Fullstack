@@ -23,6 +23,7 @@ const STATUS_TONES = {
   "Not Departed": "pending",
   Delayed: "destructive",
   Completed: "success",
+  Cancelled: "destructive",
   "Pending Operator Quote": "pending",
   "Source Complete": "outline",
   Scheduled: "purple",
@@ -74,6 +75,13 @@ const STATUS_TONES = {
   "In Service": "info",
   Maintenance: "warning",
   Due: "destructive",
+  // Empty legs (#10b)
+  Matched: "purple",
+  Expired: "pending",
+  // Commissions and portal referrals (#11)
+  Earned: "info",
+  Submitted: "cyan",
+  Quoting: "purple",
 };
 
 const BORDER_CLASSES = {

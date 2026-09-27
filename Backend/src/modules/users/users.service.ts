@@ -10,6 +10,7 @@ import * as argon2 from 'argon2';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { MailService } from '../../core/mail/mail.service.js';
+import { TripsService } from '../trips/trips.service.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -31,7 +32,11 @@ import {
   permissionsFor,
   scopeFor,
 } from '../../common/authorization/permissions.js';
-import { UserRole, UserStatus } from '../../generated/prisma/enums.js';
+import {
+  CommissionBasis,
+  UserRole,
+  UserStatus,
+} from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type {
   InviteUserInput,
@@ -57,6 +62,9 @@ const USER_SELECT = {
   avatarKey: true,
   twoFactorEnabled: true,
   lastLoginAt: true,
+  commissionBasis: true,
+  commissionPercentage: true,
+  commissionAmount: true,
   createdAt: true,
   createdById: true,
   updatedAt: true,
@@ -79,12 +87,17 @@ const USER_DETAIL_SELECT = {
 
 type UserRow = Prisma.UserGetPayload<{ select: typeof USER_SELECT }>;
 
+const toNumber = (value: Prisma.Decimal | null) =>
+  value === null ? null : Number(value);
+
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    // Trips (#11)'s second pass: active trips per person on the team table.
+    private readonly trips: TripsService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -116,7 +129,14 @@ export class UsersService {
   private projectFor(user: AuthenticatedUser, row: UserRow) {
     const canManage = scopeFor(user.role, Permission.MANAGE_USERS) === Scope.ALL;
     if (canManage || row.id === user.id) {
-      return { ...row, permissionLevel: ROLE_PERMISSION_LEVEL[row.role] };
+      return {
+        ...row,
+        // Decimals serialise as strings; the screen wants numbers, and null
+        // stays null — "no structure set" is not a 0% commission.
+        commissionPercentage: toNumber(row.commissionPercentage),
+        commissionAmount: toNumber(row.commissionAmount),
+        permissionLevel: ROLE_PERMISSION_LEVEL[row.role],
+      };
     }
     return {
       id: row.id,
@@ -158,8 +178,11 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
+    // Active trips per person, one grouped query — a real 0 for someone with
+    // none on the board, never a placeholder.
+    const activeTrips = await this.trips.activeCountByBroker(rows.map((row) => row.id));
     return paginate(
-      rows.map((row) => this.projectFor(user, row)),
+      rows.map((row) => ({ ...this.projectFor(user, row), activeTrips: activeTrips.get(row.id) ?? 0 })),
       total,
       query.page,
       query.limit,
@@ -176,7 +199,8 @@ export class UsersService {
     // confirm the account exists and turn any id into an existence oracle.
     if (!row) throw new NotFoundException('User not found');
 
-    return this.projectFor(user, row as UserRow);
+    const activeTrips = await this.trips.activeCountByBroker([row.id]);
+    return { ...this.projectFor(user, row as UserRow), activeTrips: activeTrips.get(row.id) ?? 0 };
   }
 
   /** The four tiles above the users table. */
@@ -450,12 +474,18 @@ export class UsersService {
       role: dto.role,
       status: dto.status,
     });
+    const commission = this.commissionStructure(target.role, dto);
 
+    // The structure is written from the validated columns above, never as sent.
+    const fields: Partial<UpdateUserInput> = { ...dto };
+    delete fields.commissionBasis;
+    delete fields.commissionPercentage;
+    delete fields.commissionAmount;
     const user = await this.prisma.user.update({
       where: { id },
       // `updatedById` is set here rather than left to the caller: an audit
       // column that a caller can supply is not an audit column.
-      data: { ...dto, updatedById: actor.id },
+      data: { ...fields, ...commission, updatedById: actor.id },
       select: USER_SELECT,
     });
 
@@ -477,6 +507,57 @@ export class UsersService {
       metadata: { email: target.email, changes, fields: Object.keys(dto) },
     });
 
-    return { ...user, permissionLevel: ROLE_PERMISSION_LEVEL[user.role] };
+    return this.projectFor(actor, user);
+  }
+
+  /**
+   * A referral agent's standard commission (#11), as the columns to write.
+   *
+   * Only a REFERRAL_AGENT carries one: on any other role it would be a figure
+   * nothing reads, waiting to confuse whoever finds it. Moving an agent to a
+   * desk role clears it; the commissions already raised keep their own copy.
+   *
+   * The basis decides which figure is required — a percentage of profit
+   * needs its percentage, a flat fee its amount — and the other is cleared,
+   * so the row never holds a rate it is not using.
+   */
+  private commissionStructure(currentRole: UserRole, dto: UpdateUserInput) {
+    const role = dto.role ?? currentRole;
+    const touched =
+      dto.commissionBasis !== undefined ||
+      dto.commissionPercentage !== undefined ||
+      dto.commissionAmount !== undefined;
+
+    if (role !== UserRole.REFERRAL_AGENT) {
+      if (touched && (dto.commissionBasis || dto.commissionPercentage || dto.commissionAmount)) {
+        throw new BadRequestException('Only a referral agent has a commission structure.');
+      }
+      return currentRole === UserRole.REFERRAL_AGENT
+        ? { commissionBasis: null, commissionPercentage: null, commissionAmount: null }
+        : {};
+    }
+    if (!touched) return {};
+
+    const basis = dto.commissionBasis;
+    if (basis === null) {
+      return { commissionBasis: null, commissionPercentage: null, commissionAmount: null };
+    }
+    if (basis === undefined) {
+      throw new BadRequestException('Send commissionBasis with the percentage or amount it uses.');
+    }
+    if (basis === CommissionBasis.PERCENT_OF_PROFIT) {
+      if (dto.commissionPercentage == null) {
+        throw new BadRequestException('A percentage-of-profit commission needs its percentage.');
+      }
+      return { commissionBasis: basis, commissionPercentage: dto.commissionPercentage, commissionAmount: null };
+    }
+    if (basis === CommissionBasis.FLAT_FEE) {
+      if (dto.commissionAmount == null) {
+        throw new BadRequestException('A flat-fee commission needs its amount.');
+      }
+      return { commissionBasis: basis, commissionPercentage: null, commissionAmount: dto.commissionAmount };
+    }
+    // CUSTOM: agreed per referral, so there is no standing figure to keep.
+    return { commissionBasis: basis, commissionPercentage: null, commissionAmount: null };
   }
 }

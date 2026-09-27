@@ -4,7 +4,12 @@ import {
   paginationSchema,
   sortableBy,
 } from '../../../common/dto/pagination.dto.js';
-import { UserRole, UserStatus } from '../../../generated/prisma/enums.js';
+import {
+  CommissionBasis,
+  UserRole,
+  UserStatus,
+} from '../../../generated/prisma/enums.js';
+import { nullableNumber } from '../../../common/dto/numbers.js';
 
 /** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
 export const USER_SORTABLE_FIELDS = [
@@ -28,7 +33,15 @@ export const assignableRoleSchema = z.enum([
   UserRole.SENIOR_BROKER,
   UserRole.BROKER,
   UserRole.ASSISTANT,
+  UserRole.REFERRAL_AGENT,
 ]);
+
+/**
+ * A referral agent's standard commission (#11). Only meaningful on a
+ * REFERRAL_AGENT account, which the service enforces; `null` clears it.
+ */
+export const COMMISSION_PERCENTAGE = { min: 0.01, max: 100 };
+export const COMMISSION_AMOUNT = { min: 0.01, max: 10_000_000 };
 
 /**
  * The statuses an administrator may actually set.
@@ -91,6 +104,17 @@ export const updateUserSchema = z
     /** ACTIVE or SUSPENDED only — see `manageableStatusSchema`. */
     status: manageableStatusSchema.optional(),
     twoFactorEnabled: z.boolean().optional(),
+    commissionBasis: z.enum(CommissionBasis).nullable().optional(),
+    /** Percent of Tribeca's profit, for PERCENT_OF_PROFIT. */
+    commissionPercentage: nullableNumber(
+      'The percentage must be a number between 0 and 100',
+      COMMISSION_PERCENTAGE,
+    ),
+    /** The fee, for FLAT_FEE. */
+    commissionAmount: nullableNumber(
+      'The amount must be a number',
+      COMMISSION_AMOUNT,
+    ),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Provide at least one field to update',

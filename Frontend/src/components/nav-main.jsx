@@ -39,6 +39,9 @@ const navSections = [
       // Between leads and quotes because that is the order of the pipeline:
       // someone becomes a client, asks for something, and then gets a price.
       { label: "Trip Requests", icon: "nav-trips", href: "/dashboard/trip-requests" },
+      // Where the partner portal's submissions arrive (#11). Beside trip
+      // requests because converting one creates a trip request.
+      { label: "Referrals", icon: "nav-leads-agents", href: "/dashboard/referrals" },
       { label: "Quotes", icon: "nav-quotes", href: "/dashboard/quotes" },
       { label: "Email Templates", icon: "nav-email-templates", href: "/dashboard/email-templates" },
     ],

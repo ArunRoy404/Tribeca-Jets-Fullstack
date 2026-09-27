@@ -8,3 +8,19 @@
  * never re-list the roles in a component.
  */
 export const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER", "ADMIN"]);
+
+/**
+ * The outside partner who refers clients (client adjustment #11). Signs in to
+ * the partner portal at `/portal` and never sees the CRM — the API denies it
+ * everything else; this only decides which shell to render.
+ */
+export const REFERRAL_AGENT = "REFERRAL_AGENT";
+
+export function isPartnerRole(role) {
+  return role === REFERRAL_AGENT;
+}
+
+/** Where a signed-in user belongs: the portal for a partner, the CRM for staff. */
+export function homeFor(role) {
+  return isPartnerRole(role) ? "/portal" : "/dashboard";
+}
