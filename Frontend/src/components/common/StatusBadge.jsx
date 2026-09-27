@@ -86,6 +86,10 @@ const STATUS_TONES = {
   "Not Invoiced": "pending",
   // Operator Payments (#17): a trip with no operator bill recorded
   "Not Recorded": "pending",
+  // Transactions (#19): the three kinds of money movement
+  "Client Payment": "success",
+  "Operator Payment": "warning",
+  Commission: "info",
 };
 
 const BORDER_CLASSES = {

@@ -12,6 +12,7 @@ export function useCreateCommission() {
     mutationFn: (payload) => commissionsService.create(payload),
     onSuccess: (data) => {
       invalidate(queryKeys.commissions.all);
+      invalidate(queryKeys.transactions.all);
       toastSuccess(`Commission COM-${data?.reference} recorded`);
     },
     onError: (error) => toastApiError(error, "Could not record this commission"),

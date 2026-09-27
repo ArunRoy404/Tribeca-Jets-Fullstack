@@ -12,6 +12,7 @@ export function useRestoreCommission() {
     mutationFn: (ids) => (Array.isArray(ids) ? commissionsService.restoreMany(ids) : commissionsService.restore(ids)),
     onSuccess: (data, variables) => {
       invalidate(queryKeys.commissions.all);
+      invalidate(queryKeys.transactions.all);
       const count = Array.isArray(variables) ? (data?.affected ?? variables.length) : 1;
       toastSuccess(count === 1 ? "Commission restored" : `${count} commissions restored`);
     },

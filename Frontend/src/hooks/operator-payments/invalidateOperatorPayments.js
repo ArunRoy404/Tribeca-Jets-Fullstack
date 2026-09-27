@@ -8,6 +8,7 @@ import { queryKeys } from "@/lib/queryKeys";
  * Total Paid sums them.
  */
 export function invalidateOperatorPayments() {
+  invalidate(queryKeys.transactions.all);
   invalidate(queryKeys.operatorPayments.all);
   invalidate(queryKeys.trips.all);
   invalidate(queryKeys.operators.all);

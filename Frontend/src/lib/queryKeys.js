@@ -119,6 +119,17 @@ export const queryKeys = {
     stats: (params) => ["operator-payments", "stats", params ?? {}],
   },
 
+  /**
+   * Transactions (#19) — the money ledger, a read-only view over receivables,
+   * operator payments and commissions. Invalidated by every money write in
+   * those three modules.
+   */
+  transactions: {
+    all: ["transactions"],
+    list: (params) => ["transactions", "list", params ?? {}],
+    stats: (params) => ["transactions", "stats", params ?? {}],
+  },
+
   /** Portal referrals (#11) — the desk's board and the agent's own list. */
   referrals: {
     all: ["referrals"],

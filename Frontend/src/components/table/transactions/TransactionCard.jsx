@@ -1,77 +1,48 @@
 "use client";
 
 import StatusBadge from "@/components/common/StatusBadge";
-import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import { cn } from "@/lib/utils";
 
-export default function TransactionCard({ item, onClick, actions }) {
+function Field({ label, value, valueClassName = "text-foreground" }) {
+  return (
+    <div className="flex flex-col gap-1 min-w-0">
+      <span className="font-space-grotesk font-semibold text-[10px] text-muted-foreground tracking-widest uppercase">
+        {label}
+      </span>
+      <span className={cn("font-montserrat font-semibold text-[12px] truncate", valueClassName)}>{value}</span>
+    </div>
+  );
+}
+
+/** One movement below `lg` — the same data as the table row. */
+export default function TransactionCard({ item, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="bg-white border border-border rounded-md p-4 flex flex-col gap-3 shadow-sm cursor-pointer hover:bg-black/5 transition-colors"
+      className={cn(
+        "bg-white border border-border rounded-md p-4 flex flex-col gap-3 shadow-card transition-colors",
+        onClick && "cursor-pointer hover:border-purple/40",
+      )}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-1">
-          <span className="font-montserrat font-bold text-[13px] text-foreground">
-            {item?.client}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-1 min-w-0">
+          <span className="font-montserrat font-bold text-[13px] text-foreground truncate">{item?.counterparty}</span>
+          <span className="font-montserrat font-semibold text-[11px] text-purple">
+            {item?.document} · {item?.tripReference}
           </span>
-          <div className="flex items-center gap-2">
-            <span className="font-montserrat font-semibold text-[11px] text-purple">
-              {item?.reference}
-            </span>
-            <span className="font-montserrat text-[11px] text-muted-foreground">
-              · {item?.tripId}
-            </span>
-          </div>
         </div>
-        <div className="flex flex-col items-end gap-2" onClick={(e) => e.stopPropagation()}>
-          {actions && <RowActionsMenu items={actions} />}
-          {item?.status && <StatusBadge status={item?.status} bordered />}
-        </div>
+        <StatusBadge status={item?.kind} bordered />
       </div>
 
       <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border">
-        <div className="flex flex-col gap-1">
-          <span className="font-space-grotesk font-semibold text-[10px] text-muted-foreground tracking-widest uppercase">
-            Type
-          </span>
-          <span
-            className={cn(
-              "font-montserrat font-medium text-[11px] px-2 py-0.5 rounded-md border w-fit whitespace-nowrap",
-              item?.type === "Receivable"
-                ? "bg-[#eef2ff] text-[#6366f1] border-[#c7d2fe]/60"
-                : item?.type === "Operator Payment"
-                ? "bg-[#e0f2fe] text-[#0284c7] border-[#bae6fd]/60"
-                : "bg-[#dcfce7] text-[#16a34a] border-[#bbf7d0]/60"
-            )}
-          >
-            {item?.type}
-          </span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="font-space-grotesk font-semibold text-[10px] text-muted-foreground tracking-widest uppercase">
-            Dated
-          </span>
-          <span className="font-montserrat font-semibold text-[12px] text-foreground">
-            {item?.dated}
-          </span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="font-space-grotesk font-semibold text-[10px] text-muted-foreground tracking-widest uppercase">
-            Amount
-          </span>
-          <span className="font-montserrat font-semibold text-[12px] text-success">
-            {item?.amount}
-          </span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="font-space-grotesk font-semibold text-[10px] text-muted-foreground tracking-widest uppercase">
-            Method
-          </span>
-          <span className="font-montserrat font-semibold text-[12px] text-foreground">
-            {item?.method}
-          </span>
-        </div>
+        <Field
+          label="Amount"
+          value={item?.amount}
+          valueClassName={!item?.known ? "text-muted-foreground" : item?.incoming ? "text-success" : "text-destructive"}
+        />
+        <Field label="Date" value={item?.date} />
+        <Field label="Method" value={item?.method} />
+        <Field label="Reference" value={item?.reference} />
       </div>
     </div>
   );

@@ -1,58 +1,46 @@
 "use client";
 
+import Link from "next/link";
 import StatusBadge from "@/components/common/StatusBadge";
-import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-export default function TransactionsTableRow({ item, getRowActions, onSelectTransaction }) {
+const CELL = "p-3 font-montserrat text-[12px] whitespace-nowrap";
+
+/** One movement of money. Clicking it opens the bill it settles. */
+export default function TransactionsTableRow({ item, onOpen }) {
   return (
     <TableRow
-      key={item?.id}
-      className="border-border cursor-pointer hover:bg-purple/5 transition-colors"
-      onClick={() => onSelectTransaction?.(item?.id)}
+      className={cn("border-border transition-colors", item?.href && "cursor-pointer hover:bg-purple/5")}
+      onClick={() => item?.href && onOpen?.(item.href)}
     >
-      <TableCell className="p-[12px] font-montserrat font-bold text-[11px] text-purple whitespace-nowrap">
-        {item?.reference}
+      <TableCell className={`${CELL} font-semibold text-foreground`}>{item?.date}</TableCell>
+      <TableCell className="p-3">
+        <StatusBadge status={item?.kind} bordered />
       </TableCell>
-      <TableCell className="p-[12px]">
-        <span
-          className={cn(
-            "font-montserrat font-medium text-[11px] px-2 py-0.5 rounded-md border whitespace-nowrap",
-            item?.type === "Receivable"
-              ? "bg-[#eef2ff] text-[#6366f1] border-[#c7d2fe]/60"
-              : item?.type === "Operator Payment"
-              ? "bg-[#e0f2fe] text-[#0284c7] border-[#bae6fd]/60"
-              : "bg-[#dcfce7] text-[#16a34a] border-[#bbf7d0]/60"
-          )}
-        >
-          {item?.type}
-        </span>
+      <TableCell className={`${CELL} font-semibold text-info`}>{item?.document}</TableCell>
+      <TableCell className={`${CELL} font-semibold text-foreground`}>{item?.counterparty}</TableCell>
+      <TableCell className={CELL} onClick={(e) => e.stopPropagation()}>
+        {item?.tripId ? (
+          <Link href={`/dashboard/trips/${item.tripId}`} className="font-semibold text-purple hover:underline">
+            {item?.tripReference}
+          </Link>
+        ) : (
+          item?.tripReference
+        )}
       </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-semibold text-[11px] text-foreground">
-        {item?.client}
-      </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-semibold text-[11px] text-purple">
-        {item?.tripId}
-      </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-bold text-[11px] text-foreground">
+      <TableCell
+        className={cn(
+          CELL,
+          "font-bold",
+          !item?.known ? "text-muted-foreground" : item?.incoming ? "text-success" : "text-destructive",
+        )}
+      >
         {item?.amount}
       </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-medium text-[11px] text-foreground whitespace-nowrap">
-        {item?.dated}
-      </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-medium text-[11px] text-foreground">
-        {item?.method}
-      </TableCell>
-      <TableCell className="p-[12px]">
-        {item?.status && <StatusBadge status={item?.status} bordered />}
-      </TableCell>
-      <TableCell className="p-[12px] font-montserrat font-medium text-[11px] text-foreground">
-        {item?.broker}
-      </TableCell>
-      <TableCell className="p-[12px]" onClick={(e) => e.stopPropagation()}>
-        <RowActionsMenu items={getRowActions?.(item)} />
-      </TableCell>
+      <TableCell className={`${CELL} text-foreground`}>{item?.method}</TableCell>
+      <TableCell className={`${CELL} text-muted-foreground`}>{item?.reference}</TableCell>
+      <TableCell className={`${CELL} text-foreground`}>{item?.broker}</TableCell>
     </TableRow>
   );
 }

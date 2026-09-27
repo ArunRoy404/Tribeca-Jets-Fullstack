@@ -12,6 +12,7 @@ export function useRemoveCommission() {
     mutationFn: (ids) => (Array.isArray(ids) ? commissionsService.removeMany(ids) : commissionsService.remove(ids)),
     onSuccess: (data, variables) => {
       invalidate(queryKeys.commissions.all);
+      invalidate(queryKeys.transactions.all);
       const count = Array.isArray(variables) ? (data?.affected ?? variables.length) : 1;
       toastSuccess(count === 1 ? "Commission archived" : `${count} commissions archived`);
     },

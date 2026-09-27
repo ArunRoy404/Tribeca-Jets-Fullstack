@@ -9,6 +9,7 @@ import { queryKeys } from "@/lib/queryKeys";
  * Payment Attention tile.
  */
 export function invalidateReceivables() {
+  invalidate(queryKeys.transactions.all);
   invalidate(queryKeys.receivables.all);
   invalidate(queryKeys.trips.all);
 }

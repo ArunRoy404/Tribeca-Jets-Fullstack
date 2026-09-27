@@ -12,6 +12,7 @@ export function useUpdateCommission() {
     mutationFn: (payload) => commissionsService.update(payload),
     onSuccess: (data) => {
       invalidate(queryKeys.commissions.all);
+      invalidate(queryKeys.transactions.all);
       toastSuccess(`COM-${data?.reference} saved`);
     },
     onError: (error) => toastApiError(error, "Could not save this commission"),
