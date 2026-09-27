@@ -1,5 +1,6 @@
 import { toArchiveFields } from "@/lib/archive";
 import { toAircraftRow } from "@/lib/aircraft";
+import { formatMoney } from "@/lib/money";
 
 /**
  * Display helpers for operators.
@@ -33,9 +34,10 @@ export function formatReliability(value) {
 /**
  * Maps one API operator onto the props the table, cards and detail page render.
  *
- * `totalTrips` is a real count since Trips (#11) shipped. `totalPaid` still
- * needs Operator Payments (#17): the API returns null and it renders as an
- * em dash, never "$0".
+ * `totalTrips` is a real count since Trips (#11) shipped. `totalPaid` is every
+ * live payment sent to the operator (Operator Payments, #17), summed by the
+ * API — null, and so an em dash, for a caller who does not see every
+ * operator bill; never "$0" standing in for "not yours to see".
  */
 export function toOperatorRow(operator) {
   return {
@@ -74,10 +76,8 @@ export function toOperatorRow(operator) {
     // live row should carry the "Restored" badge.
     ...toArchiveFields(operator),
 
-    // Awaiting the trips and payments modules.
     totalTrips: operator?.totalTrips ?? "—",
-    totalPaid: operator?.totalPaid ?? "—",
-    payments: operator?.payments ?? [],
+    totalPaid: operator?.totalPaid === null || operator?.totalPaid === undefined ? "—" : formatMoney(operator.totalPaid),
 
     // The fleet is real now that Aircraft has shipped. Mapped through the
     // aircraft module's own mapper rather than a second vocabulary here, so

@@ -5,6 +5,7 @@ import { personName } from "@/lib/lead";
 import { displayName } from "@/lib/client";
 import { formatAircraftCategory } from "@/lib/aircraft";
 import { toTripPayment } from "@/lib/receivable";
+import { toTripOperatorPayment } from "@/lib/operatorPayment";
 
 /**
  * Display helpers for Trips (#11).
@@ -154,13 +155,13 @@ export function toTripRow(trip) {
     total: money(trip?.totalPrice),
     fet: money(trip?.fetAmount),
     profit: money(trip?.grossProfit),
-    // The client's billing across this trip's invoices, computed by the API
-    // (Receivables, #16) — a dash for a role that may not read receivables.
-    // Operator payments are #17, not built yet: a dash, not "Pending", because
-    // nobody has said it is pending.
+    // The client's billing across this trip's invoices (Receivables, #16) and
+    // what its operators billed and were paid (Operator Payments, #17), both
+    // computed by the API — a dash for a role that may not read them.
     clientPayment: toTripPayment(trip?.clientPayment).state,
     clientBilling: toTripPayment(trip?.clientPayment),
-    operatorPayment: DASH,
+    operatorPayment: toTripOperatorPayment(trip?.operatorPayment).state,
+    operatorBilling: toTripOperatorPayment(trip?.operatorPayment),
     nextStatuses: trip?.nextStatuses ?? [],
     editable: Boolean(trip?.editable),
     ...toArchiveFields(trip),

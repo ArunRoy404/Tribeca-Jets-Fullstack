@@ -7,13 +7,18 @@ import StatusBadge from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import AddReceivableDialog from "@/components/receivables/AddReceivableDialog";
 import RecordPaymentDialog from "@/components/receivables/RecordPaymentDialog";
+import AddOperatorPaymentDialog from "@/components/operator-payments/AddOperatorPaymentDialog";
+import RecordOperatorPaymentDialog from "@/components/operator-payments/RecordOperatorPaymentDialog";
 import { useCommissions } from "@/hooks/commissions";
 import { useReceivables } from "@/hooks/receivables";
+import { useOperatorPayables } from "@/hooks/operator-payments";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Permission } from "@/lib/permissions";
 import { toCommissionRow } from "@/lib/commission";
 import { toReceivableRow } from "@/lib/receivable";
+import { toPayableRow } from "@/lib/operatorPayment";
 import { useReceivablesStore } from "@/store/useReceivablesStore";
+import { useOperatorPaymentsStore } from "@/store/useOperatorPaymentsStore";
 import { cn } from "@/lib/utils";
 
 function StatBox({ label, value, tone = "foreground", highlight }) {
@@ -47,7 +52,8 @@ function Line({ children }) {
  *
  * Client paid and balance come from Receivables (#16): the API sums this
  * trip's sent invoices and their live payments, and each invoice is listed
- * with the figures it computed. Commissions are listed the same way — not
+ * with the figures it computed. The operator's bills come from Operator
+ * Payments (#17) the same way. Commissions are listed the same way — not
  * summed here, because a total of estimates and settled figures is a number
  * nobody agreed. Operator cost, profit and margin are dashes for a role
  * without VIEW_FINANCIALS; the billing is a dash for a role that may not read
@@ -71,6 +77,17 @@ export default function TripFinancialCard({ trip }) {
   const invoices = (invoiceData?.data ?? []).map(toReceivableRow);
   const openAddModal = useReceivablesStore((s) => s.openAddModal);
   const openPaymentModal = useReceivablesStore((s) => s.openPaymentModal);
+
+  const opBilling = trip?.operatorBilling ?? {};
+  const mayViewBills = can(Permission.VIEW_OPERATOR_PAYMENTS);
+  const mayRecordBills = canWrite(Permission.MANAGE_OPERATOR_PAYMENTS) && !trip?.isArchived;
+  const { data: billData } = useOperatorPayables(
+    { tripId: trip?.id, limit: 20 },
+    { enabled: Boolean(trip?.id) && mayViewBills },
+  );
+  const bills = (billData?.data ?? []).map(toPayableRow);
+  const openBillModal = useOperatorPaymentsStore((s) => s.openAddModal);
+  const openOperatorPayment = useOperatorPaymentsStore((s) => s.openPaymentModal);
 
   return (
     <DetailCard title="Financial Summary" description="Computed by the server from the price, FET, the operator's cost and the invoices.">
@@ -127,6 +144,50 @@ export default function TripFinancialCard({ trip }) {
         </div>
       )}
 
+      {mayViewBills && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-montserrat font-semibold text-[13px] text-foreground">
+              Operator bills
+              {opBilling.known ? ` · ${opBilling.state}` : ""}
+              {opBilling.known && opBilling.owed !== "—" ? ` · paid ${opBilling.paid} of ${opBilling.owed}` : ""}
+            </p>
+            {mayRecordBills && (
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openBillModal({ tripId: trip?.id })}>
+                <Plus className="size-3.5" />
+                Record operator bill
+              </Button>
+            )}
+          </div>
+          {bills.length === 0 ? (
+            <p className="font-montserrat text-[12px] text-muted-foreground">No operator bills recorded on this trip yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {bills.map((row) => (
+                <Line key={row.id}>
+                  <span className="min-w-0 truncate">
+                    <Link href={`/dashboard/operator-payments?bill=${row.id}`} className="font-semibold text-purple hover:underline">
+                      {row.number}
+                    </Link>{" "}
+                    · {row.operator} · due {row.due}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">{row.total}</span>
+                    <span className="text-muted-foreground">balance {row.balance}</span>
+                    <StatusBadge status={row.state} />
+                    {mayRecordBills && row.rawStatus === "OPEN" && row.hasBalance && (
+                      <Button size="sm" variant="outline" onClick={() => openOperatorPayment(row.raw)}>
+                        Pay
+                      </Button>
+                    )}
+                  </span>
+                </Line>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {mayViewCommissions && commissions.length > 0 && (
         <ul className="flex flex-col gap-1.5">
           {commissions.map((row) => (
@@ -150,6 +211,12 @@ export default function TripFinancialCard({ trip }) {
         <>
           <AddReceivableDialog />
           <RecordPaymentDialog />
+        </>
+      )}
+      {mayRecordBills && (
+        <>
+          <AddOperatorPaymentDialog />
+          <RecordOperatorPaymentDialog />
         </>
       )}
     </DetailCard>
