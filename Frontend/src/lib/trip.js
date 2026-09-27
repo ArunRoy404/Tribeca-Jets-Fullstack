@@ -217,5 +217,16 @@ export function toTripDetail(trip) {
     clientNotes: trip?.clientNotes ?? null,
     documentUrls: trip?.documentUrls ?? [],
     isArchived: Boolean(trip?.deletedAt),
+    // Whether this trip's passenger document (Itineraries, #12) exists, is
+    // confirmed and has been sent — read straight through, no second fetch.
+    itinerary: trip?.itinerary
+      ? {
+          id: trip.itinerary.id,
+          confirmed: trip.itinerary.status === "CONFIRMED",
+          sentAt: trip.itinerary.sentAt ?? null,
+          flightTime: trip.itinerary.flightTime ?? null,
+          arrivalTime: trip.itinerary.arrivalTime ?? null,
+        }
+      : null,
   };
 }

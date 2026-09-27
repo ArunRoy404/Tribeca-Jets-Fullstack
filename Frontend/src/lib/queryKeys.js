@@ -75,6 +75,14 @@ export const queryKeys = {
     stats: ["trips", "stats"],
   },
 
+  /** The passenger document for a trip (#12). */
+  itineraries: {
+    all: ["itineraries"],
+    list: (params) => ["itineraries", "list", params ?? {}],
+    detail: (id) => ["itineraries", "detail", id],
+    stats: ["itineraries", "stats"],
+  },
+
   /** Operators' empty legs, and #10b's matches on each. */
   emptyLegs: {
     all: ["empty-legs"],
