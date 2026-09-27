@@ -27,6 +27,7 @@ import { CommissionsModule } from './modules/commissions/commissions.module.js';
 import { ReferralsModule } from './modules/referrals/referrals.module.js';
 import { ReceivablesModule } from './modules/receivables/receivables.module.js';
 import { OperatorPaymentsModule } from './modules/operator-payments/operator-payments.module.js';
+import { TransactionsModule } from './modules/transactions/transactions.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -76,6 +77,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     ReferralsModule,
     ReceivablesModule,
     OperatorPaymentsModule,
+    TransactionsModule,
   ],
   providers: [
     /**

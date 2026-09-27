@@ -40,6 +40,15 @@ import {
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
 import { TripsService } from '../trips/trips.service.js';
+import {
+  MovementDirection,
+  MovementKind,
+  dayRange,
+  type Movement,
+  type MovementFilter,
+  type MovementSlice,
+  type MovementTotals,
+} from '../../common/money/movements.js';
 import { commissionValue, estimateCommission, tally, termsProblem } from './commissions.amounts.js';
 import type {
   CreateCommissionInput,
@@ -331,6 +340,85 @@ export class CommissionsService {
       /** Over the commissions whose value is known — never divided by the unknowable ones. */
       average: valuedCount > 0 ? fromCents(Math.round(totalCents / valuedCount)) : null,
     };
+  }
+
+  // ---- For the Transactions ledger (#19) ---------------------------------
+
+  /** Live, PAID commissions with a paid day, in the caller's scope, narrowed by the ledger's filter. */
+  private movementWhere(user: AuthenticatedUser, filter: MovementFilter): Prisma.CommissionWhereInput {
+    const term = filter.search?.trim();
+    return {
+      AND: [
+        { deletedAt: null, status: CommissionStatus.PAID, paidAt: dayRange(filter) ?? { not: null } },
+        this.scope(user),
+        filter.tripId ? { tripId: filter.tripId } : {},
+        term ? this.searchWhere(term) : {},
+      ],
+    };
+  }
+
+  /**
+   * The newest (or oldest) `take` paid commissions, as ledger rows, and how
+   * many match. The amount is the commission's value — the settled figure,
+   * or the estimate from the trip's profit — and null when neither can be
+   * known, never zero.
+   */
+  async movements(user: AuthenticatedUser, filter: MovementFilter, take: number): Promise<MovementSlice> {
+    const where = this.movementWhere(user, filter);
+    const [rows, total] = await Promise.all([
+      this.prisma.commission.findMany({
+        where,
+        take,
+        orderBy: [{ paidAt: filter.order }, { createdAt: filter.order }, { id: filter.order }],
+        select: COMMISSION_SELECT,
+      }),
+      this.prisma.commission.count({ where }),
+    ]);
+    return {
+      total,
+      rows: rows.map(
+        (row): Movement => ({
+          id: `${MovementKind.COMMISSION}:${row.id}`,
+          kind: MovementKind.COMMISSION,
+          direction: MovementDirection.OUT,
+          date: row.paidAt as Date,
+          amount: commissionValue(row, profitOf(row.trip)),
+          method: row.method,
+          reference: null,
+          document: { id: row.id, number: `COM-${row.reference}` },
+          counterparty: {
+            type: 'PAYEE',
+            id: row.recipientUserId ?? row.recipientClientId ?? null,
+            name: this.recipientLabel(row) ?? '—',
+          },
+          trip: { id: row.trip.id, reference: row.trip.reference },
+          broker: row.broker ? { id: row.broker.id, firstName: row.broker.firstName, lastName: row.broker.lastName } : null,
+          createdAt: row.createdAt,
+        }),
+      ),
+    };
+  }
+
+  /** Every paid commission under the filter; an unknowable value is counted, never summed. */
+  async movementTotals(user: AuthenticatedUser, filter: MovementFilter): Promise<MovementTotals> {
+    const rows = await this.prisma.commission.findMany({
+      where: this.movementWhere(user, filter),
+      select: {
+        basis: true,
+        percentage: true,
+        amount: true,
+        finalAmount: true,
+        trip: { select: { basePrice: true, fetEnabled: true, fetRate: true, operatorCost: true, lineItems: true } },
+      },
+    });
+    let cents = 0;
+    let unvalued = 0;
+    for (const row of rows) {
+      const value = commissionValue(row, profitOf(row.trip));
+      if (value === null) unvalued += 1;
+      else cents += toCents(value);
+    }
+    return { count: rows.length, cents, unvalued };
   }
 
   // ---- Recipient and terms ----------------------------------------------

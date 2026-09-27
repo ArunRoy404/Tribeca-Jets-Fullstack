@@ -35,6 +35,15 @@ import { InvoiceStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { TripsService } from '../trips/trips.service.js';
 import {
+  MovementDirection,
+  MovementKind,
+  dayRange,
+  type Movement,
+  type MovementFilter,
+  type MovementSlice,
+  type MovementTotals,
+} from '../../common/money/movements.js';
+import {
   InvoiceState,
   invoiceFigures,
   invoiceNumber,
@@ -317,6 +326,99 @@ export class ReceivablesService {
       select: FIGURES_SELECT,
     });
     return tally(rows);
+  }
+
+  // ---- For the Transactions ledger (#19) ---------------------------------
+
+  /** Live payments on live invoices the caller may see, narrowed by the ledger's filter. */
+  private movementWhere(user: AuthenticatedUser, filter: MovementFilter): Prisma.InvoicePaymentWhereInput {
+    const term = filter.search?.trim();
+    const reference = term ? referenceFromSearch(term) : null;
+    const trip = term ? (/^TJ-?(\d{1,9})$/i.exec(term)?.[1] ?? null) : null;
+    return {
+      deletedAt: null,
+      ...(dayRange(filter) ? { paidAt: dayRange(filter) } : {}),
+      invoice: {
+        deletedAt: null,
+        ...this.scope(user),
+        ...(filter.tripId ? { tripId: filter.tripId } : {}),
+      },
+      ...(term
+        ? {
+            OR: [
+              ...(reference !== null ? [{ invoice: { reference } }] : []),
+              ...(trip !== null ? [{ invoice: { trip: { reference: Number(trip) } } }] : []),
+              { invoice: { client: searchAcross(term, ['firstName', 'lastName', 'companyName']) } },
+              searchAcross(term, ['reference']),
+            ],
+          }
+        : {}),
+    };
+  }
+
+  /** The newest (or oldest) `take` payments received, as ledger rows, and how many match. */
+  async movements(user: AuthenticatedUser, filter: MovementFilter, take: number): Promise<MovementSlice> {
+    const where = this.movementWhere(user, filter);
+    const [rows, total] = await Promise.all([
+      this.prisma.invoicePayment.findMany({
+        where,
+        take,
+        orderBy: [{ paidAt: filter.order }, { createdAt: filter.order }, { id: filter.order }],
+        select: {
+          id: true,
+          amount: true,
+          paidAt: true,
+          method: true,
+          reference: true,
+          createdAt: true,
+          invoice: {
+            select: {
+              id: true,
+              reference: true,
+              createdAt: true,
+              client: CLIENT_SELECT,
+              trip: { select: { id: true, reference: true, assignedBroker: ACTOR_SELECT } },
+            },
+          },
+        },
+      }),
+      this.prisma.invoicePayment.count({ where }),
+    ]);
+    return {
+      total,
+      rows: rows.map(
+        (row): Movement => ({
+          id: `${MovementKind.CLIENT_PAYMENT}:${row.id}`,
+          kind: MovementKind.CLIENT_PAYMENT,
+          direction: MovementDirection.IN,
+          date: row.paidAt,
+          amount: money(row.amount),
+          method: row.method,
+          reference: row.reference,
+          document: { id: row.invoice.id, number: invoiceNumber(row.invoice.reference, row.invoice.createdAt) },
+          counterparty: {
+            type: 'CLIENT',
+            id: row.invoice.client.id,
+            name:
+              `${row.invoice.client.firstName} ${row.invoice.client.lastName}`.trim() ||
+              row.invoice.client.companyName ||
+              '—',
+          },
+          trip: { id: row.invoice.trip.id, reference: row.invoice.trip.reference },
+          broker: row.invoice.trip.assignedBroker,
+          createdAt: row.createdAt,
+        }),
+      ),
+    };
+  }
+
+  /** Every payment received under the filter, counted and summed in cents. */
+  async movementTotals(user: AuthenticatedUser, filter: MovementFilter): Promise<MovementTotals> {
+    const rows = await this.prisma.invoicePayment.findMany({
+      where: this.movementWhere(user, filter),
+      select: { amount: true },
+    });
+    return { count: rows.length, cents: paidCents(rows), unvalued: 0 };
   }
 
   // ---- Link checks --------------------------------------------------------

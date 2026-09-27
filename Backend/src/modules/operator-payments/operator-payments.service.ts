@@ -34,6 +34,15 @@ import { OperatorPayableStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { TripsService } from '../trips/trips.service.js';
 import {
+  MovementDirection,
+  MovementKind,
+  dayRange,
+  type Movement,
+  type MovementFilter,
+  type MovementSlice,
+  type MovementTotals,
+} from '../../common/money/movements.js';
+import {
   PayableState,
   paidCents,
   payableFigures,
@@ -308,6 +317,93 @@ export class OperatorPaymentsService {
       cents.set(row.operatorId, (cents.get(row.operatorId) ?? 0) + paidCents(row.payments));
     }
     return new Map(operatorIds.map((id) => [id, fromCents(cents.get(id) ?? 0)]));
+  }
+
+  // ---- For the Transactions ledger (#19) ---------------------------------
+
+  /** Live payments on live bills the caller may see, narrowed by the ledger's filter. */
+  private movementWhere(user: AuthenticatedUser, filter: MovementFilter): Prisma.OperatorPayablePaymentWhereInput {
+    const term = filter.search?.trim();
+    const reference = term ? referenceFromSearch(term) : null;
+    const trip = term ? (/^TJ-?(\d{1,9})$/i.exec(term)?.[1] ?? null) : null;
+    return {
+      deletedAt: null,
+      ...(dayRange(filter) ? { paidAt: dayRange(filter) } : {}),
+      payable: {
+        deletedAt: null,
+        ...this.scope(user),
+        ...(filter.tripId ? { tripId: filter.tripId } : {}),
+      },
+      ...(term
+        ? {
+            OR: [
+              ...(reference !== null ? [{ payable: { reference } }] : []),
+              ...(trip !== null ? [{ payable: { trip: { reference: Number(trip) } } }] : []),
+              { payable: { operator: searchAcross(term, ['name']) } },
+              { payable: searchAcross(term, ['operatorReference']) },
+              searchAcross(term, ['reference']),
+            ],
+          }
+        : {}),
+    };
+  }
+
+  /** The newest (or oldest) `take` payments sent, as ledger rows, and how many match. */
+  async movements(user: AuthenticatedUser, filter: MovementFilter, take: number): Promise<MovementSlice> {
+    const where = this.movementWhere(user, filter);
+    const [rows, total] = await Promise.all([
+      this.prisma.operatorPayablePayment.findMany({
+        where,
+        take,
+        orderBy: [{ paidAt: filter.order }, { createdAt: filter.order }, { id: filter.order }],
+        select: {
+          id: true,
+          amount: true,
+          paidAt: true,
+          method: true,
+          reference: true,
+          createdAt: true,
+          payable: {
+            select: {
+              id: true,
+              reference: true,
+              createdAt: true,
+              operator: { select: { id: true, name: true } },
+              trip: { select: { id: true, reference: true, assignedBroker: ACTOR_SELECT } },
+            },
+          },
+        },
+      }),
+      this.prisma.operatorPayablePayment.count({ where }),
+    ]);
+    return {
+      total,
+      rows: rows.map(
+        (row): Movement => ({
+          id: `${MovementKind.OPERATOR_PAYMENT}:${row.id}`,
+          kind: MovementKind.OPERATOR_PAYMENT,
+          direction: MovementDirection.OUT,
+          date: row.paidAt,
+          amount: money(row.amount),
+          method: row.method,
+          reference: row.reference,
+          document: { id: row.payable.id, number: payableNumber(row.payable.reference, row.payable.createdAt) },
+          counterparty: { type: 'OPERATOR', id: row.payable.operator.id, name: row.payable.operator.name },
+          trip: { id: row.payable.trip.id, reference: row.payable.trip.reference },
+          broker: row.payable.trip.assignedBroker,
+          createdAt: row.createdAt,
+        }),
+      ),
+    };
+  }
+
+  /** Every payment sent under the filter, counted and summed in cents. */
+  async movementTotals(user: AuthenticatedUser, filter: MovementFilter): Promise<MovementTotals> {
+    const rows = await this.prisma.operatorPayablePayment.findMany({
+      where: this.movementWhere(user, filter),
+      select: { amount: true },
+    });
+    return { count: rows.length, cents: paidCents(rows), unvalued: 0 };
   }
 
   // ---- Link checks --------------------------------------------------------
