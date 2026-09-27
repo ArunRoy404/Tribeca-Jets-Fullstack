@@ -48,8 +48,8 @@ set of broken joins the day the real table arrives.
 | 9 | **Operator Sourcing** | ✅ Done | Trip Requests, Operators, Aircraft |
 | 10 | **Quotes** | ✅ Done | Trip Requests, Sourcing, Clients, Aircraft |
 | 11 | **Trips** | ✅ Done (27 Sep) | Quotes, everything above |
-| 12 | **Itineraries** | ⬅ **Next** | Trips |
-| 13 | **Schedule** | Not started | Trips (read-only view) |
+| 12 | **Itineraries** | ✅ Done (28 Sep) | Trips |
+| 13 | **Schedule** | ⬅ **Next** | Trips (read-only view) |
 | 14 | **Flight Tracking** | Not started | Trips, Aircraft |
 | 15 | **Empty Legs** | ✅ Done (27 Sep) | Operators, Aircraft, Airports; matching reads Trip Requests (adjustment #10b) |
 | 16 | **Receivables** | ✅ Done (28 Sep) | Trips, Clients |
@@ -73,9 +73,10 @@ set of broken joins the day the real table arrives.
 **Trips shipped on 27 September 2026**, with Empty Legs and Commissions
 pulled forward after it so client adjustments #10b and #11 could be built
 without waiting on the client; #11's agent portal followed the same day, and
-**Receivables (#16)**, **Operator Payments (#17)** and **Transactions (#19)**
-on 28 September, completing the financial modules. **What is next:**
-**Itineraries (#12)**, then **Schedule (#13)** — both unblocked by Trips.
+**Receivables (#16)**, **Operator Payments (#17)**, **Transactions (#19)** and
+**Itineraries (#12)** on 28 September, completing the financial modules and
+the first of the two remaining unblocked-by-Trips modules. **What is next:**
+**Schedule (#13)** — a read-only calendar projection of Trips, no new table.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -435,18 +436,58 @@ A trip is legs plus passengers plus the quote's pricing inputs; every total is
 computed on read by the quote pricing engine. Its status machine lives in
 `trips.lifecycle.ts` as pure functions.
 
-### 12. Itineraries
+### 12. Itineraries ✅ *(28 September 2026)*
 
 The passenger-facing document for a trip: tail number, times, passengers and
 passport numbers, catering, ground transport, FBO. Confirmed or pending.
 
-> ✅ **The aircraft picture-picker landed 24 September 2026**, with the Build
-> Itinerary redesign — a two-photo gallery through the shared `PhotoTile`
-> component, the same one Quotes' picker was built from the next day. The
-> uploads are real (`POST /api/uploads/*`); **the itinerary is not** — it is
-> kept in a zustand store and lost on reload, so the files it pointed at are
-> orphaned. Nothing else about this module is wired: it has no
-> backend yet, and **Trips (#11)**, the dependency it waited on, shipped 27 Sep 2026.
+**A thin document, not a second copy of the trip.** Aircraft, operator, tail,
+route, dates and the passenger manifest are never columns on `Itinerary` —
+they are read through the required, unique `tripId` on every render, from the
+trip's own `Trip` / `TripLeg` / `TripPassenger` rows. That is a stricter
+reading of the same rule this project already applies to money: a stored
+total beside its own parts contradicts itself the day one moves without the
+other, and a copied aircraft name is the identical bug wearing a different
+column. The 24–25 September build form, read again against that rule, let a
+broker type an aircraft and route independent of whichever trip was picked —
+a real finding, not a style choice, so the rebuild removed those fields and
+reads them from the trip instead.
+
+What genuinely belongs to the document, because nothing else in the schema
+tracks it: the outbound leg's arrival time (`TripLeg` keeps only departure),
+flight time and miles as free text, catering, ground transport, an FBO
+*override*, the operator's own itinerary file (attached for reference, never
+parsed — no extraction pipeline exists anywhere in this system), a
+document-specific aircraft photo, and notes.
+
+**The FBO override sits on a fact Airports already had.** `Airport.assignedFbo`
+— "the FBO the desk defaults to when building an itinerary here" — shipped
+with Airports and sat unused until this module gave it a reader. An
+itinerary's own `departureFbo` / `arrivalFbo` override it only when set; the
+API returns the *effective* value on read, never inventing an address, phone
+or email that has nowhere to live.
+
+**One document per trip**, unique across live and archived rows — the same
+rule Aircraft's tail number and Airport's ICAO already make, so a second
+attempt on an already-documented trip is a 409 pointing at the existing one
+rather than a silent duplicate. Uses the **trips** permissions
+(`VIEW_TRIPS` / `MANAGE_TRIPS`), the same rule Trip Requests already applies:
+a document is part of the trip it is for, not a separate capability —
+including archive and restore, deliberately narrower than a trip's own
+admin-only `DELETE_TRIPS`.
+
+**Second pass on Trips, same day.** Three cards on the trip detail page had
+shipped ahead of this module with an honest placeholder, each naming #12 in
+its own code comment: `TripFlightInfoCard`'s confirmed times,
+`TripFlightRouteCard`'s outbound arrival, and `TripConfirmationCard`'s
+"Itinerary sent" tick all read real data now. "Payment received" on the same
+checklist was wired in the same pass — Receivables' (#16) own figure, left
+unwired until now.
+
+Postman `22 · Itineraries` is written and not run (no live server in this
+environment); everything else — schema, API, frontend, the Trips second
+pass — was written without live testing, by the owner's instruction, and
+verified with `tsc`, oxlint, vitest (185 tests) and a clean `npm run build`.
 
 ### 13. Schedule
 

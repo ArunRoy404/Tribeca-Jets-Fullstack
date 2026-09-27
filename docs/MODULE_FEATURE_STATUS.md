@@ -538,6 +538,14 @@ where the trip's invoices are listed and raised. The "Payment Attention" tile
 counts trips with an overdue invoice. All absent for a role without
 `VIEW_RECEIVABLES`.
 
+**Second pass from Itineraries (#12), 28 Sep 2026:** `TripFlightInfoCard`'s
+Confirmed Flight/Arrival Time boxes, `TripFlightRouteCard`'s outbound arrival
+time, and `TripConfirmationCard`'s "Itinerary sent" tick all read a small
+itinerary summary now carried on `TRIP_DETAIL_SELECT`
+(`id`, `status`, `confirmedAt`, `sentAt`, `flightTime`, `arrivalTime`).
+"Payment received" on the same checklist was wired in the same pass, from
+`clientBilling` — Receivables' (#16) own figure, left unwired until now.
+
 **Still waiting:** `avgUtilization` (no module records flight hours),
 `IN_SERVICE` derived from trips, the Agent "associated trips" panel (buildable
 now), and the board's "All Payments" filter (buildable now — needs the
@@ -551,29 +559,101 @@ operator bills, where a bill is recorded and paid. Absent for a role without
 
 ---
 
-## 12. Itineraries ⬜
+## 12. Itineraries ✅ *(28 Sep 2026)*
 
-No backend. Its dependency **Trips (#11)** ✅ has shipped, so it is buildable; passenger images and the
-printable document also want **Document Vault (#22)**.
+**A thin document over its trip, deliberately.** The passenger-facing document
+for a trip: tail, times, passengers and passport numbers, catering, ground
+transport, FBO handling, confirmed or pending. Aircraft, operator, tail
+number, route, dates and the passenger manifest are **never columns on
+`Itinerary`** — they are the trip's own facts (`Trip`, `TripLeg`,
+`TripPassenger`), read through the required, unique `tripId` on every render.
+Storing a second copy here is the figure-beside-its-parts mistake this project
+already forbids for money, generalised: the day a trip is rebooked onto a
+different tail, a copied aircraft name on the itinerary would go on saying the
+old one, and nothing on screen would say which is right. This is a real
+finding against the 24–25 September dummy build below, not a preference —
+its form let a broker type an aircraft, tail and route independent of the
+trip it claimed to be linked to, which is exactly that bug.
 
-The frontend build-form and live preview shipped ahead of the module itself
-(24–25 September 2026, dummy-data-backed): a full-screen create/edit modal, a
-two-photo aircraft gallery through the shared `PhotoTile` component, and the
-mobile layout fixed after a real-device regression (labels were hiding the
-photos on iPhone/Pixel widths — `PhotoTile`'s `shrink-0` fix). **The uploads
-are real** — logo, operator PDF and both photos go through
-`POST /api/uploads/*` and live on the server — **but the itinerary is not**:
-it is saved into `useItinerariesStore` and is gone on reload, so nothing
-points at those files afterwards. Screens built ahead of their API, same as
-every other still-⬜ module's UI.
+**Working now**
 
-**Placeholders removed 26 Sep 2026**, because a dummy-backed screen still must
-not invent: the builder pre-filled a route (including `KTTB`, not an airport),
-catering, a car and an FBO, and on submit made up a client name, times,
-"Passenger N" names and random passport numbers; the store filled a blank tail,
-aircraft, operator, date and times; the preview showed a stock jet photo on
-every itinerary without one. The five seeded itineraries now carry their stock
-photos as data, where they belong.
+- `Itinerary`, one per trip (`tripId` unique, required) — status `PENDING` /
+  `CONFIRMED`, `confirmedAt`; `sentAt` / `sentById`, the same "marks it,
+  does not deliver" a quote's Send makes (no Email Templates module, #21,
+  exists to actually deliver it); logo upload; the outbound leg's arrival
+  time ("HH:MM", nothing else in the schema tracks one — `TripLeg` keeps only
+  departure), flight time and miles as free text, the same split Aircraft's
+  speeds make; catering; ground transport; the operator's own itinerary file
+  and a text fallback, attached for reference and never parsed (no extraction
+  pipeline exists anywhere in this system); notes
+- **FBO is a document-level override over a fact Airports already had.**
+  `Airport.assignedFbo` — "the FBO the desk defaults to when building an
+  itinerary here" — shipped with Airports and sat unused until now. An
+  itinerary's `departureFbo` / `arrivalFbo` override it only when set; the API
+  returns the *effective* value (override, or the airport's own default) and
+  the raw override separately, so the edit form can tell "using the default"
+  from "deliberately blank". No FBO directory exists for address, phone or
+  email — none are stored or invented, on the airport row or here
+- **Aircraft photos are the same override `Quote.exteriorImageUrl` makes** —
+  absent falls back to the trip's own aircraft's fleet photos (Aircraft, #6),
+  with the photo library available on both fields
+- `GET /api/itineraries` (search matches the trip's reference, client, tail
+  or operator), `/stats` (total, confirmed, pending — no fabricated "pending
+  upload" / "awaiting confirmation" split, since nothing in this schema
+  distinguishes them), `GET /:id`, `POST`, `PATCH`, `POST /:id/confirm`
+  (idempotent), `POST /:id/send`, archive/restore and bulk archive/restore.
+  `VIEW_TRIPS` reads, `MANAGE_TRIPS` writes — the same rule Trip Requests
+  already applies ("a document is part of the trip it is for, not a separate
+  capability") — including archive and restore, deliberately narrower than a
+  trip's own admin-only `DELETE_TRIPS`: a broker managing their own trip may
+  manage the document attached to it
+- **One attempt per trip.** A second `POST` naming a trip that already has a
+  document is a 409 pointing at the existing one, unique across live *and*
+  archived rows — the same rule Aircraft's tail number and Airport's ICAO
+  already make, rather than silently reviving or duplicating
+- **An archived trip's document is read-only**, the same split Notes makes for
+  an archived subject: `create`/`update` refuse it with a 400 naming the
+  reason; the document itself can still be read, archived and restored
+- Frontend: the board (URL state, Archived tab, bulk archive/restore, search,
+  status filter, cards below `lg`), the Build/Edit dialog with a live preview
+  pane (one `ItineraryPreview` component, shared with the saved-record sheet,
+  so what a broker composes is pixel-identical to what gets saved), and the
+  detail sheet (Confirm, Send to Client, Edit, Archive/Restore, View Trip
+  Details — a real navigation to the trip that made this a real link for the
+  first time). `dummyData/itineraries.js` is deleted, and with it the static
+  FBO address book and aircraft-model list the build form used to offer —
+  aircraft now comes from the chosen trip, and FBO from the airport
+- **"Download PDF" is gone, not faked** — the same call Receivables made for
+  its old "Export" button: no Document Vault (#22), no PDF anywhere in this
+  system. "Send to Client" is real (see `sentAt` above) rather than the old
+  `alert()` stub
+
+**Second pass on Trips (#11), same day.** Three cards on the trip detail page
+had been shipped ahead of this module with an honest "awaiting the operator
+itinerary" placeholder, named in their own code comments as waiting on #12:
+`TripFlightInfoCard`'s Confirmed Flight/Arrival Time boxes now read the
+trip's itinerary when one exists; `TripFlightRouteCard`'s outbound leg shows
+a real arrival time instead of a permanent dash; `TripConfirmationCard`'s
+checklist gained real "Itinerary sent" and "Payment received" ticks (the
+second reads `clientBilling`, already computed by Receivables, #16, and left
+unwired). `TRIP_DETAIL_SELECT` carries a small itinerary summary
+(`id`, `status`, `confirmedAt`, `sentAt`, `flightTime`, `arrivalTime`) so none
+of these cards makes a second request.
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Print-ready / PDF output | **Document Vault (#22)** — nothing in this system generates a document yet |
+| Emailing the itinerary to the client | **Email Templates (#21)** — Send marks it sent and says so; it does not deliver |
+| Extracting flight data from the operator's own itinerary file | **Not modelled anywhere in this system** — the file attaches for reference; typed fields are typed by a person |
+
+**Not done:** Postman `22 · Itineraries` — the builder (`build_itineraries_folder.py`)
+is written, syntax-checked, and **not run** (no live server in this
+environment); newman has not been run against it. Written by the owner's
+instruction without live browser testing; backend `tsc`, oxlint and vitest
+(185 tests, 18 files) are clean, frontend eslint reports nothing in the files
+changed, and `npm run build` passes.
 
 ---
 
@@ -1257,17 +1337,24 @@ the call site.
 Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
 Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
 Empty Legs, Commissions, Referrals** (desk and portal), **Receivables**,
-**Operator Payments** and **Transactions**.
+**Operator Payments**, **Transactions** and **Itineraries**.
 
-**Most recent change (28 September), uncommitted:** Transactions (#19), the
-read-only money ledger — no migration. Receivables (#16) and Operator Payments
-(#17) were committed earlier the same day; their two migrations must be
-deployed (`npm run db:deploy`): `20260928100000_add_receivables` and
-`20260928120000_add_operator_payments`. All three written **without live
-testing, by the owner's instruction**: backend `tsc`, oxlint and vitest (185
-tests, 18 files) are clean, frontend eslint reports nothing in the files
-changed, and `npm run build` passes. None of their Postman builders has been
-run.
+**Most recent change (28 September):** Itineraries (#12) — see its own
+section above for the design (a thin document over its trip, no duplicated
+aircraft/route/passenger data) and the Trips second pass it made. Two
+migrations, `20260928100000_add_receivables`,
+`20260928120000_add_operator_payments` and `20260928140000_add_itineraries`,
+must be deployed (`npm run db:deploy`) on any environment that has not run
+them. Itineraries was written **without live testing, by the owner's
+instruction**: backend `tsc`, oxlint and vitest (185 tests, 18 files) are
+clean, frontend eslint reports nothing in the files changed, and
+`npm run build` passes. Its Postman builder is written and not run.
+
+**Transactions (#19), Receivables (#16), Operator Payments (#17) and
+Itineraries (#12) are all committed and pushed to `origin/roy`** — the working
+tree was clean through `4a7ffc9` before this session started, and Itineraries
+followed in this pass; an earlier note here calling Transactions uncommitted
+was stale.
 
 **Most recent change (27 September), all uncommitted:** Trips (#11) with every
 second pass it owed; Empty Legs (#15) with client adjustment #10b's matching;
@@ -1289,10 +1376,9 @@ also without live testing: build, eslint, backend lint and tests pass.
 **Left of client adjustment #11:** nothing to build. The three Postman builders
 are written and need one run against a freshly seeded API, then Newman.
 
-**Next in the module queue:** the financial modules (#16–19) are complete.
-Next is **Itineraries (#12)** — its build form and preview already exist
-against a store, and Trips is its dependency — then Schedule (#13), a
-read-only calendar over Trips.
+**Next in the module queue:** the financial modules (#16–19) are complete and
+so is Itineraries (#12). Next is **Schedule (#13)** — no new table, a
+read-only calendar projection of Trips.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational

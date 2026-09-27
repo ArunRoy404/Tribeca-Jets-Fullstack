@@ -3,11 +3,16 @@
 Two parts: **get it running**, then **the prompt to paste**.
 
 Written 24 September 2026, after client adjustments #5, #7 and #9 shipped.
-Refreshed 27 September 2026 (Trips, Empty Legs, Commissions and #11 built;
-committed through `a45d1bb`, then the agent portal, uncommitted) — see "Where we are right now" in Part 2, which is
-the part that goes stale fastest. **Update that paragraph (and this line) in
+Refreshed 28 September 2026 (Receivables, Operator Payments, Transactions and
+Itineraries built; everything through Itineraries is committed and pushed to
+`origin/roy`) — see "Where we are right now" in Part 2, which
+is the part that goes stale fastest. **Update that paragraph (and this line) in
 the same pass as any session that ships something**, rather than leaving the
-next device to discover it from git log.
+next device to discover it from git log. (The previous refresh of this
+paragraph said the agent portal was still uncommitted; by the time this pass
+started, the whole tree through `4a7ffc9` was clean — that note had gone stale
+without anyone updating it, which is exactly the failure this instruction
+exists to prevent.)
 
 ---
 
@@ -172,50 +177,49 @@ Paste everything between the lines into the first message of a new session.
 > against real accounts, not by reading the code. Report what is actually true:
 > if a check was skipped, say so; if something fails, show the output.
 >
-> **Where we are right now (27 September 2026):** the work below is committed
-> and pushed to `origin/roy` through `a45d1bb`, except the agent portal, which
-> is **uncommitted** — check `git status` first, and run `npm run db:deploy`
-> (five new migrations, the last `20260927160000_add_empty_legs_commissions_referrals`).
+> **Where we are right now (28 September 2026):** everything through
+> Itineraries (#12) is committed and pushed to `origin/roy` — check
+> `git status`, but as of this refresh the tree is clean. Run
+> `npm run db:deploy` (six new migrations since the last deploy, the last
+> being `20260928140000_add_itineraries`).
 >
-> Built on 27 Sep: #3 finished (fleet photos, photo library), #6 finished
-> (suggested price, and the Instant Estimate over the desk's rate table),
-> **Trips** with every second pass it owed (trip notes, credit → trip link, trip
-> counts and tabs on users, agents, operators, aircraft and clients), **Empty
-> Legs** with #10b's matching, **Commissions**, and #11's desk half: the
-> `REFERRAL_AGENT` role, referrals, resources, Agent Updates and the desk's
-> Referrals page — then **the agent portal** (`/portal`: Dashboard, Submit
-> Referral, My Referrals, Commissions, Resources), with each role routed to its
-> own area at sign-in and by `AreaGate` in both layouts.
+> Built on 28 Sep: **Receivables (#16)**, **Operator Payments (#17)**,
+> **Transactions (#19)** — completing the financial modules — and
+> **Itineraries (#12)**: `Itinerary`, one per trip, storing only what nothing
+> else tracks (an FBO override on top of `Airport.assignedFbo`, arrival time,
+> flight time, miles, catering, ground transport, a document photo, notes,
+> confirm/send state) and reading aircraft, operator, route and the passenger
+> manifest from the trip on every render rather than duplicating them — plus
+> the second pass it owed Trips: `TripFlightInfoCard`, `TripFlightRouteCard`
+> and `TripConfirmationCard` now read real data instead of the placeholder
+> each had been carrying since before #12 existed.
 >
 > **How far it was verified:** Trips was tested live, in the browser and with
-> Postman `15 · Trips`. From Empty Legs on, **no live testing by my
-> instruction** — only backend `tsc` / oxlint / vitest (150 tests, clean) and
-> frontend eslint on the changed files (clean; nine older errors elsewhere),
-> and frontend `npm run build`, which passes. Newman has **not** been run since.
+> Postman `15 · Trips`. From Empty Legs on, **no live testing by instruction**
+> — only backend `tsc` / oxlint / vitest (185 tests, clean) and frontend
+> eslint on the changed files (clean; nine older errors elsewhere, none in
+> this pass's files), and frontend `npm run build`, which passes. Newman has
+> **not** been run since 27 Sep, and Itineraries' Postman builder could not be
+> run at all in this pass — no live server in the environment it was built in.
 >
 > **The queue, in order:**
 >
 > 1. My own testing pass over Empty Legs, Commissions, Referrals, the
 >    portal and the commission terms on the team member form — sign in as
 >    the seeded `agent@tribecajets.com` (re-run `npm run db:seed` first).
-> 2. Run the three written-but-unrun Postman builders
->    (`build_empty_legs_folder.py`, `build_commissions_folder.py`,
->    `build_referrals_folder.py`), recapture `/auth/me` and the Users invite,
->    then `rewrite_body_comments.py` and Newman twice.
-> 3. Receivables (#16) is built (28 Sep, untested, by the same instruction):
->    deploy its migration, then test the board, the trip page's invoices and
->    the client's Payments tab. Its Postman builder,
->    `build_receivables_folder.py`, is written and not run.
-> 4. Operator Payments (#17) is built too (28 Sep, untested): deploy its
->    migration, then test the board, the trip page's operator bills and the
->    operator's Payments tab and Total Paid. Its builder,
->    `build_operator_payments_folder.py`, is written and not run; `03 ·
->    Operators`' detail example also needs recapturing (`payments: []` is
->    gone, `totalPaid` is real).
-> 5. Transactions (#19) is built too (28 Sep, untested) — no migration. Test
->    the ledger after recording payments; its builder,
->    `build_transactions_folder.py`, is written and not run.
-> 6. Then Phase 3's queue: Itineraries (#12), then Schedule (#13).
+> 2. Run the six written-but-unrun Postman builders, oldest first:
+>    `build_empty_legs_folder.py`, `build_commissions_folder.py`,
+>    `build_referrals_folder.py`, `build_receivables_folder.py`,
+>    `build_operator_payments_folder.py`, `build_transactions_folder.py`,
+>    recapture `/auth/me`, the Users invite and `03 · Operators`' detail
+>    example (`payments: []` is gone, `totalPaid` is real), then
+>    `rewrite_body_comments.py` and Newman twice.
+> 3. Itineraries (#12) needs the same: sign in, build a document from a saved
+>    trip, confirm it, send it, edit it, archive and restore it, and check the
+>    three second-pass cards on the trip detail page render real times once a
+>    document exists. Then run `build_itineraries_folder.py` and fold
+>    `22 · Itineraries` into the Newman pass above.
+> 4. Then Phase 3's queue: Schedule (#13), a read-only calendar over Trips.
 >
 > **For the client:** the Archived-tab demo (#1), the rate data for #6, the
 > FET-in-profit question, and each referral agent's commission figures

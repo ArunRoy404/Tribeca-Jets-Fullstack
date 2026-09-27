@@ -199,6 +199,18 @@ A corollary for stats: when the total is derived, the database cannot `SUM` it.
 Count in the service rather than summing the nearest column — summing
 `basePrice` would report a figure that is neither the offer nor the revenue.
 
+**The same rule holds for relational identity, not only money.** A record
+that hangs off a trip and needs its aircraft, operator, route or passengers
+does not get its own copy of those columns — it reads them through the trip
+on every render. `Itinerary` (#12) is the example: its build form used to let
+a broker type an aircraft and a route independent of whichever trip was
+picked, and the day that trip was rebooked onto a different tail the document
+would go on naming the old one, with nothing on screen saying which was
+right. That is the stored-total bug wearing a different column. Read the
+dependency's own fact through the relation instead; store only what nothing
+else in the schema tracks. Expect this to recur for Schedule (#13) and Flight
+Tracking (#14), which read the same trip facts a third and fourth time.
+
 ## Contract rules that apply to both sides
 
 - **Enum values are the backend's `SCREAMING_SNAKE_CASE`**, on the wire and in the database. The frontend maps them to display labels at the edge; it never invents its own vocabulary (no `"Senior Broker"` on the wire when the enum says `SENIOR_BROKER`).
