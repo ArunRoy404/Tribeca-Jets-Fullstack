@@ -1,4 +1,4 @@
-import { toArchiveFields, actorName, formatTimestamp } from "@/lib/archive";
+import { toArchiveFields } from "@/lib/archive";
 import { formatCalendarDate } from "@/lib/date";
 import { formatMoneyExact } from "@/lib/money";
 import { displayName } from "@/lib/client";
@@ -81,22 +81,8 @@ export function toReceivableRow(invoice) {
   };
 }
 
-/** One payment on the sheet's ledger. */
-export function toPaymentRow(payment) {
-  return {
-    id: payment?.id,
-    amount: money(payment?.amount),
-    rawAmount: payment?.amount ?? null,
-    paidAt: formatCalendarDate(payment?.paidAt),
-    method: formatPaymentMethod(payment?.method),
-    reference: payment?.reference || null,
-    notes: payment?.notes || null,
-    recordedBy: actorName(payment?.createdBy),
-    withdrawnBy: payment?.deletedAt ? actorName(payment?.deletedBy) : null,
-    withdrawnAt: payment?.deletedAt ? formatTimestamp(payment.deletedAt) : null,
-    raw: payment,
-  };
-}
+/** Shared with Operator Payments; re-exported so existing imports keep working. */
+export { toPaymentRow } from "@/lib/payment";
 
 /**
  * The trip board's and trip page's view of `trip.clientPayment`. Undefined

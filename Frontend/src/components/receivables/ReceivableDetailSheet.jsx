@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { DollarSign, Pencil, RotateCcw, Send, Trash2, Undo2 } from "lucide-react";
+import { DollarSign, Pencil, RotateCcw, Send, Trash2 } from "lucide-react";
 import DetailSheet from "@/components/common/DetailSheet";
 import DetailField from "@/components/common/DetailField";
 import SectionCard from "@/components/common/SectionCard";
 import StatusBadge from "@/components/common/StatusBadge";
-import BulkDeleteDialog from "@/components/common/BulkDeleteDialog";
+import PaymentLedger from "@/components/common/payments/PaymentLedger";
 import TableStatus from "@/components/table/common/TableStatus";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,36 +20,10 @@ import {
 } from "@/hooks/receivables";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Permission, Scope } from "@/lib/permissions";
-import { formatInvoiceStatus, toPaymentRow, toReceivableRow } from "@/lib/receivable";
+import { formatInvoiceStatus, toReceivableRow } from "@/lib/receivable";
 import { useReceivablesStore } from "@/store/useReceivablesStore";
 
 const LABEL = "text-[14px]";
-
-function PaymentLine({ payment, actions }) {
-  return (
-    <li className="flex flex-col gap-1.5 rounded-sm border border-border px-3 py-2.5 font-montserrat text-[12px]">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-bold text-[14px] text-success">{payment.amount}</span>
-        <span className="text-muted-foreground">
-          {payment.paidAt} · {payment.method}
-        </span>
-      </div>
-      {(payment.reference || payment.notes) && (
-        <p className="text-muted-foreground">
-          {[payment.reference && `Ref ${payment.reference}`, payment.notes].filter(Boolean).join(" · ")}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[11px] text-muted-foreground">
-          {payment.withdrawnAt
-            ? `Withdrawn ${payment.withdrawnAt} by ${payment.withdrawnBy}`
-            : `Recorded by ${payment.recordedBy}`}
-        </span>
-        {actions}
-      </div>
-    </li>
-  );
-}
 
 /**
  * One invoice, opened from the URL (`?invoice=<id>`): the billing, the figures
@@ -62,8 +35,6 @@ export default function ReceivableDetailSheet() {
   const id = params.invoice || null;
   const { data, isPending, error, refetch } = useReceivable(id);
   const item = data ? toReceivableRow(data) : null;
-  const payments = (data?.payments ?? []).map(toPaymentRow);
-  const withdrawn = (data?.withdrawnPayments ?? []).map(toPaymentRow);
 
   const { canWrite, scopeFor } = usePermissions();
   const mayWrite = canWrite(Permission.MANAGE_RECEIVABLES);
@@ -77,8 +48,6 @@ export default function ReceivableDetailSheet() {
   const { mutate: restore } = useRestoreReceivable();
   const { mutate: withdrawPayment, isPending: withdrawing } = useWithdrawPayment();
   const { mutate: restorePayment } = useRestorePayment();
-
-  const [withdrawTarget, setWithdrawTarget] = useState(null);
 
   const close = () => params.setInvoice("");
   const live = item && !item.isArchived;
@@ -147,67 +116,22 @@ export default function ReceivableDetailSheet() {
             </div>
           </SectionCard>
 
-          <SectionCard title={`Payments (${payments.length})`} titleClassName="text-foreground">
-            {payments.length === 0 ? (
-              <p className="font-montserrat text-[13px] text-muted-foreground w-full">
-                {item.rawStatus === "DRAFT"
-                  ? "No payments. Mark the invoice as sent to record one."
-                  : "No payments recorded yet."}
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-2 w-full">
-                {payments.map((payment) => (
-                  <PaymentLine
-                    key={payment.id}
-                    payment={payment}
-                    actions={
-                      live && mayWrite ? (
-                        <span className="flex gap-1.5">
-                          <Button size="sm" variant="outline" onClick={() => openPaymentModal(data, payment.raw)}>
-                            Correct
-                          </Button>
-                          {mayArchive && (
-                            <Button size="sm" variant="destructive" onClick={() => setWithdrawTarget(payment)}>
-                              Withdraw
-                            </Button>
-                          )}
-                        </span>
-                      ) : null
-                    }
-                  />
-                ))}
-              </ul>
-            )}
-
-            {withdrawn.length > 0 && (
-              <details className="w-full">
-                <summary className="cursor-pointer font-montserrat text-[12px] font-semibold text-muted-foreground">
-                  Withdrawn ({withdrawn.length})
-                </summary>
-                <ul className="flex flex-col gap-2 w-full pt-2">
-                  {withdrawn.map((payment) => (
-                    <PaymentLine
-                      key={payment.id}
-                      payment={payment}
-                      actions={
-                        mayTouchPayments && mayArchive ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1"
-                            onClick={() => restorePayment({ invoiceId: item.id, paymentId: payment.id })}
-                          >
-                            <Undo2 className="size-3.5" />
-                            Restore
-                          </Button>
-                        ) : null
-                      }
-                    />
-                  ))}
-                </ul>
-              </details>
-            )}
-          </SectionCard>
+          <PaymentLedger
+            payments={data?.payments ?? []}
+            withdrawn={data?.withdrawnPayments ?? []}
+            emptyText={
+              item.rawStatus === "DRAFT" ? "No payments. Mark the invoice as sent to record one." : "No payments recorded yet."
+            }
+            mayCorrect={live && mayWrite}
+            mayWithdraw={live && mayArchive}
+            mayRestore={mayTouchPayments && mayArchive}
+            withdrawing={withdrawing}
+            onCorrect={(payment) => openPaymentModal(data, payment)}
+            onWithdraw={(payment, done) =>
+              withdrawPayment({ invoiceId: item.id, paymentId: payment.id }, { onSuccess: done })
+            }
+            onRestore={(payment) => restorePayment({ invoiceId: item.id, paymentId: payment.id })}
+          />
 
           <SectionCard title="Notes" titleClassName="text-foreground">
             <p className="font-montserrat text-[14px] text-muted-foreground w-full whitespace-pre-line">
@@ -262,20 +186,6 @@ export default function ReceivableDetailSheet() {
             </div>
           )}
 
-          <BulkDeleteDialog
-            open={Boolean(withdrawTarget)}
-            onOpenChange={(open) => !open && setWithdrawTarget(null)}
-            items={withdrawTarget ? [{ id: withdrawTarget.id, primary: withdrawTarget.amount, secondary: `${withdrawTarget.paidAt} · ${withdrawTarget.method}` }] : []}
-            itemLabel="payments"
-            isPending={withdrawing}
-            note="The payment comes off this invoice's paid figure, and stays listed under Withdrawn with who withdrew it. It can be restored."
-            onConfirm={() =>
-              withdrawPayment(
-                { invoiceId: item.id, paymentId: withdrawTarget.id },
-                { onSuccess: () => setWithdrawTarget(null) },
-              )
-            }
-          />
         </>
       )}
     </DetailSheet>
