@@ -411,9 +411,17 @@ export class UsersService {
       type: argon2.argon2id,
     });
 
+    const { commissionBasis, commissionPercentage, commissionAmount, ...profile } = dto;
+    const commission = this.commissionStructure(dto.role, {
+      commissionBasis,
+      commissionPercentage,
+      commissionAmount,
+    });
+
     const user = await this.prisma.user.create({
       data: {
-        ...dto,
+        ...profile,
+        ...commission,
         passwordHash: placeholder,
         status: UserStatus.INVITED,
         createdById: actor.id,
@@ -433,7 +441,9 @@ export class UsersService {
     const delivered = await this.sendInvitation(actor, user.email, user.firstName);
 
     return {
-      user: { ...user, permissionLevel: ROLE_PERMISSION_LEVEL[user.role] },
+      // The inviter manages users, so this is the full projection — with the
+      // commission figures as numbers, as every other Users response sends them.
+      user: this.projectFor(actor, user),
       invitation: delivered,
     };
   }

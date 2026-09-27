@@ -9,7 +9,7 @@ import {
   UserRole,
   UserStatus,
 } from '../../../generated/prisma/enums.js';
-import { nullableNumber } from '../../../common/dto/numbers.js';
+import { nullableNumber, optionalNumber } from '../../../common/dto/numbers.js';
 
 /** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
 export const USER_SORTABLE_FIELDS = [
@@ -83,6 +83,17 @@ export const inviteUserSchema = z.object({
   lastName: z.string().trim().min(1, 'Last name is required').max(100),
   phone: z.string().trim().max(40).optional(),
   role: assignableRoleSchema.default(UserRole.BROKER),
+  /**
+   * A referral agent's standard commission, settable with the invitation so
+   * the desk does not have to invite and then edit. Same rules as on update;
+   * refused for any other role.
+   */
+  commissionBasis: z.enum(CommissionBasis).optional(),
+  commissionPercentage: optionalNumber(
+    'The percentage must be a number between 0 and 100',
+    COMMISSION_PERCENTAGE,
+  ),
+  commissionAmount: optionalNumber('The amount must be a number', COMMISSION_AMOUNT),
 });
 
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;

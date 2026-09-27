@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import {
   ClientType,
+  CommissionBasis,
   LeadSource,
   LeadStage,
   OperatorStatus,
@@ -152,6 +153,18 @@ async function main(): Promise<void> {
       role: UserRole.BROKER,
       // Never signed in: exercises the INVITED branch of the directory.
       status: UserStatus.INVITED,
+    },
+    {
+      // A referral partner (#11): signs in to the portal at /portal, and is
+      // what Postman's `18 · Referrals` submits as. Standing terms of 10% of
+      // profit, so a linked trip raises a commission with a value.
+      email: 'agent@tribecajets.com',
+      firstName: 'Riley',
+      lastName: 'Partner',
+      role: UserRole.REFERRAL_AGENT,
+      status: UserStatus.ACTIVE,
+      commissionBasis: CommissionBasis.PERCENT_OF_PROFIT,
+      commissionPercentage: '10.00',
     },
   ];
 
@@ -603,6 +616,7 @@ async function main(): Promise<void> {
   console.log('  senior@tribecajets.com / ChangeMe123!  (SENIOR_BROKER)');
   console.log('  assistant@tribecajets.com / ChangeMe123!  (ASSISTANT)');
   console.log('  + barry / mark (BROKER, active), tom (SUSPENDED), newhire (INVITED)');
+  console.log('  agent@tribecajets.com / ChangeMe123!  (REFERRAL_AGENT — the partner portal, 10% of profit)');
   // Counted, not typed: a hardcoded "3 operator quotes" went on printing 3
   // while a skipped row meant only 2 were ever written.
   const [operatorQuoteCount, quoteCount] = await Promise.all([

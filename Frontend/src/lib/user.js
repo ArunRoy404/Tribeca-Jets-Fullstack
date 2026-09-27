@@ -106,6 +106,13 @@ export function toTeamMember(user) {
     // No archive trail here, unlike the other modules: staff accounts are
     // never removed, so there is nothing to have been restored from.
 
+    // A referral agent's standard commission (#11) — null for everyone else,
+    // and for an agent whose terms are not set. Formatted with
+    // `formatStructure` from `@/lib/commission` where it is shown.
+    commissionBasis: user?.commissionBasis ?? null,
+    commissionPercentage: user?.commissionPercentage ?? null,
+    commissionAmount: user?.commissionAmount ?? null,
+
     activeLeads: "—",
     activeTrips: user?.activeTrips ?? "—",
     conversionRate: "—",

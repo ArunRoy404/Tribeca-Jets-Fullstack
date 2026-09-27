@@ -16,6 +16,8 @@ import { usePermissions } from "@/hooks/common/usePermissions";
 import { Permission } from "@/lib/permissions";
 import UserDocumentsTab from "@/components/users-roles/tabs/UserDocumentsTab";
 import { formatLastLogin, isPendingInvite, toTeamMember } from "@/lib/user";
+import { formatStructure } from "@/lib/commission";
+import { isPartnerRole } from "@/lib/roles";
 
 /** Renders a createdBy/updatedBy actor, which is null for seeded records. */
 function actorName(actor) {
@@ -134,6 +136,20 @@ export default function UserDetailSheet() {
               <DetailField label="ROLE" value={item.roleLabel} valueClassName="text-purple" labelClassName="text-[14px]" />
               <DetailField label="PERMISSION LEVEL" value={item.permissionLevel} labelClassName="text-[14px]" />
             </div>
+            {/* A referral agent's standard commission (#11), set in Edit. */}
+            {isPartnerRole(item.role) && (
+              <div className="flex gap-4 w-full">
+                <DetailField
+                  label="STANDARD COMMISSION"
+                  value={formatStructure({
+                    basis: item.commissionBasis,
+                    percentage: item.commissionPercentage,
+                    amount: item.commissionAmount,
+                  })}
+                  labelClassName="text-[14px]"
+                />
+              </div>
+            )}
             <div className="flex gap-4 w-full">
               <DetailField label="PHONE" value={item.phone || "—"} labelClassName="text-[14px]" />
               <DetailField
