@@ -1,0 +1,116 @@
+/// What Tribeca owes an operator for a trip — Operator Payments (scope §6.14
+/// "operator payment tracking and due dates", §9.3 "record operator payment
+/// independently"): the operator's bill, and the money sent against it.
+///
+/// The client side of the same trip is `Invoice` (Receivables). The two are
+/// deliberately separate records rather than one table with a direction: a
+/// client invoice has a draft stage, an FET and a document the client
+/// received; an operator payable has the operator's own invoice number and
+/// none of those. They share the settling arithmetic instead
+/// (`common/money/settlement.ts`), and Transactions (#19) reads both.
+///
+/// **Stored is what a person decided**: which trip, which operator, what they
+/// billed, when it is due, their reference, and whether it stands. What has
+/// been paid is the sum of the `OperatorPayablePayment` rows; the balance and
+/// "overdue" are computed on every read.
+model OperatorPayable {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The sequence behind "OP-2026-0045". Assigned by the database, never
+  /// reused; the year is the year the row was created.
+  reference Int @unique @default(autoincrement())
+
+  /// Restrict — a trip that owes an operator money is financial history.
+  tripId String @db.Uuid
+  trip   Trip   @relation("OperatorPayableTrip", fields: [tripId], references: [id], onDelete: Restrict)
+
+  /// Who is paid. Defaults to the trip's operator; a repositioning or a
+  /// catering vendor billed through a second operator is why it can differ.
+  operatorId String   @db.Uuid
+  operator   Operator @relation("OperatorPayableOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+
+  /// What the operator billed. Stored as billed, not read from the trip's
+  /// operator cost: a deposit and a balance are two payables, and a later
+  /// edit to the trip's cost must not rewrite a bill already received.
+  amount Decimal @db.Decimal(12, 2)
+
+  status OperatorPayableStatus @default(OPEN)
+  /// The day it must be paid by. Optional; a payable without one is never
+  /// overdue.
+  dueDate DateTime? @db.Date
+
+  /// The operator's own invoice number, as printed on their bill.
+  operatorReference String? @db.VarChar(100)
+  notes             String?
+
+  payments OperatorPayablePayment[] @relation("OperatorPayablePaymentPayable")
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("OperatorPayableCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("OperatorPayableUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("OperatorPayableDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("OperatorPayableRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@index([tripId, deletedAt])
+  @@index([operatorId, deletedAt])
+  @@index([dueDate])
+  @@map("operator_payables")
+}
+
+/// Money sent to an operator against a payable. A ledger, like a client's
+/// payments: withdrawn, never deleted, when entered by mistake.
+model OperatorPayablePayment {
+  id String @id @default(uuid()) @db.Uuid
+
+  payableId String          @db.Uuid
+  payable   OperatorPayable @relation("OperatorPayablePaymentPayable", fields: [payableId], references: [id], onDelete: Restrict)
+
+  /// Always positive. Never takes the payable past what was billed — checked
+  /// on create, on edit and on restore.
+  amount Decimal       @db.Decimal(12, 2)
+  /// The day the money left — not the day somebody typed it in.
+  paidAt DateTime      @db.Date
+  method PaymentMethod
+
+  /// The desk's reference — a wire confirmation, a cheque number.
+  reference String? @db.VarChar(100)
+  notes     String?
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("OperatorPayablePaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("OperatorPayablePaymentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("OperatorPayablePaymentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("OperatorPayablePaymentRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([payableId, deletedAt, paidAt])
+  @@map("operator_payable_payments")
+}
+
+/// What a person decided about an operator's bill. Due, partly paid, paid and
+/// overdue follow from the payments and the due date and are never stored.
+enum OperatorPayableStatus {
+  /// Owed. Payments are recorded against it.
+  OPEN
+  /// Void — the trip fell through, the bill was reissued. Only a payable with
+  /// no live payments can be cancelled.
+  CANCELLED
+}

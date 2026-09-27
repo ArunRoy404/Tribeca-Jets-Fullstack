@@ -90,6 +90,8 @@ model Trip {
   commissions Commission[] @relation("CommissionTrip")
   /// What the client has been billed for this trip, and paid (Receivables).
   invoices    Invoice[]    @relation("InvoiceTrip")
+  /// What Tribeca owes operators for this trip, and has paid (Operator Payments).
+  operatorPayables OperatorPayable[] @relation("OperatorPayableTrip")
   referrals   Referral[]   @relation("ReferralTrip")
 
   createdAt   DateTime @default(now())

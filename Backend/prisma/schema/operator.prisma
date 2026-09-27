@@ -60,6 +60,8 @@ model Operator {
 
   /// Trips this operator flies. Feeds totalTrips and the Trip History tab.
   trips Trip[] @relation("TripOperator")
+  /// What we owe this operator and have paid them — the Payments tab and Total Paid.
+  payables OperatorPayable[] @relation("OperatorPayableOperator")
 
   /// Empty legs this operator has offered (#10b).
   emptyLegs EmptyLeg[] @relation("EmptyLegOperator")

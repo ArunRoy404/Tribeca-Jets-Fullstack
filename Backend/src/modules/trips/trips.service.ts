@@ -38,6 +38,7 @@ import { fromCents, toCents } from '../../common/money/cents.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
 import { TripPaymentState, todayUtc, tripPayment } from '../receivables/receivables.amounts.js';
+import { tripOperatorPayment } from '../operator-payments/operator-payments.amounts.js';
 import {
   ACTIVE_STATUSES,
   REVENUE_STATUSES,
@@ -123,6 +124,17 @@ const INVOICE_SELECT = {
   },
 } satisfies Prisma.Trip$invoicesArgs;
 
+/** The trip's live operator bills, for its operator-payment position (#17). */
+const PAYABLE_SELECT = {
+  where: { deletedAt: null },
+  select: {
+    amount: true,
+    status: true,
+    dueDate: true,
+    payments: { where: { deletedAt: null }, select: { amount: true } },
+  },
+} satisfies Prisma.Trip$operatorPayablesArgs;
+
 /** Explicit select, never a bare row spread — see the users module for why. */
 const TRIP_LIST_SELECT = {
   id: true,
@@ -159,6 +171,7 @@ const TRIP_LIST_SELECT = {
   lineItems: true,
   legs: LEG_SELECT,
   invoices: INVOICE_SELECT,
+  operatorPayables: PAYABLE_SELECT,
   createdAt: true,
   createdById: true,
   updatedAt: true,
@@ -238,6 +251,11 @@ export class TripsService {
     return scopeFor(user.role, Permission.VIEW_FINANCIALS) !== Scope.NONE;
   }
 
+  /** Whether the caller may read what the trip's operators billed and were paid. */
+  private seesOperatorPayments(user: AuthenticatedUser): boolean {
+    return scopeFor(user.role, Permission.VIEW_OPERATOR_PAYMENTS) !== Scope.NONE;
+  }
+
   /** Whether the caller may read what the client has been billed and paid. */
   private seesReceivables(user: AuthenticatedUser): boolean {
     return scopeFor(user.role, Permission.VIEW_RECEIVABLES) !== Scope.NONE;
@@ -266,7 +284,7 @@ export class TripsService {
    * The computed money, on every read. `null` across the board when no price
    * has been set — a draft trip with no price has no total, not a $0 one.
    */
-  private serialise<T extends ListRow>({ invoices, ...row }: T, user: AuthenticatedUser) {
+  private serialise<T extends ListRow>({ invoices, operatorPayables, ...row }: T, user: AuthenticatedUser) {
     const financials = this.seesFinancials(user);
     const priced =
       row.basePrice === null
@@ -315,6 +333,11 @@ export class TripsService {
               : null,
           }
         : undefined,
+      /**
+       * What the trip's operators billed and have been paid (#17) — absent for
+       * a role that may not read operator payments.
+       */
+      operatorPayment: this.seesOperatorPayments(user) ? tripOperatorPayment(operatorPayables) : undefined,
       operatorConfirmed: row.operatorConfirmedAt !== null,
       nextStatuses: allowedNextStatuses(row.status),
       editable: isEditable(row.status) && row.deletedAt === null,
@@ -984,13 +1007,14 @@ export class TripsService {
   }
 
   /**
-   * A live trip, visible to the caller, that an invoice can be raised on — its
-   * reference and client — or a 400 naming the problem.
+   * A live trip, visible to the caller, that a bill can be raised on — a
+   * client invoice (Receivables) or an operator payable (Operator Payments) —
+   * with its reference, client and operator, or a 400 naming the problem.
    */
-  async invoiceTarget(user: AuthenticatedUser, tripId: string) {
+  async billingTarget(user: AuthenticatedUser, tripId: string) {
     const trip = await this.prisma.trip.findFirst({
       where: { id: tripId, ...this.visibilityScope(user) },
-      select: { id: true, reference: true, clientId: true, deletedAt: true },
+      select: { id: true, reference: true, clientId: true, operatorId: true, deletedAt: true },
     });
     if (!trip) throw new BadRequestException('That trip does not exist');
     if (trip.deletedAt) throw new BadRequestException(`TJ-${trip.reference} has been archived. Restore it first.`);

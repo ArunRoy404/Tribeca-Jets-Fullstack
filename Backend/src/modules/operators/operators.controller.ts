@@ -44,8 +44,8 @@ export class OperatorsController {
     description:
       'Shared master data — the same rows for every signed-in caller. Paginated, searchable across name, home base and contacts.',
   })
-  findAll(@Query() query: QueryOperatorsDto) {
-    return this.operators.findAll(query);
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: QueryOperatorsDto) {
+    return this.operators.findAll(user, query);
   }
 
   /** Before `:id` — Nest matches in order and would otherwise read it as an id. */
@@ -61,10 +61,10 @@ export class OperatorsController {
   @ApiOperation({
     summary: 'Get one operator',
     description:
-      '`fleet` carries the operator\'s real airframes now that the Aircraft module exists, alongside a `fleetSize` count. `tripHistory` and `payments` are still empty arrays — the detail page has tabs for both and neither module has been built.',
+      '`fleet` carries the operator\'s real airframes, with `fleetSize`; `totalTrips` counts their trips; `totalPaid` is every live payment sent to them (Operator Payments) — null for a caller who does not see every operator bill. Trip history and payments are paged from `GET /trips?operatorId=` and `GET /operator-payments?operatorId=`.',
   })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.operators.findOne(id);
+  findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.operators.findOne(user, id);
   }
 
   @Post()

@@ -131,6 +131,16 @@ model User {
   deletedInvoicePayments  InvoicePayment[] @relation("InvoicePaymentDeletedBy")
   restoredInvoicePayments InvoicePayment[] @relation("InvoicePaymentRestoredBy")
 
+  createdOperatorPayables  OperatorPayable[] @relation("OperatorPayableCreatedBy")
+  updatedOperatorPayables  OperatorPayable[] @relation("OperatorPayableUpdatedBy")
+  deletedOperatorPayables  OperatorPayable[] @relation("OperatorPayableDeletedBy")
+  restoredOperatorPayables OperatorPayable[] @relation("OperatorPayableRestoredBy")
+
+  createdOperatorPayablePayments  OperatorPayablePayment[] @relation("OperatorPayablePaymentCreatedBy")
+  updatedOperatorPayablePayments  OperatorPayablePayment[] @relation("OperatorPayablePaymentUpdatedBy")
+  deletedOperatorPayablePayments  OperatorPayablePayment[] @relation("OperatorPayablePaymentDeletedBy")
+  restoredOperatorPayablePayments OperatorPayablePayment[] @relation("OperatorPayablePaymentRestoredBy")
+
   /// Files this person put into the system. Distinct from `createdUploads`
   /// only in name today, and kept separate because deduplication is scoped to
   /// it: "has *this user* already uploaded these bytes?" is the question the

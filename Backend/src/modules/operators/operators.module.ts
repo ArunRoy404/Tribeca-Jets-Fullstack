@@ -4,12 +4,13 @@ import { OperatorQuotesModule } from '../operator-quotes/operator-quotes.module.
 import { OperatorsController } from './operators.controller.js';
 import { OperatorsService } from './operators.service.js';
 import { TripsModule } from '../trips/trips.module.js';
+import { OperatorPaymentsModule } from '../operator-payments/operator-payments.module.js';
 
 @Module({
   // Aircraft, not the other way round: the fleet belongs to the aircraft
   // module and the operator detail page borrows it. AircraftService does not
   // inject OperatorsService, so this stays a one-way edge rather than a cycle.
-  imports: [AircraftModule, OperatorQuotesModule, TripsModule],
+  imports: [AircraftModule, OperatorQuotesModule, TripsModule, OperatorPaymentsModule],
   controllers: [OperatorsController],
   providers: [OperatorsService],
   // Exported because sourcing, quotes and operator payments all resolve

@@ -34,6 +34,8 @@ export const Permission = {
   VIEW_TEAM: 'VIEW_TEAM',
   VIEW_RECEIVABLES: 'VIEW_RECEIVABLES',
   MANAGE_RECEIVABLES: 'MANAGE_RECEIVABLES',
+  VIEW_OPERATOR_PAYMENTS: 'VIEW_OPERATOR_PAYMENTS',
+  MANAGE_OPERATOR_PAYMENTS: 'MANAGE_OPERATOR_PAYMENTS',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -288,6 +290,29 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
   },
+  /**
+   * Operator Payments (#17) — what Tribeca owes operators and has sent them.
+   * A broker reads the payables on the trips they may see (OWN, through
+   * `TripsService`), because the operator's bill is part of working the trip.
+   * Recording and sending money is money *leaving* the company, so — as with
+   * commissions — only administrators and senior brokers write.
+   */
+  [Permission.VIEW_OPERATOR_PAYMENTS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
+  [Permission.MANAGE_OPERATOR_PAYMENTS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: NONE,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
 };
 
 /** How far `role` may reach for `permission`. */
@@ -392,4 +417,6 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.VIEW_TEAM]: 'View Team Directory',
   [Permission.VIEW_RECEIVABLES]: 'View Receivables',
   [Permission.MANAGE_RECEIVABLES]: 'Invoice/Record Client Payments',
+  [Permission.VIEW_OPERATOR_PAYMENTS]: 'View Operator Payments',
+  [Permission.MANAGE_OPERATOR_PAYMENTS]: 'Record/Pay Operator Bills',
 };
