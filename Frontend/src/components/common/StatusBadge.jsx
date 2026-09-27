@@ -82,6 +82,8 @@ const STATUS_TONES = {
   Earned: "info",
   Submitted: "cyan",
   Quoting: "purple",
+  // Receivables (#16): a trip whose client has been sent nothing yet
+  "Not Invoiced": "pending",
 };
 
 const BORDER_CLASSES = {

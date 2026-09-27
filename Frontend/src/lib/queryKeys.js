@@ -95,6 +95,19 @@ export const queryKeys = {
     stats: ["commissions", "stats"],
   },
 
+  /**
+   * Receivables (#16) — client invoices and their payments. `stats` takes a
+   * client or a trip, so the client's Payments tab and a trip's financial card
+   * each get their own cache entry under the same prefix, and one payment
+   * invalidates them all.
+   */
+  receivables: {
+    all: ["receivables"],
+    list: (params) => ["receivables", "list", params ?? {}],
+    detail: (id) => ["receivables", "detail", id],
+    stats: (params) => ["receivables", "stats", params ?? {}],
+  },
+
   /** Portal referrals (#11) — the desk's board and the agent's own list. */
   referrals: {
     all: ["referrals"],

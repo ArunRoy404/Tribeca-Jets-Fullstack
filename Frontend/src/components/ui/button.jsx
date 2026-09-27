@@ -13,6 +13,8 @@ const buttonVariants = cva(
         outline: "border-border bg-background text-foreground hover:bg-muted",
         ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
         destructive: "bg-destructive/10 text-destructive hover:bg-destructive/20",
+        // Money coming in — Record Payment. The design's green, as the token.
+        success: "bg-success text-primary-foreground shadow-button hover:bg-success/90",
         link: "text-purple underline-offset-4 hover:underline",
       },
       size: {

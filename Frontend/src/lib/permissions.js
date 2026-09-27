@@ -30,6 +30,8 @@ export const Permission = {
   VIEW_REFERRALS: "VIEW_REFERRALS",
   MANAGE_REFERRALS: "MANAGE_REFERRALS",
   VIEW_TEAM: "VIEW_TEAM",
+  VIEW_RECEIVABLES: "VIEW_RECEIVABLES",
+  MANAGE_RECEIVABLES: "MANAGE_RECEIVABLES",
 };
 
 /** How far a role may reach. Mirrors `Scope` on the API. */

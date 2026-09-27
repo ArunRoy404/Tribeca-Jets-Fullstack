@@ -3,6 +3,7 @@ import { formatCalendarDate } from "@/lib/date";
 import { formatMoneyExact } from "@/lib/money";
 import { displayName } from "@/lib/client";
 import { personName } from "@/lib/lead";
+import { formatPaymentMethod } from "@/lib/payment";
 
 /**
  * Display helpers for Commissions (#11's Commission Center).
@@ -29,16 +30,8 @@ const BASIS_LABELS = {
 };
 export const formatCommissionBasis = (v) => (v ? (BASIS_LABELS[v] ?? v) : DASH);
 
-export const COMMISSION_METHODS = ["WIRE_TRANSFER", "ACH", "CHECK", "ZELLE", "CREDIT_CARD", "OTHER"];
-const METHOD_LABELS = {
-  WIRE_TRANSFER: "Wire Transfer",
-  ACH: "ACH",
-  CHECK: "Check",
-  ZELLE: "Zelle",
-  CREDIT_CARD: "Credit Card",
-  OTHER: "Other",
-};
-export const formatCommissionMethod = (v) => (v ? (METHOD_LABELS[v] ?? v) : DASH);
+/** The shared payment methods, under the names this module's callers already use. */
+export { PAYMENT_METHODS as COMMISSION_METHODS, formatPaymentMethod as formatCommissionMethod } from "@/lib/payment";
 
 export const RECIPIENT_TYPES = ["REFERRAL_AGENT", "CLIENT", "MANUAL"];
 const RECIPIENT_LABELS = { REFERRAL_AGENT: "Referral Agent", CLIENT: "CRM Client", MANUAL: "Manual" };
@@ -77,7 +70,7 @@ export function toCommissionRow(commission) {
     final: money(commission?.finalAmount) ?? DASH,
     amount: money(commission?.value) ?? "Not yet known",
     paidAt: formatCalendarDate(commission?.paidAt),
-    method: formatCommissionMethod(commission?.method),
+    method: formatPaymentMethod(commission?.method),
     status: formatCommissionStatus(commission?.status),
     rawStatus: commission?.status ?? null,
     broker: commission?.broker ? personName(commission.broker) : DASH,
