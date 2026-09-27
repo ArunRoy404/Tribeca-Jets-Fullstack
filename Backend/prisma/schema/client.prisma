@@ -87,6 +87,9 @@ model Client {
   /// Commissions paid *to* this client — a travel agent's cut.
   commissionsReceived Commission[] @relation("CommissionRecipientClient")
 
+  /// Invoices billed to this client — the Payments tab and total spent.
+  invoices Invoice[] @relation("InvoiceClient")
+
   /// Money this client has on account with us. A ledger of movements — the
   /// balance is summed from it and never stored. See `client-credit.prisma`.
   credits ClientCredit[] @relation("ClientCreditClient")

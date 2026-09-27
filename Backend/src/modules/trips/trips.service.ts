@@ -31,11 +31,13 @@ import {
   Scope,
   scopeFor,
 } from '../../common/authorization/permissions.js';
-import { TripStatus, TripType } from '../../generated/prisma/enums.js';
+import { InvoiceStatus, TripStatus, TripType } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
+import { fromCents, toCents } from '../../common/money/cents.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
+import { TripPaymentState, todayUtc, tripPayment } from '../receivables/receivables.amounts.js';
 import {
   ACTIVE_STATUSES,
   REVENUE_STATUSES,
@@ -104,6 +106,23 @@ const PASSENGER_SELECT = {
   },
 } satisfies Prisma.Trip$passengersArgs;
 
+/**
+ * The trip's live invoices, with exactly what its billing position is worked
+ * out from (Receivables, #16). Read here as the trip's own relation and
+ * summarised by the receivables module's pure arithmetic — the figures are
+ * never returned raw, and never stored on the trip.
+ */
+const INVOICE_SELECT = {
+  where: { deletedAt: null },
+  select: {
+    amount: true,
+    fetAmount: true,
+    status: true,
+    dueDate: true,
+    payments: { where: { deletedAt: null }, select: { amount: true } },
+  },
+} satisfies Prisma.Trip$invoicesArgs;
+
 /** Explicit select, never a bare row spread — see the users module for why. */
 const TRIP_LIST_SELECT = {
   id: true,
@@ -139,6 +158,7 @@ const TRIP_LIST_SELECT = {
   operatorCost: true,
   lineItems: true,
   legs: LEG_SELECT,
+  invoices: INVOICE_SELECT,
   createdAt: true,
   createdById: true,
   updatedAt: true,
@@ -218,6 +238,11 @@ export class TripsService {
     return scopeFor(user.role, Permission.VIEW_FINANCIALS) !== Scope.NONE;
   }
 
+  /** Whether the caller may read what the client has been billed and paid. */
+  private seesReceivables(user: AuthenticatedUser): boolean {
+    return scopeFor(user.role, Permission.VIEW_RECEIVABLES) !== Scope.NONE;
+  }
+
   /** Reassigning a trip is an administrator's call, like a client's. */
   private assertMayReassign(user: AuthenticatedUser): void {
     if (scopeFor(user.role, Permission.MANAGE_TRIPS) !== Scope.ALL) {
@@ -241,7 +266,7 @@ export class TripsService {
    * The computed money, on every read. `null` across the board when no price
    * has been set — a draft trip with no price has no total, not a $0 one.
    */
-  private serialise<T extends ListRow>(row: T, user: AuthenticatedUser) {
+  private serialise<T extends ListRow>({ invoices, ...row }: T, user: AuthenticatedUser) {
     const financials = this.seesFinancials(user);
     const priced =
       row.basePrice === null
@@ -269,6 +294,27 @@ export class TripsService {
             marginPercentage: priced?.marginPercentage ?? null,
           }
         : { operatorCost: undefined, grossProfit: undefined, marginPercentage: undefined }),
+      /**
+       * The client's billing position across this trip's invoices (#16) —
+       * absent for a role that may not read receivables, never a guess.
+       */
+      clientPayment: this.seesReceivables(user)
+        ? {
+            ...tripPayment(invoices),
+            /**
+             * What billing the whole trip would charge — the price and extras,
+             * and the FET — so the invoice form's "bill the full trip" copies
+             * server figures rather than adding them up in the browser. Null
+             * while the trip has no price.
+             */
+            fullCharge: priced
+              ? {
+                  amount: fromCents(toCents(priced.basePrice) + toCents(priced.extrasTotal)),
+                  fetAmount: priced.fetAmount,
+                }
+              : null,
+          }
+        : undefined,
       operatorConfirmed: row.operatorConfirmedAt !== null,
       nextStatuses: allowedNextStatuses(row.status),
       editable: isEditable(row.status) && row.deletedAt === null,
@@ -420,7 +466,8 @@ export class TripsService {
    */
   async stats(user: AuthenticatedUser) {
     const scope = { deletedAt: null, ...this.visibilityScope(user) };
-    const [byStatus, revenueRows] = await Promise.all([
+    const receivables = this.seesReceivables(user);
+    const [byStatus, revenueRows, lateRows] = await Promise.all([
       this.prisma.trip.groupBy({ by: ['status'], where: scope, _count: { _all: true } }),
       this.prisma.trip.findMany({
         where: { ...scope, status: { in: [...REVENUE_STATUSES] }, basePrice: { not: null } },
@@ -432,6 +479,17 @@ export class TripsService {
           lineItems: true,
         },
       }),
+      // Only trips with a sent invoice past its due date can be late; the
+      // payments decide whether they still are.
+      receivables
+        ? this.prisma.trip.findMany({
+            where: {
+              ...scope,
+              invoices: { some: { deletedAt: null, status: InvoiceStatus.SENT, dueDate: { lt: todayUtc() } } },
+            },
+            select: { invoices: INVOICE_SELECT },
+          })
+        : Promise.resolve([]),
     ]);
 
     const count = (status: TripStatus) =>
@@ -462,8 +520,13 @@ export class TripsService {
       // trips reads as a bad month.
       totalProfit: financials ? Math.round(profit * 100) / 100 : undefined,
       profitTripCount: financials ? profitKnown : undefined,
-      /** Payment attention needs Receivables (#16); null until it exists. */
-      paymentAttention: null,
+      /**
+       * Trips with an overdue client invoice (#16). Absent for a role that may
+       * not read receivables.
+       */
+      paymentAttention: receivables
+        ? lateRows.filter((row) => tripPayment(row.invoices).state === TripPaymentState.OVERDUE).length
+        : undefined,
     };
   }
 
@@ -909,6 +972,29 @@ export class TripsService {
     if (trip.clientId !== clientId) {
       throw new BadRequestException('Credit can only be applied to one of the same client\'s trips');
     }
+  }
+
+  /**
+   * Row-level trip visibility as a `where`, for a module whose rows hang off a
+   * trip and inherit its scope — Receivables reads an invoice exactly when the
+   * caller may read its trip.
+   */
+  visibleWhere(user: AuthenticatedUser): Prisma.TripWhereInput {
+    return this.visibilityScope(user);
+  }
+
+  /**
+   * A live trip, visible to the caller, that an invoice can be raised on — its
+   * reference and client — or a 400 naming the problem.
+   */
+  async invoiceTarget(user: AuthenticatedUser, tripId: string) {
+    const trip = await this.prisma.trip.findFirst({
+      where: { id: tripId, ...this.visibilityScope(user) },
+      select: { id: true, reference: true, clientId: true, deletedAt: true },
+    });
+    if (!trip) throw new BadRequestException('That trip does not exist');
+    if (trip.deletedAt) throw new BadRequestException(`TJ-${trip.reference} has been archived. Restore it first.`);
+    return trip;
   }
 
   /**

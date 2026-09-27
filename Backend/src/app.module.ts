@@ -25,6 +25,7 @@ import { TripsModule } from './modules/trips/trips.module.js';
 import { EmptyLegsModule } from './modules/empty-legs/empty-legs.module.js';
 import { CommissionsModule } from './modules/commissions/commissions.module.js';
 import { ReferralsModule } from './modules/referrals/referrals.module.js';
+import { ReceivablesModule } from './modules/receivables/receivables.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -72,6 +73,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     EmptyLegsModule,
     CommissionsModule,
     ReferralsModule,
+    ReceivablesModule,
   ],
   providers: [
     /**

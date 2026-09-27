@@ -1,0 +1,143 @@
+/// A client invoice on a trip — Receivables (scope §6.14, §9.3, §10
+/// "Invoice"): what a client owes Tribeca, and how much of it has come in.
+///
+/// **Stored is what a person decided**: which trip, who is billed, what the
+/// invoice charges, when it is due, and whether it has been sent or cancelled.
+/// What has been paid is the sum of its `InvoicePayment` rows, and the balance,
+/// "overdue" and "partially paid" are worked out from those on every read
+/// (`receivables.amounts.ts`). There is no `paidAmount`, `balance` or
+/// `OVERDUE` column anywhere: a stored figure beside the payments it sums
+/// contradicts them the first time one is withdrawn, and an overdue flag
+/// written by a job is wrong from midnight until the job runs.
+///
+/// The charge itself **is** stored rather than read from the trip, on purpose:
+/// an invoice is a document the client received. A deposit invoice bills part
+/// of a trip, and an extra added to the trip after the invoice went out must
+/// not rewrite what the client was sent. The form offers the trip's own
+/// computed figures as a one-click fill, never as a silent default.
+model Invoice {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The sequence behind "INV-2026-1001". Assigned by the database, never
+  /// reused; the year on screen is the year the row was created, which never
+  /// changes, so an invoice number cannot drift after it is sent.
+  reference Int @unique @default(autoincrement())
+
+  /// Every invoice is for a trip (§9.3: "create client receivable ... from the
+  /// trip"). Restrict — a trip carrying an invoice is financial history.
+  tripId String @db.Uuid
+  trip   Trip   @relation("InvoiceTrip", fields: [tripId], references: [id], onDelete: Restrict)
+
+  /// Who is billed. Usually the trip's client, which is the default; a travel
+  /// agent paying for their client's flight is the reason it can differ.
+  clientId String @db.Uuid
+  client   Client @relation("InvoiceClient", fields: [clientId], references: [id], onDelete: Restrict)
+
+  /// The charge before federal excise tax — the charter price and any extras
+  /// billed on this invoice. Always positive.
+  amount    Decimal @db.Decimal(12, 2)
+  /// The FET charged on this invoice. Zero when none is charged (a deposit
+  /// invoice often carries none); never null, so the total is always a sum.
+  fetAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  status InvoiceStatus @default(DRAFT)
+  /// The day the invoice went to the client — set when it is marked SENT.
+  issuedAt DateTime? @db.Date
+  /// The day it is due. Optional: a draft may not have terms yet, and an
+  /// invoice without a due date is never overdue.
+  dueDate  DateTime? @db.Date
+
+  /// Desk commentary — payment terms agreed on the phone, a promised wire.
+  notes String?
+
+  payments InvoicePayment[] @relation("InvoicePaymentInvoice")
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("InvoiceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("InvoiceDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("InvoiceRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@index([tripId, deletedAt])
+  @@index([clientId, deletedAt])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+/// Money received against an invoice (scope §10 "Payment": invoice, amount,
+/// date, method, reference, notes). A ledger of movements, like a client's
+/// credit: the invoice's paid figure is the sum of the live rows.
+///
+/// Withdrawn, not deleted, when entered by mistake — a payment recorded and
+/// then removed is exactly the history an accountant asks about.
+model InvoicePayment {
+  id String @id @default(uuid()) @db.Uuid
+
+  invoiceId String  @db.Uuid
+  invoice   Invoice @relation("InvoicePaymentInvoice", fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  /// Always positive. A payment can never take the invoice past its total —
+  /// checked on create, on edit and on restore.
+  amount Decimal       @db.Decimal(12, 2)
+  /// The day the money arrived — not the day somebody typed it in.
+  paidAt DateTime      @db.Date
+  method PaymentMethod
+
+  /// The desk's reference — a wire confirmation, a cheque number.
+  reference String? @db.VarChar(100)
+  notes     String?
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("InvoicePaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("InvoicePaymentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("InvoicePaymentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("InvoicePaymentRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId, deletedAt, paidAt])
+  @@map("invoice_payments")
+}
+
+/// What a person decided about an invoice. The payment states the scope asks
+/// for — unpaid, partially paid, paid, overdue (§6.14) — are **computed** from
+/// the payments and the due date, never stored; see `InvoiceState` in
+/// `receivables.amounts.ts`.
+enum InvoiceStatus {
+  /// Being prepared; the client has not seen it. Takes no payments.
+  DRAFT
+  /// With the client. Payments are recorded against it.
+  SENT
+  /// Void. Only an invoice with no live payments can be cancelled.
+  CANCELLED
+}
+
+/// How money moved, in either direction. Shared by client payments
+/// (Receivables), commissions and — when it lands — operator payments.
+/// Renamed from `CommissionPaymentMethod` when Receivables became its second
+/// user; the values did not change.
+enum PaymentMethod {
+  WIRE_TRANSFER
+  ACH
+  CHECK
+  ZELLE
+  CREDIT_CARD
+  OTHER
+}

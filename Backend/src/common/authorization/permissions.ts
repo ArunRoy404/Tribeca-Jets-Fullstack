@@ -32,6 +32,8 @@ export const Permission = {
   VIEW_REFERRALS: 'VIEW_REFERRALS',
   MANAGE_REFERRALS: 'MANAGE_REFERRALS',
   VIEW_TEAM: 'VIEW_TEAM',
+  VIEW_RECEIVABLES: 'VIEW_RECEIVABLES',
+  MANAGE_RECEIVABLES: 'MANAGE_RECEIVABLES',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -260,6 +262,32 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.ASSISTANT]: ALL,
     [UserRole.REFERRAL_AGENT]: NONE,
   },
+  /**
+   * Receivables (#16) — client invoices and the payments against them. OWN is
+   * "invoices on a trip I may see", resolved through `TripsService`, so a
+   * broker works the billing on their own bookings and the unassigned ones,
+   * exactly as they work the trips. Unlike commissions this is money coming
+   * *in*, so the broker who booked the flight records its wire.
+   *
+   * Archiving an invoice or withdrawing a payment is finer than this row —
+   * ALL only, enforced in `ReceivablesService`, the same split clients make.
+   */
+  [Permission.VIEW_RECEIVABLES]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
+  [Permission.MANAGE_RECEIVABLES]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
 };
 
 /** How far `role` may reach for `permission`. */
@@ -362,4 +390,6 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.VIEW_REFERRALS]: 'View Referrals',
   [Permission.MANAGE_REFERRALS]: 'Submit/Work Referrals',
   [Permission.VIEW_TEAM]: 'View Team Directory',
+  [Permission.VIEW_RECEIVABLES]: 'View Receivables',
+  [Permission.MANAGE_RECEIVABLES]: 'Invoice/Record Client Payments',
 };

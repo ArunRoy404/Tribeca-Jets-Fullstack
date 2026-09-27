@@ -88,6 +88,8 @@ model Trip {
 
   /// Commissions owed on this trip, and the referral that brought it in.
   commissions Commission[] @relation("CommissionTrip")
+  /// What the client has been billed for this trip, and paid (Receivables).
+  invoices    Invoice[]    @relation("InvoiceTrip")
   referrals   Referral[]   @relation("ReferralTrip")
 
   createdAt   DateTime @default(now())

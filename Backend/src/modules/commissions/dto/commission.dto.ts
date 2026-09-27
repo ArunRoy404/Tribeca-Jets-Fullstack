@@ -9,7 +9,7 @@ import { archiveQuerySchema } from '../../../common/database/archive.js';
 import { money } from '../../../common/dto/numbers.js';
 import {
   CommissionBasis,
-  CommissionPaymentMethod,
+  PaymentMethod,
   CommissionRecipientType,
   CommissionStatus,
 } from '../../../generated/prisma/enums.js';
@@ -72,7 +72,7 @@ export const createCommissionSchema = z.object({
   finalAmount: amount.optional(),
 
   status: z.enum(CommissionStatus).default(CommissionStatus.PENDING),
-  method: z.enum(CommissionPaymentMethod).optional(),
+  method: z.enum(PaymentMethod).optional(),
   /** Defaults to today when the status is PAID and no day is given. */
   paidAt: calendarDate.optional(),
   notes: z.string().trim().max(5_000).optional(),
@@ -106,7 +106,7 @@ export const updateCommissionSchema = z
     finalAmount: amount.nullable().optional(),
 
     status: z.enum(CommissionStatus).optional(),
-    method: z.enum(CommissionPaymentMethod).nullable().optional(),
+    method: z.enum(PaymentMethod).nullable().optional(),
     paidAt: calendarDate.nullable().optional(),
     notes: z.string().trim().max(5_000).nullable().optional(),
   })
