@@ -88,7 +88,7 @@ email stays reserved, so a mistyped invitation address is unrecoverable.
 | ~~`activeTrips` per user~~ | ✅ Shipped with **Trips (#11)** |
 | `conversionRate` per user | Not on this endpoint — the Agents roster carries it |
 | `revenue` per user | **Receivables (#16)** — booked value is not money received |
-| Commission-structure fields on the team member sheet | **Not built yet** — the API accepts them; `UserDetailSheet` has no inputs, so today they are set through the API only |
+| ~~Commission-structure fields on the team member sheet~~ | ✅ 27 Sep 2026 — set on invite or edit when the role is Referral Agent (`CommissionTermsFields`), shown on the detail sheet |
 
 The three unfilled figures render "—" in `toTeamMember`.
 
@@ -957,7 +957,7 @@ inventing the value now would be guessing at a workflow nobody has described.
 
 ---
 
-## 32. Referrals / Referral Agent ◐ *(client adjustment #11, 27 Sep 2026)*
+## 32. Referrals / Referral Agent ✅ *(client adjustment #11, 27 Sep 2026)*
 
 **Working now — the desk half**
 
@@ -983,14 +983,45 @@ inventing the value now would be guessing at a workflow nobody has described.
   (convert, broker, status, link trip, attachments, timeline) and the
   Resources card. A client's detail shows the referrals that produced it
 
+**Working now — the agent portal (27 Sep 2026)**
+
+- `/portal`, its own shell: the CRM's sidebar and header (`AppSidebar` /
+  `NavMain` / `TopNav` take optional `home`, `sections`, `titleFor` and
+  `showNotifications`, defaulting to the CRM's) showing only **Dashboard |
+  Submit Referral | My Referrals | Commissions | Resources**, with idle sign-out
+- **Routing by role:** sign-in lands each role in its own area
+  (`landingFor` in `lib/roles.js`, honouring `?next=` only inside that area);
+  the two-factor "all set" screen continues to the right home; `proxy.js`
+  protects `/portal` like `/dashboard`; `AreaGate` in both layouts sends a
+  partner out of the CRM and staff out of the portal once `/auth/me` answers
+- **Dashboard:** referrals submitted, active, trips booked, completed trips,
+  pending commission, total commission earned, total commission paid (all
+  from the API; commissions still waiting on a trip's figures are counted in
+  a note, not as $0), and the four newest referrals
+- **Submit Referral:** every field in the client's spec, attachments private
+  to the agent, "Referral source" shown as the signed-in agent and recorded
+  by the API; lands on the new referral
+- **My Referrals:** search, status filter and pager in the URL; the shared
+  `ReferralsTable` (new `partner` prop) and `ReferralCard`; the sheet shows the
+  Submitted → Completed ladder, the booked trip, what was sent, the agent's
+  own attachments and **Updates from Tribeca** (SHARED notes, read-only)
+- **Commissions:** the agent's standard terms (`commissionTerms` on
+  `/auth/me`, partners only), pending / earned-to-date / paid totals
+  (`earnedToDate` added to `GET /commissions/stats`, summed in cents), and
+  client/trip, trip date, structure, estimated, final, status and paid date
+- **Resources:** what the desk published, opening the file
+
 **Not built yet**
 
 | Piece | State |
 |---|---|
-| The agent portal (`/portal`: Dashboard, Submit Referral, My Referrals, Commissions, Resources) with its own navigation | ☐ Not started. **Do not invite a referral agent until it exists** — they would land on a staff dashboard every panel of which refuses them |
-| Sending agents to `/portal` and staff away from it | ☐ `homeFor` in `lib/roles.js` exists; the login redirect and the `proxy.js` matcher are not updated |
-| Commission-structure inputs on the team member sheet | ☐ API only |
-| Postman folders for Empty Legs, Commissions and Referrals | ☐ |
+| Postman `16 · Empty Legs`, `17 · Commissions`, `18 · Referrals` | ◐ Builders written (27 Sep); **not run yet** — the collection gains the folders when they are. `01 · Auth` (`commissionTerms`) and `04 · Users` (invite terms) examples need a recapture too |
+| Live testing of Empty Legs, Commissions, Referrals and the portal | ☐ Written without it, by the owner's instruction |
+
+The team member form sets an agent's standard commission (percent of profit,
+flat fee or custom) on invite or edit; `POST /users/invite` accepts the same
+three optional fields as the update. The seed adds `agent@tribecajets.com`
+(REFERRAL_AGENT, 10% of profit) for the portal and the Postman folders.
 
 ---
 
@@ -1088,11 +1119,10 @@ are clean, frontend eslint reports nothing in the files changed, and frontend
 `npm run build` passes (27 Sep, end of day). A full Newman run has **not**
 been run since.
 
-**Left of client adjustment #11:** the agent portal at `/portal` (Dashboard,
-Submit Referral, My Referrals, Commissions, Resources) with its own navigation
-and redirect, the commission-structure inputs on the team member sheet, and
-Postman folders for Empty Legs, Commissions and Referrals. **Do not invite a
-referral agent until the portal exists.**
+**The agent portal (`/portal`) was built 27 Sep, after the commits above**,
+also without live testing: build, eslint, backend lint and tests pass.
+**Left of client adjustment #11:** nothing to build. The three Postman builders
+are written and need one run against a freshly seeded API, then Newman.
 
 **Next in the module queue:** Receivables (#16) and Operator Payments (#17),
 then Transactions (#19); Itineraries (#12) and Schedule (#13) are unblocked by

@@ -26,7 +26,7 @@ exactly the failure this document exists to prevent.
 
 | | Phase | State |
 |---|---|---|
-| **1** | **The client's adjustments.** The thirteen messages in §3, built in the dependency order in §2. | **10 of 11 done** — #3, #6 and #10b completed 27 Sep, after Trips, Empty Legs and Commissions were pulled forward from Phase 3 to unblock them. **In progress: #11** — the role, the API and the desk's Referrals page are built; the agent's own portal is not. #1 needs only its demo. See §1. |
+| **1** | **The client's adjustments.** The thirteen messages in §3, built in the dependency order in §2. | **11 of 11 built** — #3, #6, #10b and #11 completed 27 Sep, after Trips, Empty Legs and Commissions were pulled forward from Phase 3 to unblock them. Not yet live-tested from Empty Legs on. #1 needs only its demo. See §1. |
 | **2** | **Frontend changes.** Existing screens change, and new screens that do not exist yet get built. | **Done for the two screens the client's Figma redesigns targeted** — the Build Itinerary preview (24 Sep) and the Quotes form + live preview (25 Sep). See the 25 September entry in §4. No further phase-2 item is queued; if he sends another redesign it reopens this phase for that screen only. |
 | **3** | **Backend + Postman + API integration**, module by module, in dependency order. | **Partly done — and that is the complication.** |
 
@@ -249,7 +249,7 @@ paragraph, since it goes stale the moment the next session commits.
 | 9 | Client credit / money on account | ✅ | ✅ | **Done** 24 Sep 2026, as a ledger; the trip link (`appliedToTripId`) landed with Trips on 27 Sep. |
 | 10a | Trip request page | ✅ | ✅ | **Done** 19 Sep 2026. |
 | 10b | Empty-leg matching against past requests | ✅ | ✅ | **Done** 27 Sep 2026, with the Empty Legs module. Not live-tested; no Postman folder yet. |
-| 11 | Referral Agent role and partner portal | ✅ | ◐ | **In progress.** Role, permissions, referrals, commissions, resources, Agent Updates and the desk's Referrals page built 27 Sep 2026. **Left:** the agent portal (`/portal`), commission inputs on the team member sheet, Postman. Not live-tested. |
+| 11 | Referral Agent role and partner portal | ✅ | ✅ | **Built** 27 Sep 2026 — role, permissions, referrals, commissions, resources, Agent Updates, the desk's Referrals page, the agent portal (`/portal`) and per-agent commission terms. **Left:** run the Postman builders. Not live-tested. |
 
 ---
 
@@ -271,7 +271,7 @@ Dependency-first, as `AGENTS.md` requires. Cheapest unblocker at the top.
 | 9 | ~~**#3 (quote/itinerary half) — picture-picker**~~ ✅ 25 Sep 2026 | Shipped with the Quotes Figma redesign (phase 2). See §4. |
 | 10 | ~~**Trips**~~ ✅ 27 Sep 2026 | Not a client request — #5's trip timeline and #9's trip link waited on it. |
 | 11 | ~~**#10b Empty-leg matching**~~ ✅ 27 Sep 2026 | Built with the Empty Legs module. |
-| **12** | **#11 Referral Agent portal** | **In progress.** Commissions ✅ and the desk half ✅ 27 Sep; **next: the agent portal.** |
+| 12 | ~~**#11 Referral Agent portal**~~ ✅ 27 Sep 2026 | Commissions, the desk half and the portal. |
 | — | ~~**#3**~~, ~~**#6**~~ ✅ 27 Sep 2026 | Both complete. #6's rate table is empty until the desk fills it in. |
 
 ---
@@ -541,17 +541,17 @@ still there.
 
 ---
 
-### ◐ 11. Referral Agent role and partner portal — **IN PROGRESS**
+### ✅ 11. Referral Agent role and partner portal — **BUILT 27 Sep 2026**
 
 > Please create a new CRM user type called Referral Agent. This role should
 > have very limited access and function more like a simple partner portal than
 > access to the full Tribeca Jets CRM.
 
-**Status: in progress. Order item 12 — last.** The role, the permissions, the
-referral / commission / resource API, the Agent Updates and the desk's
-Referrals page shipped 27 September 2026 (§4). **Not built: the portal
-itself** — the five screens below and their navigation. Until it exists, do
-not invite a referral agent.
+**Status: built 27 September 2026. Order item 12 — last.** The role, the
+permissions, the referral / commission / resource API, the Agent Updates, the
+desk's Referrals page and **the portal itself** — the five screens below with
+their own navigation (§4), and the per-agent standard commission set on the
+team member form. Not yet live-tested.
 
 **The largest item on this list by a distance — effectively a second product.**
 It should be built last of these, not first.
@@ -1558,11 +1558,24 @@ MODULE_FEATURE_STATUS's short version); frontend `npm run build` passes.
 **Not run:** Newman, and any browser check of Empty Legs, Commissions or
 Referrals.
 
-**Left of #11:** the `/portal` route group (Dashboard, Submit Referral, My
-Referrals, Commission Center, Resources) with its own navigation, sending agents
-there after sign-in (`homeFor` in `lib/roles.js` exists and is not yet called)
-and adding `/portal` to `proxy.js`; the commission-structure inputs on the team
-member sheet; Postman folders for Empty Legs, Commissions and Referrals.
+**The portal, built the same day after those commits.** `/portal` reuses the
+CRM's shell — the sidebar, nav and header gained optional props rather than
+being copied — with only the five entries the client named. Each role lands in
+its own area at sign-in (`landingFor`), `proxy.js` protects `/portal`, and
+`AreaGate` in both layouts moves a partner out of the CRM and staff out of the
+portal. Two additive API changes it needed: `commissionTerms` on `/auth/me`
+(partners only — their own agreement) and `earnedToDate` on commission stats
+(the client's "total commission earned", summed in cents on the server rather
+than added up in the browser). Agent Updates are the SHARED notes, read-only.
+Not live-tested; build, eslint, backend lint and 150 tests pass.
+
+**Then the last pieces.** Each agent's standard commission is set on the team
+member form, on invite or edit, when the role is Referral Agent (the invite
+endpoint gained the same optional terms as the update). The seed adds
+`agent@tribecajets.com` (10% of profit). Postman builders for `16 · Empty
+Legs`, `17 · Commissions` and `18 · Referrals` are written — the agent's own
+requests sign in through `builder_common.sign_in_as()` — but **not run**, by
+the same instruction; the folders appear in the collection when they are.
 
 ---
 

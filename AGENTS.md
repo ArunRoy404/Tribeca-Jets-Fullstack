@@ -954,6 +954,17 @@ service accepts it only on a `REFERRAL_AGENT` and clears it when the role
 changes away. A commission copies it at creation; editing the agent's standard
 later never rewrites a commission already raised.
 
+**The agent's screens live at `/portal`, never under `/dashboard`.** Each role
+has one area — `homeFor` / `belongsIn` / `landingFor` in `src/lib/roles.js` —
+and three places keep people in theirs: sign-in lands on `landingFor(role,
+?next)`, `proxy.js` protects both areas alike, and `AreaGate` in each layout
+redirects a misplaced session once `/auth/me` answers. None of them is the
+boundary (the API is); they stop an agent landing on panels that all answer
+403. The portal reuses the CRM's shell through optional props (`AppSidebar` /
+`NavMain` `home` + `sections`, `TopNav` `titleFor` + `showNotifications`) —
+add a portal screen by adding an entry to `components/portal/portalNav.js`,
+not a second sidebar.
+
 ## A balance is summed, never stored — and money is counted in cents
 
 `ClientCredit` is a ledger of movements (`CREDIT` / `APPLICATION`) and there is

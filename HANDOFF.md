@@ -3,8 +3,8 @@
 Two parts: **get it running**, then **the prompt to paste**.
 
 Written 24 September 2026, after client adjustments #5, #7 and #9 shipped.
-Refreshed 27 September 2026, end of day (Trips, Empty Legs, Commissions and
-#11's desk half built, all uncommitted) — see "Where we are right now" in Part 2, which is
+Refreshed 27 September 2026 (Trips, Empty Legs, Commissions and #11 built;
+committed through `a45d1bb`, then the agent portal, uncommitted) — see "Where we are right now" in Part 2, which is
 the part that goes stale fastest. **Update that paragraph (and this line) in
 the same pass as any session that ships something**, rather than leaving the
 next device to discover it from git log.
@@ -59,7 +59,8 @@ of 429s that look like real failures. Leave it at `1` anywhere but your own
 machine — production refuses to boot otherwise.
 
 **Seeded accounts** all use the password `ChangeMe123!`:
-`admin@`, `broker@`, `mark@`, `barry@`, `assistant@tribecajets.com`.
+`admin@`, `broker@`, `mark@`, `barry@`, `assistant@tribecajets.com`, and the
+referral agent `agent@tribecajets.com`, who signs in to the portal at `/portal`.
 
 ### Things that will waste an hour if nobody tells you
 
@@ -121,9 +122,9 @@ Paste everything between the lines into the first message of a new session.
 > **The three phases**, in my own framing, and the reason the order matters:
 >
 > - **Phase 1 — the client's adjustments.** Thirteen messages from the client,
->   reproduced verbatim in `CLIENT_ADJUSTMENTS.md` §3. Ten of eleven are done.
->   Left: #11's agent portal (the desk half is built), and a demo of the
->   Archived tab for #1.
+>   reproduced verbatim in `CLIENT_ADJUSTMENTS.md` §3. All eleven are built;
+>   #1 needs only a demo of the Archived tab. Everything from Empty Legs on
+>   still needs its testing pass.
 > - **Phase 2 — frontend changes.** Existing screens change and new screens get
 >   built. Arrives as Figma links dropped mid-session, not a written spec. Two
 >   redesigns have shipped this way — Build Itinerary (24 Sep) and Quotes
@@ -171,7 +172,8 @@ Paste everything between the lines into the first message of a new session.
 > against real accounts, not by reading the code. Report what is actually true:
 > if a check was skipped, say so; if something fails, show the output.
 >
-> **Where we are right now (27 September 2026, end of day):** everything below
+> **Where we are right now (27 September 2026):** the work below is committed
+> and pushed to `origin/roy` through `a45d1bb`, except the agent portal, which
 > is **uncommitted** — check `git status` first, and run `npm run db:deploy`
 > (five new migrations, the last `20260927160000_add_empty_legs_commissions_referrals`).
 >
@@ -181,7 +183,9 @@ Paste everything between the lines into the first message of a new session.
 > counts and tabs on users, agents, operators, aircraft and clients), **Empty
 > Legs** with #10b's matching, **Commissions**, and #11's desk half: the
 > `REFERRAL_AGENT` role, referrals, resources, Agent Updates and the desk's
-> Referrals page.
+> Referrals page — then **the agent portal** (`/portal`: Dashboard, Submit
+> Referral, My Referrals, Commissions, Resources), with each role routed to its
+> own area at sign-in and by `AreaGate` in both layouts.
 >
 > **How far it was verified:** Trips was tested live, in the browser and with
 > Postman `15 · Trips`. From Empty Legs on, **no live testing by my
@@ -191,17 +195,14 @@ Paste everything between the lines into the first message of a new session.
 >
 > **The queue, in order:**
 >
-> 1. **#11's agent portal** — a `/portal` route group with its own nav
->    (Dashboard, Submit Referral, My Referrals, Commissions, Resources);
->    send agents there after sign-in (`homeFor` in `lib/roles.js`, not yet
->    called) and add `/portal` to the `proxy.js` matcher. Agent Updates read
->    `useNotes` (SHARED only), not `NotesTimeline`. **Do not invite a referral
->    agent before this exists.**
-> 2. Commission-structure inputs on the team member sheet
->    (`UserDetailSheet.jsx`) — the API already accepts them.
-> 3. Postman folders for Empty Legs, Commissions and Referrals, then Newman
->    twice.
-> 4. My own testing pass over Empty Legs, Commissions and Referrals.
+> 1. My own testing pass over Empty Legs, Commissions, Referrals, the
+>    portal and the commission terms on the team member form — sign in as
+>    the seeded `agent@tribecajets.com` (re-run `npm run db:seed` first).
+> 2. Run the three written-but-unrun Postman builders
+>    (`build_empty_legs_folder.py`, `build_commissions_folder.py`,
+>    `build_referrals_folder.py`), recapture `/auth/me` and the Users invite,
+>    then `rewrite_body_comments.py` and Newman twice.
+> 3. Then Phase 3's queue: Receivables (#16), Operator Payments (#17).
 >
 > **For the client:** the Archived-tab demo (#1), the rate data for #6, the
 > FET-in-profit question, and each referral agent's commission figures

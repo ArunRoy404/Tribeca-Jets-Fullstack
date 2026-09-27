@@ -68,7 +68,7 @@ set of broken joins the day the real table arrives.
 | 29 | **Notes / Timeline** | ✅ Done — Clients, Trips, Referrals | Clients, Users (built out of order; adjustment #5) |
 | 30 | **Client Credits** | ✅ Done | Clients, Trips (built out of order; adjustment #9) |
 | 31 | **Charter Rates / Instant Estimate** | ✅ Done | Airports (built out of order; adjustment #6) |
-| 32 | **Referrals / Referral Agent** | ◐ Desk half done (27 Sep); agent portal not started | Users, Clients, Trip Requests, Trips, Commissions, Uploads, Notes (adjustment #11) |
+| 32 | **Referrals / Referral Agent** | ✅ Done (27 Sep) — desk and agent portal | Users, Clients, Trip Requests, Trips, Commissions, Uploads, Notes (adjustment #11) |
 
 **Trips shipped on 27 September 2026**, with Empty Legs and Commissions
 pulled forward after it so client adjustments #10b and #11 could be built
@@ -740,7 +740,7 @@ estimate is flight time × hourly rate with a minimum per leg, and says what it
 leaves out. If the client's real formula differs, `charter-rates.estimate.ts`
 changes and nothing else.
 
-### 32. Referrals / Referral Agent ◐
+### 32. Referrals / Referral Agent ✅
 
 **Not in the signed scope's module list** — the client's adjustment #11: a
 `REFERRAL_AGENT` role that works like a partner portal rather than a CRM login.
@@ -757,8 +757,10 @@ linking the booked trip raises the agent's commission.
 private, and the staff directory is behind `VIEW_TEAM`. See `AGENTS.md`,
 "The referral agent is a partner".
 
-**Built:** the role, the API, and the desk's Referrals page. **Not built:** the
-agent's own portal at `/portal` — which is why no agent should be invited yet.
+**Built:** the role, the API, the desk's Referrals page and the agent's portal
+at `/portal` — its own five-item navigation in the CRM's shell, with each role
+routed to its own area — and the standard-commission inputs on the team
+member form.
 
 ---
 
