@@ -178,10 +178,11 @@ Paste everything between the lines into the first message of a new session.
 > if a check was skipped, say so; if something fails, show the output.
 >
 > **Where we are right now (28 September 2026):** everything through
-> Flight Tracking (#14) is committed and pushed to `origin/roy`; **Tasks
-> Board (#20) is built and uncommitted** — check `git status`. Run
-> `npm run db:deploy` (eight new migrations since the last deploy, the last
-> being `20260928180000_add_tasks`).
+> Tasks Board (#20) is committed and pushed to `origin/roy`; **Email
+> Templates (#21) is built and uncommitted** — check `git status`. Run
+> `npm run db:deploy` (nine new migrations since the last deploy, the last
+> being `20260928200000_add_email_templates`), then `npm run db:seed` for the
+> starter templates.
 >
 > Built on 28 Sep: **Receivables (#16)**, **Operator Payments (#17)**,
 > **Transactions (#19)** — completing the financial modules — and
@@ -235,7 +236,18 @@ Paste everything between the lines into the first message of a new session.
 >    broker to check they see only tasks assigned to them or written by
 >    them, and cannot archive someone else's. Then run `build_tasks_folder.py`
 >    and fold `25 · Tasks` into the Newman pass above.
-> 7. Then Phase 3's queue: Email Templates (#21).
+> 7. Email Templates (#21) is built too (28 Sep, untested). With no SMTP in
+>    `Backend/.env` every send is recorded as **LOGGED** and printed to the API
+>    log — check the toast and the Sent tab say "Not delivered". Add a
+>    template with merge fields (a typo like `{client_nme}` must be refused);
+>    email a client from the client page, a trip from its action bar, a quote
+>    ("Email to Client", which marks it sent only on a real delivery), an
+>    itinerary ("Email It") and an invoice ("Send Reminder"); check the email
+>    appears on the client's and the trip's timelines and on the lead page.
+>    Sign in as a broker: the library is read-only, and only their clients
+>    can be emailed. Then run `build_email_templates_folder.py` and fold
+>    `26 · Email Templates` into the Newman pass above.
+> 8. Then Phase 3's queue: Document Vault (#22).
 >
 > **For the client:** the Archived-tab demo (#1), the rate data for #6, the
 > FET-in-profit question, and each referral agent's commission figures

@@ -441,7 +441,7 @@ updatedBy   User?    @relation("<Model>UpdatedBy", fields: [updatedById], refere
   `20260915142333_add_created_by_updated_by_audit_columns`, which carries the
   old invitedBy values across rather than losing them.
 
-**Four models are exempt, and these four only** — each is a record that is
+**Five models are exempt, and these five only** — each is a record that is
 written once and never edited, so an `updatedBy` would have nothing to say:
 
 - `AuditLog` — it *is* the audit trail; its actor is `actorId`.
@@ -449,8 +449,10 @@ written once and never edited, so an `updatedBy` would have nothing to say:
   nothing that could change.
 - `RefreshToken`, `VerificationCode` — session machinery, owned by the user
   row they hang off, rotated or consumed rather than edited.
+- `EmailMessage` (#21) — an email as it was sent; `createdById` is the
+  sender. It has no archive trail either: an email cannot be unsent.
 
-A fifth exception needs a line here, with its reason, in the same pass.
+A sixth exception needs a line here, with its reason, in the same pass.
 
 ## Account status is administrative, and `INVITED` is not a decision
 
@@ -1048,6 +1050,32 @@ with `common/database/merge-pages.ts` — the same exact merge the notes
 timeline uses. A kind the caller may not see is never read, rather than read
 and hidden.
 
+## An email's record says what actually happened to it
+
+There is **one way to email somebody from the CRM**: `POST /emails`, reached
+through **one form**, `components/common/email/ComposeEmailDialog.jsx`. A
+screen that needs to email passes the records it is about as `context` and
+never builds its own dialog, its own preview or its own merge.
+
+- **Merge fields have one catalogue** (`email-templates/email.fields.ts`,
+  served at `GET /email-templates/fields`). Each field is filled from the
+  record it names, read through the module that owns it, in the sender's
+  scope and with that record's own read permission — so a preview can never
+  put a figure in an email its sender could not have opened. A field that
+  cannot be filled **stays as its token and is named**; it is never blanked
+  and never guessed, and nothing is sent while one remains.
+- **`SENT` means a mail server accepted it.** Without one configured the
+  email is recorded as `LOGGED` — printed to the server log, delivered to
+  nobody — and every screen and toast says "not delivered". A refusal is
+  `FAILED`, answered with a 502, and still recorded. Never report a send the
+  mail server did not take.
+- **Marking a record sent is a separate act from emailing it.** A quote's
+  or an itinerary's "Mark as Sent" delivers nothing and says so; the compose
+  form marks it sent only when the email's status is `SENT`.
+- **A Postman run never emails a real person.** `26 · Email Templates`
+  writes a probe client on `example.com`, which never delivers, and emails
+  only that.
+
 ## Read every generated migration before it ships
 
 `prisma migrate diff` renamed nothing: asked to turn `CommissionPaymentMethod`
@@ -1353,7 +1381,7 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell. Not yet: the Clients table, Airports,
+Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form. Not yet: the Clients table, Airports,
 Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by

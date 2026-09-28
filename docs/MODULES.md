@@ -57,7 +57,7 @@ set of broken joins the day the real table arrives.
 | 18 | **Commissions** | ✅ Done (27 Sep) | Trips, Users (built ahead of 16–17 for adjustment #11) |
 | 19 | **Transactions** | ✅ Done (28 Sep) — the money ledger, a view | 16, 17, 18 (a union view) |
 | 20 | **Tasks Board** | ✅ Done (28 Sep) — with the notification bell | Users; links to Trips/Clients |
-| 21 | **Email Templates** | ⬅ **Next** | — (could move earlier) |
+| 21 | **Email Templates** | ✅ Done (28 Sep) — with sending, and the quote/itinerary/reminder second pass | Clients, Operators, Trips, Quotes, Receivables (merge fields) |
 | 22 | **Document Vault** | No screen yet | Trips, Clients, Operators |
 | 23 | **Reports** | Not started | All financial modules |
 | 24 | **Dashboard** | Empty Legs section only | Nearly everything — build it last |
@@ -75,8 +75,9 @@ pulled forward after it so client adjustments #10b and #11 could be built
 without waiting on the client; #11's agent portal followed the same day, and
 **Receivables (#16)**, **Operator Payments (#17)**, **Transactions (#19)**,
 **Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
-on 28 September — everything that hangs off Trips — and the **Tasks Board
-(#20)**. **What is next:** **Email Templates (#21)**.
+on 28 September — everything that hangs off Trips — the **Tasks Board
+(#20)** and **Email Templates (#21)**. **What is next:** **Document Vault
+(#22)**.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -574,11 +575,17 @@ top-nav bell became "your tasks due today or overdue" — the only
 notification this system can truthfully raise until something generates
 reminders.
 
-### 21. Email Templates
+### 21. Email Templates ✅ *(28 September 2026)*
 
-Reusable templates for quote follow-ups, trip confirmations, empty-leg blasts
-and payment reminders, with merge fields. **No hard dependencies**, so it can
-be pulled earlier if the desk needs it before the pipeline is finished.
+Reusable templates for quote follow-ups, trip confirmations, empty-leg offers,
+payment reminders, travel-agent and client updates, with merge fields — and
+**sending** them, which the old screen only pretended to do. It turned out not
+to be dependency-free: its merge fields read clients, operators, trips, quotes
+and invoices, each through its own module, which is why it sits after them.
+One shared compose form serves every screen that emails somebody; each email
+is recorded as sent (the scope's "Communication") and lands on the client's
+and the trip's timelines. Delivery is the system's SMTP with the sender as
+Reply-To, until the Gmail workflow (§17) is decided.
 
 ### 22. Document Vault
 

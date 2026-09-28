@@ -297,7 +297,7 @@ makes the create form work. See **Uploads (#28)**.
 | ~~`activeTrips` on the roster and the agent page~~ | ✅ Shipped with **Trips (#11)** |
 | Agent "associated trips" panel | **Buildable now** — `GET /trips?brokerId=` exists; `AgentAssociatedTrips` is not wired to it yet |
 | Revenue per agent | **A decision** — the same one as `revenue` on Users & Roles (#2) |
-| Contact / activity timeline on a lead | **Communications / Email Templates (#21)** |
+| ~~Contact / activity timeline on a lead~~ | ✅ Shipped with **Email Templates (#21)** — the lead page shows the client timeline: notes, changes and emails sent |
 | Quote-linked lead stages (Proposal, Quoted moving on their own) | **Quotes (#10)** ✅ exists — wiring the *client's* lead stage to it is a Clients change, still to do |
 | Log Call Activity on an agent | **Communications** — disabled and labelled, not silently inert |
 
@@ -399,7 +399,7 @@ rows, the way a leads table would have split one client.
 | ~~Turning an approved operator price into a client-facing offer~~ | ✅ Shipped with **Quotes (#10)** — a quote carries `operatorQuoteId`, which is what makes its margin traceable |
 | Deposit / payment column on the board | **A decision** — Receivables (#16) ✅ shipped, but an invoice has no "deposit" kind, so nothing can say which payment was the deposit. Still an em dash |
 | Departure and arrival *times* on the route strip | **Trips (#11)** ✅ — not wired here yet — a request records the day, not a schedule |
-| Emailing the request to the operator | **Email Templates (#21)** |
+| Emailing the request to the operator | **Email Templates (#21)** ✅ shipped — it can email an operator, but has no trip-request merge fields yet, so the request's route and date would have to be typed |
 | Operator document upload and field extraction (§6.9) | **Document Vault (#22)** — the pipeline exists now (**Files #28**); the sourcing screen and the extraction step do not |
 
 **Deferred by decision: most of the operator scorecard.** Scope §6.7 asks for
@@ -487,7 +487,7 @@ client see on the 9th?" — is `QuoteVersion`.
 | Feature | Unblocked by |
 |---|---|
 | Print-ready / PDF output and a branded quote document (§6.10) | **Document Vault (#22)** — nothing in this system generates a document yet |
-| Emailing the quote to the client | **Email Templates (#21)** — Send marks it sent and says so; it does not deliver |
+| ~~Emailing the quote to the client~~ | ✅ Shipped with **Email Templates (#21)** — "Email to Client" on the quote page; the quote is marked sent once a mail server accepts it |
 | `viewedAt` — "the client opened it" | **Client Portal (#25)**, and scope §16 already hedges it with "where technically trackable" |
 | ~~Turning an approved quote into a booking~~ | ✅ Shipped with **Trips (#11)** — `POST /trips/from-quote/:quoteId`, "Book Trip" on the quote |
 | Deposit *received* against the deposit quoted | **A decision** — as on the sourcing board: invoices do not mark a deposit yet |
@@ -579,8 +579,8 @@ trip it claimed to be linked to, which is exactly that bug.
 
 - `Itinerary`, one per trip (`tripId` unique, required) — status `PENDING` /
   `CONFIRMED`, `confirmedAt`; `sentAt` / `sentById`, the same "marks it,
-  does not deliver" a quote's Send makes (no Email Templates module, #21,
-  exists to actually deliver it); logo upload; the outbound leg's arrival
+  does not deliver" a quote's Send makes (emailing it is a separate act,
+  Email Templates #21, which marks it sent on delivery); logo upload; the outbound leg's arrival
   time ("HH:MM", nothing else in the schema tracks one — `TripLeg` keeps only
   departure), flight time and miles as free text, the same split Aircraft's
   speeds make; catering; ground transport; the operator's own itinerary file
@@ -645,7 +645,7 @@ of these cards makes a second request.
 | Feature | Unblocked by |
 |---|---|
 | Print-ready / PDF output | **Document Vault (#22)** — nothing in this system generates a document yet |
-| Emailing the itinerary to the client | **Email Templates (#21)** — Send marks it sent and says so; it does not deliver |
+| ~~Emailing the itinerary to the client~~ | ✅ Shipped with **Email Templates (#21)** — "Email It" in the Send dialog; the PDF is not attached until Document Vault (#22) |
 | Extracting flight data from the operator's own itinerary file | **Not modelled anywhere in this system** — the file attaches for reference; typed fields are typed by a person |
 
 **Not done:** Postman `22 · Itineraries` — the builder (`build_itineraries_folder.py`)
@@ -852,7 +852,7 @@ changed, and `npm run build` passes.
 
 | Feature | Unblocked by |
 |---|---|
-| Payment reminders (§9.3 "trigger reminders") | **Email Templates (#21)** |
+| ~~Payment reminders (§9.3 "trigger reminders")~~ | ✅ Shipped with **Email Templates (#21)** — "Send Reminder" on the row, by hand; *automatic* reminders need a scheduled job |
 | A printable / PDF invoice | **Document Vault (#22)** |
 | Export | **Settings / Import / Export (#26)** |
 | Receivables on the dashboard and the daily brief | **Dashboard (#24)** |
@@ -885,7 +885,7 @@ as open; this module records them.
 - Frontend: the board (URL state, Archived tab, bulk, cards below `lg`), the
   bill dialog with "Use the trip's operator cost", the pay/correct dialog and
   the detail sheet. `dummyData/operatorPayments.js` is deleted; "Send
-  Remittance" is gone until Email Templates (#21)
+  Remittance" is not back — see the table below
 - **Second passes:** Trips ("Op Pmt", the trip page's operator bills),
   Operators (`totalPaid`, the Payments tab)
 - **Shared, not copied** — lifted when this module became the second caller:
@@ -901,7 +901,7 @@ as open; this module records them.
 
 | Feature | Unblocked by |
 |---|---|
-| Remittance / operator-payment reminders (§6.13) | **Email Templates (#21)** |
+| Remittance / operator-payment reminders (§6.13) | **Email Templates (#21)** ✅ shipped — it can email an operator, but has no operator-bill merge fields yet, so a remittance would carry no amount |
 | The operator's bill as an attached PDF | **Document Vault (#22)** — the bill's number is stored; the file is not |
 | Payables on the dashboard | **Dashboard (#24)** |
 
@@ -1030,13 +1030,101 @@ anywhere in the system.
 
 ---
 
-## 21. Email Templates ⬜
+## 21. Email Templates ✅ *(28 Sep 2026)*
 
-Nothing wired. **No hard dependencies** — can be pulled earlier if the desk
-needs it. Merge fields for quotes and trips need **Quotes (#10)** and
-**Trips (#11)** ✅.
+**Working now**
 
-It is also what unblocks the Activity timelines on Clients and Leads.
+- **`EmailTemplate`**: name, category (Quote Follow-up, Trip Confirmation,
+  Client Update, Empty Leg, Payment, Travel Agent, General), subject, body,
+  and `active` — offered when composing, or kept but switched off. Archive
+  and restore, single and bulk. Five starter templates are seeded (created
+  only when absent, so a re-seed never overwrites the desk's edits)
+- **Merge fields** — `{client_name}`, `{route}`, `{total_price}`,
+  `{amount_due}` and 20 more — from **one catalogue** (`email.fields.ts`,
+  served at `GET /email-templates/fields`) that the editor, the save check
+  and the send all read. A field is filled only from the record it names,
+  read through the module that owns it, under the sender's own scope and
+  read permission; one that cannot be filled stays as its `{token}` and is
+  named. Nothing goes out with a token in it, and a token the catalogue does
+  not have is refused on save. Pure functions with tests (`email.merge.ts`)
+- **`EmailMessage`** — the scope's "Communication" (§10): every email sent,
+  as sent (a snapshot, never re-rendered), with its recipient, template,
+  sender, and the client, operator, trip, quote and invoice it was about, as
+  real foreign keys. `status` says what happened: **SENT** (a mail server
+  accepted it), **LOGGED** (no mail server configured — delivered to nobody,
+  and every screen says so) or **FAILED** (refused; a 502, and the attempt is
+  still recorded). Migration `20260928200000_add_email_templates`
+- **Delivery is the system's mail server** (the SMTP that sends sign-in
+  codes), with the sender as Reply-To so the client's answer reaches them.
+  The scope leaves the Gmail workflow open (§17); this is the direct
+  implementation until it is decided, and a Gmail transport would replace
+  the delivery without changing a screen
+- **Permissions:** `MANAGE_EMAIL_TEMPLATES` — READ for brokers and
+  assistants (use the library), ALL for administrators and senior brokers
+  (change it); `SEND_EMAILS` — ALL for administrators and senior brokers, OWN
+  for brokers and assistants (about a client or trip they may see; the sent
+  log shows theirs and those). Emailing about an invoice also needs
+  `VIEW_RECEIVABLES`, and so on for each record — a preview can never fill a
+  figure its sender could not open
+- **Each email lands on the timelines** of the client and the trip it was
+  about (`email.sent` / `email.failed` audit entries), worded by
+  `lib/timeline.js` — LOGGED reads "not delivered"
+- `GET/POST/PATCH/DELETE /email-templates`, `bulk-delete`, `bulk-restore`,
+  `:id/restore`, `stats` (live, active, categories in use, sent this month),
+  `fields`; `POST /emails/preview`, `POST /emails`, `GET /emails`,
+  `GET /emails/:id`
+- Frontend: the screen is on the API — Templates, **Sent** and Archived tabs,
+  URL state, real tiles, bulk archive/restore, the detail sheet with the
+  catalogue, the editor with click-to-insert fields. **One shared compose
+  form** (`components/common/email/ComposeEmailDialog.jsx`) serves every
+  screen that emails somebody. Dummy data, `createTripOptions.js` (its last
+  users were this and Tasks), the Send and Delete dialogs and three unused
+  duplicate components are deleted
+- Postman builder `build_email_templates_folder.py` → `26 · Email Templates`
+  (15 requests), **written, not run**. It emails a probe client on
+  `example.com`, never a seeded one
+
+**Second pass — the screens that were waiting on #21**
+
+- **Quotes:** "Email to Client" on the quote page, opening on a follow-up
+  template with the quote's figures; once a mail server accepts it, the
+  quote is marked sent. "Send to Client" is now **Mark as Sent** — it always
+  only marked it, and now says so
+- **Itineraries:** Send offers "Email It" (then marks it sent) or "Mark as
+  Sent" for a hand-off made another way. The document is not attached —
+  the email carries the trip's facts
+- **Receivables:** "Send Reminder" on a sent invoice with a balance, back
+  from the old screen, opening on a payment template
+- **Trips:** "Email Client" on the trip's action bar
+- **Clients:** "Send Email" in the client page's More menu
+- **Leads:** the lead page's Activity Timeline is the client timeline now —
+  notes, changes and emails — instead of an empty card waiting on
+  "Communications"
+
+**Deviations from the old screen, stated:**
+
+- `{agent_name}` and `{commission_amount}` are not merge fields: a travel
+  agent is a client here, so `{client_name}` names them, and a commission is
+  never shown to a client. The dummy commission template is not seeded.
+- The dummy templates promised "the secure payment link below" and "attached
+  you will find your briefing". Neither exists, so the seeded ones say
+  neither.
+- "Delete … This cannot be undone" is **Archive**, with Restore.
+- The Categories tile counted seven of six options; it is now **Categories
+  in use**, from the library.
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Scheduled emails — seven-day, day-before, day-of (§6.17) | A scheduled job; not built |
+| Weather in day-of-trip emails (§6.17) | A weather provider — an open question for the client |
+| Gmail send (open for review, or direct) and Gmail import | **A decision** (§17, "exact Gmail send workflow") and Google API access |
+| Attaching the quote or itinerary PDF | **Document Vault (#22)** — nothing generates a PDF yet |
+| Emailing a sourcing request to an operator | Trip-request merge fields — a request is not a trip, so `{route}` has nothing to read yet |
+| Operator remittance (§6.13) | Operator-bill merge fields — the compose form addresses an operator already, but a remittance with no amount is not one |
+| Empty-leg campaigns to many clients at once | A bulk send, and a rule for who may be emailed; one at a time works today |
+| An HTML email body | Plain text only; the mail interface already takes `html` when a design exists |
 
 ---
 
@@ -1478,16 +1566,21 @@ Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
 Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
 Empty Legs, Commissions, Referrals** (desk and portal), **Receivables**,
 **Operator Payments**, **Transactions**, **Itineraries**, **Schedule**,
-**Flight Tracking** (manual) and the **Tasks Board** with the notification
-bell.
+**Flight Tracking** (manual), the **Tasks Board** with the notification
+bell, and **Email Templates** with sending.
 
-**Most recent change (28 September), uncommitted:** Tasks Board (#20) and the
-notification bell — see its own section. One migration,
-`20260928180000_add_tasks`, must be deployed (`npm run db:deploy`). Written
-**without live testing, by the owner's instruction**: backend `tsc`, oxlint
-and vitest (207 tests, 22 files) are clean, frontend eslint reports nothing
-in the files changed, and `npm run build` passes. `25 · Tasks` is written and
+**Most recent change (28 September), uncommitted:** Email Templates (#21),
+with sending and its second pass — see its own section. One migration,
+`20260928200000_add_email_templates`, must be deployed (`npm run db:deploy`),
+and `npm run db:seed` adds the starter templates. Written **without live
+testing, by the owner's instruction**: backend `tsc`, oxlint and vitest (221
+tests, 23 files) are clean, frontend eslint reports nothing in the files
+changed, and `npm run build` passes. `26 · Email Templates` is written and
 not run.
+
+**Before that (28 September, committed and pushed):** Tasks Board (#20) and
+the notification bell. Migration `20260928180000_add_tasks`. `25 · Tasks` is
+written and not run.
 
 **Before that (28 September, committed and pushed):** Flight Tracking (#14),
 manual. Migration `20260928160000_add_flight_tracking`.
@@ -1535,7 +1628,8 @@ also without live testing: build, eslint, backend lint and tests pass.
 are written and need one run against a freshly seeded API, then Newman.
 
 **Next in the module queue:** everything that hangs off Trips is complete,
-and so is the Tasks Board (#20). Next is **Email Templates (#21)**.
+and so are the Tasks Board (#20) and Email Templates (#21). Next is
+**Document Vault (#22)**.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational
@@ -1548,7 +1642,7 @@ commission.
 [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §4, 26 Sep) — kept, because a
 component is not deleted until its module is finished, and one of them
 (`airports/AirportCardsContainer.jsx`) imports a file that does not exist.
-Frontend lint reports nine errors in older files this work did not touch
-(`react-hooks/set-state-in-effect` in eight dialogs — email templates,
-operator payments, receivables, transactions, `TripRequestDialog` — and
-`react-hooks/purity` in `useIdleLogout.js`); each is fixed on its module's turn.
+Frontend lint reports two errors, both in older files this work did not
+touch: `react-hooks/set-state-in-effect` in `TripRequestDialog` and
+`react-hooks/purity` in `useIdleLogout.js` (28 Sep, whole `src`); each is
+fixed on its module's turn.
