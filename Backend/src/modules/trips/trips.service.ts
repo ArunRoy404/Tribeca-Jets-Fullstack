@@ -202,6 +202,57 @@ const TRIP_DETAIL_SELECT = {
 
 type ListRow = Prisma.TripGetPayload<{ select: typeof TRIP_LIST_SELECT }>;
 
+/**
+ * One leg as the Schedule (#13) calendar reads it: the leg's own day, time and
+ * airports, and its trip's facts read through the relation — never copied.
+ * The itinerary rides along for the outbound arrival time and flight time,
+ * the only place either is recorded.
+ */
+const SCHEDULE_LEG_SELECT = {
+  id: true,
+  sequence: true,
+  departureDate: true,
+  departureTime: true,
+  originAirport: AIRPORT_SELECT,
+  destinationAirport: AIRPORT_SELECT,
+  trip: {
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      type: true,
+      fetEnabled: true,
+      fetRate: true,
+      operatorConfirmedAt: true,
+      client: CLIENT_SELECT,
+      assignedBroker: ACTOR_SELECT,
+      operator: { select: { id: true, name: true } },
+      aircraft: { select: { id: true, tailNumber: true, model: true, category: true } },
+      aircraftDescription: true,
+      itinerary: { select: { id: true, status: true, arrivalTime: true, flightTime: true, deletedAt: true } },
+      invoices: INVOICE_SELECT,
+      _count: { select: { legs: { where: { deletedAt: null } } } },
+    },
+  },
+} satisfies Prisma.TripLegSelect;
+
+export type ScheduleLegRow = Prisma.TripLegGetPayload<{ select: typeof SCHEDULE_LEG_SELECT }>;
+
+/**
+ * What narrows the calendar. Days are inclusive calendar days, compared
+ * against the leg's own `departureDate`. With no `status`, a cancelled trip
+ * is left off — a calendar of flights that are not happening is noise — and
+ * asking for CANCELLED shows them.
+ */
+export interface ScheduleFilter {
+  status?: TripStatus;
+  type?: TripType;
+  assignedBrokerId?: string;
+  operatorId?: string;
+  aircraftId?: string;
+  search?: string;
+}
+
 /** Departure relative to today, on the first leg's day. */
 function departureFilter(window: TripWindow | undefined): Prisma.TripWhereInput {
   if (!window) return {};
@@ -1012,6 +1063,105 @@ export class TripsService {
    */
   visibleWhere(user: AuthenticatedUser): Prisma.TripWhereInput {
     return this.visibilityScope(user);
+  }
+
+  // ---- Schedule (#13) -----------------------------------------------------
+  //
+  // The calendar is a view over trip legs, so its queries live here, with the
+  // trip scope, rather than as a copy of this `where` in the schedule module.
+
+  /** The trip-level half of the calendar's filter: scope, live, and the filters. */
+  private scheduleTripWhere(user: AuthenticatedUser, filter: ScheduleFilter): Prisma.TripWhereInput {
+    return {
+      AND: [
+        { deletedAt: null },
+        this.visibilityScope(user),
+        equalsAny(filter, ['type', 'assignedBrokerId', 'operatorId', 'aircraftId']),
+        filter.status ? { status: filter.status } : { status: { not: TripStatus.CANCELLED } },
+        filter.search ? this.searchWhere(filter.search) : {},
+      ],
+    };
+  }
+
+  /** Live legs of visible trips departing on a day in [from, to]. */
+  private scheduleLegWhere(
+    user: AuthenticatedUser,
+    filter: ScheduleFilter,
+    from: Date,
+    to: Date,
+  ): Prisma.TripLegWhereInput {
+    return {
+      deletedAt: null,
+      departureDate: { gte: from, lte: to },
+      trip: this.scheduleTripWhere(user, filter),
+    };
+  }
+
+  /**
+   * A page of legs in the window, in the order they fly: by day, then by
+   * time with an untimed leg last, then by id so a page boundary never swaps
+   * two legs on the same minute.
+   */
+  async scheduleLegs(
+    user: AuthenticatedUser,
+    filter: ScheduleFilter,
+    from: Date,
+    to: Date,
+    page: { skip: number; take: number },
+  ): Promise<{ rows: ScheduleLegRow[]; total: number }> {
+    const where = this.scheduleLegWhere(user, filter, from, to);
+    const [rows, total] = await Promise.all([
+      this.prisma.tripLeg.findMany({
+        where,
+        skip: page.skip,
+        take: page.take,
+        orderBy: [{ departureDate: 'asc' }, { departureTime: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
+        select: SCHEDULE_LEG_SELECT,
+      }),
+      this.prisma.tripLeg.count({ where }),
+    ]);
+    return { rows, total };
+  }
+
+  /** Legs counted per departure day in the window — one grouped query. */
+  async scheduleCountsByDay(user: AuthenticatedUser, filter: ScheduleFilter, from: Date, to: Date) {
+    const rows = await this.prisma.tripLeg.groupBy({
+      by: ['departureDate'],
+      where: this.scheduleLegWhere(user, filter, from, to),
+      _count: { _all: true },
+    });
+    return rows
+      .filter((row): row is typeof row & { departureDate: Date } => row.departureDate !== null)
+      .map((row) => ({ day: row.departureDate, count: row._count._all }));
+  }
+
+  /**
+   * The calendar's tiles, under the same filters as the calendar. Legs are
+   * counted for the days; trips for "in flight", because a round trip in the
+   * air is one flight in progress, not two.
+   */
+  async scheduleStats(
+    user: AuthenticatedUser,
+    filter: ScheduleFilter,
+    windows: { today: Date; tomorrow: Date; weekEnd: Date },
+  ) {
+    const legs = (from: Date, to: Date, extra: Prisma.TripWhereInput = {}) =>
+      this.prisma.tripLeg.count({
+        where: {
+          deletedAt: null,
+          departureDate: { gte: from, lte: to },
+          trip: { AND: [this.scheduleTripWhere(user, filter), extra] },
+        },
+      });
+    const [flightsToday, completedToday, nextSevenDays, inFlight] = await Promise.all([
+      legs(windows.today, windows.today),
+      legs(windows.today, windows.today, { status: TripStatus.COMPLETED }),
+      legs(windows.tomorrow, windows.weekEnd),
+      this.prisma.trip.count({
+        where: { AND: [this.scheduleTripWhere(user, filter), { status: TripStatus.IN_FLIGHT }] },
+      }),
+    ]);
+    return { flightsToday, inFlight, nextSevenDays, completedToday };
   }
 
   /**
