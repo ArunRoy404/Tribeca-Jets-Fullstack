@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import Reveal from "@/components/common/Reveal";
 import TasksToolbar from "@/components/tasks/TasksToolbar";
@@ -5,8 +7,12 @@ import TaskBoard from "@/components/tasks/TaskBoard";
 import TaskDetailSheet from "@/components/tasks/TaskDetailSheet";
 import AddTaskDialog from "@/components/tasks/AddTaskDialog";
 import DeleteTaskDialog from "@/components/tasks/DeleteTaskDialog";
+import { useTasksBoardParams } from "@/hooks/tasks";
 
+/** Tasks Board (#20) — API-backed. The search, the view and the open task live in the URL. */
 export default function TasksBoardPage() {
+  const params = useTasksBoardParams();
+
   return (
     <>
       <div className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 w-full">
@@ -22,19 +28,19 @@ export default function TasksBoardPage() {
             <div className="absolute inset-0 bg-gradient-to-r from-white/90 to-[#e5eeff]/90 backdrop-blur-2xl pointer-events-none" />
 
             <div className="relative w-full">
-              <TasksToolbar />
+              <TasksToolbar params={params} />
             </div>
 
             <div className="relative w-full p-4">
-              <TaskBoard />
+              <TaskBoard params={params} />
             </div>
           </div>
         </Reveal>
       </div>
 
-      <TaskDetailSheet />
+      <TaskDetailSheet taskId={params.task} onClose={() => params.setTask("")} />
       <AddTaskDialog />
-      <DeleteTaskDialog />
+      <DeleteTaskDialog onArchived={(id) => id === params.task && params.setTask("")} />
     </>
   );
 }

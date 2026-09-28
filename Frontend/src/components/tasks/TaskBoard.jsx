@@ -1,29 +1,30 @@
 "use client";
 
 import { useTasksStore } from "@/store/useTasksStore";
-import { taskColumns } from "@/dummyData/tasks";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
+import { TASK_COLUMNS } from "@/lib/task";
 import TaskColumn from "./TaskColumn";
 
-export default function TaskBoard() {
-  // Subscribe so the board re-renders when any of these change; getFilteredTasks reads current state at call time.
-  useTasksStore((s) => s.tasks);
-  useTasksStore((s) => s.search);
-  useTasksStore((s) => s.filter);
-  const getFilteredTasks = useTasksStore((s) => s.getFilteredTasks);
-  const selectTask = useTasksStore((s) => s.selectTask);
+/**
+ * The five columns. Each asks the API for its own tasks, so each column's
+ * count is the server's total for that status under the board's filters —
+ * not a count of whatever happened to load.
+ */
+export default function TaskBoard({ params }) {
   const openAddModal = useTasksStore((s) => s.openAddModal);
-
-  const filtered = getFilteredTasks();
+  const { canWrite } = usePermissions();
+  const mayAdd = canWrite(Permission.MANAGE_TASKS) && !params?.archived;
 
   return (
     <div className="flex items-start gap-4 w-full overflow-x-auto pb-2">
-      {taskColumns.map((column) => (
+      {TASK_COLUMNS.map((column) => (
         <TaskColumn
           key={column.key}
           column={column}
-          tasks={filtered.filter((task) => task.status === column.key)}
-          onAddTask={() => openAddModal(column.key)}
-          onSelectTask={selectTask}
+          params={params?.filterParams}
+          onAddTask={mayAdd ? () => openAddModal(column.key) : undefined}
+          onSelectTask={(id) => params?.setTask?.(id)}
         />
       ))}
     </div>
