@@ -157,6 +157,24 @@ export const queryKeys = {
   },
 
   /**
+   * Email Templates (#21) — the library, and the log of emails sent from it.
+   * A send invalidates `emails.all` and the notes timelines, where the
+   * "email sent" entry lands on the client and the trip.
+   */
+  emailTemplates: {
+    all: ["emailTemplates"],
+    list: (params) => ["emailTemplates", "list", params ?? {}],
+    detail: (id) => ["emailTemplates", "detail", id],
+    stats: (params) => ["emailTemplates", "stats", params ?? {}],
+    fields: ["emailTemplates", "fields"],
+  },
+  emails: {
+    all: ["emails"],
+    list: (params) => ["emails", "list", params ?? {}],
+    detail: (id) => ["emails", "detail", id],
+  },
+
+  /**
    * Transactions (#19) — the money ledger, a read-only view over receivables,
    * operator payments and commissions. Invalidated by every money write in
    * those three modules.

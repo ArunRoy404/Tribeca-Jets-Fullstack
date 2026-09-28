@@ -36,6 +36,8 @@ export const Permission = {
   MANAGE_OPERATOR_PAYMENTS: "MANAGE_OPERATOR_PAYMENTS",
   VIEW_TASKS: "VIEW_TASKS",
   MANAGE_TASKS: "MANAGE_TASKS",
+  MANAGE_EMAIL_TEMPLATES: "MANAGE_EMAIL_TEMPLATES",
+  SEND_EMAILS: "SEND_EMAILS",
 };
 
 /** How far a role may reach. Mirrors `Scope` on the API. */

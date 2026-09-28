@@ -69,6 +69,11 @@ const STATUS_TONES = {
   Payment: "destructive",
   General: "neutral",
   "Travel Agent": "infoStrong",
+  "Client Update": "info",
+  // The sent log (#21): delivered, recorded but delivered to nobody, refused
+  Sent: "success",
+  "Not delivered": "warning",
+  Failed: "destructive",
   Sales: "purple",
   Operations: "info",
   Billing: "destructive",

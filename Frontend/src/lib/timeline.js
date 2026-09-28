@@ -65,6 +65,8 @@ const EVENT_PHRASES = {
   "referral.bulk_restored": "restored this referral",
   "flight.status_changed": "reported this flight",
   "flight.updated": "updated this flight",
+  "email.sent": "emailed",
+  "email.failed": "tried to email",
 };
 
 const FLIGHT_STATUS_WORDS = {
@@ -149,6 +151,20 @@ export function describeEvent(entry) {
       ? ` (${entry.metadata.fields.map((f) => (f === "estimatedArrival" ? "arrival estimate" : "tracking link")).join(", ")})`
       : "";
     return `${phrase}${fields}${flightDetail(entry.metadata)}`;
+  }
+  // An email (#21) records who it went to, the subject, and whether a mail
+  // server took it. LOGGED is said out loud: it was recorded and reached
+  // nobody, and the timeline must not read as though the client has it.
+  if ((entry?.action === "email.sent" || entry?.action === "email.failed") && entry?.metadata?.to) {
+    const who = entry.metadata.toName ? `${entry.metadata.toName} (${entry.metadata.to})` : entry.metadata.to;
+    const subject = entry.metadata.subject ? ` — “${entry.metadata.subject}”` : "";
+    const outcome =
+      entry.action === "email.failed"
+        ? " · the mail server refused it"
+        : entry.metadata.status === "LOGGED"
+          ? " · not delivered: no mail server configured"
+          : "";
+    return `${phrase} ${who}${subject}${outcome}`;
   }
   if (entry?.action === "trip.booked_from_quote" && entry?.metadata?.quoteReference) {
     return `booked this trip from Q-${entry.metadata.quoteReference}`;
