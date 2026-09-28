@@ -96,6 +96,10 @@ enum NoteSubjectType {
   /// A portal referral (#11). Its SHARED notes are the agent's "Agent
   /// Update" feed; its INTERNAL notes never reach them.
   REFERRAL
+  /// One flight — a trip leg (Flight Tracking, #14). Its timeline is the
+  /// desk's flight updates, merged with the status changes the audit log
+  /// already records against `TripLeg`.
+  FLIGHT
 }
 
 /// Who a note is written for.

@@ -92,12 +92,12 @@ model Trip {
   creditApplications ClientCredit[] @relation("ClientCreditAppliedToTrip")
 
   /// Commissions owed on this trip, and the referral that brought it in.
-  commissions Commission[] @relation("CommissionTrip")
+  commissions      Commission[]      @relation("CommissionTrip")
   /// What the client has been billed for this trip, and paid (Receivables).
-  invoices    Invoice[]    @relation("InvoiceTrip")
+  invoices         Invoice[]         @relation("InvoiceTrip")
   /// What Tribeca owes operators for this trip, and has paid (Operator Payments).
   operatorPayables OperatorPayable[] @relation("OperatorPayableTrip")
-  referrals   Referral[]   @relation("ReferralTrip")
+  referrals        Referral[]        @relation("ReferralTrip")
 
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
@@ -150,6 +150,24 @@ model TripLeg {
   departureDate DateTime? @db.Date
   departureTime String?   @db.VarChar(5)
 
+  // ---- Flight Tracking (#14) — set by hand -------------------------------
+  // Manual by decision (27 Sep 2026): no flight-data provider until the
+  // client asks for one. A broker sets these from what the operator reports;
+  // nothing here is "live", and the screen never calls it that. Every change
+  // is written to the audit log, which is what the flight's timeline replays.
+
+  /// Where the flight stands, as last reported. Null until someone reports —
+  /// "no update yet" is not "not departed", and the screen says which.
+  flightStatus     FlightStatus?
+  /// When the status was last set — "landed today" is counted from this.
+  flightStatusAt   DateTime?
+  /// The arrival the operator last estimated, "HH:MM" 24-hour local at the
+  /// destination — the same local-time convention as `departureTime`.
+  estimatedArrival String?       @db.VarChar(5)
+  /// A public tracking page for the tail (FlightAware, ADS-B Exchange…) —
+  /// scope §6.12's "flight tracking links". A link, never a feed.
+  trackingUrl      String?       @db.VarChar(500)
+
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
   createdBy   User?    @relation("TripLegCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -166,6 +184,7 @@ model TripLeg {
   restoredBy   User?     @relation("TripLegRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
 
   @@index([tripId, deletedAt, sequence])
+  @@index([flightStatus, deletedAt])
   @@map("trip_legs")
 }
 
@@ -220,4 +239,16 @@ enum TripStatus {
   IN_FLIGHT
   COMPLETED
   CANCELLED
+}
+
+/// A flight's state as the desk last heard it (Flight Tracking, #14) — entered
+/// by hand, separately from the trip's own status: a round trip is IN_FLIGHT
+/// as a booking while its outbound leg has LANDED and its return has not
+/// departed.
+enum FlightStatus {
+  NOT_DEPARTED
+  DELAYED
+  IN_FLIGHT
+  LANDED
+  DIVERTED
 }
