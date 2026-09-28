@@ -4,6 +4,11 @@ export interface MailMessage {
   /** Plain-text body. Always populated — some clients never render HTML. */
   text: string;
   html?: string;
+  /**
+   * Where replies go. An email a broker sends to a client from the CRM leaves
+   * from the desk's address, and the client's answer must reach the broker.
+   */
+  replyTo?: string;
 }
 
 /**

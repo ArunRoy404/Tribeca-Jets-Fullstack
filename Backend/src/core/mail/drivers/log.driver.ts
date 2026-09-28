@@ -19,6 +19,7 @@ export class LogMailDriver implements MailDriver {
         '',
         '──────────── EMAIL (not actually sent — no SMTP configured) ────────────',
         `  To:      ${message.to}`,
+        ...(message.replyTo ? [`  Reply-To: ${message.replyTo}`] : []),
         `  Subject: ${message.subject}`,
         '',
         message.text
