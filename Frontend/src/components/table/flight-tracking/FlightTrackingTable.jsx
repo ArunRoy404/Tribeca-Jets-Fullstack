@@ -4,7 +4,7 @@ import FlightTrackingTableRow from "./FlightTrackingTableRow";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const columns = [
-  "Trip ID",
+  "Trip",
   "Client",
   "Tail #",
   "Aircraft",
