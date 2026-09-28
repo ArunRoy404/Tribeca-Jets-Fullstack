@@ -283,15 +283,16 @@ running, seeded API — `build_aircraft_folder.py` (07),
 `build_referrals_folder.py` (18), `build_receivables_folder.py` (19),
 `build_operator_payments_folder.py` (20), `build_transactions_folder.py` (21),
 `build_itineraries_folder.py` (22), `build_schedule_folder.py` (23),
-`build_flight_tracking_folder.py` (24),
+`build_flight_tracking_folder.py` (24), `build_tasks_folder.py` (25),
 and `build_users_folder.py` + `reorganize.py` for 04 (above).
 
-**16, 17 and 18 were written on 27 Sep 2026, and 19 to 24 on 28 Sep;
+**16, 17 and 18 were written on 27 Sep 2026, and 19 to 25 on 28 Sep;
 none has been run yet** — the collection does not contain those folders until they are. Run
 them against a freshly seeded API with the latest migrations deployed (16–18
 need `agent@tribecajets.com`; 19–21 sign in as `admin@`, `broker@` and
 `assistant@`, and 19–20 need the seeded broker `mark@`; 23 signs in as
-`admin@`, `broker@` and `agent@`, and 24 as those and `assistant@`), then
+`admin@`, `broker@` and `agent@`, 24 as those and `assistant@`, and 25 as
+`admin@`, `broker@` and `agent@`), then
 `rewrite_body_comments.py`, then Newman twice. Two older folders now also
 under-document their responses: `01 · Auth`'s `/auth/me` and sign-in examples
 lack `commissionTerms` (null for staff), and `04 · Users`' invite does not yet
