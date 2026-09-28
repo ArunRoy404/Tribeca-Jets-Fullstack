@@ -84,6 +84,18 @@ export const queryKeys = {
   },
 
   /** Operators' empty legs, and #10b's matches on each. */
+  /**
+   * The overview (#24). Its figures belong to other modules, so no write
+   * invalidates these keys — the hooks use the `live` preset instead, which
+   * refetches on mount and on an interval.
+   */
+  dashboard: {
+    all: ["dashboard"],
+    summary: (params) => ["dashboard", "summary", params ?? {}],
+    priorities: (params) => ["dashboard", "priorities", params ?? {}],
+    activity: (params) => ["dashboard", "activity", params ?? {}],
+  },
+
   emptyLegs: {
     all: ["empty-legs"],
     list: (params) => ["empty-legs", "list", params ?? {}],

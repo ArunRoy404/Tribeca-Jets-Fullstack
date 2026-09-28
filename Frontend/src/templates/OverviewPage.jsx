@@ -12,7 +12,7 @@ export default function OverviewPage() {
   return (
     <>
       <div className="flex flex-col gap-6 py-6">
-        <DateFilterRow active="This Week" />
+        <DateFilterRow />
         <StatsGrid />
       </div>
 

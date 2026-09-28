@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 
 const STATUS_TONES = {
+  Due: "warning",
   Overdue: "destructive",
   "Due Soon": "destructive",
   "Partially Paid": "infoStrong",
