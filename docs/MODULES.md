@@ -56,8 +56,8 @@ set of broken joins the day the real table arrives.
 | 17 | **Operator Payments** | ✅ Done (28 Sep) | Trips, Operators |
 | 18 | **Commissions** | ✅ Done (27 Sep) | Trips, Users (built ahead of 16–17 for adjustment #11) |
 | 19 | **Transactions** | ✅ Done (28 Sep) — the money ledger, a view | 16, 17, 18 (a union view) |
-| 20 | **Tasks Board** | ⬅ **Next** | Users; links to Trips/Clients |
-| 21 | **Email Templates** | Not started | — (could move earlier) |
+| 20 | **Tasks Board** | ✅ Done (28 Sep) — with the notification bell | Users; links to Trips/Clients |
+| 21 | **Email Templates** | ⬅ **Next** | — (could move earlier) |
 | 22 | **Document Vault** | No screen yet | Trips, Clients, Operators |
 | 23 | **Reports** | Not started | All financial modules |
 | 24 | **Dashboard** | Empty Legs section only | Nearly everything — build it last |
@@ -75,8 +75,8 @@ pulled forward after it so client adjustments #10b and #11 could be built
 without waiting on the client; #11's agent portal followed the same day, and
 **Receivables (#16)**, **Operator Payments (#17)**, **Transactions (#19)**,
 **Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
-on 28 September — everything that hangs off Trips. **What is next:**
-**Tasks Board (#20)**.
+on 28 September — everything that hangs off Trips — and the **Tasks Board
+(#20)**. **What is next:** **Email Templates (#21)**.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -563,11 +563,16 @@ All four hang off Trips. Money is the reason soft delete is absolute here:
 `deletedAt` everywhere, no hard delete anywhere in the system. Financial
 history is never destroyed.
 
-### 20. Tasks Board
+### 20. Tasks Board ✅ *(28 September 2026)*
 
 A kanban of desk work — To Do / In Progress / Waiting on Client / Waiting on
-Operator / Completed, with priority, due date and assignee. Tasks link out to
-trips and clients.
+Operator / Completed, with priority, due date, assignee and a checklist.
+Tasks link to a client and a trip by real foreign key. **Overdue is computed,
+never stored.** New permissions `VIEW_TASKS` / `MANAGE_TASKS`: a broker or an
+assistant works the tasks assigned to them and the ones they wrote. The
+top-nav bell became "your tasks due today or overdue" — the only
+notification this system can truthfully raise until something generates
+reminders.
 
 ### 21. Email Templates
 

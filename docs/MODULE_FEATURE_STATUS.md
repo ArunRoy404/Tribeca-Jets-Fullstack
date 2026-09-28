@@ -975,16 +975,58 @@ anywhere in the system.
 
 ---
 
-## 20. Tasks Board ⬜
+## 20. Tasks Board ✅ *(28 Sep 2026)*
 
-Nothing wired. Waits on **Users (#2)** ✅ — buildable now. Task links out to
-trips and clients need **Trips (#11)** ✅ (shipped); clients ✅ already work.
+**Working now**
 
-**The top-nav notification bell belongs here** (scope §6.22, *Notifications,
-Tasks & Activity*). It is dummy-backed: `dummyData/notifications.js` through
-`useNotificationsStore` — moved out of inline JSX on 26 Sep 2026, per the
-dummy-data rule. Real notifications need a source to raise them (follow-ups
-due, quote expiry, trip reminders), so they land with this module, not before.
+- **`Task`**: title, description, status (the five columns), priority, a due
+  day, an assignee (a staff member), a client and a trip as real foreign keys,
+  a checklist and notes — the scope's "Notification/Task" entity (recipient,
+  type, due date, status, linked entity). Migration `20260928180000_add_tasks`
+- **Overdue and due-today are computed on every read** (`tasks.rules.ts`,
+  pure, with tests) and filtered in SQL from the due date and status —
+  nothing stores them. `completedAt` is stamped on the way into Completed and
+  cleared if the task is reopened
+- **New permissions `VIEW_TASKS` / `MANAGE_TASKS`**: administrators and senior
+  brokers reach every task; a broker or an assistant reaches the tasks
+  assigned to them and the ones they wrote (a task names a client, so the
+  whole desk's list in front of every broker would be a client directory by
+  another route). Archiving is the author's or an administrator's call. A
+  linked client or trip must be one the caller may see, checked by
+  `ClientsService` / `TripsService`
+- `GET /tasks` (views MINE, DUE_TODAY, OVERDUE, HIGH_PRIORITY, ATTENTION;
+  status, priority, assignee, client, trip; search by title, TSK-number,
+  TJ-number or client; soonest due first — a stated exception to
+  newest-first), `GET /tasks/:id`, `POST /tasks`, `PATCH /tasks/:id` (a column
+  move is a PATCH), `DELETE` (archive) and restore
+- Frontend: the board's five columns each ask the API for their own tasks, so
+  each count is the server's; the add/edit form's assignee, client and trip
+  are real records; the panel ticks the checklist and moves columns; the
+  view, search and open task are in the URL; an Archived view restores. The
+  dummy data and the store's data are deleted
+- **The notification bell is real now**: *your* tasks due today or overdue,
+  from `GET /tasks?view=ATTENTION&assigneeId=<you>`, each opening its task.
+  The dummy alerts, the read/unread tabs and the delete buttons — none of
+  which had anything behind them — are gone
+- Postman builder `build_tasks_folder.py` → `25 · Tasks` (8 requests),
+  **written, not run**
+
+**Deviations from the old screen, stated:**
+
+- **The "Auto" chip is gone.** Nothing raises tasks automatically yet, so no
+  card may claim the system did.
+- "Trip / Reference" was a text box and "Client" a hardcoded name list; both
+  are pickers over real records now.
+- "Delete … This cannot be undone" is **Archive**, with Restore.
+- There is no bulk archive: the board has no checkbox column to feed one.
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Automatic reminders — payment due, quote follow-up, trip reminders (scope §6.22) — raised as tasks or notifications | A scheduled job and the rules for each; not built |
+| A Tasks tab on the client and trip pages | Buildable now — `GET /tasks?clientId=` / `?tripId=` exist |
+| Browser push notifications | **Settings (#26)** and an open decision on devices (scope §17) |
 
 ---
 
@@ -1435,15 +1477,20 @@ the call site.
 Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
 Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
 Empty Legs, Commissions, Referrals** (desk and portal), **Receivables**,
-**Operator Payments**, **Transactions**, **Itineraries**, **Schedule** and
-**Flight Tracking** (manual).
+**Operator Payments**, **Transactions**, **Itineraries**, **Schedule**,
+**Flight Tracking** (manual) and the **Tasks Board** with the notification
+bell.
 
-**Most recent change (28 September), uncommitted:** Flight Tracking (#14),
-manual — see its own section. One migration,
-`20260928160000_add_flight_tracking`, must be deployed (`npm run db:deploy`).
-Written **without live testing, by the owner's instruction**: backend `tsc`,
-oxlint and vitest (201 tests, 21 files) are clean, frontend eslint reports
-nothing in the files changed, and `npm run build` passes.
+**Most recent change (28 September), uncommitted:** Tasks Board (#20) and the
+notification bell — see its own section. One migration,
+`20260928180000_add_tasks`, must be deployed (`npm run db:deploy`). Written
+**without live testing, by the owner's instruction**: backend `tsc`, oxlint
+and vitest (207 tests, 22 files) are clean, frontend eslint reports nothing
+in the files changed, and `npm run build` passes. `25 · Tasks` is written and
+not run.
+
+**Before that (28 September, committed and pushed):** Flight Tracking (#14),
+manual. Migration `20260928160000_add_flight_tracking`.
 `24 · Flight Tracking` is written and not run.
 
 **Before that (28 September, committed and pushed):** Schedule (#13) — the
@@ -1487,9 +1534,8 @@ also without live testing: build, eslint, backend lint and tests pass.
 **Left of client adjustment #11:** nothing to build. The three Postman builders
 are written and need one run against a freshly seeded API, then Newman.
 
-**Next in the module queue:** everything that hangs off Trips is complete —
-Itineraries (#12), Schedule (#13), Flight Tracking (#14, manual) and the
-financial modules (#16–19). Next is **Tasks Board (#20)**.
+**Next in the module queue:** everything that hangs off Trips is complete,
+and so is the Tasks Board (#20). Next is **Email Templates (#21)**.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational
