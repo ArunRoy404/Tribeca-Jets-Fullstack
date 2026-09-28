@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   addDays,
   dayKey,
-  itineraryTimes,
   statWindows,
   windowDays,
   yearCalendar,
@@ -55,22 +54,5 @@ describe('yearCalendar', () => {
     expect(dayKey(from)).toBe('2026-01-01');
     expect(dayKey(to)).toBe('2026-12-31');
     expect(windowDays(from, addDays(to, 0))).toBe(365);
-  });
-});
-
-describe('itineraryTimes', () => {
-  const itinerary = { arrivalTime: '10:12', flightTime: '2h 12m', deletedAt: null };
-
-  it('gives the outbound leg the itinerary times', () => {
-    expect(itineraryTimes(1, itinerary)).toEqual({ arrivalTime: '10:12', flightTime: '2h 12m' });
-  });
-
-  it('never lends the outbound figures to a later leg', () => {
-    expect(itineraryTimes(2, itinerary)).toEqual({ arrivalTime: null, flightTime: null });
-  });
-
-  it('reads nothing from a missing or withdrawn itinerary', () => {
-    expect(itineraryTimes(1, null)).toEqual({ arrivalTime: null, flightTime: null });
-    expect(itineraryTimes(1, { ...itinerary, deletedAt: new Date() })).toEqual({ arrivalTime: null, flightTime: null });
   });
 });

@@ -60,6 +60,15 @@ const SUBJECTS: Record<NoteSubjectType, SubjectDefinition> = {
     view: Permission.VIEW_REFERRALS,
     manage: Permission.MANAGE_REFERRALS,
   },
+  [NoteSubjectType.FLIGHT]: {
+    noun: 'flight',
+    // A trip leg (Flight Tracking, #14). Matches the `entityType` the trips
+    // service writes when a flight's status is reported, so a flight's
+    // updates and its status changes read as one feed.
+    entityType: 'TripLeg',
+    view: Permission.VIEW_TRIPS,
+    manage: Permission.MANAGE_TRIPS,
+  },
 };
 
 export function subjectDefinition(type: NoteSubjectType): SubjectDefinition {
@@ -103,6 +112,8 @@ export class NoteSubjectsService {
         return this.trips.subjectRef(user, id);
       case NoteSubjectType.REFERRAL:
         return this.referrals.subjectRef(user, id);
+      case NoteSubjectType.FLIGHT:
+        return this.trips.flightSubjectRef(user, id);
       default:
         // Unreachable while the DTO validates against the enum; kept so adding
         // a subject type without registering it fails loudly rather than

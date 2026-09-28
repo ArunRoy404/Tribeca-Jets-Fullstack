@@ -31,7 +31,7 @@ import {
   Scope,
   scopeFor,
 } from '../../common/authorization/permissions.js';
-import { InvoiceStatus, TripStatus, TripType } from '../../generated/prisma/enums.js';
+import { FlightStatus, InvoiceStatus, TripStatus, TripType } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
@@ -203,16 +203,22 @@ const TRIP_DETAIL_SELECT = {
 type ListRow = Prisma.TripGetPayload<{ select: typeof TRIP_LIST_SELECT }>;
 
 /**
- * One leg as the Schedule (#13) calendar reads it: the leg's own day, time and
- * airports, and its trip's facts read through the relation — never copied.
- * The itinerary rides along for the outbound arrival time and flight time,
- * the only place either is recorded.
+ * One leg as Schedule (#13) and Flight Tracking (#14) read it: the leg's own
+ * day, time, airports and hand-set flight state, and its trip's facts read
+ * through the relation — never copied. The itinerary rides along for the
+ * outbound arrival time and flight time, the only place either is recorded.
  */
-const SCHEDULE_LEG_SELECT = {
+const LEG_VIEW_SELECT = {
   id: true,
   sequence: true,
   departureDate: true,
   departureTime: true,
+  flightStatus: true,
+  flightStatusAt: true,
+  estimatedArrival: true,
+  trackingUrl: true,
+  updatedAt: true,
+  deletedAt: true,
   originAirport: AIRPORT_SELECT,
   destinationAirport: AIRPORT_SELECT,
   trip: {
@@ -221,6 +227,7 @@ const SCHEDULE_LEG_SELECT = {
       reference: true,
       status: true,
       type: true,
+      deletedAt: true,
       fetEnabled: true,
       fetRate: true,
       operatorConfirmedAt: true,
@@ -236,7 +243,7 @@ const SCHEDULE_LEG_SELECT = {
   },
 } satisfies Prisma.TripLegSelect;
 
-export type ScheduleLegRow = Prisma.TripLegGetPayload<{ select: typeof SCHEDULE_LEG_SELECT }>;
+export type LegViewRow = Prisma.TripLegGetPayload<{ select: typeof LEG_VIEW_SELECT }>;
 
 /**
  * What narrows the calendar. Days are inclusive calendar days, compared
@@ -251,6 +258,29 @@ export interface ScheduleFilter {
   operatorId?: string;
   aircraftId?: string;
   search?: string;
+}
+
+/**
+ * Which flights the tracking board lists. ACTIVE — the board's default — is
+ * everything departing today or later, plus anything still reported in the
+ * air or delayed whatever its day, so a flight that left last night is not
+ * lost at midnight.
+ */
+export type FlightWindow = 'ACTIVE' | 'TODAY' | 'PAST';
+
+export interface FlightFilter extends ScheduleFilter {
+  window?: FlightWindow;
+  /** A reported state, or NONE for flights nobody has reported on yet. */
+  flightStatus?: FlightStatus | 'NONE';
+  /** The desk's today, as a calendar day at midnight UTC. */
+  today: Date;
+}
+
+export interface FlightUpdateInput {
+  flightStatus?: FlightStatus;
+  estimatedArrival?: string | null;
+  trackingUrl?: string | null;
+  note?: string;
 }
 
 /** Departure relative to today, on the first leg's day. */
@@ -271,6 +301,8 @@ function departureFilter(window: TripWindow | undefined): Prisma.TripWhereInput 
       return {};
   }
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const toNumber = (value: Prisma.Decimal | number | null | undefined) =>
   value === null || value === undefined ? null : Number(value);
@@ -1108,7 +1140,7 @@ export class TripsService {
     from: Date,
     to: Date,
     page: { skip: number; take: number },
-  ): Promise<{ rows: ScheduleLegRow[]; total: number }> {
+  ): Promise<{ rows: LegViewRow[]; total: number }> {
     const where = this.scheduleLegWhere(user, filter, from, to);
     const [rows, total] = await Promise.all([
       this.prisma.tripLeg.findMany({
@@ -1116,7 +1148,7 @@ export class TripsService {
         skip: page.skip,
         take: page.take,
         orderBy: [{ departureDate: 'asc' }, { departureTime: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }],
-        select: SCHEDULE_LEG_SELECT,
+        select: LEG_VIEW_SELECT,
       }),
       this.prisma.tripLeg.count({ where }),
     ]);
@@ -1162,6 +1194,186 @@ export class TripsService {
       }),
     ]);
     return { flightsToday, inFlight, nextSevenDays, completedToday };
+  }
+
+  // ---- Flight Tracking (#14) --------------------------------------------
+  //
+  // A flight is a trip leg. Its state is set by hand — no provider — and
+  // written here, beside the leg it belongs to, under the same trip scope.
+
+  private flightWindowWhere(window: FlightWindow | undefined, today: Date): Prisma.TripLegWhereInput {
+    const tomorrow = new Date(today.getTime() + DAY_MS);
+    switch (window) {
+      case 'ACTIVE':
+        return {
+          OR: [
+            { departureDate: { gte: today } },
+            { flightStatus: { in: [FlightStatus.IN_FLIGHT, FlightStatus.DELAYED] } },
+          ],
+        };
+      case 'TODAY':
+        return { departureDate: { gte: today, lt: tomorrow } };
+      case 'PAST':
+        return { departureDate: { lt: today } };
+      default:
+        return {};
+    }
+  }
+
+  private flightWhere(user: AuthenticatedUser, filter: FlightFilter): Prisma.TripLegWhereInput {
+    let status: Prisma.TripLegWhereInput = {};
+    if (filter.flightStatus === 'NONE') status = { flightStatus: null };
+    else if (filter.flightStatus) status = { flightStatus: filter.flightStatus };
+    return {
+      AND: [
+        { deletedAt: null },
+        { trip: this.scheduleTripWhere(user, filter) },
+        this.flightWindowWhere(filter.window, filter.today),
+        status,
+      ],
+    };
+  }
+
+  /**
+   * A page of flights, nearest first — by departure day and time, undated
+   * legs last. The past board reads most recent first.
+   */
+  async flights(
+    user: AuthenticatedUser,
+    filter: FlightFilter,
+    page: { skip: number; take: number },
+  ): Promise<{ rows: LegViewRow[]; total: number }> {
+    const where = this.flightWhere(user, filter);
+    const order = filter.window === 'PAST' ? 'desc' : 'asc';
+    const [rows, total] = await Promise.all([
+      this.prisma.tripLeg.findMany({
+        where,
+        skip: page.skip,
+        take: page.take,
+        orderBy: [
+          { departureDate: { sort: order, nulls: 'last' } },
+          { departureTime: { sort: order, nulls: 'last' } },
+          { id: 'asc' },
+        ],
+        select: LEG_VIEW_SELECT,
+      }),
+      this.prisma.tripLeg.count({ where }),
+    ]);
+    return { rows, total };
+  }
+
+  /**
+   * The board's tiles, under its filters but not its window — each tile is a
+   * window of its own. "Landed today" is counted from when the landing was
+   * reported, since no arrival day is recorded anywhere else.
+   */
+  async flightStats(user: AuthenticatedUser, filter: ScheduleFilter & { today: Date }) {
+    const base: Prisma.TripLegWhereInput = { deletedAt: null, trip: this.scheduleTripWhere(user, filter) };
+    const tomorrow = new Date(filter.today.getTime() + DAY_MS);
+    const count = (where: Prisma.TripLegWhereInput) =>
+      this.prisma.tripLeg.count({ where: { AND: [base, where] } });
+    const [inFlight, delayed, departingToday, landedToday, awaitingUpdate] = await Promise.all([
+      count({ flightStatus: FlightStatus.IN_FLIGHT }),
+      count({ flightStatus: FlightStatus.DELAYED }),
+      count({ departureDate: { gte: filter.today, lt: tomorrow } }),
+      count({ flightStatus: FlightStatus.LANDED, flightStatusAt: { gte: filter.today, lt: tomorrow } }),
+      // Due out today or earlier, and nobody has reported anything about it.
+      count({ flightStatus: null, departureDate: { lt: tomorrow } }),
+    ]);
+    return { inFlight, delayed, departingToday, landedToday, awaitingUpdate };
+  }
+
+  /** One flight, archived included — the board's panel and a timeline link to it. */
+  async flight(user: AuthenticatedUser, legId: string): Promise<LegViewRow> {
+    const row = await this.prisma.tripLeg.findFirst({
+      where: { id: legId, trip: this.visibilityScope(user) },
+      select: LEG_VIEW_SELECT,
+    });
+    if (!row) throw new NotFoundException('Flight not found');
+    return row;
+  }
+
+  /**
+   * A flight as a note subject (#29) — resolved under the trip scope, and
+   * read-only once the leg or its trip is archived.
+   */
+  async flightSubjectRef(user: AuthenticatedUser, legId: string) {
+    const leg = await this.prisma.tripLeg.findFirst({
+      where: { id: legId, trip: this.visibilityScope(user) },
+      select: { id: true, sequence: true, deletedAt: true, trip: { select: { reference: true, deletedAt: true } } },
+    });
+    if (!leg) throw new NotFoundException('Flight not found');
+    return {
+      id: leg.id,
+      label: `TJ-${leg.trip.reference} leg ${leg.sequence}`,
+      archived: leg.deletedAt !== null || leg.trip.deletedAt !== null,
+    };
+  }
+
+  /**
+   * Records what the desk has heard about a flight. Only the fields sent
+   * change. A status change stamps when it was reported and is written to the
+   * audit log with its note — that entry is what the flight's timeline
+   * replays, so a report is never lost when the next one replaces it.
+   *
+   * Refused on a cancelled or archived trip: a flight that is not happening
+   * has nothing to report.
+   */
+  async updateFlight(user: AuthenticatedUser, legId: string, dto: FlightUpdateInput): Promise<LegViewRow> {
+    const leg = await this.prisma.tripLeg.findFirst({
+      where: { id: legId, trip: this.visibilityScope(user) },
+      select: {
+        id: true,
+        sequence: true,
+        deletedAt: true,
+        flightStatus: true,
+        estimatedArrival: true,
+        trackingUrl: true,
+        trip: { select: { reference: true, status: true, deletedAt: true } },
+      },
+    });
+    if (!leg) throw new NotFoundException('Flight not found');
+    const label = `TJ-${leg.trip.reference}`;
+    if (leg.trip.deletedAt || leg.deletedAt) {
+      throw new BadRequestException(`${label} has been archived. Restore it before reporting on its flights.`);
+    }
+    if (leg.trip.status === TripStatus.CANCELLED) {
+      throw new BadRequestException(`${label} is cancelled, so there is no flight to report on.`);
+    }
+
+    const statusChanged = dto.flightStatus !== undefined && dto.flightStatus !== leg.flightStatus;
+    const fields = (['estimatedArrival', 'trackingUrl'] as const).filter(
+      (key) => dto[key] !== undefined && dto[key] !== leg[key],
+    );
+    if (!statusChanged && fields.length === 0 && !dto.note) {
+      throw new BadRequestException('Nothing to report — change the status, the arrival estimate or the link, or add a note.');
+    }
+
+    await this.prisma.tripLeg.update({
+      where: { id: legId },
+      data: {
+        ...(statusChanged ? { flightStatus: dto.flightStatus, flightStatusAt: new Date() } : {}),
+        ...Object.fromEntries(fields.map((key) => [key, dto[key]])),
+        updatedById: user.id,
+      },
+    });
+
+    await this.audit.record({
+      actorId: user.id,
+      action: statusChanged ? 'flight.status_changed' : 'flight.updated',
+      entityType: 'TripLeg',
+      entityId: legId,
+      metadata: {
+        reference: leg.trip.reference,
+        sequence: leg.sequence,
+        ...(statusChanged ? { from: leg.flightStatus, to: dto.flightStatus } : {}),
+        fields,
+        estimatedArrival: dto.estimatedArrival === undefined ? leg.estimatedArrival : dto.estimatedArrival,
+        note: dto.note ?? null,
+      },
+    });
+
+    return this.flight(user, legId);
   }
 
   /**

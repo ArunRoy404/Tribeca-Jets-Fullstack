@@ -57,17 +57,3 @@ export function yearCalendar(year: number, counts: { day: Date; count: number }[
   }
   return { year, total: months.reduce((sum, n) => sum + n, 0), months, days };
 }
-
-/**
- * What the itinerary knows about this leg's flight. `Itinerary.arrivalTime`
- * and `flightTime` describe the *outbound* leg only — nothing records either
- * for a return or a later leg — so any other leg gets null, never the
- * outbound's figure. A withdrawn itinerary is no source at all.
- */
-export function itineraryTimes(
-  sequence: number,
-  itinerary: { arrivalTime: string | null; flightTime: string | null; deletedAt: Date | null } | null,
-): { arrivalTime: string | null; flightTime: string | null } {
-  if (!itinerary || itinerary.deletedAt || sequence !== 1) return { arrivalTime: null, flightTime: null };
-  return { arrivalTime: itinerary.arrivalTime, flightTime: itinerary.flightTime };
-}
