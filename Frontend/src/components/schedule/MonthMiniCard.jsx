@@ -1,8 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useScheduleStore } from "@/store/useScheduleStore";
-import { getMonthGrid, isSameDay } from "@/lib/date";
+import { useScheduleParams } from "@/hooks/schedule";
+import { getMonthGrid, isSameDay, toISODate } from "@/lib/date";
 import BgPanel from "@/components/common/BgPanel";
 
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -11,26 +11,19 @@ const MONTH_LABELS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-export default function MonthMiniCard({ year, month }) {
-  const currentDate = useScheduleStore((s) => s.currentDate);
-  const goToDate = useScheduleStore((s) => s.goToDate);
-  const setView = useScheduleStore((s) => s.setView);
-  const getEventsForMonth = useScheduleStore((s) => s.getEventsForMonth);
-  const getEventsForDate = useScheduleStore((s) => s.getEventsForDate);
-  const selectEvent = useScheduleStore((s) => s.selectEvent);
+/**
+ * One month of the year overview. The counts come from the API's year
+ * calendar; a day with flights opens in the day view, where each of them can
+ * be read, and an empty day opens its month.
+ */
+export default function MonthMiniCard({ year, month, flightCount = 0, dayCounts = {} }) {
+  const { currentDate, showDate } = useScheduleParams();
 
   const monthDate = new Date(year, month, 1);
   const weeks = getMonthGrid(monthDate);
-  const flightCount = getEventsForMonth(year, month).length;
 
   const openDay = (day) => {
-    const events = getEventsForDate(day);
-    if (events.length > 0) {
-      selectEvent(events[0].id);
-      return;
-    }
-    goToDate(day);
-    setView("This Month");
+    showDate((dayCounts?.[toISODate(day)] ?? 0) > 0 ? "day" : "month", day);
   };
 
   return (
@@ -68,6 +61,7 @@ export default function MonthMiniCard({ year, month }) {
         <div key={week[0].toISOString()} className="flex gap-0.5 items-start h-6 w-full">
           {week.map((day) => {
             const inMonth = day.getMonth() === month;
+            const hasFlights = inMonth && (dayCounts?.[toISODate(day)] ?? 0) > 0;
             return (
               <button
                 key={day.toISOString()}
@@ -75,12 +69,13 @@ export default function MonthMiniCard({ year, month }) {
                 onClick={() => inMonth && openDay(day)}
                 disabled={!inMonth}
                 className={cn(
-                  "flex-1 min-w-0 h-6 flex items-start justify-start p-1 rounded text-[8px] font-montserrat font-normal text-left",
+                  "relative flex-1 min-w-0 h-6 flex items-start justify-start p-1 rounded text-[8px] font-montserrat font-normal text-left",
                   inMonth ? "bg-white/70 text-foreground/80 cursor-pointer hover:bg-secondary" : "text-transparent",
                   inMonth && isSameDay(day, currentDate) && "bg-purple/10 text-purple font-medium"
                 )}
               >
                 {inMonth ? day.getDate() : ""}
+                {hasFlights && <span className="absolute bottom-1 right-1 size-1 rounded-full bg-info" />}
               </button>
             );
           })}

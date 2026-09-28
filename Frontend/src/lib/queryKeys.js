@@ -128,6 +128,18 @@ export const queryKeys = {
   },
 
   /**
+   * Schedule (#13) — a read-only calendar of trip legs. Filed under `trips` on
+   * purpose: every write that moves what the calendar shows (a trip, its
+   * itinerary, an invoice or payment) already invalidates `trips.all`, so the
+   * calendar refreshes with them and no hook needs to know it exists.
+   */
+  schedule: {
+    list: (params) => ["trips", "schedule", "list", params ?? {}],
+    stats: (params) => ["trips", "schedule", "stats", params ?? {}],
+    calendar: (params) => ["trips", "schedule", "calendar", params ?? {}],
+  },
+
+  /**
    * Transactions (#19) — the money ledger, a read-only view over receivables,
    * operator payments and commissions. Invalidated by every money write in
    * those three modules.

@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { useScheduleStore } from "@/store/useScheduleStore";
+import { useScheduleEvents, useScheduleParams } from "@/hooks/schedule";
 import { getMonthGrid, isSameDay, formatShortDay, dayLabel } from "@/lib/date";
 import FlightEventCard from "@/components/common/FlightEventCard";
 
@@ -14,10 +15,9 @@ const WEEKDAY_INITIALS = ["S", "M", "T", "W", "T", "F", "S"];
 const MAX_VISIBLE_EVENTS = 1;
 
 export default function MonthGrid() {
-  const currentDate = useScheduleStore((s) => s.currentDate);
-  const getEventsForDate = useScheduleStore((s) => s.getEventsForDate);
+  const { currentDate, goToDate } = useScheduleParams();
+  const { eventsFor: getEventsForDate } = useScheduleEvents();
   const selectEvent = useScheduleStore((s) => s.selectEvent);
-  const goToDate = useScheduleStore((s) => s.goToDate);
   const weeks = getMonthGrid(currentDate);
   const selectedDayEvents = getEventsForDate(currentDate);
   const currentMonth = currentDate.getMonth();
@@ -71,7 +71,7 @@ export default function MonthGrid() {
 
         <div className="flex flex-col gap-2">
           {selectedDayEvents.map((event) => (
-            <FlightEventCard key={event.id} event={event} onClick={() => selectEvent(event.id)} />
+            <FlightEventCard key={event?.id} event={event} onClick={() => selectEvent(event?.id)} />
           ))}
           {selectedDayEvents.length === 0 && (
             <p className="font-montserrat text-[12px] text-muted-foreground py-6 text-center">
@@ -114,22 +114,22 @@ export default function MonthGrid() {
                 >
                   <p className="font-montserrat font-bold text-[16px] text-foreground shrink-0">{day.getDate()}</p>
                   {visibleEvents.map((event) => {
-                    const isInFlight = event.status === "In Flight";
+                    const isInFlight = event?.rawStatus === "IN_FLIGHT";
                     return (
                       <button
-                        key={event.id}
+                        key={event?.id}
                         type="button"
-                        onClick={() => selectEvent(event.id)}
+                        onClick={() => selectEvent(event?.id)}
                         className={cn(
                           "flex flex-col gap-px items-start px-[7px] py-1 rounded-[5px] w-full text-left cursor-pointer overflow-hidden shrink-0",
                           isInFlight ? "bg-warning/10" : "bg-secondary"
                         )}
                       >
                         <p className="font-montserrat font-bold text-[8px] text-foreground truncate w-full shrink-0">
-                          {event.id} • {event.from} → {event.to}
+                          {event?.title} • {event?.from} → {event?.to}
                         </p>
                         <p className={cn("font-montserrat font-normal text-[8px] shrink-0", isInFlight ? "text-warning" : "text-info")}>
-                          {event.status}
+                          {event?.status}
                         </p>
                       </button>
                     );

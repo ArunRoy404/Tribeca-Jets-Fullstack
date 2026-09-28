@@ -1,15 +1,14 @@
 "use client";
 
 import { useScheduleStore } from "@/store/useScheduleStore";
+import { useScheduleEvents, useScheduleParams } from "@/hooks/schedule";
 import FlightEventCard from "@/components/common/FlightEventCard";
 
 export default function DayAgenda() {
-  const currentDate = useScheduleStore((s) => s.currentDate);
-  const getEventsForDate = useScheduleStore((s) => s.getEventsForDate);
+  const { currentDate } = useScheduleParams();
+  const { eventsFor } = useScheduleEvents();
   const selectEvent = useScheduleStore((s) => s.selectEvent);
-  // Re-reads current search/filter state internally on every render (cheap array filter over a small dummy set),
-  // so this intentionally isn't memoized against those fields.
-  const events = getEventsForDate(currentDate);
+  const events = eventsFor(currentDate);
 
   return (
     <div className="flex flex-col gap-3 p-4 w-full">
@@ -25,7 +24,7 @@ export default function DayAgenda() {
       )}
       <div className="flex flex-col gap-2 sm:max-w-md">
         {events.map((event) => (
-          <FlightEventCard key={event.id} event={event} onClick={() => selectEvent(event.id)} />
+          <FlightEventCard key={event?.id} event={event} onClick={() => selectEvent(event?.id)} />
         ))}
       </div>
     </div>
