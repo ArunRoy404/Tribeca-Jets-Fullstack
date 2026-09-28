@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Clock, Plane, RotateCcw, Send, XCircle } from "lucide-react";
+import { Check, Clock, Mail, Plane, RotateCcw, Send, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DetailCard from "@/components/quotes/DetailCard";
+import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import {
   useDecideQuote,
   useReopenQuote,
@@ -31,6 +33,11 @@ const BUTTON = "w-full h-11 justify-center gap-2 font-montserrat font-medium tex
  * second booking of the same quote. Once booked, the card links the trip
  * instead of offering the button again. (An earlier "Book Leg" button routed
  * to an empty trip form that ignored the quote; it is not coming back.)
+ *
+ * **Email to Client** (Email Templates, #21) opens the shared compose form
+ * with the quote's number, total, FET and validity filled by the API; once a
+ * mail server accepts it, the quote is marked sent. **Mark as Sent** stays
+ * for a quote handed over another way, and says it delivers nothing.
  */
 export default function QuoteStatusActionsCard({ quote }) {
   const { mutate: send, isPending: isSending } = useSendQuote();
@@ -43,6 +50,8 @@ export default function QuoteStatusActionsCard({ quote }) {
   const { canWrite } = usePermissions();
   const mayWrite = canWrite(Permission.MANAGE_TRIPS);
   const mayArchive = canWrite(Permission.DELETE_TRIPS);
+  const maySend = canWrite(Permission.SEND_EMAILS);
+  const [composeOpen, setComposeOpen] = useState(false);
 
   if (!quote) return null;
 
@@ -89,19 +98,26 @@ export default function QuoteStatusActionsCard({ quote }) {
       <div className="flex flex-col gap-3 w-full">
         {quote.rawStatus === "DRAFT" && (
           <>
+            {maySend && (
+              <Button type="button" disabled={busy} onClick={() => setComposeOpen(true)} className={cn(BUTTON, "shadow-button")}>
+                <Mail className="size-4" />
+                <span>Email to Client</span>
+              </Button>
+            )}
             <Button
               type="button"
+              variant={maySend ? "outline" : "default"}
               disabled={busy}
               onClick={() => send({ id: quote.id })}
-              className={cn(BUTTON, "shadow-button")}
+              className={cn(BUTTON, maySend ? "border-border" : "shadow-button")}
             >
               <Send className="size-4" />
-              <span>Send to Client</span>
+              <span>Mark as Sent</span>
             </Button>
             {/* Said plainly rather than implied by a paper-plane icon: a
                 broker who believes a quote was emailed will not chase it. */}
             <p className="font-montserrat text-[11px] text-muted-foreground text-center">
-              Marks it sent and starts the clock. No email is sent yet.
+              Mark as Sent starts the clock for a quote handed over another way. It emails nothing.
             </p>
           </>
         )}
@@ -141,6 +157,18 @@ export default function QuoteStatusActionsCard({ quote }) {
               <span>Mark Expired</span>
             </Button>
 
+            {maySend && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => setComposeOpen(true)}
+                className={cn(BUTTON, "border-border")}
+              >
+                <Mail className="size-4 text-muted-foreground" />
+                <span>Email Again</span>
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -149,7 +177,7 @@ export default function QuoteStatusActionsCard({ quote }) {
               className={cn(BUTTON, "border-border")}
             >
               <Send className="size-4 text-muted-foreground" />
-              <span>Send Again</span>
+              <span>Mark Sent Again</span>
             </Button>
           </>
         )}
@@ -196,6 +224,18 @@ export default function QuoteStatusActionsCard({ quote }) {
           </>
         )}
       </div>
+
+      {maySend && (
+        <ComposeEmailDialog
+          open={composeOpen}
+          onOpenChange={setComposeOpen}
+          context={{ clientId: quote.clientId, quoteId: quote.id, tripId: quote.trip?.id }}
+          category="QUOTE_FOLLOW_UP"
+          title={`Email ${quote.reference} to the client`}
+          description="The quote's total, FET and validity are filled in by the system. Once it is accepted, the quote is marked sent."
+          onSent={(email) => email?.status === "SENT" && send({ id: quote.id })}
+        />
+      )}
     </DetailCard>
   );
 }

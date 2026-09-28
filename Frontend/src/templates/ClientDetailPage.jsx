@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import DetailHeader from "@/components/common/DetailHeader";
 import CommonCard from "@/components/common/CommonCard";
 import ClientHeaderTitle from "@/components/clients/ClientHeaderTitle";
@@ -20,6 +20,7 @@ import ArchiveClientDialog from "@/components/clients/ArchiveClientDialog";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import NotFoundState from "@/components/common/NotFoundState";
 import TableStatus from "@/components/table/common/TableStatus";
+import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useClient, useUpdateClient, useRestoreClient } from "@/hooks/clients";
 import { usePermissions } from "@/hooks/common/usePermissions";
@@ -39,7 +40,9 @@ export default function ClientDetailPage({ params }) {
   // Money on account is financial data. An assistant holds VIEW_FINANCIALS at
   // NONE, and the tab is *hidden* rather than shown and refused — a tab that
   // only ever renders a 403 reads as a broken app, not as a boundary.
-  const { can } = usePermissions();
+  const { can, canWrite } = usePermissions();
+  const maySend = canWrite(Permission.SEND_EMAILS);
+  const [composeOpen, setComposeOpen] = useState(false);
   const maySeeMoney = can(Permission.VIEW_FINANCIALS);
   const maySeeInvoices = can(Permission.VIEW_RECEIVABLES);
 
@@ -98,8 +101,16 @@ export default function ClientDetailPage({ params }) {
             onArchive={() => openArchiveModal(client)}
             onRestore={() => restoreClient(client)}
             isRestoring={isRestoring}
+            onSendEmail={maySend ? () => setComposeOpen(true) : undefined}
           />
         }
+      />
+      <ComposeEmailDialog
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        context={{ clientId: client?.id }}
+        title="Email this client"
+        description="Start from a template or write it. It is recorded on the client's Activity."
       />
 
       {/* 4 Stat Summary KPI Tiles */}

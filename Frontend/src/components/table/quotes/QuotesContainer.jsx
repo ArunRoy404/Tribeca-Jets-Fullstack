@@ -142,7 +142,8 @@ export default function QuotesContainer({ revealDelay = 0 }) {
 
     if (quote?.rawStatus === "DRAFT") {
       actions.push({
-        label: "Send to Client",
+        // Marks it only — emailing it is "Email to Client" on the quote page (#21).
+        label: "Mark as Sent",
         icon: <Send />,
         onSelect: () => send?.({ id: quote?.id }),
       });

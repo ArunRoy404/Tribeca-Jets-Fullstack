@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DollarSign, Edit, Eye, RotateCcw, Send, Trash2 } from "lucide-react";
+import { DollarSign, Edit, Eye, Mail, RotateCcw, Send, Trash2 } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
 import BulkDeleteDialog from "@/components/common/BulkDeleteDialog";
 import TablePagination from "@/components/table/common/TablePagination";
 import TableStatus from "@/components/table/common/TableStatus";
+import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import AddReceivableDialog from "@/components/receivables/AddReceivableDialog";
 import RecordPaymentDialog from "@/components/receivables/RecordPaymentDialog";
 import ReceivablesToolbar from "./ReceivablesToolbar";
@@ -34,8 +35,9 @@ import { useReceivablesStore } from "@/store/useReceivablesStore";
  * recording payments is MANAGE_RECEIVABLES (a broker on their own trips);
  * archiving an invoice is an administrator's or senior broker's call, so the
  * checkbox column and the Archive action appear only at ALL scope. "Send
- * Reminder" from the old screen is gone until Email Templates (#21) can send
- * one — a menu item that logs to the console is not a reminder.
+ * Reminder" emails the client through the shared compose form (Email
+ * Templates, #21), opening on a payment template with the invoice's number,
+ * total, balance and due date filled by the API — for a role that may send.
  */
 export default function ReceivablesContainer({ revealDelay = 0 }) {
   const params = useReceivablesTableParams();
@@ -48,6 +50,8 @@ export default function ReceivablesContainer({ revealDelay = 0 }) {
 
   const { canWrite, scopeFor } = usePermissions();
   const mayWrite = canWrite(Permission.MANAGE_RECEIVABLES);
+  const maySend = canWrite(Permission.SEND_EMAILS);
+  const [reminderFor, setReminderFor] = useState(null);
   const mayArchive = scopeFor(Permission.MANAGE_RECEIVABLES) === Scope.ALL;
 
   const openAddModal = useReceivablesStore((s) => s.openAddModal);
@@ -96,6 +100,7 @@ export default function ReceivablesContainer({ revealDelay = 0 }) {
     const actions = [view];
     if (row?.rawStatus === "SENT" && row?.hasBalance) {
       actions.push({ label: "Record Payment", icon: <DollarSign />, onSelect: () => openPaymentModal?.(row?.raw) });
+      if (maySend) actions.push({ label: "Send Reminder", icon: <Mail />, onSelect: () => setReminderFor(row) });
     }
     if (row?.rawStatus === "DRAFT") {
       actions.push({ label: "Mark Sent", icon: <Send />, onSelect: () => updateInvoice?.({ id: row?.id, status: "SENT" }) });
@@ -184,6 +189,21 @@ export default function ReceivablesContainer({ revealDelay = 0 }) {
 
         <AddReceivableDialog />
         <RecordPaymentDialog />
+        <ComposeEmailDialog
+          open={Boolean(reminderFor)}
+          onOpenChange={(open) => !open && setReminderFor(null)}
+          // An invoice billed to someone other than the trip's client (a travel
+          // agent, a company) is about that bill, not their trip.
+          context={{
+            clientId: reminderFor?.clientId,
+            tripId: reminderFor?.billedElsewhere ? undefined : reminderFor?.tripId,
+            invoiceId: reminderFor?.id,
+          }}
+          category="PAYMENT"
+          title="Send Payment Reminder"
+          description="Email the client about this invoice. The amounts are filled in from the invoice as it stands today."
+        />
+
         <BulkDeleteDialog
           open={bulkOpen}
           onOpenChange={setBulkOpen}

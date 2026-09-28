@@ -6,8 +6,9 @@ import { invalidate } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
 import { toastApiError, toastSuccess } from "@/lib/toast";
 
-/** Marks the document sent to the client. Does not deliver it — there is no
- * Email Templates module (#21) yet. */
+/** Marks the document sent to the client. Delivers nothing itself — emailing
+ * it is the shared compose form (Email Templates, #21), which calls this once
+ * a mail server accepts the email. */
 export function useSendItinerary() {
   return useMutation({
     mutationFn: (id) => itinerariesService.send(id),

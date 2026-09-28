@@ -32,7 +32,9 @@ import { useOperatorPaymentsStore } from "@/store/useOperatorPaymentsStore";
  * Writing is administrators' and senior brokers' only — money leaving the
  * company — so for everyone else the checkbox column, the Add button and every
  * write action are absent rather than disabled. The old screen's "Send
- * Remittance" is gone until Email Templates (#21) can send one.
+ * Remittance" is not back: Email Templates (#21) can email an operator, but
+ * it has no merge fields for an operator bill yet, so a remittance would
+ * carry no amount — see MODULE_FEATURE_STATUS §17.
  */
 export default function OperatorPaymentsContainer({ revealDelay = 0 }) {
   const params = useOperatorPaymentsTableParams();

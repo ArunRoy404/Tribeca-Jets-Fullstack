@@ -22,9 +22,9 @@ const CELL = "p-3 font-montserrat text-[11px] text-center";
  * `GET /receivables/stats?clientId=` for the totals, both within the caller's
  * scope and both computed by the API. Nothing is summed in the browser.
  *
- * Each invoice opens on the Receivables board, where payments are recorded.
- * The old tab's "Download Receipt" and "Send Payment Reminder" did nothing
- * and are gone until Document Vault (#22) and Email Templates (#21) can.
+ * Each invoice opens on the Receivables board, where payments are recorded
+ * and "Send Reminder" emails the client (Email Templates, #21). The old tab's
+ * "Download Receipt" did nothing and is gone until Document Vault (#22).
  */
 export default function ClientPaymentsTab({ client, onScheduleFollowUp, onMarkComplete, isCompleting }) {
   const [page, setPage] = useState(1);
