@@ -22,6 +22,11 @@ const STATUS_TONES = {
   "In Flight": "warning",
   "Not Departed": "pending",
   Delayed: "destructive",
+  // Flight Tracking (#14) — a flight's hand-reported state. "No Update" is
+  // nobody having reported yet, which is not the same as "Not Departed".
+  Landed: "success",
+  Diverted: "warning",
+  "No Update": "outline",
   Completed: "success",
   Cancelled: "destructive",
   "Pending Operator Quote": "pending",

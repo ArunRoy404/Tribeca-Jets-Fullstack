@@ -27,6 +27,7 @@ export const SUBJECT_PERMISSION = {
   CLIENT: Permission.MANAGE_CLIENTS,
   TRIP: Permission.MANAGE_TRIPS,
   REFERRAL: Permission.MANAGE_REFERRALS,
+  FLIGHT: Permission.MANAGE_TRIPS,
 };
 
 /**
@@ -62,7 +63,24 @@ const EVENT_PHRASES = {
   "referral.bulk_archived": "archived this referral",
   "referral.restored": "restored this referral",
   "referral.bulk_restored": "restored this referral",
+  "flight.status_changed": "reported this flight",
+  "flight.updated": "updated this flight",
 };
+
+const FLIGHT_STATUS_WORDS = {
+  NOT_DEPARTED: "Not Departed",
+  DELAYED: "Delayed",
+  IN_FLIGHT: "In Flight",
+  LANDED: "Landed",
+  DIVERTED: "Diverted",
+};
+
+/** A flight report's tail: its estimate and its note, from what the entry stored. */
+function flightDetail(metadata) {
+  const eta = metadata?.estimatedArrival ? ` · ETA ${metadata.estimatedArrival}` : "";
+  const note = metadata?.note ? ` — “${metadata.note}”` : "";
+  return `${eta}${note}`;
+}
 
 const TRIP_STATUS_WORDS = {
   DRAFT: "Draft",
@@ -119,6 +137,18 @@ export function describeEvent(entry) {
     const from = REFERRAL_STATUS_WORDS[entry.metadata.from] ?? entry.metadata.from;
     const to = REFERRAL_STATUS_WORDS[entry.metadata.to] ?? entry.metadata.to;
     return `${phrase} from ${from} to ${to}`;
+  }
+  // A flight report (#14) records `from`/`to`, the estimate and the note the
+  // desk gave with it. Nothing is live — the words say who reported it.
+  if (entry?.action === "flight.status_changed" && entry?.metadata?.to) {
+    const to = FLIGHT_STATUS_WORDS[entry.metadata.to] ?? entry.metadata.to;
+    return `${phrase} ${to}${flightDetail(entry.metadata)}`;
+  }
+  if (entry?.action === "flight.updated") {
+    const fields = Array.isArray(entry?.metadata?.fields) && entry.metadata.fields.length
+      ? ` (${entry.metadata.fields.map((f) => (f === "estimatedArrival" ? "arrival estimate" : "tracking link")).join(", ")})`
+      : "";
+    return `${phrase}${fields}${flightDetail(entry.metadata)}`;
   }
   if (entry?.action === "trip.booked_from_quote" && entry?.metadata?.quoteReference) {
     return `booked this trip from Q-${entry.metadata.quoteReference}`;

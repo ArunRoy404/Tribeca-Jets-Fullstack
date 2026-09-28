@@ -140,6 +140,16 @@ export const queryKeys = {
   },
 
   /**
+   * Flight Tracking (#14) — trip legs and their hand-reported state. Under
+   * `trips` for the same reason as the schedule: a trip edit moves its legs.
+   */
+  flights: {
+    list: (params) => ["trips", "flights", "list", params ?? {}],
+    stats: (params) => ["trips", "flights", "stats", params ?? {}],
+    detail: (id) => ["trips", "flights", "detail", id],
+  },
+
+  /**
    * Transactions (#19) — the money ledger, a read-only view over receivables,
    * operator payments and commissions. Invalidated by every money write in
    * those three modules.
