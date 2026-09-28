@@ -178,8 +178,8 @@ Paste everything between the lines into the first message of a new session.
 > if a check was skipped, say so; if something fails, show the output.
 >
 > **Where we are right now (28 September 2026):** everything through
-> Itineraries (#12) is committed and pushed to `origin/roy` — check
-> `git status`, but as of this refresh the tree is clean. Run
+> Itineraries (#12) is committed and pushed to `origin/roy`; **Schedule (#13)
+> is built and uncommitted** — check `git status`. Run
 > `npm run db:deploy` (six new migrations since the last deploy, the last
 > being `20260928140000_add_itineraries`).
 >
@@ -219,7 +219,14 @@ Paste everything between the lines into the first message of a new session.
 >    three second-pass cards on the trip detail page render real times once a
 >    document exists. Then run `build_itineraries_folder.py` and fold
 >    `22 · Itineraries` into the Newman pass above.
-> 4. Then Phase 3's queue: Schedule (#13), a read-only calendar over Trips.
+> 4. Schedule (#13) is built too (28 Sep, untested) — no migration. Check the
+>    day, week, month and year views against real trips (a round trip shows
+>    two legs), the filters in the URL, the tiles, and the flight panel's
+>    links to the trip and itinerary. Then run `build_schedule_folder.py` and
+>    fold `23 · Schedule` into the Newman pass above.
+> 5. Then Phase 3's queue: Flight Tracking (#14) — **manual** by decision (a
+>    broker-set status and notes; no flight-data provider until the client
+>    asks).
 >
 > **For the client:** the Archived-tab demo (#1), the rate data for #6, the
 > FET-in-profit question, and each referral agent's commission figures

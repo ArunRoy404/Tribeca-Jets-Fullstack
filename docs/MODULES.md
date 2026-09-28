@@ -49,8 +49,8 @@ set of broken joins the day the real table arrives.
 | 10 | **Quotes** | ✅ Done | Trip Requests, Sourcing, Clients, Aircraft |
 | 11 | **Trips** | ✅ Done (27 Sep) | Quotes, everything above |
 | 12 | **Itineraries** | ✅ Done (28 Sep) | Trips |
-| 13 | **Schedule** | ⬅ **Next** | Trips (read-only view) |
-| 14 | **Flight Tracking** | Not started | Trips, Aircraft |
+| 13 | **Schedule** | ✅ Done (28 Sep) — a view over trip legs | Trips (read-only view) |
+| 14 | **Flight Tracking** | ⬅ **Next** — manual | Trips, Aircraft |
 | 15 | **Empty Legs** | ✅ Done (27 Sep) | Operators, Aircraft, Airports; matching reads Trip Requests (adjustment #10b) |
 | 16 | **Receivables** | ✅ Done (28 Sep) | Trips, Clients |
 | 17 | **Operator Payments** | ✅ Done (28 Sep) | Trips, Operators |
@@ -74,9 +74,9 @@ set of broken joins the day the real table arrives.
 pulled forward after it so client adjustments #10b and #11 could be built
 without waiting on the client; #11's agent portal followed the same day, and
 **Receivables (#16)**, **Operator Payments (#17)**, **Transactions (#19)** and
-**Itineraries (#12)** on 28 September, completing the financial modules and
-the first of the two remaining unblocked-by-Trips modules. **What is next:**
-**Schedule (#13)** — a read-only calendar projection of Trips, no new table.
+**Itineraries (#12)** and **Schedule (#13)** on 28 September, completing the
+financial modules and both unblocked-by-Trips modules. **What is next:**
+**Flight Tracking (#14)**, manual — see its section.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -489,10 +489,21 @@ environment); everything else — schema, API, frontend, the Trips second
 pass — was written without live testing, by the owner's instruction, and
 verified with `tsc`, oxlint, vitest (185 tests) and a clean `npm run build`.
 
-### 13. Schedule
+### 13. Schedule ✅ *(28 September 2026)*
 
-A calendar view of trips. **Read-only** — no new table, just a different
-projection of Trips with departures, arrivals and in-flight state.
+A calendar of trip legs — day, week, month and a year of counts. **Read-only,
+and no table**: every event is a `TripLeg`, read through `TripsService` under
+the trip scope, and every fact on it is the trip's own. It is the same rule
+Itineraries follows — the third module to read the trip's aircraft, route and
+client, and the third not to copy them.
+
+Moving a flight or changing its status happens on the trip; the calendar only
+shows it, and its panel opens the trip and the itinerary. Arrival time and
+duration exist only where the trip's itinerary recorded them, which is the
+outbound leg — so every other leg says "—" rather than borrowing the
+outbound's. The old screen's "Sourcing" status, outside-brokerage filter,
+Departures/Arrivals tiles and do-nothing buttons are gone; the reasons are in
+[MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md) #13.
 
 ### 14. Flight Tracking
 

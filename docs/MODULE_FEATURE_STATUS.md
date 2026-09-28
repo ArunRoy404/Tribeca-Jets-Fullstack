@@ -258,7 +258,7 @@ API accepted, stored, and never gave back:
 | `avgUtilization` | Nothing records flight hours per tail — stays null |
 | ~~Trips tab on the aircraft detail page~~ | ✅ Shipped with **Trips (#11)** |
 | `IN_SERVICE` becoming *derived* rather than set by hand | **Trips (#11)** ✅ — not built yet |
-| Availability against a date range | **Trips (#11)** ✅ + **Schedule (#13)** |
+| Availability against a date range | **Schedule (#13)** ✅ shows a tail's legs by day (the aircraft filter); a search for free tails over a range is not built |
 
 **Aircraft photos (27 Sep 2026, client adjustment #3's fleet half).** An
 exterior and an interior photo per tail (`exteriorImageUrl` /
@@ -657,10 +657,61 @@ changed, and `npm run build` passes.
 
 ---
 
-## 13. Schedule ⬜
+## 13. Schedule ✅ *(28 Sep 2026)*
 
-Nothing wired. Buildable — **Trips (#11)** ✅ has shipped. **No new table** — a read-only
-calendar projection of Trips.
+**Working now**
+
+- **The calendar is trip legs, and stores nothing.** One event per `TripLeg`
+  departing in the window, read through `TripsService` under the trip scope
+  (`scheduleLegs` / `scheduleCountsByDay` / `scheduleStats`) — the same scope
+  the trips board uses, so a broker sees their own trips' legs and the
+  unassigned ones. Client, aircraft, tail, operator, broker, status and FET are
+  the trip's own facts, read on every request
+- `GET /schedule?from&to` — at most 42 days (a month grid's six weeks), in the
+  order the legs fly, cancelled trips left off unless asked for;
+  `GET /schedule/stats` — Flights Today, In Flight (trips, so a round trip in
+  the air counts once), Next 7 Days, Completed Today, under the same filters,
+  with the browser's own day as today (`on`); `GET /schedule/calendar?year` —
+  the year view's counts per month and per day
+- Arrival time and duration come only from the trip's **itinerary (#12)**, and
+  only for the outbound leg — the only place either is recorded. Any other leg
+  shows "—". Payment status (**Receivables, #16**) shows only to a role that
+  may read receivables
+- Frontend: day, week, month and year views, the flight panel and the tiles on
+  the API; view, day and every filter in the URL. The dummy data is deleted and
+  the store keeps only which flight's panel is open. Brokers, operators and
+  aircraft in the filters are the real records (shared `useIdFilter`). Query
+  keys file under `trips`, so every trip, itinerary and invoice write already
+  refreshes the calendar
+- Postman builder `build_schedule_folder.py` → `23 · Schedule` (5 requests),
+  **written, not run**
+
+**Deviations from the old screen, stated:**
+
+- The status filter offered **"Sourcing"**, a trip request's stage, and the
+  broker filter named outside brokerages ("Skyline Partners"). Both now list
+  what a trip can actually be: trip statuses and the desk's own brokers.
+- The **Departures** and **Arrivals** tiles are gone. Every flight today is a
+  departure, and nothing records an arrival date, so either tile would have
+  been a copy of another or a guess. Next 7 Days replaces them.
+- **Edit Schedule, Update Status, Upload Operator Itinerary** and the year
+  view's **Add Flight** did nothing. A leg is moved and a status changed on the
+  trip, so the panel opens the trip and its itinerary, and Add Flight is New
+  Trip, shown only to a role that may book one.
+- The week view's hour rail put 7 AM *below* 8 AM (as the Figma did), which
+  would file a real 07:00 departure under an 08:00 one. It is in clock order
+  now. A departure outside 7 AM–5 PM sits on the nearest edge row and an
+  untimed leg at the top; the card always prints the real time.
+- A day in the year view with flights opens that day, not the first flight's
+  panel; days with flights carry a dot.
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Live in-air state | **Flight Tracking (#14)** — manual status, no provider |
+| Arrival times for return and later legs | Nothing records them — an itinerary holds the outbound only |
+| More than 100 legs in one window | Shown as a notice ("first 100 of N") rather than a silent cut; paging the calendar is not built |
 
 ---
 
@@ -668,8 +719,10 @@ calendar projection of Trips.
 
 Nothing wired. Dependencies shipped: **Trips (#11)** ✅ and **Aircraft (#6)** ✅.
 
-**Open decision before it can be built:** live position almost certainly needs a
-third-party feed. That is a procurement decision, not a coding one.
+**Decided 27 Sep 2026: manual first.** A broker sets each flight's status and
+notes by hand; everything else reads from Trips. A live flight-data provider
+waits until the client asks for one (scope §17 lists it as open). See
+[MODULES.md](MODULES.md) #14.
 
 ---
 
@@ -1337,9 +1390,16 @@ the call site.
 Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
 Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
 Empty Legs, Commissions, Referrals** (desk and portal), **Receivables**,
-**Operator Payments**, **Transactions** and **Itineraries**.
+**Operator Payments**, **Transactions**, **Itineraries** and **Schedule**.
 
-**Most recent change (28 September):** Itineraries (#12) — see its own
+**Most recent change (28 September), uncommitted:** Schedule (#13) — the
+calendar as a read-only view over trip legs, no migration; see its own section.
+Written **without live testing, by the owner's instruction**: backend `tsc`,
+oxlint and vitest (194 tests, 19 files) are clean, frontend eslint reports
+nothing in the files changed, and `npm run build` passes. `23 · Schedule` is
+written and not run.
+
+**Before that (28 September):** Itineraries (#12) — see its own
 section above for the design (a thin document over its trip, no duplicated
 aircraft/route/passenger data) and the Trips second pass it made. Two
 migrations, `20260928100000_add_receivables`,
@@ -1376,13 +1436,13 @@ also without live testing: build, eslint, backend lint and tests pass.
 **Left of client adjustment #11:** nothing to build. The three Postman builders
 are written and need one run against a freshly seeded API, then Newman.
 
-**Next in the module queue:** the financial modules (#16–19) are complete and
-so is Itineraries (#12). Next is **Schedule (#13)** — no new table, a
-read-only calendar projection of Trips.
+**Next in the module queue:** the financial modules (#16–19), Itineraries (#12)
+and Schedule (#13) are complete. Next is **Flight Tracking (#14)**, manual —
+a broker-set status and notes per flight, everything else read from Trips.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational
-data), the flight-tracking data feed, whether a credit **refund** is a movement
+data), the flight-tracking data feed (manual until the client asks), whether a credit **refund** is a movement
 the desk needs (see #30), and whether gross profit should count the FET
 (`CLIENT_ADJUSTMENTS.md` §5) — which now also moves every percent-of-profit
 commission.

@@ -1222,6 +1222,10 @@ When a module graduates:
 - **Query hooks return the query object itself. Mutation hooks return the mutation itself.** Never a hand-built `{ data, loading, error }` shape — the component destructures what it needs.
 - **Timing never appears in a hook.** `staleTime`, `gcTime`, retry and refetch behaviour come from the presets in `src/config/query.config.js`, which read `NEXT_PUBLIC_QUERY_*` env vars. A raw number in a hook is a bug.
 - Query keys come from `src/lib/queryKeys.js`. Never inline an array literal as a key.
+- **A read-only view over one module files its keys under that module's
+  namespace.** Schedule's keys start `["trips", "schedule", …]`, so every write
+  that already invalidates `trips.all` — a trip, its itinerary, an invoice —
+  refreshes the calendar too, and no hook has to know the calendar exists.
 
 ## Hooks own the side effects; components stay clean
 
@@ -1265,6 +1269,7 @@ copy is the bug this section exists to prevent.
 | the restored marker | `<RestoredBadge at by />` |
 | archive field labels | `toArchiveFields(record)` from `@/lib/archive` |
 | page numbers with collapsed gaps | `<TablePagination onPageChange />`, windowed by `buildPageItems` |
+| a dropdown over records (brokers, operators, aircraft) | `useIdFilter(rows, labelOf, allLabel)` beside `useEnumFilter` — id in the URL, name in the list |
 
 - **Mark view-only fields `local: true`.** A tab id belongs in the URL but must
   never reach the API — it is not part of the query key, and including it
@@ -1348,7 +1353,7 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments and Transactions. Not yet: the Clients table, Airports,
+Referrals, Receivables, Operator Payments, Transactions and Schedule. Not yet: the Clients table, Airports,
 Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by
