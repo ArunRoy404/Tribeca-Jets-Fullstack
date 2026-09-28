@@ -43,3 +43,41 @@ export function useEnumFilter(values, format, allLabel) {
     labelFor: (value) => (value ? format(value) : allLabel),
   };
 }
+
+/**
+ * The same split as `useEnumFilter`, for a dropdown over *records* — brokers,
+ * operators, aircraft — where the URL and the wire carry the id and the
+ * dropdown shows a name.
+ *
+ * Several toolbars still build this lookup by hand (trips, quotes, sourcing,
+ * referrals); each moves over when its own module is next worked on.
+ *
+ * ```js
+ * const operator = useIdFilter(operators?.data, (o) => o?.name, "All Operators");
+ * <FilterDropdown
+ *   options={operator.options}
+ *   value={operator.labelFor(operatorId)}
+ *   onChange={(label) => setOperatorId(operator.idByLabel[label] ?? "")}
+ * />
+ * ```
+ *
+ * An id that is in the URL but not among `rows` (not loaded yet, or archived)
+ * reads as the "all" label rather than as a raw uuid.
+ */
+export function useIdFilter(rows, labelOf, allLabel) {
+  return useMemo(() => {
+    const idByLabel = {};
+    const labelById = {};
+    for (const row of rows ?? []) {
+      const label = labelOf(row);
+      if (!row?.id || !label) continue;
+      idByLabel[label] = row.id;
+      labelById[row.id] = label;
+    }
+    return {
+      options: [allLabel, ...Object.keys(idByLabel)],
+      idByLabel,
+      labelFor: (id) => (id ? (labelById[id] ?? allLabel) : allLabel),
+    };
+  }, [rows, labelOf, allLabel]);
+}
