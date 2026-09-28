@@ -83,6 +83,8 @@ model Client {
   /// The portal referrals this client came in through (#11) — "Referral
   /// Source: [agent]" is read from here.
   referrals Referral[] @relation("ReferralClient")
+  /// Desk work about this client (Tasks Board, #20).
+  tasks     Task[]     @relation("TaskClient")
 
   /// Commissions paid *to* this client — a travel agent's cut.
   commissionsReceived Commission[] @relation("CommissionRecipientClient")

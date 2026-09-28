@@ -36,6 +36,8 @@ export const Permission = {
   MANAGE_RECEIVABLES: 'MANAGE_RECEIVABLES',
   VIEW_OPERATOR_PAYMENTS: 'VIEW_OPERATOR_PAYMENTS',
   MANAGE_OPERATOR_PAYMENTS: 'MANAGE_OPERATOR_PAYMENTS',
+  VIEW_TASKS: 'VIEW_TASKS',
+  MANAGE_TASKS: 'MANAGE_TASKS',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -313,6 +315,30 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
   },
+  /**
+   * Tasks Board (#20) — desk work. OWN is "assigned to me or written by me":
+   * a task names a client and a trip in its title, and the desk's whole list
+   * in front of every broker would be a client directory by another route.
+   * Assistants work tasks like brokers do — it is the part of the desk that
+   * is most theirs. Archiving someone else's task is ALL only, enforced in
+   * `TasksService`.
+   */
+  [Permission.VIEW_TASKS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: OWN,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
+  [Permission.MANAGE_TASKS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: OWN,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
 };
 
 /** How far `role` may reach for `permission`. */
@@ -419,4 +445,6 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.MANAGE_RECEIVABLES]: 'Invoice/Record Client Payments',
   [Permission.VIEW_OPERATOR_PAYMENTS]: 'View Operator Payments',
   [Permission.MANAGE_OPERATOR_PAYMENTS]: 'Record/Pay Operator Bills',
+  [Permission.VIEW_TASKS]: 'View Tasks',
+  [Permission.MANAGE_TASKS]: 'Create/Work Tasks',
 };

@@ -101,6 +101,12 @@ model User {
   restoredItineraries Itinerary[] @relation("ItineraryRestoredBy")
   sentItineraries     Itinerary[] @relation("ItinerarySentBy")
 
+  assignedTasks Task[] @relation("TaskAssignee")
+  createdTasks  Task[] @relation("TaskCreatedBy")
+  updatedTasks  Task[] @relation("TaskUpdatedBy")
+  deletedTasks  Task[] @relation("TaskDeletedBy")
+  restoredTasks Task[] @relation("TaskRestoredBy")
+
   createdEmptyLegs  EmptyLeg[] @relation("EmptyLegCreatedBy")
   updatedEmptyLegs  EmptyLeg[] @relation("EmptyLegUpdatedBy")
   deletedEmptyLegs  EmptyLeg[] @relation("EmptyLegDeletedBy")

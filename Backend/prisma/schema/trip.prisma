@@ -98,6 +98,8 @@ model Trip {
   /// What Tribeca owes operators for this trip, and has paid (Operator Payments).
   operatorPayables OperatorPayable[] @relation("OperatorPayableTrip")
   referrals        Referral[]        @relation("ReferralTrip")
+  /// Desk work about this trip (Tasks Board, #20).
+  tasks            Task[]            @relation("TaskTrip")
 
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
