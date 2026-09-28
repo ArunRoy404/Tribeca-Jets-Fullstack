@@ -1029,9 +1029,10 @@ export class QuotesService {
    * from the version in their hand. The earlier sends are not lost — each one
    * has its version in the log.
    *
-   * There is no mail here. Nothing in this system sends email to a client yet;
-   * that arrives with Email Templates (#21), and pretending otherwise would
-   * mean a broker believing a quote had been delivered when it had not.
+   * There is no mail here, deliberately. Emailing the quote is its own act —
+   * `POST /emails` (Email Templates, #21), which the screen sends first and
+   * then marks the quote sent — so a quote handed over by phone or WhatsApp
+   * can still be marked sent, and a mark never claims an email that failed.
    */
   async send(user: AuthenticatedUser, id: string, input: SendQuoteInput) {
     const current = await this.findLive(user, id);

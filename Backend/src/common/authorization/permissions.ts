@@ -38,6 +38,8 @@ export const Permission = {
   MANAGE_OPERATOR_PAYMENTS: 'MANAGE_OPERATOR_PAYMENTS',
   VIEW_TASKS: 'VIEW_TASKS',
   MANAGE_TASKS: 'MANAGE_TASKS',
+  MANAGE_EMAIL_TEMPLATES: 'MANAGE_EMAIL_TEMPLATES',
+  SEND_EMAILS: 'SEND_EMAILS',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -339,6 +341,34 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.ASSISTANT]: OWN,
     [UserRole.REFERRAL_AGENT]: NONE,
   },
+  /**
+   * Email Templates (#21) — the desk's shared library. Everyone on staff
+   * *uses* it (READ), so a second VIEW_ permission would never be denied —
+   * the same reasoning as airports. Changing it is narrower: a template is
+   * the company's voice in every client's inbox.
+   */
+  [Permission.MANAGE_EMAIL_TEMPLATES]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: READ,
+    [UserRole.ASSISTANT]: READ,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
+  /**
+   * Emailing a client or an operator from the CRM. OWN is "about a client I
+   * may see" — the client, trip, quote and invoice are each resolved through
+   * their own module's scope before anything is sent — and it is also what
+   * the sent log shows: emails I sent, or about a client I may see.
+   */
+  [Permission.SEND_EMAILS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: OWN,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
 };
 
 /** How far `role` may reach for `permission`. */
@@ -447,4 +477,6 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.MANAGE_OPERATOR_PAYMENTS]: 'Record/Pay Operator Bills',
   [Permission.VIEW_TASKS]: 'View Tasks',
   [Permission.MANAGE_TASKS]: 'Create/Work Tasks',
+  [Permission.MANAGE_EMAIL_TEMPLATES]: 'Manage Email Templates',
+  [Permission.SEND_EMAILS]: 'Send Emails',
 };

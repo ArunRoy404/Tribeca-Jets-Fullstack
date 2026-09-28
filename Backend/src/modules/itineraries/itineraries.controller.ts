@@ -124,7 +124,7 @@ export class ItinerariesController {
   @RequireWritePermissions(Permission.MANAGE_TRIPS)
   @ApiOperation({
     summary: 'Mark the document sent to the client',
-    description: 'Stamps who sent it and when. Delivery is not modelled — there is no Email Templates module (#21) yet — so this records the act, not the email.',
+    description: 'Stamps who sent it and when. This route sends no email — emailing it is `POST /emails` with the `tripId` (Email Templates, #21) — so it records the act, not the email.',
   })
   send(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.itineraries.send(user, id);

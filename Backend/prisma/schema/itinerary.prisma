@@ -19,8 +19,8 @@ model Itinerary {
   confirmedAt DateTime?
 
   /// When the desk marked it sent to the client, and who. The same "marks it,
-  /// does not deliver" a quote's Send makes — no Email Templates module (#21)
-  /// exists yet to actually deliver it.
+  /// does not deliver" a quote's Send makes — emailing it is a separate act
+  /// (Email Templates, #21), which marks it sent once a mail server accepts.
   sentAt   DateTime?
   sentById String?   @db.Uuid
   sentBy   User?     @relation("ItinerarySentBy", fields: [sentById], references: [id], onDelete: SetNull)

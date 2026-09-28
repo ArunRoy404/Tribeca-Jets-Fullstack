@@ -173,7 +173,7 @@ export class QuotesController {
   @ApiOperation({
     summary: 'Send it to the client',
     description:
-      'Marks the quote SENT and stamps the date, and moves the enquiry behind it to QUOTED. **No email is sent** — nothing in this system delivers to a client yet; that arrives with Email Templates (#21).',
+      'Marks the quote SENT and stamps the date, and moves the enquiry behind it to QUOTED. **This route sends no email** — emailing it is `POST /emails` with the `quoteId` (Email Templates, #21), a separate act, so a quote handed over another way can still be marked sent.',
   })
   send(
     @CurrentUser() user: AuthenticatedUser,

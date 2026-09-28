@@ -159,6 +159,8 @@ model Quote {
   decisionNote  String?
 
   versions QuoteVersion[] @relation("QuoteVersionQuote")
+  /// Emails that carried this offer's figures (Email Templates, #21).
+  emails   EmailMessage[] @relation("EmailMessageQuote")
 
   /// The booking this offer became, if any. One offer books one trip.
   trip Trip? @relation("TripQuote")

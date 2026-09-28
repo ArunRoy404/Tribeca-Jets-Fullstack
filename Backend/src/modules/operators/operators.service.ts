@@ -196,6 +196,34 @@ export class OperatorsService {
     };
   }
 
+  /**
+   * The operator as an email recipient (Email Templates, #21): the named
+   * contact's address, else the company's general one. Operators are desk
+   * reference data, so there is no row scope to apply. `email` is null when
+   * neither is on file.
+   */
+  async emailRecipient(id: string) {
+    const row = await this.prisma.operator.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        primaryContact: true,
+        contactEmail: true,
+        generalEmail: true,
+        deletedAt: true,
+      },
+    });
+    if (!row) throw new NotFoundException('Operator not found');
+    return {
+      id: row.id,
+      name: row.name,
+      contact: row.primaryContact ?? null,
+      email: row.contactEmail ?? row.generalEmail ?? null,
+      archived: row.deletedAt !== null,
+    };
+  }
+
   /** The four tiles above the operators table. */
   async stats() {
     const where: Prisma.OperatorWhereInput = { deletedAt: null };

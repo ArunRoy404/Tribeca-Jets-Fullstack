@@ -107,6 +107,12 @@ model User {
   deletedTasks  Task[] @relation("TaskDeletedBy")
   restoredTasks Task[] @relation("TaskRestoredBy")
 
+  createdEmailTemplates  EmailTemplate[] @relation("EmailTemplateCreatedBy")
+  updatedEmailTemplates  EmailTemplate[] @relation("EmailTemplateUpdatedBy")
+  deletedEmailTemplates  EmailTemplate[] @relation("EmailTemplateDeletedBy")
+  restoredEmailTemplates EmailTemplate[] @relation("EmailTemplateRestoredBy")
+  sentEmails             EmailMessage[]  @relation("EmailMessageCreatedBy")
+
   createdEmptyLegs  EmptyLeg[] @relation("EmptyLegCreatedBy")
   updatedEmptyLegs  EmptyLeg[] @relation("EmptyLegUpdatedBy")
   deletedEmptyLegs  EmptyLeg[] @relation("EmptyLegDeletedBy")

@@ -306,6 +306,45 @@ export class ClientsService {
   }
 
   /**
+   * The client as an email recipient (Email Templates, #21): the address on
+   * file and the names the merge fields use, within the caller's scope — or
+   * 404, like `findOne`. `email` is null when none is on file; the caller
+   * says so rather than inventing one.
+   */
+  async emailRecipient(user: AuthenticatedUser, id: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { id, ...this.visibilityScope(user) },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        companyName: true,
+        email: true,
+        deletedAt: true,
+      },
+    });
+    if (!client) throw new NotFoundException('Client not found');
+    const person = `${client.firstName} ${client.lastName}`.trim();
+    return {
+      id: client.id,
+      name: client.companyName ?? person,
+      firstName: client.firstName || null,
+      email: client.email ?? null,
+      archived: client.deletedAt !== null,
+    };
+  }
+
+  /**
+   * Row-level client visibility as a `where`, for a module whose rows hang
+   * off a client and inherit its scope — the sent-email log shows an email
+   * exactly when the caller may read its client. Mirrors
+   * `TripsService.visibleWhere`.
+   */
+  visibleWhere(user: AuthenticatedUser): Prisma.ClientWhereInput {
+    return this.visibilityScope(user);
+  }
+
+  /**
    * A home airport must name a live airport row.
    *
    * Prisma would raise P2003 on a bad id, which the exception filter turns

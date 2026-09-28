@@ -100,6 +100,8 @@ model Trip {
   referrals        Referral[]        @relation("ReferralTrip")
   /// Desk work about this trip (Tasks Board, #20).
   tasks            Task[]            @relation("TaskTrip")
+  /// Emails about this trip (Email Templates, #21).
+  emails           EmailMessage[]    @relation("EmailMessageTrip")
 
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

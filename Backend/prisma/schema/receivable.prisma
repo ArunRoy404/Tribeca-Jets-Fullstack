@@ -51,6 +51,8 @@ model Invoice {
   notes String?
 
   payments InvoicePayment[] @relation("InvoicePaymentInvoice")
+  /// Reminders sent about it (Email Templates, #21).
+  emails   EmailMessage[]   @relation("EmailMessageInvoice")
 
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

@@ -58,6 +58,9 @@ model Operator {
   /// Client quotes naming this operator as the one flying it.
   quotes Quote[] @relation("QuoteOperator")
 
+  /// Emails the desk sent them (Email Templates, #21).
+  emails EmailMessage[] @relation("EmailMessageOperator")
+
   /// Trips this operator flies. Feeds totalTrips and the Trip History tab.
   trips Trip[] @relation("TripOperator")
   /// What we owe this operator and have paid them — the Payments tab and Total Paid.

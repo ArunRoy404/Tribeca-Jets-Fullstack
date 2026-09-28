@@ -376,8 +376,8 @@ export class ItinerariesService {
   }
 
   /** Marks it sent to the client, the same "marks it, does not deliver" a
-   * quote's Send makes — there is no Email Templates module (#21) to
-   * actually deliver it yet. Re-sending after an edit updates the stamp. */
+   * quote's Send makes — emailing it is `POST /emails` (Email Templates,
+   * #21), a separate act. Re-sending after an edit updates the stamp. */
   async send(user: AuthenticatedUser, id: string) {
     const current = await this.findLive(user, id);
     this.assertTripLive(current);

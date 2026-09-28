@@ -16,6 +16,7 @@ import {
   UserStatus,
   OperatorQuoteStatus,
   QuoteStatus,
+  EmailTemplateCategory,
 } from '../src/generated/prisma/enums.js';
 import argon2 from 'argon2';
 
@@ -601,6 +602,117 @@ async function main(): Promise<void> {
     }
   }
 
+  // Starter email templates (#21). Created only when no live template of the
+  // same name exists, so re-seeding never overwrites what the desk rewrote.
+  // Every fact comes from a merge field; none of them promises anything the
+  // system does not do — no payment link, no attachment.
+  const starterTemplates = [
+    {
+      name: 'Quote Follow-up — Standard',
+      category: EmailTemplateCategory.QUOTE_FOLLOW_UP,
+      subject: 'Following up on your charter quote for {route}',
+      body: [
+        'Dear {client_first_name},',
+        '',
+        'I wanted to follow up on quote {quote_id} for your {route} charter on {departure_date}.',
+        '',
+        '- Aircraft: {aircraft}',
+        '- Total: {total_price}, including {fet_amount} federal excise tax',
+        '- Valid until: {quote_valid_until}',
+        '',
+        'Let me know if you have any questions, or if you would like to go ahead and confirm the flight.',
+        '',
+        'Best regards,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+    {
+      name: 'Trip Confirmation',
+      category: EmailTemplateCategory.TRIP_CONFIRMATION,
+      subject: 'Your charter is confirmed — {trip_id}',
+      body: [
+        'Dear {client_first_name},',
+        '',
+        'We are pleased to confirm your charter, {trip_id}.',
+        '',
+        '- Route: {route}',
+        '- Departure: {departure_date} at {departure_time}',
+        '- Aircraft: {aircraft} ({tail_number})',
+        '- Passengers: {passenger_count}',
+        '',
+        'If anything changes, reply to this email and I will take care of it.',
+        '',
+        'Safe travels,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+    {
+      name: 'Payment Reminder',
+      category: EmailTemplateCategory.PAYMENT,
+      subject: 'Payment reminder — invoice {invoice_id}',
+      body: [
+        'Dear {client_first_name},',
+        '',
+        'This is a friendly reminder that invoice {invoice_id} is due on {due_date}.',
+        '',
+        '- Invoice total: {invoice_total}',
+        '- Amount due: {amount_due}',
+        '',
+        'Please reply to this email if you have any questions about the invoice or how to pay it.',
+        '',
+        'Best regards,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+    {
+      name: 'Operator Availability Request',
+      category: EmailTemplateCategory.GENERAL,
+      subject: 'Availability request — {route}',
+      body: [
+        'Hello {operator_contact},',
+        '',
+        'Could you confirm availability and pricing for the following trip?',
+        '',
+        '- Route: {route}',
+        '- Departure: {departure_date} at {departure_time}',
+        '- Passengers: {passenger_count}',
+        '',
+        'Thank you,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+    {
+      name: 'Birthday Greeting',
+      category: EmailTemplateCategory.CLIENT_UPDATE,
+      subject: 'Happy birthday, {client_first_name}!',
+      body: [
+        'Dear {client_first_name},',
+        '',
+        'Wishing you a very happy birthday from all of us at Tribeca Jets.',
+        '',
+        'Thank you for your continued trust — we look forward to welcoming you aboard again.',
+        '',
+        'Warm regards,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+  ];
+  for (const template of starterTemplates) {
+    const existing = await prisma.emailTemplate.findFirst({
+      where: { name: template.name, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!existing) {
+      await prisma.emailTemplate.create({ data: { ...template, createdById: admin.id, updatedById: admin.id } });
+    }
+  }
+
   // Lead-desk settings on the seeded brokers, so the Agents roster has a cap
   // to measure workload against rather than inventing one.
   await prisma.user.update({
@@ -619,12 +731,13 @@ async function main(): Promise<void> {
   console.log('  agent@tribecajets.com / ChangeMe123!  (REFERRAL_AGENT — the partner portal, 10% of profit)');
   // Counted, not typed: a hardcoded "3 operator quotes" went on printing 3
   // while a skipped row meant only 2 were ever written.
-  const [operatorQuoteCount, quoteCount] = await Promise.all([
+  const [operatorQuoteCount, quoteCount, templateCount] = await Promise.all([
     prisma.operatorQuote.count({ where: { deletedAt: null } }),
     prisma.quote.count({ where: { deletedAt: null } }),
+    prisma.emailTemplate.count({ where: { deletedAt: null } }),
   ]);
   console.log(
-    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, ${operatorQuoteCount} live operator quotes, ${quoteCount} live client quotes`,
+    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, ${operatorQuoteCount} live operator quotes, ${quoteCount} live client quotes, ${templateCount} live email templates`,
   );
 }
 
