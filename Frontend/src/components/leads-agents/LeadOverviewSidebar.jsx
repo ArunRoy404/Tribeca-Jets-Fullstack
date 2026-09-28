@@ -12,7 +12,7 @@ export default function LeadOverviewSidebar({ lead, request }) {
       </h3>
       <LeadContactCard lead={lead} />
       <LeadTripInterestCard lead={lead} request={request} />
-      <LeadActivityTimelineCard />
+      <LeadActivityTimelineCard leadId={lead?.id} />
     </div>
   );
 }

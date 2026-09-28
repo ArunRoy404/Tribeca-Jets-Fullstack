@@ -6,6 +6,7 @@ import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
 import { useUpdateClient } from "@/hooks/clients";
 import { useUsers } from "@/hooks/users";
 import { personName } from "@/lib/lead";
+import { BROKER_ROLES } from "@/lib/roles";
 import {
   Dialog,
   DialogContent,
@@ -17,8 +18,6 @@ import { Button } from "@/components/ui/button";
 
 const SELECT_CLASS =
   "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
-
-const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER", "ADMIN"]);
 
 /**
  * Reassigns a lead.

@@ -14,11 +14,21 @@ const STATUS_TONES = {
   Booked: "info",
   Quoted: "purple",
   Sourcing: "cyan",
+  // Trip requests. "Open" is an enquiry nobody has started working;
+  // "Converted" is one that became a trip, which is the win.
+  Open: "info",
+  Converted: "success",
   Requested: "info",
   "In Flight": "warning",
   "Not Departed": "pending",
   Delayed: "destructive",
+  // Flight Tracking (#14) — a flight's hand-reported state. "No Update" is
+  // nobody having reported yet, which is not the same as "Not Departed".
+  Landed: "success",
+  Diverted: "warning",
+  "No Update": "outline",
   Completed: "success",
+  Cancelled: "destructive",
   "Pending Operator Quote": "pending",
   "Source Complete": "outline",
   Scheduled: "purple",
@@ -59,6 +69,11 @@ const STATUS_TONES = {
   Payment: "destructive",
   General: "neutral",
   "Travel Agent": "infoStrong",
+  "Client Update": "info",
+  // The sent log (#21): delivered, recorded but delivered to nobody, refused
+  Sent: "success",
+  "Not delivered": "warning",
+  Failed: "destructive",
   Sales: "purple",
   Operations: "info",
   Billing: "destructive",
@@ -70,6 +85,21 @@ const STATUS_TONES = {
   "In Service": "info",
   Maintenance: "warning",
   Due: "destructive",
+  // Empty legs (#10b)
+  Matched: "purple",
+  Expired: "pending",
+  // Commissions and portal referrals (#11)
+  Earned: "info",
+  Submitted: "cyan",
+  Quoting: "purple",
+  // Receivables (#16): a trip whose client has been sent nothing yet
+  "Not Invoiced": "pending",
+  // Operator Payments (#17): a trip with no operator bill recorded
+  "Not Recorded": "pending",
+  // Transactions (#19): the three kinds of money movement
+  "Client Payment": "success",
+  "Operator Payment": "warning",
+  Commission: "info",
 };
 
 const BORDER_CLASSES = {

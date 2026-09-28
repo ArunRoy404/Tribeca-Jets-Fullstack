@@ -80,11 +80,28 @@ export class LocalStorageDriver implements StorageDriver {
   }
 
   /**
-   * There is nothing to presign on local disk, so this points at the API's
-   * own download route, which enforces the same permission checks.
+   * Local disk has nothing to presign, and no key-addressed public route.
+   *
+   * Files are addressed by their upload id — `GET /api/uploads/:id` — which is
+   * re-authorised on every fetch rather than frozen into a signature that keeps
+   * working after access is revoked. There is deliberately no second way in by
+   * raw storage key: a key is a path, and a path is not a permission.
+   *
+   * This throws rather than returning a URL to a route that does not exist,
+   * because a silent 404 on every avatar is the kind of failure nobody
+   * investigates. The one caller left is `avatarKey`, which no code writes and
+   * which no row has set; when avatars are built they will store an
+   * `/api/uploads/:id` URL like every other file, and this method will have no
+   * callers at all.
+   *
+   * S3 still presigns properly — that is a real capability and it is untouched.
    */
-  async getSignedUrl(key: string): Promise<string> {
-    const base = this.config.apiPublicUrl.replace(/\/$/, '');
-    return `${base}/${this.config.apiPrefix}/files/${encodeURIComponent(key)}`;
+  getSignedUrl(key: string): Promise<string> {
+    return Promise.reject(
+      new Error(
+        `Local storage cannot presign "${key}". Files are served by upload id at ` +
+          `GET /api/uploads/:id; store that URL rather than a storage key.`,
+      ),
+    );
   }
 }

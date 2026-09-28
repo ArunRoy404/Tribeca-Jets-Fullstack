@@ -1,93 +1,91 @@
 "use client";
 
-import { Eye, DollarSign, Trash2 } from "lucide-react";
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
-import { useTransactionsStore } from "@/store/useTransactionsStore";
 import TablePagination from "@/components/table/common/TablePagination";
+import TableStatus from "@/components/table/common/TableStatus";
 import TransactionsToolbar from "./TransactionsToolbar";
 import TransactionsCardsContainer from "./TransactionsCardsContainer";
 import TransactionsTable from "./TransactionsTable";
-import RecordTransactionPaymentDialog from "@/components/transactions/RecordTransactionPaymentDialog";
-import DeleteTransactionDialog from "@/components/transactions/DeleteTransactionDialog";
+import { useTransactions, useTransactionsTableParams } from "@/hooks/transactions";
+import { toTransactionRow } from "@/lib/transaction";
 
+/**
+ * The money ledger, API-backed and read-only: every payment received, every
+ * payment sent to an operator and every commission paid, by the day the money
+ * moved. The URL is the state and the server pages — merging the three
+ * sources is the API's job, never the browser's.
+ *
+ * A row opens the bill it settles on that bill's own page, which is where a
+ * movement is corrected or withdrawn. The old screen's Record Payment, Edit
+ * and Delete wrote to dummy rows and are gone.
+ */
 export default function TransactionsContainer({ revealDelay = 0 }) {
-  const search = useTransactionsStore((s) => s.search);
-  const setSearch = useTransactionsStore((s) => s.setSearch);
-  const statusFilter = useTransactionsStore((s) => s.statusFilter);
-  const setStatusFilter = useTransactionsStore((s) => s.setStatusFilter);
-  const page = useTransactionsStore((s) => s.page);
-  const nextPage = useTransactionsStore((s) => s.nextPage);
-  const prevPage = useTransactionsStore((s) => s.prevPage);
-  const selectTransaction = useTransactionsStore((s) => s.selectTransaction);
-  const openDeleteModal = useTransactionsStore((s) => s.openDeleteModal);
-  const openRecordPaymentModal = useTransactionsStore((s) => s.openRecordPaymentModal);
+  const router = useRouter();
+  const params = useTransactionsTableParams();
+  const { data, isPending, error, refetch } = useTransactions(params.queryParams);
 
-  const getPageTransactions = useTransactionsStore((s) => s.getPageTransactions);
-  const getPageCount = useTransactionsStore((s) => s.getPageCount);
-  const getFilteredCount = useTransactionsStore((s) => s.getFilteredCount);
-
-  const pageItems = getPageTransactions?.();
-  const pageCount = getPageCount?.();
-  const filteredCount = getFilteredCount?.();
-
-  const getRowActions = (item) => [
-    {
-      label: "View Details",
-      icon: <Eye />,
-      onSelect: () => selectTransaction?.(item?.id),
-    },
-    {
-      label: "Record Payment",
-      icon: <DollarSign />,
-      onSelect: () => openRecordPaymentModal?.(item?.id),
-    },
-    "separator",
-    {
-      label: "Delete",
-      icon: <Trash2 />,
-      variant: "destructive",
-      onSelect: () => openDeleteModal?.(item?.id),
-    },
-  ];
+  const rows = useMemo(() => (data?.data ?? []).map(toTransactionRow), [data?.data]);
+  const meta = data?.meta;
+  const isEmpty = !isPending && !error && rows.length === 0;
+  const open = (href) => router.push(href);
 
   return (
     <Reveal delay={revealDelay} className="w-full">
       <CommonCard variant="default" className="p-0 rounded-md overflow-hidden border-border w-full">
         <TransactionsToolbar
-          search={search}
-          setSearch={setSearch}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
+          search={params.search}
+          setSearch={params.setSearch}
+          kind={params.kind}
+          setKind={params.setKind}
+          from={params.from}
+          setFrom={params.setFrom}
+          to={params.to}
+          setTo={params.setTo}
+          sortOrder={params.sortOrder}
+          setSortOrder={params.setSortOrder}
+          limit={params.limit}
+          setLimit={params.setLimit}
+          hasFilters={params.hasFilters}
+          onClear={params.clearFilters}
         />
 
-        <div className="relative w-full lg:hidden p-3">
-          <TransactionsCardsContainer
-            items={pageItems}
-            getRowActions={getRowActions}
-            onSelectTransaction={selectTransaction}
+        {isPending || error || isEmpty ? (
+          <TableStatus
+            isLoading={isPending}
+            error={error}
+            isEmpty={isEmpty}
+            emptyMessage="No money has moved under these filters"
+            emptyHint={
+              params.hasFilters
+                ? "Try clearing a filter."
+                : "Payments recorded on invoices and operator bills, and commissions marked paid, appear here."
+            }
+            onRetry={refetch}
           />
-        </div>
+        ) : (
+          <>
+            <div className="relative w-full lg:hidden p-3">
+              <TransactionsCardsContainer items={rows} onOpen={open} />
+            </div>
 
-        <TransactionsTable
-          pageItems={pageItems}
-          getRowActions={getRowActions}
-          onSelectTransaction={selectTransaction}
-        />
+            <TransactionsTable pageItems={rows} onOpen={open} />
 
-        <div className="relative w-full">
-          <TablePagination
-            totalCount={filteredCount}
-            itemLabel="transactions"
-            page={page}
-            pageCount={pageCount}
-            onPrev={prevPage}
-            onNext={nextPage}
-          />
-        </div>
-
-        <RecordTransactionPaymentDialog />
-        <DeleteTransactionDialog />
+            <div className="relative w-full">
+              <TablePagination
+                totalCount={meta?.total ?? 0}
+                itemLabel="transactions"
+                page={meta?.page ?? 1}
+                pageCount={meta?.totalPages ?? 1}
+                onPageChange={(next) => params.goToPage(next, meta?.totalPages ?? 1)}
+                onPrev={() => params.goToPage((meta?.page ?? 1) - 1, meta?.totalPages ?? 1)}
+                onNext={() => params.goToPage((meta?.page ?? 1) + 1, meta?.totalPages ?? 1)}
+              />
+            </div>
+          </>
+        )}
       </CommonCard>
     </Reveal>
   );

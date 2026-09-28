@@ -87,6 +87,12 @@ model TripRequest {
   /// the desk compares them.
   quotes Quote[] @relation("QuoteTripRequest")
 
+  /// The trips this enquiry became. Booking one converts the request.
+  trips Trip[] @relation("TripTripRequest")
+
+  /// The portal referral this enquiry was converted from (#11).
+  referral Referral? @relation("ReferralTripRequest")
+
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
   createdBy   User?    @relation("TripRequestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)

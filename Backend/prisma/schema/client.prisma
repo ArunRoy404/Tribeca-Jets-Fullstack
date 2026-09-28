@@ -77,6 +77,27 @@ model Client {
   /// page, which was an empty state until this module shipped.
   quotes Quote[] @relation("QuoteClient")
 
+  /// Booked flights. The Trips tab and total spend read these.
+  trips Trip[] @relation("TripClient")
+
+  /// The portal referrals this client came in through (#11) — "Referral
+  /// Source: [agent]" is read from here.
+  referrals Referral[] @relation("ReferralClient")
+  /// Desk work about this client (Tasks Board, #20).
+  tasks     Task[]     @relation("TaskClient")
+  /// Emails the desk sent them (Email Templates, #21).
+  emails    EmailMessage[] @relation("EmailMessageClient")
+
+  /// Commissions paid *to* this client — a travel agent's cut.
+  commissionsReceived Commission[] @relation("CommissionRecipientClient")
+
+  /// Invoices billed to this client — the Payments tab and total spent.
+  invoices Invoice[] @relation("InvoiceClient")
+
+  /// Money this client has on account with us. A ledger of movements — the
+  /// balance is summed from it and never stored. See `client-credit.prisma`.
+  credits ClientCredit[] @relation("ClientCreditClient")
+
   // ---- Audit trail (every model carries these four) ------------------------
   // Distinct from assignedBroker/originatingBroker, which are business
   // relationships: an admin can create a client assigned to someone else, and

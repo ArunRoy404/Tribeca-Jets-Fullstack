@@ -27,7 +27,7 @@ import { useBrokerPerformance } from "@/hooks/clients";
 import { useTripRequests } from "@/hooks/trip-requests";
 import { useLeadsTableParams } from "@/hooks/leads";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Permission, Scope } from "@/lib/permissions";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { OPEN_LEAD_STAGES, toAgentRow, toLeadRow } from "@/lib/lead";
 import { cn } from "@/lib/utils";
@@ -49,8 +49,13 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
   const openConvertLeadModal = useLeadsAgentsStore((s) => s.openConvertLeadModal);
   const openArchiveLeadModal = useLeadsAgentsStore((s) => s.openArchiveLeadModal);
 
-  const { canWrite } = usePermissions();
+  const { canWrite, scopeFor } = usePermissions();
   const mayWrite = canWrite(Permission.MANAGE_CLIENTS);
+  // Finer than the permission: a broker edits their own leads, but handing a
+  // lead to someone else, removing it or bringing it back is for a role that
+  // holds the whole book — the same `!== ALL` rule the API enforces. Offering
+  // those to a broker would only ever produce a 403 toast.
+  const mayAdminister = scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL;
 
   // ---- Leads -------------------------------------------------------------
   // A lead is a Client at lead stage, so this is the clients endpoint with
@@ -126,6 +131,7 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
     if (!mayWrite) return [view];
 
     if (isArchived) {
+      if (!mayAdminister) return [view];
       return [
         view,
         {
@@ -140,8 +146,14 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
       view,
       { label: "Edit Lead", icon: <Edit />, onSelect: () => openEditLeadModal?.(lead) },
       { label: "Schedule Follow-up", icon: <Calendar />, onSelect: () => openFollowUpModal?.(lead) },
-      { label: "Assign Broker", icon: <UserCheck />, onSelect: () => openAssignBrokerModal?.(lead) },
     ];
+    if (mayAdminister) {
+      actions.push({
+        label: "Assign Broker",
+        icon: <UserCheck />,
+        onSelect: () => openAssignBrokerModal?.(lead),
+      });
+    }
 
     // Converting a lead that is already Won or Lost is not a thing anyone
     // means to do, so the action is absent rather than disabled.
@@ -153,12 +165,14 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
       });
     }
 
-    actions.push("separator", {
-      label: "Remove Lead",
-      icon: <Trash2 />,
-      variant: "destructive",
-      onSelect: () => openArchiveLeadModal?.(lead),
-    });
+    if (mayAdminister) {
+      actions.push("separator", {
+        label: "Remove Lead",
+        icon: <Trash2 />,
+        variant: "destructive",
+        onSelect: () => openArchiveLeadModal?.(lead),
+      });
+    }
     return actions;
   };
 

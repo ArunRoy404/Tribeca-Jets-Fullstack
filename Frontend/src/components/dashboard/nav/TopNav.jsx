@@ -17,6 +17,7 @@ const routeNameMap = {
   "/dashboard/clients": "Clients",
   "/dashboard/leads-agents": "Leads & Agents",
   "/dashboard/quotes": "Quotes",
+  "/dashboard/referrals": "Referrals",
   "/dashboard/email-templates": "Email Templates",
   "/dashboard/operators": "Operators",
   "/dashboard/aircraft": "Aircraft",
@@ -62,9 +63,14 @@ function getRouteTitle(pathname) {
     .join(" ");
 }
 
-export default function TopNav({ user }) {
+/**
+ * The sticky header. `titleFor` and `showNotifications` are optional and
+ * default to the CRM's — the partner portal (#11) passes its own titles and
+ * hides the bell, which carries desk notifications an agent has no part in.
+ */
+export default function TopNav({ user, titleFor = getRouteTitle, showNotifications = true }) {
   const pathname = usePathname();
-  const routeTitle = getRouteTitle(pathname);
+  const routeTitle = titleFor(pathname);
 
   return (
     <header className="sticky top-0 z-30 bg-sidebar border-b border-sidebar-border px-3 sm:px-6 py-2.5 sm:py-3 w-full flex items-center justify-between gap-3 sm:gap-6 text-white h-[57px] sm:h-[65px] min-h-[57px] sm:min-h-[65px]">
@@ -75,7 +81,7 @@ export default function TopNav({ user }) {
         </h1>
       </div>
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        <NotificationPopover />
+        {showNotifications && <NotificationPopover />}
         {/* Below `md` the sidebar footer carries the profile instead, so the
             two never appear together. */}
         <div className="hidden md:flex">

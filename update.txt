@@ -1,0 +1,44 @@
+update - 19 sep
+
+Hello there,
+
+Quick update on recent development progress:
+ - Operator Sourcing completed
+   - Live sourcing board to manage enquiries sent out to operators
+   - Tracking operator responses, quotes received, response times, and winning bids
+   - Sourcing scorecard per operator showing average response speed and win rate
+
+ - Quotes (Client Offers & Pricing) completed
+   - Full quote management workflow (Draft → Sent → Approved / Rejected / Expired)
+   - Automated calculation of Federal Excise Tax (FET), line items, total price, and gross profit
+   - Automatic version history tracking whenever pricing or terms are revised
+   - Role-based visibility so sensitive profit margins are only visible to authorized roles
+
+
+Adjustments completed based on your feedback:
+ - Dedicated Trip Requests Page
+   - A standalone page dedicated entirely to trip requests, with filters for "Active", "All Requests", and "Archived"
+   - Keeps all unbooked and past requests permanently accessible so they can be matched with future empty legs
+   - Easy "Mark as Lost" workflow to keep pipeline figures accurate without losing enquiry data
+
+ - Operator Cancellation Policies
+   - Added a dedicated section to copy and paste full, tiered operator cancellation terms (up to 5,000 characters)
+   - Formatted so tiered schedules and line breaks remain clear and legible on operator profiles
+
+ - Automatic 10-Minute Idle Logout
+   - Added automated session timeout for security if the screen is left untouched for 10 minutes
+   - Includes a 1-minute warning countdown with an "I'm still here" option so ongoing work isn't lost
+
+ - Secure File Storage Infrastructure
+   - Built the core file upload pipeline to support personal broker tax forms, aircraft photos, and marketing materials
+
+
+And on the dashboard (frontend) side:
+ - The Operator Sourcing board, Quotes management, and the new Trip Requests page are now fully connected to live data
+ - All figures, tax totals, and calculations are computed live from real records with zero guessed or placeholder values
+
+Next steps:
+ - We are now adding the document folder tab on user profiles for broker tax forms (1099s) and notes on a timeline
+ - Following those adjustments, we will move directly into the core Trips module, which connects quotes into booked flights and powers the remaining schedule, pa-ym-ents, and reporting features.
+
+Best Regards.

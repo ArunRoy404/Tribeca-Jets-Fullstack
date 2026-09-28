@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { describeResponses } from './common/openapi/describe-responses.js';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -51,8 +52,22 @@ async function bootstrap(): Promise<void> {
     SwaggerModule.setup(
       `${config.apiPrefix}/docs`,
       app,
-      SwaggerModule.createDocument(app, swaggerConfig),
-      { swaggerOptions: { withCredentials: true } },
+      describeResponses(
+        SwaggerModule.createDocument(app, swaggerConfig),
+        app,
+        config.apiPrefix,
+      ),
+      {
+        swaggerOptions: {
+          withCredentials: true,
+          // Ordered by tag rather than alphabetically, so the collection reads
+          // in the order the desk works: auth, then the directories, then the
+          // pipeline.
+          docExpansion: 'none',
+          persistAuthorization: true,
+          tryItOutEnabled: true,
+        },
+      },
     );
   }
 

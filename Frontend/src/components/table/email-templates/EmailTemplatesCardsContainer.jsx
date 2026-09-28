@@ -8,20 +8,12 @@ export default function EmailTemplatesCardsContainer({
   onToggleRow,
   getRowActions,
   onSelectTemplate,
+  selectable = false,
+  archived = false,
 }) {
-  if (!templates || templates.length === 0) {
-    return (
-      <div className="lg:hidden flex flex-col items-center justify-center p-8 text-center bg-white rounded-lg border border-border">
-        <p className="font-montserrat font-medium text-[12px] text-muted-foreground">
-          No email templates match the current filters.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="lg:hidden flex flex-col gap-3 p-3 w-full">
-      {templates.map((t) => (
+      {templates?.map((t) => (
         <EmailTemplateCard
           key={t?.id}
           template={t}
@@ -29,6 +21,8 @@ export default function EmailTemplatesCardsContainer({
           onToggleSelect={() => onToggleRow?.(t?.id)}
           actions={getRowActions ? getRowActions(t) : []}
           onClick={onSelectTemplate ? () => onSelectTemplate?.(t?.id) : undefined}
+          selectable={selectable}
+          archived={archived}
         />
       ))}
     </div>

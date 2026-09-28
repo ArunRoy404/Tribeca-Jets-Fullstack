@@ -3,6 +3,9 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { AircraftService } from '../aircraft/aircraft.service.js';
 import { OperatorQuotesService } from '../operator-quotes/operator-quotes.service.js';
+import { TripsService } from '../trips/trips.service.js';
+import { OperatorPaymentsService } from '../operator-payments/operator-payments.service.js';
+import { Permission, Scope, scopeFor } from '../../common/authorization/permissions.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -72,19 +75,6 @@ const OPERATOR_DETAIL_SELECT = {
   updatedBy: ACTOR_SELECT,
 } satisfies Prisma.OperatorSelect;
 
-/**
- * Columns the UI shows that nothing can supply yet.
- *
- * `totalTrips` and `totalPaid` are aggregates over trips and operator
- * payments, neither of which exists. They are returned as null rather than 0,
- * because a confident "0 trips" against an operator the desk has flown twice is
- * a wrong answer, and null lets the UI render an honest em dash. They become
- * real counts when those modules land — see AGENTS.md on build order.
- *
- * `fleetSize` is no longer among them: Aircraft has shipped, so it is a real
- * count on the detail payload below.
- */
-const UNAVAILABLE_AGGREGATES = { totalTrips: null, totalPaid: null } as const;
 
 @Injectable()
 export class OperatorsService {
@@ -98,11 +88,39 @@ export class OperatorsService {
     // Same arrangement as the fleet: sourcing owns the quotes table and the
     // operator detail page borrows its scorecard. One-way edge, no cycle.
     private readonly sourcing: OperatorQuotesService,
+    // Trips (#11)'s second pass: trip counts come through its service.
+    private readonly trips: TripsService,
+    // Operator Payments (#17)'s second pass: what has been paid to each.
+    private readonly payables: OperatorPaymentsService,
   ) {}
 
-  // The caller is not read here: reference data is the same rows for
-  // everyone signed in, and the guard has already settled access.
-  async findAll(query: QueryOperatorsInput): Promise<Paginated<unknown>> {
+  /**
+   * Real trip counts, one grouped query (cancelled trips are not counted), and
+   * the total paid to each operator.
+   *
+   * `totalPaid` is money, summed across every trip — so only a caller who
+   * sees every operator bill gets it. A broker reads the bills on their own
+   * trips only, and a total over all of them would show what other brokers'
+   * trips paid. For them, and for anyone without the permission, it is null
+   * and the screen shows an em dash — never $0.
+   */
+  private async withTrips<T extends { id: string }>(user: AuthenticatedUser, rows: T[]) {
+    const ids = rows.map((row) => row.id);
+    const seesTotals = scopeFor(user.role, Permission.VIEW_OPERATOR_PAYMENTS) === Scope.ALL;
+    const [counts, paid] = await Promise.all([
+      this.trips.countByOperator(ids),
+      seesTotals ? this.payables.paidByOperator(ids) : Promise.resolve(null),
+    ]);
+    return rows.map((row) => ({
+      ...row,
+      totalTrips: counts.get(row.id)?.total ?? 0,
+      totalPaid: paid ? (paid.get(row.id) ?? 0) : null,
+    }));
+  }
+
+  // Reference data is the same rows for everyone signed in; the caller is
+  // read only to decide whether the money column is theirs to see.
+  async findAll(user: AuthenticatedUser, query: QueryOperatorsInput): Promise<Paginated<unknown>> {
     const { skip, take } = toPrismaPagination(query);
     const where: Prisma.OperatorWhereInput = {
       // One endpoint serves the table and its Archived tab; a separate
@@ -131,7 +149,7 @@ export class OperatorsService {
     ]);
 
     return paginate(
-      rows.map((row) => ({ ...row, ...UNAVAILABLE_AGGREGATES })),
+      await this.withTrips(user, rows),
       total,
       query.page,
       query.limit,
@@ -146,7 +164,7 @@ export class OperatorsService {
    * The payload carries the archive trail, so the page can say it is archived
    * and offer Restore rather than pretending it is live.
    */
-  async findOne(id: string) {
+  async findOne(user: AuthenticatedUser, id: string) {
     const row = await this.prisma.operator.findFirst({
       where: { id },
       select: OPERATOR_DETAIL_SELECT,
@@ -165,17 +183,44 @@ export class OperatorsService {
     // it is absent rather than invented.
     const scorecard = await this.sourcing.scorecardFor(id);
 
+    const [withCounts] = await this.withTrips(user, [row]);
     return {
-      ...row,
-      ...UNAVAILABLE_AGGREGATES,
+      ...withCounts,
       fleet,
       fleetSize: fleet.length,
       scorecard,
-      // Trips and Payments still have no module behind them. Empty arrays
-      // rather than omitted keys, so those tabs render their own empty state
-      // instead of crashing on undefined.
-      tripHistory: [],
-      payments: [],
+      // The Trip History and Payments tabs page `GET /trips?operatorId=` and
+      // `GET /operator-payments?operatorId=` themselves. The empty arrays
+      // that stood in for them are gone: left in place, `payments: []` would
+      // claim an operator we have paid has never been paid.
+    };
+  }
+
+  /**
+   * The operator as an email recipient (Email Templates, #21): the named
+   * contact's address, else the company's general one. Operators are desk
+   * reference data, so there is no row scope to apply. `email` is null when
+   * neither is on file.
+   */
+  async emailRecipient(id: string) {
+    const row = await this.prisma.operator.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        primaryContact: true,
+        contactEmail: true,
+        generalEmail: true,
+        deletedAt: true,
+      },
+    });
+    if (!row) throw new NotFoundException('Operator not found');
+    return {
+      id: row.id,
+      name: row.name,
+      contact: row.primaryContact ?? null,
+      email: row.contactEmail ?? row.generalEmail ?? null,
+      archived: row.deletedAt !== null,
     };
   }
 
@@ -220,7 +265,8 @@ export class OperatorsService {
       metadata: { name: operator.name, status: operator.status },
     });
 
-    return { ...operator, ...UNAVAILABLE_AGGREGATES };
+    const [withTotals] = await this.withTrips(actor, [operator]);
+    return withTotals;
   }
 
   async update(actor: AuthenticatedUser, id: string, dto: UpdateOperatorInput) {
@@ -251,7 +297,8 @@ export class OperatorsService {
       metadata: { name: target.name, changes, fields: Object.keys(dto) },
     });
 
-    return { ...operator, ...UNAVAILABLE_AGGREGATES };
+    const [withTotals] = await this.withTrips(actor, [operator]);
+    return withTotals;
   }
 
   /**
@@ -281,7 +328,8 @@ export class OperatorsService {
       metadata: { name: target.name },
     });
 
-    return { ...operator, ...UNAVAILABLE_AGGREGATES };
+    const [withTotals] = await this.withTrips(actor, [operator]);
+    return withTotals;
   }
 
   /**

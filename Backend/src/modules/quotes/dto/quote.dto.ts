@@ -12,6 +12,7 @@ import {
 } from '../../../common/dto/numbers.js';
 import { calendarDate } from '../../../common/dto/dates.js';
 import { QuoteStatus } from '../../../generated/prisma/enums.js';
+import { uploadUrl } from '../../../common/dto/uploads.js';
 
 /** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
 export const QUOTE_SORTABLE_FIELDS = [
@@ -31,7 +32,7 @@ export const QUOTE_SORTABLE_FIELDS = [
  * leg, a goodwill repositioning — and rejecting it would push the desk into
  * typing 1.
  */
-const MONEY = { min: 0, max: 100_000_000 };
+export const MONEY = { min: 0, max: 100_000_000 };
 
 /**
  * Federal Excise Tax, as a rate rather than a percentage: 0.075, not 7.5.
@@ -40,7 +41,7 @@ const MONEY = { min: 0, max: 100_000_000 };
  * "7.5" meaning 7.5%. Catching it here is the difference between a $79,500
  * quote and a $676,000 one, and the second would go out to a client.
  */
-const FET_RATE = { min: 0, max: 1 };
+export const FET_RATE = { min: 0, max: 1 };
 
 /**
  * One extra on the offer: catering, ground transportation, de-icing.
@@ -61,7 +62,7 @@ const lineItem = z
     path: ['amount'],
   });
 
-const lineItemList = z
+export const lineItemList = z
   .array(lineItem)
   .max(40, 'That is more line items than a quote can carry');
 
@@ -121,6 +122,11 @@ export const createQuoteSchema = z.object({
   aircraftId: z.uuid().nullable().optional(),
   quotedAircraft: z.string().trim().max(200).optional(),
 
+  /** The relative `/api/uploads/<id>` URL the uploads surface returned, and
+   *  nothing else — see `uploadUrl`. An external link would be an image this
+   *  API never checked, served from a host nobody chose. */
+  exteriorImageUrl: uploadUrl.optional(),
+
   originAirportId: z.uuid().nullable().optional(),
   destinationAirportId: z.uuid().nullable().optional(),
 
@@ -151,6 +157,57 @@ export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export class CreateQuoteDto extends createZodDto(createQuoteSchema) {}
 
 /**
+ * The priced inputs only, for a dry-run of `priceQuote()` while a broker is
+ * still composing the offer — nothing here is persisted.
+ *
+ * This exists so the live preview on the create/edit form can show a real FET
+ * amount, total and margin as the broker types, without a second copy of that
+ * arithmetic living in the frontend. See `quotes.pricing.ts`: a stored or
+ * re-derived total beside its own parts is the bug this project explicitly
+ * guards against, and a preview is not an exception to that — it is just
+ * computed on a row that has not been saved yet.
+ */
+export const previewQuoteSchema = z.object({
+  basePrice: requiredNumber('The base price is required', MONEY),
+  fetEnabled: z.boolean().default(true),
+  fetRate: optionalNumber('The FET rate must be a number like 0.075', FET_RATE),
+  operatorCost: optionalNumber('The operator cost must be a number', MONEY),
+  lineItems: lineItemList.optional(),
+});
+
+export type PreviewQuoteInput = z.infer<typeof previewQuoteSchema>;
+export class PreviewQuoteDto extends createZodDto(previewQuoteSchema) {}
+
+/**
+ * A markup as a rate, like `fetRate`: 0.15 is 15%. Capped at 5 (500%) to catch
+ * "15" typed meaning 15% — the same typo `FET_RATE`'s ceiling exists to stop.
+ */
+const MARKUP_RATE = { min: 0, max: 5 };
+
+/**
+ * Client adjustment #6's "suggested price" selector: what the base price would
+ * be at each markup over the operator's cost, priced through the same engine
+ * as a saved quote. Nothing is persisted.
+ *
+ * `operatorCost` is required here — a markup needs something to sit on — and
+ * the FET and extras inputs mirror the preview so each suggestion's total is
+ * the total the client would actually see.
+ */
+export const suggestPriceSchema = z.object({
+  operatorCost: requiredNumber('The operator cost is required for a suggestion', MONEY),
+  markupRates: z
+    .array(requiredNumber('A markup must be a rate like 0.15 for 15%', MARKUP_RATE))
+    .min(1, 'Choose at least one markup')
+    .max(8, 'At most eight markups at a time'),
+  fetEnabled: z.boolean().default(true),
+  fetRate: optionalNumber('The FET rate must be a number like 0.075', FET_RATE),
+  lineItems: lineItemList.optional(),
+});
+
+export type SuggestPriceInput = z.infer<typeof suggestPriceSchema>;
+export class SuggestPriceDto extends createZodDto(suggestPriceSchema) {}
+
+/**
  * Every field optional — this is a PATCH. `null` clears, omitted leaves alone.
  *
  * Written out rather than derived with `.partial()`. `.partial()` keeps
@@ -166,6 +223,7 @@ export const updateQuoteSchema = z.object({
 
   aircraftId: z.uuid().nullable().optional(),
   quotedAircraft: z.string().trim().max(200).nullable().optional(),
+  exteriorImageUrl: uploadUrl.nullable().optional(),
 
   originAirportId: z.uuid().nullable().optional(),
   destinationAirportId: z.uuid().nullable().optional(),

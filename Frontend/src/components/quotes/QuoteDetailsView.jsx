@@ -11,6 +11,7 @@ import FlightDetailsCard from "@/components/quotes/flight/FlightDetailsCard";
 import QuoteProfitabilityCard from "@/components/quotes/profitability/QuoteProfitabilityCard";
 import QuoteStatusActionsCard from "@/components/quotes/actions/QuoteStatusActionsCard";
 import QuoteNotesCard from "@/components/quotes/notes/QuoteNotesCard";
+import QuoteAircraftPhotoCard from "@/components/quotes/photo/QuoteAircraftPhotoCard";
 
 export default function QuoteDetailsView({ quote, onEdit, onDuplicate, onRemove }) {
   return (
@@ -47,8 +48,9 @@ export default function QuoteDetailsView({ quote, onEdit, onDuplicate, onRemove 
             <FlightDetailsCard quote={quote} />
           </div>
 
-          {/* Right Sidebar Column: Profitability, Status Actions, Notes */}
+          {/* Right Sidebar Column: Photo, Profitability, Status Actions, Notes */}
           <div className="flex flex-col gap-6 min-w-0">
+            <QuoteAircraftPhotoCard quote={quote} />
             <QuoteProfitabilityCard quote={quote} />
             <QuoteStatusActionsCard quote={quote} />
             <QuoteNotesCard quote={quote} />

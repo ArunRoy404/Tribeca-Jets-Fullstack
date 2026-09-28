@@ -12,6 +12,7 @@ import { MailService } from '../../core/mail/mail.service.js';
 import { AppConfigService } from '../../config/config.service.js';
 import { UserStatus, VerificationPurpose } from '../../generated/prisma/enums.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
+import { isPartner } from '../../common/authorization/permissions.js';
 import type { LoginInput } from './dto/login.dto.js';
 import type { SessionContext } from './token.service.js';
 import { VerificationService } from './verification.service.js';
@@ -481,22 +482,43 @@ export class AuthService {
    * signed in, so this endpoint is how the app bootstraps its session state.
    */
   async getProfile(userId: string) {
-    return this.prisma.user.findFirstOrThrow({
-      where: { id: userId, deletedAt: null },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        role: true,
-        status: true,
-        avatarKey: true,
-        twoFactorEnabled: true,
-        lastLoginAt: true,
-        createdAt: true,
-      },
-    });
+    const { commissionBasis, commissionPercentage, commissionAmount, ...profile } =
+      await this.prisma.user.findFirstOrThrow({
+        where: { id: userId, deletedAt: null },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          role: true,
+          status: true,
+          avatarKey: true,
+          twoFactorEnabled: true,
+          lastLoginAt: true,
+          createdAt: true,
+          commissionBasis: true,
+          commissionPercentage: true,
+          commissionAmount: true,
+        },
+      });
+
+    return {
+      ...profile,
+      /**
+       * A referral agent's own standing terms, for the portal's Commission
+       * Center (#11) — their own agreement, so theirs to read. Null for staff,
+       * who have none, and for an agent the desk has not set terms for yet.
+       */
+      commissionTerms:
+        isPartner(profile.role) && commissionBasis
+          ? {
+              basis: commissionBasis,
+              percentage: commissionPercentage === null ? null : Number(commissionPercentage),
+              amount: commissionAmount === null ? null : Number(commissionAmount),
+            }
+          : null,
+    };
   }
 }
 

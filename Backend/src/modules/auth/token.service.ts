@@ -170,6 +170,17 @@ export class TokenService {
       throw new UnauthorizedException('Session expired. Please sign in again.');
     }
 
+    if (this.hasBeenIdle(stored.createdAt)) {
+      this.logger.warn(
+        `Refusing a refresh for user ${stored.userId}: session idle past the limit`,
+      );
+      await this.revokeAllForUser(stored.userId);
+      this.clearCookies(res);
+      throw new UnauthorizedException(
+        'Signed out after a period of inactivity. Please sign in again.',
+      );
+    }
+
     if (!stored.user || stored.user.deletedAt || stored.user.status !== 'ACTIVE') {
       throw new UnauthorizedException('Account is no longer active');
     }
@@ -193,6 +204,33 @@ export class TokenService {
 
     this.writeCookies(res, accessToken, refreshToken, rememberMe);
     return user;
+  }
+
+  /**
+   * Whether this session has demonstrably sat untouched past the idle limit.
+   *
+   * The browser owns the real timer — only it can tell whether a person is
+   * there, and it signs out precisely (client request #4). This is the
+   * backstop, so switching that timer off does not buy an endless session.
+   *
+   * The signal is the age of the refresh token row. A rotation only happens
+   * once the access token has expired, so a session in continuous use presents
+   * a row at most `accessTtl` old, while an abandoned one keeps ageing. The
+   * threshold is therefore `accessTtl + idleTimeout`: anything older cannot be
+   * explained by a user who has been active within the limit.
+   *
+   * That makes it deliberately **approximate, and always in the user's
+   * favour** — it never signs out someone who was active, and it tolerates up
+   * to one access-token lifetime of extra idleness before it acts. Enforcing
+   * it to the second would mean writing a timestamp on every authenticated
+   * request, which is a write per request to save a few minutes at the tail of
+   * an already-expired session.
+   */
+  private hasBeenIdle(issuedAt: Date): boolean {
+    const limit =
+      parseDuration(this.config.auth.accessTtl) +
+      this.config.auth.idleTimeoutMinutes * 60_000;
+    return Date.now() - issuedAt.getTime() > limit;
   }
 
   async endSession(res: Response, presentedToken?: string): Promise<void> {

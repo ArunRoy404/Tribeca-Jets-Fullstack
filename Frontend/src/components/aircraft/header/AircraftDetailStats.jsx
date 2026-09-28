@@ -16,7 +16,12 @@ export default function AircraftDetailStats({ aircraft }) {
   const category = aircraft.category && aircraft.category !== "—" ? aircraft.category : "—";
   const capacity = aircraft.maxPassengers && aircraft.maxPassengers !== "—" ? aircraft.maxPassengers : "—";
   const range = aircraft.range && aircraft.range !== "—" ? aircraft.range : "—";
-  const totalTrips = aircraft.totalTrips && aircraft.totalTrips !== "—" ? String(aircraft.totalTrips) : "—";
+  // Zero is a real count now that Trips exists — a tail that has not flown
+  // yet reads "0", not "—". Only a missing value is a dash.
+  const totalTrips =
+    aircraft.totalTrips === null || aircraft.totalTrips === undefined || aircraft.totalTrips === "—"
+      ? "—"
+      : String(aircraft.totalTrips);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 items-stretch justify-center w-full">

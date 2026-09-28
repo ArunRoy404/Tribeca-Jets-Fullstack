@@ -1,75 +1,192 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Send, Copy, XCircle } from "lucide-react";
+import { ArrowRight, Edit, Eye, RotateCcw, Trash2, XCircle } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
-import { useTripsStore } from "@/store/useTripsStore";
 import TablePagination from "@/components/table/common/TablePagination";
-import ExportOperationsDialog from "./ExportOperationsDialog";
-import TripsCardsContainer from "./TripsCardsContainer";
+import TableStatus from "@/components/table/common/TableStatus";
+import BulkDeleteDialog from "@/components/common/BulkDeleteDialog";
 import TripsToolbar from "./TripsToolbar";
 import TripsTable from "./TripsTable";
+import TripsCardsContainer from "./TripsCardsContainer";
+import {
+  useChangeTripStatus,
+  useRemoveTrip,
+  useRestoreTrip,
+  useTrips,
+  useTripsTableParams,
+} from "@/hooks/trips";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
+import { moveVerb, toTripRow } from "@/lib/trip";
+import { ARCHIVE_TABS } from "@/lib/archive";
 
+/** The trips board (#11), API-backed: the URL is the state, the server pages. */
 export default function TripsContainer({ revealDelay = 0 }) {
-  const search = useTripsStore((s) => s.search);
-  const setSearch = useTripsStore((s) => s.setSearch);
-  const statusFilter = useTripsStore((s) => s.statusFilter);
-  const setStatusFilter = useTripsStore((s) => s.setStatusFilter);
-  const brokerFilter = useTripsStore((s) => s.brokerFilter);
-  const setBrokerFilter = useTripsStore((s) => s.setBrokerFilter);
-  const paymentFilter = useTripsStore((s) => s.paymentFilter);
-  const setPaymentFilter = useTripsStore((s) => s.setPaymentFilter);
-  const page = useTripsStore((s) => s.page);
-  const nextPage = useTripsStore((s) => s.nextPage);
-  const prevPage = useTripsStore((s) => s.prevPage);
-  const getPageTrips = useTripsStore((s) => s.getPageTrips);
-  const getPageCount = useTripsStore((s) => s.getPageCount);
-  const getFilteredCount = useTripsStore((s) => s.getFilteredCount);
-
   const router = useRouter();
-  const [exportOpen, setExportOpen] = useState(false);
+  const params = useTripsTableParams();
+  const { data, isPending, error, refetch } = useTrips(params.queryParams);
 
-  const pageTrips = getPageTrips?.();
-  const pageCount = getPageCount?.();
-  const filteredCount = getFilteredCount?.();
+  const rows = useMemo(() => (data?.data ?? []).map(toTripRow), [data?.data]);
+  const meta = data?.meta;
+  const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
+  const isEmpty = !isPending && !error && rows.length === 0;
 
-  const goToTrip = (t) => router?.push(`/dashboard/trips/${encodeURIComponent(t?.id?.replace("#", "") ?? "")}`);
-  const getRowActions = (t) => [
-    { label: "View Details", icon: <Eye />, onSelect: () => goToTrip(t) },
-    { label: "Send Itinerary", icon: <Send /> },
-    { label: "Duplicate Trip", icon: <Copy /> },
-    "separator",
-    { label: "Cancel Trip", icon: <XCircle />, variant: "destructive" },
-  ];
+  const { canWrite } = usePermissions();
+  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
+  const mayArchive = canWrite(Permission.DELETE_TRIPS);
+
+  const [selected, setSelected] = useState(() => new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  const { mutate: changeStatus } = useChangeTripStatus();
+  const { mutate: removeTrips } = useRemoveTrip();
+  const { mutate: restoreTrips } = useRestoreTrip();
+
+  const selectedRows = useMemo(() => rows.filter((row) => selected.has(row?.id)), [rows, selected]);
+
+  const toggleRow = (id) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const handleBulkAction = () => {
+    const ids = selectedRows.map((row) => row?.id).filter(Boolean);
+    if (!ids.length) return;
+    (isArchived ? restoreTrips : removeTrips)(ids, {
+      onSuccess: () => {
+        setBulkOpen(false);
+        setSelected(new Set());
+      },
+    });
+  };
+
+  const openDetails = (id) => router?.push(`/dashboard/trips/${id}`);
+
+  /**
+   * One definition of a row's menu for the table and the cards. The status
+   * moves offered are exactly the ones the API says this trip may make next
+   * (`nextStatuses`), so the menu never offers a move that would be refused.
+   */
+  const getRowActions = (trip) => {
+    const view = { label: "View Details", icon: <Eye />, onSelect: () => openDetails(trip?.id) };
+
+    if (isArchived) {
+      return mayArchive
+        ? [view, { label: "Restore Trip", icon: <RotateCcw />, onSelect: () => restoreTrips?.(trip?.id) }]
+        : [view];
+    }
+    if (!mayWrite) return [view];
+
+    const actions = [view];
+    if (trip?.editable) {
+      actions.push({ label: "Edit Trip", icon: <Edit />, onSelect: () => router?.push(`/dashboard/trips/${trip?.id}/edit`) });
+    }
+    for (const status of trip?.nextStatuses ?? []) {
+      const cancel = status === "CANCELLED";
+      actions.push({
+        label: moveVerb(status, trip?.rawStatus),
+        icon: cancel ? <XCircle className="text-destructive" /> : <ArrowRight />,
+        variant: cancel ? "destructive" : undefined,
+        // label uses the trip's current status so a step back reads "Back to …"
+        onSelect: () => changeStatus?.({ id: trip?.id, status }),
+      });
+    }
+    if (mayArchive) {
+      actions.push("separator");
+      actions.push({
+        label: "Archive Trip",
+        icon: <Trash2 />,
+        variant: "destructive",
+        onSelect: () => removeTrips?.(trip?.id),
+      });
+    }
+    return actions;
+  };
 
   return (
     <Reveal delay={revealDelay} className="w-full">
       <CommonCard variant="default" className="p-0 rounded-md overflow-hidden border-border w-full">
         <TripsToolbar
-          search={search}
-          setSearch={setSearch}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          brokerFilter={brokerFilter}
-          setBrokerFilter={setBrokerFilter}
-          paymentFilter={paymentFilter}
-          setPaymentFilter={setPaymentFilter}
-          onExport={() => setExportOpen(true)}
+          search={params.search}
+          setSearch={params.setSearch}
+          status={params.status}
+          setStatus={params.setStatus}
+          departure={params.departure}
+          setDeparture={params.setDeparture}
+          assignedBrokerId={params.assignedBrokerId}
+          setAssignedBrokerId={params.setAssignedBrokerId}
+          limit={params.limit}
+          setLimit={params.setLimit}
+          tab={params.tab}
+          setTab={params.setTab}
+          selectedCount={selected.size}
+          onBulkAction={() => setBulkOpen(true)}
+          mayWrite={mayWrite}
+          mayArchive={mayArchive}
         />
 
-        <div className="relative w-full lg:hidden">
-          <TripsCardsContainer trips={pageTrips} onSelectTrip={goToTrip} getRowActions={getRowActions} />
-        </div>
+        {isPending || error || isEmpty ? (
+          <TableStatus
+            isLoading={isPending}
+            error={error}
+            isEmpty={isEmpty}
+            emptyMessage={isArchived ? "Nothing archived" : "No trips match these filters"}
+            emptyHint={
+              isArchived
+                ? "Archived trips appear here and can be restored."
+                : params.hasFilters
+                  ? "Try clearing a filter."
+                  : "Book an approved quote, or add a trip by hand, and it will appear here."
+            }
+            onRetry={refetch}
+          />
+        ) : (
+          <>
+            <div className="relative w-full lg:hidden p-3">
+              <TripsCardsContainer items={rows} getActions={getRowActions} onItemClick={(item) => openDetails(item?.id)} />
+            </div>
 
-        <TripsTable pageTrips={pageTrips} onSelectTrip={goToTrip} getRowActions={getRowActions} />
+            <TripsTable
+              pageItems={rows}
+              getRowActions={getRowActions}
+              onSelectTrip={(item) => openDetails(item?.id)}
+              selected={selected}
+              onToggleRow={toggleRow}
+              onSelectAll={() =>
+                setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((row) => row?.id))))
+              }
+              selectable={mayArchive}
+              archived={isArchived}
+            />
 
-        <div className="relative w-full">
-          <TablePagination totalCount={filteredCount} itemLabel="trips" page={page} pageCount={pageCount} onPrev={prevPage} onNext={nextPage} />
-        </div>
+            <div className="relative w-full">
+              <TablePagination
+                totalCount={meta?.total ?? 0}
+                itemLabel="trips"
+                page={meta?.page ?? 1}
+                pageCount={meta?.totalPages ?? 1}
+                onPageChange={(next) => params.goToPage(next, meta?.totalPages ?? 1)}
+                onPrev={() => params.goToPage((meta?.page ?? 1) - 1, meta?.totalPages ?? 1)}
+                onNext={() => params.goToPage((meta?.page ?? 1) + 1, meta?.totalPages ?? 1)}
+              />
+            </div>
+          </>
+        )}
 
-        <ExportOperationsDialog open={exportOpen} onOpenChange={setExportOpen} />
+        <BulkDeleteDialog
+          open={bulkOpen}
+          onOpenChange={setBulkOpen}
+          items={selectedRows.map((row) => ({ id: row?.id, name: `${row?.reference} · ${row?.client} · ${row?.route}` }))}
+          itemLabel="trips"
+          action={isArchived ? "restore" : "remove"}
+          onConfirm={handleBulkAction}
+        />
       </CommonCard>
     </Reveal>
   );

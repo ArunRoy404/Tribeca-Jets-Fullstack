@@ -10,7 +10,10 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequireWritePermissions } from '../../common/decorators/permissions.decorator.js';
+import {
+  RequirePermissions,
+  RequireWritePermissions,
+} from '../../common/decorators/permissions.decorator.js';
 import { Permission } from '../../common/authorization/permissions.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UsersService } from './users.service.js';
@@ -32,8 +35,12 @@ export class UsersController {
    * dropdown is the first — so any signed-in user may list colleagues. The
    * service narrows *what* is returned by role: without MANAGE_USERS the
    * response carries names and roles only, no status or login history.
+   *
+   * VIEW_TEAM is what keeps a referral agent (#11) out: every desk role holds
+   * it, the partner role does not.
    */
   @Get()
+  @RequirePermissions(Permission.VIEW_TEAM)
   @ApiOperation({
     summary: 'List team members',
     description:
@@ -47,6 +54,7 @@ export class UsersController {
   }
 
   @Get('stats')
+  @RequirePermissions(Permission.VIEW_TEAM)
   @ApiOperation({
     summary: 'Team headcount tiles',
     description: 'Totals by status and role for the cards above the table.',
@@ -61,6 +69,7 @@ export class UsersController {
    * the guard on each route is the actual enforcement.
    */
   @Get('roles')
+  @RequirePermissions(Permission.VIEW_TEAM)
   @ApiOperation({
     summary: 'Roles and the permission matrix',
     description:
@@ -71,6 +80,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @RequirePermissions(Permission.VIEW_TEAM)
   @ApiOperation({ summary: 'Get one team member' })
   findOne(
     @CurrentUser() user: AuthenticatedUser,

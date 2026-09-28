@@ -1,5 +1,7 @@
 # Local development services. Production on the Hostinger KVM runs the same
 # images, so "works locally" and "works on the VPS" mean the same thing.
+name: tribeca-backend
+
 services:
   postgres:
     image: postgres:17-alpine

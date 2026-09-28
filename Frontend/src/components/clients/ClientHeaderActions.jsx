@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Edit, Plus, MoreHorizontal, Calendar, Archive, RotateCcw } from "lucide-react";
+import { Edit, Plus, MoreHorizontal, Calendar, Archive, Mail, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,6 +18,8 @@ export default function ClientHeaderActions({
   onArchive,
   onRestore,
   isRestoring = false,
+  /** Optional (#21): shown only when given — the page passes it to a role that may send. */
+  onSendEmail,
 }) {
   const router = useRouter();
 
@@ -67,6 +69,12 @@ export default function ClientHeaderActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48 font-montserrat text-[12px]">
+          {onSendEmail && (
+            <DropdownMenuItem onClick={onSendEmail} className="gap-2 cursor-pointer">
+              <Mail className="size-3.5" />
+              Send Email
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onFollowUp} className="gap-2 cursor-pointer">
             <Calendar className="size-3.5" />
             Schedule Follow-up

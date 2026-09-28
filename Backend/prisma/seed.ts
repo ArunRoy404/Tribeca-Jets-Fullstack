@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import {
   ClientType,
+  CommissionBasis,
   LeadSource,
   LeadStage,
   OperatorStatus,
@@ -15,6 +16,7 @@ import {
   UserStatus,
   OperatorQuoteStatus,
   QuoteStatus,
+  EmailTemplateCategory,
 } from '../src/generated/prisma/enums.js';
 import argon2 from 'argon2';
 
@@ -152,6 +154,18 @@ async function main(): Promise<void> {
       role: UserRole.BROKER,
       // Never signed in: exercises the INVITED branch of the directory.
       status: UserStatus.INVITED,
+    },
+    {
+      // A referral partner (#11): signs in to the portal at /portal, and is
+      // what Postman's `18 · Referrals` submits as. Standing terms of 10% of
+      // profit, so a linked trip raises a commission with a value.
+      email: 'agent@tribecajets.com',
+      firstName: 'Riley',
+      lastName: 'Partner',
+      role: UserRole.REFERRAL_AGENT,
+      status: UserStatus.ACTIVE,
+      commissionBasis: CommissionBasis.PERCENT_OF_PROFIT,
+      commissionPercentage: '10.00',
     },
   ];
 
@@ -389,7 +403,11 @@ async function main(): Promise<void> {
     const quotes = [
       { operatorName: 'FlexJet', tail: 'N780EX', price: '27400.00', status: OperatorQuoteStatus.RECEIVED, requestedAt: hoursAgo(28), respondedAt: hoursAgo(26), amenities: ['WiFi', 'Full Galley'], terms: 'Net 30. 50% fee within 48 hours of departure.' },
       { operatorName: 'VistaJet', tail: null, price: '31250.00', status: OperatorQuoteStatus.RECEIVED, requestedAt: hoursAgo(28), respondedAt: hoursAgo(21), amenities: ['WiFi', 'Flight Attendant'], terms: 'Net 15. 10% non-refundable deposit.' },
-      { operatorName: 'Solairus Aviation', tail: null, price: null, status: OperatorQuoteStatus.AWAITING_RESPONSE, requestedAt: hoursAgo(28), respondedAt: null, amenities: [], terms: null },
+      // A seeded operator. This used to name Solairus Aviation, which only
+      // exists where the Postman Operators folder has been run — so on a fresh
+      // database the loop below skipped it and the AWAITING_RESPONSE row this
+      // comment block promises was never written.
+      { operatorName: 'ExecuJet', tail: null, price: null, status: OperatorQuoteStatus.AWAITING_RESPONSE, requestedAt: hoursAgo(28), respondedAt: null, amenities: [], terms: null },
     ];
 
     for (const quote of quotes) {
@@ -584,6 +602,117 @@ async function main(): Promise<void> {
     }
   }
 
+  // Starter email templates (#21). Created only when no live template of the
+  // same name exists, so re-seeding never overwrites what the desk rewrote.
+  // Every fact comes from a merge field; none of them promises anything the
+  // system does not do — no payment link, no attachment.
+  const starterTemplates = [
+    {
+      name: 'Quote Follow-up — Standard',
+      category: EmailTemplateCategory.QUOTE_FOLLOW_UP,
+      subject: 'Following up on your charter quote for {route}',
+      body: [
+        'Dear {client_first_name},',
+        '',
+        'I wanted to follow up on quote {quote_id} for your {route} charter on {departure_date}.',
+        '',
+        '- Aircraft: {aircraft}',
+        '- Total: {total_price}, including {fet_amount} federal excise tax',
+        '- Valid until: {quote_valid_until}',
+        '',
+        'Let me know if you have any questions, or if you would like to go ahead and confirm the flight.',
+        '',
+        'Best regards,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+    {
+      name: 'Trip Confirmation',
+      category: EmailTemplateCategory.TRIP_CONFIRMATION,
+      subject: 'Your charter is confirmed — {trip_id}',
+      body: [
+        'Dear {client_first_name},',
+        '',
+        'We are pleased to confirm your charter, {trip_id}.',
+        '',
+        '- Route: {route}',
+        '- Departure: {departure_date} at {departure_time}',
+        '- Aircraft: {aircraft} ({tail_number})',
+        '- Passengers: {passenger_count}',
+        '',
+        'If anything changes, reply to this email and I will take care of it.',
+        '',
+        'Safe travels,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+    {
+      name: 'Payment Reminder',
+      category: EmailTemplateCategory.PAYMENT,
+      subject: 'Payment reminder — invoice {invoice_id}',
+      body: [
+        'Dear {client_first_name},',
+        '',
+        'This is a friendly reminder that invoice {invoice_id} is due on {due_date}.',
+        '',
+        '- Invoice total: {invoice_total}',
+        '- Amount due: {amount_due}',
+        '',
+        'Please reply to this email if you have any questions about the invoice or how to pay it.',
+        '',
+        'Best regards,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+    {
+      name: 'Operator Availability Request',
+      category: EmailTemplateCategory.GENERAL,
+      subject: 'Availability request — {route}',
+      body: [
+        'Hello {operator_contact},',
+        '',
+        'Could you confirm availability and pricing for the following trip?',
+        '',
+        '- Route: {route}',
+        '- Departure: {departure_date} at {departure_time}',
+        '- Passengers: {passenger_count}',
+        '',
+        'Thank you,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+    {
+      name: 'Birthday Greeting',
+      category: EmailTemplateCategory.CLIENT_UPDATE,
+      subject: 'Happy birthday, {client_first_name}!',
+      body: [
+        'Dear {client_first_name},',
+        '',
+        'Wishing you a very happy birthday from all of us at Tribeca Jets.',
+        '',
+        'Thank you for your continued trust — we look forward to welcoming you aboard again.',
+        '',
+        'Warm regards,',
+        '{broker_name}',
+        'Tribeca Jets',
+      ].join('\n'),
+    },
+  ];
+  for (const template of starterTemplates) {
+    const existing = await prisma.emailTemplate.findFirst({
+      where: { name: template.name, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!existing) {
+      await prisma.emailTemplate.create({ data: { ...template, createdById: admin.id, updatedById: admin.id } });
+    }
+  }
+
   // Lead-desk settings on the seeded brokers, so the Agents roster has a cap
   // to measure workload against rather than inventing one.
   await prisma.user.update({
@@ -599,8 +728,16 @@ async function main(): Promise<void> {
   console.log('  senior@tribecajets.com / ChangeMe123!  (SENIOR_BROKER)');
   console.log('  assistant@tribecajets.com / ChangeMe123!  (ASSISTANT)');
   console.log('  + barry / mark (BROKER, active), tom (SUSPENDED), newhire (INVITED)');
+  console.log('  agent@tribecajets.com / ChangeMe123!  (REFERRAL_AGENT — the partner portal, 10% of profit)');
+  // Counted, not typed: a hardcoded "3 operator quotes" went on printing 3
+  // while a skipped row meant only 2 were ever written.
+  const [operatorQuoteCount, quoteCount, templateCount] = await Promise.all([
+    prisma.operatorQuote.count({ where: { deletedAt: null } }),
+    prisma.quote.count({ where: { deletedAt: null } }),
+    prisma.emailTemplate.count({ where: { deletedAt: null } }),
+  ]);
   console.log(
-    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, 3 operator quotes, 2 client quotes`,
+    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, ${operatorQuoteCount} live operator quotes, ${quoteCount} live client quotes, ${templateCount} live email templates`,
   );
 }
 

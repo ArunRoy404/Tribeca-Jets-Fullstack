@@ -2,15 +2,12 @@
 
 import EmailTemplatesTableRow from "./EmailTemplatesTableRow";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const columns = [
-  "Template Name",
-  "Category",
-  "Subject",
-  "Active",
-  "Action",
-];
+const BASE_COLUMNS = ["Template Name", "Category", "Subject"];
+/** The Archived tab swaps the live columns for who removed it and when. */
+const LIVE_TAIL = ["Active", "Last Updated", "Action"];
+const ARCHIVED_TAIL = ["Removed On", "Removed By", "Action"];
 
 export default function EmailTemplatesTable({
   pageTemplates,
@@ -19,7 +16,10 @@ export default function EmailTemplatesTable({
   onSelectAll,
   onSelectTemplate,
   getRowActions,
+  selectable = false,
+  archived = false,
 }) {
+  const columns = [...BASE_COLUMNS, ...(archived ? ARCHIVED_TAIL : LIVE_TAIL)];
   const isAllSelected = selected?.size === pageTemplates?.length && (pageTemplates?.length ?? 0) > 0;
 
   return (
@@ -27,12 +27,15 @@ export default function EmailTemplatesTable({
       <Table className="min-w-[900px]">
         <TableHeader>
           <TableRow className="bg-black/5 border-border hover:bg-black/5">
-            <TableHead className="w-10 p-[10px]">
-              <Checkbox
-                checked={isAllSelected}
-                onCheckedChange={() => onSelectAll?.()}
-              />
-            </TableHead>
+            {selectable && (
+              <TableHead className="w-10 p-[10px]">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={() => onSelectAll?.()}
+                  aria-label="Select every template on this page"
+                />
+              </TableHead>
+            )}
             {columns.map((col, idx) => (
               <TableHead
                 key={col}
@@ -54,15 +57,10 @@ export default function EmailTemplatesTable({
               onToggleSelect={onToggleRow}
               onSelectTemplate={onSelectTemplate}
               getRowActions={getRowActions}
+              selectable={selectable}
+              archived={archived}
             />
           ))}
-          {(!pageTemplates || pageTemplates.length === 0) && (
-            <TableRow>
-              <TableCell colSpan={columns.length + 1} className="p-6 text-center font-montserrat text-[12px] text-muted-foreground">
-                No email templates match the current filters.
-              </TableCell>
-            </TableRow>
-          )}
         </TableBody>
       </Table>
     </div>

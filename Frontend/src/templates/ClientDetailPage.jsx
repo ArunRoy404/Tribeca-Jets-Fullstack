@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import DetailHeader from "@/components/common/DetailHeader";
 import CommonCard from "@/components/common/CommonCard";
 import ClientHeaderTitle from "@/components/clients/ClientHeaderTitle";
@@ -13,14 +13,18 @@ import ClientTripsTab from "@/components/clients/ClientTripsTab";
 import ClientQuotesTab from "@/components/clients/ClientQuotesTab";
 import ClientPaymentsTab from "@/components/clients/ClientPaymentsTab";
 import ClientActivityTab from "@/components/clients/ClientActivityTab";
+import ClientCreditTab from "@/components/client-credits/ClientCreditTab";
 import AddClientDialog from "@/components/clients/AddClientDialog";
 import ScheduleFollowUpDialog from "@/components/clients/ScheduleFollowUpDialog";
 import ArchiveClientDialog from "@/components/clients/ArchiveClientDialog";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import NotFoundState from "@/components/common/NotFoundState";
 import TableStatus from "@/components/table/common/TableStatus";
+import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useClient, useUpdateClient, useRestoreClient } from "@/hooks/clients";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
 import { toClientRow } from "@/lib/client";
 
 export default function ClientDetailPage({ params }) {
@@ -32,6 +36,15 @@ export default function ClientDetailPage({ params }) {
   const openEditModal = useClientsStore((s) => s.openEditModal);
   const openFollowUpModal = useClientsStore((s) => s.openFollowUpModal);
   const openArchiveModal = useClientsStore((s) => s.openArchiveModal);
+
+  // Money on account is financial data. An assistant holds VIEW_FINANCIALS at
+  // NONE, and the tab is *hidden* rather than shown and refused — a tab that
+  // only ever renders a 403 reads as a broken app, not as a boundary.
+  const { can, canWrite } = usePermissions();
+  const maySend = canWrite(Permission.SEND_EMAILS);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const maySeeMoney = can(Permission.VIEW_FINANCIALS);
+  const maySeeInvoices = can(Permission.VIEW_RECEIVABLES);
 
   const { data, isPending, error, refetch } = useClient(rawId);
   const client = data ? toClientRow(data) : null;
@@ -63,7 +76,12 @@ export default function ClientDetailPage({ params }) {
     { id: "overview", label: "Overview" },
     { id: "trips", label: "Trips" },
     { id: "quotes", label: "Quotes" },
-    { id: "payments", label: "Payments" },
+    // The invoices billed to this client and what has come in (Receivables,
+    // #16) — hidden, not refused, for a role that may not read them.
+    ...(maySeeInvoices ? [{ id: "payments", label: "Payments" }] : []),
+    // Money on account is its own thing, not a payment: a payment settles an
+    // invoice, a credit is money the client is holding with us.
+    ...(maySeeMoney ? [{ id: "credit", label: "Credit" }] : []),
     { id: "activity", label: "Activity" },
   ];
 
@@ -83,8 +101,16 @@ export default function ClientDetailPage({ params }) {
             onArchive={() => openArchiveModal(client)}
             onRestore={() => restoreClient(client)}
             isRestoring={isRestoring}
+            onSendEmail={maySend ? () => setComposeOpen(true) : undefined}
           />
         }
+      />
+      <ComposeEmailDialog
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        context={{ clientId: client?.id }}
+        title="Email this client"
+        description="Start from a template or write it. It is recorded on the client's Activity."
       />
 
       {/* 4 Stat Summary KPI Tiles */}
@@ -141,13 +167,16 @@ export default function ClientDetailPage({ params }) {
                   isCompleting={isCompleting}
                 />
               )}
-              {activeTab === "payments" && (
+              {activeTab === "payments" && maySeeInvoices && (
                 <ClientPaymentsTab
                   client={client}
                   onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
                   onMarkComplete={markFollowUpComplete}
                   isCompleting={isCompleting}
                 />
+              )}
+              {activeTab === "credit" && maySeeMoney && (
+                <ClientCreditTab client={client} />
               )}
               {activeTab === "activity" && (
                 <ClientActivityTab

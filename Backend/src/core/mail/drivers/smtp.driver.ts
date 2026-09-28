@@ -39,6 +39,7 @@ export class SmtpMailDriver implements MailDriver {
       subject: message.subject,
       text: message.text,
       html: message.html,
+      replyTo: message.replyTo,
     });
   }
 }

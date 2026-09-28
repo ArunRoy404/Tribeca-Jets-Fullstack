@@ -1,6 +1,7 @@
 "use client";
 
 import StatusBadge from "@/components/common/StatusBadge";
+import RestoredBadge from "@/components/common/RestoredBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -14,7 +15,7 @@ function Field({ label, value, valueClassName = "text-foreground" }) {
   );
 }
 
-export default function EmailTemplateCard({ template, selected, onToggleSelect, actions, onClick }) {
+export default function EmailTemplateCard({ template, selected, onToggleSelect, actions, onClick, selectable = false, archived = false }) {
   if (!template) return null;
 
   return (
@@ -26,20 +27,27 @@ export default function EmailTemplateCard({ template, selected, onToggleSelect, 
     >
       <div className="flex items-center justify-between gap-2 w-full">
         <div className="flex items-center gap-2 min-w-0">
-          <span onClick={(e) => e.stopPropagation()}>
-            <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
-          </span>
+          {selectable && (
+            <span onClick={(e) => e.stopPropagation()}>
+              <Checkbox checked={Boolean(selected)} onCheckedChange={onToggleSelect} aria-label={`Select ${template?.name}`} />
+            </span>
+          )}
           <p className="font-montserrat font-bold text-[13px] text-foreground truncate">{template?.name}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-          <StatusBadge status={template?.status} bordered />
-          {actions && <RowActionsMenu items={actions} />}
+          {!archived && <StatusBadge status={template?.status} bordered />}
+          {template?.isRestored && <RestoredBadge at={template?.restoredAtLabel} by={template?.restoredByName} />}
+          {actions?.length > 0 && <RowActionsMenu items={actions} />}
         </div>
       </div>
 
       <div className="flex items-start justify-between gap-3 w-full">
-        <Field label="Category" value={<StatusBadge status={template?.category} bordered />} />
-        <Field label="Last Updated" value={template?.lastUpdated} />
+        <Field label="Category" value={<StatusBadge status={template?.categoryLabel} bordered />} />
+        {archived ? (
+          <Field label="Removed" value={`${template?.deletedAtLabel} · ${template?.deletedByName}`} />
+        ) : (
+          <Field label="Last Updated" value={template?.lastUpdated} />
+        )}
       </div>
 
       <div className="flex flex-col gap-0.5 w-full pt-1">

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { UsersController } from './users.controller.js';
 import { UsersService } from './users.service.js';
+import { TripsModule } from '../trips/trips.module.js';
 
 /**
  * Prisma, Audit and Mail are @Global, so only this module's own providers are
@@ -8,6 +9,7 @@ import { UsersService } from './users.service.js';
  * it rather than querying the users table directly.
  */
 @Module({
+  imports: [TripsModule],
   controllers: [UsersController],
   providers: [UsersService],
   exports: [UsersService],

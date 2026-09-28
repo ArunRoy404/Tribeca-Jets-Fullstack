@@ -144,6 +144,7 @@ export function toQuoteRow(quote) {
     aircraft: quotedAircraftLabel(quote),
     aircraftId: quote?.aircraftId ?? null,
     rawQuotedAircraft: quote?.quotedAircraft ?? "",
+    exteriorImageUrl: quote?.exteriorImageUrl ?? null,
 
     // ---- Money. Every figure below the first four came from the API. -------
     basePrice: formatMoney(quote?.basePrice),
@@ -183,6 +184,11 @@ export function toQuoteRow(quote) {
     rawStatus: quote?.status ?? null,
     isOpen: OPEN_QUOTE_STATUSES.includes(quote?.status),
     isDecided: ["APPROVED", "REJECTED"].includes(quote?.status),
+    /** The live booking this offer became (Trips, #11), or null. */
+    trip:
+      quote?.trip && !quote.trip.deletedAt
+        ? { id: quote.trip.id, reference: `TJ-${quote.trip.reference}` }
+        : null,
 
     version: formatVersion(quote?.version),
     rawVersion: quote?.version ?? null,

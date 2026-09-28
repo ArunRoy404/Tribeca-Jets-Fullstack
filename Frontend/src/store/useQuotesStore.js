@@ -16,14 +16,25 @@ export const useQuotesStore = create((set) => ({
   addModalOpen: false,
   /** The mapped row being edited, or null for a new quote. */
   editingQuote: null,
+  /**
+   * Starting fields for a *new* quote — the instant estimate hands over the
+   * route, party size and chosen price this way. Ignored when editing.
+   */
+  draftQuote: null,
+
+  // Instant estimate (client adjustment #6)
+  estimateModalOpen: false,
 
   // Remove dialog
   deleteModalOpen: false,
   deleteTargetQuote: null,
 
-  openAddQuoteModal: (quote = null) =>
-    set({ addModalOpen: true, editingQuote: quote }),
-  closeAddQuoteModal: () => set({ addModalOpen: false, editingQuote: null }),
+  openAddQuoteModal: (quote = null, draft = null) =>
+    set({ addModalOpen: true, editingQuote: quote, draftQuote: quote ? null : draft }),
+  closeAddQuoteModal: () => set({ addModalOpen: false, editingQuote: null, draftQuote: null }),
+
+  openEstimateModal: () => set({ estimateModalOpen: true }),
+  closeEstimateModal: () => set({ estimateModalOpen: false }),
 
   openDeleteQuoteModal: (quote) =>
     set({ deleteModalOpen: true, deleteTargetQuote: quote }),

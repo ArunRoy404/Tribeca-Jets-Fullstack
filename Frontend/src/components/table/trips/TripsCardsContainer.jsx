@@ -1,34 +1,29 @@
+"use client";
+
 import TripCard from "@/components/table/upcoming-trips/TripCard";
 
-export default function TripsCardsContainer({ trips, onSelectTrip, getRowActions }) {
+/** The board below `lg`: one card per trip, the same actions as the table row. */
+export default function TripsCardsContainer({ items, getActions, onItemClick }) {
   return (
-    <div className="flex flex-col gap-3 p-4 w-full">
-      {trips?.map((t) => (
+    <div className="flex flex-col gap-3 w-full">
+      {items?.map((item) => (
         <TripCard
-          key={t?.id}
-          id={t?.id}
-          client={t?.client}
-          broker={t?.broker}
-          route={`${t?.from} → ${t?.to}`}
-          departure={t?.departure}
-          returnDate={t?.return}
-          aircraft={t?.aircraft}
-          operator={t?.operator}
-          status={t?.status}
-          clientPmt={t?.clientPmt}
-          opPmt={t?.opPmt}
-          fet={t?.fet}
-          profit={t?.profit}
-          nextAction={t?.nextAction}
-          actions={getRowActions?.(t)}
-          onClick={() => onSelectTrip?.(t)}
+          key={item?.id}
+          id={item?.reference}
+          client={item?.client}
+          broker={item?.broker}
+          route={item?.route}
+          departure={item?.departure}
+          returnDate={item?.returnDate !== "—" ? item?.returnDate : undefined}
+          aircraft={item?.aircraft !== "—" ? item?.aircraft : undefined}
+          operator={item?.operator !== "—" ? item?.operator : undefined}
+          status={item?.status}
+          fet={item?.fet}
+          profit={item?.profit}
+          actions={getActions?.(item)}
+          onClick={() => onItemClick?.(item)}
         />
       ))}
-      {trips?.length === 0 && (
-        <p className="p-6 text-center font-montserrat text-[12px] text-muted-foreground w-full">
-          No trips match the current filters.
-        </p>
-      )}
     </div>
   );
 }

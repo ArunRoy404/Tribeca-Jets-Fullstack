@@ -20,6 +20,7 @@ import pathlib
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
+from collection_order import place_folder
 
 BASE = 'http://localhost:4000/api'
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
@@ -64,7 +65,23 @@ class Session:
 
 
 def example(name: str, method: str, path: str, status: int, body, req_body=None):
-    """One Postman response example, carrying the request that produced it."""
+    """
+    One Postman response example, carrying the request that produced it —
+    checked against its own label.
+
+    A captured example is not an assertion: Newman runs the request's test
+    script and never compares an example's name to the response stored beside
+    it. This folder shipped `204 · Removed` holding a 200, `200 · Priced`
+    holding a 201 and an assistant's `200` read holding a 404, all green. The
+    builder is the one place that knows the promised status and the received
+    one at the same moment, so it refuses to write the lie. The fix is always
+    the request, never the label.
+    """
+    promised = name.split(' ', 1)[0]
+    if promised.isdigit() and int(promised) != status:
+        raise SystemExit(
+            f'refusing to write example {name!r}: the request returned {status}, '
+            f'not {promised}. Fix the request that captures it.')
     original = {
         'method': method,
         'header': [],
@@ -118,6 +135,7 @@ CREATE_BODY = """{
   // have never entered.
   "aircraftId": null,                                  // optional · uuid, or null
   "quotedAircraft": "Gulfstream G550",                 // optional · max 200 chars
+  "exteriorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000001", // optional · exactly the relative URL POST /uploads/image returned (folder 11): /api/uploads/<uuid>. An absolute or external URL is a 400 — it would pin a host into the row, or serve an image this API never checked.
 
   "originAirportId": "{{airportId}}",                  // optional · uuid of a live airport. A real relation, never an ICAO string typed into a box.
   "destinationAirportId": "{{airportId2}}",            // optional · uuid
@@ -163,6 +181,8 @@ UPDATE_BODY = """{
   // first — that is a recorded act, and this is not.
   "basePrice": 82500,
 
+  "exteriorImageUrl": null,                            // optional · /api/uploads/<uuid>, or null to remove the photo.
+
   "lineItems": [
     { "label": "Catering (seafood premium)", "amount": null, "included": true },
     { "label": "Ground transportation", "amount": 1200, "included": false }
@@ -192,6 +212,37 @@ DECIDE_BODY = """{
   "decisionNote": "Client confirmed by phone."
 }"""
 
+PREVIEW_BODY = """{
+  // The priced inputs only — same fields as the create body, minus everything
+  // that does not feed the pricing engine. Nothing here is persisted.
+  "basePrice": 79500,                                  // required · number 0-100000000
+
+  "fetEnabled": true,                                  // optional · boolean, default true
+  "fetRate": 0.075,                                    // optional · number 0-1. A RATE, not a percentage.
+
+  "operatorCost": 65000,                               // optional · number 0-100000000. Omit to see the client-side figures without a margin.
+
+  "lineItems": [                                       // optional · up to 40 entries, same shape as the create body
+    { "label": "Catering (seafood premium)", "amount": null, "included": true },
+    { "label": "Ground transportation", "amount": 850, "included": false }
+  ]
+}"""
+
+
+SUGGEST_BODY = """{
+  // Client adjustment #6's suggested-price selector. What the base price would
+  // be at each markup over the operator's cost. Nothing here is persisted.
+  "operatorCost": 65000,                               // required · number 0-100000000. The markup sits on this.
+  "markupRates": [0.10, 0.15, 0.20],                   // required · 1-8 RATES, each 0-5. 0.15 is 15% — "15" is refused as the typo it is.
+
+  // Optional, mirroring the price preview, so each suggestion's total is the
+  // total the client would actually see.
+  "fetEnabled": true,                                  // optional · boolean, default true
+  "lineItems": [                                       // optional · up to 40 entries, same shape as the create body
+    { "label": "Ground transportation", "amount": 850, "included": false }
+  ]
+}"""
+
 
 def build(owner, broker, assistant):
     client_id = owner.request('GET', '/clients?limit=1')[1]['data'][0]['id']
@@ -209,6 +260,7 @@ def build(owner, broker, assistant):
         'operatorId': operator['id'],
         'aircraftId': None,
         'quotedAircraft': 'Gulfstream G550',
+        'exteriorImageUrl': '/api/uploads/00000000-0000-4000-8000-000000000001',
         'originAirportId': airports[0]['id'],
         'destinationAirportId': airports[1]['id'],
         'departureDate': '2026-11-14',
@@ -238,7 +290,17 @@ def build(owner, broker, assistant):
     cap['stats'] = owner.request('GET', '/quotes/stats')
     cap['detail'] = owner.request('GET', f"/quotes/{seeded['id']}")
     cap['detail_404'] = owner.request('GET', f'/quotes/{MISSING}')
-    cap['detail_assistant'] = assistant.request('GET', f"/quotes/{seeded['id']}")
+    # The assistant's read has to be of a quote their scope admits. Both seeded
+    # quotes are assigned to a broker, so reading one as the assistant is a
+    # 404 before the margin rule is ever reached — the example this replaced
+    # was labelled 200 and held exactly that 404. An unassigned offer is
+    # visible to anyone who can see quotes, so the probe is made unassigned.
+    unassigned_id = owner.request('POST', '/quotes', {
+        'clientId': client_id, 'basePrice': 42000, 'operatorCost': 36000,
+    })[1]['data']['id']
+    owner.request('PATCH', f'/quotes/{unassigned_id}', {'assignedBrokerId': None})
+    cap['detail_assistant'] = assistant.request('GET', f'/quotes/{unassigned_id}')
+    owner.request('DELETE', f'/quotes/{unassigned_id}')
 
     cap['create'] = owner.request('POST', '/quotes', payload)
     new_id = cap['create'][1]['data']['id']
@@ -252,7 +314,41 @@ def build(owner, broker, assistant):
     cap['create_400_client'] = owner.request('POST', '/quotes', {
         'clientId': MISSING, 'basePrice': 79500,
     })
+    cap['create_400_image'] = owner.request('POST', '/quotes', {
+        'clientId': client_id, 'basePrice': 79500,
+        'exteriorImageUrl': 'https://example.com/g550.jpg',
+    })
     cap['create_403'] = assistant.request('POST', '/quotes', payload)
+
+    # Stateless — no id, no row, no dependency on anything captured above.
+    # Same MANAGE_TRIPS gate as writing the quote itself, since this is the
+    # form a broker is filling in before one exists.
+    preview_payload = {
+        'basePrice': 79500,
+        'fetEnabled': True,
+        'operatorCost': 65000,
+        'lineItems': [
+            {'label': 'Catering (seafood premium)', 'amount': None, 'included': True},
+            {'label': 'Ground transportation', 'amount': 850, 'included': False},
+        ],
+    }
+    cap['preview'] = owner.request('POST', '/quotes/price-preview', preview_payload)
+    cap['preview_400'] = owner.request('POST', '/quotes/price-preview', {'fetEnabled': True})
+    cap['preview_403'] = assistant.request('POST', '/quotes/price-preview', preview_payload)
+
+    # Stateless like the preview. Needs VIEW_FINANCIALS on top of MANAGE_TRIPS,
+    # because a markup over the operator's cost is the margin.
+    suggest_payload = {
+        'operatorCost': 65000,
+        'markupRates': [0.10, 0.15, 0.20],
+        'fetEnabled': True,
+        'lineItems': [{'label': 'Ground transportation', 'amount': 850, 'included': False}],
+    }
+    cap['suggest'] = owner.request('POST', '/quotes/suggested-price', suggest_payload)
+    cap['suggest_400_cost'] = owner.request('POST', '/quotes/suggested-price', {'markupRates': [0.15]})
+    cap['suggest_400_rate'] = owner.request('POST', '/quotes/suggested-price',
+                                            {'operatorCost': 65000, 'markupRates': [15]})
+    cap['suggest_403'] = assistant.request('POST', '/quotes/suggested-price', suggest_payload)
 
     cap['versions_v1'] = owner.request('GET', f'/quotes/{new_id}/versions')
 
@@ -440,12 +536,14 @@ def build(owner, broker, assistant):
                     'Archived quotes load here too, because the Archived tab links straight to '
                     'them.\n\nA quote outside the caller’s scope returns **404, not 403** — a 403 '
                     'confirms the record exists and turns any id into an oracle.\n\nThe third '
-                    'example is the same quote read as the seeded assistant: same offer, and '
-                    '`operatorCost`, `grossProfit` and `marginPercentage` simply not there.'),
+                    'example is an unassigned quote read as the seeded assistant: the offer, '
+                    'with `operatorCost`, `grossProfit` and `marginPercentage` simply not there. '
+                    'An assistant sees quotes assigned to them and quotes nobody owns; one '
+                    'assigned to a broker is a 404 to them, like any row outside scope.'),
             },
             'response': [
                 example('200 · Quote record', 'GET', f"/quotes/{seeded['id']}", *cap['detail']),
-                example('200 · The same quote, without the margin (assistant)', 'GET', f"/quotes/{seeded['id']}", *cap['detail_assistant']),
+                example('200 · An unassigned quote, without the margin (assistant)', 'GET', '/quotes/{{quoteId}}', *cap['detail_assistant']),
                 example('404 · Not found or out of scope', 'GET', f'/quotes/{MISSING}', *cap['detail_404']),
             ],
         },
@@ -497,6 +595,9 @@ def build(owner, broker, assistant):
                                   'lineItems': [{'label': 'Catering'}]}),
                 example('400 · Unknown client', 'POST', '/quotes', *cap['create_400_client'],
                         req_body={'clientId': MISSING, 'basePrice': 79500}),
+                example('400 · Photo is not an upload URL', 'POST', '/quotes', *cap['create_400_image'],
+                        req_body={'clientId': '{{clientId}}', 'basePrice': 79500,
+                                  'exteriorImageUrl': 'https://example.com/g550.jpg'}),
                 example('403 · Assistant cannot write quotes', 'POST', '/quotes', *cap['create_403'], req_body=payload),
             ],
             'event': [
@@ -790,6 +891,62 @@ def build(owner, broker, assistant):
                 "pm.collectionVariables.set('duplicatedQuoteId', '');",
             ])],
         },
+        {
+            'name': '17 · Preview pricing',
+            'request': {
+                'method': 'POST', 'header': WRITE_HEADERS,
+                'body': {'mode': 'raw', 'raw': PREVIEW_BODY,
+                         'options': {'raw': {'language': 'json'}}},
+                'url': url('/quotes/price-preview', 'price-preview'),
+                'description': (
+                    'A dry run of the exact `priceQuote()` function a saved quote uses — FET '
+                    'amount, extras total, total price and (for a caller with `VIEW_FINANCIALS`) '
+                    'gross profit and margin. **Persists nothing** and needs no existing quote: '
+                    'this is what the create/edit form calls as a broker types, before a row '
+                    'exists, so the live preview never re-implements the arithmetic itself.\n\n'
+                    'Same `MANAGE_TRIPS` write gate as writing the quote — this is the form a '
+                    'broker is filling in before one exists, not a read.\n\nAppended at the end of '
+                    'this folder rather than after request 05: it is stateless, so it has no '
+                    'ordering dependency on anything above it, live-quote id included.'),
+            },
+            'response': [
+                example('200 · Priced', 'POST', '/quotes/price-preview', *cap['preview'],
+                        req_body=preview_payload),
+                example('400 · Base price is required', 'POST', '/quotes/price-preview', *cap['preview_400'],
+                        req_body={'fetEnabled': True}),
+                example('403 · Assistant cannot price a quote', 'POST', '/quotes/price-preview',
+                        *cap['preview_403'], req_body=preview_payload),
+            ],
+        },
+        {
+            'name': '18 · Suggest a price',
+            'request': {
+                'method': 'POST', 'header': WRITE_HEADERS,
+                'body': {'mode': 'raw', 'raw': SUGGEST_BODY,
+                         'options': {'raw': {'language': 'json'}}},
+                'url': url('/quotes/suggested-price', 'suggested-price'),
+                'description': (
+                    'Client adjustment #6: *"a suggested price option where I can select different '
+                    'percentages"*. Returns the base price at each markup over `operatorCost` '
+                    '(`markupRates`, as rates: 0.15 is 15%), and what each totals to the client with FET '
+                    'and extras — every figure from the same `priceQuote()` a saved quote uses.\n\n'
+                    '**Persists nothing.** The broker picks one and it becomes the base price they submit; '
+                    'the percentage is a way to arrive at the price, not a fact stored on the quote.\n\n'
+                    'Needs `MANAGE_TRIPS` **and** `VIEW_FINANCIALS` — a markup over cost is the margin, '
+                    'which an assistant never sees.\n\nThe *estimate* half of the request (a price from '
+                    'aircraft size and airports) is not this endpoint: it needs the client\'s rate data.'),
+            },
+            'response': [
+                example('200 · Suggestions', 'POST', '/quotes/suggested-price', *cap['suggest'],
+                        req_body=suggest_payload),
+                example('400 · Operator cost is required', 'POST', '/quotes/suggested-price',
+                        *cap['suggest_400_cost'], req_body={'markupRates': [0.15]}),
+                example('400 · Markup typed as a percentage', 'POST', '/quotes/suggested-price',
+                        *cap['suggest_400_rate'], req_body={'operatorCost': 65000, 'markupRates': [15]}),
+                example('403 · Assistant cannot see margins', 'POST', '/quotes/suggested-price',
+                        *cap['suggest_403'], req_body=suggest_payload),
+            ],
+        },
     ]
 
     return {
@@ -828,10 +985,7 @@ def main() -> None:
     folder = build(owner, broker, assistant)
     folder['event'] = json.loads(json.dumps(sourcing_folder['event']))
 
-    collection['item'] = [
-        f for f in collection['item'] if not f['name'].startswith('10 · Quotes')
-    ]
-    collection['item'].append(folder)
+    place_folder(collection, folder)
 
     existing = {v['key'] for v in collection['variable']}
     for key in ('quoteId', 'newQuoteId', 'duplicatedQuoteId', 'airportId2'):

@@ -11,6 +11,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { optionalText } from "@/lib/form";
 
 function FieldWrapper({ label, children, optional, error }) {
   return (
@@ -28,6 +29,24 @@ function FieldWrapper({ label, children, optional, error }) {
         <p className="font-montserrat text-[11px] text-destructive">{error}</p>
       )}
     </div>
+  );
+}
+
+/**
+ * The dialog's multi-line field.
+ *
+ * Extracted the moment a second one was needed: the cancellation policy and
+ * the sourcing notes are the same control with different text, and two
+ * hand-styled `<textarea>` blocks in one file drift the first time either is
+ * touched.
+ */
+function DialogTextarea({ rows = 3, ...props }) {
+  return (
+    <textarea
+      rows={rows}
+      className="w-full p-2.5 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-purple resize-y"
+      {...props}
+    />
   );
 }
 
@@ -155,14 +174,10 @@ function OperatorForm({ editingOperator, onDone }) {
       ? formData.serviceRoutesInput.split(",").map((r) => r.trim()).filter(Boolean)
       : [];
 
+    // Absent means "leave it alone", null means "clear it" — the API
+    // distinguishes the two, so a create omits and an edit nulls.
     const editing = Boolean(editingOperator);
-    const optional = (value) => {
-      const trimmed = (value ?? "").trim();
-      if (trimmed) return trimmed;
-      // Absent means "leave it alone", null means "clear it" — the API
-      // distinguishes the two, so a create omits and an edit nulls.
-      return editing ? null : undefined;
-    };
+    const optional = (value) => optionalText(value, { editing });
 
     const payload = {
       name: formData.name.trim(),
@@ -381,15 +396,6 @@ function OperatorForm({ editingOperator, onDone }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-            <FieldWrapper label="Cancellation policy (Optional)">
-              <Input
-                placeholder="48 hours Notice"
-                value={formData.cancellationPolicy}
-                onChange={(e) => handleChange("cancellationPolicy", e.target.value)}
-                className="h-10 text-[13px] font-montserrat"
-              />
-            </FieldWrapper>
-
             <FieldWrapper label="Payment terms (Optional)">
               <Input
                 placeholder="Net 30"
@@ -400,13 +406,24 @@ function OperatorForm({ editingOperator, onDone }) {
             </FieldWrapper>
           </div>
 
+          {/* Full width and multi-line, because this field is pasted into
+              rather than typed: an operator's policy arrives as a tier per
+              line, and a single-line input drops the line breaks on the way
+              in. */}
+          <FieldWrapper label="Cancellation policy (Optional)" error={fieldErrors?.cancellationPolicy}>
+            <DialogTextarea
+              rows={5}
+              value={formData.cancellationPolicy}
+              onChange={(e) => handleChange("cancellationPolicy", e.target.value)}
+              placeholder={"Paste the operator's policy here, e.g.\n\n30+ days before departure — 10% of the charter price\n14-30 days — 25%\n72 hours-14 days — 50%\nUnder 72 hours — non-refundable"}
+            />
+          </FieldWrapper>
+
           <FieldWrapper label="Notes (Optional)" optional>
-            <textarea
-              rows={3}
+            <DialogTextarea
               value={formData.sourcingNotes}
               onChange={(e) => handleChange("sourcingNotes", e.target.value)}
               placeholder="Internal notes visible to brokers only..."
-              className="w-full p-2.5 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-purple resize-none"
             />
           </FieldWrapper>
 

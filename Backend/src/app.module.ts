@@ -1,3 +1,4 @@
+import { DiscoveryModule } from '@nestjs/core';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 
@@ -13,9 +14,25 @@ import { ClientsModule } from './modules/clients/clients.module.js';
 import { AirportsModule } from './modules/airports/airports.module.js';
 import { OperatorsModule } from './modules/operators/operators.module.js';
 import { AircraftModule } from './modules/aircraft/aircraft.module.js';
+import { UploadsModule } from './modules/uploads/uploads.module.js';
 import { TripRequestsModule } from './modules/trip-requests/trip-requests.module.js';
 import { OperatorQuotesModule } from './modules/operator-quotes/operator-quotes.module.js';
 import { QuotesModule } from './modules/quotes/quotes.module.js';
+import { NotesModule } from './modules/notes/notes.module.js';
+import { ClientCreditsModule } from './modules/client-credits/client-credits.module.js';
+import { CharterRatesModule } from './modules/charter-rates/charter-rates.module.js';
+import { TripsModule } from './modules/trips/trips.module.js';
+import { ItinerariesModule } from './modules/itineraries/itineraries.module.js';
+import { ScheduleModule } from './modules/schedule/schedule.module.js';
+import { FlightTrackingModule } from './modules/flight-tracking/flight-tracking.module.js';
+import { TasksModule } from './modules/tasks/tasks.module.js';
+import { EmailTemplatesModule } from './modules/email-templates/email-templates.module.js';
+import { EmptyLegsModule } from './modules/empty-legs/empty-legs.module.js';
+import { CommissionsModule } from './modules/commissions/commissions.module.js';
+import { ReferralsModule } from './modules/referrals/referrals.module.js';
+import { ReceivablesModule } from './modules/receivables/receivables.module.js';
+import { OperatorPaymentsModule } from './modules/operator-payments/operator-payments.module.js';
+import { TransactionsModule } from './modules/transactions/transactions.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -30,6 +47,10 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 
 @Module({
   imports: [
+    // Lets the OpenAPI document read the same @Public/@RequirePermissions
+    // metadata the guards read, so the documented 401s and 403s cannot drift
+    // from what is actually enforced. See common/openapi/describe-responses.ts.
+    DiscoveryModule,
     // Config first: every other module reads validated env from it.
     AppConfigModule,
 
@@ -48,9 +69,25 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     AirportsModule,
     OperatorsModule,
     AircraftModule,
+    UploadsModule,
     TripRequestsModule,
     OperatorQuotesModule,
     QuotesModule,
+    NotesModule,
+    ClientCreditsModule,
+    CharterRatesModule,
+    TripsModule,
+    ItinerariesModule,
+    ScheduleModule,
+    FlightTrackingModule,
+    TasksModule,
+    EmailTemplatesModule,
+    EmptyLegsModule,
+    CommissionsModule,
+    ReferralsModule,
+    ReceivablesModule,
+    OperatorPaymentsModule,
+    TransactionsModule,
   ],
   providers: [
     /**

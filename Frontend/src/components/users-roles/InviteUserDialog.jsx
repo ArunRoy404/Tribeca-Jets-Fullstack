@@ -9,6 +9,13 @@ import { Input } from "@/components/ui/input";
 import FormField from "@/components/trips/FormField";
 import PickerSelect from "@/components/trips/PickerSelect";
 import { useInviteUser, useUpdateUser } from "@/hooks/users";
+import CommissionTermsFields, {
+  commissionTermsChanged,
+  commissionTermsErrors,
+  commissionTermsForm,
+  commissionTermsPayload,
+} from "@/components/users-roles/CommissionTermsFields";
+import { REFERRAL_AGENT } from "@/lib/roles";
 import {
   ASSIGNABLE_ROLES,
   MANAGEABLE_STATUSES,
@@ -36,6 +43,7 @@ const EMPTY_FORM = {
   phone: "",
   role: "BROKER",
   status: "ACTIVE",
+  ...commissionTermsForm(null),
 };
 
 /** Splits a display name back into the two fields the API takes. */
@@ -54,6 +62,7 @@ function initialForm(editingUser) {
     phone: editingUser?.phone ?? "",
     role: editingUser?.role ?? "BROKER",
     status: editingUser?.rawStatus ?? "ACTIVE",
+    ...commissionTermsForm(editingUser),
   };
 }
 
@@ -104,9 +113,13 @@ function UserForm({ editingUser, onDone }) {
   const isInvited = isPendingInvite(editingUser?.rawStatus);
 
   const mutation = isEditing ? update : invite;
-  const fieldErrors = mutation?.error?.fieldErrors ?? {};
-
   const [form, setForm] = useState(() => initialForm(editingUser));
+  const [localErrors, setLocalErrors] = useState({});
+  const fieldErrors = { ...(mutation?.error?.fieldErrors ?? {}), ...localErrors };
+
+  // Commission terms belong to a referral agent only (#11); the API refuses
+  // them on any other role and clears them when an agent's role changes.
+  const isAgent = form.role === REFERRAL_AGENT;
 
   const close = onDone;
 
@@ -115,6 +128,10 @@ function UserForm({ editingUser, onDone }) {
 
   const handleSubmit = (e) => {
     e?.preventDefault();
+
+    const termErrors = isAgent ? commissionTermsErrors(form) : {};
+    setLocalErrors(termErrors);
+    if (Object.keys(termErrors).length) return;
 
     if (isEditing) {
       // PATCH: send only what changed. The API rejects an empty body, and
@@ -136,6 +153,11 @@ function UserForm({ editingUser, onDone }) {
           ...(isInvited ? {} : { status: form.status }),
         }).filter(([key, value]) => value !== (original[key] ?? "")),
       );
+      // The terms travel together — the API needs the basis with its figure —
+      // and only when they changed, so an unrelated edit leaves them alone.
+      if (isAgent && commissionTermsChanged(form, editingUser)) {
+        Object.assign(changed, commissionTermsPayload(form, { editing: true }));
+      }
       if (!Object.keys(changed).length) {
         close?.();
         return;
@@ -151,6 +173,7 @@ function UserForm({ editingUser, onDone }) {
         lastName: form.lastName,
         ...(form.phone ? { phone: form.phone } : {}),
         role: form.role,
+        ...(isAgent ? commissionTermsPayload(form) : {}),
       },
       { onSuccess: close },
     );
@@ -260,6 +283,16 @@ function UserForm({ editingUser, onDone }) {
             </FormField>
           )}
         </div>
+
+        {isAgent && (
+          <CommissionTermsFields
+            form={form}
+            setField={setField}
+            errors={fieldErrors}
+            fieldClassName={FIELD_CLASS}
+            labelClassName={LABEL_CLASS}
+          />
+        )}
 
         {isInvited && (
           <div className="flex gap-2 items-start rounded-sm border border-border bg-secondary/40 p-3">

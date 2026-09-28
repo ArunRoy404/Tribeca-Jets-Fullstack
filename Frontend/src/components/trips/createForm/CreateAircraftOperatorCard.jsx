@@ -5,51 +5,60 @@ import FormField from "@/components/trips/FormField";
 import PickerSelect from "@/components/trips/PickerSelect";
 import { Input } from "@/components/ui/input";
 import { useCreateTripStore } from "@/store/useCreateTripStore";
-import {
-  operatorOptions,
-  aircraftOptions,
-} from "@/dummyData/createTripOptions";
 import { cn } from "@/lib/utils";
 
-export default function CreateAircraftOperatorCard() {
-  const state = useCreateTripStore();
-  const {
-    operator,
-    aircraftType,
-    tailRegistration,
-    operatorConfirmation,
-    setField,
-  } = state || {};
+/**
+ * Operator and aircraft as real links. A tail not in the fleet is described
+ * in free text instead — the same split quotes make — and the text box steps
+ * aside once a fleet aircraft is chosen, since the two would contradict.
+ */
+export default function CreateAircraftOperatorCard({ options }) {
+  const { operatorId, aircraftId, aircraftDescription, operatorConfirmed, setField } = useCreateTripStore();
+
+  // The operator's own tails first, when one is chosen.
+  const aircraftOptions = operatorId
+    ? [...(options?.aircraft ?? [])].sort((a, b) => (b.operatorId === operatorId) - (a.operatorId === operatorId))
+    : options?.aircraft;
 
   return (
     <DetailCard title="Aircraft & Operator" description="Assign the operator and aircraft for this trip.">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <FormField label="Operator">
-          <PickerSelect value={operator} onChange={(v) => setField?.("operator", v)} options={operatorOptions} placeholder="Select operator..." />
+        <FormField label="Operator (Optional)">
+          <PickerSelect value={operatorId} onChange={(v) => setField?.("operatorId", v)} options={options?.operators} placeholder="Select operator..." />
         </FormField>
-        <FormField label="Aircraft">
-          <PickerSelect value={aircraftType} onChange={(v) => setField?.("aircraftType", v)} options={aircraftOptions} placeholder="Select aircraft type..." />
+        <FormField label="Fleet Aircraft (Optional)">
+          <PickerSelect value={aircraftId} onChange={(v) => setField?.("aircraftId", v)} options={aircraftOptions} placeholder="Select a tail..." />
         </FormField>
-        <FormField label="Tail / Registration">
-          <Input className="h-10 rounded-sm" placeholder="e.g. N550GJ" value={tailRegistration || ""} onChange={(e) => setField?.("tailRegistration", e.target.value)} />
-        </FormField>
+        {!aircraftId && (
+          <FormField label="Or describe it (Optional)">
+            <Input
+              className="h-10 rounded-sm"
+              placeholder="e.g. Challenger 350 — not in the fleet"
+              value={aircraftDescription || ""}
+              onChange={(e) => setField?.("aircraftDescription", e.target.value)}
+            />
+          </FormField>
+        )}
         <FormField label="Operator Confirmation">
           <div className="flex w-full rounded-sm border border-border overflow-hidden">
-            {["Pending", "Confirmed"].map((option) => (
+            {[
+              { value: false, label: "Pending" },
+              { value: true, label: "Confirmed" },
+            ].map((option) => (
               <button
                 type="button"
-                key={option}
-                onClick={() => setField?.("operatorConfirmation", option)}
+                key={option.label}
+                onClick={() => setField?.("operatorConfirmed", option.value)}
                 className={cn(
                   "flex-1 py-2 text-center font-montserrat text-[13px] cursor-pointer",
-                  operatorConfirmation === option
-                    ? option === "Pending"
-                      ? "bg-warning/15 text-warning font-semibold"
-                      : "bg-success/15 text-success font-semibold"
+                  operatorConfirmed === option.value
+                    ? option.value
+                      ? "bg-success/15 text-success font-semibold"
+                      : "bg-warning/15 text-warning font-semibold"
                     : "bg-secondary text-muted-foreground"
                 )}
               >
-                {option}
+                {option.label}
               </button>
             ))}
           </div>

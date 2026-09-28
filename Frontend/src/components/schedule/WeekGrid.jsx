@@ -2,13 +2,16 @@
 
 import { cn } from "@/lib/utils";
 import { useScheduleStore } from "@/store/useScheduleStore";
+import { useScheduleEvents, useScheduleParams } from "@/hooks/schedule";
 import { addDays, startOfWeek, dayLabel, formatShortDay, isSameDay } from "@/lib/date";
 import FlightEventCard from "@/components/common/FlightEventCard";
 
-// Matches the Figma week-view hour rail order exactly (8 AM row leads, 7 AM follows).
+// In clock order. The Figma rail led with 8 AM and put 7 AM second, which
+// was harmless with dummy rows and would file a real 07:00 departure below an
+// 08:00 one.
 const HOUR_ROWS = [
-  { label: "8 AM", hour: 8 },
   { label: "7 AM", hour: 7 },
+  { label: "8 AM", hour: 8 },
   { label: "9 AM", hour: 9 },
   { label: "10 AM", hour: 10 },
   { label: "11 AM", hour: 11 },
@@ -21,19 +24,25 @@ const HOUR_ROWS = [
 ];
 const ROW_HEIGHT = 72;
 
+/**
+ * Where a card sits on the rail. A departure outside 7 AM–5 PM clamps to the
+ * nearest edge row and an untimed leg sits at the top — the card itself always
+ * prints the real time ("Time not set" for none), so the position is never the
+ * only place a time is read from.
+ */
 function slotForTime(time) {
+  if (!time) return 0;
   const [h, m] = time.split(":").map(Number);
   const index = HOUR_ROWS.findIndex((row) => row.hour === h);
-  const clampedIndex = index === -1 ? (h < HOUR_ROWS[1].hour ? 1 : HOUR_ROWS.length - 1) : index;
+  const clampedIndex = index === -1 ? (h < HOUR_ROWS[0].hour ? 0 : HOUR_ROWS.length - 1) : index;
   const minuteOffset = m >= 30 ? ROW_HEIGHT / 2 : 0;
   return clampedIndex * ROW_HEIGHT + minuteOffset;
 }
 
 export default function WeekGrid() {
-  const currentDate = useScheduleStore((s) => s.currentDate);
-  const getEventsForDate = useScheduleStore((s) => s.getEventsForDate);
+  const { currentDate, goToDate } = useScheduleParams();
+  const { eventsFor: getEventsForDate } = useScheduleEvents();
   const selectEvent = useScheduleStore((s) => s.selectEvent);
-  const goToDate = useScheduleStore((s) => s.goToDate);
   const weekStart = startOfWeek(currentDate);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const selectedDayEvents = getEventsForDate(currentDate);
@@ -74,7 +83,7 @@ export default function WeekGrid() {
 
         <div className="flex flex-col gap-2">
           {selectedDayEvents.map((event) => (
-            <FlightEventCard key={event.id} event={event} onClick={() => selectEvent(event.id)} />
+            <FlightEventCard key={event?.id} event={event} onClick={() => selectEvent(event?.id)} />
           ))}
           {selectedDayEvents.length === 0 && (
             <p className="font-montserrat text-[12px] text-muted-foreground py-6 text-center">
@@ -126,8 +135,8 @@ export default function WeekGrid() {
                 ))}
 
                 {events.map((event) => (
-                  <div key={event.id} className="absolute inset-x-1 z-10" style={{ top: slotForTime(event.time) }}>
-                    <FlightEventCard event={event} onClick={() => selectEvent(event.id)} />
+                  <div key={event?.id} className="absolute inset-x-1 z-10" style={{ top: slotForTime(event?.time) }}>
+                    <FlightEventCard event={event} onClick={() => selectEvent(event?.id)} />
                   </div>
                 ))}
               </div>

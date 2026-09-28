@@ -1,6 +1,11 @@
 import { cn } from "@/lib/utils";
 import StatusBadge from "@/components/common/StatusBadge";
 
+/**
+ * One flight on a calendar. Reads `title` and `timeLabel` when the event has
+ * them (Schedule's mapped legs: "TJ-1048", "Time not set") and falls back to
+ * `id` and `time`, so a caller passing the older shape renders as before.
+ */
 export default function FlightEventCard({ event, onClick, className }) {
   return (
     <div
@@ -13,18 +18,21 @@ export default function FlightEventCard({ event, onClick, className }) {
     >
       <div className="absolute inset-y-px left-px w-1 rounded-l-sm bg-primary" />
       <div className="flex items-center justify-between w-full">
-        <p className="font-montserrat font-medium text-[10px] text-foreground">{event.id}</p>
-        <StatusBadge status={event.status} bordered className="text-[10px]" />
+        <p className="font-montserrat font-medium text-[10px] text-foreground">
+          {event?.title ?? event?.id}
+          {event?.legLabel && <span className="text-muted-foreground"> · {event.legLabel}</span>}
+        </p>
+        <StatusBadge status={event?.status} bordered className="text-[10px]" />
       </div>
-      <p className="font-montserrat font-medium text-[10px] text-muted-foreground">{event.client}</p>
+      <p className="font-montserrat font-medium text-[10px] text-muted-foreground">{event?.client}</p>
       <div className="flex items-center justify-between w-full">
         <p className="font-montserrat font-medium text-[10px] text-foreground">
-          {event.from} → {event.to}
+          {event?.from} → {event?.to}
         </p>
-        <p className="font-montserrat font-medium text-[10px] text-purple">{event.time}</p>
+        <p className="font-montserrat font-medium text-[10px] text-purple">{event?.timeLabel ?? event?.time}</p>
       </div>
       <p className="font-montserrat font-medium text-[10px] text-muted-foreground truncate w-full">
-        {event.aircraft} · {event.operator}
+        {event?.aircraft} · {event?.operator}
       </p>
     </div>
   );

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { MAIL_DRIVER, type MailDriver } from './mail.interface.js';
+import { MAIL_DRIVER, type MailDriver, type MailMessage } from './mail.interface.js';
 import { AppConfigService } from '../../config/config.service.js';
 
 /**
@@ -40,6 +40,34 @@ export class MailService {
         `Failed to send "${subject}" to ${to}`,
         error instanceof Error ? error.stack : undefined,
       );
+    }
+  }
+
+  /**
+   * A message a person composed — an email to a client or an operator
+   * (Email Templates, #21). Unlike the account emails above, the outcome is
+   * **reported, not swallowed**: the desk must know whether a quote went out,
+   * and the record of it must say which.
+   *
+   * `delivered` is false under the log driver — printed to the server log,
+   * delivered to nobody — so the caller can record exactly that rather than
+   * "sent". A mail server's refusal comes back as `error`.
+   */
+  async deliver(
+    message: MailMessage,
+  ): Promise<{ delivered: boolean; error: string | null }> {
+    try {
+      await this.driver.send(message);
+      return { delivered: this.driver.name === 'smtp', error: null };
+    } catch (error) {
+      this.logger.error(
+        `Failed to send "${message.subject}" to ${message.to}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      return {
+        delivered: false,
+        error: error instanceof Error ? error.message : 'The mail server refused the message',
+      };
     }
   }
 

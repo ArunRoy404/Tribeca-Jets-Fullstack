@@ -9,6 +9,22 @@ import {
 import type { Request, Response } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
 
+/**
+ * Multer's own error shape.
+ *
+ * Declared here rather than imported: `multer` reaches this project only as a
+ * transitive dependency of `@nestjs/platform-express`, and importing it
+ * directly would make an implementation detail of that package a direct one of
+ * ours. The `name` check is what identifies it.
+ */
+interface MulterError extends Error {
+  code: string;
+}
+
+function isMulterError(exception: unknown): exception is MulterError {
+  return exception instanceof Error && exception.name === 'MulterError';
+}
+
 interface ErrorBody {
   success: false;
   statusCode: number;
@@ -88,11 +104,44 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
+    if (isMulterError(exception)) {
+      return this.resolveUpload(exception);
+    }
+
     return {
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       // Never surface a raw internal error message to the client.
       message: 'Internal server error',
     };
+  }
+
+  /**
+   * Multer rejects a body before any handler runs, so its errors arrive here
+   * rather than at a service. Untranslated they surface as a 500, which tells
+   * someone whose file was simply too large that the server is broken.
+   */
+  private resolveUpload(error: MulterError): {
+    status: number;
+    message: string;
+  } {
+    switch (error.code) {
+      case 'LIMIT_FILE_SIZE':
+        return {
+          status: HttpStatus.PAYLOAD_TOO_LARGE,
+          message: 'That file is larger than the upload limit',
+        };
+      case 'LIMIT_FILE_COUNT':
+      case 'LIMIT_UNEXPECTED_FILE':
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          message: 'Send exactly one file, in a field named "file"',
+        };
+      default:
+        return {
+          status: HttpStatus.BAD_REQUEST,
+          message: 'That upload could not be read',
+        };
+    }
   }
 
   private resolvePrisma(error: Prisma.PrismaClientKnownRequestError): {

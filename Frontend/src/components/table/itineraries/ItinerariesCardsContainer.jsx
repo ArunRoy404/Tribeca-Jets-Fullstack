@@ -2,7 +2,15 @@
 
 import ItineraryCard from "./ItineraryCard";
 
-export default function ItinerariesCardsContainer({ items, getRowActions, onSelectItinerary }) {
+export default function ItinerariesCardsContainer({
+  items,
+  getRowActions,
+  onSelectItinerary,
+  selected,
+  onToggleRow,
+  selectable = false,
+  archived = false,
+}) {
   return (
     <div className="flex flex-col gap-3 w-full">
       {items?.map((item) => (
@@ -11,6 +19,10 @@ export default function ItinerariesCardsContainer({ items, getRowActions, onSele
           item={item}
           actions={getRowActions?.(item)}
           onClick={() => onSelectItinerary?.(item?.id)}
+          selected={selected?.has?.(item?.id)}
+          onToggleRow={onToggleRow}
+          selectable={selectable}
+          archived={archived}
         />
       ))}
       {items?.length === 0 && (

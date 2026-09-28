@@ -6,6 +6,7 @@ import { useClientsStore } from "@/store/useClientsStore";
 import { useCreateClient, useUpdateClient } from "@/hooks/clients";
 import { useAirports } from "@/hooks/airports";
 import { useUsers } from "@/hooks/users";
+import { usePermissions } from "@/hooks/common/usePermissions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,9 @@ import {
   formatLeadSource,
   formatLeadStage,
 } from "@/lib/client";
+import { optionalText } from "@/lib/form";
+import { Permission, Scope } from "@/lib/permissions";
+import { BROKER_ROLES } from "@/lib/roles";
 
 function FieldWrapper({ label, children, optional }) {
   return (
@@ -46,8 +50,6 @@ function SectionHeader({ title }) {
 const SELECT_CLASS =
   "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
 
-const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER"]);
-
 /**
  * Blank. Nothing is pre-filled with a plausible-looking value — the old form
  * opened with "Jonathan Reed", a broker and a lead source already chosen, so a
@@ -71,12 +73,6 @@ const EMPTY = {
   routeFrom: "",
   routeTo: "",
   notes: "",
-};
-
-/** Blank strings are "not provided", never an empty value the API would store. */
-const optional = (value) => {
-  const trimmed = (value ?? "").trim();
-  return trimmed ? trimmed : undefined;
 };
 
 /**
@@ -148,6 +144,15 @@ function ClientForm({ editingClient, onDone }) {
   const { mutate: createClient, isPending: isCreating } = useCreateClient();
   const { mutate: updateClient, isPending: isUpdating } = useUpdateClient();
   const editing = Boolean(editingClient);
+  // Blank is omitted on create and sent as null on edit, so emptying a box
+  // actually clears the stored value instead of silently keeping it.
+  const optional = (value) => optionalText(value, { editing });
+
+  // Choosing the broker is reassigning the client, which the API allows only
+  // to a role holding the whole book. Anyone else is not shown the picker —
+  // it could only ever answer 403 — and a broker's own client stays theirs.
+  const { scopeFor } = usePermissions();
+  const mayAssignBroker = scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL;
 
   // Real reference data for both pickers.
   const { data: airports } = useAirports({ limit: 100, sortBy: "icao", sortOrder: "asc" });
@@ -188,13 +193,13 @@ function ClientForm({ editingClient, onDone }) {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       companyName: optional(form.companyName),
-      email: optional(form.email)?.toLowerCase(),
+      email: optional(form.email.toLowerCase()),
       phone: optional(form.phone),
       type: form.type,
       status: form.status,
       leadStage: form.leadStage,
       leadSource: form.leadSource,
-      assignedBrokerId: optional(form.assignedBrokerId),
+      ...(mayAssignBroker ? { assignedBrokerId: optional(form.assignedBrokerId) } : {}),
       homeAirportId: form.homeAirportId || null,
       birthday: optional(form.birthday),
       nextFollowUpAt: form.nextFollowUpAt
@@ -344,20 +349,22 @@ function ClientForm({ editingClient, onDone }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <FieldWrapper label="Assigned Broker" optional>
-              <select
-                value={form.assignedBrokerId}
-                onChange={(e) => set("assignedBrokerId", e.target.value)}
-                className={SELECT_CLASS}
-              >
-                <option value="">Unassigned</option>
-                {brokers.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {`${b.firstName} ${b.lastName}`.trim()}
-                  </option>
-                ))}
-              </select>
-            </FieldWrapper>
+            {mayAssignBroker && (
+              <FieldWrapper label="Assigned Broker" optional>
+                <select
+                  value={form.assignedBrokerId}
+                  onChange={(e) => set("assignedBrokerId", e.target.value)}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">Unassigned</option>
+                  {brokers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {`${b.firstName} ${b.lastName}`.trim()}
+                    </option>
+                  ))}
+                </select>
+              </FieldWrapper>
+            )}
 
             <FieldWrapper label="Follow-up Date" optional>
               <DatePicker

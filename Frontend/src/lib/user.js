@@ -13,6 +13,7 @@ const ROLE_LABELS = {
   SENIOR_BROKER: "Senior Broker",
   BROKER: "Broker",
   ASSISTANT: "Assistant",
+  REFERRAL_AGENT: "Referral Agent",
 };
 
 const STATUS_LABELS = {
@@ -33,6 +34,7 @@ export const ASSIGNABLE_ROLES = [
   "SENIOR_BROKER",
   "BROKER",
   "ASSISTANT",
+  "REFERRAL_AGENT",
 ];
 
 /** Every role, for the table's filter. Includes SUPER_ADMIN, which is filterable
@@ -79,11 +81,9 @@ export function formatLastLogin(value) {
 /**
  * Maps one API user onto the props the users table and cards render.
  *
- * `activeLeads`, `activeTrips`, `conversionRate` and `revenue` are columns the
- * design calls for but nothing can supply yet — they are derived from the trips
- * and quotes modules, which do not exist. They render as an em dash rather than
- * a zero, because a confident "0 trips" for every broker is a wrong answer and
- * "—" is an honest one.
+ * `activeTrips` is a real count since Trips (#11) shipped. `activeLeads`,
+ * `conversionRate` and `revenue` are not on this endpoint (the Agents roster
+ * carries the lead figures), so they render as an em dash rather than a zero.
  */
 export function toTeamMember(user) {
   return {
@@ -106,9 +106,15 @@ export function toTeamMember(user) {
     // No archive trail here, unlike the other modules: staff accounts are
     // never removed, so there is nothing to have been restored from.
 
-    // Awaiting the trips and quotes modules.
+    // A referral agent's standard commission (#11) — null for everyone else,
+    // and for an agent whose terms are not set. Formatted with
+    // `formatStructure` from `@/lib/commission` where it is shown.
+    commissionBasis: user?.commissionBasis ?? null,
+    commissionPercentage: user?.commissionPercentage ?? null,
+    commissionAmount: user?.commissionAmount ?? null,
+
     activeLeads: "—",
-    activeTrips: "—",
+    activeTrips: user?.activeTrips ?? "—",
     conversionRate: "—",
     revenue: "—",
   };

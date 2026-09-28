@@ -1,0 +1,72 @@
+update - 26 sep
+
+Hello there,
+
+Quick update on recent development progress:
+
+Adjustments completed based on your feedback:
+
+ - Notes Timeline on Clients and Trips
+   - Each client and each trip now has a timeline: notes written by the team, together with key changes recorded automatically (status changes, reassignments, archiving)
+   - Every note shows who wrote it and when; only the author can edit their own note
+   - A removed note is kept in a "Withdrawn" view rather than being deleted
+   - A note can be marked as shared, which is how updates reach referral agents (see Referral Agent below)
+
+ - Client Credit (Money on Account)
+   - Each client has a credit balance, made up of individual entries: credit added, and credit used
+   - Credit used can be linked to a specific trip
+   - The balance is always calculated from the entries, so it can never disagree with its own history
+   - The balance cannot go below zero
+
+ - Aircraft Pictures and Photo Library
+   - Every aircraft can now store an exterior and an interior photo
+   - Any photo field on quotes, itineraries and aircraft can pick from a library of photos already uploaded, so the same photo never needs uploading twice
+   - When building a quote, the chosen aircraft's own photos are offered first
+
+ - Instant Quote Calculator
+   - Suggested price: enter the operator's cost and pick a markup (+10%, 15%, 20%, 25% or a custom percentage) to get a suggested client price
+   - Instant Estimate: pick two airports and a passenger count to see estimated flight time and cost for each aircraft size, then start a quote from it in one click
+   - The estimate uses a rate table your team fills in (hourly rate and typical speed per aircraft size). Until those rates are entered, no estimate is shown; the system never invents figures
+
+ - Trips
+   - An approved quote can be booked as a trip in one click, copying the client, route, aircraft and pricing
+   - Trips can also be created by hand, as one-way, round-trip or multi-leg, with named passengers
+   - Trip status steps: Draft -> Booked -> Confirmed -> In Flight -> Completed, with Cancel available before departure
+   - Each client, operator and aircraft page now lists its real trips
+
+ - Empty Legs, with Matching to Past Trip Requests
+   - Empty legs can be recorded with route, date, aircraft, operator, price and offer expiry
+   - Each empty leg automatically lists every past trip request for the same route, including lost and archived ones, with the client's phone and email so your team can reach out
+   - Requests whose requested date is within 3 days of the empty leg are shown first
+   - An offer past its expiry time is marked Expired automatically
+   - The dashboard's "Empty Leg Opportunities" now shows real empty legs and their matches
+
+ - Commissions
+   - A commission can be recorded on any trip, paid to a referral agent, a client (for example a travel agent) or any other person
+   - Worked out as a percentage of profit, a flat fee, or a custom amount
+   - Status: Pending, Earned, Paid
+   - Each trip's page lists the commissions recorded on it
+
+ - Referral Agent (in progress)
+   - The new Referral Agent user type, with strict permissions: agents can see only their own referrals and commissions, and nothing else in the CRM
+   - A new Referrals page for your team, to turn a referral into a client and a trip request, assign it to a broker, update its status, and link the trip it booked
+   - When a referral books a trip, the agent's commission is created automatically from their standard commission structure
+   - "Agent Updates": notes your team marks as shared are the only notes an agent will ever see
+   - A Resources library where your team publishes the brochure, guides and programme terms for agents
+
+ - Deleted Clients Stay Visible to Administrators
+   - A client removed by a broker stays available to administrators in the Archived tab and can be restored. We'll show you this on our next call.
+
+
+UI updates:
+
+ - Quotes Redesign (from your Figma)
+   - Full-screen quote form with a live preview of the quote document as you fill it in
+   - Aircraft exterior photo on the quote
+   - Totals, tax, profit and margin are calculated automatically, never typed by hand
+
+ - Build Itinerary Redesign (from your Figma)
+   - Full-screen form with a live preview of the itinerary document
+
+
+Best Regards.

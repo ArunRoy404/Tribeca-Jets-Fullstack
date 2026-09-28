@@ -13,7 +13,8 @@ export default function FlightTrackingTableRow({ flight, onSelectFlight, getRowA
       onClick={() => onSelectFlight?.(flight?.id)}
     >
       <TableCell className="p-[12px] font-montserrat font-semibold text-[11px] text-purple text-center">
-        {flight?.tripId}
+        {flight?.reference}
+        {flight?.legLabel && <p className="font-normal text-[10px] text-muted-foreground">{flight.legLabel}</p>}
       </TableCell>
       <TableCell className="p-[12px] font-montserrat font-semibold text-[11px] text-foreground text-center">
         {flight?.client}
@@ -31,7 +32,7 @@ export default function FlightTrackingTableRow({ flight, onSelectFlight, getRowA
         {flight?.origin} <span className="text-muted-foreground font-normal">→</span> {flight?.destination}
       </TableCell>
       <TableCell className="p-[12px] font-montserrat font-medium text-[11px] text-foreground text-center whitespace-nowrap">
-        {flight?.departureDate}
+        {flight?.departure}
       </TableCell>
       <TableCell className="p-[12px] text-center">
         <div className="flex justify-center">

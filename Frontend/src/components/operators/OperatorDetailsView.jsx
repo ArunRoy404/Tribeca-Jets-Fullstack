@@ -10,6 +10,8 @@ import OperatorOverviewTab from "@/components/operators/tabs/OperatorOverviewTab
 import OperatorFleetTab from "@/components/operators/tabs/OperatorFleetTab";
 import OperatorTripsTab from "@/components/operators/tabs/OperatorTripsTab";
 import OperatorPaymentsTab from "@/components/operators/tabs/OperatorPaymentsTab";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
 
 export default function OperatorDetailsView({
   operator,
@@ -19,11 +21,15 @@ export default function OperatorDetailsView({
   onRequestQuote,
   onRestore,
 }) {
+  // The operator's bills and what was sent them (Operator Payments, #17) —
+  // hidden, not refused, for a role that may not read them.
+  const { can } = usePermissions();
+  const maySeePayments = can(Permission.VIEW_OPERATOR_PAYMENTS);
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "fleet", label: "Aircraft Fleet" },
     { id: "trips", label: "Trip History" },
-    { id: "payments", label: "Payments" },
+    ...(maySeePayments ? [{ id: "payments", label: "Payments" }] : []),
   ];
 
   return (
@@ -77,8 +83,8 @@ export default function OperatorDetailsView({
             <OperatorTripsTab operator={operator} />
           )}
 
-          {/* Payments Tab: Uses hardcoded defaultPayments until Operator Payments module is connected */}
-          {activeTab === "payments" && (
+          {/* Payments Tab: the operator's bills, from GET /operator-payments?operatorId= */}
+          {activeTab === "payments" && maySeePayments && (
             <OperatorPaymentsTab operator={operator} />
           )}
         </div>

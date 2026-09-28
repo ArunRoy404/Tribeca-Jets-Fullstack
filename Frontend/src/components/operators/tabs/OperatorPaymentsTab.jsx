@@ -1,201 +1,157 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { DollarSign, MoreHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, DollarSign, Loader2 } from "lucide-react";
+import StatusBadge from "@/components/common/StatusBadge";
+import OperatorPaymentCard from "@/components/table/operator-payments/OperatorPaymentCard";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useOperatorPayableStats, useOperatorPayables } from "@/hooks/operator-payments";
+import { toPayableRow } from "@/lib/operatorPayment";
+import { formatMoneyExact } from "@/lib/money";
+
+const PAGE_SIZE = 10;
+const HEAD = "py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left";
+const CELL = "py-3.5 px-4 font-montserrat text-[13px] text-left";
 
 /**
- * OperatorPaymentsTab
+ * The operator's Payments tab — their bills and what has been sent against
+ * them, from Operator Payments (#17): `GET /operator-payments?operatorId=`
+ * for the rows and `/stats?operatorId=` for the totals, both within the
+ * caller's scope and computed by the API. A bill opens on the Operator
+ * Payments board, where payments are recorded.
  *
- * NOTE FOR AI AGENTS / DEVELOPERS:
- * DO NOT DELETE THIS COMPONENT OR ITS TABLE MARKUP.
- *
- * Current API status:
- * - The Operator Payments / Receivables module has not yet connected payments to operators.
- * - `operator.payments` returns empty array `[]`.
- * - When `payments.length === 0`, this component renders an honest empty state ("No Payment Records")
- *   per the CRM core rule: "Never display a number the data did not supply".
- *
- * INSTRUCTIONS FOR WIRING THE API:
- * 1. Data source: `operator.payments` or `GET /api/operator-payments?operatorId={operator.id}`.
- * 2. When data is returned, this component will automatically render the pre-styled table below.
- * 3. Expected item wire shape:
- *    - tripId: string (e.g. "TJ-1051")
- *    - amount: string | number
- *    - paid: string | number
- *    - balance: string | number
- *    - due: string
- *    - status: string ("Paid", "Pending", "Due")
- *    - broker: string
+ * The API used to send `payments: []` on the operator for this tab to read;
+ * that stand-in is gone, because it claimed an operator we had paid had never
+ * been paid.
  */
-
-/*
-// PREVIOUS HARDCODED MOCK DATA (KEPT FOR REFERENCE ONLY — DO NOT USE IN PRODUCTION):
-// const defaultPayments = [
-//   { id: "p-1", tripId: "TJ - 1051", amount: "$51,000", paid: "$0", balance: "$51,100", due: "Aug 20, 2026", status: "Pending", broker: "Mark" },
-//   { id: "p-2", tripId: "TJ - 1052", amount: "$62,000", paid: "$62,000", balance: "$0", due: "-", status: "Paid", broker: "Barry" },
-//   { id: "p-3", tripId: "TJ - 1043", amount: "$14,800", paid: "$0", balance: "$14,800", due: "Aug 10, 2026", status: "Due", broker: "Mark" },
-// ];
-*/
-
 export default function OperatorPaymentsTab({ operator }) {
-  const payments = operator?.payments || [];
+  const [page, setPage] = useState(1);
+  const { data, isPending, error } = useOperatorPayables(
+    { operatorId: operator?.id, page, limit: PAGE_SIZE },
+    { enabled: Boolean(operator?.id) },
+  );
+  const { data: totals } = useOperatorPayableStats({ operatorId: operator?.id }, { enabled: Boolean(operator?.id) });
+  const rows = (data?.data ?? []).map(toPayableRow);
+  const meta = data?.meta;
+  const href = (row) => `/dashboard/operator-payments?bill=${row.id}`;
 
-  // Honest empty state when no payments exist in database for this operator
-  if (payments.length === 0) {
+  if (isPending) {
+    return (
+      <div className="flex items-center justify-center p-12 text-muted-foreground bg-white rounded-lg border border-border w-full">
+        <Loader2 className="size-5 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || rows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-lg border border-border w-full shadow-card">
         <div className="size-12 rounded-full bg-secondary flex items-center justify-center text-muted-foreground mb-3">
           <DollarSign className="size-6 text-muted-foreground" />
         </div>
         <p className="font-montserrat font-bold text-[16px] text-foreground">
-          No Payment Records
+          {error ? "Payments could not be loaded" : "No Payment Records"}
         </p>
         <p className="font-montserrat text-[13px] text-muted-foreground mt-1 max-w-sm">
-          No payment transactions have been logged for this operator yet.
+          {error ? "Try again in a moment." : "No bills from this operator have been recorded yet."}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col w-full bg-white rounded-lg border border-border overflow-hidden shadow-card">
-      <div className="overflow-x-auto w-full">
-        <Table className="min-w-[850px]">
-          <TableHeader>
-            <TableRow className="bg-secondary/40 border-b border-border hover:bg-secondary/40">
-              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
-                Trip
-              </TableHead>
-              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
-                Amount
-              </TableHead>
-              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
-                Paid
-              </TableHead>
-              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
-                Balance
-              </TableHead>
-              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
-                Due
-              </TableHead>
-              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-center">
-                Status
-              </TableHead>
-              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-left">
-                Broker
-              </TableHead>
-              <TableHead className="py-3 px-4 font-montserrat font-bold text-[12px] text-foreground text-center">
-                Action
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payments.map((p) => {
-              const isPaid = p.status?.toLowerCase?.() === "paid";
-              const isDue = p.status?.toLowerCase?.() === "due";
-              const hasBalance = p.balance && p.balance !== "$0" && p.balance !== "0" && p.balance !== "—";
-
-              return (
-                <TableRow
-                  key={p.id || p.tripId}
-                  className="border-b border-border/60 hover:bg-secondary/20 transition-colors"
-                >
-                  <TableCell className="py-3.5 px-4 text-left">
-                    <Link
-                      href={`/dashboard/trips/${encodeURIComponent(String(p.tripId || p.id).replace(/\s+/g, ""))}`}
-                      className="font-montserrat font-bold text-[13px] text-purple hover:underline"
-                    >
-                      {p.tripId || p.id}
+    <div className="flex flex-col w-full gap-3">
+      {/* Desktop */}
+      <div className="hidden lg:flex flex-col w-full bg-white rounded-lg border border-border overflow-hidden shadow-card">
+        <div className="overflow-x-auto w-full">
+          <Table className="min-w-212">
+            <TableHeader>
+              <TableRow className="bg-secondary/40 border-b border-border hover:bg-secondary/40">
+                {["Bill", "Trip", "Amount", "Paid", "Balance", "Due", "Status", "Broker"].map((col) => (
+                  <TableHead key={col} className={HEAD}>
+                    {col}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.id} className="border-b border-border/60 hover:bg-secondary/20 transition-colors">
+                  <TableCell className={`${CELL} font-bold`}>
+                    <Link href={href(row)} className="text-info hover:underline">
+                      {row.number}
                     </Link>
                   </TableCell>
-                  <TableCell className="py-3.5 px-4 font-montserrat font-bold text-[13px] text-foreground text-left">
-                    {p.amount}
+                  <TableCell className={`${CELL} font-bold`}>
+                    {row.tripId ? (
+                      <Link href={`/dashboard/trips/${row.tripId}`} className="text-purple hover:underline">
+                        {row.tripReference}
+                      </Link>
+                    ) : (
+                      row.tripReference
+                    )}
                   </TableCell>
-                  <TableCell className="py-3.5 px-4 font-montserrat font-bold text-[13px] text-success text-left">
-                    {p.paid}
+                  <TableCell className={`${CELL} font-bold text-foreground`}>{row.total}</TableCell>
+                  <TableCell className={`${CELL} font-bold text-success`}>{row.paid}</TableCell>
+                  <TableCell className={`${CELL} font-bold ${row.hasBalance ? "text-destructive" : "text-foreground"}`}>
+                    {row.balance}
                   </TableCell>
-                  <TableCell
-                    className={`py-3.5 px-4 font-montserrat font-bold text-[13px] text-left ${
-                      hasBalance ? "text-destructive" : "text-foreground"
-                    }`}
-                  >
-                    {p.balance}
+                  <TableCell className={`${CELL} font-semibold text-foreground`}>{row.due}</TableCell>
+                  <TableCell className={CELL}>
+                    <StatusBadge status={row.state} bordered />
                   </TableCell>
-                  <TableCell className="py-3.5 px-4 font-montserrat font-semibold text-[13px] text-foreground text-left">
-                    {p.due}
-                  </TableCell>
-                  <TableCell className="py-3.5 px-4 text-center">
-                    <div className="flex justify-center">
-                      <span
-                        className={`px-2.5 py-0.5 rounded font-montserrat font-medium text-[11px] border ${
-                          isPaid
-                            ? "bg-success/10 text-success border-success/30"
-                            : isDue
-                            ? "bg-warning/10 text-warning border-warning/30"
-                            : "bg-secondary text-foreground/80 border-border"
-                        }`}
-                      >
-                        {p.status}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3.5 px-4 font-montserrat font-semibold text-[13px] text-foreground text-left">
-                    {p.broker}
-                  </TableCell>
-                  <TableCell className="py-3.5 px-4 text-center">
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center size-8 rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </button>
-                  </TableCell>
+                  <TableCell className={`${CELL} font-semibold text-foreground`}>{row.broker}</TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination Footer */}
-      <div className="flex items-center justify-between gap-4 px-4 py-3 border-t border-border bg-white text-[12px] font-montserrat">
-        <span className="text-muted-foreground font-medium">
-          {payments.length} {payments.length === 1 ? "payment" : "payments"}
-        </span>
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-2.5 text-[12px] font-medium gap-1 cursor-pointer"
-            disabled
-          >
-            ← Prev
-          </Button>
-          <button
-            type="button"
-            className="size-8 rounded-sm bg-[#252832] text-white font-bold text-[12px] flex items-center justify-center cursor-pointer"
-          >
-            1
-          </button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-2.5 text-[12px] font-medium gap-1 cursor-pointer"
-            disabled
-          >
-            Next →
-          </Button>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </div>
+
+      {/* Mobile — the board's own card */}
+      <div className="flex flex-col gap-3 w-full lg:hidden">
+        {rows.map((row) => (
+          <Link key={row.id} href={href(row)}>
+            <OperatorPaymentCard item={row} />
+          </Link>
+        ))}
+      </div>
+
+      {/* Totals — the API's, over every bill from this operator */}
+      {totals && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 px-4 bg-white border border-border rounded-lg font-montserrat text-[12px]">
+          <span className="font-bold text-foreground">All bills</span>
+          <div className="flex flex-wrap items-center gap-4 sm:gap-8">
+            <span className="text-muted-foreground">
+              Billed <span className="font-bold text-foreground">{formatMoneyExact(totals.payable)}</span>
+            </span>
+            <span className="text-muted-foreground">
+              Paid <span className="font-bold text-success">{formatMoneyExact(totals.paid)}</span>
+            </span>
+            <span className="text-muted-foreground">
+              Outstanding <span className="font-bold text-destructive">{formatMoneyExact(totals.outstanding)}</span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {meta?.totalPages > 1 && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-montserrat text-[12px] text-muted-foreground">
+            {meta.total} bills · page {meta.page} of {meta.totalPages}
+          </span>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={!meta.hasPrevious} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <Button type="button" variant="outline" size="sm" disabled={!meta.hasNext} onClick={() => setPage((p) => p + 1)}>
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,86 @@
+/// A piece of desk work (Tasks Board, #20; scope §6.22 and §10's
+/// "Notification/Task": recipient, type, due date, status, linked entity).
+///
+/// Written by a person. The scope's automatic reminders — payment due,
+/// follow-up, quote expiry — are not generated here yet; the board's old
+/// "Auto" chip marked dummy rows only, and no column claims a task was
+/// raised by the system until something actually raises one.
+model Task {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// "TSK-1042" on screen. Assigned by the database, never reused.
+  reference Int @unique @default(autoincrement())
+
+  title       String  @db.VarChar(200)
+  description String?
+
+  status   TaskStatus   @default(TODO)
+  priority TaskPriority @default(MEDIUM)
+
+  /// A day the desk names, not a moment — stored as midnight UTC.
+  dueDate DateTime? @db.Date
+
+  /// When it last moved to COMPLETED — a fact with a date, cleared if the
+  /// task is reopened. "Overdue" is never stored: it is worked out from the
+  /// due date and the status on every read.
+  completedAt DateTime?
+
+  /// Who is doing it. Distinct from `createdBy` — whoever typed a task is
+  /// not necessarily whoever works it. SetNull: removing a person must not
+  /// remove the work.
+  assigneeId String? @db.Uuid
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  /// What it is about. Real foreign keys, never a name typed into a box —
+  /// the old form's free-text "Trip / Reference" is gone.
+  clientId String? @db.Uuid
+  client   Client? @relation("TaskClient", fields: [clientId], references: [id], onDelete: SetNull)
+  tripId   String? @db.Uuid
+  trip     Trip?   @relation("TaskTrip", fields: [tripId], references: [id], onDelete: SetNull)
+
+  /// Subtasks, in order: `[{ id, text, done }]`. Part of the task rather than
+  /// rows of their own — they are edited with it, never shared, and a
+  /// checklist item has no history anyone asks about.
+  checklist Json @default("[]")
+
+  notes String?
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("TaskUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("TaskDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("TaskRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([status, deletedAt])
+  @@index([assigneeId, status])
+  @@index([createdById])
+  @@index([dueDate])
+  @@index([clientId])
+  @@index([tripId])
+  @@map("tasks")
+}
+
+/// The board's columns, in order.
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  WAITING_ON_CLIENT
+  WAITING_ON_OPERATOR
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}

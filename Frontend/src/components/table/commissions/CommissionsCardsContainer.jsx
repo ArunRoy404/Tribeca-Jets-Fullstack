@@ -2,6 +2,7 @@
 
 import CommissionCard from "./CommissionCard";
 
+/** The board below `lg`: one card per commission, the same actions as the table row. */
 export default function CommissionsCardsContainer({ items, getRowActions, onSelectCommission }) {
   return (
     <div className="flex flex-col gap-3 w-full">
@@ -13,11 +14,6 @@ export default function CommissionsCardsContainer({ items, getRowActions, onSele
           onClick={() => onSelectCommission?.(item?.id)}
         />
       ))}
-      {items?.length === 0 && (
-        <p className="p-6 text-center font-montserrat text-[12px] text-muted-foreground w-full">
-          No commission records found matching search filters.
-        </p>
-      )}
     </div>
   );
 }

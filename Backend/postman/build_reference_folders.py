@@ -456,8 +456,12 @@ OPERATOR_BODY = """{
   // optional · max 120 chars. "Net 30", "Due upon receipt".
   "paymentTerms": "Net 30",
 
-  // optional · max 2000 chars
-  "cancellationPolicy": "50% fee within 48 hours of departure.",
+  // optional · max 5000 chars. Pasted verbatim from the operator's own
+  // terms, so it is a block of text rather than a phrase — a tiered policy
+  // runs to a line per band. Line breaks are preserved and the profile
+  // renders them. Sized like a quote's terms for that reason, not like
+  // paymentTerms, which really is "Net 30".
+  "cancellationPolicy": "More than 30 days prior: 10%\n14-30 days: 25%\n72 hours-14 days: 50%\nUnder 72 hours: non-refundable",
   "sourcingNotes": "Strong West Coast coverage; quick to quote on short notice."
 }"""
 

@@ -19,6 +19,7 @@ import {
   TWO_FACTOR_COOKIE,
 } from '../../common/constants/auth.constants.js';
 import { StorageService } from '../../core/storage/storage.service.js';
+import { AppConfigService } from '../../config/config.service.js';
 import { permissionsFor } from '../../common/authorization/permissions.js';
 import { AuthService } from './auth.service.js';
 import { TokenService, type SessionContext } from './token.service.js';
@@ -49,6 +50,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly tokens: TokenService,
     private readonly storage: StorageService,
+    private readonly config: AppConfigService,
   ) {}
 
   private contextOf(req: Request): SessionContext {
@@ -221,6 +223,20 @@ export class AuthController {
        * of the matrix in JavaScript would drift the first time a scope changed.
        */
       permissions: permissionsFor(profile.role),
+      /**
+       * Session policy the browser has to honour, shipped from here for the
+       * same reason the permission matrix is: a copy of the number in the
+       * frontend's own env would drift from the server's the first time one
+       * changed, and it would drift silently.
+       *
+       * `idleTimeoutMinutes` is how long the app may sit untouched before it
+       * signs the user out. The browser keeps the precise timer; the API
+       * refuses a refresh for a session that has demonstrably been idle past
+       * it, so the two agree without either trusting the other.
+       */
+      session: {
+        idleTimeoutMinutes: this.config.auth.idleTimeoutMinutes,
+      },
     };
   }
 

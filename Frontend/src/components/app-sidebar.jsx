@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-function AppSidebarContent(props) {
+function AppSidebarContent({ home, sections, ...props }) {
   const { state, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
 
@@ -26,7 +26,7 @@ function AppSidebarContent(props) {
         )}
       </SidebarHeader>
       <SidebarContent className="gap-0">
-        <NavMain />
+        <NavMain home={home} sections={sections} />
       </SidebarContent>
       {/*
         Identity lives in exactly one place per breakpoint: here below `md`,
@@ -42,6 +42,10 @@ function AppSidebarContent(props) {
   );
 }
 
+/**
+ * `home` and `sections` are optional and default to the CRM's menu — the
+ * partner portal (#11) passes its own. See `NavMain`.
+ */
 export function AppSidebar(props) {
   return <AppSidebarContent {...props} />;
 }

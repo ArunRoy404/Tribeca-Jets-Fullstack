@@ -7,17 +7,25 @@ function InfoField({ label, value }) {
   );
 }
 
+/** The trip in one row. Every value is the mapper's: real, or an em dash. */
 export default function TripSummaryBar({ trip }) {
+  const passengers =
+    trip?.passengerCount !== null && trip?.passengerCount !== undefined
+      ? String(trip.passengerCount)
+      : trip?.passengers?.length
+        ? String(trip.passengers.length)
+        : "—";
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4 p-4 sm:p-5 bg-white border-b border-border">
+    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4 p-4 sm:p-6 border-b border-border">
       <InfoField label="Client" value={trip?.client} />
-      <InfoField label="Trip Type" value={trip?.tripType} />
+      <InfoField label="Trip Type" value={trip?.type} />
       <InfoField label="Broker" value={trip?.broker} />
       <InfoField label="Operator" value={trip?.operator} />
       <InfoField label="Aircraft" value={trip?.aircraft} />
-      <InfoField label="Passengers" value={trip?.passengers} />
-      <InfoField label="Departure" value={trip?.departureTime} />
-      <InfoField label="Arrival" value={trip?.arrivalTime} />
+      <InfoField label="Passengers" value={passengers} />
+      <InfoField label="Departure" value={trip?.departure} />
+      <InfoField label="Return" value={trip?.returnDate} />
     </div>
   );
 }

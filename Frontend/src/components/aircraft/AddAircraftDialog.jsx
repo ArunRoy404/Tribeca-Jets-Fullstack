@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DatePicker from "@/components/common/DatePicker";
+import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
+import { optionalNumber, optionalText } from "@/lib/form";
 
 function FieldWrapper({ label, children, optional }) {
   return (
@@ -86,6 +88,8 @@ const EMPTY_FORM = {
   lastAnnualAt: "",
   nextInspectionDueAt: "",
   notes: "",
+  exteriorImageUrl: "",
+  interiorImageUrl: "",
 };
 
 /**
@@ -145,34 +149,10 @@ function initialForm(aircraft) {
     lastAnnualAt: dateValue(aircraft.lastAnnualAt),
     nextInspectionDueAt: dateValue(aircraft.nextInspectionDueAt),
     notes: aircraft.notes || "",
+    exteriorImageUrl: aircraft.exteriorImageUrl ?? "",
+    interiorImageUrl: aircraft.interiorImageUrl ?? "",
   };
 }
-
-/** Blank means "not supplied" — never 0, and never sent at all. */
-const optional = (value) => {
-  const trimmed = (value ?? "").trim();
-  return trimmed ? trimmed : undefined;
-};
-
-/**
- * A blank numeric box must not become 0.
- *
- * `Number('')` is 0, so an untouched Range field would store a real, wrong
- * value. On create the field is simply omitted; on update it is sent as null,
- * which is how the API is told to clear it.
- */
-const numeric = (value, { clearable = false } = {}) => {
-  const trimmed = (value ?? "").trim();
-  if (!trimmed) return clearable ? null : undefined;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
-
-const dateOrNull = (value, { clearable = false } = {}) => {
-  const trimmed = (value ?? "").trim();
-  if (!trimmed) return clearable ? null : undefined;
-  return trimmed;
-};
 
 export default function AddAircraftDialog() {
   const addModalOpen = useAircraftStore((s) => s.addModalOpen);
@@ -267,42 +247,44 @@ function AircraftForm({ editingAircraft, onDone }) {
 
     // On edit, a field the user cleared must reach the API as null so it is
     // actually cleared. On create there is nothing to clear, so blanks are
-    // omitted entirely.
-    const clearable = editing;
+    // omitted entirely. `lib/form` makes that call from `editing`.
     const payload = {
       tailNumber: form.tailNumber.trim().toUpperCase(),
       model: form.model.trim(),
       category: form.category,
       status: form.status,
-      manufacturer: editing ? (optional(form.manufacturer) ?? null) : optional(form.manufacturer),
+      manufacturer: optionalText(form.manufacturer, { editing }),
 
       // "" is the Unassigned / None option, and null is how the API is told so.
       operatorId: form.operatorId || null,
       homeBaseId: form.homeBaseId || null,
 
-      maxPassengers: numeric(form.maxPassengers, { clearable }),
-      rangeNm: numeric(form.rangeNm, { clearable }),
-      yearBuilt: numeric(form.yearBuilt, { clearable }),
+      maxPassengers: optionalNumber(form.maxPassengers, { editing }),
+      rangeNm: optionalNumber(form.rangeNm, { editing }),
+      yearBuilt: optionalNumber(form.yearBuilt, { editing }),
 
-      maxSpeed: editing ? (optional(form.maxSpeed) ?? null) : optional(form.maxSpeed),
-      cruiseSpeed: editing ? (optional(form.cruiseSpeed) ?? null) : optional(form.cruiseSpeed),
+      maxSpeed: optionalText(form.maxSpeed, { editing }),
+      cruiseSpeed: optionalText(form.cruiseSpeed, { editing }),
 
-      serviceCeilingFt: numeric(form.serviceCeilingFt, { clearable }),
-      baggageCapacityCuFt: numeric(form.baggageCapacityCuFt, { clearable }),
-      cabinLengthFt: numeric(form.cabinLengthFt, { clearable }),
-      maxTakeoffWeightLb: numeric(form.maxTakeoffWeightLb, { clearable }),
-      emptyWeightLb: numeric(form.emptyWeightLb, { clearable }),
-      fuelCapacityGal: numeric(form.fuelCapacityGal, { clearable }),
-      takeoffDistanceFt: numeric(form.takeoffDistanceFt, { clearable }),
-      landingDistanceFt: numeric(form.landingDistanceFt, { clearable }),
+      serviceCeilingFt: optionalNumber(form.serviceCeilingFt, { editing }),
+      baggageCapacityCuFt: optionalNumber(form.baggageCapacityCuFt, { editing }),
+      cabinLengthFt: optionalNumber(form.cabinLengthFt, { editing }),
+      maxTakeoffWeightLb: optionalNumber(form.maxTakeoffWeightLb, { editing }),
+      emptyWeightLb: optionalNumber(form.emptyWeightLb, { editing }),
+      fuelCapacityGal: optionalNumber(form.fuelCapacityGal, { editing }),
+      takeoffDistanceFt: optionalNumber(form.takeoffDistanceFt, { editing }),
+      landingDistanceFt: optionalNumber(form.landingDistanceFt, { editing }),
 
       amenities,
 
-      lastInspectionAt: dateOrNull(form.lastInspectionAt, { clearable }),
-      lastAnnualAt: dateOrNull(form.lastAnnualAt, { clearable }),
-      nextInspectionDueAt: dateOrNull(form.nextInspectionDueAt, { clearable }),
+      lastInspectionAt: optionalText(form.lastInspectionAt, { editing }),
+      lastAnnualAt: optionalText(form.lastAnnualAt, { editing }),
+      nextInspectionDueAt: optionalText(form.nextInspectionDueAt, { editing }),
 
-      notes: editing ? (optional(form.notes) ?? null) : optional(form.notes),
+      notes: optionalText(form.notes, { editing }),
+
+      exteriorImageUrl: optionalText(form.exteriorImageUrl, { editing }),
+      interiorImageUrl: optionalText(form.interiorImageUrl, { editing }),
     };
 
     if (editing) {
@@ -595,6 +577,44 @@ function AircraftForm({ editingAircraft, onDone }) {
               value={form.nextInspectionDueAt}
               onChange={(value) => set("nextInspectionDueAt", value)}
               placeholder="Choose Date"
+            />
+          </FieldWrapper>
+        </div>
+
+        {/* Uploaded before the aircraft exists — the upload returns a URL and
+            the save stores it, which is what lets a new tail get its photos
+            in the same form that creates it. PUBLIC: fleet photos go on
+            quotes and itineraries every broker sends. */}
+        <SectionHeader title="Photos" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+          <FieldWrapper label="Exterior" optional>
+            <FileUpload
+              variant="dropzone"
+              kind="image"
+              visibility="PUBLIC"
+              accept={ACCEPT.image}
+              heading="Drag & drop exterior photo"
+              description="or click to upload"
+              value={form.exteriorImageUrl}
+              library
+              onUploaded={(data) => set("exteriorImageUrl", data?.url ?? "")}
+              onRemove={() => set("exteriorImageUrl", "")}
+            />
+          </FieldWrapper>
+
+          <FieldWrapper label="Interior" optional>
+            <FileUpload
+              variant="dropzone"
+              kind="image"
+              visibility="PUBLIC"
+              accept={ACCEPT.image}
+              heading="Drag & drop interior photo"
+              description="or click to upload"
+              value={form.interiorImageUrl}
+              library
+              onUploaded={(data) => set("interiorImageUrl", data?.url ?? "")}
+              onRemove={() => set("interiorImageUrl", "")}
             />
           </FieldWrapper>
         </div>

@@ -102,17 +102,12 @@ export function personName(record) {
   return name || record?.companyName || DASH;
 }
 
-/** Whole currency, no decimals — the desk quotes in round numbers. */
-export function formatMoney(value) {
-  if (value === null || value === undefined || value === "") return DASH;
-  const number = Number(value);
-  if (!Number.isFinite(number)) return DASH;
-  return number.toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-}
+/**
+ * Re-exported so `lib/quote.js` and `lib/sourcing.js`, which already import it
+ * from here, keep working unchanged. It lives in `lib/money.js` now — it was
+ * never about leads, and a ledger needs a to-the-cent variant beside it.
+ */
+export { formatMoney } from "@/lib/money";
 
 /** "KTEB → KMIA", or an em dash when the route is not known yet. */
 export function formatRoute(request) {
@@ -162,6 +157,11 @@ export function toTripRequestRow(request) {
     rawDepartureDate: request?.departureDate ?? null,
     returnDate: formatDate(request?.returnDate),
     rawReturnDate: request?.returnDate ?? null,
+    // The date the desk promised the client a price by. Sourcing sets it, and
+    // the enquiry log shows it, so it belongs on the shared row rather than
+    // being read off the raw record in two places.
+    quoteDeadline: formatDate(request?.quoteDeadline),
+    rawQuoteDeadline: request?.quoteDeadline ?? null,
     // Derived, never stored: two fields that can disagree, will.
     isRoundTrip: Boolean(request?.returnDate),
 
@@ -269,7 +269,7 @@ export function toAgentRow(agent) {
     maxActiveLeads: agent?.maxActiveLeads ?? DASH,
     defaultFollowUpMethod: formatFollowUpMethod(agent?.defaultFollowUpMethod),
 
-    // Awaiting the trips module.
+    // A real count since Trips (#11) shipped; a dash only if it is missing.
     activeTrips: agent?.activeTrips ?? DASH,
   };
 }

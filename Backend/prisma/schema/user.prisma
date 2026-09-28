@@ -18,6 +18,15 @@ model User {
   maxActiveLeads        Int?
   /// Prefills the follow-up dialog for leads this broker owns.
   defaultFollowUpMethod FollowUpMethod?
+
+  /// A referral agent's standard commission (#11: "admin should be able to
+  /// assign a different commission structure to each referral agent"). Copied
+  /// onto each commission when one is raised for their referral, so changing
+  /// the structure later does not rewrite what was already agreed. Null on
+  /// every other role.
+  commissionBasis      CommissionBasis?
+  commissionPercentage Decimal?         @db.Decimal(5, 2)
+  commissionAmount     Decimal?         @db.Decimal(12, 2)
   status                UserStatus      @default(ACTIVE)
 
   /// Storage key (not a URL) — resolved by StorageService at read time so the
@@ -58,6 +67,112 @@ model User {
   updatedQuotes         Quote[]         @relation("QuoteUpdatedBy")
   assignedQuotes        Quote[]         @relation("QuoteAssignedBroker")
   createdQuoteVersions  QuoteVersion[]  @relation("QuoteVersionCreatedBy")
+  createdUploads        Upload[]        @relation("UploadCreatedBy")
+  updatedUploads        Upload[]        @relation("UploadUpdatedBy")
+
+  /// Timeline entries this person wrote. `createdBy` *is* the author here —
+  /// see the comment on `Note`, which explains why there is no second column.
+  createdNotes Note[] @relation("NoteCreatedBy")
+  updatedNotes Note[] @relation("NoteUpdatedBy")
+
+  /// Movements on a client's money-on-account ledger.
+  createdClientCredits   ClientCredit[]  @relation("ClientCreditCreatedBy")
+  updatedClientCredits   ClientCredit[]  @relation("ClientCreditUpdatedBy")
+  createdCharterRates    CharterRate[]   @relation("CharterRateCreatedBy")
+  updatedCharterRates    CharterRate[]   @relation("CharterRateUpdatedBy")
+  assignedTrips          Trip[]          @relation("TripAssignedBroker")
+  createdTrips           Trip[]          @relation("TripCreatedBy")
+  updatedTrips           Trip[]          @relation("TripUpdatedBy")
+  deletedTrips           Trip[]          @relation("TripDeletedBy")
+  restoredTrips          Trip[]          @relation("TripRestoredBy")
+  createdTripLegs        TripLeg[]       @relation("TripLegCreatedBy")
+  updatedTripLegs        TripLeg[]       @relation("TripLegUpdatedBy")
+  deletedTripLegs        TripLeg[]       @relation("TripLegDeletedBy")
+  restoredTripLegs       TripLeg[]       @relation("TripLegRestoredBy")
+  createdTripPassengers  TripPassenger[] @relation("TripPassengerCreatedBy")
+  updatedTripPassengers  TripPassenger[] @relation("TripPassengerUpdatedBy")
+  deletedTripPassengers  TripPassenger[] @relation("TripPassengerDeletedBy")
+  restoredTripPassengers TripPassenger[] @relation("TripPassengerRestoredBy")
+
+  /// The passenger document for a trip (#12).
+  createdItineraries  Itinerary[] @relation("ItineraryCreatedBy")
+  updatedItineraries  Itinerary[] @relation("ItineraryUpdatedBy")
+  deletedItineraries  Itinerary[] @relation("ItineraryDeletedBy")
+  restoredItineraries Itinerary[] @relation("ItineraryRestoredBy")
+  sentItineraries     Itinerary[] @relation("ItinerarySentBy")
+
+  assignedTasks Task[] @relation("TaskAssignee")
+  createdTasks  Task[] @relation("TaskCreatedBy")
+  updatedTasks  Task[] @relation("TaskUpdatedBy")
+  deletedTasks  Task[] @relation("TaskDeletedBy")
+  restoredTasks Task[] @relation("TaskRestoredBy")
+
+  createdEmailTemplates  EmailTemplate[] @relation("EmailTemplateCreatedBy")
+  updatedEmailTemplates  EmailTemplate[] @relation("EmailTemplateUpdatedBy")
+  deletedEmailTemplates  EmailTemplate[] @relation("EmailTemplateDeletedBy")
+  restoredEmailTemplates EmailTemplate[] @relation("EmailTemplateRestoredBy")
+  sentEmails             EmailMessage[]  @relation("EmailMessageCreatedBy")
+
+  createdEmptyLegs  EmptyLeg[] @relation("EmptyLegCreatedBy")
+  updatedEmptyLegs  EmptyLeg[] @relation("EmptyLegUpdatedBy")
+  deletedEmptyLegs  EmptyLeg[] @relation("EmptyLegDeletedBy")
+  restoredEmptyLegs EmptyLeg[] @relation("EmptyLegRestoredBy")
+
+  /// Commissions paid to this person (a referral agent), and those booked
+  /// against them as the broker.
+  commissionsReceived Commission[] @relation("CommissionRecipientUser")
+  brokerCommissions   Commission[] @relation("CommissionBroker")
+  createdCommissions  Commission[] @relation("CommissionCreatedBy")
+  updatedCommissions  Commission[] @relation("CommissionUpdatedBy")
+  deletedCommissions  Commission[] @relation("CommissionDeletedBy")
+  restoredCommissions Commission[] @relation("CommissionRestoredBy")
+
+  /// Referrals this agent submitted, and those a broker is working.
+  submittedReferrals Referral[] @relation("ReferralAgent")
+  assignedReferrals  Referral[] @relation("ReferralAssignedBroker")
+  createdReferrals   Referral[] @relation("ReferralCreatedBy")
+  updatedReferrals   Referral[] @relation("ReferralUpdatedBy")
+  deletedReferrals   Referral[] @relation("ReferralDeletedBy")
+  restoredReferrals  Referral[] @relation("ReferralRestoredBy")
+
+  createdReferralResources  ReferralResource[] @relation("ReferralResourceCreatedBy")
+  updatedReferralResources  ReferralResource[] @relation("ReferralResourceUpdatedBy")
+  deletedReferralResources  ReferralResource[] @relation("ReferralResourceDeletedBy")
+  restoredReferralResources ReferralResource[] @relation("ReferralResourceRestoredBy")
+
+  createdInvoices  Invoice[] @relation("InvoiceCreatedBy")
+  updatedInvoices  Invoice[] @relation("InvoiceUpdatedBy")
+  deletedInvoices  Invoice[] @relation("InvoiceDeletedBy")
+  restoredInvoices Invoice[] @relation("InvoiceRestoredBy")
+
+  createdInvoicePayments  InvoicePayment[] @relation("InvoicePaymentCreatedBy")
+  updatedInvoicePayments  InvoicePayment[] @relation("InvoicePaymentUpdatedBy")
+  deletedInvoicePayments  InvoicePayment[] @relation("InvoicePaymentDeletedBy")
+  restoredInvoicePayments InvoicePayment[] @relation("InvoicePaymentRestoredBy")
+
+  createdOperatorPayables  OperatorPayable[] @relation("OperatorPayableCreatedBy")
+  updatedOperatorPayables  OperatorPayable[] @relation("OperatorPayableUpdatedBy")
+  deletedOperatorPayables  OperatorPayable[] @relation("OperatorPayableDeletedBy")
+  restoredOperatorPayables OperatorPayable[] @relation("OperatorPayableRestoredBy")
+
+  createdOperatorPayablePayments  OperatorPayablePayment[] @relation("OperatorPayablePaymentCreatedBy")
+  updatedOperatorPayablePayments  OperatorPayablePayment[] @relation("OperatorPayablePaymentUpdatedBy")
+  deletedOperatorPayablePayments  OperatorPayablePayment[] @relation("OperatorPayablePaymentDeletedBy")
+  restoredOperatorPayablePayments OperatorPayablePayment[] @relation("OperatorPayablePaymentRestoredBy")
+
+  /// Files this person put into the system. Distinct from `createdUploads`
+  /// only in name today, and kept separate because deduplication is scoped to
+  /// it: "has *this user* already uploaded these bytes?" is the question the
+  /// upload route asks, and it must not be answered by somebody else's row.
+  uploads Upload[] @relation("UploadUploadedBy")
+
+  /// This person's document folder — their 1099 and anything else the company
+  /// files about them. Uploaded *by* an administrator, readable *by* them.
+  ///
+  /// `onDelete: Cascade` states that a folder cannot outlive its owner. Users
+  /// are never deleted (suspending is the way out), so it is a statement of
+  /// intent rather than a behaviour anything will reach.
+  ownedUploads Upload[] @relation("UploadOwnerUser")
 
   /// Who archived a record, and who brought it back. Separate from created/
   /// updated because "removed this" is the one mutation those two never
@@ -76,6 +191,12 @@ model User {
   restoredOperatorQuotes OperatorQuote[] @relation("OperatorQuoteRestoredBy")
   deletedQuotes          Quote[]         @relation("QuoteDeletedBy")
   restoredQuotes         Quote[]         @relation("QuoteRestoredBy")
+  deletedUploads         Upload[]        @relation("UploadDeletedBy")
+  restoredUploads        Upload[]        @relation("UploadRestoredBy")
+  deletedNotes           Note[]          @relation("NoteDeletedBy")
+  restoredNotes          Note[]          @relation("NoteRestoredBy")
+  deletedClientCredits   ClientCredit[]  @relation("ClientCreditDeletedBy")
+  restoredClientCredits  ClientCredit[]  @relation("ClientCreditRestoredBy")
 
   // ---- Audit trail (every model carries these four) ------------------------
   //
@@ -122,6 +243,11 @@ enum UserRole {
   SENIOR_BROKER
   BROKER
   ASSISTANT
+  /// An outside partner who refers clients (client adjustment #11). Sees
+  /// the partner portal and nothing of the CRM: their own referrals, the
+  /// updates the desk shares with them, their own commissions, and the
+  /// Resources library. Every other permission is NONE.
+  REFERRAL_AGENT
 }
 
 /// INVITED covers an account that exists but has never signed in — it holds no

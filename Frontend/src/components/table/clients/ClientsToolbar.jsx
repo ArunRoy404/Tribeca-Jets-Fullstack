@@ -19,6 +19,7 @@ import {
   formatFollowUpWindow,
 } from "@/lib/client";
 import { ARCHIVE_TABS } from "@/lib/archive";
+import { BROKER_ROLES } from "@/lib/roles";
 
 const ALL_STATUSES = "All Statuses";
 const ALL_TYPES = "All Types";
@@ -33,8 +34,6 @@ const TAB_IDS = Object.fromEntries(
   Object.entries(TAB_LABELS).map(([id, label]) => [label, id]),
 );
 
-/** Only brokers own clients, so only brokers belong in the assignment filter. */
-const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER"]);
 
 export default function ClientsToolbar({
   search,

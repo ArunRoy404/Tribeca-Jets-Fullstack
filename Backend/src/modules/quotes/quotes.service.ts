@@ -35,14 +35,17 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import {
   priceQuote,
   readLineItems,
+  suggestBasePrice,
   type PricedQuote,
   type QuoteLineItem,
 } from './quotes.pricing.js';
 import type {
   CreateQuoteInput,
   DecideQuoteInput,
+  PreviewQuoteInput,
   QueryQuotesInput,
   SendQuoteInput,
+  SuggestPriceInput,
   UpdateQuoteInput,
 } from './dto/quote.dto.js';
 
@@ -124,6 +127,7 @@ const QUOTE_LIST_SELECT = {
   aircraftId: true,
   aircraft: AIRCRAFT_SELECT,
   quotedAircraft: true,
+  exteriorImageUrl: true,
   originAirportId: true,
   originAirport: AIRPORT_SELECT,
   destinationAirportId: true,
@@ -162,6 +166,8 @@ const QUOTE_DETAIL_SELECT = {
   internalNotes: true,
   decisionNote: true,
   operatorQuote: OPERATOR_QUOTE_SELECT,
+  /** The booking this offer became (Trips, #11) — the detail page links it. */
+  trip: { select: { id: true, reference: true, status: true, deletedAt: true } },
   createdBy: ACTOR_SELECT,
   updatedBy: ACTOR_SELECT,
 } satisfies Prisma.QuoteSelect;
@@ -202,6 +208,18 @@ type PricingRow = {
   depositAmount?: Prisma.Decimal | null;
   validUntil?: Date | null;
   status?: QuoteStatus;
+};
+
+/** Every foreign key a quote carries, as `findLive` reads them back. */
+type QuoteLinks = {
+  clientId: string;
+  tripRequestId: string | null;
+  operatorQuoteId: string | null;
+  assignedBrokerId: string | null;
+  operatorId: string | null;
+  aircraftId: string | null;
+  originAirportId: string | null;
+  destinationAirportId: string | null;
 };
 
 /** What the desk sees above the quotes board, counted rather than stored. */
@@ -385,6 +403,51 @@ export class QuotesService {
    * outside the caller's scope returns 404, never 403: a 403 confirms it
    * exists and turns any id into an oracle.
    */
+  /**
+   * What booking a quote needs, for the trips service (#11).
+   *
+   * Same row-level scope as every other read: a quote the caller cannot see is
+   * a 404. Only an **approved**, live quote can be booked — a draft is an offer
+   * nobody accepted, and booking a rejected one is booking a flight the client
+   * said no to. The trips service owns the booking itself; this module only
+   * answers "is this offer bookable, and what does it say?".
+   */
+  async bookingSource(user: AuthenticatedUser, id: string) {
+    const row = await this.prisma.quote.findFirst({
+      where: { id, deletedAt: null, ...this.visibilityScope(user) },
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        clientId: true,
+        tripRequestId: true,
+        assignedBrokerId: true,
+        operatorId: true,
+        aircraftId: true,
+        quotedAircraft: true,
+        originAirportId: true,
+        destinationAirportId: true,
+        departureDate: true,
+        returnDate: true,
+        passengers: true,
+        basePrice: true,
+        fetEnabled: true,
+        fetRate: true,
+        operatorCost: true,
+        lineItems: true,
+        terms: true,
+        trip: { select: { id: true, reference: true } },
+      },
+    });
+    if (!row) throw new NotFoundException('Quote not found');
+    if (row.status !== QuoteStatus.APPROVED) {
+      throw new BadRequestException(
+        "Only an approved quote can be booked. Record the client's approval first.",
+      );
+    }
+    return row;
+  }
+
   async findOne(user: AuthenticatedUser, id: string) {
     const row = await this.prisma.quote.findFirst({
       where: { id, ...this.visibilityScope(user) },
@@ -532,6 +595,78 @@ export class QuotesService {
     return { ...counts, averageMargin };
   }
 
+  /**
+   * A dry run of `priceQuote()` for the create/edit form's live preview.
+   *
+   * Touches no row — nothing here is a saved quote yet. This is what lets the
+   * form show a real FET amount, total and (for a caller with VIEW_FINANCIALS)
+   * margin as a broker types, without a second copy of that arithmetic living
+   * in the frontend: see the "never store a figure beside the parts it is
+   * computed from" rule this whole pricing engine exists to satisfy. A preview
+   * is not an exception to that — it is the same function, called earlier.
+   */
+  pricePreview(user: AuthenticatedUser, input: PreviewQuoteInput) {
+    const priced = priceQuote({
+      basePrice: input.basePrice,
+      fetEnabled: input.fetEnabled,
+      // Mirrors `Quote.fetRate`'s own `@default(0.075)` — there is no row yet
+      // for Postgres to apply it to, so the same default is restated here.
+      fetRate: input.fetRate ?? 0.075,
+      operatorCost: input.operatorCost ?? null,
+      lineItems: input.lineItems ?? [],
+    });
+    const financials = this.seesFinancials(user);
+
+    return {
+      basePrice: priced.basePrice,
+      fetRate: priced.fetRate,
+      fetAmount: priced.fetAmount,
+      extrasTotal: priced.extrasTotal,
+      totalPrice: priced.totalPrice,
+      lineItems: priced.lineItems,
+      ...(financials
+        ? {
+            operatorCost: priced.operatorCost,
+            grossProfit: priced.grossProfit,
+            marginPercentage: priced.marginPercentage,
+          }
+        : { operatorCost: undefined, grossProfit: undefined, marginPercentage: undefined }),
+    };
+  }
+
+  /**
+   * The base price at each markup the broker is weighing, and what each one
+   * totals to the client — client adjustment #6's suggested-price selector.
+   *
+   * Each suggestion goes through `priceQuote`, so its FET and total are the
+   * figures a saved quote at that price would show; the selector never
+   * re-derives them. The route already demands VIEW_FINANCIALS, because a
+   * markup over the operator's cost *is* the margin.
+   */
+  suggestPrice(input: SuggestPriceInput) {
+    return {
+      operatorCost: input.operatorCost,
+      suggestions: input.markupRates.map((markupRate) => {
+        const priced = priceQuote({
+          basePrice: suggestBasePrice(input.operatorCost, markupRate),
+          fetEnabled: input.fetEnabled,
+          fetRate: input.fetRate ?? 0.075,
+          operatorCost: input.operatorCost,
+          lineItems: input.lineItems ?? [],
+        });
+        return {
+          markupRate,
+          basePrice: priced.basePrice,
+          fetAmount: priced.fetAmount,
+          extrasTotal: priced.extrasTotal,
+          totalPrice: priced.totalPrice,
+          grossProfit: priced.grossProfit,
+          marginPercentage: priced.marginPercentage,
+        };
+      }),
+    };
+  }
+
   // ---- Guards on what a quote may point at --------------------------------
 
   /** The same scoped lookup as `findOne`, live rows only. Guards every write. */
@@ -545,8 +680,12 @@ export class QuotesService {
         version: true,
         clientId: true,
         tripRequestId: true,
+        operatorQuoteId: true,
         assignedBrokerId: true,
         operatorId: true,
+        aircraftId: true,
+        originAirportId: true,
+        destinationAirportId: true,
         sentAt: true,
         basePrice: true,
         fetEnabled: true,
@@ -627,44 +766,53 @@ export class QuotesService {
    */
   private async assertLinks(
     input: CreateQuoteInput | UpdateQuoteInput,
-    current?: { operatorId: string | null; clientId?: string },
+    current?: QuoteLinks,
   ): Promise<void> {
-    const changed = <K extends keyof typeof input>(key: K, was: unknown) =>
-      input[key] !== undefined && input[key] !== null && input[key] !== was;
+    /**
+     * Sent, non-null, and different from what the row already holds. On create
+     * there is no `current`, so everything sent is new and everything is
+     * checked. On update the form resends every link it has, and only the ones
+     * that moved are looked up — the rest were valid when they were written.
+     */
+    // Create carries a clientId and update does not, so the links are read
+    // through one shape both inputs satisfy.
+    const links: Partial<QuoteLinks> = input;
+    const changed = <K extends keyof QuoteLinks>(key: K): boolean => {
+      const next = links[key];
+      return next !== undefined && next !== null && next !== current?.[key];
+    };
 
-    if ('clientId' in input && input.clientId !== undefined) {
-      if (input.clientId !== current?.clientId) {
-        await this.assertLive('client', input.clientId, 'client');
-      }
+    if (changed('clientId')) {
+      await this.assertLive('client', links.clientId, 'client');
     }
-    if (changed('tripRequestId', undefined)) {
-      await this.assertLive('tripRequest', input.tripRequestId, 'request');
+    if (changed('tripRequestId')) {
+      await this.assertLive('tripRequest', links.tripRequestId, 'request');
     }
-    if (changed('operatorQuoteId', undefined)) {
+    if (changed('operatorQuoteId')) {
       await this.assertLive(
         'operatorQuote',
-        input.operatorQuoteId,
+        links.operatorQuoteId,
         'operator quote',
       );
     }
-    if (changed('operatorId', current?.operatorId)) {
-      await this.assertLive('operator', input.operatorId, 'operator');
+    if (changed('operatorId')) {
+      await this.assertLive('operator', links.operatorId, 'operator');
     }
-    if (changed('aircraftId', undefined)) {
-      await this.assertLive('aircraft', input.aircraftId, 'aircraft');
+    if (changed('aircraftId')) {
+      await this.assertLive('aircraft', links.aircraftId, 'aircraft');
     }
-    if (changed('originAirportId', undefined)) {
-      await this.assertLive('airport', input.originAirportId, 'origin airport');
+    if (changed('originAirportId')) {
+      await this.assertLive('airport', links.originAirportId, 'origin airport');
     }
-    if (changed('destinationAirportId', undefined)) {
+    if (changed('destinationAirportId')) {
       await this.assertLive(
         'airport',
-        input.destinationAirportId,
+        links.destinationAirportId,
         'destination airport',
       );
     }
-    if (changed('assignedBrokerId', undefined)) {
-      await this.assertBroker(input.assignedBrokerId);
+    if (changed('assignedBrokerId')) {
+      await this.assertBroker(links.assignedBrokerId);
     }
   }
 
@@ -881,9 +1029,10 @@ export class QuotesService {
    * from the version in their hand. The earlier sends are not lost — each one
    * has its version in the log.
    *
-   * There is no mail here. Nothing in this system sends email to a client yet;
-   * that arrives with Email Templates (#21), and pretending otherwise would
-   * mean a broker believing a quote had been delivered when it had not.
+   * There is no mail here, deliberately. Emailing the quote is its own act —
+   * `POST /emails` (Email Templates, #21), which the screen sends first and
+   * then marks the quote sent — so a quote handed over by phone or WhatsApp
+   * can still be marked sent, and a mark never claims an email that failed.
    */
   async send(user: AuthenticatedUser, id: string, input: SendQuoteInput) {
     const current = await this.findLive(user, id);
@@ -1051,6 +1200,19 @@ export class QuotesService {
       throw new ConflictException('This quote is already open');
     }
 
+    // A booked quote's approval is what the trip stands on. Undoing it would
+    // leave a live trip realising an offer nobody accepted — so the trip goes
+    // first (cancel or archive it), then the decision can be undone.
+    const booking = await this.prisma.trip.findFirst({
+      where: { quoteId: id, deletedAt: null },
+      select: { reference: true },
+    });
+    if (booking) {
+      throw new ConflictException(
+        `This quote is booked as TJ-${booking.reference}. Archive that trip before undoing the approval.`,
+      );
+    }
+
     const quote = await this.prisma.quote.update({
       where: { id },
       data: {
@@ -1178,14 +1340,14 @@ export class QuotesService {
 
   // ---- Archive ------------------------------------------------------------
 
-  async remove(user: AuthenticatedUser, id: string) {
+  async remove(user: AuthenticatedUser, id: string): Promise<void> {
     this.assertMayArchive(user);
     const current = await this.findLive(user, id);
 
-    const quote = await this.prisma.quote.update({
+    await this.prisma.quote.update({
       where: { id },
       data: { ...archiveData(user.id), updatedById: user.id },
-      select: QUOTE_DETAIL_SELECT,
+      select: { id: true },
     });
 
     await this.audit.record({
@@ -1195,8 +1357,6 @@ export class QuotesService {
       entityId: id,
       metadata: { reference: current.reference, status: current.status },
     });
-
-    return this.serialise(quote, user);
   }
 
   async restore(user: AuthenticatedUser, id: string) {

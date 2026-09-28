@@ -1,0 +1,121 @@
+/// A reusable email the desk sends again and again (Email Templates, #21;
+/// scope §6.17) — quote follow-ups, trip confirmations, empty-leg offers,
+/// payment reminders, travel-agent and client updates.
+///
+/// The subject and body carry merge fields — `{client_name}`, `{route}`,
+/// `{total_price}` — from the catalogue in `email.fields.ts`. They are filled
+/// in at send time from the records the email is about, read through the
+/// modules that own them; a template never stores a figure.
+model EmailTemplate {
+  id String @id @default(uuid()) @db.Uuid
+
+  name     String                @db.VarChar(160)
+  category EmailTemplateCategory @default(GENERAL)
+  subject  String                @db.VarChar(300)
+  body     String
+
+  /// Whether it is offered when composing. An inactive template stays in the
+  /// library, editable, and out of the picker — distinct from archiving,
+  /// which takes it off the list altogether.
+  active Boolean @default(true)
+
+  /// Every email sent from it. SetNull on the other side: archiving a
+  /// template never touches the record of what was sent.
+  emails EmailMessage[] @relation("EmailMessageTemplate")
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("EmailTemplateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("EmailTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("EmailTemplateDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("EmailTemplateRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([category, deletedAt])
+  @@index([active, deletedAt])
+  @@map("email_templates")
+}
+
+/// One email the desk sent — the scope's "Communication" (§10: trip/client,
+/// sender/recipient, template, status, timestamp).
+///
+/// Written once and never edited: what went out is a fact, so it carries
+/// `createdAt`/`createdById` (the sender) and nothing that could change —
+/// the fifth exemption from the four audit columns, recorded in AGENTS.md.
+/// There is no archive either: an email cannot be unsent.
+///
+/// The subject and body are stored exactly as sent, merge fields already
+/// filled. That is a snapshot on purpose — "what did we tell them on the
+/// 9th?" cannot be answered by re-rendering today's template.
+model EmailMessage {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The address it went to, and the name beside it, as they were at the
+  /// time — a client's email changing later must not rewrite this row.
+  toEmail String @db.VarChar(320)
+  toName  String @db.VarChar(200)
+
+  subject String @db.VarChar(300)
+  body    String
+
+  status EmailMessageStatus
+  /// The mail server's refusal, when there was one.
+  error  String?
+
+  /// What it is about. Real foreign keys; exactly one of client or operator
+  /// is the recipient, the rest are the records its merge fields came from.
+  templateId String?        @db.Uuid
+  template   EmailTemplate? @relation("EmailMessageTemplate", fields: [templateId], references: [id], onDelete: SetNull)
+  clientId   String?        @db.Uuid
+  client     Client?        @relation("EmailMessageClient", fields: [clientId], references: [id], onDelete: SetNull)
+  operatorId String?        @db.Uuid
+  operator   Operator?      @relation("EmailMessageOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+  tripId     String?        @db.Uuid
+  trip       Trip?          @relation("EmailMessageTrip", fields: [tripId], references: [id], onDelete: SetNull)
+  quoteId    String?        @db.Uuid
+  quote      Quote?         @relation("EmailMessageQuote", fields: [quoteId], references: [id], onDelete: SetNull)
+  invoiceId  String?        @db.Uuid
+  invoice    Invoice?       @relation("EmailMessageInvoice", fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  /// Who sent it. Replies go to them — their address is the Reply-To.
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("EmailMessageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([createdById])
+  @@index([clientId])
+  @@index([operatorId])
+  @@index([tripId])
+  @@map("email_messages")
+}
+
+/// What a template is for. The scope names quote follow-ups, empty-leg
+/// campaigns, travel-agent and client-update templates (§6.17); the screen
+/// added trip confirmations and payment reminders.
+enum EmailTemplateCategory {
+  QUOTE_FOLLOW_UP
+  TRIP_CONFIRMATION
+  CLIENT_UPDATE
+  EMPTY_LEG
+  PAYMENT
+  TRAVEL_AGENT
+  GENERAL
+}
+
+/// SENT: the mail server accepted it. LOGGED: no mail server is configured
+/// (development), so it was printed to the server log and delivered to
+/// nobody — recorded as exactly that, never as sent. FAILED: the mail server
+/// refused it.
+enum EmailMessageStatus {
+  SENT
+  LOGGED
+  FAILED
+}

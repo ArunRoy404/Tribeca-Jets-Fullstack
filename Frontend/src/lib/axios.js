@@ -85,10 +85,18 @@ function normaliseError(error) {
 /**
  * Endpoints that must never trigger a refresh-and-retry.
  *
- * `/auth/me` returning 401 is the ordinary signed-out state, and refresh/login
- * failing is terminal — retrying any of them would loop.
+ * `/auth/refresh` failing is terminal, and login/logout 401s are form errors,
+ * not an expired session — retrying any of them would loop or misreport a
+ * rejected sign-in as a session expiry.
+ *
+ * `/auth/me` is deliberately NOT here. Its access token is only 10 minutes
+ * old before it needs rotating, so a 401 on it is the ordinary case of "the
+ * access token expired, the refresh token (7-30 days) is still good" far more
+ * often than it means "no session at all" — the same as a 401 from any other
+ * endpoint. It must get the same refresh-and-retry chance; only if the retry
+ * also 401s (below) is the session actually gone.
  */
-const NO_RETRY = ["/auth/refresh", "/auth/login", "/auth/logout", "/auth/me"];
+const NO_RETRY = ["/auth/refresh", "/auth/login", "/auth/logout"];
 
 /**
  * Single-flight refresh.
@@ -133,12 +141,15 @@ api.interceptors.response.use(
     }
 
     /**
-     * A 401 on the session check itself means the same thing — there was no
-     * session to refresh. Login and logout are excluded: a rejected sign-in is
-     * a form error, not an expired session.
+     * A 401 on the session check that has already been through one
+     * refresh-and-retry (`_retried`) means refresh itself failed silently
+     * rather than throwing — the session is genuinely gone. The `catch` above
+     * already covers the case where `refreshSession()` rejects; this covers a
+     * refresh that "succeeded" but the retried call still 401s.
      */
     if (
       status === 401 &&
+      original?._retried &&
       original?.url?.includes("/auth/me")
     ) {
       onUnauthorized?.();

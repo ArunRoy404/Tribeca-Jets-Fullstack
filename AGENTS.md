@@ -199,6 +199,18 @@ A corollary for stats: when the total is derived, the database cannot `SUM` it.
 Count in the service rather than summing the nearest column — summing
 `basePrice` would report a figure that is neither the offer nor the revenue.
 
+**The same rule holds for relational identity, not only money.** A record
+that hangs off a trip and needs its aircraft, operator, route or passengers
+does not get its own copy of those columns — it reads them through the trip
+on every render. `Itinerary` (#12) is the example: its build form used to let
+a broker type an aircraft and a route independent of whichever trip was
+picked, and the day that trip was rebooked onto a different tail the document
+would go on naming the old one, with nothing on screen saying which was
+right. That is the stored-total bug wearing a different column. Read the
+dependency's own fact through the relation instead; store only what nothing
+else in the schema tracks. Expect this to recur for Schedule (#13) and Flight
+Tracking (#14), which read the same trip facts a third and fourth time.
+
 ## Contract rules that apply to both sides
 
 - **Enum values are the backend's `SCREAMING_SNAKE_CASE`**, on the wire and in the database. The frontend maps them to display labels at the edge; it never invents its own vocabulary (no `"Senior Broker"` on the wire when the enum says `SENIOR_BROKER`).
@@ -220,6 +232,52 @@ Count in the service rather than summing the nearest column — summing
 - **Every query parameter is described**, including all pagination, sort and filter params, with its default and its bounds.
 - **Enums and fixed-value fields are documented case-sensitively**, listing the exact accepted values.
 - Verify with `newman` before calling the collection done. A collection that has not been run is not finished.
+- **A builder must assert every captured status against the label it is writing.**
+  A captured example is *not* an assertion — Newman runs the request and checks
+  its test script, and never compares an example's name to the response stored
+  in it. So `12 · Notes` shipped a `400 · Empty body` example holding a 200 and
+  a `403 · Not the author` holding a 404, both because the request that
+  captured them never provoked the error they were named for, and both invisible
+  to a green run. The builder is the only place that knows the promised status
+  and the received one at the same moment, so it raises on a mismatch rather
+  than writing the lie (`build_notes_folder.py`'s `example()` is the pattern).
+  **The fix is always the request, never the label.** A 403 example that
+  captures a 404 usually means the account used cannot see the record at all,
+  so the check it was meant to demonstrate was never reached — see the assigned
+  broker in that builder.
+- **Auditing the whole collection for this is one pass over the JSON**, matching
+  each example's leading status code against its stored `code`. Worth running
+  after any builder change. Every builder now carries the check; 0 mislabelled
+  as of 26 Sep 2026.
+- **A builder places its folder with `collection_order.place_folder()`**, never
+  by removing and `append`ing. Append moved whichever folder was rebuilt last to
+  the end, so `10 · Quotes` sat after `13 · Client Credits` and the collection
+  stopped reading in the order its serial numbers promise.
+- **`rewrite_body_comments.py` runs from inside `postman/`**; it opens the
+  collection by a relative path.
+- **New builders import `postman/builder_common.py`** — the session,
+  `example()` with its label check, `url()`, `status_test()` and
+  `copy_folder_login()`. The older builders each carry a private copy; each
+  moves over when its own folder is next rebuilt.
+- **A folder that changes business data it does not own restores it exactly.**
+  `14 · Charter Rates` saves the desk's real Midsize rate before changing it
+  and writes the same figures back in its teardown — a Postman run must never
+  alter a number the desk entered.
+- **A builder writes everything its folder needs, including the folder
+  login.** `11 · Uploads`' login had been patched in by hand after its builder
+  ran, so the next rebuild silently produced a folder that 401'd when run
+  alone. Copy it from an existing folder in the builder, as the notes and
+  credits builders do.
+- **Fixture paths are written with forward slashes** (`PurePosixPath`). A
+  builder run on Windows otherwise writes `postman\fixtures\...`, which Newman
+  cannot open anywhere else.
+- **The label check reads the status wherever it sits in the name.** The
+  Uploads examples are named `Success (200 · …)`; an audit that only looked at
+  the start of the name skipped them, and one of them was a 403 label on a 200.
+- **A local Newman run needs `RATE_LIMIT_MULTIPLIER=20`** in `Backend/.env`.
+  A full run signs in more often than the login limit allows, so at `1` it
+  fails with 429s that look like real failures. Never raise the limits
+  themselves, and never the multiplier outside a developer machine.
 - **A folder that creates a row archives it again in a teardown.** The run is a
   demonstration, not a data entry session. `03 · Clients` had no teardown and
   ended by *restoring* the client it created, so every Newman run left one more
@@ -383,6 +441,19 @@ updatedBy   User?    @relation("<Model>UpdatedBy", fields: [updatedById], refere
   `20260915142333_add_created_by_updated_by_audit_columns`, which carries the
   old invitedBy values across rather than losing them.
 
+**Five models are exempt, and these five only** — each is a record that is
+written once and never edited, so an `updatedBy` would have nothing to say:
+
+- `AuditLog` — it *is* the audit trail; its actor is `actorId`.
+- `QuoteVersion` — a frozen snapshot; carries `createdAt`/`createdById` and
+  nothing that could change.
+- `RefreshToken`, `VerificationCode` — session machinery, owned by the user
+  row they hang off, rotated or consumed rather than edited.
+- `EmailMessage` (#21) — an email as it was sent; `createdById` is the
+  sender. It has no archive trail either: an email cannot be unsent.
+
+A sixth exception needs a line here, with its reason, in the same pass.
+
 ## Account status is administrative, and `INVITED` is not a decision
 
 `UserStatus` has three values but only two are settable by a person:
@@ -501,6 +572,14 @@ operator` started failing with "that request does not exist".
 Add `deletedAt: null` and an `orderBy` to every seed lookup, so re-running the
 seed on a database that has been worked in picks the same row every time.
 
+**A seed anchors only on rows the seed itself creates — never on Postman
+debris.** The operator-quote seed named "Solairus Aviation", an operator that
+existed only because a Postman run had created it. On any database Postman had
+touched it worked; on a fresh one it silently wrote nothing, and the summary
+line still printed "3 operator quotes" because the number was a literal. So:
+look up by a natural key the seed writes, and **count** what it wrote rather
+than printing a figure.
+
 ## The permission matrix ships with the session
 
 `GET /auth/me` returns `permissions` — the caller's row of the matrix, as
@@ -525,6 +604,486 @@ Use `requiredNumber` / `optionalNumber` / `nullableNumber` from
 fields and the form's `required` attributes and its "(Optional)" labels must
 say the same thing, or the form promises one contract while the server enforces
 another.
+
+## `z.coerce.date()` is the same trap as `z.coerce.number()`
+
+Its input type is `unknown`, so it accepts `true` and `0` as 1 January 1970 and
+`""` as an Invalid Date, exactly as happily as a real timestamp. Clients used it
+for `birthday` and `nextFollowUpAt`, so a stray boolean stored a 1970 birthday
+that nobody typed.
+
+Use the helpers in `common/dto/dates.ts`:
+
+- **`calendarDate`** for a day the user names — a birthday, a departure date, a
+  quote deadline. It stores midnight UTC against a `@db.Date` column, so the
+  14th does not render as the 13th west of Greenwich.
+- **`timestamp`** for a moment — a follow-up time, anything with a clock on it.
+
+There is a second reason beyond validation: **`unknown` cannot be expressed in
+JSON Schema**, so a `z.coerce.date()` field documented itself as `{}`, Swagger
+read a typeless property as a reference to a class that does not exist, and the
+entire `/api/docs` page 500'd with a bogus "circular dependency". A DTO that
+cannot describe itself takes the documentation down with it.
+
+## DTOs document themselves — never hand-write OpenAPI metadata
+
+`createZodDto` derives the OpenAPI schema from the Zod schema with
+`z.toJSONSchema`, and publishes it through `_OPENAPI_METADATA_FACTORY` — the
+same hook the Swagger CLI plugin generates, which is why no plugin is
+configured. Add a DTO and it is documented: types, bounds, defaults, enums and
+required-ness, all from the one schema that also validates.
+
+`io: 'input'` is deliberate. Several DTOs transform on the way in, and the
+*output* is what the service sees, not what a caller sends — documenting the
+output would tell everyone to post a JavaScript `Date`.
+
+Responses are derived too, in `common/openapi/describe-responses.ts`, which
+reads the **same `@Public()` and `@RequirePermissions()` metadata the guards
+read**. So the documented 401s and 403s cannot drift from what is enforced, and
+95 routes cost no `@ApiResponse` decorators at all. Add a route and its error
+catalogue appears with it.
+
+Two things still belong on the controller by hand: `@ApiOperation` — the
+summary and the *why*, which no schema can infer — and any response a route
+returns that the rules above cannot see.
+
+**A hand-written `@ApiResponse` silences Nest's default success response.** Nest
+injects the implicit 200/201 only when a controller declares *none* of its own,
+so the moment a route documents its 403 by hand it arrives at
+`describeResponses` with no success entry at all — and would be published as an
+operation that can only fail. That is why the success code is reconstructed
+there from `HTTP_CODE_METADATA` the same way Nest picks it, rather than read
+off the document. Five Files routes were briefly published that way; the fix is
+in the derivation, so nothing has to be remembered at the call site.
+
+## Uploads are one global surface, addressed by content
+
+**There is exactly one way to put a file into this system:**
+`POST /api/uploads/image` and `POST /api/uploads/document`. Both return a
+**URL**, and the record being edited stores that URL in a column. Nothing in
+the upload path knows what a file is *for*.
+
+This replaced a `FileObject` table keyed by a `FileCategory` enum, and the two
+reasons it had to go are worth keeping, because both are easy to re-introduce:
+
+- **A category was required at upload time**, which made it impossible to
+  attach a photograph to a record that did not exist yet. That is the ordinary
+  shape of a create form: pick the picture, then save. Uploading first and
+  storing the returned URL in the form payload is what makes that work.
+- **Every new upload button needed a new enum value and a migration.** A
+  *purpose* — "tax form", "id proof", "brochure" — is not a kind of file. Only
+  `image` and `document` are, and those two are settled.
+
+Three rules hold on top of that:
+
+- **The URL stored is relative** (`/api/uploads/<id>`), never absolute. An
+  absolute URL captured at upload time embeds whatever host was running then,
+  so every row written in development points at localhost for ever, and a
+  domain change or a move to a CDN strands every file already uploaded.
+  **Enforce it with `uploadUrl`** (`common/dto/uploads.ts`) on every DTO field
+  that stores one — `uploadUrl.optional()` on create,
+  `uploadUrl.nullable().optional()` on update. A bare `z.string()` let
+  `Quote.exteriorImageUrl` take absolute URLs and links to other hosts: images
+  this API never sniffed, served from somewhere nobody chose.
+- **Storage is content-addressed**: `images/<sha256>.png`,
+  `documents/<sha256>.pdf`. Identical bytes always resolve to the same object,
+  so a re-upload overwrites a file with itself instead of filling the disk.
+  **There is deliberately no date folder** — a date would put the same bytes in
+  two places on two days and defeat the deduplication the key exists to
+  provide.
+- **Deduplication is scoped to the uploader.** Re-uploading returns the
+  existing row with `deduplicated: true` and writes nothing. It is per-user
+  because a globally shared row makes one person's delete a side effect on
+  another person's record. Per-user costs one row and no bytes, since the
+  object is shared anyway.
+
+The upload routes carry **no permission decorator**, and that is deliberate:
+every write these files attach to is already guarded by the permission for
+*that* record. A broker who cannot edit an aircraft cannot save a photograph
+onto one, whatever they managed to upload. Reads still need a session —
+`JwtAuthGuard` is global — so there is no unauthenticated path to a stored
+object.
+
+## A `StreamableFile` must never be wrapped by the response interceptor
+
+`TransformInterceptor` puts every response in `{ success, data, meta? }`. A
+`StreamableFile` is not a payload to describe — it *is* the body — so wrapping
+one serves `{"success":true,"data":{"options":{},"stream":{}}}` where a PNG
+should be.
+
+**The failure is invisible to the obvious test.** The status code is 200, the
+`Content-Type` says `image/png`, the `Content-Disposition` is right, and only
+the bytes are wrong. The old download route shipped like this and was "verified"
+by checking exactly those headers. Any test of a streaming route must compare
+the returned bytes against the file that was uploaded.
+
+## Uploads: never trust the content type a caller sends
+
+A multipart part's `Content-Type` is chosen by whoever sent it. Store it and the
+download route will one day hand a browser exactly what an attacker picked —
+`text/html` on a file the desk believes is a PDF is a script running on the
+API's own origin, with the session cookie attached.
+
+**Read the type from the bytes** (`common/files/file-signature.ts`) and store
+*that*. The sender's header settles exactly one question: whether text is
+`text/plain` or `text/csv`, which are the same bytes and differ only in intent.
+
+Three formats stay off every allowlist, for reasons that are not about
+convenience:
+
+- **SVG** is a document that executes script. Serving one from the API's origin
+  is stored XSS wearing an image's clothes.
+- **Archives** carry their contents past whatever checked the outer file.
+- **Legacy `.doc`/`.xls`** are both OLE2 and byte-identical at the header, so
+  nothing can tell them apart without trusting the sender — which is the thing
+  sniffing exists to avoid. They are also the macro-bearing formats, and Word
+  and Excel have written the modern equivalents by default since 2007.
+
+Then serve defensively too: `X-Content-Type-Options: nosniff` on every
+response, and `Content-Disposition: inline` **only** for images. Everything else
+downloads.
+
+## Who may read a file is two columns, never a category
+
+An earlier design gave every file a required `category` and made that category
+decide who could read it. It was removed — see "Uploads are one global surface"
+above — and what replaced it is two columns on the upload row:
+
+- **`visibility`** — `PUBLIC` (any signed-in user) or `PRIVATE`.
+  **It defaults to `PRIVATE`**, and that direction is the whole point: failing
+  closed means the mistake is "the brochure needs a flag", which somebody
+  notices in a minute. Failing open means a 1099 was readable by every
+  signed-in user and nobody noticed at all.
+- **`ownerUserId`** — one extra person who may read a `PRIVATE` file, beyond
+  its uploader and an administrator.
+
+That second column is an *access-control* fact, not a purpose, and the
+distinction is what keeps this from becoming categories again. It answers "who
+may open these bytes", which is a property of the file. It does **not** say
+what the file is for; the record holding the URL says that.
+
+It is also what makes a personal folder a **query rather than a second table**:
+the client's "folder for each broker" is `GET /uploads?ownerUserId=<id>`. So
+removing a document and removing the file are one act, with no join row to keep
+in step.
+
+Three rules follow:
+
+- **The rule lives in `modules/uploads/uploads.access.ts`, as pure functions.**
+  A security rule that can only be exercised by starting a server and logging
+  in as three different people is a rule that quietly stops being exercised.
+- **`mayRead` and `visibilityWhere` are one rule written twice** — one for a
+  row, one for a `findMany` — so they are side by side in that file, and a test
+  walks every combination asserting the SQL admits exactly what the row check
+  admits. A list that shows what a fetch refuses is the same leak, arriving a
+  page earlier.
+- **Failed reads answer 404, not 403** — including on remove. A 403 confirms
+  the file exists, which turns a list of user ids into a register of who has
+  been paid.
+
+**Deduplication is keyed on `(uploadedById, checksum, kind, ownerUserId,
+visibility)`.** All five matter. Without the owner, filing the same PDF for
+Mark and then for Barry returns Mark's row and puts one document in two
+people's folders. Without the visibility, publishing a file that was uploaded
+privately silently reuses the private row. `label` is deliberately excluded:
+the same bytes filed about the same person is a duplicate whatever it is
+called.
+
+## Archiving a file never touches the bytes
+
+`deletedAt` on the row, and the object stays in storage exactly where it was.
+
+There is no permanent delete in this system, and a restore that cannot hand
+back the same bytes is not a restore — it is an empty row wearing a filename.
+Deleting the object on archive would quietly turn the Archived tab into a list
+of documents nobody can ever open again, and nothing on screen would say so.
+Storage is the price of the promise the rest of the system already makes.
+
+The same reasoning runs the other way on upload: **write the bytes first, then
+the row.** A failed insert leaves an unreferenced object in the bucket, which is
+invisible, harmless and findable by `driver` plus key prefix. The opposite order
+leaves a row pointing at nothing. Given a choice between an orphaned blob and an
+orphaned row, the blob is the one that cannot lie to anybody.
+
+## A polymorphic subject is checked by the module that owns it
+
+A `Note` hangs on a `subjectType` + `subjectId` rather than a `clientId`,
+because Trips will want the same timeline and a second table would mean two
+note systems with different columns, different permissions and two screens to
+keep in step. One enum value and three lines in `notes.subjects.ts` is the
+whole cost of a new subject.
+
+The price is a column no foreign key can check, and **that check belongs in the
+owning module's service, never re-written locally.** `NotesService` calls
+`ClientsService.subjectRef(user, id)`, which applies the same broker scope
+clients apply everywhere else — so *"you may read this note if you may read its
+client"* is true rather than merely intended. A `where` clause copied into the
+notes module would be the copy that drifts the first time the client scope
+changes, and it would drift silently.
+
+Three rules follow, and they generalise to anything polymorphic:
+
+- **Every entry point resolves the subject first** — list, timeline, read,
+  write, withdraw, restore. A note's own id says nothing about who may read it.
+  Reading it and *then* deciding is a leak that already happened.
+- **404, not 403, for a subject the caller cannot see.** Same reason as
+  everywhere else: a 403 confirms the record exists.
+- **The capability check moves one layer in, and the controller says so.**
+  Which permission applies depends on `subjectType`, which is a value in the
+  query string — a `@RequirePermissions` decorator cannot see it. So these
+  routes carry none, exactly as the upload routes do, and both record why at
+  the top of the controller. This is the only sanctioned reason to omit one.
+
+## A timeline is two sources merged, and the merge is a pure function
+
+The client asked for a notes timeline; half of it was already in `audit_logs`.
+Status changes, reassignments and archives are the entries nobody has to
+remember to type, so a timeline of hand-written notes alone is half a timeline.
+`GET /notes/timeline` reads both and interleaves them.
+
+**Page it by taking `skip + take` from each source and merging** — not by a
+hand-written UNION. That is exact rather than approximate: the nth newest row
+overall cannot be older than the nth newest row of either source, so the window
+is always covered. It over-fetches on deep pages, which a timeline does not
+have, and it keeps the row-level `where` clause readable at its call site,
+which a raw query does not.
+
+Two details are load-bearing:
+
+- **The tie-break is the id, in the merge *and* in both queries.** Two rows
+  written in the same millisecond — a status change and the note explaining it
+  — are otherwise free to swap places between pages, which shows one entry
+  twice and silently hides another. Both queries order by
+  `[{ createdAt: 'desc' }, { id: 'desc' }]` and `newestFirst` settles the tie
+  the same way.
+- **The merge lives in `notes.timeline.ts` as pure functions with tests.** The
+  failure here is an off-by-one across a page boundary, and a merge only ever
+  exercised by opening a screen with four entries on it is a merge nobody has
+  tested.
+
+And **archived notes stay off the timeline.** Withdrawing a note is what taking
+it off the record means; replaying it beside the events it was withdrawn from
+says the opposite. The withdrawn half is the list endpoint with
+`?archived=true`.
+
+**An endpoint must not accept a parameter it ignores**, and dropping the field
+from the schema is not enough to achieve that. `queryTimelineSchema` extends
+`paginationSchema`, which carries `search`, `sortBy` and `sortOrder` — none of
+which a chronological timeline honours. Omitting them made Zod *strip* the keys
+rather than complain, so `?search=Citation` still answered 200 with the whole
+timeline: the caller filtered nothing and was told it worked.
+
+So that one query DTO is `.strict()`, and it is the only one that needs to be:
+its sibling `GET /notes?search=` does filter, and a parameter that works on one
+route and is silently dropped by its neighbour is exactly the confusion worth
+spending a 400 on. **Before omitting an inherited pagination field from any
+query DTO, decide what an unknown key should do** — silently ignored is a
+wrong answer, not a lenient one.
+
+## Only the author edits a note
+
+Deliberately narrower than every other update in this system, administrators
+included. The timeline renders a note under the name of whoever wrote it, so an
+edit anybody else can make is a statement they did not write attributed to
+them. An administrator who disagrees **withdraws it and writes their own**,
+which leaves both on the record.
+
+Withdrawing is wider — the author *or* an administrator — for exactly that
+reason: taking a note off a record is moderation and does not put words in
+anyone's mouth, and the note stays readable under Withdrawn with the trail of
+who removed it.
+
+This is also the one place a failed write answers **403 rather than 404**: the
+caller has already read the note, so the information a 404 would protect has
+been given.
+
+**An archived subject is read-only, and that is a separate check from the
+note's own state.** The same split `findOne` and `findLive` make everywhere
+else: an archived client's timeline must still open — the Archived tab links
+straight to it, and the entries explaining why it was archived are the ones
+somebody came to read — but *writing* on a closed record adds commentary
+nobody is working, on something absent from every live list. So `create` and
+`update` refuse it with a **400** naming the reason (the caller can see the
+subject, so hiding it would contradict the read they just did), while withdraw
+and restore stay allowed: moderating an existing entry is not a new statement,
+and taking something off a closed record is when it is most needed.
+
+This is why `ClientsService.subjectRef` returns `archived` rather than just
+resolving. A resolver that only answers "may you see it" cannot express
+"you may see it and may not write on it", and the notes module had no way to
+ask.
+
+## A note's audience is a flag, decided once
+
+`Note.visibility` is INTERNAL or SHARED, defaulting to INTERNAL — the same
+direction upload visibility defaults to PRIVATE, and for the same reason.
+Failing closed costs somebody a minute asking why an agent cannot see an
+update; failing open puts desk commentary in front of the person who referred
+the client.
+
+**It is the referral portal's *Agent Update* field, built with the notes rather
+than after them.** "A separate Agent Update field that brokers can
+intentionally share with the referral agent" is a note with a flag on it, and
+discovering that after building both is how two note systems end up in one
+codebase.
+
+**Since 27 Sep 2026 it filters the REFERRAL_AGENT role**, which is exactly the
+rule this section promised before the role existed, and nothing else changed.
+In `notes.service.ts`, for a partner: `findAll` forces `visibility: SHARED` and
+live notes only, the timeline carries no audit events and SHARED notes only,
+`load` answers 404 for anything else, and `assertMayWrite` refuses every write.
+The only subject an agent reaches is `REFERRAL`, resolved through
+`ReferralsService.subjectRef`, which scopes to their own referrals.
+
+## The referral agent is a partner, not staff
+
+`REFERRAL_AGENT` (`isPartner(role)` in `permissions.ts`) holds **NONE on every
+permission except its own referrals and commissions** (`VIEW_REFERRALS` /
+`MANAGE_REFERRALS` / `VIEW_COMMISSIONS` at `OWN`) and `MANAGE_AIRPORTS` at
+`READ` for the submit form's airport picker. Four rules hang off that, and each
+closes a leak that the permission matrix alone would not:
+
+- **The staff directory is its own permission, `VIEW_TEAM`** — ALL for every
+  staff role, NONE for the agent — on `GET /users`, `/users/stats`,
+  `/users/roles` and `/users/:id`. Those routes used to need only a session,
+  which was fine while every session was staff.
+- **A partner's upload is forced `PRIVATE` with no owner**, and a partner's
+  `GET /uploads` lists only their own files. An agent must never be able to
+  publish into the photo library or file something into a broker's folder.
+- **Referral attachments are streamed through the referral, not the upload.**
+  `GET /referrals/:id/attachments/:uploadId` resolves the referral in scope
+  first, checks the upload URL is on it, then calls
+  `UploadsService.openVouched()` — the **one sanctioned bypass of `mayRead`**,
+  because the desk broker is neither the uploader nor the owner of a file the
+  agent uploaded privately. Any second caller of `openVouched` must vouch for
+  the file through a record the same way; never call it with a bare id.
+- **A partner response never carries desk data.** `partnerView()` in the
+  referrals and commissions services strips notes, the broker and every price
+  input. The agent sees their commission, never the profit it was derived
+  from — `serialise` in commissions never returns the trip's pricing at all.
+
+A commission structure (`commissionBasis` / `commissionPercentage` /
+`commissionAmount`) lives on the **user row, for agents only** — the Users
+service accepts it only on a `REFERRAL_AGENT` and clears it when the role
+changes away. A commission copies it at creation; editing the agent's standard
+later never rewrites a commission already raised.
+
+**The agent's screens live at `/portal`, never under `/dashboard`.** Each role
+has one area — `homeFor` / `belongsIn` / `landingFor` in `src/lib/roles.js` —
+and three places keep people in theirs: sign-in lands on `landingFor(role,
+?next)`, `proxy.js` protects both areas alike, and `AreaGate` in each layout
+redirects a misplaced session once `/auth/me` answers. None of them is the
+boundary (the API is); they stop an agent landing on panels that all answer
+403. The portal reuses the CRM's shell through optional props (`AppSidebar` /
+`NavMain` `home` + `sections`, `TopNav` `titleFor` + `showNotifications`) —
+add a portal screen by adding an entry to `components/portal/portalNav.js`,
+not a second sidebar.
+
+## A balance is summed, never stored — and money is counted in cents
+
+`ClientCredit` is a ledger of movements (`CREDIT` / `APPLICATION`) and there is
+**no `balance` column anywhere**. The balance is a sum over the rows, computed
+on every read, exactly as a quote's total is: a stored figure beside the parts
+it is computed from contradicts them the first time one is edited, and nothing
+on screen says which half is right.
+
+That is also why the client's request was not built literally. He asked for one
+editable number — but the same sentence said "or select if it was used towards
+another trip", and those two together are credits and applications. **He gets
+the edit he asked for, on a row**, plus a trail he did not know to ask for.
+
+Three rules that generalise to every money feature after this one:
+
+- **The direction is a column, never a minus sign.** `amount` is always
+  positive and `type` says which way it moves. A signed column invites `-5000`
+  typed into a CREDIT, which reads as a credit and behaves as an application,
+  and nothing on screen tells the two apart.
+- **Arithmetic happens in integer cents**, in
+  `client-credits.balance.ts`, as pure functions with tests. `0.1 + 0.2` is
+  `0.30000000000000004` and a ledger is nothing but repeated addition. Convert
+  by **parsing the decimal string, not by multiplying**: `1.005 * 100` is
+  `100.49999999999999`, so the precision is gone before `Math.round` ever sees
+  it and the ledger ends a cent light on a value the API had already accepted.
+- **A money DTO refuses a third decimal place** (`money()` in
+  `common/dto/numbers.ts`). The column is `Decimal(12, 2)`, so a third decimal
+  is not a finer amount — it is one Postgres rounds on the way in, leaving the
+  balance the service checked disagreeing with the row it wrote.
+
+**A guard on a balance must be re-applied on restore.** An application cannot
+take an account below zero, and that check lives on create, on update *and* on
+restore: a $12,000 application withdrawn in March and restored in June lands on
+whatever the account holds now, so without it a withdraw-and-restore walks
+straight around the rule. On update it is measured against the ledger
+*excluding the row being edited*, or raising an application by a pound is
+checked against a balance that still contains its old value.
+
+**`occurredAt` is not `createdAt`.** A trip cancelled on the 3rd and entered on
+the 9th is a credit dated the 3rd; the audit column still records the typing.
+The ledger sorts by the movement, which is why `sortableBy` is given an
+explicit fallback here rather than the usual `createdAt`.
+
+## A computed state is filtered by computing it, never by storing it
+
+Receivables' "Overdue" and "Partially Paid" are worked out from the payments
+and today's date, so no column holds them — and a stored copy would be wrong
+from midnight until a job ran. Filtering on one is still exact: narrow by the
+stored columns first, work each candidate's state out with **the same pure
+function every read uses**, and filter the page query by the matching ids
+(`stateWhere` in `receivables.service.ts`). Never page first and filter the
+page afterwards — that shows short pages and a total that counts rows the
+filter removed.
+
+A module whose rows hang off a trip inherits the trip's scope through
+`TripsService.visibleWhere(user)`, never a copy of the trip `where` clause.
+
+**A bill with a payment ledger is built from the shared settling pieces** —
+`common/money/settlement.ts` (paid, balance, due / partly paid / paid /
+overdue, the overpayment check), `common/database/document-number.ts`
+("INV-2026-0042"), `common/dto/payments.ts`, and on the screen `PaymentForm`,
+`PaymentLedger` and `toPaymentRow`. Receivables and Operator Payments both
+use them; a third money module adds only what is its own.
+
+**A view over several modules reads each through its owner.** Transactions
+stores nothing: each owner builds its rows in the shared `Movement` shape
+(`common/money/movements.ts`) under its own scope, and the ledger merges pages
+with `common/database/merge-pages.ts` — the same exact merge the notes
+timeline uses. A kind the caller may not see is never read, rather than read
+and hidden.
+
+## An email's record says what actually happened to it
+
+There is **one way to email somebody from the CRM**: `POST /emails`, reached
+through **one form**, `components/common/email/ComposeEmailDialog.jsx`. A
+screen that needs to email passes the records it is about as `context` and
+never builds its own dialog, its own preview or its own merge.
+
+- **Merge fields have one catalogue** (`email-templates/email.fields.ts`,
+  served at `GET /email-templates/fields`). Each field is filled from the
+  record it names, read through the module that owns it, in the sender's
+  scope and with that record's own read permission — so a preview can never
+  put a figure in an email its sender could not have opened. A field that
+  cannot be filled **stays as its token and is named**; it is never blanked
+  and never guessed, and nothing is sent while one remains.
+- **`SENT` means a mail server accepted it.** Without one configured the
+  email is recorded as `LOGGED` — printed to the server log, delivered to
+  nobody — and every screen and toast says "not delivered". A refusal is
+  `FAILED`, answered with a 502, and still recorded. Never report a send the
+  mail server did not take.
+- **Marking a record sent is a separate act from emailing it.** A quote's
+  or an itinerary's "Mark as Sent" delivers nothing and says so; the compose
+  form marks it sent only when the email's status is `SENT`.
+- **A Postman run never emails a real person.** `26 · Email Templates`
+  writes a probe client on `example.com`, which never delivers, and emails
+  only that.
+
+## Read every generated migration before it ships
+
+`prisma migrate diff` renamed nothing: asked to turn `CommissionPaymentMethod`
+into the shared `PaymentMethod`, it **dropped `commissions.method` and added it
+back empty** — every paid commission would have lost its method on deploy.
+`20260928100000_add_receivables` does it with `ALTER TYPE ... RENAME TO`
+instead. A rename of a column, a table or an enum is always hand-written, and
+any `DROP COLUMN` in generated SQL is read as a question, not an instruction.
 
 ## Service layer rules
 
@@ -595,9 +1154,13 @@ This project uses shadcn/ui (the `base-nova` style, built on Base UI — `@base-
 - **Never hardcode a color, radius, or shadow.** Check `src/app/globals.css` (`:root` + `@theme inline`) first. If the value you need isn't there, add it as a token in `globals.css` and consume it via a Tailwind utility (`bg-success`, `text-purple`, `shadow-card`, `rounded-sm`, etc.) — never a raw hex/`rgba()`/`px` arbitrary value in a component. Tinted/translucent variants should use Tailwind's opacity modifier on an existing token (`bg-success/10`) rather than a new hardcoded rgba.
 - **Check `src/components/ui/` (shadcn primitives) and `src/components/common/` (our reusable wrappers) before writing new markup.** If shadcn has the component (button, input, checkbox, avatar, badge, table, sidebar, dropdown-menu, tooltip, sheet, collapsible, etc.), use it — don't hand-roll a `<button>`/`<input>`/status pill from scratch.
 - **Never import a `ui/*` primitive directly into a page or feature component.** Customize the primitive itself (its `cva` variants in `ui/button.jsx`, `ui/input.jsx`, etc.) so its *default* look already matches Figma, and/or wrap it in a `common/` component for anything with app-specific behavior (`CommonInput`, `CommonOTPInput`, `UserAvatar`, `StatusBadge`). Feature code imports from `common/` or the customized `ui/*`, never a raw unstyled primitive.
+- **Base UI's `Select.Root` needs an `items` prop to resolve a picked value back into its label — passing `value`/`onValueChange` alone is not enough.** Without it, `Select.Value` falls back to rendering the raw stored value (the enum, the id) instead of the option's label, because it resolves labels from `items`, never by inspecting the rendered `SelectItem` children. This bit every `<Select>` in the app at once — both wrapper components (`PickerSelect.jsx`, `CommonSelect.jsx`) are the only two places `<Select>` is rendered directly, and both now pass `items={normalizedOptions}`. If you add a third direct `<Select>` render anywhere, give it `items` too, or it will silently display ids again.
 - **Forms**: use `CommonInput` (`src/components/common/CommonInput.jsx`) for every text/email/password/textarea field — pass `type`. Password show/hide state lives inside `CommonInput`, not in the parent. Use `CommonOTPInput` for any digit-code input.
 - **Icons**: prefer the Figma-exported SVGs under `public/dashboard/icons/` and `public/auth/icons/`. Only reach for `lucide-react` when Figma didn't export the icon you need (e.g. the password-hidden `EyeOff` state, or icons shadcn primitives require internally like sidebar/dropdown chevrons) — and when mixing is unavoidable for a matched pair (e.g. show/hide eye), use the same icon family for both states rather than mixing Figma + lucide within one control.
 - **Images**: always `next/image`, never `<img>`, never the `unoptimized` prop. Local assets under `public/` need no remote-pattern config. Use `fill` + a sized `relative` parent for background/cover photos, explicit `width`/`height` for everything else.
+- **An authenticated upload needs `next/image`'s `loader` prop, not the default.** `GET /uploads/:id` requires a session, and the default loader resolves a relative `src` with its own *server-side* fetch — one with no access to the browser's httpOnly cookie, so it 401s and the image never renders. Every image built from `uploadUrl()` needs `loader={passthroughImageLoader}` (`src/services/uploads.service.js`), which hands the URL straight to the browser instead — the same reasoning this app's download links already rely on a real browser request for. A static file under `public/` never needs this.
+- **Every uploaded or gallery image is previewable, through one component.** Wrap it in `<ImagePreview>` (`src/components/common/image-preview/`) rather than a bare `<Image>` — hover shows an expand icon, click opens a full-screen zoom/pan lightbox, and passing the whole set an image belongs to (not just the one image) gets prev/next navigation for free. `FileUpload`'s upload bricks and `ItineraryPreview`'s aircraft gallery are the pattern to follow. This is the same "one reusable component, not one per screen" rule as everything else in this file — do not hand-roll a second hover-to-zoom treatment.
+- **A photo field that feeds a document offers the photo library.** Pass `library` to `FileUpload` (and `suggested` when the form knows which photos are relevant, as the quote form does with the chosen aircraft's). The library is every `PUBLIC` image already on the server — client adjustment #3's "stock image database" — so the desk picks a photo again rather than uploading it twice. Never build a second picker.
 - **Layouts, not wrappers**: if a visual shell wraps every page in a route group (the auth hero-split panel, the dashboard sidebar), it belongs in that group's `layout.js` — never re-imported and wrapped around each page's JSX by hand. `src/app/(auth)/layout.js` and `src/app/dashboard/layout.js` are the examples to follow.
 - **Reuse, don't duplicate.** Before adding a new status-color map, badge variant, or avatar treatment, check `src/components/common/StatusBadge.jsx` / `UserAvatar.jsx` first — these exist specifically because 4+ components used to hand-roll their own copies.
 
@@ -687,6 +1250,10 @@ When a module graduates:
 - **Query hooks return the query object itself. Mutation hooks return the mutation itself.** Never a hand-built `{ data, loading, error }` shape — the component destructures what it needs.
 - **Timing never appears in a hook.** `staleTime`, `gcTime`, retry and refetch behaviour come from the presets in `src/config/query.config.js`, which read `NEXT_PUBLIC_QUERY_*` env vars. A raw number in a hook is a bug.
 - Query keys come from `src/lib/queryKeys.js`. Never inline an array literal as a key.
+- **A read-only view over one module files its keys under that module's
+  namespace.** Schedule's keys start `["trips", "schedule", …]`, so every write
+  that already invalidates `trips.all` — a trip, its itinerary, an invoice —
+  refreshes the calendar too, and no hook has to know the calendar exists.
 
 ## Hooks own the side effects; components stay clean
 
@@ -730,6 +1297,7 @@ copy is the bug this section exists to prevent.
 | the restored marker | `<RestoredBadge at by />` |
 | archive field labels | `toArchiveFields(record)` from `@/lib/archive` |
 | page numbers with collapsed gaps | `<TablePagination onPageChange />`, windowed by `buildPageItems` |
+| a dropdown over records (brokers, operators, aircraft) | `useIdFilter(rows, labelOf, allLabel)` beside `useEnumFilter` — id in the URL, name in the list |
 
 - **Mark view-only fields `local: true`.** A tab id belongs in the URL but must
   never reach the API — it is not part of the query key, and including it
@@ -810,7 +1378,76 @@ checkbox column that feeds them.
   moment late rather than appearing and being taken away.
 
 Per "fix a module when we reach it", only the module being worked on gets
-wired up. Aircraft is done; the others follow on their own turn.
+wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
+Leads & Agents (table and detail page), Client Credits, Notes, the client
+detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
+Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form. Not yet: the Clients table, Airports,
+Operators — each on its own turn.
+
+**A control narrower than a permission is gated by scope, not by
+`canWrite`.** A broker may edit a client (`MANAGE_CLIENTS` at `ASSIGNED`) but
+not reassign one, which the service enforces with `scopeFor(...) !==
+Scope.ALL`. The form mirrors the same test —
+`scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL` — and leaves the broker
+picker out entirely, *and omits the field from the payload*. Hiding the
+control but still posting its value is how every broker edit came back 403.
+
+## A control's value is the wire format; its label is for reading
+
+`CommonDatePicker` emitted `"Aug 12, 2026"` — the string the Figma mock showed
+— and every date field on the API rejects that with "Use a YYYY-MM-DD date".
+Quotes, leads, aircraft maintenance and sourcing requests all pass the picker's
+value straight to the server, so **none of their dates could be saved at all**,
+in four modules, silently, until someone tried one.
+
+This is the same rule the project already applies to enums, and it applies to
+every control: **the value a component emits is what the API accepts**, and the
+friendly version is produced at render time, for reading only. A control that
+emits a display string has made every one of its call sites responsible for
+translating it back, and they will not all remember.
+
+**Times of day are `"HH:MM"`, 24-hour, on the wire** — `parseTime` /
+formatting in `src/lib/time.js`. `TimePicker` used to emit `"08:00 AM"`, so a
+client follow-up scheduled with a time was refused by the API and the dialog
+closed as if it had saved. The 12-hour text is produced at render time only.
+
+**A calendar date (`@db.Date`) is rendered with `formatCalendarDate`**, which
+formats in UTC, and loaded into an input with `toDateInput` (both in
+`src/lib/date.js`). The API stores the 14th as midnight UTC; formatting it in
+local time shows the 13th everywhere west of Greenwich. Timestamps keep using
+the local-time formatters.
+
+The same component also opened on a hardcoded month, offered a hardcoded
+"Today", and matched the selected day by substring so the 1st highlighted the
+10th. Shared controls get used everywhere; a mock value left in one is a wrong
+answer on twenty screens.
+
+## Signing out an idle session takes both sides
+
+The browser owns the precise timer, because only it can tell whether a person
+is there. Four things make that harder than a `setTimeout`, and all four are
+requirements:
+
+- **"Touched" means a person, not the network.** Only real input counts, or a
+  dashboard polling in a forgotten tab keeps the session alive for ever.
+  `mousemove` is not input — a trackpad nudged by a sleeve fires it.
+- **A sleeping machine fires no timers.** Compare the clock against a stored
+  timestamp on a short tick; never schedule one shot at the deadline, or a
+  laptop closed for three hours wakes with minutes still "remaining".
+- **Tabs share a session**, so the last-activity stamp goes in `localStorage`.
+  Otherwise the idle tab signs out the tab someone is working in.
+- **Warn before acting.** Signing out silently loses whatever was on screen.
+
+**And the server has to refuse the refresh**, or the whole thing is a UI
+convention that anyone can switch off in a browser. The signal is the age of
+the refresh-token row: a rotation only happens once the access token has
+expired, so a session in continuous use presents a row at most one access-token
+lifetime old, while an abandoned one keeps ageing. Approximate, and always in
+the user's favour.
+
+**The limit ships from `/auth/me`, never from the frontend's own env** — the
+same reason the permission matrix does. Two copies of one number drift, and
+they drift silently.
 
 ## Required fields must agree with the API
 
@@ -823,6 +1460,18 @@ Blank numeric inputs are the sharp edge — an empty box sends `""`, which
 `Number('')` turns into **0**. The API rejects that for required fields and
 treats it as absent for optional ones, but the form should not send it in the
 first place.
+
+**Build every payload with `src/lib/form.js`** — `optionalText(value, {
+editing })` and `optionalNumber(value, { editing })`. A blank box is
+`undefined` on create (leave the default) and **`null` on edit** (clear what is
+stored); an unparseable number is omitted rather than sent as `NaN`. Seven
+forms had their own copy of this, and most sent `undefined` on edit, so
+emptying a phone number saved "successfully" and changed nothing. Never write
+a private `optional()` again.
+
+**Who counts as a broker is `BROKER_ROLES` in `src/lib/roles.js`.** Every
+broker picker and filter imports it. Eight hand-written copies disagreed about
+whether an admin owns clients.
 
 ## Pagination is server-side
 

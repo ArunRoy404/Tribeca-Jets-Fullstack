@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
+import { TripsService } from '../trips/trips.service.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -81,6 +82,8 @@ const AIRCRAFT_SELECT = {
   lastAnnualAt: true,
   nextInspectionDueAt: true,
   notes: true,
+  exteriorImageUrl: true,
+  interiorImageUrl: true,
   createdAt: true,
   createdById: true,
   updatedAt: true,
@@ -98,16 +101,14 @@ const AIRCRAFT_DETAIL_SELECT = {
 } satisfies Prisma.AircraftSelect;
 
 /**
- * Columns the UI shows that nothing can supply yet.
+ * The one column the UI shows that nothing can supply yet.
  *
- * All three are aggregates over trips, which do not exist. Null rather than 0,
- * because a confident "0 trips" against a tail the desk has flown twelve times
- * is a wrong answer and null lets the UI render an honest em dash. They become
- * real counts when the Trips module lands — see AGENTS.md on build order.
+ * `avgUtilization` needs flight hours per tail, which no module records —
+ * trips carry departure days, not block times. Null rather than 0, so the page
+ * renders an em dash. `totalTrips` and `tripsThisYear` were here too until
+ * Trips shipped; they are real counts now (see `withTrips`).
  */
 const UNAVAILABLE_AGGREGATES = {
-  totalTrips: null,
-  tripsThisYear: null,
   avgUtilization: null,
 } as const;
 
@@ -143,7 +144,24 @@ export class AircraftService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    // Trips owns its table; the counts come through its service. The second
+    // pass Trips (#11) owed this module — see AGENTS.md on build order.
+    private readonly trips: TripsService,
   ) {}
+
+  /**
+   * Real trip counts for these tails, from one grouped query rather than one
+   * per row. Cancelled trips are not counted: a tail did not fly a charter
+   * that was called off.
+   */
+  private async withTrips<T extends { id: string }>(rows: T[]) {
+    const counts = await this.trips.countByAircraft(rows.map((row) => row.id));
+    return rows.map((row) => ({
+      ...row,
+      totalTrips: counts.get(row.id)?.total ?? 0,
+      tripsThisYear: counts.get(row.id)?.thisYear ?? 0,
+    }));
+  }
 
   /**
    * `cabinLengthFt` is a Prisma Decimal, which serialises to a string.
@@ -261,7 +279,7 @@ export class AircraftService {
     ]);
 
     return paginate(
-      rows.map((row) => this.serialise(row)),
+      await this.withTrips(rows.map((row) => this.serialise(row))),
       total,
       query.page,
       query.limit,
@@ -281,13 +299,12 @@ export class AircraftService {
     });
     if (!row) throw new NotFoundException('Aircraft not found');
 
-    return {
-      ...this.serialise(row),
-      // The detail page's Trips tab reads this. An empty array rather than an
-      // omitted key, so the tab renders its own empty state instead of
-      // crashing on undefined.
-      tripHistory: [],
-    };
+    // The Trips tab pages this tail's trips from `GET /trips?aircraftId=`
+    // itself. The empty `tripHistory` array that stood in for it until Trips
+    // shipped is gone — left in place it would be a wrong answer, "no trips",
+    // about a tail with bookings on it.
+    const [withCounts] = await this.withTrips([this.serialise(row)]);
+    return withCounts;
   }
 
   /**
@@ -311,7 +328,7 @@ export class AircraftService {
       orderBy: { tailNumber: 'asc' },
       take: 100,
     });
-    return rows.map((row) => this.serialise(row));
+    return this.withTrips(rows.map((row) => this.serialise(row)));
   }
 
   /** Every live aircraft across the fleet, for the operators stats tile. */

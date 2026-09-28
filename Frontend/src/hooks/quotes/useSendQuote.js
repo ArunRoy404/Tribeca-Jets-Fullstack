@@ -9,9 +9,11 @@ import { toastApiError, toastSuccess } from "@/lib/toast";
 /**
  * Marks a quote as sent, and moves the enquiry behind it to QUOTED.
  *
- * **Nothing is emailed.** The toast says "marked as sent" rather than "sent to
- * the client" on purpose — no delivery exists until Email Templates (#21), and
- * a broker who believes a quote went out when it did not will not chase it.
+ * **Nothing is emailed here.** Emailing is its own act — `useSendEmail`
+ * through the shared compose form (Email Templates, #21), which calls this
+ * once a mail server accepts the email. The toast says "marked as sent" on
+ * purpose: a broker who believes a quote went out when it did not will not
+ * chase it.
  */
 export function useSendQuote() {
   return useMutation({

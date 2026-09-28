@@ -34,6 +34,8 @@ const SESSION_HINT_COOKIES = ["tj_access", "tj_csrf"];
 
 const SIGN_IN = "/sign-in";
 const DASHBOARD = "/dashboard";
+/** The referral partner portal (#11) — signed-in only, exactly like the CRM. */
+const PORTAL = "/portal";
 
 /**
  * Only the *entry* screens bounce a signed-in user away.
@@ -51,8 +53,11 @@ export function proxy(request) {
     request.cookies.has(name),
   );
 
-  const isProtected =
-    pathname === DASHBOARD || pathname.startsWith(`${DASHBOARD}/`);
+  // Which of the two a signed-in user may use is decided by role, which a
+  // cookie cannot tell us — the layouts settle that once `/auth/me` answers.
+  const isProtected = [DASHBOARD, PORTAL].some(
+    (area) => pathname === area || pathname.startsWith(`${area}/`),
+  );
 
   // No session at all: redirect before the route renders, so no server
   // component runs and nothing reaches the RSC payload.
@@ -65,7 +70,8 @@ export function proxy(request) {
     return NextResponse.redirect(url);
   }
 
-  // Already signed in: skip the sign-in screen.
+  // Already signed in: skip the sign-in screen. A referral agent sent here is
+  // moved on to the portal by the dashboard layout.
   if (AUTH_ENTRY_ROUTES.has(pathname) && hasSessionHint) {
     const url = request.nextUrl.clone();
     url.pathname = DASHBOARD;
@@ -79,5 +85,5 @@ export function proxy(request) {
 export const config = {
   // Explicit paths rather than a catch-all with negative lookaheads: nothing
   // here can accidentally intercept `/api`, `_next`, or files in `public/`.
-  matcher: ["/dashboard", "/dashboard/:path*", "/sign-in", "/forgot-password"],
+  matcher: ["/dashboard", "/dashboard/:path*", "/portal", "/portal/:path*", "/sign-in", "/forgot-password"],
 };

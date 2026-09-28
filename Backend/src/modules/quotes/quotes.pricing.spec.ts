@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { priceQuote, readLineItems } from './quotes.pricing.js';
+import { priceQuote, readLineItems, suggestBasePrice } from './quotes.pricing.js';
 
 const base = {
   basePrice: 79500,
@@ -107,5 +107,28 @@ describe('readLineItems', () => {
   it('survives a column that is not an array at all', () => {
     expect(readLineItems(null)).toEqual([]);
     expect(readLineItems({ label: 'x' })).toEqual([]);
+  });
+});
+
+describe('suggestBasePrice', () => {
+  it('puts the markup on top of the operator cost', () => {
+    expect(suggestBasePrice(65000, 0.15)).toBe(74750);
+    expect(suggestBasePrice(65000, 0.2)).toBe(78000);
+  });
+
+  it('suggests the cost itself at a zero markup', () => {
+    expect(suggestBasePrice(42100, 0)).toBe(42100);
+  });
+
+  it('rounds to the cent rather than carrying float noise', () => {
+    // 1234.56 * 1.1 is 1358.0160000000001 in floating point.
+    expect(suggestBasePrice(1234.56, 0.1)).toBe(1358.02);
+  });
+
+  it('feeds priceQuote like a typed price, so FET lands on the suggestion', () => {
+    const priced = priceQuote({ ...base, basePrice: suggestBasePrice(65000, 0.15) });
+    expect(priced.basePrice).toBe(74750);
+    expect(priced.fetAmount).toBe(5606.25);
+    expect(priced.totalPrice).toBe(80356.25);
   });
 });

@@ -9,7 +9,16 @@ export default function PickerSelect({ value, onChange, options = [], placeholde
   );
 
   return (
-    <Select value={value || undefined} onValueChange={(val) => onChange && onChange(val)}>
+    // `items` is what lets Base UI's `SelectValue` resolve the selected
+    // option's label — without it, the trigger falls back to printing the
+    // raw `value` (an id, for every picker in this app) once something is
+    // selected, since it has no other way to map a value back to a label
+    // once the popup's `SelectItem` children are closed/unmounted.
+    <Select
+      items={normalizedOptions}
+      value={value || undefined}
+      onValueChange={(val) => onChange && onChange(val)}
+    >
       <SelectTrigger
         className={cn(
           "h-13 w-full rounded-sm bg-white px-4 font-montserrat text-base font-medium border-input cursor-pointer",

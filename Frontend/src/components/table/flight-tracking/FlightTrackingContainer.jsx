@@ -2,95 +2,78 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, RefreshCw, ExternalLink } from "lucide-react";
+import { Eye, ExternalLink } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
-import { useFlightTrackingStore, FLIGHT_TRACKING_PAGE_SIZE } from "@/store/useFlightTrackingStore";
 import TablePagination from "@/components/table/common/TablePagination";
+import TableStatus from "@/components/table/common/TableStatus";
 import FlightTrackingToolbar from "./FlightTrackingToolbar";
 import FlightTrackingCardsContainer from "./FlightTrackingCardsContainer";
 import FlightTrackingTable from "./FlightTrackingTable";
+import { useFlights } from "@/hooks/flight-tracking";
+import { toFlightRow } from "@/lib/flight";
+import { toISODate } from "@/lib/date";
 
-export default function FlightTrackingContainer({ revealDelay = 0 }) {
+/**
+ * The flight board, API-backed: one row per trip leg, nearest first, with the
+ * state the desk last reported. The server pages; the URL is the state.
+ */
+export default function FlightTrackingContainer({ params, revealDelay = 0 }) {
   const router = useRouter();
-  const flights = useFlightTrackingStore((s) => s.flights);
-  const search = useFlightTrackingStore((s) => s.search);
-  const setSearch = useFlightTrackingStore((s) => s.setSearch);
-  const statusFilter = useFlightTrackingStore((s) => s.statusFilter);
-  const setStatusFilter = useFlightTrackingStore((s) => s.setStatusFilter);
-  const page = useFlightTrackingStore((s) => s.page);
-  const nextPage = useFlightTrackingStore((s) => s.nextPage);
-  const prevPage = useFlightTrackingStore((s) => s.prevPage);
-  const selectFlight = useFlightTrackingStore((s) => s.selectFlight);
+  // The browser's own day decides what "today" and "upcoming" mean.
+  const request = { ...params?.queryParams, on: toISODate(new Date()) };
+  const { data, isPending, error, refetch } = useFlights(request);
 
-  const filteredFlights = useMemo(() => {
-    const query = (search ?? "").trim().toLowerCase();
-    return (flights ?? []).filter((f) => {
-      if (statusFilter !== "All" && f?.flightStatus !== statusFilter) return false;
-      if (
-        query &&
-        !`${f?.id} ${f?.client} ${f?.tailNumber} ${f?.aircraft} ${f?.operator} ${f?.origin} ${f?.destination}`
-          .toLowerCase()
-          .includes(query)
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [flights, search, statusFilter]);
+  const rows = useMemo(() => (data?.data ?? []).map(toFlightRow), [data?.data]);
+  const meta = data?.meta;
+  const isEmpty = !isPending && !error && rows.length === 0;
+  const open = (id) => params?.setFlight?.(id);
 
-  const pageCount = Math.max(1, Math.ceil((filteredFlights?.length ?? 0) / FLIGHT_TRACKING_PAGE_SIZE));
-  const pageFlights = useMemo(() => {
-    const start = (page - 1) * FLIGHT_TRACKING_PAGE_SIZE;
-    return filteredFlights?.slice(start, start + FLIGHT_TRACKING_PAGE_SIZE);
-  }, [filteredFlights, page]);
-  const filteredCount = filteredFlights?.length ?? 0;
-
-  const getRowActions = (f) => [
-    { label: "View Flight Tracking", icon: <Eye />, onSelect: () => selectFlight?.(f?.id) },
-    { label: "Refresh Tracking", icon: <RefreshCw /> },
+  const getRowActions = (row) => [
+    { label: "View Flight Updates", icon: <Eye />, onSelect: () => open(row?.id) },
     "separator",
     {
       label: "View Trip Record",
       icon: <ExternalLink />,
-      onSelect: () => router?.push(`/dashboard/trips/${encodeURIComponent(f?.id?.replace("#", "") ?? "")}`),
+      onSelect: () => row?.tripId && router.push(`/dashboard/trips/${row.tripId}`),
     },
   ];
 
   return (
     <Reveal delay={revealDelay} className="w-full">
       <CommonCard variant="default" className="p-0 rounded-md overflow-hidden border-border w-full">
-        <FlightTrackingToolbar
-          search={search}
-          setSearch={setSearch}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-        />
+        <FlightTrackingToolbar params={params} />
 
-        <div className="relative w-full lg:hidden">
-          <FlightTrackingCardsContainer
-            flights={pageFlights}
-            getRowActions={getRowActions}
-            onSelectFlight={selectFlight}
+        {isPending || error || isEmpty ? (
+          <TableStatus
+            isLoading={isPending}
+            error={error}
+            isEmpty={isEmpty}
+            emptyMessage="No flights under these filters"
+            emptyHint={params?.hasFilters ? "Try clearing a filter." : "Every leg of a booked trip appears here."}
+            onRetry={refetch}
           />
-        </div>
+        ) : (
+          <>
+            <div className="relative w-full lg:hidden">
+              <FlightTrackingCardsContainer flights={rows} getRowActions={getRowActions} onSelectFlight={open} />
+            </div>
 
-        <FlightTrackingTable
-          pageFlights={pageFlights}
-          onSelectFlight={selectFlight}
-          getRowActions={getRowActions}
-        />
+            <FlightTrackingTable pageFlights={rows} onSelectFlight={open} getRowActions={getRowActions} />
 
-        <div className="relative w-full">
-          <TablePagination
-            totalCount={filteredCount}
-            itemLabel="flights"
-            page={page}
-            pageCount={pageCount}
-            onPrev={prevPage}
-            onNext={nextPage}
-          />
-        </div>
+            <div className="relative w-full">
+              <TablePagination
+                totalCount={meta?.total ?? 0}
+                itemLabel="flights"
+                page={meta?.page ?? 1}
+                pageCount={meta?.totalPages ?? 1}
+                onPageChange={(next) => params?.goToPage?.(next, meta?.totalPages ?? 1)}
+                onPrev={() => params?.goToPage?.((meta?.page ?? 1) - 1, meta?.totalPages ?? 1)}
+                onNext={() => params?.goToPage?.((meta?.page ?? 1) + 1, meta?.totalPages ?? 1)}
+              />
+            </div>
+          </>
+        )}
       </CommonCard>
     </Reveal>
   );

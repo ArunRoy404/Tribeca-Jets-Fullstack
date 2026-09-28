@@ -21,6 +21,7 @@ import re
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
+from collection_order import place_folder
 
 BASE = 'http://localhost:4000/api'
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
@@ -65,6 +66,14 @@ class Session:
 
 def example(name: str, method: str, path: str, status: int, body, req_body=None):
     """One Postman response example, carrying the request that produced it."""
+    # A captured example is not an assertion — Newman never compares a label
+    # with the response stored beside it — so the builder refuses to write one
+    # that disagrees. The fix is always the request, never the label.
+    promised = name.split(' ', 1)[0]
+    if promised.isdigit() and int(promised) != status:
+        raise SystemExit(
+            f'refusing to write example {name!r}: the request returned {status}, '
+            f'not {promised}. Fix the request that captures it.')
     original = {
         'method': method,
         'header': [],
@@ -145,7 +154,12 @@ CREATE_BODY = """{
   "lastAnnualAt": "2026-01-20",                        // optional
   "nextInspectionDueAt": "2026-11-15",                 // optional
 
-  "notes": "Cabin refurbished 2025."                   // optional · max 2000 chars
+  "notes": "Cabin refurbished 2025.",                  // optional · max 2000 chars
+
+  // The fleet's photos (client adjustment #3). Upload first with
+  // POST /uploads/image (folder 11), then send the relative URL it returned.
+  "exteriorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000001", // optional · exactly /api/uploads/<uuid>. An absolute or external URL is a 400 — it would pin a host into the row, or serve an image this API never checked.
+  "interiorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000002"  // optional · same rule
 }"""
 
 UPDATE_BODY = """{
@@ -157,7 +171,8 @@ UPDATE_BODY = """{
 
   // `null` clears a field; omitting it leaves the stored value alone. The two
   // are different instructions and the API treats them that way.
-  "cruiseSpeed": null
+  "cruiseSpeed": null,
+  "interiorImageUrl": null                             // removes the interior photo; the uploaded file itself is kept
 }"""
 
 
@@ -186,6 +201,8 @@ def build(owner: Session, assistant: Session) -> dict:
         'amenities': ['WiFi', 'Full Galley', 'Private Lavatory'],
         'lastInspectionAt': '2026-07-15', 'lastAnnualAt': '2026-01-20',
         'nextInspectionDueAt': '2026-11-15', 'notes': 'Cabin refurbished 2025.',
+        'exteriorImageUrl': '/api/uploads/00000000-0000-4000-8000-000000000001',
+        'interiorImageUrl': '/api/uploads/00000000-0000-4000-8000-000000000002',
     }
 
     cap = {}
@@ -215,12 +232,17 @@ def build(owner: Session, assistant: Session) -> dict:
         'tailNumber': 'N404OP', 'model': 'Citation XLS',
         'category': 'MIDSIZE_JET', 'operatorId': missing,
     })
+    cap['create_400_image'] = owner.request('POST', '/aircraft', {
+        'tailNumber': 'N404PX', 'model': 'Citation XLS', 'category': 'MIDSIZE_JET',
+        'exteriorImageUrl': 'https://example.com/xls.jpg',
+    })
     cap['create_403'] = assistant.request('POST', '/aircraft', create_payload)
 
     cap['update'] = owner.request('PATCH', f'/aircraft/{new_id}', {
         'status': 'MAINTENANCE',
         'notes': 'AOG at KTEB — awaiting a hydraulic pump.',
         'cruiseSpeed': None,
+        'interiorImageUrl': None,
     })
     cap['update_400'] = owner.request('PATCH', f'/aircraft/{new_id}', {})
 
@@ -393,6 +415,9 @@ def build(owner: Session, assistant: Session) -> dict:
                 example('409 · Tail number already in use', 'POST', '/aircraft', *cap['create_409']),
                 example('400 · Validation failed', 'POST', '/aircraft', *cap['create_400']),
                 example('400 · Operator does not exist', 'POST', '/aircraft', *cap['create_400_operator']),
+                example('400 · Photo is not an upload URL', 'POST', '/aircraft', *cap['create_400_image'],
+                        req_body={'tailNumber': 'N404PX', 'model': 'Citation XLS', 'category': 'MIDSIZE_JET',
+                                  'exteriorImageUrl': 'https://example.com/xls.jpg'}),
                 example('403 · Role may read but not write', 'POST', '/aircraft', *cap['create_403']),
             ],
             'event': [
@@ -400,9 +425,24 @@ def build(owner: Session, assistant: Session) -> dict:
                     '// A tail this run has not used before. An archived tail number',
                     '// stays reserved (see the 409 example), so a fixed one would',
                     '// collide on the second run instead of exercising the endpoint.',
-                    "let tail = 'N' + (100 + Math.floor(Math.random() * 900));",
-                    "tail += 'QXZ'[Math.floor(Math.random() * 3)] + 'T';",
+                    '// Drawn from the clock rather than Math.random: 2,700 random tails',
+                    '// against a growing pile of archived probes collide sooner or later.',
+                    "const tail = 'T' + Date.now().toString(36).toUpperCase().slice(-8);",
                     "pm.collectionVariables.set('newAircraftTail', tail);",
+                    '',
+                    '// The operator and home base come from live rows, not from folders',
+                    '// 05 and 06 having run first — a folder must pass on its own.',
+                    "const base = pm.collectionVariables.get('baseUrl');",
+                    "pm.sendRequest({ url: base + '/operators?limit=1', method: 'GET' }, function (err, res) {",
+                    '    if (!err && res.code === 200 && res.json().data.length) {',
+                    "        pm.collectionVariables.set('operatorId', res.json().data[0].id);",
+                    '    }',
+                    '});',
+                    "pm.sendRequest({ url: base + '/airports?limit=1', method: 'GET' }, function (err, res) {",
+                    '    if (!err && res.code === 200 && res.json().data.length) {',
+                    "        pm.collectionVariables.set('airportId', res.json().data[0].id);",
+                    '    }',
+                    '});',
                 ]),
                 script('test', [
                     '// The update, remove and restore requests below operate on this',
@@ -569,8 +609,7 @@ def main() -> None:
     folder = build(owner, assistant)
     folder['event'] = json.loads(json.dumps(operators['event']))
 
-    collection['item'] = [f for f in collection['item'] if not f['name'].startswith('07 · Aircraft')]
-    collection['item'].append(folder)
+    place_folder(collection, folder)
 
     existing = {v['key'] for v in collection['variable']}
     for key in ('aircraftId', 'newAircraftId', 'newAircraftTail'):

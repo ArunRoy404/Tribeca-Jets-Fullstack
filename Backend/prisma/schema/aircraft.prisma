@@ -89,8 +89,22 @@ model Aircraft {
   /// What the desk needs to remember when quoting this tail.
   notes String?
 
+  /// The fleet's own photographs (client adjustment #3): relative
+  /// `/api/uploads/<id>` URLs, never absolute — see AGENTS.md on uploads.
+  /// Two, because that is what gets shown: the quote carries an exterior shot
+  /// and the itinerary an exterior and an interior. Named like
+  /// `Quote.exteriorImageUrl` so a photo moves between them without a mapping.
+  exteriorImageUrl String?
+  interiorImageUrl String?
+
   /// Client quotes offering this tail.
   quotes Quote[] @relation("QuoteAircraft")
+
+  /// Trips flown on this tail. Feeds totalTrips, tripsThisYear and the Trips tab.
+  trips Trip[] @relation("TripAircraft")
+
+  /// Empty legs flown on this tail (#10b).
+  emptyLegs EmptyLeg[] @relation("EmptyLegAircraft")
 
   // ---- Audit trail (every model carries these four) ------------------------
   /// Quotes offered on this tail. Nullable on the quote side: operators fly

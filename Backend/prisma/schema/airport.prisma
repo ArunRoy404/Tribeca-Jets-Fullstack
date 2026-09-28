@@ -50,8 +50,14 @@ model Airport {
   destinationRequests TripRequest[] @relation("TripRequestDestination")
 
   /// Quotes routing through here, in each direction.
-  originQuotes      Quote[] @relation("QuoteOrigin")
-  destinationQuotes Quote[] @relation("QuoteDestination")
+  originQuotes        Quote[]   @relation("QuoteOrigin")
+  destinationQuotes   Quote[]   @relation("QuoteDestination")
+  originTripLegs      TripLeg[] @relation("TripLegOrigin")
+  destinationTripLegs TripLeg[] @relation("TripLegDestination")
+  originEmptyLegs      EmptyLeg[] @relation("EmptyLegOrigin")
+  destinationEmptyLegs EmptyLeg[] @relation("EmptyLegDestination")
+  originReferrals      Referral[] @relation("ReferralOrigin")
+  destinationReferrals Referral[] @relation("ReferralDestination")
 
   // ---- Audit trail (every model carries these four) ------------------------
   createdAt   DateTime @default(now())

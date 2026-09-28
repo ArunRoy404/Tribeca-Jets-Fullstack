@@ -7,7 +7,7 @@ import { useDecideQuote, useOperatorQuotes } from "@/hooks/operator-quotes";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Permission } from "@/lib/permissions";
 import { toQuoteRow, toSourcingRow } from "@/lib/sourcing";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import DetailSheet from "@/components/common/DetailSheet";
 import StatusBadge from "@/components/common/StatusBadge";
 import DetailField from "@/components/common/DetailField";
 import SectionCard from "@/components/common/SectionCard";
@@ -48,105 +48,104 @@ export default function SourcingRequestDetailSheet() {
   const { mutate: decide, isPending: isDeciding } = useDecideQuote();
 
   return (
-    <Sheet
+    <DetailSheet
       open={Boolean(selectedRequestId)}
       onOpenChange={(open) => !open && closeRequestDetail()}
+      resetKey={selectedRequestId}
     >
-      <SheetContent className="data-[side=right]:w-full sm:data-[side=right]:max-w-175 gap-4 p-6 overflow-y-auto">
-        {(isPending || error) && (
-          <TableStatus isLoading={isPending} error={error} onRetry={refetch} />
-        )}
+      {(isPending || error) && (
+        <TableStatus isLoading={isPending} error={error} onRetry={refetch} />
+      )}
 
-        {request && (
-          <>
-            <div className="border-b border-secondary flex items-start justify-between pb-4 w-full">
-              <div className="flex flex-col gap-2 items-start">
-                <div className="flex gap-2 items-center">
-                  <p className="font-montserrat font-bold text-[20px] text-black-text">
-                    {request.reference}
-                  </p>
-                  {request.stage !== "—" && (
-                    <StatusBadge status={request.stage} bordered />
-                  )}
-                </div>
-                <p className="font-montserrat font-normal text-[12px] text-muted-foreground">
-                  {request.client}
-                  {request.broker !== "Unassigned" && ` · ${request.broker}`}
+      {request && (
+        <>
+          <div className="border-b border-secondary flex items-start justify-between pb-4 w-full">
+            <div className="flex flex-col gap-2 items-start">
+              <div className="flex gap-2 items-center">
+                <p className="font-montserrat font-bold text-[20px] text-black-text">
+                  {request.reference}
                 </p>
+                {request.stage !== "—" && (
+                  <StatusBadge status={request.stage} bordered />
+                )}
               </div>
-            </div>
-
-            <FlightRouteStrip
-              from={request.from}
-              to={request.to}
-              departureLabel={request.departure}
-            />
-
-            <SectionCard>
-              <div className="flex gap-4 w-full">
-                <DetailField label="BUDGET" value={request.budget} labelClassName="text-[14px]" />
-                <DetailField label="AIRCRAFT" value={request.aircraftNeeded} labelClassName="text-[14px]" />
-              </div>
-              <div className="flex gap-4 w-full">
-                <DetailField label="DEPARTURE" value={request.departure} labelClassName="text-[14px]" />
-                <DetailField label="QUOTE DEADLINE" value={request.deadline} labelClassName="text-[14px]" />
-              </div>
-              <div className="flex gap-4 w-full">
-                <DetailField label="OPERATORS ASKED" value={String(request.operatorsContacted)} labelClassName="text-[14px]" />
-                <DetailField label="BEST PRICE" value={request.bestPrice} labelClassName="text-[14px]" />
-              </div>
-            </SectionCard>
-
-            <div className="flex items-center justify-between w-full">
-              <p className="font-montserrat font-bold text-[16px] text-foreground">
-                OPERATOR QUOTES ({quotes.length})
+              <p className="font-montserrat font-normal text-[12px] text-muted-foreground">
+                {request.client}
+                {request.broker !== "Unassigned" && ` · ${request.broker}`}
               </p>
-              {/* Hidden rather than disabled for a role that cannot source. */}
-              {mayWrite && !request.isArchived && (
-                <button
-                  type="button"
-                  onClick={() => openQuoteRequest(request.id)}
-                  className="flex gap-1 items-center cursor-pointer"
-                >
-                  <Send className="size-4 text-purple" />
-                  <p className="font-montserrat font-bold text-[12px] text-purple whitespace-nowrap">
-                    Ask an Operator
-                  </p>
-                </button>
-              )}
             </div>
+          </div>
 
-            <div className="flex flex-col gap-4 items-start w-full">
-              {quotes.map((quote) => (
-                <QuoteCard
-                  key={quote.id}
-                  quote={quote}
-                  mayWrite={mayWrite}
-                  isDeciding={isDeciding}
-                  onApprove={() =>
-                    decide({ id: quote.id, action: "approve" })
-                  }
-                  onReject={() => decide({ id: quote.id, action: "reject" })}
-                  onReopen={() => decide({ id: quote.id, action: "reopen" })}
-                />
-              ))}
-              {quotes.length === 0 && !quotesQuery.isPending && (
-                <p className="font-montserrat text-[12px] text-muted-foreground py-4 text-center w-full">
-                  No operator quotes yet — ask an operator to get started.
-                </p>
-              )}
+          <FlightRouteStrip
+            from={request.from}
+            to={request.to}
+            departureLabel={request.departure}
+          />
+
+          <SectionCard>
+            <div className="flex gap-4 w-full">
+              <DetailField label="BUDGET" value={request.budget} labelClassName="text-[14px]" />
+              <DetailField label="AIRCRAFT" value={request.aircraftNeeded} labelClassName="text-[14px]" />
             </div>
+            <div className="flex gap-4 w-full">
+              <DetailField label="DEPARTURE" value={request.departure} labelClassName="text-[14px]" />
+              <DetailField label="QUOTE DEADLINE" value={request.deadline} labelClassName="text-[14px]" />
+            </div>
+            <div className="flex gap-4 w-full">
+              <DetailField label="OPERATORS ASKED" value={String(request.operatorsContacted)} labelClassName="text-[14px]" />
+              <DetailField label="BEST PRICE" value={request.bestPrice} labelClassName="text-[14px]" />
+            </div>
+          </SectionCard>
 
-            {request.notes && (
-              <SectionCard title="Requirements" titleClassName="text-foreground">
-                <p className="font-montserrat font-normal text-[14px] text-muted-foreground w-full">
-                  {request.notes}
+          <div className="flex items-center justify-between w-full">
+            <p className="font-montserrat font-bold text-[16px] text-foreground">
+              OPERATOR QUOTES ({quotes.length})
+            </p>
+            {/* Hidden rather than disabled for a role that cannot source. */}
+            {mayWrite && !request.isArchived && (
+              <button
+                type="button"
+                onClick={() => openQuoteRequest(request.id)}
+                className="flex gap-1 items-center cursor-pointer"
+              >
+                <Send className="size-4 text-purple" />
+                <p className="font-montserrat font-bold text-[12px] text-purple whitespace-nowrap">
+                  Ask an Operator
                 </p>
-              </SectionCard>
+              </button>
             )}
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
+          </div>
+
+          <div className="flex flex-col gap-4 items-start w-full">
+            {quotes.map((quote) => (
+              <QuoteCard
+                key={quote.id}
+                quote={quote}
+                mayWrite={mayWrite}
+                isDeciding={isDeciding}
+                onApprove={() =>
+                  decide({ id: quote.id, action: "approve" })
+                }
+                onReject={() => decide({ id: quote.id, action: "reject" })}
+                onReopen={() => decide({ id: quote.id, action: "reopen" })}
+              />
+            ))}
+            {quotes.length === 0 && !quotesQuery.isPending && (
+              <p className="font-montserrat text-[12px] text-muted-foreground py-4 text-center w-full">
+                No operator quotes yet — ask an operator to get started.
+              </p>
+            )}
+          </div>
+
+          {request.notes && (
+            <SectionCard title="Requirements" titleClassName="text-foreground">
+              <p className="font-montserrat font-normal text-[14px] text-muted-foreground w-full">
+                {request.notes}
+              </p>
+            </SectionCard>
+          )}
+        </>
+      )}
+    </DetailSheet>
   );
 }

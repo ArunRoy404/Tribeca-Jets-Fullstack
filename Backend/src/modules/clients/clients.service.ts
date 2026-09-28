@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
+import { TripsService } from '../trips/trips.service.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -102,6 +103,19 @@ const CLIENT_DETAIL_SELECT = {
   originatingBroker: {
     select: { id: true, firstName: true, lastName: true, email: true },
   },
+  /**
+   * #11's "Referral Source: [agent]" — read from the referral this client
+   * was converted from, so correcting the agent's name corrects it here.
+   */
+  referrals: {
+    where: { deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      reference: true,
+      agent: { select: { id: true, firstName: true, lastName: true } },
+    },
+  },
 } satisfies Prisma.ClientSelect;
 
 /**
@@ -141,6 +155,9 @@ export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    // Trips (#11)'s second pass: the roster's active-trip counts. One-way —
+    // trips never imports this module.
+    private readonly trips: TripsService,
   ) {}
 
   /**
@@ -229,16 +246,102 @@ export class ClientsService {
     return client;
   }
 
-  /** The same scoped lookup, but only for a live row. Guards every write. */
+  /**
+   * The same scoped lookup, but only for a live row. Guards every write.
+   *
+   * Returns the two links `update` compares against, so it can tell a field
+   * the edit form merely resent from one that is actually changing.
+   */
   private async findLive(user: AuthenticatedUser, id: string) {
     const client = await this.prisma.client.findFirst({
       where: { id, deletedAt: null, ...this.visibilityScope(user) },
-      select: { id: true },
+      select: { id: true, assignedBrokerId: true, homeAirportId: true },
     });
     if (!client) {
       throw new NotFoundException('Client not found');
     }
     return client;
+  }
+
+  /**
+   * A scoped existence check for another module, returning only a display
+   * name.
+   *
+   * The notes timeline hangs off a `subjectId` that no foreign key can check,
+   * because a note's subject is a client today and a trip tomorrow. So the
+   * check happens here instead, through the service that owns the row — which
+   * is what makes "you may read this note if you may read its client" true
+   * rather than merely intended: the broker scope above is applied once, and
+   * notes inherit it without re-deriving it.
+   *
+   * Archived clients resolve, matching `findOne`: their detail page still
+   * opens, and a timeline that emptied itself on archive would lose the entries
+   * explaining why the record was archived. `archived` comes back with them so
+   * the caller can allow the read and still refuse a write, which is the same
+   * split `findOne` and `findLive` make here.
+   */
+  async subjectRef(
+    user: AuthenticatedUser,
+    id: string,
+  ): Promise<{ id: string; label: string; archived: boolean }> {
+    const client = await this.prisma.client.findFirst({
+      where: { id, ...this.visibilityScope(user) },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        companyName: true,
+        deletedAt: true,
+      },
+    });
+    // 404 and not 403, like findOne: a 403 would confirm the client exists.
+    if (!client) throw new NotFoundException('Client not found');
+
+    return {
+      id: client.id,
+      label:
+        client.companyName ?? `${client.firstName} ${client.lastName}`.trim(),
+      archived: client.deletedAt !== null,
+    };
+  }
+
+  /**
+   * The client as an email recipient (Email Templates, #21): the address on
+   * file and the names the merge fields use, within the caller's scope — or
+   * 404, like `findOne`. `email` is null when none is on file; the caller
+   * says so rather than inventing one.
+   */
+  async emailRecipient(user: AuthenticatedUser, id: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { id, ...this.visibilityScope(user) },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        companyName: true,
+        email: true,
+        deletedAt: true,
+      },
+    });
+    if (!client) throw new NotFoundException('Client not found');
+    const person = `${client.firstName} ${client.lastName}`.trim();
+    return {
+      id: client.id,
+      name: client.companyName ?? person,
+      firstName: client.firstName || null,
+      email: client.email ?? null,
+      archived: client.deletedAt !== null,
+    };
+  }
+
+  /**
+   * Row-level client visibility as a `where`, for a module whose rows hang
+   * off a client and inherit its scope — the sent-email log shows an email
+   * exactly when the caller may read its client. Mirrors
+   * `TripsService.visibleWhere`.
+   */
+  visibleWhere(user: AuthenticatedUser): Prisma.ClientWhereInput {
+    return this.visibilityScope(user);
   }
 
   /**
@@ -301,12 +404,29 @@ export class ClientsService {
 
   async update(user: AuthenticatedUser, id: string, input: UpdateClientInput) {
     // Reuses the scoped read, so an out-of-scope id 404s before any write.
-    await this.findLive(user, id);
-    await this.assertHomeAirport(input.homeAirportId);
+    const current = await this.findLive(user, id);
 
-    // Reassigning a client is an admin action; a broker must not be able to
-    // hand their own client to someone else or claim another's.
-    if (input.assignedBrokerId && user.role === UserRole.BROKER) {
+    // Only a link that is actually changing is checked. The edit form resends
+    // every field, so checking unconditionally meant a client whose home
+    // airport was archived later could not be edited at all.
+    if (
+      input.homeAirportId !== undefined &&
+      input.homeAirportId !== current.homeAirportId
+    ) {
+      await this.assertHomeAirport(input.homeAirportId);
+    }
+
+    // Reassigning a client is for a role that holds the whole book; a broker
+    // must not hand their own client to someone else or claim another's.
+    //
+    // Compared against the stored value, not merely present: the edit form
+    // resends the broker it already has, and treating that as a reassignment
+    // refused every edit a broker made to their own client.
+    if (
+      input.assignedBrokerId !== undefined &&
+      input.assignedBrokerId !== current.assignedBrokerId &&
+      scopeFor(user.role, Permission.MANAGE_CLIENTS) !== Scope.ALL
+    ) {
       throw new ForbiddenException('Only administrators can reassign a client');
     }
 
@@ -478,6 +598,7 @@ export class ClientsService {
     const activeLeads = countsFor(leadRows);
     const convertedLeads = countsFor(wonRows);
     const followUpsDue = countsFor(followUpRows);
+    const activeTrips = await this.trips.activeCountByBroker(brokers.map((broker) => broker.id));
 
     return brokers.map((broker) => {
       const active = activeLeads.get(broker.id) ?? 0;
@@ -507,9 +628,10 @@ export class ClientsService {
           broker.maxActiveLeads && broker.maxActiveLeads > 0
             ? Math.round((active / broker.maxActiveLeads) * 100)
             : null,
-        // An aggregate over trips, which do not exist yet. Null so the roster
-        // renders an em dash rather than claiming a broker has flown nobody.
-        activeTrips: null,
+        // Trips (#11)'s second pass: live trips not yet completed or
+        // cancelled. Zero is a real answer now — the broker genuinely has
+        // none on the board.
+        activeTrips: activeTrips.get(broker.id) ?? 0,
       };
     });
   }

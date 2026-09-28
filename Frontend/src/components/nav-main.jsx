@@ -19,7 +19,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const navSections = [
+const CRM_SECTIONS = [
   {
     label: "Operations",
     items: [
@@ -36,6 +36,12 @@ const navSections = [
     items: [
       { label: "Clients", icon: "nav-clients", href: "/dashboard/clients" },
       { label: "Leads & Agents", icon: "nav-leads-agents", href: "/dashboard/leads-agents" },
+      // Between leads and quotes because that is the order of the pipeline:
+      // someone becomes a client, asks for something, and then gets a price.
+      { label: "Trip Requests", icon: "nav-trips", href: "/dashboard/trip-requests" },
+      // Where the partner portal's submissions arrive (#11). Beside trip
+      // requests because converting one creates a trip request.
+      { label: "Referrals", icon: "nav-leads-agents", href: "/dashboard/referrals" },
       { label: "Quotes", icon: "nav-quotes", href: "/dashboard/quotes" },
       { label: "Email Templates", icon: "nav-email-templates", href: "/dashboard/email-templates" },
     ],
@@ -71,9 +77,18 @@ const navSections = [
   },
 ];
 
-export function NavMain() {
+const CRM_HOME = { label: "Dashboard", icon: "nav-dashboard", href: "/dashboard" };
+
+/**
+ * The sidebar's links: a home entry, then collapsible sections.
+ *
+ * Both are optional and default to the CRM's, so the dashboard renders exactly
+ * as before; the partner portal (#11) passes its own five items. One menu
+ * component for both shells, rather than a second copy of this markup.
+ */
+export function NavMain({ home = CRM_HOME, sections = CRM_SECTIONS }) {
   const pathname = usePathname();
-  const isDashboardActive = pathname === "/dashboard";
+  const isDashboardActive = pathname === home.href;
   const { isMobile, state, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
 
@@ -87,17 +102,17 @@ export function NavMain() {
         <SidebarMenuItem className={isCollapsed ? "flex justify-center" : ""}>
           <SidebarMenuButton
             isActive={isDashboardActive}
-            render={<Link href="/dashboard" />}
+            render={<Link href={home.href} />}
             onClick={closeOnMobile}
             className="data-active:border-y data-active:border-white data-active:bg-sidebar-primary/15 data-active:text-white hover:bg-sidebar-primary/20"
           >
-            <Image src="/dashboard/icons/nav-dashboard.svg" alt="" width={20} height={20} className="shrink-0" />
-            {!isCollapsed && <span>Dashboard</span>}
+            <Image src={`/dashboard/icons/${home.icon}.svg`} alt="" width={20} height={20} className="shrink-0" />
+            {!isCollapsed && <span>{home.label}</span>}
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
 
-      {navSections.map((section) => (
+      {sections.map((section) => (
         <Collapsible key={section.label} defaultOpen className="group/collapsible">
           <SidebarGroup className={isCollapsed ? "!p-0" : ""}>
             {!isCollapsed && (

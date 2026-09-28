@@ -297,3 +297,20 @@ export function searchField(maxLength = 200) {
 export function filterField(allowed) {
   return { default: "", parse: enumParam(allowed), resetsPage: true };
 }
+
+/**
+ * A calendar day, `YYYY-MM-DD` — the wire format every date filter on the API
+ * accepts. Anything that is not a real day degrades to "no filter" rather
+ * than reaching the API as a 400. Empty means unfiltered.
+ */
+export function dateField() {
+  return {
+    default: "",
+    parse: (raw) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return undefined;
+      const day = new Date(`${raw}T00:00:00Z`);
+      return Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== raw ? undefined : raw;
+    },
+    resetsPage: true,
+  };
+}
