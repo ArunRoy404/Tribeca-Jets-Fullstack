@@ -709,20 +709,65 @@ changed, and `npm run build` passes.
 
 | Feature | Unblocked by |
 |---|---|
-| Live in-air state | **Flight Tracking (#14)** — manual status, no provider |
+| A leg's reported flight status on the calendar | **Flight Tracking (#14)** ✅ — the API returns it; the calendar does not show it yet |
 | Arrival times for return and later legs | Nothing records them — an itinerary holds the outbound only |
 | More than 100 legs in one window | Shown as a notice ("first 100 of N") rather than a silent cut; paging the calendar is not built |
 
 ---
 
-## 14. Flight Tracking ⬜
+## 14. Flight Tracking ✅ *(28 Sep 2026 — manual)*
 
-Nothing wired. Dependencies shipped: **Trips (#11)** ✅ and **Aircraft (#6)** ✅.
+**Working now**
 
-**Decided 27 Sep 2026: manual first.** A broker sets each flight's status and
-notes by hand; everything else reads from Trips. A live flight-data provider
-waits until the client asks for one (scope §17 lists it as open). See
-[MODULES.md](MODULES.md) #14.
+- **Manual by decision (27 Sep 2026).** No flight-data provider: a broker
+  reports each flight's state by hand from what the operator says — status
+  (Not Departed, Delayed, In Flight, Landed, Diverted), the operator's arrival
+  estimate ("HH:MM", local at the destination) and a public tracking link
+  (scope §6.12's "flight tracking links"). A flight nobody has reported on
+  says **No Update**, never "Not Departed", and nothing is called "live"
+- **A flight is a trip leg**, and the leg owns its state: four nullable
+  columns on `trip_legs` (`flightStatus`, `flightStatusAt`, `estimatedArrival`,
+  `trackingUrl`), written through `TripsService.updateFlight` under the trip
+  scope. Migration `20260928160000_add_flight_tracking`, additive only. Kept
+  apart from the trip's own status: a round trip's booking is In Flight while
+  its outbound has landed and its return has not left
+- **The flight's updates are the notes timeline**, subject `FLIGHT` — no
+  second note system. Every report is written to the audit log against
+  `TripLeg` with its note and estimate, and the timeline replays it beside the
+  notes the desk writes about the flight
+- `GET /flight-tracking` (window ACTIVE — today onward plus anything reported
+  in the air or delayed — TODAY, PAST or all; flight status incl. NONE; the
+  calendar's trip filters), `GET /flight-tracking/stats` (in flight, delayed,
+  departing today, landed today, due out with no report),
+  `GET /flight-tracking/:legId`, `PATCH /flight-tracking/:legId`
+  (MANAGE_TRIPS; refused on a cancelled or archived trip, and when nothing
+  would change). The leg serialiser is shared with Schedule
+  (`trips/trips.legs.ts`)
+- Frontend: the board, cards, tiles and panel on the API, the open flight in
+  the URL. The panel carries the report form (only for a role that may manage
+  trips, and only on a live trip), the tracking link and the timeline. The ETA
+  shown is the desk's reported estimate, or the itinerary's planned arrival
+  (outbound only), and says which
+- Postman builder `build_flight_tracking_folder.py` → `24 · Flight Tracking`
+  (8 requests), **written, not run**
+
+**Deviations from the old screen, stated:**
+
+- **The progress bar and "65% complete — Alt 41,000 ft" are gone.** Nothing
+  records where a flight is; a percentage would be invented.
+- **On Time Rate and Active Airports tiles are gone.** On-time needs actual
+  times against scheduled ones, which a manual board does not have; the tiles
+  are counts of what was reported instead.
+- **Refresh Tracking is gone** — there is nothing to refresh from.
+- The dummy data, the store and four unused dummy-bound components are deleted.
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Live position, automatic status, delay notifications | **A decision** — a flight-data provider (scope §17); the client has not asked |
+| On-time rate | Actual departure/arrival times — not recorded while tracking is manual |
+| The reported status on the Schedule calendar | Buildable now — the calendar's API already returns it |
 
 ---
 
@@ -1089,7 +1134,7 @@ does not exist yet.
 
 ---
 
-## 29. Notes / Timeline ✅ *(Clients, Trips, Referrals)*
+## 29. Notes / Timeline ✅ *(Clients, Trips, Referrals, Flights)*
 
 **Not in the original queue.** It is the client's adjustment #5 — *"a section
 where I can write notes and add it to a timeline"*, for trips and for clients.
@@ -1390,13 +1435,19 @@ the call site.
 Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
 Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
 Empty Legs, Commissions, Referrals** (desk and portal), **Receivables**,
-**Operator Payments**, **Transactions**, **Itineraries** and **Schedule**.
+**Operator Payments**, **Transactions**, **Itineraries**, **Schedule** and
+**Flight Tracking** (manual).
 
-**Most recent change (28 September), uncommitted:** Schedule (#13) — the
-calendar as a read-only view over trip legs, no migration; see its own section.
+**Most recent change (28 September), uncommitted:** Flight Tracking (#14),
+manual — see its own section. One migration,
+`20260928160000_add_flight_tracking`, must be deployed (`npm run db:deploy`).
 Written **without live testing, by the owner's instruction**: backend `tsc`,
-oxlint and vitest (194 tests, 19 files) are clean, frontend eslint reports
-nothing in the files changed, and `npm run build` passes. `23 · Schedule` is
+oxlint and vitest (201 tests, 21 files) are clean, frontend eslint reports
+nothing in the files changed, and `npm run build` passes.
+`24 · Flight Tracking` is written and not run.
+
+**Before that (28 September, committed and pushed):** Schedule (#13) — the
+calendar as a read-only view over trip legs, no migration. `23 · Schedule` is
 written and not run.
 
 **Before that (28 September):** Itineraries (#12) — see its own
@@ -1436,9 +1487,9 @@ also without live testing: build, eslint, backend lint and tests pass.
 **Left of client adjustment #11:** nothing to build. The three Postman builders
 are written and need one run against a freshly seeded API, then Newman.
 
-**Next in the module queue:** the financial modules (#16–19), Itineraries (#12)
-and Schedule (#13) are complete. Next is **Flight Tracking (#14)**, manual —
-a broker-set status and notes per flight, everything else read from Trips.
+**Next in the module queue:** everything that hangs off Trips is complete —
+Itineraries (#12), Schedule (#13), Flight Tracking (#14, manual) and the
+financial modules (#16–19). Next is **Tasks Board (#20)**.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational

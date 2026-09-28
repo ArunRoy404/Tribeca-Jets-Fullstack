@@ -50,13 +50,13 @@ set of broken joins the day the real table arrives.
 | 11 | **Trips** | ✅ Done (27 Sep) | Quotes, everything above |
 | 12 | **Itineraries** | ✅ Done (28 Sep) | Trips |
 | 13 | **Schedule** | ✅ Done (28 Sep) — a view over trip legs | Trips (read-only view) |
-| 14 | **Flight Tracking** | ⬅ **Next** — manual | Trips, Aircraft |
+| 14 | **Flight Tracking** | ✅ Done (28 Sep) — manual, no provider | Trips, Aircraft |
 | 15 | **Empty Legs** | ✅ Done (27 Sep) | Operators, Aircraft, Airports; matching reads Trip Requests (adjustment #10b) |
 | 16 | **Receivables** | ✅ Done (28 Sep) | Trips, Clients |
 | 17 | **Operator Payments** | ✅ Done (28 Sep) | Trips, Operators |
 | 18 | **Commissions** | ✅ Done (27 Sep) | Trips, Users (built ahead of 16–17 for adjustment #11) |
 | 19 | **Transactions** | ✅ Done (28 Sep) — the money ledger, a view | 16, 17, 18 (a union view) |
-| 20 | **Tasks Board** | Not started | Users; links to Trips/Clients |
+| 20 | **Tasks Board** | ⬅ **Next** | Users; links to Trips/Clients |
 | 21 | **Email Templates** | Not started | — (could move earlier) |
 | 22 | **Document Vault** | No screen yet | Trips, Clients, Operators |
 | 23 | **Reports** | Not started | All financial modules |
@@ -65,7 +65,7 @@ set of broken joins the day the real table arrives.
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
 | 27 | **AI Assistant** | Stub only | All |
 | 28 | **Uploads** | ✅ Done | — (built out of order; see below) |
-| 29 | **Notes / Timeline** | ✅ Done — Clients, Trips, Referrals | Clients, Users (built out of order; adjustment #5) |
+| 29 | **Notes / Timeline** | ✅ Done — Clients, Trips, Referrals, Flights | Clients, Users (built out of order; adjustment #5) |
 | 30 | **Client Credits** | ✅ Done | Clients, Trips (built out of order; adjustment #9) |
 | 31 | **Charter Rates / Instant Estimate** | ✅ Done | Airports (built out of order; adjustment #6) |
 | 32 | **Referrals / Referral Agent** | ✅ Done (27 Sep) — desk and agent portal | Users, Clients, Trip Requests, Trips, Commissions, Uploads, Notes (adjustment #11) |
@@ -73,10 +73,10 @@ set of broken joins the day the real table arrives.
 **Trips shipped on 27 September 2026**, with Empty Legs and Commissions
 pulled forward after it so client adjustments #10b and #11 could be built
 without waiting on the client; #11's agent portal followed the same day, and
-**Receivables (#16)**, **Operator Payments (#17)**, **Transactions (#19)** and
-**Itineraries (#12)** and **Schedule (#13)** on 28 September, completing the
-financial modules and both unblocked-by-Trips modules. **What is next:**
-**Flight Tracking (#14)**, manual — see its section.
+**Receivables (#16)**, **Operator Payments (#17)**, **Transactions (#19)**,
+**Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
+on 28 September — everything that hangs off Trips. **What is next:**
+**Tasks Board (#20)**.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -505,9 +505,13 @@ outbound's. The old screen's "Sourcing" status, outside-brokerage filter,
 Departures/Arrivals tiles and do-nothing buttons are gone; the reasons are in
 [MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md) #13.
 
-### 14. Flight Tracking
+### 14. Flight Tracking ✅ *(28 September 2026 — manual)*
 
-Status for trips in the air — departure, ETA, delays, on-time rate.
+Status for trips in the air — departure, ETA, delays. **Built manual**: a
+flight is a trip leg, its reported state is four columns on the leg, and its
+updates are the notes timeline on subject `FLIGHT`, which replays every
+report from the audit log. No progress bar, no on-time rate and no "live"
+label, because nothing here comes from a feed.
 
 **Decided 27 Sep 2026: manual, no flight-data provider**, until the client
 asks for one himself. A broker sets each flight's status and notes by hand,
@@ -686,7 +690,7 @@ over it, not a table: every `PUBLIC` image, offered on every photo field.
 
 ---
 
-### 29. Notes / Timeline ✅ *(Clients, Trips, Referrals)*
+### 29. Notes / Timeline ✅ *(Clients, Trips, Referrals, Flights)*
 
 **Not in the signed scope's module list.** It is the client's adjustment #5:
 *"in the trip section and client CRM section, I want to make sure there is a

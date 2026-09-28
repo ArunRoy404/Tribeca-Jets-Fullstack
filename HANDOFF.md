@@ -178,10 +178,10 @@ Paste everything between the lines into the first message of a new session.
 > if a check was skipped, say so; if something fails, show the output.
 >
 > **Where we are right now (28 September 2026):** everything through
-> Itineraries (#12) is committed and pushed to `origin/roy`; **Schedule (#13)
-> is built and uncommitted** — check `git status`. Run
-> `npm run db:deploy` (six new migrations since the last deploy, the last
-> being `20260928140000_add_itineraries`).
+> Schedule (#13) is committed and pushed to `origin/roy`; **Flight Tracking
+> (#14) is built and uncommitted** — check `git status`. Run
+> `npm run db:deploy` (seven new migrations since the last deploy, the last
+> being `20260928160000_add_flight_tracking`).
 >
 > Built on 28 Sep: **Receivables (#16)**, **Operator Payments (#17)**,
 > **Transactions (#19)** — completing the financial modules — and
@@ -224,9 +224,12 @@ Paste everything between the lines into the first message of a new session.
 >    two legs), the filters in the URL, the tiles, and the flight panel's
 >    links to the trip and itinerary. Then run `build_schedule_folder.py` and
 >    fold `23 · Schedule` into the Newman pass above.
-> 5. Then Phase 3's queue: Flight Tracking (#14) — **manual** by decision (a
->    broker-set status and notes; no flight-data provider until the client
->    asks).
+> 5. Flight Tracking (#14) is built too (28 Sep, untested) — **manual** by
+>    decision, no provider. Check a report (status, estimate, link, note) on a
+>    flight, that it lands on the flight's timeline, that a cancelled trip
+>    refuses one, and the tiles. Then run `build_flight_tracking_folder.py` and
+>    fold `24 · Flight Tracking` into the Newman pass above.
+> 6. Then Phase 3's queue: Tasks Board (#20).
 >
 > **For the client:** the Archived-tab demo (#1), the rate data for #6, the
 > FET-in-profit question, and each referral agent's commission figures
