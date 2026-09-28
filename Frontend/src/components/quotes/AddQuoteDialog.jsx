@@ -20,6 +20,7 @@ import {
 } from "@/lib/lead";
 import { formatDate } from "@/lib/archive";
 import {
+  DEFAULT_FET_RATE,
   formatFetRate,
   formatMargin,
   formatQuoteStatus,
@@ -274,6 +275,12 @@ export default function AddQuoteDialog() {
   // affects, not as a side effect of an unrelated field changing.
   const effectivePricePreview = hasValidBase ? pricePreview : null;
 
+  const editingFetRate =
+    editing?.fetRate === null || editing?.fetRate === undefined ? null : Number(editing.fetRate);
+  // The rate the label shows: the server's own answer once it has priced,
+  // else the edited quote's rate, else the default a new quote is saved with.
+  const fetRateShown = effectivePricePreview?.fetRate ?? editingFetRate ?? DEFAULT_FET_RATE;
+
   useEffect(() => {
     if (!hasValidBase) return undefined;
     const handle = setTimeout(() => {
@@ -281,6 +288,9 @@ export default function AddQuoteDialog() {
         {
           basePrice: Number(trimmedBase),
           fetEnabled: form.fetEnabled,
+          // An edited quote keeps the rate it was saved with; the preview
+          // must price at that rate, not the default a new quote gets.
+          ...(editingFetRate !== null ? { fetRate: editingFetRate } : {}),
           operatorCost: optionalNumber(form.operatorCost),
           lineItems: validLineItemsForPreview,
         },
@@ -291,7 +301,7 @@ export default function AddQuoteDialog() {
       );
     }, 400);
     return () => clearTimeout(handle);
-  }, [hasValidBase, trimmedBase, form.fetEnabled, form.operatorCost, validLineItemsForPreview, fetchPricePreview]);
+  }, [hasValidBase, trimmedBase, form.fetEnabled, editingFetRate, form.operatorCost, validLineItemsForPreview, fetchPricePreview]);
 
   // ---- The live preview document ---------------------------------------------
   // Shaped like `lib/quote.js`'s `toQuoteRow()` so the reused cards below read
@@ -345,7 +355,7 @@ export default function AddQuoteDialog() {
 
       basePrice: hasValidBase ? formatMoney(Number(trimmedBase)) : "—",
       fetEnabled: form.fetEnabled,
-      fetRateLabel: formatFetRate(0.075),
+      fetRateLabel: formatFetRate(fetRateShown),
       fet: !form.fetEnabled ? "Not charged" : effectivePricePreview ? formatMoney(effectivePricePreview.fetAmount) : "—",
       lineItems: previewLineItems,
       total: effectivePricePreview ? formatMoney(effectivePricePreview.totalPrice) : "—",
@@ -374,7 +384,7 @@ export default function AddQuoteDialog() {
       isArchived: editing?.isArchived ?? false,
     };
   }, [
-    editing, hasValidBase, trimmedBase, form.fetEnabled, form.departureDate, form.returnDate,
+    editing, hasValidBase, trimmedBase, form.fetEnabled, fetRateShown, form.departureDate, form.returnDate,
     form.validUntil, form.quotedAircraft, form.passengers, form.terms, form.internalNotes,
     form.depositAmount, form.operatorCost, selectedClient, selectedBroker,
     selectedOperator, selectedOriginAirport, selectedDestinationAirport,
@@ -672,7 +682,7 @@ export default function AddQuoteDialog() {
             <div className="flex items-center justify-between p-3 rounded-md border border-input bg-secondary/20">
               <div className="flex flex-col">
                 <span className="font-montserrat font-semibold text-[13px] text-warning">
-                  Federal Excise Tax ({formatFetRate(0.075)})
+                  Federal Excise Tax ({formatFetRate(fetRateShown)})
                 </span>
                 <span className="font-montserrat text-[11px] text-muted-foreground">
                   Charged on the base charter price. Turn off for an exempt
