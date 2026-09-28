@@ -63,7 +63,9 @@ const ACTOR_SELECT = {
 } satisfies Prisma.UserDefaultArgs;
 
 const AIRPORT_SELECT = {
-  select: { id: true, icao: true, iata: true, name: true, city: true, country: true },
+  // `assignedFbo` so the itinerary form's live preview shows the same FBO the
+  // saved document will fall back to (#12), rather than a dash.
+  select: { id: true, icao: true, iata: true, name: true, city: true, country: true, assignedFbo: true },
 } satisfies Prisma.AirportDefaultArgs;
 
 /** The client as a row, so a rename shows everywhere the next time it is read. */
