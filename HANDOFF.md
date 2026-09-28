@@ -253,8 +253,8 @@ Paste everything between the lines into the first message of a new session.
 > FET-in-profit question, and each referral agent's commission figures
 > (`CLIENT_ADJUSTMENTS.md` §5). A client update (`update-26-sep.txt`) and the
 > production hosting list (`subscriptions.txt` — one Hostinger VPS; the
-> Vercel / Render / Neon setup is temporary development hosting) are in the
-> repo root.
+> Vercel / Render / Neon setup, with uploads on Backblaze B2, is temporary
+> development hosting) are in the repo root.
 >
 > Start by reading the four documents above, then tell me what you understand
 > the current state to be and what you think we should do next. Don't write any
