@@ -149,6 +149,13 @@ export const queryKeys = {
     detail: (id) => ["trips", "flights", "detail", id],
   },
 
+  /** Tasks Board (#20) — and the notification bell, which lists the caller's due work. */
+  tasks: {
+    all: ["tasks"],
+    list: (params) => ["tasks", "list", params ?? {}],
+    detail: (id) => ["tasks", "detail", id],
+  },
+
   /**
    * Transactions (#19) — the money ledger, a read-only view over receivables,
    * operator payments and commissions. Invalidated by every money write in
