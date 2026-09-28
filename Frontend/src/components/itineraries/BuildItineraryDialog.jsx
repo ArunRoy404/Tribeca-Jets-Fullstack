@@ -86,14 +86,14 @@ function previewFromTripDetail(trip, form) {
     passengers: trip?.passengers ?? [],
     catering: form.catering || "—",
     groundTransport: form.groundTransport || "—",
-    // The airport's own assigned-FBO default is not carried on the trip
-    // picker's fetch, so an untyped override shows a dash here rather than a
-    // guess — it renders correctly once the document is saved and reopened.
-    departureFbo: form.departureFbo || "—",
-    arrivalFbo: form.arrivalFbo || "—",
+    // An untyped override falls back to the airport's assigned FBO, exactly
+    // as the saved document will.
+    departureFbo: form.departureFbo || first?.originAirport?.assignedFbo || "—",
+    arrivalFbo: form.arrivalFbo || last?.destinationAirport?.assignedFbo || "—",
     tripStatus: formatTripStatus(trip?.status),
-    exteriorImageUrl: form.exteriorImageUrl || trip?.aircraft?.exteriorImageUrl || null,
-    interiorImageUrl: form.interiorImageUrl || trip?.aircraft?.interiorImageUrl || null,
+    logoUrl: form.logoUrl || null,
+    exteriorImageUrl: form.exteriorImage || trip?.aircraft?.exteriorImageUrl || null,
+    interiorImageUrl: form.interiorImage || trip?.aircraft?.interiorImageUrl || null,
   };
 }
 
@@ -117,13 +117,16 @@ function previewFromItinerary(itinerary, form) {
     passengers: itinerary?.passengers ?? [],
     catering: form.catering || "—",
     groundTransport: form.groundTransport || "—",
-    // A blank override still falls back to the record's own effective value —
-    // which itself already resolved to the airport default when it was loaded.
-    departureFbo: form.departureFbo || itinerary?.departureFbo || "—",
-    arrivalFbo: form.arrivalFbo || itinerary?.arrivalFbo || "—",
+    // A blank override falls back to the airport's assigned FBO — the rule
+    // the API applies on save — not to the stored effective value, which
+    // would keep showing an override the broker has just cleared.
+    departureFbo: form.departureFbo || itinerary?.originAirport?.assignedFbo || "—",
+    arrivalFbo: form.arrivalFbo || itinerary?.destinationAirport?.assignedFbo || "—",
     tripStatus: formatTripStatus(itinerary?.tripStatus),
-    exteriorImageUrl: form.exteriorImageUrl || itinerary?.exteriorImageUrl || null,
-    interiorImageUrl: form.interiorImageUrl || itinerary?.interiorImageUrl || null,
+    logoUrl: form.logoUrl || null,
+    // Likewise a removed photo override falls back to the aircraft's own photo.
+    exteriorImageUrl: form.exteriorImage || itinerary?.aircraft?.exteriorImageUrl || null,
+    interiorImageUrl: form.interiorImage || itinerary?.aircraft?.interiorImageUrl || null,
   };
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { FileText } from "lucide-react";
 import StatusBadge from "@/components/common/StatusBadge";
 import DetailField from "@/components/common/DetailField";
@@ -35,8 +36,20 @@ export default function ItineraryPreview({ item }) {
 
   return (
     <>
-      {/* Document Title Banner */}
+      {/* Document Title Banner — with the document's own logo when one was uploaded */}
       <div className="flex flex-col items-center justify-center text-center gap-1 py-2">
+        {item.logoUrl ? (
+          <div className="relative h-12 w-40 mb-2">
+            <Image
+              src={uploadUrl(item.logoUrl)}
+              alt="Itinerary logo"
+              fill
+              sizes="160px"
+              loader={passthroughImageLoader}
+              className="object-contain"
+            />
+          </div>
+        ) : null}
         <h2 className="font-montserrat font-bold text-[20px] tracking-[0.38em] text-foreground uppercase">
           ITINERARY
         </h2>
