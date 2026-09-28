@@ -1,118 +1,199 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, Mail, Edit2, Trash2 } from "lucide-react";
+import { Eye, Mail, Edit2, Power, RotateCcw, Trash2 } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
-import { useEmailTemplatesStore, EMAIL_TEMPLATES_PAGE_SIZE } from "@/store/useEmailTemplatesStore";
+import BulkDeleteDialog from "@/components/common/BulkDeleteDialog";
 import TablePagination from "@/components/table/common/TablePagination";
+import TableStatus from "@/components/table/common/TableStatus";
 import EmailTemplatesToolbar from "./EmailTemplatesToolbar";
 import EmailTemplatesCardsContainer from "./EmailTemplatesCardsContainer";
 import EmailTemplatesTable from "./EmailTemplatesTable";
+import SentEmailsTable from "./SentEmailsTable";
+import SentEmailsCardsContainer from "./SentEmailsCardsContainer";
+import EmailTemplateDetailSheet from "@/components/email-templates/EmailTemplateDetailSheet";
+import SentEmailDetailSheet from "@/components/email-templates/SentEmailDetailSheet";
+import {
+  useEmailTemplates,
+  useRemoveEmailTemplate,
+  useRestoreEmailTemplate,
+  useSentEmails,
+  useUpdateEmailTemplate,
+} from "@/hooks/email-templates";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
+import { EMAIL_TABS, toEmailTemplate, toSentEmail } from "@/lib/email";
+import { useEmailTemplatesStore } from "@/store/useEmailTemplatesStore";
 
-export default function EmailTemplatesContainer({ revealDelay = 0 }) {
-  const templates = useEmailTemplatesStore((s) => s.templates);
-  const search = useEmailTemplatesStore((s) => s.search);
-  const setSearch = useEmailTemplatesStore((s) => s.setSearch);
-  const statusFilter = useEmailTemplatesStore((s) => s.statusFilter);
-  const setStatusFilter = useEmailTemplatesStore((s) => s.setStatusFilter);
-  const categoryFilter = useEmailTemplatesStore((s) => s.categoryFilter);
-  const setCategoryFilter = useEmailTemplatesStore((s) => s.setCategoryFilter);
-  const page = useEmailTemplatesStore((s) => s.page);
-  const nextPage = useEmailTemplatesStore((s) => s.nextPage);
-  const prevPage = useEmailTemplatesStore((s) => s.prevPage);
+/**
+ * The Email Templates screen (#21), API-backed: the URL is the state, the
+ * server pages. Three tabs — the library, the sent log and the archived
+ * library. Anyone on staff reads and uses a template; administrators and
+ * senior brokers change the library.
+ */
+export default function EmailTemplatesContainer({ params, revealDelay = 0 }) {
+  const { can, canWrite } = usePermissions();
+  const mayManage = canWrite(Permission.MANAGE_EMAIL_TEMPLATES);
+  const maySend = canWrite(Permission.SEND_EMAILS);
+  const isArchived = params.tab === EMAIL_TABS.ARCHIVED;
+  const isSent = params.tab === EMAIL_TABS.SENT && can(Permission.SEND_EMAILS);
 
-  const selectTemplate = useEmailTemplatesStore((s) => s.selectTemplate);
+  const templatesQuery = useEmailTemplates(params.queryParams, { enabled: !isSent });
+  const sentQuery = useSentEmails(params.sentParams, { enabled: isSent });
+  const { data, isPending, error, refetch } = isSent ? sentQuery : templatesQuery;
+
+  const templates = useMemo(() => (templatesQuery.data?.data ?? []).map(toEmailTemplate), [templatesQuery.data?.data]);
+  const emails = useMemo(() => (sentQuery.data?.data ?? []).map(toSentEmail), [sentQuery.data?.data]);
+  const rows = isSent ? emails : templates;
+  const meta = data?.meta;
+  const isEmpty = !isPending && !error && rows.length === 0;
+
+  const openEditTemplate = useEmailTemplatesStore((s) => s.openEditTemplate);
   const openNewTemplate = useEmailTemplatesStore((s) => s.openNewTemplate);
-  const openDeleteTemplate = useEmailTemplatesStore((s) => s.openDeleteTemplate);
-  const openSendEmail = useEmailTemplatesStore((s) => s.openSendEmail);
-
-  const filteredTemplates = useMemo(() => {
-    const query = (search ?? "").trim().toLowerCase();
-    return (templates ?? []).filter((t) => {
-      if (statusFilter !== "All" && t?.status !== statusFilter) return false;
-      if (categoryFilter !== "All" && t?.category !== categoryFilter) return false;
-      if (query && !`${t?.id} ${t?.name} ${t?.subject} ${t?.category}`.toLowerCase().includes(query)) {
-        return false;
-      }
-      return true;
-    });
-  }, [templates, search, statusFilter, categoryFilter]);
-
-  const pageCount = Math.max(1, Math.ceil((filteredTemplates?.length ?? 0) / EMAIL_TEMPLATES_PAGE_SIZE));
-  const pageTemplates = useMemo(() => {
-    const start = (page - 1) * EMAIL_TEMPLATES_PAGE_SIZE;
-    return filteredTemplates?.slice(start, start + EMAIL_TEMPLATES_PAGE_SIZE);
-  }, [filteredTemplates, page]);
-  const filteredCount = filteredTemplates?.length ?? 0;
+  const openCompose = useEmailTemplatesStore((s) => s.openCompose);
 
   const [selected, setSelected] = useState(() => new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const { mutate: removeTemplates } = useRemoveEmailTemplate();
+  const { mutate: restoreTemplates } = useRestoreEmailTemplate();
+  const { mutate: updateTemplate } = useUpdateEmailTemplate();
+
+  const selectedRows = useMemo(() => templates.filter((row) => selected.has(row?.id)), [templates, selected]);
   const toggleRow = (id) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
 
-  const handleSelectAll = () => {
-    if (selected.size === (pageTemplates?.length ?? 0)) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set((pageTemplates ?? []).map((t) => t?.id)));
-    }
+  const handleBulkAction = () => {
+    const ids = selectedRows.map((row) => row?.id).filter(Boolean);
+    if (!ids.length) return;
+    (isArchived ? restoreTemplates : removeTemplates)(ids, {
+      onSuccess: () => {
+        setBulkOpen(false);
+        setSelected(new Set());
+      },
+    });
   };
 
-  const getRowActions = (t) => [
-    { label: "View Details", icon: <Eye />, onSelect: () => selectTemplate?.(t?.id) },
-    { label: "Use / Send", icon: <Mail />, onSelect: () => openSendEmail?.(t) },
-    { label: "Edit Template", icon: <Edit2 />, onSelect: () => openNewTemplate?.(t) },
-    "separator",
-    { label: "Delete Template", icon: <Trash2 />, variant: "destructive", onSelect: () => openDeleteTemplate?.(t) },
-  ];
+  /** One definition of a row's menu, for the table and the cards alike. */
+  const getRowActions = (t) => {
+    const view = { label: "View Details", icon: <Eye />, onSelect: () => params.setTemplate(t?.id) };
+    if (isArchived) {
+      return mayManage
+        ? [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreTemplates(t?.id) }]
+        : [view];
+    }
+    const actions = [view];
+    if (maySend && t?.active) actions.push({ label: "Use / Send", icon: <Mail />, onSelect: () => openCompose(t?.id) });
+    if (mayManage) {
+      actions.push({ label: "Edit Template", icon: <Edit2 />, onSelect: () => openEditTemplate(t?.id) });
+      actions.push({
+        label: t?.active ? "Switch Off" : "Switch On",
+        icon: <Power />,
+        onSelect: () => updateTemplate({ id: t?.id, active: !t?.active }),
+      });
+      actions.push("separator");
+      actions.push({ label: "Archive", icon: <Trash2 />, variant: "destructive", onSelect: () => removeTemplates(t?.id) });
+    }
+    return actions;
+  };
+
+  const emptyMessage = isSent ? "No emails sent yet" : isArchived ? "Nothing archived" : "No templates match these filters";
+  const emptyHint = isSent
+    ? params.hasFilters
+      ? "Try clearing a filter."
+      : "Emails sent from the CRM — from here, a client, a trip, a quote or an invoice — appear here."
+    : isArchived
+      ? "Archived templates appear here and can be restored."
+      : params.hasFilters
+        ? "Try clearing a filter."
+        : mayManage
+          ? "Add a template and it will appear here."
+          : "No templates have been added yet.";
 
   return (
     <Reveal delay={revealDelay} className="w-full">
       <CommonCard variant="default" className="p-0 rounded-md overflow-hidden border-border w-full">
         <EmailTemplatesToolbar
-          search={search}
-          setSearch={setSearch}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          categoryFilter={categoryFilter}
-          setCategoryFilter={setCategoryFilter}
-          onSendEmail={openSendEmail}
+          params={params}
+          selectedCount={selectedRows.length}
+          onBulkAction={() => setBulkOpen(true)}
+          onSendEmail={() => openCompose(null)}
           onNewTemplate={openNewTemplate}
+          mayManage={mayManage}
+          maySend={maySend}
+          showSentTab={can(Permission.SEND_EMAILS)}
         />
 
-        <div className="relative w-full lg:hidden">
-          <EmailTemplatesCardsContainer
-            templates={pageTemplates}
-            selected={selected}
-            onToggleRow={toggleRow}
-            getRowActions={getRowActions}
-            onSelectTemplate={selectTemplate}
+        {isPending || error || isEmpty ? (
+          <TableStatus
+            isLoading={isPending}
+            error={error}
+            isEmpty={isEmpty}
+            emptyMessage={emptyMessage}
+            emptyHint={emptyHint}
+            onRetry={refetch}
           />
-        </div>
+        ) : isSent ? (
+          <>
+            <SentEmailsCardsContainer emails={emails} onSelectEmail={params.setEmail} />
+            <SentEmailsTable emails={emails} onSelectEmail={params.setEmail} />
+          </>
+        ) : (
+          <>
+            <EmailTemplatesCardsContainer
+              templates={templates}
+              selected={selected}
+              onToggleRow={toggleRow}
+              getRowActions={getRowActions}
+              onSelectTemplate={params.setTemplate}
+              selectable={mayManage}
+              archived={isArchived}
+            />
+            <EmailTemplatesTable
+              pageTemplates={templates}
+              selected={selected}
+              onToggleRow={toggleRow}
+              onSelectAll={() =>
+                setSelected((prev) => (prev.size === templates.length ? new Set() : new Set(templates.map((t) => t?.id))))
+              }
+              onSelectTemplate={params.setTemplate}
+              getRowActions={getRowActions}
+              selectable={mayManage}
+              archived={isArchived}
+            />
+          </>
+        )}
 
-        <EmailTemplatesTable
-          pageTemplates={pageTemplates}
-          selected={selected}
-          onToggleRow={toggleRow}
-          onSelectAll={handleSelectAll}
-          onSelectTemplate={selectTemplate}
-          getRowActions={getRowActions}
+        {!isPending && !error && !isEmpty && (
+          <div className="relative w-full">
+            <TablePagination
+              totalCount={meta?.total ?? 0}
+              itemLabel={isSent ? "emails" : "templates"}
+              page={meta?.page ?? 1}
+              pageCount={meta?.totalPages ?? 1}
+              onPageChange={(next) => params.goToPage(next, meta?.totalPages ?? 1)}
+              onPrev={() => params.goToPage((meta?.page ?? 1) - 1, meta?.totalPages ?? 1)}
+              onNext={() => params.goToPage((meta?.page ?? 1) + 1, meta?.totalPages ?? 1)}
+            />
+          </div>
+        )}
+
+        <EmailTemplateDetailSheet templateId={params.template} onClose={() => params.setTemplate("")} />
+        <SentEmailDetailSheet emailId={params.email} onClose={() => params.setEmail("")} />
+
+        <BulkDeleteDialog
+          open={bulkOpen}
+          onOpenChange={setBulkOpen}
+          items={selectedRows.map((row) => ({ id: row?.id, name: row?.name }))}
+          itemLabel="templates"
+          action={isArchived ? "restore" : "remove"}
+          onConfirm={handleBulkAction}
         />
-
-        <div className="relative w-full">
-          <TablePagination
-            totalCount={filteredCount}
-            itemLabel="templates"
-            page={page}
-            pageCount={pageCount}
-            onPrev={prevPage}
-            onNext={nextPage}
-          />
-        </div>
       </CommonCard>
     </Reveal>
   );
