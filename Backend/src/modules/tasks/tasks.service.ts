@@ -175,6 +175,32 @@ export class TasksService {
     };
   }
 
+  /**
+   * The caller's own open tasks due before `before` — overdue and due today —
+   * for the dashboard's priorities (#24). Assigned to them, not everything
+   * they may see: a priorities list is one person's day, and an
+   * administrator's would otherwise be the whole desk's backlog.
+   */
+  async dueForAssignee(user: AuthenticatedUser, before: Date, take: number) {
+    const where: Prisma.TaskWhereInput = {
+      deletedAt: null,
+      assigneeId: user.id,
+      status: { not: TaskStatus.COMPLETED },
+      dueDate: { lt: before },
+    };
+    const today = todayUtc();
+    const [rows, total] = await Promise.all([
+      this.prisma.task.findMany({
+        where,
+        take,
+        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+        select: TASK_LIST_SELECT,
+      }),
+      this.prisma.task.count({ where }),
+    ]);
+    return { rows: rows.map((row) => this.serialise(row, today)), total };
+  }
+
   async findAll(user: AuthenticatedUser, query: QueryTasksInput): Promise<Paginated<unknown>> {
     const { skip, take } = toPrismaPagination(query);
     const today = query.on ?? todayUtc();

@@ -131,7 +131,7 @@ const CLIENT_DETAIL_SELECT = {
  * with it.
  */
 function followUpFilter(
-  window: 'OVERDUE' | 'TODAY' | 'UPCOMING' | undefined,
+  window: 'OVERDUE' | 'TODAY' | 'UPCOMING' | 'SCHEDULED' | undefined,
 ): Prisma.ClientWhereInput {
   if (!window) return {};
 
@@ -147,6 +147,8 @@ function followUpFilter(
       return { nextFollowUpAt: { gte: startOfToday, lt: startOfTomorrow } };
     case 'UPCOMING':
       return { nextFollowUpAt: { gte: startOfTomorrow } };
+    case 'SCHEDULED':
+      return { nextFollowUpAt: { not: null } };
   }
 }
 
@@ -342,6 +344,38 @@ export class ClientsService {
    */
   visibleWhere(user: AuthenticatedUser): Prisma.ClientWhereInput {
     return this.visibilityScope(user);
+  }
+
+  /**
+   * Live clients in the caller's scope whose follow-up falls before `before`
+   * — overdue and due today, oldest first — for the dashboard's priorities
+   * (#24). `take` rows and the full count, so a merged list can page exactly.
+   */
+  async dueFollowUps(user: AuthenticatedUser, before: Date, take: number) {
+    const where: Prisma.ClientWhereInput = {
+      deletedAt: null,
+      ...this.visibilityScope(user),
+      nextFollowUpAt: { lt: before },
+    };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.client.findMany({
+        where,
+        orderBy: [{ nextFollowUpAt: 'asc' }, { id: 'asc' }],
+        take,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          companyName: true,
+          nextFollowUpAt: true,
+          followUpNote: true,
+          followUpMethod: true,
+          assignedBroker: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+      }),
+      this.prisma.client.count({ where }),
+    ]);
+    return { rows, total };
   }
 
   /**

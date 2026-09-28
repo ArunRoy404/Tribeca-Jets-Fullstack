@@ -11,5 +11,6 @@ import { EmptyLegsService } from './empty-legs.service.js';
   imports: [TripRequestsModule],
   controllers: [EmptyLegsController],
   providers: [EmptyLegsService],
+  exports: [EmptyLegsService],
 })
 export class EmptyLegsModule {}

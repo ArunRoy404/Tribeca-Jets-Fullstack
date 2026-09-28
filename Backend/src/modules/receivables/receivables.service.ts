@@ -148,6 +148,9 @@ const FIGURES_SELECT = {
 
 const money = (value: Prisma.Decimal) => fromCents(toCents(value));
 
+/** Still owed by the client: what `?open=true` and the dashboard's attention list keep. */
+const OPEN_STATES: InvoiceState[] = [InvoiceState.DUE, InvoiceState.PARTIALLY_PAID, InvoiceState.OVERDUE];
+
 /**
  * Receivables (#16, scope §6.14 and §9.3) — what clients owe for their trips,
  * and what has come in.
@@ -225,7 +228,14 @@ export class ReceivablesService {
         query.search ? this.searchWhere(query.search) : {},
       ],
     };
-    const where = query.state ? { AND: [base, await this.stateWhere(base, query.state)] } : base;
+    // `open` and `state` together must both hold: open AND overdue is overdue,
+    // open AND paid is nothing.
+    const states = query.open
+      ? OPEN_STATES.filter((state) => !query.state || state === query.state)
+      : query.state
+        ? [query.state]
+        : null;
+    const where = states ? { AND: [base, await this.stateWhere(base, states)] } : base;
 
     const [rows, total] = await Promise.all([
       this.prisma.invoice.findMany({
@@ -251,9 +261,10 @@ export class ReceivablesService {
    * filter by the ids that match. A list that paged the rows first and
    * filtered the page afterwards would show short pages and a wrong total.
    */
-  private async stateWhere(base: Prisma.InvoiceWhereInput, state: InvoiceState): Promise<Prisma.InvoiceWhereInput> {
+  private async stateWhere(base: Prisma.InvoiceWhereInput, states: InvoiceState[]): Promise<Prisma.InvoiceWhereInput> {
+    if (states.length === 0) return { id: { in: [] } };
     const today = todayUtc();
-    const stored: Prisma.InvoiceWhereInput =
+    const storedFor = (state: InvoiceState): Prisma.InvoiceWhereInput =>
       state === InvoiceState.DRAFT
         ? { status: { in: [InvoiceStatus.DRAFT] } }
         : state === InvoiceState.CANCELLED
@@ -262,13 +273,38 @@ export class ReceivablesService {
             ? { status: InvoiceStatus.SENT, dueDate: { lt: today } }
             : { status: { in: [InvoiceStatus.SENT, InvoiceStatus.DRAFT] } };
     const candidates = await this.prisma.invoice.findMany({
-      where: { AND: [base, stored] },
+      where: { AND: [base, { OR: states.map(storedFor) }] },
       select: FIGURES_SELECT,
     });
     const ids = candidates
-      .filter((row) => invoiceFigures(row, today).state === state)
+      .filter((row) => states.includes(invoiceFigures(row, today).state))
       .map((row) => row.id);
     return { id: { in: ids } };
+  }
+
+  /**
+   * Invoices somebody should chase, for the dashboard's priorities (#24):
+   * still owed, and overdue or due before `horizon`. Soonest due first,
+   * `take` rows and the full count.
+   */
+  async attention(user: AuthenticatedUser, horizon: Date, take: number) {
+    const base: Prisma.InvoiceWhereInput = {
+      deletedAt: null,
+      ...this.scope(user),
+      status: InvoiceStatus.SENT,
+      dueDate: { lt: horizon },
+    };
+    const where = { AND: [base, await this.stateWhere(base, OPEN_STATES)] };
+    const [rows, total] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where,
+        take,
+        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+        select: INVOICE_LIST_SELECT,
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
+    return { rows: rows.map((row) => this.serialise(row)), total };
   }
 
   /** "INV-2026-0042", "TJ-1048", the billed client and the trip's client. */

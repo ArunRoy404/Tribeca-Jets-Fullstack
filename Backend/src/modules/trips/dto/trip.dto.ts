@@ -24,8 +24,12 @@ export const TRIP_SORTABLE_FIELDS = [
   'status',
 ] as const;
 
-/** Departure relative to today, the trips board's quick filter. */
-export const TRIP_WINDOWS = ['PAST', 'TODAY', 'UPCOMING'] as const;
+/**
+ * Departure relative to today, the trips board's quick filter. ONWARD is
+ * TODAY and UPCOMING together — the dashboard's "Upcoming Trips", where a
+ * flight leaving this afternoon is the most upcoming of all.
+ */
+export const TRIP_WINDOWS = ['PAST', 'TODAY', 'UPCOMING', 'ONWARD'] as const;
 export type TripWindow = (typeof TRIP_WINDOWS)[number];
 
 export const queryTripsSchema = paginationSchema
@@ -36,7 +40,7 @@ export const queryTripsSchema = paginationSchema
     assignedBrokerId: z.uuid().optional(),
     operatorId: z.uuid().optional(),
     aircraftId: z.uuid().optional(),
-    /** Departure relative to today: PAST, TODAY or UPCOMING. */
+    /** Departure relative to today: PAST, TODAY, UPCOMING (tomorrow on) or ONWARD (today on). */
     departure: z.enum(TRIP_WINDOWS).optional(),
     /**
      * `true` keeps only trips still ahead of the desk — not completed, not

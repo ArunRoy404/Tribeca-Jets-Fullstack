@@ -139,6 +139,9 @@ const FIGURES_SELECT = {
 
 const money = (value: Prisma.Decimal) => fromCents(toCents(value));
 
+/** Still owed to the operator: what `?open=true` and the dashboard's attention list keep. */
+const OPEN_STATES: PayableState[] = [PayableState.DUE, PayableState.PARTIALLY_PAID, PayableState.OVERDUE];
+
 /**
  * Operator Payments (#17, scope §6.14 and §9.3) — what Tribeca owes operators
  * for its trips, and what has been sent.
@@ -202,7 +205,13 @@ export class OperatorPaymentsService {
         query.search ? this.searchWhere(query.search) : {},
       ],
     };
-    const where = query.state ? { AND: [base, await this.stateWhere(base, query.state)] } : base;
+    // `open` and `state` together must both hold, as on Receivables.
+    const states = query.open
+      ? OPEN_STATES.filter((state) => !query.state || state === query.state)
+      : query.state
+        ? [query.state]
+        : null;
+    const where = states ? { AND: [base, await this.stateWhere(base, states)] } : base;
 
     const [rows, total] = await Promise.all([
       this.prisma.operatorPayable.findMany({
@@ -228,21 +237,49 @@ export class OperatorPaymentsService {
    */
   private async stateWhere(
     base: Prisma.OperatorPayableWhereInput,
-    state: PayableState,
+    states: PayableState[],
   ): Promise<Prisma.OperatorPayableWhereInput> {
+    if (states.length === 0) return { id: { in: [] } };
     const today = todayUtc();
-    const stored: Prisma.OperatorPayableWhereInput =
+    const storedFor = (state: PayableState): Prisma.OperatorPayableWhereInput =>
       state === PayableState.CANCELLED
         ? { status: OperatorPayableStatus.CANCELLED }
         : state === PayableState.OVERDUE
           ? { status: OperatorPayableStatus.OPEN, dueDate: { lt: today } }
           : { status: OperatorPayableStatus.OPEN };
     const candidates = await this.prisma.operatorPayable.findMany({
-      where: { AND: [base, stored] },
+      where: { AND: [base, { OR: states.map(storedFor) }] },
       select: FIGURES_SELECT,
     });
-    const ids = candidates.filter((row) => payableFigures(row, today).state === state).map((row) => row.id);
+    const ids = candidates
+      .filter((row) => states.includes(payableFigures(row, today).state))
+      .map((row) => row.id);
     return { id: { in: ids } };
+  }
+
+  /**
+   * Operator bills to pay soon, for the dashboard's priorities (#24): still
+   * owed, and overdue or due before `horizon`. Soonest due first, `take` rows
+   * and the full count.
+   */
+  async attention(user: AuthenticatedUser, horizon: Date, take: number) {
+    const base: Prisma.OperatorPayableWhereInput = {
+      deletedAt: null,
+      ...this.scope(user),
+      status: OperatorPayableStatus.OPEN,
+      dueDate: { lt: horizon },
+    };
+    const where = { AND: [base, await this.stateWhere(base, OPEN_STATES)] };
+    const [rows, total] = await Promise.all([
+      this.prisma.operatorPayable.findMany({
+        where,
+        take,
+        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+        select: PAYABLE_LIST_SELECT,
+      }),
+      this.prisma.operatorPayable.count({ where }),
+    ]);
+    return { rows: rows.map((row) => this.serialise(row)), total };
   }
 
   /** "OP-2026-0045", "TJ-1048", the operator, their reference, the trip's client. */

@@ -29,6 +29,12 @@ export const queryPayablesSchema = paginationSchema
   .extend({
     /** Computed from the payments and the due date, never stored. */
     state: z.enum(PAYABLE_STATES).optional(),
+    /**
+     * `true` keeps only bills still owed to the operator — due, partly paid
+     * or overdue — the dashboard's Financial Attention. Combined with
+     * `state`, both must hold.
+     */
+    open: z.stringbool().optional(),
     tripId: z.uuid().optional(),
     operatorId: z.uuid().optional(),
     /** The broker on the payable's trip. */
