@@ -28,6 +28,12 @@ export const queryInvoicesSchema = paginationSchema
      * CANCELLED.
      */
     state: z.enum(INVOICE_STATES).optional(),
+    /**
+     * `true` keeps only invoices a client still owes on — due, partly paid
+     * or overdue — the dashboard's Financial Attention. Combined with
+     * `state`, both must hold.
+     */
+    open: z.stringbool().optional(),
     tripId: z.uuid().optional(),
     /** Who is billed. */
     clientId: z.uuid().optional(),

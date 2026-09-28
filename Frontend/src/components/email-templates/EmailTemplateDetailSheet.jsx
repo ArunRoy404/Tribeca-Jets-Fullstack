@@ -38,7 +38,7 @@ export default function EmailTemplateDetailSheet({ templateId, onClose }) {
   const [copied, setCopied] = useState(false);
 
   const template = data ? toEmailTemplate(data) : null;
-  const used = new Set((template?.subject + template?.body).match(/\{[a-z][a-z0-9_]*\}/g) ?? []);
+  const used = new Set(`${template?.subject ?? ""} ${template?.body ?? ""}`.match(/\{[a-z][a-z0-9_]*\}/g) ?? []);
 
   const handleCopy = () => {
     if (!template) return;

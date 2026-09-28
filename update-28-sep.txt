@@ -1,0 +1,73 @@
+update - 28 sep
+
+Hello there,
+
+Quick update on recent development progress since our last update:
+
+Adjustments completed based on your feedback:
+
+ - Referral Agent Portal (now complete)
+   - Referral agents sign in to their own portal, separate from the CRM, with only: Dashboard, Submit Referral, My Referrals, Commissions and Resources
+   - Dashboard: referrals submitted, active referrals, trips booked, completed trips, and commission pending, earned and paid
+   - Submit Referral: the client's details, route, dates, passengers, aircraft preference, budget, notes and private attachments
+   - My Referrals: each referral's progress (Submitted -> Contacted -> Quoting -> Booked -> Completed), the trip it booked, and the "Updates from Tribeca" your team shares
+   - Commissions: the agent's standard commission terms and each commission with its status and paid date
+   - Resources: the brochures, guides and programme terms your team publishes
+   - An agent is always kept inside the portal and can never open a CRM page
+
+
+New modules connected:
+
+ - Itineraries
+   - One itinerary per trip, built from the trip itself, so the aircraft, route, dates and passengers can never disagree with the booking
+   - Catering, ground transport, flight time, arrival time and FBOs (defaulting to each airport's assigned FBO)
+   - Aircraft photos default to the trip's own aircraft, with the photo library available
+   - Status: Pending or Confirmed, and it can be marked as sent
+
+ - Schedule
+   - Day, week, month and year calendar of every flight, built from the real trips
+   - Filters by status, trip type, broker, operator and aircraft
+   - Tiles: flights today, in flight, next 7 days, completed today
+
+ - Flight Tracking
+   - Your team records each flight's status from what the operator reports: Not Departed, Delayed, In Flight, Landed or Diverted, with the estimated arrival time and a tracking link
+   - Each flight has its own update timeline
+   - A flight nobody has reported on yet shows "No Update", so the board never guesses a status
+
+ - Receivables (Client Invoices)
+   - Invoices on a trip, billed to the client or to a travel agent paying for them, numbered automatically (for example INV-2026-0042)
+   - Payments recorded against each invoice; paid, balance and status (Due, Partially Paid, Paid, Overdue) are calculated automatically
+   - An invoice can never be paid beyond what is owed
+   - Each trip and client page shows its invoices and payment status
+
+ - Operator Payments
+   - The operator's bill on each trip, and the payments sent against it
+   - Paid, balance and status calculated automatically, with bills due this week highlighted
+   - Each trip and operator page shows what was billed and paid
+
+ - Transactions
+   - One ledger of all money moving: client payments received, operator payments sent and commissions paid
+   - Filters by type, direction, date range and trip, with money in, money out and net totals
+
+ - Tasks Board
+   - Tasks with a due date, priority, assignee, checklist, and a link to a client or trip
+   - Board columns by status, and overdue / due-today views
+   - The notification bell now shows each person's tasks that are due today or overdue
+
+ - Email Templates and Sending Emails
+   - A template library with merge fields (client name, route, departure date, total price, amount due and more), filled in automatically from the real record
+   - An email is never sent while a merge field is still unfilled
+   - Emails can be sent to clients and operators, and every email sent is kept in a Sent log
+   - Quotes, itineraries, invoices (payment reminders), trips and clients each have an email button
+   - Emails appear on the client's and trip's timeline
+   - Emails go out through the system's email server; until that server is connected, emails are recorded but not delivered, and the screen says so
+
+ - Dashboard
+   - Tiles for upcoming trips, open requests, revenue, gross profit and margin, FET, client receivables, operator payments and empty legs
+   - Date filter: Today, This Week, This Month, This Quarter, Year to Date, with a comparison against the previous period
+   - Today's Priorities: follow-ups, tasks and bills that are due or overdue, each opening its record
+   - Recent Activity, Upcoming Follow-ups, Upcoming Trips and Financial Attention, all from real data
+   - Each person sees only the figures their role allows; brokers see their own clients and trips
+
+
+Best Regards.

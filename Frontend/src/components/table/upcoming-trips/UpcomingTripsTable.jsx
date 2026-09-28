@@ -1,9 +1,13 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import UpcomingTripTableRow from "./UpcomingTripTableRow";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const columns = ["Trip", "Date", "Client", "Broker", "Route", "Aircraft · Operator", "Status", "Client Pmt", "Op Pmt", "Profit"];
 
 export default function UpcomingTripsTable({ trips }) {
+  const router = useRouter();
   return (
     <div className="relative w-full overflow-x-auto hidden lg:block">
       <Table className="min-w-[900px]">
@@ -18,7 +22,11 @@ export default function UpcomingTripsTable({ trips }) {
         </TableHeader>
         <TableBody>
           {trips?.map((t) => (
-            <UpcomingTripTableRow key={t?.trip} trip={t} />
+            <UpcomingTripTableRow
+              key={t?.id ?? t?.trip}
+              trip={t}
+              onClick={t?.id ? () => router.push(`/dashboard/trips/${t.id}`) : undefined}
+            />
           ))}
         </TableBody>
       </Table>

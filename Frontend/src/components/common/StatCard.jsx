@@ -41,6 +41,7 @@ export default function StatCard({
   subtitle,
   subtitleTone = "muted",
   className,
+  children,
 }) {
   const displayTitle = title || label;
   const hasTopRow = Boolean(icon || badgeText);

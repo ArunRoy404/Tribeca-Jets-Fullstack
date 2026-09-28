@@ -1,5 +1,8 @@
 import { formatDate, toArchiveFields } from "@/lib/archive";
 import { formatAircraftCategory } from "@/lib/aircraft";
+// Imported, not only re-exported: `export { x } from` creates no local
+// binding, so this file's own calls threw "formatMoney is not defined".
+import { formatMoney } from "@/lib/money";
 
 /**
  * Display helpers for the Leads & Agents screens.
@@ -107,7 +110,7 @@ export function personName(record) {
  * from here, keep working unchanged. It lives in `lib/money.js` now — it was
  * never about leads, and a ledger needs a to-the-cent variant beside it.
  */
-export { formatMoney } from "@/lib/money";
+export { formatMoney };
 
 /** "KTEB → KMIA", or an em dash when the route is not known yet. */
 export function formatRoute(request) {

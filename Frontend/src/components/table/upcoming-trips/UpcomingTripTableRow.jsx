@@ -1,9 +1,9 @@
 import StatusBadge from "@/components/common/StatusBadge";
 import { TableCell, TableRow } from "@/components/ui/table";
 
-export default function UpcomingTripTableRow({ trip }) {
+export default function UpcomingTripTableRow({ trip, onClick }) {
   return (
-    <TableRow className="border-border">
+    <TableRow className={`border-border ${onClick ? "cursor-pointer" : ""}`} onClick={onClick}>
       <TableCell className="p-[10px] font-montserrat font-medium text-[10px] text-foreground">{trip?.trip}</TableCell>
       <TableCell className="p-[10px] font-montserrat font-medium text-[10px] text-foreground text-center">{trip?.date}</TableCell>
       <TableCell className="p-[10px] font-montserrat font-medium text-[10px] text-foreground text-center">{trip?.client}</TableCell>

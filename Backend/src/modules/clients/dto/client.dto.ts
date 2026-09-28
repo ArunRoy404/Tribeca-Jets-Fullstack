@@ -161,9 +161,10 @@ export const CLIENT_SORTABLE_FIELDS = [
 /**
  * The follow-up filter the table offers. Resolved against "now" in the service
  * rather than here, so every request is judged against the current clock and
- * not whenever the schema happened to be built.
+ * not whenever the schema happened to be built. SCHEDULED is all three
+ * together — any client with a follow-up set — for the dashboard's list.
  */
-export const FOLLOW_UP_WINDOWS = ['OVERDUE', 'TODAY', 'UPCOMING'] as const;
+export const FOLLOW_UP_WINDOWS = ['OVERDUE', 'TODAY', 'UPCOMING', 'SCHEDULED'] as const;
 
 export const queryClientsSchema = paginationSchema
   .extend({

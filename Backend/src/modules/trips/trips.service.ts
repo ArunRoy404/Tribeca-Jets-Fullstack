@@ -297,6 +297,8 @@ function departureFilter(window: TripWindow | undefined): Prisma.TripWhereInput 
       return { departureDate: { gte: start, lt: tomorrow } };
     case 'UPCOMING':
       return { departureDate: { gte: tomorrow } };
+    case 'ONWARD':
+      return { departureDate: { gte: start } };
     default:
       return {};
   }
@@ -642,6 +644,76 @@ export class TripsService {
         ? lateRows.filter((row) => tripPayment(row.invoices).state === TripPaymentState.OVERDUE).length
         : undefined,
     };
+  }
+
+  /**
+   * The dashboard's money for one window of departures (#24): booked and
+   * flown trips whose first leg leaves in `[from, to)`, priced by the same
+   * `priceQuote()` every read uses and summed in cents. A trip with no price
+   * yet is counted as a trip but adds nothing, and `pricedCount` says how
+   * many had one — a revenue figure silently missing half the week reads as
+   * a bad week.
+   *
+   * Profit and margin are over the trips whose operator cost is known, and
+   * absent for a role without VIEW_FINANCIALS, exactly as on the board.
+   */
+  async periodFigures(user: AuthenticatedUser, from: Date, to: Date) {
+    const rows = await this.prisma.trip.findMany({
+      where: {
+        deletedAt: null,
+        ...this.visibilityScope(user),
+        status: { in: [...REVENUE_STATUSES] },
+        departureDate: { gte: from, lt: to },
+      },
+      select: { basePrice: true, fetEnabled: true, fetRate: true, operatorCost: true, lineItems: true },
+    });
+
+    let revenue = 0;
+    let fet = 0;
+    let profit = 0;
+    let profitRevenue = 0;
+    let priced = 0;
+    let profitKnown = 0;
+    for (const row of rows) {
+      if (row.basePrice === null) continue;
+      const figures = priceQuote({ ...row, basePrice: row.basePrice });
+      priced += 1;
+      revenue += toCents(figures.totalPrice);
+      fet += toCents(figures.fetAmount);
+      if (figures.grossProfit !== null) {
+        profit += toCents(figures.grossProfit);
+        profitRevenue += toCents(figures.totalPrice);
+        profitKnown += 1;
+      }
+    }
+
+    const financials = this.seesFinancials(user);
+    return {
+      tripCount: rows.length,
+      pricedCount: priced,
+      revenue: fromCents(revenue),
+      fet: fromCents(fet),
+      profit: financials ? fromCents(profit) : undefined,
+      profitTripCount: financials ? profitKnown : undefined,
+      /** Profit over the revenue of the same trips, to one decimal; null with nothing to divide. */
+      marginPercentage: financials
+        ? profitRevenue > 0
+          ? Math.round((profit / profitRevenue) * 1000) / 10
+          : null
+        : undefined,
+    };
+  }
+
+  /** Trips still ahead of the desk whose first leg leaves today or later. */
+  async upcomingCount(user: AuthenticatedUser, today: Date): Promise<number> {
+    return this.prisma.trip.count({
+      where: {
+        deletedAt: null,
+        ...this.visibilityScope(user),
+        status: { in: [...ACTIVE_STATUSES] },
+        departureDate: { gte: today },
+      },
+    });
   }
 
   // ---- Writes -----------------------------------------------------------
