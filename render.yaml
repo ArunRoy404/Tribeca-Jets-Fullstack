@@ -6,14 +6,13 @@
 #   - MailModule throws at boot in production without SMTP. In development it
 #     falls back to the log driver, so two-factor and password-reset codes are
 #     printed to the Render log stream instead of being emailed.
-#   - Storage falls back to local disk. Render's filesystem is ephemeral, so
-#     no upload survives a deploy -- avatars, the broker document folders
-#     (tax forms), quote photos and itinerary files alike. Acceptable for
-#     throwaway test data only; supply S3_* before anything real is uploaded.
+#   - Uploads go to a Backblaze B2 bucket (free, S3-compatible). Render's
+#     free disk is wiped on every deploy, restart and wake from sleep, so
+#     local storage would lose every file within the hour.
 #   - Swagger is served at /api/docs (main.ts mounts it only outside production).
 #
 # Before this becomes a real deployment: set NODE_ENV=production and supply
-# SMTP_* and S3_*, or the API will refuse to start — which is the intent.
+# SMTP_*, or the API will refuse to start — which is the intent.
 #
 # Postgres is NOT defined here. It lives on Neon; paste its connection string
 # into DATABASE_URL when Render prompts for it.
@@ -106,11 +105,34 @@ services:
       - key: API_PUBLIC_URL
         sync: false
 
-      # ---- Drivers --------------------------------------------------------
-      # Explicit rather than `auto`, so it is obvious from the config that
-      # files land on an ephemeral disk and mail is not actually sent.
+      # ---- Uploads: Backblaze B2 -----------------------------------------
+      # `s3`, not `auto`: with `auto`, one missing or mistyped key silently
+      # falls back to the wiped local disk and uploads start vanishing.
       - key: STORAGE_DRIVER
-        value: local
+        value: s3
+      # https://s3.<region>.backblazeb2.com — the Endpoint on the bucket card.
+      - key: S3_ENDPOINT
+        sync: false
+      # The <region> part of that endpoint, e.g. us-west-004.
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      # The application key's keyID and applicationKey (shown once).
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      # Newer AWS SDKs add checksum headers to every upload, which some
+      # S3-compatible stores reject. Harmless on B2 either way.
+      - key: AWS_REQUEST_CHECKSUM_CALCULATION
+        value: WHEN_REQUIRED
+      - key: AWS_RESPONSE_CHECKSUM_VALIDATION
+        value: WHEN_REQUIRED
+
+      # ---- Mail -----------------------------------------------------------
+      # Explicit rather than `auto`, so it is obvious from the config that
+      # mail is not actually sent.
       - key: MAIL_DRIVER
         value: log
 
