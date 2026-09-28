@@ -855,7 +855,7 @@ changed, and `npm run build` passes.
 | ~~Payment reminders (§9.3 "trigger reminders")~~ | ✅ Shipped with **Email Templates (#21)** — "Send Reminder" on the row, by hand; *automatic* reminders need a scheduled job |
 | A printable / PDF invoice | **Document Vault (#22)** |
 | Export | **Settings / Import / Export (#26)** |
-| Receivables on the dashboard and the daily brief | **Dashboard (#24)** |
+| ~~Receivables on the dashboard~~ | ✅ Shipped with **Dashboard (#24)** — the tile, the Financial Attention column and overdue invoices in Today's Priorities. A *daily brief* email needs a scheduled job |
 | Paying an invoice from a client's credit | **A decision** — see Client Credits (#30) |
 
 **Deferred by decision:** processing card or wire payments. Scope §17 lists
@@ -903,7 +903,7 @@ as open; this module records them.
 |---|---|
 | Remittance / operator-payment reminders (§6.13) | **Email Templates (#21)** ✅ shipped — it can email an operator, but has no operator-bill merge fields yet, so a remittance would carry no amount |
 | The operator's bill as an attached PDF | **Document Vault (#22)** — the bill's number is stored; the file is not |
-| Payables on the dashboard | **Dashboard (#24)** |
+| ~~Payables on the dashboard~~ | ✅ Shipped with **Dashboard (#24)** — the tile, the Financial Attention column and bills due in Today's Priorities |
 
 ### 19. Transactions ✅ *(28 Sep 2026)*
 
@@ -1152,11 +1152,53 @@ with no code written**.
 
 ---
 
-## 24. Dashboard ⬜
+## 24. Dashboard ✅ *(28 Sep 2026)*
 
-Only the "Empty Leg Opportunities" section is wired (27 Sep 2026, Empty Legs #15); the rest renders from `dummyData/dashboard.js`. Waits on nearly
-everything, which is why it is last despite being the first screen a user sees.
-Building it early means writing every count twice.
+**Working now** — every section reads the API; `dummyData/dashboard.js` and
+`useDashboardStore` are deleted.
+
+- **Tiles** (`GET /dashboard/summary?period=&on=`): upcoming trips (active,
+  departing today or later), open requests and how many await sourcing, and
+  for the chosen window — Today, This Week (Monday first), This Month, This
+  Quarter, Year to Date — revenue, gross profit with margin, and FET charged
+  on booked and flown trips *departing* in it, each against the window before
+  ("+18% vs last week", or no badge with nothing to compare). Client
+  receivables and operator payments outstanding with their overdue counts;
+  empty legs on offer and matched. The period is in the URL.
+- **Today's Priorities** (`GET /dashboard/priorities`): client follow-ups due
+  by today, the caller's own tasks due by today, and invoices and operator
+  bills still owed that are overdue or due within three days — most overdue
+  first, each opening its record.
+- **Recent Activity** (`GET /dashboard/activity`): the audit trail, newest
+  first — everybody's activity on the kinds of record the caller can see all
+  of, their own on the rest; each entry names its record ("TJ-1048", a
+  client) and links to it. Sign-ins are never listed.
+- **Upcoming Follow-ups**: the clients list with `followUp=SCHEDULED`.
+- **Upcoming Trips**: the trips list with `departure=ONWARD&activeOnly=true`,
+  each row opening the trip.
+- **Financial Attention**: the receivables and operator-payments lists with
+  `open=true`, soonest due first, and their own stats for the totals.
+- **Empty Leg Opportunities**: unchanged since #15.
+- **Scope**: every figure is read through its owning module, in the caller's
+  row scope and behind that module's read permission. A section the role may
+  not read is absent — an assistant sees no money tiles and no Financial
+  Attention — never zero.
+- Module `modules/dashboard/` (period arithmetic in `dashboard.period.ts`
+  with tests, the activity visibility rule in `dashboard.activity.ts`);
+  Postman builder `build_dashboard_folder.py` → `27 · Dashboard` (7
+  requests), **written, not run**.
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| "Ask Anything" in the header | **AI Assistant (#27)** |
+| A daily brief by email | **A scheduled job** — nothing in the system runs on a timer yet |
+
+**Deferred by decision:** the sparkline graphs the design drew on each tile.
+They were static images — a trend nobody computed — so they are gone rather
+than shown; a real series needs a per-day query per tile, which nobody has
+asked for yet.
 
 ---
 

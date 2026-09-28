@@ -60,7 +60,7 @@ set of broken joins the day the real table arrives.
 | 21 | **Email Templates** | ✅ Done (28 Sep) — with sending, and the quote/itinerary/reminder second pass | Clients, Operators, Trips, Quotes, Receivables (merge fields) |
 | 22 | **Document Vault** | No screen yet | Trips, Clients, Operators |
 | 23 | **Reports** | Not started | All financial modules |
-| 24 | **Dashboard** | Empty Legs section only | Nearly everything — build it last |
+| 24 | **Dashboard** | ✅ Done (28 Sep) — tiles, priorities, activity; lists read the owning modules | Nearly everything — built last |
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
 | 27 | **AI Assistant** | Stub only | All |
@@ -610,7 +610,14 @@ CSV / Excel / PDF export.
 ### 24. Dashboard
 
 The landing screen: upcoming trips, open requests, revenue, follow-ups due.
-Aggregates from everything, so it is built last.
+Aggregates from everything, so it is built last. **Built 28 Sep 2026.** It
+stores nothing: three endpoints of its own (`/dashboard/summary`,
+`/priorities`, `/activity`) read every figure through the owning module, and
+the lists beside them are those modules' own list endpoints with one filter
+each (`departure=ONWARD`, `followUp=SCHEDULED`, `open=true`). Revenue for a
+period counts trips *departing* in it — a trip booked on Monday for Friday is
+this week's revenue — which is the definition to confirm with the client
+before Reports (#23) repeats it.
 
 ### 25. Client Portal
 

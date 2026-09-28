@@ -1381,7 +1381,7 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form. Not yet: the Clients table, Airports,
+Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard. Not yet: the Clients table, Airports,
 Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by
@@ -1472,6 +1472,16 @@ a private `optional()` again.
 **Who counts as a broker is `BROKER_ROLES` in `src/lib/roles.js`.** Every
 broker picker and filter imports it. Eight hand-written copies disagreed about
 whether an admin owns clients.
+
+## A name used must be imported — `no-undef` is on
+
+`export { x } from "…"` re-exports `x` **without** creating a local binding.
+`lib/lead.js` did exactly that with `formatMoney` and then called it itself,
+so Leads & Agents and Trip Requests passed every build and threw
+"formatMoney is not defined" in the browser the moment a row rendered. The
+build does not catch this; only lint does, so `no-undef` is an error in
+`eslint.config.mjs`. To re-export something the file also uses, import it
+and export the binding: `import { x } from "…"; export { x };`.
 
 ## Pagination is server-side
 
