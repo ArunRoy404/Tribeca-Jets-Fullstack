@@ -496,9 +496,20 @@ projection of Trips with departures, arrivals and in-flight state.
 
 ### 14. Flight Tracking
 
-Live position and status for trips in the air — departure, ETA, delays,
-on-time rate. Likely needs a third-party feed, which is a decision to make
-before building it.
+Status for trips in the air — departure, ETA, delays, on-time rate.
+
+**Decided 27 Sep 2026: manual, no flight-data provider**, until the client
+asks for one himself. A broker sets each flight's status and notes by hand,
+and the rest of the screen (client, aircraft, tail, operator, route,
+scheduled times) reads from Trips. **This is an interim step, not what the
+scope ultimately wants:** §6.12 is titled *Live* Flight Tracking and asks for
+delay notifications "where external data supports them", and §12 lists a
+flight tracking API. But the provider is TBD there and an open decision in
+§17, the text asks only for "future FlightAware/API readiness", and the
+acceptance line is "verified *or dependency documented*" — so manual, with
+the provider recorded as pending, is within scope. Build it so a provider can
+be added later, but add none now, and never label a status "live" when a
+person typed it.
 
 ### 15. Empty Legs ✅
 
