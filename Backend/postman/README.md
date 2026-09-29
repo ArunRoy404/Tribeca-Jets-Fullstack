@@ -285,15 +285,17 @@ running, seeded API — `build_aircraft_folder.py` (07),
 `build_itineraries_folder.py` (22), `build_schedule_folder.py` (23),
 `build_flight_tracking_folder.py` (24), `build_tasks_folder.py` (25),
 `build_email_templates_folder.py` (26), `build_dashboard_folder.py` (27),
+`build_documents_folder.py` (28),
 and `build_users_folder.py` + `reorganize.py` for 04 (above).
 
-**16, 17 and 18 were written on 27 Sep 2026, and 19 to 27 on 28 Sep;
+**16, 17 and 18 were written on 27 Sep 2026, 19 to 27 on 28 Sep and 28 on 29 Sep;
 none has been run yet** — the collection does not contain those folders until they are. Run
 them against a freshly seeded API with the latest migrations deployed (16–18
 need `agent@tribecajets.com`; 19–21 sign in as `admin@`, `broker@` and
 `assistant@`, and 19–20 need the seeded broker `mark@`; 23 signs in as
 `admin@`, `broker@` and `agent@`, 24 as those and `assistant@`, and 25 and 26 as
-`admin@`, `broker@` and `agent@`, and 27 as those and `assistant@`; 26 writes a probe client on `example.com`,
+`admin@`, `broker@` and `agent@`, 27 as those and `assistant@`, and 28 as
+`admin@` and `assistant@`; 26 and 28 write a probe client on `example.com`,
 which never delivers, so it emails nobody real even with SMTP set), then
 `rewrite_body_comments.py`, then Newman twice. Two older folders now also
 under-document their responses: `01 · Auth`'s `/auth/me` and sign-in examples
