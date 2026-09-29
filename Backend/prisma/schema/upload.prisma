@@ -86,6 +86,10 @@ model Upload {
   /// filename is usually already the answer.
   label String? @db.VarChar(200)
 
+  /// Vault documents holding this file (#22). Restrict: a file a document
+  /// still points at is never removed from under it.
+  documents Document[] @relation("DocumentUpload")
+
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid
   createdBy   User?    @relation("UploadCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
