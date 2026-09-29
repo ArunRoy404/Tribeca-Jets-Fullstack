@@ -10,7 +10,6 @@ import {
   nullableNumber,
   optionalNumber,
 } from '../../../common/dto/numbers.js';
-import { uploadUrl } from '../../../common/dto/uploads.js';
 import { TripStatus, TripType } from '../../../generated/prisma/enums.js';
 import { FET_RATE, MONEY, lineItemList } from '../../quotes/dto/quote.dto.js';
 import { CREATABLE_STATUSES } from '../trips.lifecycle.js';
@@ -117,7 +116,6 @@ export const createTripSchema = z.object({
 
   internalNotes: z.string().trim().max(5_000).optional(),
   clientNotes: z.string().trim().max(5_000).optional(),
-  documentUrls: z.array(uploadUrl).max(30).default([]),
 });
 
 export type CreateTripInput = z.infer<typeof createTripSchema>;
@@ -158,7 +156,6 @@ export const updateTripSchema = z
 
     internalNotes: z.string().trim().max(5_000).nullable().optional(),
     clientNotes: z.string().trim().max(5_000).nullable().optional(),
-    documentUrls: z.array(uploadUrl).max(30).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Provide at least one field to update',

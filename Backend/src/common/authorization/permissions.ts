@@ -40,6 +40,9 @@ export const Permission = {
   MANAGE_TASKS: 'MANAGE_TASKS',
   MANAGE_EMAIL_TEMPLATES: 'MANAGE_EMAIL_TEMPLATES',
   SEND_EMAILS: 'SEND_EMAILS',
+  VIEW_DOCUMENTS: 'VIEW_DOCUMENTS',
+  MANAGE_DOCUMENTS: 'MANAGE_DOCUMENTS',
+  VIEW_SENSITIVE_DOCUMENTS: 'VIEW_SENSITIVE_DOCUMENTS',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -369,6 +372,46 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
     [UserRole.ASSISTANT]: OWN,
     [UserRole.REFERRAL_AGENT]: NONE,
   },
+  /**
+   * Document Vault (#22). Which documents a caller reaches is the *owner's*
+   * scope — a broker reads the folders of the clients and trips they may
+   * see, through those modules' own rules — so the scope here is the
+   * capability, and the row rule lives in `DocumentsService`.
+   */
+  [Permission.VIEW_DOCUMENTS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: ASSIGNED,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
+  /**
+   * Filing, editing and archiving. A broker files on their own clients and
+   * trips and archives what they filed; archiving anyone's is ALL. An
+   * assistant reads the vault and does not change it.
+   */
+  [Permission.MANAGE_DOCUMENTS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
+  /**
+   * Passports and IDs (scope §11: "Passport/ID documents require restricted
+   * access"). Without it they are absent from every list and a 404 when
+   * named — to the assistant, not merely hidden.
+   */
+  [Permission.VIEW_SENSITIVE_DOCUMENTS]: {
+    [UserRole.SUPER_ADMIN]: ALL,
+    [UserRole.ADMIN]: ALL,
+    [UserRole.SENIOR_BROKER]: ALL,
+    [UserRole.BROKER]: OWN,
+    [UserRole.ASSISTANT]: NONE,
+    [UserRole.REFERRAL_AGENT]: NONE,
+  },
 };
 
 /** How far `role` may reach for `permission`. */
@@ -479,4 +522,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.MANAGE_TASKS]: 'Create/Work Tasks',
   [Permission.MANAGE_EMAIL_TEMPLATES]: 'Manage Email Templates',
   [Permission.SEND_EMAILS]: 'Send Emails',
+  [Permission.VIEW_DOCUMENTS]: 'View Documents',
+  [Permission.MANAGE_DOCUMENTS]: 'File/Edit Documents',
+  [Permission.VIEW_SENSITIVE_DOCUMENTS]: 'View Passports & IDs',
 };
