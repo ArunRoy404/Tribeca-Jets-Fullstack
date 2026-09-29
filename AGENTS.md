@@ -953,10 +953,14 @@ closes a leak that the permission matrix alone would not:
 - **Referral attachments are streamed through the referral, not the upload.**
   `GET /referrals/:id/attachments/:uploadId` resolves the referral in scope
   first, checks the upload URL is on it, then calls
-  `UploadsService.openVouched()` — the **one sanctioned bypass of `mayRead`**,
+  `UploadsService.openVouched()` — the **sanctioned bypass of `mayRead`**,
   because the desk broker is neither the uploader nor the owner of a file the
-  agent uploaded privately. Any second caller of `openVouched` must vouch for
-  the file through a record the same way; never call it with a bare id.
+  agent uploaded privately. Any other caller of `openVouched` must vouch for
+  the file through a record the same way; never call it with a bare id. The
+  second caller is the Document Vault (`GET /documents/:id/file`), and it
+  closes the matching hole on the way in: a document may only be filed on a
+  file its filer could already read, or the vouched read would publish
+  someone else's private upload to everyone who can see the folder.
 - **A partner response never carries desk data.** `partnerView()` in the
   referrals and commissions services strips notes, the broker and every price
   input. The agent sees their commission, never the profit it was derived
@@ -978,6 +982,26 @@ boundary (the API is); they stop an agent landing on panels that all answer
 `NavMain` `home` + `sections`, `TopNav` `titleFor` + `showNotifications`) —
 add a portal screen by adding an entry to `components/portal/portalNav.js`,
 not a second sidebar.
+
+## A document is visible exactly when its owner is
+
+A vault document (#22) belongs to exactly one client, trip or operator, and
+its row scope is **that owner's**, read through the owning module
+(`ClientsService.visibleWhere`, `TripsService.visibleWhere`) — never a copy
+of either `where`. Three rules on top:
+
+- **Passports and IDs are their own permission,** `VIEW_SENSITIVE_DOCUMENTS`
+  (scope §11). Without it they are absent from lists and a 404 when named —
+  and a relabel out of PASSPORT/ID needs the same right, or a category change
+  would publish one.
+- **The audit row is written on the owner** (`document.added` on the
+  Client, Trip or Operator), so filing reads on that record's timeline. Its
+  metadata carries the category always and the title only for an
+  unrestricted document: a passport's title can hold its number.
+- **A document stores its upload by foreign key,** not the file's name, size
+  or type — those are the upload's facts. A record's own list of upload URLs
+  (`trips.documentUrls` was one) is a second document store; file into the
+  vault instead.
 
 ## A balance is summed, never stored — and money is counted in cents
 
@@ -1381,7 +1405,7 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard. Not yet: the Clients table, Airports,
+Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault. Not yet: the Clients table, Airports,
 Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by
