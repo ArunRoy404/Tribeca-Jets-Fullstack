@@ -52,6 +52,9 @@ const CRM_SECTIONS = [
       { label: "Operators", icon: "nav-operators-sourcing", href: "/dashboard/operators" },
       { label: "Aircraft", icon: "nav-flight-tracking", href: "/dashboard/aircraft" },
       { label: "Airports", icon: "nav-airports", href: "/dashboard/airports" },
+      // Document Vault (#22) — no Figma icon was exported for it; the
+      // itineraries document glyph is the nearest honest match.
+      { label: "Document Vault", icon: "nav-itineraries", href: "/dashboard/documents" },
     ],
   },
   {

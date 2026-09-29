@@ -4,6 +4,7 @@ import { actorName, formatDate } from "@/lib/archive";
 import { formatCalendarDate } from "@/lib/date";
 import { formatTripReference } from "@/lib/trip";
 import { formatTaskReference } from "@/lib/task";
+import { formatDocumentCategory } from "@/lib/document";
 
 /**
  * The overview's wording (#24). Every figure comes from `/dashboard/*` or an
@@ -177,6 +178,14 @@ const CATEGORY = {
   CLIENT_PAYMENT: "Client Payment",
   OPERATOR_PAYMENT: "Operator Payment",
   TASK: "Task",
+  DOCUMENT_EXPIRY: "Document",
+};
+
+/** Where a document's owner opens — the folder is on that page. */
+const OWNER_HREFS = {
+  CLIENT: (id) => `/dashboard/clients/${id}`,
+  TRIP: (id) => `/dashboard/trips/${id}`,
+  OPERATOR: (id) => `/dashboard/operators/${id}`,
 };
 
 /** A day-level due date: "Today", "Tomorrow", "3 days ago", or the date. */
@@ -248,6 +257,20 @@ export function toPriorityItem(item) {
           .join(" · "),
         href: `/dashboard/tasks-board?task=${item?.task?.id}`,
       };
+    case "DOCUMENT_EXPIRY": {
+      // A passport's title can carry its number; a restricted document is
+      // named by its category only, as on the timeline.
+      const what = item?.document?.sensitive
+        ? formatDocumentCategory(item?.document?.category)
+        : (item?.document?.title ?? formatDocumentCategory(item?.document?.category));
+      const toHref = OWNER_HREFS[item?.owner?.type];
+      return {
+        ...base,
+        title: `${what} ${item?.state === "OVERDUE" ? "expired" : "expires"}`,
+        meta: item?.owner?.label ?? "",
+        href: toHref && item?.owner?.id ? toHref(item.owner.id) : null,
+      };
+    }
     default:
       return { ...base, title: DASH, meta: "", href: null };
   }
@@ -384,6 +407,11 @@ const ACTIVITY_PHRASES = {
   "referral.restored": "restored a referral",
   "user.invited": "invited",
   "user.invitation_accepted": "accepted the invitation —",
+  "document.added": "filed a document for",
+  "document.updated": "updated a document for",
+  "document.replaced": "replaced a document for",
+  "document.archived": "archived a document for",
+  "document.restored": "restored a document for",
   "upload.created": "uploaded a file",
   "upload.removed": "archived a file",
   "upload.restored": "restored a file",

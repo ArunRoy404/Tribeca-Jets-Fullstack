@@ -215,7 +215,6 @@ export function toTripDetail(trip) {
     },
     internalNotes: trip?.internalNotes ?? null,
     clientNotes: trip?.clientNotes ?? null,
-    documentUrls: trip?.documentUrls ?? [],
     isArchived: Boolean(trip?.deletedAt),
     // Whether this trip's passenger document (Itineraries, #12) exists, is
     // confirmed and has been sent — read straight through, no second fetch.
