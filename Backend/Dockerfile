@@ -1,4 +1,4 @@
-# API image for the production VPS (deploy/docker-compose.yml builds it).
+# API image. In production Dokploy builds it from this folder (docs/DEPLOYMENT-VPS.md).
 #
 # One stage, devDependencies kept. The container has to run three things
 # besides the server, and all three live in devDependencies: `prisma migrate
