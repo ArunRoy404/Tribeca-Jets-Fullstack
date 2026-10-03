@@ -5,7 +5,7 @@ it start to finish. Every step says what was done, with this project's actual
 values. Where one name has to match another, the field carries a
 **🔗 link note** saying what it must match and how to keep the two in step.
 
-**Status:** steps 1–12 are done. Steps 13–16 are still to do.
+**Status:** all 16 steps are done. Production went live on 3 Oct 2026.
 
 ```
 browser ──https──▶ Traefik (Dokploy) ─┬─ tribecajetscommandcenter.com/api/*  ▶ api  (NestJS :4000)
@@ -298,7 +298,7 @@ starts.
    (`roy.techreion`), and a future project adds its own domain to the same
    account. 🔗 The free limit is **per account, shared by every project**
    on it.
-2. **Domains → Add Domain**: `tribecajetscommandcenter.com`, region
+2. **Domains → Add Domain** ✅: `tribecajetscommandcenter.com`, region
    **North Virginia (us-east-1)**, the closest to the VPS. **Enable Sending**
    on, **Enable Receiving** off (we only send).
 3. Resend lists DNS records. They were added in **Netlify DNS** (step 4's
@@ -368,20 +368,48 @@ so mail sends without DNS changes. For better inbox placement: Google Admin
 → Apps → Google Workspace → Gmail → **Authenticate email** → turn on DKIM,
 and add its TXT record at **GoDaddy** (that domain's DNS), not Netlify.
 
-## 13. The API app: ⏳ to do
+## 13. The API app ✅
 
 Project → **Create Service → Application**:
 
 | Field | Value |
 |---|---|
 | Name | `api` |
-| App Name | `tribeca-jets-api` (🔗 the internal host the web app's `API_PROXY_TARGET` uses; read the final value, suffix included, from the api's General tab) |
+| App Name | `tribeca-jets-api` (🔗 the internal host the web app's `API_PROXY_TARGET` uses; Dokploy appended a suffix, so ours is **`tribeca-jets-api-nbxnuq`**, shown under the app's title) |
 
-**General → Provider: GitHub**: repository = this one, branch `main`,
-**Build path `/Backend`**, build type **Dockerfile**, Dockerfile path
-`Dockerfile`.
+**General → Provider: GitHub** ✅
 
-**Environment** tab: paste and fill in.
+| Field | Value |
+|---|---|
+| Github Account | the GitHub App from step 7 |
+| Repository | `Tribeca-Jets` |
+| Branch | `main` |
+| Build Path | `/Backend` (🔗 the folder holding the API's `Dockerfile`) |
+| Trigger Type | On Push, with **Autodeploy** on, so a push to `main` redeploys |
+| Watch Paths | empty, so every push rebuilds (simple and safe) |
+
+**Build Type** ✅: **Dockerfile**, Docker File `Dockerfile`, Docker Context
+Path **empty** (it means `.`, i.e. the Build Path), Build Stage empty (the
+Dockerfile has one stage). Each section has its own **Save**.
+
+Don't press **Deploy** until the Environment and Domain below are filled in.
+
+**Environment** tab ✅: paste into the **top box, "Environment Settings"**
+(the runtime variables). The greyed `NODE_ENV=production` / `PORT=3000` /
+`NPM_TOKEN=xyz` lines in empty boxes are placeholders, not saved values.
+**Build-time Arguments** and **Build-time Secrets** stay empty for the api.
+**Create Environment File: off**: the api gets these variables at run time,
+and with it on Dokploy also writes every secret into a `.env` on disk that
+nothing reads.
+
+Generate each JWT secret on Windows with PowerShell (run twice, one value
+per secret):
+
+```powershell
+$b = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
+```
+
+Paste and fill in:
 
 ```env
 NODE_ENV=production
@@ -439,60 +467,162 @@ Leave `COOKIE_DOMAIN` out entirely.
 | Host | `tribecajetscommandcenter.com` (🔗 the `@` DNS record) |
 | Path | `/api` (🔗 = `API_PREFIX`) |
 | Container port | `4000` (🔗 = `PORT`) |
+| Internal Path | the default `/` (changes nothing) |
 | Strip path | **off**, since the API expects the `/api` prefix |
+| Custom Entrypoint | off |
 | HTTPS | on, Let's Encrypt |
 
-**Deploy** once every value above is filled in. Watch *Deployments* (build) and
+Middlewares: empty. **Create**.
+
+**Deploy** ✅ (General tab) once every value above is filled in. The first
+build took about 3–4 minutes: clone, `npm ci`, `prisma generate`,
+`nest build`, image export. Harmless noise in the build log: `debconf: unable
+to initialize frontend`, `3 moderate severity vulnerabilities`, `New major
+version of npm`, `deprecated tsconfck`.
+
+**Check:** `https://tribecajetscommandcenter.com/api/health` answered
+
+```json
+{"status":"ok","environment":"production","services":{"database":"up","redis":"up","storage":"s3","ai":"not_configured"}}
+```
+
+`production` plus `ok` means every production guard passed, SMTP included,
+since the API refuses to boot without it. `database: up` means the migrations
+ran. `storage: s3` means R2 is live. `ai: not_configured` is expected, as no
+AI key is set. Watch *Deployments* (build) and
 *Logs*: migrations applied, then `SMTP transport ready`. In a restart loop,
 the first log lines name the setting it rejected.
 
-## 14. The web app: ⏳ to do
+## 14. The web app ✅
 
 Project → **Create Service → Application**, name `web`, App Name
-`tribeca-jets-web`. Same provider as the api, but **Build path `/Frontend`**.
+`tribeca-jets-web` (Dokploy's suffix makes ours **`tribeca-jets-web-yh7bhp`**).
+Same provider, trigger and build type as the api, but **Build path
+`/Frontend`** ✅.
 
-**Environment → Build-time arguments**, not the runtime box. Next.js
-reads them when it *builds*:
+**Environment → Build-time Arguments** (the middle box) ✅, not the runtime
+box. Next.js reads them when it *builds*:
 
 ```env
-API_PROXY_TARGET=http://<api internal host, from the api's General tab>:4000
+API_PROXY_TARGET=http://tribeca-jets-api-nbxnuq:4000
 NEXT_PUBLIC_API_URL=/api
 ```
+
+Environment Settings (top) and Build-time Secrets stay **empty**; Create
+Environment File **off**.
 
 🔗 `API_PROXY_TARGET`'s host is the api's App Name *with* its suffix, and
 `4000` is the api's `PORT`. Other `NEXT_PUBLIC_*` (cache times, polling, see
 `Frontend/.env.example`) are optional. A build argument changes only on the
 **next Deploy**, not on restart. The runtime Environment box stays empty.
 
-**Domains**, two entries, both container port `3000`, path `/`, HTTPS on:
-`tribecajetscommandcenter.com` and `www.tribecajetscommandcenter.com`
-(🔗 the `@` and `www` DNS records). Then **Advanced → Redirects** → preset
-**www → non-www**. **Deploy**.
+**Domains** ✅: **Add Domain** twice, identical except the host:
 
-## 15. The first account: ⏳ to do
+| Field | Domain 1 | Domain 2 |
+|---|---|---|
+| Host | `tribecajetscommandcenter.com` (🔗 the `@` DNS record) | `www.tribecajetscommandcenter.com` (🔗 the `www` DNS record) |
+| Path | `/` | `/` |
+| Internal Path | `/` | `/` |
+| Strip Path | off | off |
+| Container Port | `3000` (🔗 = `-p 3000` in `Frontend/Dockerfile`) | `3000` |
+| Custom Entrypoint | off | off |
+| HTTPS | on, Let's Encrypt | on, Let's Encrypt |
+
+The api's `/api` domain and the web's `/` domain share a host. Traefik
+matches the longer path first, so `/api/*` reaches the api and everything
+else reaches the web app.
+
+**Advanced → Redirects → Add Redirect** ✅: Preset **Redirect to non-www**.
+It fills Regex `^https?://www\.tribecajetscommandcenter\.com/(.*)` and
+Replacement `https://tribecajetscommandcenter.com/${1}`. **Permanent** on.
+
+**Deploy** ✅. The build took about 3 minutes (`next build` compiles and
+prerenders 41 routes). Checked: `https://tribecajetscommandcenter.com`
+shows the sign-in page, and `www.` redirects to it.
+
+Follow-up noted at deploy time: `npm audit` reported 15 vulnerabilities in the
+frontend's production dependencies (11 high, 1 critical), and 3 moderate in the
+backend. Review them separately; never mid-deploy.
+
+## 15. The first account ✅
 
 **Never run `db:seed` in production.** It creates seven accounts with the
-public password `ChangeMe123!` and invented clients. Instead: api → **Open
-Terminal** →
+public password `ChangeMe123!` and invented clients. The first account comes
+from a one-off script instead, run inside the api container:
+
+1. Dokploy → **api** → General → **Open Terminal** → pick **Bash**. The
+   container picker at the top already shows the running api container.
+2. **`cd /app` first.** The terminal opens at `/`, not in the app; without
+   this, npm fails with `ENOENT … open '/package.json'`. The prompt then
+   reads `root@…:/app#`.
+3. Run it as **one line**, replacing the four values:
 
 ```sh
-ADMIN_EMAIL=you@example.com ADMIN_FIRST_NAME=First ADMIN_LAST_NAME=Last \
-ADMIN_PASSWORD='Your-Strong-Password1' npm run db:bootstrap-admin
+cd /app
+ADMIN_EMAIL=you@example.com ADMIN_FIRST_NAME=First ADMIN_LAST_NAME=Last ADMIN_PASSWORD='Your-Strong-Password1' npm run db:bootstrap-admin
 ```
 
-Password policy: 10+ characters, upper case, lower case and a digit. The
-script only creates. An email that already exists is refused, not reset. Everyone else
-is invited from **Users & Roles**. The database starts empty: the desk enters
-its own airports, operators, aircraft and templates.
+| Value | Notes |
+|---|---|
+| `ADMIN_EMAIL` | a real inbox: sign-in codes and resets go there |
+| `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` | quote a name with a space: `ADMIN_LAST_NAME='Van Dyke'` |
+| `ADMIN_PASSWORD` | in **single quotes**, with no `'` inside it. Policy: 10+ characters, upper case, lower case, a digit. Never a password from a chat, a ticket, this document or the seed. |
 
-## 16. Check it works: ⏳ to do
+Success prints `Created SUPER_ADMIN <email>.` A password that breaks the
+policy prints the rule it broke and creates nothing. Running it for an email
+that already exists changes nothing: it only creates, and never resets.
 
-- `https://tribecajetscommandcenter.com` loads with a padlock; `www.`
+Done for Tribeca, two SUPER_ADMINs:
+
+| Account | Password |
+|---|---|
+| the developer (`techreion@gmail.com`) | set by the developer and replaced through Forgot password |
+| the client, `ari@tribecajets.com` | **temporary**. At handover the client uses **Forgot password** (the code goes to their own inbox) and sets one only they know. Until then the temporary one stays in our password manager, never sent by email or chat. |
+
+**Starting over before go-live.** The first attempt created one account with
+a publicly known password, so every user was removed and both were created
+again. The app has **no way to delete a user** by design (accounts are
+suspended, never removed), so this was a one-time SQL cleanup, safe only
+because the database was brand new. **After go-live, suspend instead**
+(Users & Roles → Edit → Suspended).
+
+```sh
+# postgres service → Open Terminal → Bash. There is no /app here; that's the api container.
+psql -U tribeca tribeca_jets        # the prompt becomes tribeca_jets=#. SQL works only after this.
+```
+```sql
+SELECT email, role, status, "createdAt" FROM users;  -- look first; camelCase columns need "double quotes"
+DELETE FROM users;                                   -- irreversible
+SELECT count(*) FROM users;                          -- 0
+\q
+```
+
+Everyone else is invited from **Users & Roles**. The database starts empty:
+the desk enters its own airports, operators, aircraft and templates.
+
+## 16. Check it works ✅
+
+- [x] `https://tribecajetscommandcenter.com` loads with a padlock; `www.`
   redirects to it.
-- `https://tribecajetscommandcenter.com/api/health` reports `ok`.
-- Sign in as the bootstrap admin.
-- Upload a photo. It appears under `images/` in `tribeca-jets-prod`.
-- Invite a user. The email arrives and is not in spam.
+- [x] `https://tribecajetscommandcenter.com/api/health` reports `ok`.
+- [x] **Forgot password** on the developer's account: the code arrived from
+  `no-reply@tribecajetscommandcenter.com` in the **Inbox**, not spam. This
+  proves Resend and the DNS records.
+- [x] Sign in with the new password.
+- [x] **Upload:** Aircraft → Add Aircraft → pick a photo. It uploads the
+  moment it's picked (the thumbnail appears), so **Cancel** is fine. A file
+  appeared under `images/` in `tribeca-jets-prod`. If an upload fails, the
+  api's Logs name the cause: `InvalidAccessKeyId` / `SignatureDoesNotMatch`
+  means a wrong key, `NoSuchBucket` a wrong bucket or endpoint.
+
+**Still open after go-live:**
+
+- Handover: the client resets `ari@tribecajets.com`'s password through Forgot
+  password.
+- Switch mail to the client's Workspace (step 12b) once they send the app
+  password.
+- Review the frontend's `npm audit` findings (11 high, 1 critical) in a normal
+  change, deployed like any other.
 
 ---
 
