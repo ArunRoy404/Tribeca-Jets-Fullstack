@@ -1,0 +1,28 @@
+# Caddy obtains and renews the Let's Encrypt certificates itself, the first
+# time each name is requested. DNS for both names must already point at this
+# VPS, or issuance fails and Caddy retries with backoff.
+{
+	email {$ACME_EMAIL}
+}
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	# The API straight from Caddy rather than through the Next rewrite: one
+	# hop fewer, and uploads are not subject to Next's proxy body limit.
+	# Caddy sets X-Forwarded-For, and the API trusts exactly one proxy hop
+	# (`trust proxy` 1), so per-IP rate limits see the real client.
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}
