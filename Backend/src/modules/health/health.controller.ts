@@ -7,7 +7,7 @@ import { StorageService } from '../../core/storage/storage.service.js';
 import { AppConfigService } from '../../config/config.service.js';
 
 /**
- * Liveness/readiness endpoint for nginx, PM2 and uptime monitoring on the VPS.
+ * Liveness/readiness endpoint for the Docker healthcheck and uptime monitoring.
  */
 @ApiTags('Health')
 @Controller('health')

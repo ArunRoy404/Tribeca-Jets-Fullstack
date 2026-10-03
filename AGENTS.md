@@ -580,6 +580,14 @@ line still printed "3 operator quotes" because the number was a literal. So:
 look up by a natural key the seed writes, and **count** what it wrote rather
 than printing a figure.
 
+**The seed never runs in production.** It is a development fixture: seven
+accounts sharing the public password `ChangeMe123!`, plus invented clients and
+enquiries. Production's first account comes from `npm run
+db:bootstrap-admin` (`prisma/bootstrap-admin.ts`), which creates one
+SUPER_ADMIN and refuses an email that already exists rather than resetting it.
+The production stack itself is `deploy/` (Docker Compose + Caddy, one domain,
+`/api` routed by Caddy) — guide in `docs/DEPLOYMENT-VPS.md`.
+
 ## The permission matrix ships with the session
 
 `GET /auth/me` returns `permissions` — the caller's row of the matrix, as

@@ -269,6 +269,6 @@ without SMTP.
 `NEXT_PUBLIC_API_URL` in `.env.local` (see `.env.example`). It must include the
 `/api` prefix.
 
-In production the API must share a parent domain with the web app
-(`api.tribecajetscommandcenter.com` vs the apex) or the session cookie will not
-be valid for both.
+In production both apps are served from one domain — Caddy routes `/api` to
+the API (`deploy/Caddyfile`) — so `NEXT_PUBLIC_API_URL` stays `/api` and the
+session cookie is first-party.

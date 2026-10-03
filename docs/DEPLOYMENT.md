@@ -194,8 +194,7 @@ login, and remember that re-running the seed resets it back.
 - **Migrations run in the build command.** `preDeployCommand` is the right home
   for them but is not available on the free plan.
 
-## Going to production later
+## Production
 
-Set `NODE_ENV=production` and the API will refuse to start until you supply
-`SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD`. That refusal is deliberate — without SMTP, two-factor and password-reset codes would vanish
-into a log nobody reads. Also seed with a real password, or not at all.
+Production is the Hostinger VPS, not this stack — see
+[`DEPLOYMENT-VPS.md`](DEPLOYMENT-VPS.md).

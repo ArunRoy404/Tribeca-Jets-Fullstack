@@ -17,7 +17,7 @@ import type { AuthenticatedUser } from '../types/api.types.js';
  * Redis-backed fixed-window rate limiter for routes marked `@RateLimit(...)`.
  *
  * Redis-backed rather than in-memory so the limit still holds if the API is
- * ever run as more than one PM2 process on the VPS.
+ * ever run as more than one process or container.
  */
 @Injectable()
 export class RateLimitGuard implements CanActivate {
