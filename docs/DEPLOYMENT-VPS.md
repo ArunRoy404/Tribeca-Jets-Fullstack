@@ -5,7 +5,7 @@ it start to finish. Every step says what was done, with this project's actual
 values. Where one name has to match another, the field carries a
 **🔗 link note** saying what it must match and how to keep the two in step.
 
-**Status:** steps 1–11 are done. Steps 12–16 are still to do.
+**Status:** steps 1–12 are done. Steps 13–16 are still to do.
 
 ```
 browser ──https──▶ Traefik (Dokploy) ─┬─ tribecajetscommandcenter.com/api/*  ▶ api  (NestJS :4000)
@@ -21,7 +21,7 @@ postgres ─▶ daily backup ─▶ Cloudflare R2 (backups bucket)
 | Control panel | Dokploy (installed by Hostinger's template) | `https://panel.tribecajetscommandcenter.com` |
 | Domain + DNS | Netlify (bought there) | `tribecajetscommandcenter.com` |
 | Files + DB backups | Cloudflare R2 | buckets `tribeca-jets-prod`, `tribeca-jets-backups` |
-| Mail | SMTP (Google Workspace on `tribecajets.com`, or Brevo) | not set yet |
+| Mail | Resend (free: 100/day, 3,000/month) over SMTP; the client's Google Workspace later | sender `no-reply@tribecajetscommandcenter.com` |
 | Code | GitHub, connected through a Dokploy GitHub App | branch `main` |
 
 One domain serves both apps, so the session cookie is first-party:
@@ -53,6 +53,7 @@ links in this setup:
 | web container port `3000` | `-p 3000` in `Frontend/Dockerfile` | web domain ↔ Dockerfile |
 | api domain path `/api` | `API_PREFIX=api` | api domain ↔ api env |
 | the site domain | `WEB_APP_URL` / `API_PUBLIC_URL` | DNS ↔ api env |
+| the domain verified in Resend | the domain in `MAIL_FROM` | Resend ↔ api env |
 
 **The rule that prevents almost all of it:** never retype a connection
 detail. Use the copy buttons in Dokploy and Cloudflare. For a new project, pick
@@ -270,32 +271,102 @@ while the database was still empty).
 
 ---
 
-## 12. Mail (SMTP): ⏳ to do
+## 12. Mail (SMTP) ✅
 
 **The API refuses to start in production without SMTP.** Two-factor codes,
 password resets and invitations depend on it. Don't work around this by
 running production as `development`.
 
-**Google Workspace** (preferred). The client's Workspace is on
-`tribecajets.com`, whose SPF already authorises Google:
+Two providers are documented below, and **both blocks stay in this file
+permanently, even after a switch**. One is live at a time. The other is the
+fallback, and the walkthrough for the next project. To switch, change the
+five `SMTP_*`/`MAIL_FROM` values in the api's Environment and redeploy. No
+code changes. Then update the **Active now** line.
 
-1. Pick the sending mailbox, e.g. `no-reply@tribecajets.com`.
-2. Turn on 2-Step Verification for it.
-3. Create an **App password**: myaccount.google.com → Security → App
-   passwords. If it's missing, a Workspace admin must allow app passwords.
-4. → note: the address and the 16-character app password.
+**Active now: 12a (Resend).**
 
-Values: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER`=the address,
-`SMTP_PASSWORD`=the app password, `MAIL_FROM`=the same address (🔗 Gmail
-rewrites any sender that isn't `SMTP_USER` or one of its aliases).
+### 12a. Resend: temporary, our own account ✅
+> ⚠️ **Never delete this block.** It stays as the fallback and as the
+> walkthrough for new projects, even after Tribeca moves to 12b.
 
-Optional, for inbox placement: Google Admin → Apps → Gmail → **Authenticate
-email** → turn on DKIM, and add its TXT record at **GoDaddy**, where
-`tribecajets.com`'s DNS lives (not Netlify).
+**Why Resend.** Brevo was tried first, but its signup requires a phone code
+and the SMS never arrived. Resend needs no phone and no account review. Its
+free plan allows **100 emails/day, 3,000/month**, enough while the desk
+starts.
 
-**Brevo** (a temporary stand-in): free, 300 emails a day. Verify the sender, then
-`smtp-relay.brevo.com`, 587, and the SMTP login and key from *SMTP & API*.
-Switching to Workspace later is four env values and a redeploy.
+1. **resend.com → Sign up** (GitHub or email). The account is personal
+   (`roy.techreion`), and a future project adds its own domain to the same
+   account. 🔗 The free limit is **per account, shared by every project**
+   on it.
+2. **Domains → Add Domain**: `tribecajetscommandcenter.com`, region
+   **North Virginia (us-east-1)**, the closest to the VPS. **Enable Sending**
+   on, **Enable Receiving** off (we only send).
+3. Resend lists DNS records. They were added in **Netlify DNS** (step 4's
+   page). In the Name field, delete the pre-filled `@` and type only the part
+   shown; Netlify appends the domain. Values were pasted with Resend's copy
+   buttons, since its table truncates them with `[…]`. TTL empty.
+
+   | Type | Name | Value |
+   |---|---|---|
+   | TXT | `resend._domainkey` | the DKIM key, `p=MIGfMA…wIDAQAB` (218 characters; a truncated paste fails verification) |
+   | CNAME | `rsend` | `rsend.forge.rmta.net` |
+   | CNAME | `send` | `send.forge.rmta.net` |
+   | TXT | `_dmarc` | `v=DMARC1; p=none;` |
+
+4. **I've added the records** → status **Verified** in about 5 minutes.
+5. **API Keys → Create API key**: name `tribeca-vps`, permission **Sending
+   access**, domain `tribecajetscommandcenter.com`. → note: the key
+   (`re_…`, shown once). A key per project means one can be revoked alone.
+
+Values for the api (step 13):
+
+| Setting | Value |
+|---|---|
+| `SMTP_HOST` | `smtp.resend.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | `resend` (literally that word) |
+| `SMTP_PASSWORD` | the `re_…` key |
+| `MAIL_FROM` | `Tribeca Jets <no-reply@tribecajetscommandcenter.com>` (🔗 its domain must be the one verified in Resend, or Resend refuses the send) |
+
+### 12b. The client's Google Workspace: planned
+> ⚠️ **Never delete this block.** It is the target setup for Tribeca. Keep
+> 12a beside it after the switch.
+
+The client's mail is Google Workspace on `tribecajets.com` (GoDaddy DNS). It
+allows about **2,000 emails/day**, and emails to clients come from a familiar
+`@tribecajets.com` address.
+
+**Never ask for the client's Google password.** The CRM needs only an **app
+password** for one mailbox, which the client creates and can revoke:
+
+1. The client picks the sending mailbox, e.g. `no-reply@tribecajets.com`. A
+   dedicated user costs a Workspace seat; an existing mailbox also works.
+2. Signed in as that mailbox: myaccount.google.com → Security → turn on
+   **2-Step Verification**.
+3. myaccount.google.com/apppasswords → name `Tribeca CRM` → **Create** →
+   copy the 16-character password (shown once).
+4. They send us the **address** and the **app password** over a secure
+   channel (a password-manager share or a one-time link), not plain email.
+5. If step 3 says the setting isn't available: a Workspace admin enables it
+   in admin.google.com → Security → Authentication → 2-step verification →
+   **Allow users to turn on 2-Step Verification**.
+6. To revoke the CRM's access later: delete `Tribeca CRM` on that same
+   page. The mailbox and its password are unaffected.
+
+Values for the api:
+
+| Setting | Value |
+|---|---|
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | the mailbox address |
+| `SMTP_PASSWORD` | the app password (spaces are fine either way) |
+| `MAIL_FROM` | `Tribeca Jets <that same address>` (🔗 Gmail rewrites any sender that isn't `SMTP_USER` or one of its aliases) |
+
+`tribecajets.com`'s SPF already includes Google (`include:_spf.google.com`),
+so mail sends without DNS changes. For better inbox placement: Google Admin
+→ Apps → Google Workspace → Gmail → **Authenticate email** → turn on DKIM,
+and add its TXT record at **GoDaddy** (that domain's DNS), not Netlify.
 
 ## 13. The API app: ⏳ to do
 
@@ -345,13 +416,13 @@ S3_SECRET_ACCESS_KEY=
 AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED
 AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED
 
-# Step 12
+# Step 12 (Resend)
 MAIL_DRIVER=smtp
-SMTP_HOST=smtp.gmail.com
+SMTP_HOST=smtp.resend.com
 SMTP_PORT=587
-SMTP_USER=
+SMTP_USER=resend
 SMTP_PASSWORD=
-MAIL_FROM="Tribeca Jets <no-reply@tribecajets.com>"
+MAIL_FROM="Tribeca Jets <no-reply@tribecajetscommandcenter.com>"
 
 # Optional
 AI_PROVIDER=openai
@@ -371,7 +442,7 @@ Leave `COOKIE_DOMAIN` out entirely.
 | Strip path | **off**, since the API expects the `/api` prefix |
 | HTTPS | on, Let's Encrypt |
 
-**Deploy** only once SMTP is filled in. Watch *Deployments* (build) and
+**Deploy** once every value above is filled in. Watch *Deployments* (build) and
 *Logs*: migrations applied, then `SMTP transport ready`. In a restart loop,
 the first log lines name the setting it rejected.
 
