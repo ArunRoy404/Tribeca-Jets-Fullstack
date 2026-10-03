@@ -100,6 +100,10 @@ const STATUS_TONES = {
   "Client Payment": "success",
   "Operator Payment": "warning",
   Commission: "info",
+  // Document Vault (#22): a passport's or certificate's expiry
+  "Expiring Soon": "warning",
+  Valid: "success",
+  "No Expiry": "outline",
 };
 
 const BORDER_CLASSES = {

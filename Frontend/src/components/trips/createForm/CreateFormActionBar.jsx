@@ -59,7 +59,6 @@ export default function CreateFormActionBar() {
       fetEnabled: draft.fetEnabled,
       internalNotes: optionalText(draft.internalNotes, opts),
       clientNotes: optionalText(draft.clientNotes, opts),
-      documentUrls: draft.documentUrls ?? [],
     };
   };
 

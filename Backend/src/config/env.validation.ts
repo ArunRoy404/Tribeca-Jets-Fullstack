@@ -91,9 +91,10 @@ export const envSchema = z
     RATE_LIMIT_ENABLED: bool(true),
 
     /**
-     * Leave empty in development (host-only cookie on localhost).
-     * In production set to `.tribecajetscommandcenter.com` so the cookie is
-     * shared between the web app and the `api.` subdomain.
+     * Leave empty — in development and in production. Production serves the
+     * web app and the API from one domain (Traefik routes /api), so a host-only
+     * cookie already covers both. Set it only if the API ever moves to its own
+     * subdomain: `.tribecajetscommandcenter.com`.
      */
     COOKIE_DOMAIN: z.string().optional(),
     COOKIE_SECURE: bool(false),

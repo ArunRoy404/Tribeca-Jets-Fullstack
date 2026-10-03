@@ -1,5 +1,6 @@
 import { getFullName } from "@/lib/user";
 import { Permission } from "@/lib/permissions";
+import { formatDocumentCategory } from "@/lib/document";
 
 /**
  * Turning a timeline row into something a person reads.
@@ -67,6 +68,11 @@ const EVENT_PHRASES = {
   "flight.updated": "updated this flight",
   "email.sent": "emailed",
   "email.failed": "tried to email",
+  "document.added": "filed a document",
+  "document.updated": "updated a document",
+  "document.replaced": "replaced the file of a document",
+  "document.archived": "archived a document",
+  "document.restored": "restored a document",
 };
 
 const FLIGHT_STATUS_WORDS = {
@@ -165,6 +171,13 @@ export function describeEvent(entry) {
           ? " · not delivered: no mail server configured"
           : "";
     return `${phrase} ${who}${subject}${outcome}`;
+  }
+  // A vault document (#22) records its category, and its title unless it is
+  // a passport or an ID — those stay off the timeline by name.
+  if (entry?.action?.startsWith("document.") && entry?.metadata?.category) {
+    const category = formatDocumentCategory(entry.metadata.category).toLowerCase();
+    const title = entry.metadata.title ? ` “${entry.metadata.title}”` : "";
+    return `${phrase} — ${category}${title}`;
   }
   if (entry?.action === "trip.booked_from_quote" && entry?.metadata?.quoteReference) {
     return `booked this trip from Q-${entry.metadata.quoteReference}`;

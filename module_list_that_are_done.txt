@@ -1,0 +1,113 @@
+Testing checklist - admin user
+
+Everything in the sidebar is ready to test except Reports and Settings (not built yet).
+Every "archive" has a Restore, and every list has an Archived tab. Nothing is ever permanently deleted.
+
+
+Dashboard
+ - Tiles, with a Today / Week / Month / Quarter / Year filter and a comparison with the previous period
+ - Today's Priorities, Recent Activity, Upcoming Follow-ups, Upcoming Trips, Financial Attention, Empty Leg Opportunities
+
+
+Operations
+
+ - Trips
+   - Create by hand (one-way, round trip, multi-leg, with passengers) or book from a quote
+   - Edit, move status (Draft -> Booked -> Confirmed -> In Flight -> Completed, or Cancel), archive
+   - Detail page: pricing, invoices and operator bills, notes timeline, Email Client
+
+ - Schedule
+   - Day / week / month / year calendar built from trips, with filters and tiles (read-only)
+
+ - Operators Sourcing
+   - Ask operators for quotes on a trip request, record their answers, approve one
+
+ - Flight Tracking
+   - Report each flight's status, estimated arrival and tracking link by hand
+   - Each flight has an update timeline
+
+ - Itineraries
+   - Build from a trip: photos, logo, FBOs, catering, with live preview
+   - Edit, confirm, email it or mark it sent, archive
+
+ - Empty Legs
+   - Add, edit, archive
+   - Matches with past trip requests on the same route
+
+
+Sales & CRM
+
+ - Clients
+   - Add, edit, archive, bulk actions, search, filters
+   - Detail page: tabs, follow-ups, notes timeline, credit ledger, payments, Send Email
+
+ - Leads & Agents
+   - Leads (they are clients): stages, convert, assign broker, schedule follow-up
+   - Broker workload, the lead's activity timeline
+
+ - Trip Requests
+   - Add, edit, status, archive
+
+ - Referrals
+   - Turn a referral into a client and trip request, assign a broker, set status, link the booked trip
+   - Attachments, timeline, resources library
+
+ - Quotes
+   - Create with live preview and server-calculated prices, suggested price, instant estimate
+   - Versions, email it or mark it sent, accept / decline / reopen, book as a trip
+
+ - Email Templates
+   - Add, edit, archive templates with merge fields
+   - Send emails, Sent log
+   - On dev, emails show as "Not delivered" because no mail server is connected
+
+
+Database
+
+ - Operators
+   - Add, edit, archive
+   - Fleet, trips, payments tab, cancellation policy
+
+ - Aircraft
+   - Add, edit, archive
+   - Photos, amenities, trips
+
+ - Airports
+   - Add, edit, archive, search and filters, assigned FBO
+
+
+Finance
+
+ - Receivables
+   - Create invoices, record / correct / withdraw payments
+   - Balance and status calculated by the server, Send Reminder
+
+ - Operator Payments
+   - Operator bills and the payments made against them
+
+ - Commissions
+   - Record, pay, correct
+
+ - Transactions
+   - Read-only ledger of all money in and out, with filters and totals
+
+
+System
+
+ - Tasks Board
+   - Add, edit, move between columns, checklists, archive
+   - The notification bell shows your tasks that are due
+
+ - Users & Roles
+   - Invite, edit, change role, suspend, permissions table
+
+
+Not built - skip:
+ - Reports
+ - Settings
+
+
+Test order
+The database only has a few seeded records, so create data in this order and each screen gets what the next one needs:
+
+Airports / Operators / Aircraft -> Clients -> Trip Request -> Sourcing -> Quote -> Book as Trip -> Itinerary -> Invoice + Operator Bill -> Commission -> Tasks -> Dashboard

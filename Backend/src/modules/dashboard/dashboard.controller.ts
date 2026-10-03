@@ -33,7 +33,7 @@ export class DashboardController {
   @ApiOperation({
     summary: "Today's priorities",
     description:
-      'Client follow-ups due by today, your own tasks due by today, and client invoices and operator bills still owed that are overdue or due within three days — most overdue first. Each carries `state`: OVERDUE, DUE_TODAY or DUE_SOON.',
+      'Client follow-ups due by today, your own tasks due by today, client invoices and operator bills still owed that are overdue or due within three days, and documents expired or expiring within 30 days — most overdue first. Each carries `state`: OVERDUE, DUE_TODAY or DUE_SOON.',
   })
   priorities(@CurrentUser() user: AuthenticatedUser, @Query() query: DashboardPrioritiesDto) {
     return this.dashboard.priorities(user, query);

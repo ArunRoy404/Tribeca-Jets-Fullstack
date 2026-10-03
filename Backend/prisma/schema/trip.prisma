@@ -75,10 +75,6 @@ model Trip {
   /// Shared with the client — catering, special requests.
   clientNotes   String?
 
-  /// Relative `/api/uploads/<id>` URLs: signed contracts, the operator's
-  /// confirmation. The file itself lives in uploads.
-  documentUrls String[] @default([])
-
   legs       TripLeg[]       @relation("TripLegTrip")
   passengers TripPassenger[] @relation("TripPassengerTrip")
 
@@ -102,6 +98,7 @@ model Trip {
   tasks            Task[]            @relation("TaskTrip")
   /// Emails about this trip (Email Templates, #21).
   emails           EmailMessage[]    @relation("EmailMessageTrip")
+  documents        Document[]        @relation("DocumentTrip")
 
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

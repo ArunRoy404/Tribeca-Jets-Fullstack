@@ -58,7 +58,7 @@ set of broken joins the day the real table arrives.
 | 19 | **Transactions** | ✅ Done (28 Sep) — the money ledger, a view | 16, 17, 18 (a union view) |
 | 20 | **Tasks Board** | ✅ Done (28 Sep) — with the notification bell | Users; links to Trips/Clients |
 | 21 | **Email Templates** | ✅ Done (28 Sep) — with sending, and the quote/itinerary/reminder second pass | Clients, Operators, Trips, Quotes, Receivables (merge fields) |
-| 22 | **Document Vault** | No screen yet | Trips, Clients, Operators |
+| 22 | **Document Vault** | ✅ Done (29 Sep) — client, trip and operator folders; passports and IDs restricted | Trips, Clients, Operators, Uploads |
 | 23 | **Reports** | Not started | All financial modules |
 | 24 | **Dashboard** | ✅ Done (28 Sep) — tiles, priorities, activity; lists read the owning modules | Nearly everything — built last |
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
@@ -76,8 +76,8 @@ without waiting on the client; #11's agent portal followed the same day, and
 **Receivables (#16)**, **Operator Payments (#17)**, **Transactions (#19)**,
 **Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
 on 28 September — everything that hangs off Trips — the **Tasks Board
-(#20)** and **Email Templates (#21)**. **What is next:** **Document Vault
-(#22)**.
+(#20)** and **Email Templates (#21)**; the **Dashboard (#24)** and **Document
+Vault (#22)** on 28–29 September. **What is next:** **Reports (#23)**.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -590,9 +590,13 @@ Reply-To, until the Gmail workflow (§17) is decided.
 ### 22. Document Vault
 
 Central storage for contracts, itineraries, invoices and operator
-certificates, attached to trips, clients and operators. **No screen exists.**
-The Clients detail page had an attachment drop zone wired to nothing — it was
-removed rather than faked, and belongs here.
+certificates, attached to trips, clients and operators. **Built 29 Sep
+2026:** one `Document` table, each row owned by exactly one client, trip or
+operator and pointing at an upload by foreign key; readable exactly when its
+owner is; passports and IDs behind their own permission. It replaced
+`trips.documentUrls`, which the migration carried into the vault. It stores
+files — it does not generate PDFs, which several screens had been wrongly
+listed as waiting on it for.
 
 **The pipeline it was going to own already exists** — see **Uploads (#28)**.
 What is left here is the vault *as a product*: a browsable store with folders,
@@ -923,7 +927,7 @@ Sections the signed scope's information architecture lists, with no screen in
 the frontend at all:
 
 1. ~~Open Trip Requests~~ ✅ **closed 19 September 2026** — `/dashboard/trip-requests`
-2. Document Vault
+2. ~~Document Vault~~ ✅ **closed 29 September 2026** — `/dashboard/documents`
 3. Client Portal
 4. Settings / Backup / Import / Export
 5. AI Assistant

@@ -27,7 +27,7 @@ model User {
   commissionBasis      CommissionBasis?
   commissionPercentage Decimal?         @db.Decimal(5, 2)
   commissionAmount     Decimal?         @db.Decimal(12, 2)
-  status                UserStatus      @default(ACTIVE)
+  status               UserStatus       @default(ACTIVE)
 
   /// Storage key (not a URL) — resolved by StorageService at read time so the
   /// same record works on both the S3 and local drivers.
@@ -112,6 +112,11 @@ model User {
   deletedEmailTemplates  EmailTemplate[] @relation("EmailTemplateDeletedBy")
   restoredEmailTemplates EmailTemplate[] @relation("EmailTemplateRestoredBy")
   sentEmails             EmailMessage[]  @relation("EmailMessageCreatedBy")
+
+  createdDocuments  Document[] @relation("DocumentCreatedBy")
+  updatedDocuments  Document[] @relation("DocumentUpdatedBy")
+  deletedDocuments  Document[] @relation("DocumentDeletedBy")
+  restoredDocuments Document[] @relation("DocumentRestoredBy")
 
   createdEmptyLegs  EmptyLeg[] @relation("EmptyLegCreatedBy")
   updatedEmptyLegs  EmptyLeg[] @relation("EmptyLegUpdatedBy")

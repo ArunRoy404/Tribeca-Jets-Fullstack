@@ -96,6 +96,14 @@ export const queryKeys = {
     activity: (params) => ["dashboard", "activity", params ?? {}],
   },
 
+  /** Document Vault (#22) — the vault and each client, trip and operator folder. */
+  documents: {
+    all: ["documents"],
+    list: (params) => ["documents", "list", params ?? {}],
+    detail: (id) => ["documents", "detail", id],
+    stats: (params) => ["documents", "stats", params ?? {}],
+  },
+
   emptyLegs: {
     all: ["empty-legs"],
     list: (params) => ["empty-legs", "list", params ?? {}],

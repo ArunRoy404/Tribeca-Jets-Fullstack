@@ -126,7 +126,7 @@ export default function LeadDetailPage({ params }) {
               onAddFollowUp={() => openFollowUpModal(lead)}
             />
             <LeadInternalNotesCard lead={lead} />
-            <LeadDocumentsCard onUpload={() => {}} />
+            <LeadDocumentsCard lead={lead} />
           </div>
         </div>
       </CommonCard>

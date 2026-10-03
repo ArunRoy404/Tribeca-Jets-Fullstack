@@ -12,6 +12,7 @@ import { OperatorPaymentsService } from '../operator-payments/operator-payments.
 import { EmptyLegsService } from '../empty-legs/empty-legs.service.js';
 import { ClientsService } from '../clients/clients.service.js';
 import { TasksService } from '../tasks/tasks.service.js';
+import { DocumentsService } from '../documents/documents.service.js';
 import { invoiceNumber } from '../receivables/receivables.amounts.js';
 import { payableNumber } from '../operator-payments/operator-payments.amounts.js';
 import { percentChange, periodRange } from './dashboard.period.js';
@@ -27,6 +28,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Bills due within this many days of today join the priorities as "due soon". */
 const BILL_HORIZON_DAYS = 3;
 
+/** Documents expiring within this many days — a passport needs renewing well before it lapses. */
+const DOCUMENT_HORIZON_DAYS = 30;
+
 const isoDay = (date: Date) => date.toISOString().slice(0, 10);
 
 /** Where one priority stands against the desk's today. */
@@ -38,7 +42,7 @@ function standing(dueAt: Date, today: Date): 'OVERDUE' | 'DUE_TODAY' | 'DUE_SOON
 
 export interface Priority {
   id: string;
-  kind: 'FOLLOW_UP' | 'CLIENT_PAYMENT' | 'OPERATOR_PAYMENT' | 'TASK';
+  kind: 'FOLLOW_UP' | 'CLIENT_PAYMENT' | 'OPERATOR_PAYMENT' | 'TASK' | 'DOCUMENT_EXPIRY';
   state: 'OVERDUE' | 'DUE_TODAY' | 'DUE_SOON';
   dueAt: Date;
   [key: string]: unknown;
@@ -71,6 +75,7 @@ export class DashboardService {
     private readonly emptyLegs: EmptyLegsService,
     private readonly clients: ClientsService,
     private readonly tasks: TasksService,
+    private readonly documents: DocumentsService,
   ) {}
 
   private may(user: AuthenticatedUser, permission: Permission): boolean {
@@ -159,8 +164,9 @@ export class DashboardService {
 
   /**
    * Today's work, most overdue first: client follow-ups due by today, the
-   * caller's own tasks due by today, and client invoices and operator bills
-   * still owed that are overdue or due within three days. Each source is
+   * caller's own tasks due by today, client invoices and operator bills
+   * still owed that are overdue or due within three days, and vault
+   * documents expired or expiring within 30 days. Each source is
    * read through its owner and in the caller's scope; a source the caller
    * may not read is left out, never read and hidden. Paged exactly by
    * taking `skip + take` from each source and merging.
@@ -169,15 +175,17 @@ export class DashboardService {
     const today = query.on ?? todayUtc();
     const tomorrow = new Date(today.getTime() + DAY_MS);
     const horizon = new Date(today.getTime() + BILL_HORIZON_DAYS * DAY_MS);
+    const documentHorizon = new Date(today.getTime() + DOCUMENT_HORIZON_DAYS * DAY_MS);
     const { skip, take } = toPrismaPagination(query);
     const need = skip + take;
     const none = Promise.resolve({ rows: [] as never[], total: 0 });
 
-    const [followUps, tasks, invoices, payables] = await Promise.all([
+    const [followUps, tasks, invoices, payables, documents] = await Promise.all([
       this.may(user, Permission.VIEW_CLIENTS) ? this.clients.dueFollowUps(user, tomorrow, need) : none,
       this.may(user, Permission.VIEW_TASKS) ? this.tasks.dueForAssignee(user, tomorrow, need) : none,
       this.may(user, Permission.VIEW_RECEIVABLES) ? this.receivables.attention(user, horizon, need) : none,
       this.may(user, Permission.VIEW_OPERATOR_PAYMENTS) ? this.operatorPayments.attention(user, horizon, need) : none,
+      this.may(user, Permission.VIEW_DOCUMENTS) ? this.documents.expiringBefore(user, documentHorizon, need) : none,
     ]);
 
     const sources: Priority[][] = [
@@ -223,9 +231,17 @@ export class DashboardService {
         operator: payable.operator,
         trip: { id: payable.trip.id, reference: payable.trip.reference },
       })),
+      documents.rows.map((doc) => ({
+        id: `DOCUMENT_EXPIRY:${doc.id}`,
+        kind: 'DOCUMENT_EXPIRY' as const,
+        state: standing(doc.expiresOn!, today),
+        dueAt: doc.expiresOn!,
+        document: { id: doc.id, title: doc.title, category: doc.category, sensitive: doc.sensitive },
+        owner: doc.owner,
+      })),
     ];
 
-    const total = followUps.total + tasks.total + invoices.total + payables.total;
+    const total = followUps.total + tasks.total + invoices.total + payables.total + documents.total;
     return paginate(mergePages(sources, skip, take, soonestFirst), total, query.page, query.limit);
   }
 

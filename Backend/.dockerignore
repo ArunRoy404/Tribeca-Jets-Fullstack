@@ -1,0 +1,13 @@
+node_modules
+dist
+src/generated
+*.tsbuildinfo
+storage
+uploads
+logs
+coverage
+postman
+test
+.env
+.env.*
+!.env.example

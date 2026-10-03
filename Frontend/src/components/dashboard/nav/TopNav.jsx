@@ -21,6 +21,7 @@ const routeNameMap = {
   "/dashboard/email-templates": "Email Templates",
   "/dashboard/operators": "Operators",
   "/dashboard/aircraft": "Aircraft",
+  "/dashboard/documents": "Document Vault",
   "/dashboard/airports": "Airports",
   "/dashboard/receivables": "Receivables",
   "/dashboard/operator-payments": "Operator Payments",

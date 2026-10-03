@@ -83,8 +83,7 @@ services:
 
       # Deliberately empty, and it must stay that way.
       #
-      # .env.example documents `.tribecajetscommandcenter.com` for the VPS,
-      # where the web app and api. are subdomains of one site. On Render the
+      # Production leaves it empty too (one domain, Traefik routes /api). On Render the
       # API is reached through the Next rewrite proxy, so the cookie belongs
       # to the web origin — any domain attribute set here fails to match and
       # the browser silently drops the session.

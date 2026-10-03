@@ -59,10 +59,11 @@ model Operator {
   quotes Quote[] @relation("QuoteOperator")
 
   /// Emails the desk sent them (Email Templates, #21).
-  emails EmailMessage[] @relation("EmailMessageOperator")
+  emails    EmailMessage[] @relation("EmailMessageOperator")
+  documents Document[]     @relation("DocumentOperator")
 
   /// Trips this operator flies. Feeds totalTrips and the Trip History tab.
-  trips Trip[] @relation("TripOperator")
+  trips    Trip[]            @relation("TripOperator")
   /// What we owe this operator and have paid them — the Payments tab and Total Paid.
   payables OperatorPayable[] @relation("OperatorPayableOperator")
 

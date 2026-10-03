@@ -189,7 +189,6 @@ const TRIP_DETAIL_SELECT = {
   passengers: PASSENGER_SELECT,
   internalNotes: true,
   clientNotes: true,
-  documentUrls: true,
   createdBy: ACTOR_SELECT,
   updatedBy: ACTOR_SELECT,
   /**
@@ -754,7 +753,6 @@ export class TripsService {
           lineItems: (dto.lineItems ?? []) as Prisma.InputJsonValue,
           internalNotes: dto.internalNotes ?? null,
           clientNotes: dto.clientNotes ?? null,
-          documentUrls: dto.documentUrls,
           createdById: user.id,
           updatedById: user.id,
         },

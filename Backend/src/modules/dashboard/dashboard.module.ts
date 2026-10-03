@@ -6,6 +6,7 @@ import { OperatorPaymentsModule } from '../operator-payments/operator-payments.m
 import { EmptyLegsModule } from '../empty-legs/empty-legs.module.js';
 import { ClientsModule } from '../clients/clients.module.js';
 import { TasksModule } from '../tasks/tasks.module.js';
+import { DocumentsModule } from '../documents/documents.module.js';
 import { DashboardController } from './dashboard.controller.js';
 import { DashboardService } from './dashboard.service.js';
 
@@ -22,6 +23,7 @@ import { DashboardService } from './dashboard.service.js';
     EmptyLegsModule,
     ClientsModule,
     TasksModule,
+    DocumentsModule,
   ],
   controllers: [DashboardController],
   providers: [DashboardService],

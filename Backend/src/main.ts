@@ -18,8 +18,9 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix(config.apiPrefix);
 
-  // Behind nginx on the VPS: without this, req.ip is the proxy's address and
-  // every rate limit would be shared across all clients.
+  // Behind exactly one proxy (Traefik on the VPS, Render's edge in dev): without
+  // this, req.ip is the proxy's address and every rate limit would be shared
+  // across all clients.
   app.set('trust proxy', 1);
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));

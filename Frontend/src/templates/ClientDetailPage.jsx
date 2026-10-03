@@ -14,6 +14,7 @@ import ClientQuotesTab from "@/components/clients/ClientQuotesTab";
 import ClientPaymentsTab from "@/components/clients/ClientPaymentsTab";
 import ClientActivityTab from "@/components/clients/ClientActivityTab";
 import ClientCreditTab from "@/components/client-credits/ClientCreditTab";
+import DocumentsPanel from "@/components/documents/DocumentsPanel";
 import AddClientDialog from "@/components/clients/AddClientDialog";
 import ScheduleFollowUpDialog from "@/components/clients/ScheduleFollowUpDialog";
 import ArchiveClientDialog from "@/components/clients/ArchiveClientDialog";
@@ -45,6 +46,7 @@ export default function ClientDetailPage({ params }) {
   const [composeOpen, setComposeOpen] = useState(false);
   const maySeeMoney = can(Permission.VIEW_FINANCIALS);
   const maySeeInvoices = can(Permission.VIEW_RECEIVABLES);
+  const maySeeDocuments = can(Permission.VIEW_DOCUMENTS);
 
   const { data, isPending, error, refetch } = useClient(rawId);
   const client = data ? toClientRow(data) : null;
@@ -82,6 +84,9 @@ export default function ClientDetailPage({ params }) {
     // Money on account is its own thing, not a payment: a payment settles an
     // invoice, a credit is money the client is holding with us.
     ...(maySeeMoney ? [{ id: "credit", label: "Credit" }] : []),
+    // The client's folder in the Document Vault (#22) — passports, IDs,
+    // charter agreements, wire confirmations.
+    ...(maySeeDocuments ? [{ id: "documents", label: "Documents" }] : []),
     { id: "activity", label: "Activity" },
   ];
 
@@ -177,6 +182,12 @@ export default function ClientDetailPage({ params }) {
               )}
               {activeTab === "credit" && maySeeMoney && (
                 <ClientCreditTab client={client} />
+              )}
+              {activeTab === "documents" && maySeeDocuments && (
+                <DocumentsPanel
+                  owner={{ type: "CLIENT", id: client?.id, label: client?.name }}
+                  readOnly={client?.isArchived}
+                />
               )}
               {activeTab === "activity" && (
                 <ClientActivityTab

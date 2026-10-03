@@ -36,7 +36,6 @@ const initialState = {
 
   internalNotes: "",
   clientNotes: "",
-  documentUrls: [],
 };
 
 /**
@@ -111,7 +110,6 @@ export const useCreateTripStore = create((set) => ({
       fetEnabled: trip?.fetEnabled ?? true,
       internalNotes: str(trip?.internalNotes),
       clientNotes: str(trip?.clientNotes),
-      documentUrls: trip?.documentUrls ?? [],
     }),
 
   reset: () => set({ ...initialState, legs: [blankLeg()], passengers: [] }),

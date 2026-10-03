@@ -197,6 +197,21 @@ export class OperatorsService {
   }
 
   /**
+   * The operator as the owner of a record in another module — its vault
+   * documents (#22). Operators are desk reference data with no row scope, so
+   * this only resolves the row: 404 when it does not exist, and whether it
+   * is archived so the caller can refuse a write on a closed record.
+   */
+  async subjectRef(id: string): Promise<{ id: string; label: string; archived: boolean }> {
+    const row = await this.prisma.operator.findUnique({
+      where: { id },
+      select: { id: true, name: true, deletedAt: true },
+    });
+    if (!row) throw new NotFoundException('Operator not found');
+    return { id: row.id, label: row.name, archived: row.deletedAt !== null };
+  }
+
+  /**
    * The operator as an email recipient (Email Templates, #21): the named
    * contact's address, else the company's general one. Operators are desk
    * reference data, so there is no row scope to apply. `email` is null when

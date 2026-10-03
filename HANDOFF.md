@@ -247,7 +247,9 @@ Paste everything between the lines into the first message of a new session.
 >    Sign in as a broker: the library is read-only, and only their clients
 >    can be emailed. Then run `build_email_templates_folder.py` and fold
 >    `26 · Email Templates` into the Newman pass above.
-> 8. Then Phase 3's queue: Document Vault (#22).
+> 8. Then Phase 3's queue: Reports (#23). Document Vault (#22) and the
+>    Dashboard (#24) shipped 28–29 Sep; run `build_documents_folder.py` and
+>    `build_dashboard_folder.py` with the others.
 >
 > **For the client:** the Archived-tab demo (#1), the rate data for #6, the
 > FET-in-profit question, and each referral agent's commission figures

@@ -265,23 +265,17 @@ CSRF enforced on writes, and broker row-level scoping.
 
 ## Deployment (Hostinger KVM VPS)
 
-```bash
-npm ci
-npm run build
-npm run db:deploy
-pm2 start ecosystem.config.cjs --env production
-pm2 save && pm2 startup
-```
+[Dokploy](https://dokploy.com) on the VPS builds this folder's `Dockerfile`
+and runs it beside the web app, a Dokploy-managed Postgres and Redis. Traefik
+(Dokploy's proxy) issues HTTPS and routes `/api/*` here, so the session cookie
+is first-party and `COOKIE_DOMAIN` stays empty. Step by step:
+[`docs/DEPLOYMENT-VPS.md`](../docs/DEPLOYMENT-VPS.md).
 
-nginx config in [`deploy/nginx.conf.example`](deploy/nginx.conf.example) —
-`api.` subdomain to :4000, apex to the Next.js app on :3000, TLS via certbot.
+The image applies migrations on every start. The first account comes from
+`npm run db:bootstrap-admin`, never from the seed, whose passwords are public.
 
-Both apps must share a parent domain so the session cookie
-(`COOKIE_DOMAIN=.tribecajetscommandcenter.com`) is valid for both. Splitting
-them across unrelated domains would force `SameSite=None` and weaken CSRF
-protection.
-
-Production requires `COOKIE_SECURE=true`; the app refuses to boot otherwise.
+Production requires `COOKIE_SECURE=true` and SMTP; the app refuses to boot
+otherwise.
 
 ---
 

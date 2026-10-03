@@ -13,7 +13,7 @@ import { toISODate } from "@/lib/date";
 const SHOWN = 6;
 
 /**
- * Follow-ups, the caller's tasks and bills that are due — from
+ * Follow-ups, the caller's tasks, bills and expiring documents that are due — from
  * `/dashboard/priorities`, most overdue first. The count is everything due,
  * not just the rows shown; each row's View opens the record it is about.
  */
@@ -40,7 +40,7 @@ export default function TodaysPriorities({ revealDelay = 0 }) {
               error={error}
               isEmpty={isEmpty}
               emptyMessage="Nothing due today"
-              emptyHint="Follow-ups, tasks and bills due appear here."
+              emptyHint="Follow-ups, tasks, bills and expiring documents appear here."
               onRetry={refetch}
             />
           ) : (

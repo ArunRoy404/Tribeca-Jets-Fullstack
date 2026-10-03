@@ -51,7 +51,7 @@ model Commission {
   status CommissionStatus @default(PENDING)
   method PaymentMethod?
   /// The day it was paid. A day, not a moment.
-  paidAt DateTime?                @db.Date
+  paidAt DateTime?        @db.Date
 
   /// Desk commentary. Never shown to the payee.
   notes String?
@@ -107,4 +107,3 @@ enum CommissionStatus {
   PAID
   CANCELLED
 }
-

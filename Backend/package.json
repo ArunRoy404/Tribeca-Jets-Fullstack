@@ -28,6 +28,7 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset",
+    "db:bootstrap-admin": "tsx prisma/bootstrap-admin.ts",
     "services:up": "docker compose up -d",
     "services:down": "docker compose down",
     "prebuild": "prisma generate",

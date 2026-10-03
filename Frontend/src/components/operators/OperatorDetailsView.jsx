@@ -10,6 +10,7 @@ import OperatorOverviewTab from "@/components/operators/tabs/OperatorOverviewTab
 import OperatorFleetTab from "@/components/operators/tabs/OperatorFleetTab";
 import OperatorTripsTab from "@/components/operators/tabs/OperatorTripsTab";
 import OperatorPaymentsTab from "@/components/operators/tabs/OperatorPaymentsTab";
+import DocumentsPanel from "@/components/documents/DocumentsPanel";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Permission } from "@/lib/permissions";
 
@@ -25,11 +26,15 @@ export default function OperatorDetailsView({
   // hidden, not refused, for a role that may not read them.
   const { can } = usePermissions();
   const maySeePayments = can(Permission.VIEW_OPERATOR_PAYMENTS);
+  const maySeeDocuments = can(Permission.VIEW_DOCUMENTS);
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "fleet", label: "Aircraft Fleet" },
     { id: "trips", label: "Trip History" },
     ...(maySeePayments ? [{ id: "payments", label: "Payments" }] : []),
+    // The operator's folder in the Document Vault (#22) — insurance and
+    // operator certificates, with their expiry dates.
+    ...(maySeeDocuments ? [{ id: "documents", label: "Documents" }] : []),
   ];
 
   return (
@@ -86,6 +91,13 @@ export default function OperatorDetailsView({
           {/* Payments Tab: the operator's bills, from GET /operator-payments?operatorId= */}
           {activeTab === "payments" && maySeePayments && (
             <OperatorPaymentsTab operator={operator} />
+          )}
+
+          {activeTab === "documents" && maySeeDocuments && (
+            <DocumentsPanel
+              owner={{ type: "OPERATOR", id: operator?.id, label: operator?.name }}
+              readOnly={operator?.isArchived}
+            />
           )}
         </div>
       </CommonCard>

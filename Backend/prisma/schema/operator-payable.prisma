@@ -34,10 +34,10 @@ model OperatorPayable {
   /// edit to the trip's cost must not rewrite a bill already received.
   amount Decimal @db.Decimal(12, 2)
 
-  status OperatorPayableStatus @default(OPEN)
+  status  OperatorPayableStatus @default(OPEN)
   /// The day it must be paid by. Optional; a payable without one is never
   /// overdue.
-  dueDate DateTime? @db.Date
+  dueDate DateTime?             @db.Date
 
   /// The operator's own invoice number, as printed on their bill.
   operatorReference String? @db.VarChar(100)

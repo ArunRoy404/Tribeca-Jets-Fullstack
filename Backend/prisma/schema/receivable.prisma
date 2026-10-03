@@ -40,12 +40,12 @@ model Invoice {
   /// invoice often carries none); never null, so the total is always a sum.
   fetAmount Decimal @default(0) @db.Decimal(12, 2)
 
-  status InvoiceStatus @default(DRAFT)
+  status   InvoiceStatus @default(DRAFT)
   /// The day the invoice went to the client — set when it is marked SENT.
-  issuedAt DateTime? @db.Date
+  issuedAt DateTime?     @db.Date
   /// The day it is due. Optional: a draft may not have terms yet, and an
   /// invoice without a due date is never overdue.
-  dueDate  DateTime? @db.Date
+  dueDate  DateTime?     @db.Date
 
   /// Desk commentary — payment terms agreed on the phone, a promised wire.
   notes String?

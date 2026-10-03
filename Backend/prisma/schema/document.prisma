@@ -1,0 +1,77 @@
+/// One document in the vault (Document Vault, #22; scope §6.18 and §10's
+/// "Document: owner entity, category, file, metadata, access policy").
+///
+/// **The owner is exactly one of a client, a trip or an operator** — the
+/// client folder, the trip folder and the operator's certificates. Three real
+/// foreign keys rather than a polymorphic pair, so the database checks each
+/// one; a CHECK constraint in the migration holds "exactly one".
+///
+/// **The file is an upload, by foreign key** — never a copied filename, size
+/// or type. Those are the upload's own facts and are read through it. The
+/// bytes are streamed through `GET /documents/:id/file`, which checks the
+/// caller may read the *document* first: a document is usually somebody
+/// else's private upload.
+///
+/// **A category is what the document is, not a kind of file.** That is the
+/// distinction the upload rebuild drew: an upload is an image or a document,
+/// and the record holding it says what it is for. PASSPORT and ID are
+/// restricted (scope §11) — readable only with VIEW_SENSITIVE_DOCUMENTS.
+model Document {
+  id String @id @default(uuid()) @db.Uuid
+
+  title    String           @db.VarChar(200)
+  category DocumentCategory @default(OTHER)
+
+  uploadId String @db.Uuid
+  upload   Upload @relation("DocumentUpload", fields: [uploadId], references: [id], onDelete: Restrict)
+
+  clientId   String?   @db.Uuid
+  client     Client?   @relation("DocumentClient", fields: [clientId], references: [id], onDelete: Restrict)
+  tripId     String?   @db.Uuid
+  trip       Trip?     @relation("DocumentTrip", fields: [tripId], references: [id], onDelete: Restrict)
+  operatorId String?   @db.Uuid
+  operator   Operator? @relation("DocumentOperator", fields: [operatorId], references: [id], onDelete: Restrict)
+
+  /// A day the desk names — a passport's or an insurance certificate's
+  /// expiry. Whether it has expired is worked out on every read, never stored.
+  expiresOn DateTime? @db.Date
+
+  notes String?
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("DocumentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("DocumentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("DocumentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("DocumentRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@index([clientId, deletedAt])
+  @@index([tripId, deletedAt])
+  @@index([operatorId, deletedAt])
+  @@index([category, deletedAt])
+  @@index([expiresOn, deletedAt])
+  @@index([deletedAt, createdAt])
+  @@map("documents")
+}
+
+/// Scope §6.18's list, plus the operator's certificates and a catch-all.
+enum DocumentCategory {
+  PASSPORT
+  ID
+  CHARTER_AGREEMENT
+  WIRE_CONFIRMATION
+  INVOICE
+  ITINERARY
+  INSURANCE_CERTIFICATE
+  OPERATOR_CERTIFICATE
+  CATERING_REQUEST
+  OTHER
+}

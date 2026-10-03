@@ -190,7 +190,8 @@ entered into the operator's fleet.
 | Average trip value | Not built — booked value or received value per trip is a definition nobody has chosen |
 
 **Removed rather than faked:** the detail page had an attachment drop zone
-wired to nothing. It belongs to **Document Vault (#22)**.
+wired to nothing. ✅ It is now the **Documents** tab — the client's folder in
+**Document Vault (#22)**, shipped 29 Sep 2026.
 
 **Known gap, not a dependency:** the Clients *table* does not read
 `usePermissions()` yet — its row menu, checkbox column and bulk actions render
@@ -400,7 +401,7 @@ rows, the way a leads table would have split one client.
 | Deposit / payment column on the board | **A decision** — Receivables (#16) ✅ shipped, but an invoice has no "deposit" kind, so nothing can say which payment was the deposit. Still an em dash |
 | Departure and arrival *times* on the route strip | **Trips (#11)** ✅ — not wired here yet — a request records the day, not a schedule |
 | Emailing the request to the operator | **Email Templates (#21)** ✅ shipped — it can email an operator, but has no trip-request merge fields yet, so the request's route and date would have to be typed |
-| Operator document upload and field extraction (§6.9) | **Document Vault (#22)** — the pipeline exists now (**Files #28**); the sourcing screen and the extraction step do not |
+| Operator document upload and field extraction (§6.9) | Upload ✅ with **Document Vault (#22)** — the operator's folder takes their documents. *Extraction* is not modelled anywhere: no parser exists, and a filed document is read by a person |
 
 **Deferred by decision: most of the operator scorecard.** Scope §6.7 asks for
 accuracy, hidden fees, cabin cleanliness, crew quality and passenger feedback
@@ -486,7 +487,7 @@ client see on the 9th?" — is `QuoteVersion`.
 
 | Feature | Unblocked by |
 |---|---|
-| Print-ready / PDF output and a branded quote document (§6.10) | **Document Vault (#22)** — nothing in this system generates a document yet |
+| Print-ready / PDF output and a branded quote document (§6.10) | **A PDF generator** — nothing in this system produces a document. The vault (#22) stores files; it does not make them, which is what this line used to wrongly wait on |
 | ~~Emailing the quote to the client~~ | ✅ Shipped with **Email Templates (#21)** — "Email to Client" on the quote page; the quote is marked sent once a mail server accepts it |
 | `viewedAt` — "the client opened it" | **Client Portal (#25)**, and scope §16 already hedges it with "where technically trackable" |
 | ~~Turning an approved quote into a booking~~ | ✅ Shipped with **Trips (#11)** — `POST /trips/from-quote/:quoteId`, "Book Trip" on the quote |
@@ -644,8 +645,8 @@ of these cards makes a second request.
 
 | Feature | Unblocked by |
 |---|---|
-| Print-ready / PDF output | **Document Vault (#22)** — nothing in this system generates a document yet |
-| ~~Emailing the itinerary to the client~~ | ✅ Shipped with **Email Templates (#21)** — "Email It" in the Send dialog; the PDF is not attached until Document Vault (#22) |
+| Print-ready / PDF output | **A PDF generator** — nothing in this system produces a document; the vault (#22) stores files, it does not make them |
+| ~~Emailing the itinerary to the client~~ | ✅ Shipped with **Email Templates (#21)** — "Email It" in the Send dialog; no PDF is attached, because none is generated |
 | Extracting flight data from the operator's own itinerary file | **Not modelled anywhere in this system** — the file attaches for reference; typed fields are typed by a person |
 
 **Not done:** Postman `22 · Itineraries` — the builder (`build_itineraries_folder.py`)
@@ -853,7 +854,7 @@ changed, and `npm run build` passes.
 | Feature | Unblocked by |
 |---|---|
 | ~~Payment reminders (§9.3 "trigger reminders")~~ | ✅ Shipped with **Email Templates (#21)** — "Send Reminder" on the row, by hand; *automatic* reminders need a scheduled job |
-| A printable / PDF invoice | **Document Vault (#22)** |
+| A printable / PDF invoice | **A PDF generator** — the vault (#22) can hold a signed copy in the trip's folder, but nothing produces one |
 | Export | **Settings / Import / Export (#26)** |
 | ~~Receivables on the dashboard~~ | ✅ Shipped with **Dashboard (#24)** — the tile, the Financial Attention column and overdue invoices in Today's Priorities. A *daily brief* email needs a scheduled job |
 | Paying an invoice from a client's credit | **A decision** — see Client Credits (#30) |
@@ -902,7 +903,7 @@ as open; this module records them.
 | Feature | Unblocked by |
 |---|---|
 | Remittance / operator-payment reminders (§6.13) | **Email Templates (#21)** ✅ shipped — it can email an operator, but has no operator-bill merge fields yet, so a remittance would carry no amount |
-| The operator's bill as an attached PDF | **Document Vault (#22)** — the bill's number is stored; the file is not |
+| ~~The operator's bill as an attached PDF~~ | ✅ **Document Vault (#22)** — file the operator's invoice in the trip's or the operator's folder (category Invoice). It sits beside the bill rather than on it; linking a document to one bill is not built |
 | ~~Payables on the dashboard~~ | ✅ Shipped with **Dashboard (#24)** — the tile, the Financial Attention column and bills due in Today's Priorities |
 
 ### 19. Transactions ✅ *(28 Sep 2026)*
@@ -1120,7 +1121,7 @@ anywhere in the system.
 | Scheduled emails — seven-day, day-before, day-of (§6.17) | A scheduled job; not built |
 | Weather in day-of-trip emails (§6.17) | A weather provider — an open question for the client |
 | Gmail send (open for review, or direct) and Gmail import | **A decision** (§17, "exact Gmail send workflow") and Google API access |
-| Attaching the quote or itinerary PDF | **Document Vault (#22)** — nothing generates a PDF yet |
+| Attaching the quote or itinerary PDF | **A PDF generator** — nothing produces one; attaching a *filed* vault document to an email is not built either |
 | Emailing a sourcing request to an operator | Trip-request merge fields — a request is not a trip, so `{route}` has nothing to read yet |
 | Operator remittance (§6.13) | Operator-bill merge fields — the compose form addresses an operator already, but a remittance with no amount is not one |
 | Empty-leg campaigns to many clients at once | A bulk send, and a rule for who may be emailed; one at a time works today |
@@ -1128,18 +1129,73 @@ anywhere in the system.
 
 ---
 
-## 22. Document Vault ⬜
+## 22. Document Vault ✅ *(29 Sep 2026)*
 
-**No screen exists.** Waits on nothing unbuilt: Trips (#11) ✅, Clients ✅, Operators ✅.
+**Working now**
 
-**The pipeline it was going to own now exists** — see **Uploads (#28)**, built
-first because four separate client requests were queued behind it. What is left
-here is the vault *as a product*: a browsable store with folders, versions and
-expiry dates on certificates.
+- **`Document`** (scope §6.18, §10): a title, a category — Passport, ID,
+  Charter Agreement, Wire Confirmation, Invoice, Itinerary, Insurance
+  Certificate, Operator Certificate, Catering Request, Other — an optional
+  expiry date, notes, and **exactly one owner**: a client, a trip or an
+  operator, as three real foreign keys with a CHECK constraint. The file is an
+  **upload by foreign key**; its name, size and type are read through it,
+  never copied. Migration `20260929100000_add_document_vault`
+- **Scope is the owner's.** A document is readable exactly when its client,
+  trip or operator is — `ClientsService.visibleWhere`,
+  `TripsService.visibleWhere`, operators for anyone who reads them — so a
+  broker sees the folders of their own clients and trips and nothing else
+- **Passports and IDs are restricted** (scope §11): the new
+  `VIEW_SENSITIVE_DOCUMENTS` (administrators, senior brokers, brokers on their
+  own clients; not assistants). Without it they are absent from every list and
+  a 404 when named; the timeline names them by category, never by title
+- **The file opens through the document**: `GET /documents/:id/file` checks
+  the document is in scope, then streams its upload — the second sanctioned
+  caller of `UploadsService.openVouched`, after referral attachments. Filing
+  requires a file the caller may read, so the vouched read can never publish
+  someone else's private upload
+- **Expiry is computed, never stored**: None, Valid, Expiring (within 90
+  days) or Expired, from `expiresOn` and the desk's today, with the list
+  filter and the badge one rule (`documents.rules.ts`, pure, with tests)
+- **Permissions:** `VIEW_DOCUMENTS` (ALL; OWN for brokers; ASSIGNED for
+  assistants), `MANAGE_DOCUMENTS` (ALL; OWN for brokers — they archive only
+  what they filed; none for assistants), `VIEW_SENSITIVE_DOCUMENTS` above
+- `GET /documents` (folder, kind of folder, category, expiry, search, sort,
+  archived), `/stats`, `/:id`, `/:id/file`, `POST`, `PATCH` (a new `fileUrl`
+  replaces the file; the folder cannot change), `DELETE`, restore, bulk
+  archive and restore. Filing, editing, archiving and restoring land on the
+  **owner's timeline** (`document.*` on the client, trip or operator)
+- Frontend: **`/dashboard/documents`** (sidebar: Database → Document Vault) —
+  tiles, URL state, filters, Archived tab, bulk archive/restore, cards below
+  `lg`; one filing form (`DocumentFormDialog`) and one folder list
+  (`DocumentsPanel`) used everywhere
+- Postman builder `build_documents_folder.py` → `28 · Documents` (12
+  requests), **written, not run**
 
-Aircraft images, the client attachment drop zone, contracts, operator
-certificates and quote PDFs all now have somewhere to go on the server. Each
-still needs its own screen and its own category rule.
+**Second pass — the screens that were waiting on #22**
+
+- **Clients:** a **Documents** tab, the client's folder
+- **Leads:** the lead page's Documents card, which said "arrive with Document
+  Vault (#22)", is that folder
+- **Trips:** the trip page's "Documents & Links" lists the trip's folder.
+  `trips.documentUrls` is **gone** — the migration moved every file it named
+  into the vault as an Other document on its trip and dropped the column, and
+  the trip form no longer uploads (documents are filed on the trip page after
+  saving), so a trip has one document store, not two
+- **Operators:** a **Documents** tab — insurance and operator certificates
+  with their expiry dates
+- **Dashboard (#24):** Today's Priorities lists documents expired or expiring
+  within 30 days — scope §6.3's passport-expiry reminder
+- The Postman collection's `15 · Trips` examples no longer show
+  `documentUrls`
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| Versions of one document | **A decision** — replacing the file keeps the audit entry, not the old file's link; nothing in the scope asks for version history |
+| Document retention/deletion rules for passports and IDs | **A decision** — scope §17 lists it as open; nothing is ever deleted meanwhile |
+| Generating PDFs (quotes, itineraries, invoices) | **A PDF generator** — the vault stores files, it does not produce them |
+| Extracting fields from an operator's document (§6.9) | Not modelled — no parser exists |
 
 ---
 
@@ -1374,8 +1430,8 @@ recorded rather than left for somebody to "tidy up" later.
 
 **Deferred by decision: attachments on a note.** The upload surface exists and a
 note could carry a URL, but nothing has asked for it, and a second place that
-files documents about a client competes with Document Vault (#22) before that
-module has decided anything.
+files documents about a client would compete with Document Vault (#22), which
+is now where a client's documents live.
 
 ---
 
@@ -1670,8 +1726,8 @@ also without live testing: build, eslint, backend lint and tests pass.
 are written and need one run against a freshly seeded API, then Newman.
 
 **Next in the module queue:** everything that hangs off Trips is complete,
-and so are the Tasks Board (#20) and Email Templates (#21). Next is
-**Document Vault (#22)**.
+and so are the Tasks Board (#20), Email Templates (#21), Document Vault (#22)
+and the Dashboard (#24). Next is **Reports (#23)**.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational

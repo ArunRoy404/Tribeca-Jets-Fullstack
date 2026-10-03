@@ -34,6 +34,7 @@ import { ReceivablesModule } from './modules/receivables/receivables.module.js';
 import { OperatorPaymentsModule } from './modules/operator-payments/operator-payments.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { DocumentsModule } from './modules/documents/documents.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -90,6 +91,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     OperatorPaymentsModule,
     TransactionsModule,
     DashboardModule,
+    DocumentsModule,
   ],
   providers: [
     /**
