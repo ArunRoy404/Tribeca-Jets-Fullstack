@@ -265,13 +265,13 @@ CSRF enforced on writes, and broker row-level scoping.
 
 ## Deployment (Hostinger KVM VPS)
 
-Docker Compose from the repo's [`deploy/`](../deploy) folder: Caddy (automatic
-HTTPS), this API, the web app, Postgres, Redis and a nightly database dump.
-The step-by-step guide is [`docs/DEPLOYMENT-VPS.md`](../docs/DEPLOYMENT-VPS.md).
+[Dokploy](https://dokploy.com) on the VPS builds this folder's `Dockerfile`
+and runs it beside the web app, a Dokploy-managed Postgres and Redis. Traefik
+(Dokploy's proxy) issues HTTPS and routes `/api/*` here, so the session cookie
+is first-party and `COOKIE_DOMAIN` stays empty. Step by step:
+[`docs/DEPLOYMENT-VPS.md`](../docs/DEPLOYMENT-VPS.md).
 
-One domain serves both apps — Caddy routes `/api/*` here — so the session
-cookie is first-party and `COOKIE_DOMAIN` stays empty. The image applies
-migrations on every start. The first account comes from
+The image applies migrations on every start. The first account comes from
 `npm run db:bootstrap-admin`, never from the seed, whose passwords are public.
 
 Production requires `COOKIE_SECURE=true` and SMTP; the app refuses to boot

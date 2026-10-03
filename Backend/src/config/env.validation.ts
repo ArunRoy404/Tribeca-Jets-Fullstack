@@ -92,7 +92,7 @@ export const envSchema = z
 
     /**
      * Leave empty — in development and in production. Production serves the
-     * web app and the API from one domain (Caddy routes /api), so a host-only
+     * web app and the API from one domain (Traefik routes /api), so a host-only
      * cookie already covers both. Set it only if the API ever moves to its own
      * subdomain: `.tribecajetscommandcenter.com`.
      */

@@ -585,8 +585,8 @@ accounts sharing the public password `ChangeMe123!`, plus invented clients and
 enquiries. Production's first account comes from `npm run
 db:bootstrap-admin` (`prisma/bootstrap-admin.ts`), which creates one
 SUPER_ADMIN and refuses an email that already exists rather than resetting it.
-The production stack itself is `deploy/` (Docker Compose + Caddy, one domain,
-`/api` routed by Caddy) — guide in `docs/DEPLOYMENT-VPS.md`.
+Production runs on Dokploy on the Hostinger VPS — one domain, Traefik routing
+`/api` to the API — guide in `docs/DEPLOYMENT-VPS.md`.
 
 ## The permission matrix ships with the session
 

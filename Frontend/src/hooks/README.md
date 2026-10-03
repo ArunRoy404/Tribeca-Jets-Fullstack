@@ -269,6 +269,6 @@ without SMTP.
 `NEXT_PUBLIC_API_URL` in `.env.local` (see `.env.example`). It must include the
 `/api` prefix.
 
-In production both apps are served from one domain — Caddy routes `/api` to
-the API (`deploy/Caddyfile`) — so `NEXT_PUBLIC_API_URL` stays `/api` and the
+In production both apps are served from one domain — Dokploy's Traefik
+routes `/api` to the API (`docs/DEPLOYMENT-VPS.md`) — so `NEXT_PUBLIC_API_URL` stays `/api` and the
 session cookie is first-party.

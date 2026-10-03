@@ -83,7 +83,7 @@ services:
 
       # Deliberately empty, and it must stay that way.
       #
-      # Production leaves it empty too (one domain, Caddy routes /api). On Render the
+      # Production leaves it empty too (one domain, Traefik routes /api). On Render the
       # API is reached through the Next rewrite proxy, so the cookie belongs
       # to the web origin — any domain attribute set here fails to match and
       # the browser silently drops the session.
