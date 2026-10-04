@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useCurrentUser } from "@/hooks/auth";
-import { Scope, can, canWrite } from "@/lib/permissions";
+import { ROLE_RESTRICTIONS_ENABLED, Scope, can, canWrite } from "@/lib/permissions";
 
 /**
  * What the signed-in user's role is allowed to do.
@@ -30,6 +30,17 @@ export function usePermissions() {
   const { data: user, isPending } = useCurrentUser();
 
   return useMemo(() => {
+    // Restrictions off: every role may do everything, with no wait for the
+    // session. See ROLE_RESTRICTIONS_ENABLED.
+    if (!ROLE_RESTRICTIONS_ENABLED) {
+      return {
+        isPending,
+        scopeFor: () => Scope.ALL,
+        can: () => true,
+        canWrite: () => true,
+      };
+    }
+
     const matrix = user?.permissions ?? {};
     const scopeFor = (permission) => matrix[permission] ?? Scope.NONE;
 

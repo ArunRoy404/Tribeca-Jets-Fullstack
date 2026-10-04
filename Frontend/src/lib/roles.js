@@ -1,3 +1,5 @@
+import { ROLE_RESTRICTIONS_ENABLED } from "@/lib/permissions";
+
 /**
  * Roles that can own a book of business — who a "broker" picker or filter
  * offers.
@@ -23,8 +25,13 @@ export function isPartnerRole(role) {
 export const PORTAL_HOME = "/portal";
 export const CRM_HOME = "/dashboard";
 
-/** Where a signed-in user belongs: the portal for a partner, the CRM for staff. */
+/**
+ * Where a signed-in user belongs: the portal for a partner, the CRM for staff.
+ * While role restrictions are off everyone lands on the CRM, and may still
+ * open the portal (see ROLE_RESTRICTIONS_ENABLED).
+ */
 export function homeFor(role) {
+  if (!ROLE_RESTRICTIONS_ENABLED) return CRM_HOME;
   return isPartnerRole(role) ? PORTAL_HOME : CRM_HOME;
 }
 
@@ -32,6 +39,7 @@ const inArea = (path, home) => path === home || String(path ?? "").startsWith(`$
 
 /** Whether `path` lies inside the area `role` is allowed to use. */
 export function belongsIn(role, path) {
+  if (!ROLE_RESTRICTIONS_ENABLED) return inArea(path, CRM_HOME) || inArea(path, PORTAL_HOME);
   return inArea(path, homeFor(role));
 }
 

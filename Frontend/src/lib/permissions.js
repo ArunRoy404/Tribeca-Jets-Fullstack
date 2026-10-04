@@ -52,6 +52,17 @@ export const Scope = {
   ALL: "ALL",
 };
 
+/**
+ * TEMPORARY (4 Oct 2026): role restrictions are switched off, on both sides.
+ *
+ * Every user acts as SUPER_ADMIN until the CRM is finished and the role
+ * architecture is redesigned — the API's `ROLE_RESTRICTIONS_ENABLED` holds the
+ * same value. While it is `false`, `usePermissions()` answers yes to every
+ * question and `lib/roles.js` lets every user into every area, so no control
+ * is hidden by role. Flip both constants back to `true` to restore it all.
+ */
+export const ROLE_RESTRICTIONS_ENABLED = false;
+
 /** Whether this scope permits the action at all. */
 export function can(scope) {
   return Boolean(scope) && scope !== Scope.NONE;
