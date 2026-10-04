@@ -16,6 +16,14 @@ the scope asks for that we chose not to build yet, with the reason.
 > second list is *visibly* blank on screen — nothing in this project quietly
 > pretends a missing dependency is a zero.
 
+> **Deferred by decision, every module (4 Oct 2026): role restrictions.** Every
+> user currently acts as SUPER_ADMIN — no scoping, no hidden controls, no
+> partner-only views — until the CRM is finished and the role architecture is
+> redesigned. Everything below that mentions a broker's scope, an assistant's
+> read-only access or the referral portal describes the dormant design. The
+> switch and what it covers: `AGENTS.md`, "TEMPORARY: role restrictions are
+> switched off".
+
 Companion to [MODULES.md](MODULES.md), which explains what each module *is* and
 why it sits where it does in the queue, and to
 [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md), which tracks what the client has

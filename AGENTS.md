@@ -39,6 +39,34 @@ This is absolute. Not when a batch "feels done", not when tests pass, not when t
 
 Leaving finished work uncommitted in the tree is the correct resting state. Say what is uncommitted and why; do not fix it by committing.
 
+## TEMPORARY: role restrictions are switched off (since 4 Oct 2026)
+
+**The owner's decision:** finish the CRM end to end as SUPER_ADMIN first, then
+redesign the role architecture. Until then **every user acts as SUPER_ADMIN**,
+whatever role is stored on their row.
+
+- **One switch per side, both `false`:** `ROLE_RESTRICTIONS_ENABLED` in
+  `Backend/src/common/authorization/permissions.ts` and in
+  `Frontend/src/lib/permissions.js`. Flip both to `true` to restore everything
+  exactly — the matrix, the scoping and the partner rules are untouched.
+- **Backend:** every place that *restricts* by role reads it through
+  `actsAs(role)`, which answers SUPER_ADMIN while the switch is off — the
+  matrix (`scopeFor`), `isPartner`, the broker-only lines in Clients and Trip
+  Requests, the owner-account guard. A role used as *data* reads `user.role`
+  directly and is unaffected: "a commission's agent must be an agent",
+  "you cannot change your own role", "the last admin cannot be demoted".
+  **New code follows the same split** — a restriction goes through `actsAs`.
+- **Frontend:** `usePermissions()` answers yes to everything, and every user
+  lands on `/dashboard` and may open `/portal`. Keep writing `canWrite(...)`
+  checks on new controls as the rules below say; they simply pass for now.
+- **Tests:** the five upload tests asserting a role is refused are
+  `it.skipIf(!ROLE_RESTRICTIONS_ENABLED)`. Any new test that depends on a
+  role being refused does the same.
+
+The rules in this file about scopes, 404-not-403, partner views and hiding
+controls still describe the design; they are dormant, not withdrawn. The
+redesign revisits them.
+
 ## How this project is built
 
 The schema is **not** designed up front. Modules land one at a time and earlier ones get revised as later ones reveal what they actually needed. Two consequences:
