@@ -951,7 +951,7 @@ status and balance live on its own board, one click away.
 | Feature | Unblocked by |
 |---|---|
 | Export (CSV / accounting) | **Settings / Import / Export (#26)** |
-| Monthly revenue and profit from the ledger | **Reports (#23)** |
+| ~~Monthly revenue and profit~~ | ✅ **Reports (#23)** — revenue and profit by month from Trips, and cash collected by payment date |
 | Refunds as movements | **A decision** — see Client Credits (#30) |
 
 ### 18. Commissions ✅
@@ -1207,12 +1207,63 @@ anywhere in the system.
 
 ---
 
-## 23. Reports ⬜
+## 23. Reports ✅ *(4 Oct 2026)*
 
-Nothing wired. Waits on every financial module (16–19) and Trips ✅.
+**Which date counts** — decided 4 Oct 2026 without the client, under deadline
+(§17 leaves "report layouts and KPI formulas" open): **revenue, profit,
+margin and trip counts by the day a trip departs** (the money is earned when
+the flight is delivered; the Dashboard already counted that way), **cash and
+FET collected by the day a payment arrived**, **outstanding AR/AP as of
+today**. Recorded in `reports.window.ts`; change it there if the client
+answers differently.
 
-Export to CSV / Excel / PDF is an **acceptance criterion in the signed scope
-with no code written**.
+**Working now** — every panel reads the API; `dummyData/reports.js` is
+deleted and `useReportsStore` keeps only the export dialog.
+
+- **Window**: the period tabs (Today, This Week — Monday first, This Month,
+  This Year) or a picked month, quarter or YTD, worked out from the desk's
+  own today and sent as `from`/`to` (both included). In the URL, with each
+  chart's bucket.
+- **Tiles and Financial Summary** (`GET /reports/summary`): revenue, profit,
+  margin, trips, averages per trip, FET charged; FET and cash collected —
+  each payment carries its invoice's share of FET, so a half-paid invoice has
+  collected half its tax; outstanding AR and AP. The panel says under itself
+  how many trips were left out of revenue (no price) or profit (no operator
+  cost) rather than hiding it.
+- **Charts** (`GET /reports/series`): revenue and profit, and trips, per week
+  (twelve, Monday first), month (the year's twelve) or year (five).
+- **Broker performance, top clients, top routes** (`GET /reports/brokers`,
+  `/clients`, `/routes`): paged, largest revenue first; a trip with no broker
+  is "Unassigned", never credited to anyone; a route is the first leg's.
+- **Export** (`GET /reports/export`): one row per trip — reference, departure,
+  status, client, broker, route, aircraft, operator, revenue, FET, operator
+  cost, profit, margin — over the window or everything on record, as **CSV**
+  or **Excel (.xlsx)**. Unknown figures are blank cells, never zero; formula
+  text is defused. Written by `common/export/tabular.ts`, which #26 reuses.
+- **One copy of the arithmetic**: trip figures are summed by
+  `tallyTrips` in `trips/trips.figures.ts`, which the Dashboard's tiles now
+  use too, so the two screens cannot disagree about the same trips.
+- Module `modules/reports/` (window and bucket arithmetic in
+  `reports.window.ts`, DTO checks, all with tests); Postman builder
+  `build_reports_folder.py` → `29 · Reports` (7 requests, 19 examples),
+  **run and Newman-green**. Verified live against probe trips, then archived.
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| **Export PDF** (the design's button, removed rather than faked) | **A PDF generator** — nothing in this system produces one |
+| Client lifetime value (§6.21) | Buildable now from Trips — not drawn in the design yet |
+| Sales funnel and open-quote status (§6.21) | Buildable now from Trip Requests and Quotes — not drawn in the design yet |
+| Forecast from open quotes (§6.21) | **A decision** — the probability formula is open (§17) |
+| Admin daily activity report (§6.21) | The Dashboard's activity feed exists; a daily digest needs **a scheduled job** |
+| 403 examples in `29 · Reports` | **Role restrictions** — switched off; nobody can be refused yet |
+
+**Open, not decided here:** gross profit includes the FET, because
+`priceQuote` computes it as total price minus operator cost — Reports reuses
+that so it agrees with Quotes, Trips, the Dashboard and Commissions. Whether
+it should is the open question in [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md)
+§5; changing it moves every percent-of-profit commission.
 
 ---
 
@@ -1735,7 +1786,8 @@ are written and need one run against a freshly seeded API, then Newman.
 
 **Next in the module queue:** everything that hangs off Trips is complete,
 and so are the Tasks Board (#20), Email Templates (#21), Document Vault (#22)
-and the Dashboard (#24). Next is **Reports (#23)**.
+and the Dashboard (#24). **Reports (#23)** landed 4 Oct 2026. Next in the queue is
+**Settings / Import / Export / Backup (#26)**, which reuses Reports' export writer.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational

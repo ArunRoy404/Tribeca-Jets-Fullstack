@@ -1110,6 +1110,21 @@ overdue, the overpayment check), `common/database/document-number.ts`
 `PaymentLedger` and `toPaymentRow`. Receivables and Operator Payments both
 use them; a third money module adds only what is its own.
 
+**Which date a money figure counts by is fixed, and every report uses it.**
+Revenue, profit, margin and trip counts go by the day a trip **departs**;
+cash and FET collected by the day a **payment** arrived; outstanding AR/AP
+as of today (decided 4 Oct 2026, `reports/reports.window.ts`). A figure
+counted by booking date is sales activity, not revenue — name it so. And
+trip money is summed by **`tallyTrips` in `trips/trips.figures.ts`** and
+nowhere else: the Dashboard and Reports both call it, which is why they
+cannot disagree about the same trips.
+
+**Every file export goes through `common/export/tabular.ts`** — CSV or
+XLSX from a module's columns and rows. It leaves an unknown figure blank,
+keeps money as numbers in Excel, and prefixes text a spreadsheet would run
+as a formula (`=`, `+`, `-`, `@`) with an apostrophe. A second writer would
+be the copy that forgets that last part.
+
 **A view over several modules reads each through its owner.** Transactions
 stores nothing: each owner builds its rows in the shared `Movement` shape
 (`common/money/movements.ts`) under its own scope, and the ledger merges pages
@@ -1448,7 +1463,7 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault. Not yet: the Clients table, Airports,
+Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault, Reports. Not yet: the Clients table, Airports,
 Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by

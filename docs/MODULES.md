@@ -59,7 +59,7 @@ set of broken joins the day the real table arrives.
 | 20 | **Tasks Board** | ✅ Done (28 Sep) — with the notification bell | Users; links to Trips/Clients |
 | 21 | **Email Templates** | ✅ Done (28 Sep) — with sending, and the quote/itinerary/reminder second pass | Clients, Operators, Trips, Quotes, Receivables (merge fields) |
 | 22 | **Document Vault** | ✅ Done (29 Sep) — client, trip and operator folders; passports and IDs restricted | Trips, Clients, Operators, Uploads |
-| 23 | **Reports** | Not started | All financial modules |
+| 23 | **Reports** | ✅ Done (4 Oct) — revenue/profit by departure, cash and FET by payment; CSV and Excel export | All financial modules |
 | 24 | **Dashboard** | ✅ Done (28 Sep) — tiles, priorities, activity; lists read the owning modules | Nearly everything — built last |
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
 | 26 | **Settings / Import / Export / Backup** | No screen yet | All |
@@ -77,7 +77,8 @@ without waiting on the client; #11's agent portal followed the same day, and
 **Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
 on 28 September — everything that hangs off Trips — the **Tasks Board
 (#20)** and **Email Templates (#21)**; the **Dashboard (#24)** and **Document
-Vault (#22)** on 28–29 September. **What is next:** **Reports (#23)**.
+Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:**
+**Settings / Import / Export / Backup (#26)**.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -606,10 +607,15 @@ it belongs to — **no backend upload change**. (This paragraph used to say "a
 row in `FILE_CATEGORY_RULES`"; categories were removed in the 23 Sep rebuild,
 see #28.)
 
-### 23. Reports
+### 23. Reports ✅ *(4 October 2026)*
 
 Revenue, profit, FET collected and trip counts over selectable periods, with
-CSV / Excel / PDF export.
+CSV and Excel export. **Stores nothing**: trips are read through Trips with
+their own computed figures, payments through Receivables, bills through
+Operator Payments. Revenue, profit and trips count by **departure date**;
+cash and FET collected by **payment date**; AR/AP as of today — decided
+under deadline, since §17 left KPI formulas open. PDF export waits on a PDF
+generator.
 
 ### 24. Dashboard
 
@@ -620,8 +626,8 @@ stores nothing: three endpoints of its own (`/dashboard/summary`,
 the lists beside them are those modules' own list endpoints with one filter
 each (`departure=ONWARD`, `followUp=SCHEDULED`, `open=true`). Revenue for a
 period counts trips *departing* in it — a trip booked on Monday for Friday is
-this week's revenue — which is the definition to confirm with the client
-before Reports (#23) repeats it.
+this week's revenue. Reports (#23) uses the same definition, and both sum
+trips through the one `tallyTrips` in `trips/trips.figures.ts`.
 
 ### 25. Client Portal
 
