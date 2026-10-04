@@ -319,6 +319,13 @@ same second pass the build-order rule already requires — this file is where it
 becomes visible, so a stale entry here means a dependant screen is still
 rendering an em dash it no longer needs to.
 
+**A feature removed or hidden is never dropped — it is logged.** Taking a
+control off a screen rather than faking it (the "Download PDF" buttons, with
+no PDF generator behind them) is correct, but it must land in that module's
+"Waiting on a dependency" table in `MODULE_FEATURE_STATUS.md` in the same pass,
+naming what was removed and what would bring it back. A feature that vanishes
+from the screen *and* the record is a feature nobody builds.
+
 ## Communication
 
 - Report what is actually true: if a check was skipped, say so; if tests fail, show the output.
