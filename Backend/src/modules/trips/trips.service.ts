@@ -34,6 +34,7 @@ import {
 import { FlightStatus, InvoiceStatus, TripStatus, TripType } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
+import { tallyTrips, tripFigures } from './trips.figures.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
@@ -57,6 +58,15 @@ import type {
   TripWindow,
   UpdateTripInput,
 } from './dto/trip.dto.js';
+
+/** A trip's price inputs — everything `priceQuote` reads, and nothing else. */
+const PRICING_SELECT = {
+  basePrice: true,
+  fetEnabled: true,
+  fetRate: true,
+  operatorCost: true,
+  lineItems: true,
+} as const;
 
 const ACTOR_SELECT = {
   select: { id: true, firstName: true, lastName: true, email: true },
@@ -666,43 +676,78 @@ export class TripsService {
         status: { in: [...REVENUE_STATUSES] },
         departureDate: { gte: from, lt: to },
       },
-      select: { basePrice: true, fetEnabled: true, fetRate: true, operatorCost: true, lineItems: true },
+      select: PRICING_SELECT,
     });
 
-    let revenue = 0;
-    let fet = 0;
-    let profit = 0;
-    let profitRevenue = 0;
-    let priced = 0;
-    let profitKnown = 0;
-    for (const row of rows) {
-      if (row.basePrice === null) continue;
-      const figures = priceQuote({ ...row, basePrice: row.basePrice });
-      priced += 1;
-      revenue += toCents(figures.totalPrice);
-      fet += toCents(figures.fetAmount);
-      if (figures.grossProfit !== null) {
-        profit += toCents(figures.grossProfit);
-        profitRevenue += toCents(figures.totalPrice);
-        profitKnown += 1;
-      }
-    }
-
+    const tally = tallyTrips(rows.map(tripFigures));
     const financials = this.seesFinancials(user);
     return {
-      tripCount: rows.length,
-      pricedCount: priced,
-      revenue: fromCents(revenue),
-      fet: fromCents(fet),
-      profit: financials ? fromCents(profit) : undefined,
-      profitTripCount: financials ? profitKnown : undefined,
+      tripCount: tally.tripCount,
+      pricedCount: tally.pricedCount,
+      revenue: tally.revenue,
+      fet: tally.fet,
+      profit: financials ? tally.profit : undefined,
+      profitTripCount: financials ? tally.profitTripCount : undefined,
       /** Profit over the revenue of the same trips, to one decimal; null with nothing to divide. */
-      marginPercentage: financials
-        ? profitRevenue > 0
-          ? Math.round((profit / profitRevenue) * 1000) / 10
-          : null
-        : undefined,
+      marginPercentage: financials ? tally.marginPercentage : undefined,
     };
+  }
+
+  // ---- Reports (#23) ------------------------------------------------------
+  //
+  // Reports stores nothing and prices nothing: it reads trips here, in the
+  // trip scope, each with its own computed figures, and aggregates them.
+
+  /**
+   * Booked and flown trips — the revenue statuses — departing in
+   * `[from, to)`, or every one when no window is given, each with the
+   * facts a report groups by and its computed figures (null when unpriced).
+   * Oldest departure first, so an export reads as a ledger.
+   */
+  async reportRows(user: AuthenticatedUser, window: { from: Date; to: Date } | null) {
+    const rows = await this.prisma.trip.findMany({
+      where: {
+        deletedAt: null,
+        ...this.visibilityScope(user),
+        status: { in: [...REVENUE_STATUSES] },
+        ...(window ? { departureDate: { gte: window.from, lt: window.to } } : {}),
+      },
+      orderBy: [{ departureDate: 'asc' }, { reference: 'asc' }],
+      select: {
+        ...PRICING_SELECT,
+        id: true,
+        reference: true,
+        status: true,
+        departureDate: true,
+        aircraftDescription: true,
+        client: { select: { id: true, firstName: true, lastName: true, companyName: true } },
+        assignedBroker: { select: { id: true, firstName: true, lastName: true } },
+        operator: { select: { id: true, name: true } },
+        aircraft: { select: { id: true, tailNumber: true, model: true } },
+        legs: {
+          orderBy: { sequence: 'asc' },
+          take: 1,
+          select: {
+            originAirport: { select: { id: true, icao: true, iata: true } },
+            destinationAirport: { select: { id: true, icao: true, iata: true } },
+          },
+        },
+      },
+    });
+
+    return rows.map(({ basePrice, fetEnabled, fetRate, operatorCost, lineItems, legs, ...trip }) => ({
+      ...trip,
+      /** The first leg's origin and destination — a round trip reads as its outbound. */
+      route: legs[0] ? { origin: legs[0].originAirport, destination: legs[0].destinationAirport } : null,
+      figures: tripFigures({ basePrice, fetEnabled, fetRate, operatorCost, lineItems }),
+    }));
+  }
+
+  /** How many trips `reportRows(user, null)` would return — every operation on record. */
+  async reportCount(user: AuthenticatedUser): Promise<number> {
+    return this.prisma.trip.count({
+      where: { deletedAt: null, ...this.visibilityScope(user), status: { in: [...REVENUE_STATUSES] } },
+    });
   }
 
   /** Trips still ahead of the desk whose first leg leaves today or later. */
