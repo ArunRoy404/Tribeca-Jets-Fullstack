@@ -200,3 +200,27 @@ export function tripPayment(invoices: InvoiceInputs[], today: Date = todayUtc())
     invoiceCount: summary.count,
   };
 }
+
+/**
+ * Money received in a window, and the FET inside it (#23's "FET collected").
+ *
+ * Each payment carries its invoice's share of tax: payment × FET ÷ (charge +
+ * FET), worked out in cents and rounded per payment, so a deposit of half an
+ * invoice has collected half its FET — not all of it, and not none. The
+ * filing is by money received, which is why this is counted by the day a
+ * payment arrived rather than the day the trip flew.
+ */
+export function collectedTally(
+  payments: { amount: Money; invoice: { amount: Money; fetAmount: Money } }[],
+): { cash: number; fet: number; paymentCount: number } {
+  let cash = 0;
+  let fet = 0;
+  for (const payment of payments) {
+    const paid = toCents(payment.amount);
+    const charge = toCents(payment.invoice.amount);
+    const tax = toCents(payment.invoice.fetAmount);
+    cash += paid;
+    if (tax > 0 && charge + tax > 0) fet += Math.round((paid * tax) / (charge + tax));
+  }
+  return { cash: fromCents(cash), fet: fromCents(fet), paymentCount: payments.length };
+}

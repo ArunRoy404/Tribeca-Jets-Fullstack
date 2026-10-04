@@ -45,6 +45,7 @@ import {
 } from '../../common/money/movements.js';
 import {
   InvoiceState,
+  collectedTally,
   invoiceFigures,
   invoiceNumber,
   paidCents,
@@ -362,6 +363,26 @@ export class ReceivablesService {
       select: FIGURES_SELECT,
     });
     return tally(rows);
+  }
+
+  // ---- For Reports (#23) --------------------------------------------------
+
+  /**
+   * Money received in `[from, to)` by the day it arrived: live payments on
+   * live invoices the caller may see, with the FET inside them
+   * (`collectedTally`). Cancelled invoices included — a payment that came in
+   * is money that came in, whatever later happened to the bill.
+   */
+  async collectedBetween(user: AuthenticatedUser, from: Date, to: Date) {
+    const payments = await this.prisma.invoicePayment.findMany({
+      where: {
+        deletedAt: null,
+        paidAt: { gte: from, lt: to },
+        invoice: { deletedAt: null, ...this.scope(user) },
+      },
+      select: { amount: true, invoice: { select: { amount: true, fetAmount: true } } },
+    });
+    return collectedTally(payments);
   }
 
   // ---- For the Transactions ledger (#19) ---------------------------------
