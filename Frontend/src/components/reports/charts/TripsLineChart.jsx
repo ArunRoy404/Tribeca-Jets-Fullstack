@@ -17,7 +17,8 @@ export default function TripsLineChart({ data }) {
     gap: GAP,
     barGap: BAR_GAP,
   });
-  const maxValue = Math.max(16, ...data.map((d) => d.trips));
+  // A floor of 4 keeps a quiet week from drawing one trip as a full-height spike.
+  const maxValue = Math.max(4, ...data.map((d) => d.trips));
   const yLabels = [4, 3, 2, 1, 0].map((n) => Math.round((maxValue * n) / 4));
   const height = ROWS * blockSize + (ROWS - 1) * GAP;
 

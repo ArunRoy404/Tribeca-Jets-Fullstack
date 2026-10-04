@@ -10,7 +10,10 @@ const GAP = 2;
 const BAR_GAP = 6;
 
 function formatK(value) {
-  return `$${Math.round(value / 1000)}k`;
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `$${Math.round(value / 100_000) / 10}M`;
+  if (abs >= 1000) return `$${Math.round(value / 1000)}k`;
+  return `$${Math.round(value)}`;
 }
 
 function niceMax(rawMax) {

@@ -1,48 +1,18 @@
 import { create } from "zustand";
-import {
-  reportsStats,
-  monthlyFinancials,
-  weeklyFinancials,
-  yearlyFinancials,
-  tripsByMonth,
-  tripsByWeek,
-  tripsByYear,
-  brokerPerformance,
-  topClientsByRevenue,
-  topRoutes,
-  financialSummary,
-  totalOperationsCount,
-} from "@/dummyData/reports";
 
-const financialsByRange = { Weekly: weeklyFinancials, Monthly: monthlyFinancials, Yearly: yearlyFinancials };
-const tripsByRange = { Weekly: tripsByWeek, Monthly: tripsByMonth, Yearly: tripsByYear };
-
-export const useReportsStore = create((set, get) => ({
-  period: "This Week",
-  selectedMonth: "August 2026",
-  revenueChartRange: "Monthly",
-  tripsChartRange: "Monthly",
-
-  stats: reportsStats,
-  brokerPerformance,
-  topClientsByRevenue,
-  topRoutes,
-  financialSummary,
-  totalOperationsCount,
-
+/**
+ * Reports (#23) — client-only state: the export dialog. Every figure comes
+ * from `/reports/*` through React Query; the window and the chart buckets
+ * live in the URL (`useReportsParams`).
+ */
+export const useReportsStore = create((set) => ({
   exportModalOpen: false,
+  /** "current" — the window on screen; "all" — every operation on record. */
   exportScope: "current",
-  exportFormat: "CSV",
+  /** CSV or XLSX, the API's vocabulary. */
+  exportFormat: "XLSX",
 
-  setPeriod: (period) => set({ period }),
-  setSelectedMonth: (selectedMonth) => set({ selectedMonth }),
-  setRevenueChartRange: (revenueChartRange) => set({ revenueChartRange }),
-  setTripsChartRange: (tripsChartRange) => set({ tripsChartRange }),
-
-  getRevenueChartData: () => financialsByRange[get().revenueChartRange],
-  getTripsChartData: () => tripsByRange[get().tripsChartRange],
-
-  openExportModal: () => set({ exportModalOpen: true }),
+  openExportModal: (format) => set((state) => ({ exportModalOpen: true, exportFormat: format ?? state.exportFormat })),
   closeExportModal: () => set({ exportModalOpen: false }),
   setExportScope: (exportScope) => set({ exportScope }),
   setExportFormat: (exportFormat) => set({ exportFormat }),

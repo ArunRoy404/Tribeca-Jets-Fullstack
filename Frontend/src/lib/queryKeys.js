@@ -75,6 +75,21 @@ export const queryKeys = {
     stats: ["trips", "stats"],
   },
 
+  /**
+   * Reports (#23) — a read-only view over trips, payments and bills, so its
+   * keys sit under the trips namespace: every trip write, and every invoice,
+   * payment and bill write (which already invalidate `trips.all`), refreshes
+   * the reports too, without any hook having to know they exist.
+   */
+  reports: {
+    all: ["trips", "reports"],
+    summary: (params) => ["trips", "reports", "summary", params ?? {}],
+    series: (params) => ["trips", "reports", "series", params ?? {}],
+    brokers: (params) => ["trips", "reports", "brokers", params ?? {}],
+    clients: (params) => ["trips", "reports", "clients", params ?? {}],
+    routes: (params) => ["trips", "reports", "routes", params ?? {}],
+  },
+
   /** The passenger document for a trip (#12). */
   itineraries: {
     all: ["itineraries"],

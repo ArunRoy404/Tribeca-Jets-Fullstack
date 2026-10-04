@@ -4,12 +4,22 @@ import { X, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useReportsStore } from "@/store/useReportsStore";
-import { reportsExportFormatOptions } from "@/dummyData/reports";
+import { useReportSummary, useReportsParams } from "@/hooks/reports";
+import { EXPORT_FORMATS, EXPORT_FORMAT_LABELS } from "@/lib/reports";
+import { reportExportUrl } from "@/services/reports.service";
 import { cn } from "@/lib/utils";
 
 const scopeOptions = [
-  { value: "current", label: "Export current view", description: "Only the operations matching your active filters" },
-  { value: "all", label: "Export all operations", description: (count) => `All ${count} operations regardless of filters` },
+  {
+    value: "current",
+    label: "Export current view",
+    description: (counts) => `The ${counts?.window ?? "—"} operations departing in the period on screen`,
+  },
+  {
+    value: "all",
+    label: "Export all operations",
+    description: (counts) => `All ${counts?.allTime ?? "—"} operations on record, regardless of period`,
+  },
 ];
 
 export default function ExportOperationsDialog() {
@@ -19,7 +29,20 @@ export default function ExportOperationsDialog() {
   const setExportScope = useReportsStore((s) => s.setExportScope);
   const exportFormat = useReportsStore((s) => s.exportFormat);
   const setExportFormat = useReportsStore((s) => s.setExportFormat);
-  const totalOperationsCount = useReportsStore((s) => s.totalOperationsCount);
+  const { window } = useReportsParams();
+  const { data: summary } = useReportSummary(window);
+  const counts = summary?.operations;
+
+  // A real download the browser follows, so the session cookie goes with it.
+  const download = () => {
+    const link = document.createElement("a");
+    link.href = reportExportUrl({ ...(exportScope === "current" ? window : {}), format: exportFormat });
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    close();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
@@ -34,7 +57,7 @@ export default function ExportOperationsDialog() {
           </button>
         </DialogHeader>
 
-        <div className="flex flex-col border border-[#d4d7e2] rounded-lg overflow-hidden">
+        <div className="flex flex-col border border-border rounded-lg overflow-hidden">
           <div className="flex items-center justify-between border-b border-secondary px-4 py-3">
             <p className="font-montserrat font-bold text-[16px] text-muted-foreground">Scope</p>
           </div>
@@ -48,7 +71,7 @@ export default function ExportOperationsDialog() {
                   onClick={() => setExportScope(option.value)}
                   className={cn(
                     "flex items-start gap-3 rounded-md border p-3 text-left cursor-pointer transition-colors",
-                    active ? "border-warning bg-[#fdfbf8]" : "border-border bg-white"
+                    active ? "border-warning bg-warning/5" : "border-border bg-white"
                   )}
                 >
                   <span
@@ -62,7 +85,7 @@ export default function ExportOperationsDialog() {
                   <span className="flex flex-col gap-1">
                     <span className="font-montserrat font-medium text-[16px] text-ink">{option.label}</span>
                     <span className="font-montserrat font-normal text-[12px] text-slate">
-                      {typeof option.description === "function" ? option.description(totalOperationsCount) : option.description}
+                      {option.description(counts)}
                     </span>
                   </span>
                 </button>
@@ -74,7 +97,7 @@ export default function ExportOperationsDialog() {
         <div className="flex flex-col gap-2">
           <p className="font-montserrat font-medium text-[16px] text-foreground">Format</p>
           <div className="flex items-center gap-2">
-            {reportsExportFormatOptions.map((format) => (
+            {EXPORT_FORMATS.map((format) => (
               <button
                 key={format}
                 type="button"
@@ -86,7 +109,7 @@ export default function ExportOperationsDialog() {
                     : "bg-white border-border text-foreground hover:bg-muted"
                 )}
               >
-                {format}
+                {EXPORT_FORMAT_LABELS[format]}
               </button>
             ))}
           </div>
@@ -94,7 +117,8 @@ export default function ExportOperationsDialog() {
 
         <div className="flex items-center gap-4 rounded-sm border border-border bg-secondary p-4">
           <p className="font-dm-sans font-normal text-[12px] text-muted-foreground">
-            Your export will include the fields currently available in the operations data.
+            One row per booked or flown trip: reference, departure, status, client, broker, route, aircraft, operator,
+            revenue, FET, operator cost, profit and margin. A figure not yet known is left blank, never zero.
           </p>
         </div>
 
@@ -103,7 +127,7 @@ export default function ExportOperationsDialog() {
             <X className="size-4" />
             Cancel
           </Button>
-          <Button className="h-9 px-4 gap-2 text-[14px]" onClick={close}>
+          <Button className="h-9 px-4 gap-2 text-[14px]" onClick={download}>
             <Download className="size-4" />
             Export
           </Button>

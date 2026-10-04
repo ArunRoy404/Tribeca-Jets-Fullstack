@@ -1,6 +1,5 @@
 import Reveal from "@/components/common/Reveal";
-import SimpleStatsRow from "@/components/common/SimpleStatsRow";
-import { reportsStats } from "@/dummyData/reports";
+import ReportsStats from "@/components/reports/ReportsStats";
 import ReportsToolbar from "@/components/reports/ReportsToolbar";
 import RevenueProfitPanel from "@/components/reports/RevenueProfitPanel";
 import TripsChartPanel from "@/components/reports/TripsChartPanel";
@@ -16,7 +15,7 @@ export default function ReportsPage() {
       <div className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 w-full">
         <div className="flex flex-col gap-4 sm:gap-6 w-full bg-white border border-border rounded-lg p-4 sm:p-6">
           <ReportsToolbar />
-          <SimpleStatsRow stats={reportsStats} />
+          <ReportsStats />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-start">
