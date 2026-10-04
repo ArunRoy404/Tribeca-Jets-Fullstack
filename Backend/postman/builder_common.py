@@ -8,6 +8,8 @@ older ones move over when their own folder is next rebuilt ("fix a module when
 we reach it").
 """
 
+from __future__ import annotations
+
 import json
 import mimetypes
 import pathlib

@@ -19713,6 +19713,968 @@
           }
         }
       ]
+    },
+    {
+      "name": "29 \u00b7 Reports",
+      "description": "Reports (#23): every figure is read through the module that owns it, nothing is stored. Revenue, profit, margin and trips by departure date; cash and FET collected by payment date; outstanding AR/AP as of today. Reads only \u2014 the examples were captured against probe trips the builder created and archived again. No 403 examples while role restrictions are switched off.",
+      "item": [
+        {
+          "name": "01 \u00b7 Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/summary?from=2026-10-01&to=2026-10-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-10-01",
+                  "description": "required \u00b7 YYYY-MM-DD, the first day included."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-31",
+                  "description": "required \u00b7 YYYY-MM-DD, the last day included. On or after `from`; the window spans at most 3660 days."
+                }
+              ]
+            },
+            "description": "The tiles and the financial summary. Booked and flown trips (BOOKED, CONFIRMED, IN_FLIGHT, COMPLETED) count by the day they depart; an unpriced trip is counted but adds no revenue, and profit covers only trips whose operator cost is known. `collected` is cash and the FET inside it by payment date \u2014 each payment carries its invoice's share of FET, so a half-paid invoice has collected half its tax. `outstanding` is receivables and payables as they stand today. Averages and margin are null with nothing to divide. `operations` counts trips for the export dialog. Any other query parameter is a 400."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 October \u2014 one priced trip, one not, half the invoice paid",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/summary?from=2026-10-01&to=2026-10-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "summary"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"from\": \"2026-10-01\",\n    \"to\": \"2026-10-31\",\n    \"tripCount\": 2,\n    \"pricedCount\": 1,\n    \"revenue\": 45150,\n    \"profit\": 11650,\n    \"profitTripCount\": 1,\n    \"marginPercentage\": 25.8,\n    \"fetCharged\": 3150,\n    \"averageRevenue\": 45150,\n    \"averageProfit\": 11650,\n    \"collected\": {\n      \"cash\": 22575,\n      \"fet\": 1575,\n      \"paymentCount\": 1\n    },\n    \"outstanding\": {\n      \"receivables\": 22575,\n      \"payables\": 0\n    },\n    \"operations\": {\n      \"window\": 2,\n      \"allTime\": 2\n    }\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 The window ends before it starts",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/summary?from=2026-10-31&to=2026-10-01",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "summary"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"from\": \"`from` must be on or before `to`\"\n  },\n  \"path\": \"/api/reports/summary?from=2026-10-31&to=2026-10-01\",\n  \"timestamp\": \"2026-10-04T06:26:37.368Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 A parameter the endpoint does not take",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/summary?from=2026-10-01&to=2026-10-31&search=Whitfield",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "summary"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"search\\\"\"\n  },\n  \"path\": \"/api/reports/summary?from=2026-10-01&to=2026-10-31&search=Whitfield\",\n  \"timestamp\": \"2026-10-04T06:26:37.369Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 No last day",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/summary?from=2026-10-01",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "summary"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"to\": \"Use a YYYY-MM-DD date\"\n  },\n  \"path\": \"/api/reports/summary?from=2026-10-01\",\n  \"timestamp\": \"2026-10-04T06:26:37.370Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/summary?from=2026-10-01&to=2026-10-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "summary"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/reports/summary?from=2026-10-01&to=2026-10-31\",\n  \"timestamp\": \"2026-10-04T06:26:37.371Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 Revenue, profit and trips over time",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/series?bucket=MONTH&on=2026-10-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "series"
+              ],
+              "query": [
+                {
+                  "key": "bucket",
+                  "value": "MONTH",
+                  "description": "optional \u00b7 WEEK | MONTH | YEAR. Default MONTH. WEEK: the twelve Monday-start weeks ending with the one containing `on`. MONTH: the twelve months of its year. YEAR: the five years ending with its year."
+                },
+                {
+                  "key": "on",
+                  "value": "2026-10-31",
+                  "description": "optional \u00b7 YYYY-MM-DD, the chart's anchor \u2014 the report's last day. Default today in UTC."
+                }
+              ]
+            },
+            "description": "One point per bucket, each with its `start` day. Booked and flown trips (BOOKED, CONFIRMED, IN_FLIGHT, COMPLETED) count by the day they depart; an unpriced trip is counted but adds no revenue, and profit covers only trips whose operator cost is known."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Months of 2026",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/series?bucket=MONTH&on=2026-10-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "series"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"bucket\": \"MONTH\",\n    \"points\": [\n      {\n        \"start\": \"2026-01-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-02-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-03-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-04-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-05-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-06-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-07-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-08-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-09-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-10-01\",\n        \"tripCount\": 2,\n        \"pricedCount\": 1,\n        \"revenue\": 45150,\n        \"profit\": 11650,\n        \"profitTripCount\": 1,\n        \"marginPercentage\": 25.8\n      },\n      {\n        \"start\": \"2026-11-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-12-01\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      }\n    ]\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 Twelve weeks to the end of October",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/series?bucket=WEEK&on=2026-10-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "series"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"bucket\": \"WEEK\",\n    \"points\": [\n      {\n        \"start\": \"2026-08-10\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-08-17\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-08-24\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-08-31\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-09-07\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-09-14\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-09-21\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-09-28\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-10-05\",\n        \"tripCount\": 1,\n        \"pricedCount\": 1,\n        \"revenue\": 45150,\n        \"profit\": 11650,\n        \"profitTripCount\": 1,\n        \"marginPercentage\": 25.8\n      },\n      {\n        \"start\": \"2026-10-12\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-10-19\",\n        \"tripCount\": 1,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      },\n      {\n        \"start\": \"2026-10-26\",\n        \"tripCount\": 0,\n        \"pricedCount\": 0,\n        \"revenue\": 0,\n        \"profit\": 0,\n        \"profitTripCount\": 0,\n        \"marginPercentage\": null\n      }\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Unknown bucket",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/series?bucket=QUARTER",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "series"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"bucket\": \"Invalid option: expected one of \\\"WEEK\\\"|\\\"MONTH\\\"|\\\"YEAR\\\"\"\n  },\n  \"path\": \"/api/reports/series?bucket=QUARTER\",\n  \"timestamp\": \"2026-10-04T06:26:37.382Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Broker performance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/brokers?from=2026-10-01&to=2026-10-31&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "brokers"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-10-01",
+                  "description": "required \u00b7 YYYY-MM-DD, the first day included."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-31",
+                  "description": "required \u00b7 YYYY-MM-DD, the last day included. On or after `from`; the window spans at most 3660 days."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "optional \u00b7 integer \u2265 1. Default 1."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "optional \u00b7 integer 1-100. Default 10."
+                }
+              ]
+            },
+            "description": "Revenue, profit, margin and trips per assigned broker, largest revenue first; ties break on trip count, then the broker. `broker` is null for trips nobody is assigned. Booked and flown trips (BOOKED, CONFIRMED, IN_FLIGHT, COMPLETED) count by the day they depart; an unpriced trip is counted but adds no revenue, and profit covers only trips whose operator cost is known. Page and limit only \u2014 no search, no sort."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 October",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/brokers?from=2026-10-01&to=2026-10-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "brokers"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"broker\": {\n        \"id\": \"f3f77ecd-f4de-4623-8bde-ea079d4ee0f8\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\"\n      },\n      \"tripCount\": 2,\n      \"pricedCount\": 1,\n      \"revenue\": 45150,\n      \"profit\": 11650,\n      \"profitTripCount\": 1,\n      \"marginPercentage\": 25.8\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Sorting is not offered",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/brokers?from=2026-10-01&to=2026-10-31&sortBy=revenue",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "brokers"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"sortBy\\\"\"\n  },\n  \"path\": \"/api/reports/brokers?from=2026-10-01&to=2026-10-31&sortBy=revenue\",\n  \"timestamp\": \"2026-10-04T06:26:37.389Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Top clients",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/clients?from=2026-10-01&to=2026-10-31&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "clients"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-10-01",
+                  "description": "required \u00b7 YYYY-MM-DD, the first day included."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-31",
+                  "description": "required \u00b7 YYYY-MM-DD, the last day included. On or after `from`; the window spans at most 3660 days."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "optional \u00b7 integer \u2265 1. Default 1."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "optional \u00b7 integer 1-100. Default 10."
+                }
+              ]
+            },
+            "description": "Revenue, profit, margin and trips per client, largest revenue first. Booked and flown trips (BOOKED, CONFIRMED, IN_FLIGHT, COMPLETED) count by the day they depart; an unpriced trip is counted but adds no revenue, and profit covers only trips whose operator cost is known."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 October",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/clients?from=2026-10-01&to=2026-10-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "clients"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"client\": {\n        \"id\": \"2073e485-c86e-4205-8d78-fc602eac0bc8\",\n        \"firstName\": \"Dana\",\n        \"lastName\": \"Whitfield\",\n        \"companyName\": \"Whitfield Travel Group\"\n      },\n      \"tripCount\": 2,\n      \"pricedCount\": 1,\n      \"revenue\": 45150,\n      \"profit\": 11650,\n      \"profitTripCount\": 1,\n      \"marginPercentage\": 25.8\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Limit below 1",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/clients?from=2026-10-01&to=2026-10-31&limit=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "clients"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"limit\": \"Too small: expected number to be >=1\"\n  },\n  \"path\": \"/api/reports/clients?from=2026-10-01&to=2026-10-31&limit=0\",\n  \"timestamp\": \"2026-10-04T06:26:37.395Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Top routes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/routes?from=2026-10-01&to=2026-10-31&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "routes"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-10-01",
+                  "description": "required \u00b7 YYYY-MM-DD, the first day included."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-31",
+                  "description": "required \u00b7 YYYY-MM-DD, the last day included. On or after `from`; the window spans at most 3660 days."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "optional \u00b7 integer \u2265 1. Default 1."
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "optional \u00b7 integer 1-100. Default 10."
+                }
+              ]
+            },
+            "description": "Trips and revenue per route \u2014 the first leg's origin and destination, so a round trip counts as its outbound \u2014 largest revenue first. Booked and flown trips (BOOKED, CONFIRMED, IN_FLIGHT, COMPLETED) count by the day they depart; an unpriced trip is counted but adds no revenue, and profit covers only trips whose operator cost is known."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 October",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/routes?from=2026-10-01&to=2026-10-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "routes"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"origin\": {\n        \"id\": \"929fdbec-5a2d-4533-a2bc-b730842a4adf\",\n        \"icao\": \"KJFK\",\n        \"iata\": \"JFK\"\n      },\n      \"destination\": {\n        \"id\": \"10b224ed-57ee-4105-8cb9-4d8227ad2b29\",\n        \"icao\": \"EGLL\",\n        \"iata\": \"LHR\"\n      },\n      \"tripCount\": 1,\n      \"pricedCount\": 1,\n      \"revenue\": 45150,\n      \"profit\": 11650,\n      \"profitTripCount\": 1,\n      \"marginPercentage\": 25.8\n    },\n    {\n      \"origin\": {\n        \"id\": \"10b224ed-57ee-4105-8cb9-4d8227ad2b29\",\n        \"icao\": \"EGLL\",\n        \"iata\": \"LHR\"\n      },\n      \"destination\": {\n        \"id\": \"929fdbec-5a2d-4533-a2bc-b730842a4adf\",\n        \"icao\": \"KJFK\",\n        \"iata\": \"JFK\"\n      },\n      \"tripCount\": 1,\n      \"pricedCount\": 0,\n      \"revenue\": 0,\n      \"profit\": 0,\n      \"profitTripCount\": 0,\n      \"marginPercentage\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/routes?from=2026-10-01&to=2026-10-31",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "routes"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/reports/routes?from=2026-10-01&to=2026-10-31\",\n  \"timestamp\": \"2026-10-04T06:26:37.401Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Export the window as CSV",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/export?from=2026-10-01&to=2026-10-31&format=CSV",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-10-01",
+                  "description": "optional \u00b7 YYYY-MM-DD. Send both `from` and `to`, or neither for every operation on record."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-31",
+                  "description": "optional \u00b7 YYYY-MM-DD, the last day included."
+                },
+                {
+                  "key": "format",
+                  "value": "CSV",
+                  "description": "optional \u00b7 CSV | XLSX. Default CSV. PDF is not offered: nothing in the system generates one yet."
+                }
+              ]
+            },
+            "description": "One row per trip, oldest departure first: reference, departure, status, client, broker, route, aircraft, operator, revenue, FET, operator cost, profit and margin. Always an attachment. An unknown figure is an empty cell, never zero; text a spreadsheet would run as a formula is prefixed with an apostrophe."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 October as CSV",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/export?from=2026-10-01&to=2026-10-31&format=CSV",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "export"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "text/csv; charset=utf-8"
+                },
+                {
+                  "key": "Content-Disposition",
+                  "value": "attachment; filename=\"tribeca-operations-2026-10-01-to-2026-10-31.csv\""
+                }
+              ],
+              "cookie": [],
+              "body": "\ufeffTrip,Departure,Status,Client,Broker,Route,Aircraft,Operator,Revenue,FET,Operator Cost,Profit,Margin %\r\nTJ-3,2026-10-10,BOOKED,Dana Whitfield,Ari Admin,KJFK - EGLL,,,45150,3150,33500,11650,25.8\r\nTJ-4,2026-10-20,BOOKED,Dana Whitfield,Ari Admin,EGLL - KJFK,,,,,,,\r\n"
+            },
+            {
+              "name": "400 \u00b7 Half a window",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/export?from=2026-10-01&format=CSV",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "export"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"to\": \"Send both `from` and `to`, or neither for every operation\"\n  },\n  \"path\": \"/api/reports/export?from=2026-10-01&format=CSV\",\n  \"timestamp\": \"2026-10-04T06:26:37.418Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 PDF is not offered",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/export?from=2026-10-01&to=2026-10-31&format=PDF",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "export"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"format\": \"Invalid option: expected one of \\\"CSV\\\"|\\\"XLSX\\\"\"\n  },\n  \"path\": \"/api/reports/export?from=2026-10-01&to=2026-10-31&format=PDF\",\n  \"timestamp\": \"2026-10-04T06:26:37.420Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/export?from=2026-10-01&to=2026-10-31&format=CSV",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "export"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/reports/export?from=2026-10-01&to=2026-10-31&format=CSV\",\n  \"timestamp\": \"2026-10-04T06:26:37.421Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Export everything as Excel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/export?format=XLSX",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "XLSX",
+                  "description": "optional \u00b7 CSV | XLSX. Default CSV."
+                }
+              ]
+            },
+            "description": "Every operation on record as one worksheet \u2014 a bold, frozen header row, and money kept as numbers so the sheet can sum it. Use Postman's \"Send and Download\"."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Every operation as a workbook",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/export?format=XLSX",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "export"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                },
+                {
+                  "key": "Content-Disposition",
+                  "value": "attachment; filename=\"tribeca-operations-all.xlsx\""
+                }
+              ],
+              "cookie": [],
+              "body": "(binary .xlsx workbook \u2014 one sheet, \"Operations\", same columns as the CSV)"
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
