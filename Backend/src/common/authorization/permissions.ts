@@ -414,9 +414,34 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   },
 };
 
+/**
+ * TEMPORARY (4 Oct 2026): role restrictions are switched off.
+ *
+ * The owner's decision: finish the CRM end to end for SUPER_ADMIN first, then
+ * redesign the role architecture. Until then every user, whatever their stored
+ * role, acts with SUPER_ADMIN authority — every guard passes, every row scope
+ * is ALL, and no response is trimmed for a partner.
+ *
+ * Everything below still exists and is untouched; flipping this to `true`
+ * restores the matrix exactly. Every place that *restricts* by role reads the
+ * role through `actsAs()`, so this one constant is the whole switch. Places
+ * that use a role as *data* — "the agent on a commission must be an agent",
+ * "you cannot change your own role", "the last admin cannot be demoted" — read
+ * the stored role directly and are unaffected.
+ */
+export const ROLE_RESTRICTIONS_ENABLED = false;
+
+/**
+ * The role a user's *authority* is judged by. Their stored role while
+ * restrictions are on; SUPER_ADMIN for everyone while they are off.
+ */
+export function actsAs(role: UserRole): UserRole {
+  return ROLE_RESTRICTIONS_ENABLED ? role : UserRole.SUPER_ADMIN;
+}
+
 /** How far `role` may reach for `permission`. */
 export function scopeFor(role: UserRole, permission: Permission): Scope {
-  return PERMISSION_MATRIX[permission]?.[role] ?? NONE;
+  return PERMISSION_MATRIX[permission]?.[actsAs(role)] ?? NONE;
 }
 
 /** Whether `role` may perform `permission` at all, at any scope. */
@@ -462,7 +487,7 @@ export const ASSIGNABLE_ROLES: UserRole[] = [
  * in the service instead.
  */
 export function isPartner(role: UserRole): boolean {
-  return role === UserRole.REFERRAL_AGENT;
+  return actsAs(role) === UserRole.REFERRAL_AGENT;
 }
 
 /**

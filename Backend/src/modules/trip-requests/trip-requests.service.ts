@@ -24,6 +24,7 @@ import {
 import {
   Permission,
   Scope,
+  actsAs,
   scopeFor,
 } from '../../common/authorization/permissions.js';
 import { TripRequestStatus, UserRole } from '../../generated/prisma/enums.js';
@@ -368,7 +369,7 @@ export class TripRequestsService {
     // A broker files enquiries for themselves; only a wider scope may assign
     // one to someone else.
     const assignedBrokerId =
-      user.role === UserRole.BROKER
+      actsAs(user.role) === UserRole.BROKER
         ? user.id
         : (dto.assignedBrokerId ?? null);
 
@@ -428,7 +429,7 @@ export class TripRequestsService {
     ) {
       // A broker must not hand their own enquiry to someone else or claim
       // another's — the same rule clients use for reassignment.
-      if (user.role === UserRole.BROKER) {
+      if (actsAs(user.role) === UserRole.BROKER) {
         throw new ForbiddenException(
           'Only administrators can reassign a trip request',
         );

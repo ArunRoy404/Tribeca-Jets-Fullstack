@@ -10,9 +10,8 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { MailService } from '../../core/mail/mail.service.js';
 import { AppConfigService } from '../../config/config.service.js';
-import { UserStatus, VerificationPurpose } from '../../generated/prisma/enums.js';
+import { UserRole, UserStatus, VerificationPurpose } from '../../generated/prisma/enums.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
-import { isPartner } from '../../common/authorization/permissions.js';
 import type { LoginInput } from './dto/login.dto.js';
 import type { SessionContext } from './token.service.js';
 import { VerificationService } from './verification.service.js';
@@ -511,7 +510,7 @@ export class AuthService {
        * who have none, and for an agent the desk has not set terms for yet.
        */
       commissionTerms:
-        isPartner(profile.role) && commissionBasis
+        profile.role === UserRole.REFERRAL_AGENT && commissionBasis
           ? {
               basis: commissionBasis,
               percentage: commissionPercentage === null ? null : Number(commissionPercentage),

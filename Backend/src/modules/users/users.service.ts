@@ -29,6 +29,7 @@ import {
   ROLE_DESCRIPTIONS,
   ROLE_PERMISSION_LEVEL,
   Scope,
+  actsAs,
   permissionsFor,
   scopeFor,
 } from '../../common/authorization/permissions.js';
@@ -295,7 +296,7 @@ export class UsersService {
     actor: AuthenticatedUser,
     target: { id: string; role: UserRole },
   ): void {
-    if (target.role === UserRole.SUPER_ADMIN && actor.role !== UserRole.SUPER_ADMIN) {
+    if (target.role === UserRole.SUPER_ADMIN && actsAs(actor.role) !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException('The owner account cannot be modified');
     }
   }

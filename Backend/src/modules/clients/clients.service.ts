@@ -29,6 +29,7 @@ import { bulkResult, type BulkResult } from '../../common/dto/bulk.dto.js';
 import {
   Permission,
   Scope,
+  actsAs,
   scopeFor,
 } from '../../common/authorization/permissions.js';
 import {
@@ -170,7 +171,7 @@ export class ClientsService {
    * pagination counts and totals are correct rather than merely censored.
    */
   private visibilityScope(user: AuthenticatedUser): Prisma.ClientWhereInput {
-    if (user.role === UserRole.BROKER) {
+    if (actsAs(user.role) === UserRole.BROKER) {
       return { assignedBrokerId: user.id };
     }
     return {};
@@ -402,7 +403,7 @@ export class ClientsService {
 
     // A broker may only create clients owned by themselves.
     const assignedBrokerId =
-      user.role === UserRole.BROKER
+      actsAs(user.role) === UserRole.BROKER
         ? user.id
         : (input.assignedBrokerId ?? null);
 
