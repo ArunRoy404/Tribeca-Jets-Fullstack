@@ -34,6 +34,17 @@ export const paginationSchema = z.object({
 });
 
 /**
+ * Page and size only, for a list in a fixed order — no search, no sort. Spread
+ * into a `.strict()` schema, so a `?search=` that such a list would silently
+ * ignore is refused instead (AGENTS.md, the timeline rule). The Dashboard's
+ * lists and the Reports rankings use it.
+ */
+export const pageFields = {
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+};
+
+/**
  * A closed list of sortable columns, for a module to drop into its query DTO.
  *
  * Sorting is an injection surface and an accidental-full-scan surface: a
