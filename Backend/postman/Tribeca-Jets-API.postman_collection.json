@@ -214,6 +214,21 @@
       "key": "bookedTripId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "assistantEmail",
+      "value": "assistant@tribecajets.com",
+      "type": "string"
+    },
+    {
+      "key": "otherSessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "interimPassword",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -2253,7 +2268,1086 @@
           ]
         },
         {
-          "name": "05 \u00b7 Sign out",
+          "name": "05 \u00b7 My Account",
+          "description": "The signed-in user's own profile, two-factor, password and devices. No permission applies: every route acts only on the caller's own account. Runs as the seeded assistant, never the owner, and undoes every change before it ends.",
+          "item": [
+            {
+              "name": "01 \u00b7 Your signed-in devices",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/sessions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "sessions"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "optional \u00b7 integer \u2265 1. Default 1."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10",
+                      "disabled": true,
+                      "description": "optional \u00b7 integer 1\u2013100. Default 10."
+                    }
+                  ]
+                },
+                "description": "One row per live session \u2014 not revoked, not expired, and renewed recently enough that the idle rule would still let it refresh. Most recently active first. `device` is read from the browser's User-Agent (\"Chrome on macOS\"), null when unrecognisable. `signedInAt` is the sign-in, `lastActiveAt` the last renewal; `current` marks the device asking. No location: that needs a paid IP-lookup service. Any parameter but page and limit is a 400."
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Two devices, this one current",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/sessions",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "sessions"
+                      ]
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"32b61ef8-0287-4824-a4c6-8c6900eac95c\",\n      \"device\": null,\n      \"ipAddress\": \"127.0.0.1\",\n      \"signedInAt\": \"2026-10-06T06:33:22.283Z\",\n      \"lastActiveAt\": \"2026-10-06T06:33:22.283Z\",\n      \"current\": false\n    },\n    {\n      \"id\": \"31d78dac-5503-474f-828c-2a3394fcebd1\",\n      \"device\": null,\n      \"ipAddress\": \"127.0.0.1\",\n      \"signedInAt\": \"2026-10-06T06:33:22.244Z\",\n      \"lastActiveAt\": \"2026-10-06T06:33:22.244Z\",\n      \"current\": true\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 A parameter the endpoint does not take",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/sessions?search=Chrome",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "sessions"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"search\\\"\"\n  },\n  \"path\": \"/api/auth/sessions?search=Chrome\",\n  \"timestamp\": \"2026-10-06T06:33:22.309Z\"\n}"
+                },
+                {
+                  "name": "401 \u00b7 Not signed in",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/sessions",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "sessions"
+                      ]
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/sessions\",\n  \"timestamp\": \"2026-10-06T06:33:22.310Z\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "02 \u00b7 Update your profile",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Saves the account's own values back, so a run changes nothing.",
+                      "pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/auth/me', method: 'GET' },",
+                      "    function (err, res) {",
+                      "        const me = (res && res.json().data) || {};",
+                      "        pm.variables.set('acctFirstName', me.firstName || 'Assistant');",
+                      "        pm.variables.set('acctLastName', me.lastName || 'User');",
+                      "    });"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"{{acctFirstName}}\",\n  \"lastName\": \"{{acctLastName}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "The signed-in user's own firstName, lastName, phone (null clears it) and avatarUrl (an upload URL from POST /uploads/image, or null). Email, role and status are refused with a 400 \u2014 they are an administrator's, through PATCH /users/:id. Answers with the GET /auth/me shape."
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Saved",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/me",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "me"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"firstName\": \"Avery\",\n  \"lastName\": \"Assist\",\n  \"phone\": null\n}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"8da9a879-ec00-4008-9281-fe88edd91e85\",\n    \"email\": \"assistant@tribecajets.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-10-06T06:33:22.278Z\",\n    \"createdAt\": \"2026-10-04T04:56:54.312Z\",\n    \"commissionTerms\": null,\n    \"permissions\": {\n      \"VIEW_DASHBOARD\": \"ALL\",\n      \"VIEW_TRIPS\": \"ALL\",\n      \"MANAGE_TRIPS\": \"ALL\",\n      \"DELETE_TRIPS\": \"ALL\",\n      \"VIEW_FINANCIALS\": \"ALL\",\n      \"EXPORT_DATA\": \"ALL\",\n      \"MANAGE_USERS\": \"ALL\",\n      \"OPERATOR_SOURCING\": \"ALL\",\n      \"VIEW_CLIENTS\": \"ALL\",\n      \"MANAGE_CLIENTS\": \"ALL\",\n      \"MANAGE_AIRPORTS\": \"ALL\",\n      \"MANAGE_OPERATORS\": \"ALL\",\n      \"MANAGE_AIRCRAFT\": \"ALL\",\n      \"VIEW_COMMISSIONS\": \"ALL\",\n      \"MANAGE_COMMISSIONS\": \"ALL\",\n      \"VIEW_REFERRALS\": \"ALL\",\n      \"MANAGE_REFERRALS\": \"ALL\",\n      \"VIEW_TEAM\": \"ALL\",\n      \"VIEW_RECEIVABLES\": \"ALL\",\n      \"MANAGE_RECEIVABLES\": \"ALL\",\n      \"VIEW_OPERATOR_PAYMENTS\": \"ALL\",\n      \"MANAGE_OPERATOR_PAYMENTS\": \"ALL\",\n      \"VIEW_TASKS\": \"ALL\",\n      \"MANAGE_TASKS\": \"ALL\",\n      \"MANAGE_EMAIL_TEMPLATES\": \"ALL\",\n      \"SEND_EMAILS\": \"ALL\",\n      \"VIEW_DOCUMENTS\": \"ALL\",\n      \"MANAGE_DOCUMENTS\": \"ALL\",\n      \"VIEW_SENSITIVE_DOCUMENTS\": \"ALL\"\n    },\n    \"session\": {\n      \"idleTimeoutMinutes\": 10\n    }\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 A field this route does not take",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/me",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "me"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"role\": \"SUPER_ADMIN\"\n}"
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"role\\\"\"\n  },\n  \"path\": \"/api/auth/me\",\n  \"timestamp\": \"2026-10-06T06:33:22.327Z\"\n}"
+                },
+                {
+                  "name": "401 \u00b7 Not signed in",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/me",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "me"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"firstName\": \"Avery\",\n  \"lastName\": \"Assist\",\n  \"phone\": null\n}"
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/me\",\n  \"timestamp\": \"2026-10-06T06:33:22.328Z\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "03 \u00b7 Turn your two-factor on",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/two-factor",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "two-factor"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": true,\n  \"currentPassword\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "`enabled` true or false; `currentPassword` is required either way. From the next sign-in the account is asked for an emailed code. Answers with the GET /auth/me shape. The next request turns it off again."
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Turned on",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/two-factor",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "two-factor"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"enabled\": true,\n  \"currentPassword\": \"\\u2026\"\n}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"8da9a879-ec00-4008-9281-fe88edd91e85\",\n    \"email\": \"assistant@tribecajets.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"twoFactorEnabled\": true,\n    \"lastLoginAt\": \"2026-10-06T06:33:22.278Z\",\n    \"createdAt\": \"2026-10-04T04:56:54.312Z\",\n    \"commissionTerms\": null,\n    \"permissions\": {\n      \"VIEW_DASHBOARD\": \"ALL\",\n      \"VIEW_TRIPS\": \"ALL\",\n      \"MANAGE_TRIPS\": \"ALL\",\n      \"DELETE_TRIPS\": \"ALL\",\n      \"VIEW_FINANCIALS\": \"ALL\",\n      \"EXPORT_DATA\": \"ALL\",\n      \"MANAGE_USERS\": \"ALL\",\n      \"OPERATOR_SOURCING\": \"ALL\",\n      \"VIEW_CLIENTS\": \"ALL\",\n      \"MANAGE_CLIENTS\": \"ALL\",\n      \"MANAGE_AIRPORTS\": \"ALL\",\n      \"MANAGE_OPERATORS\": \"ALL\",\n      \"MANAGE_AIRCRAFT\": \"ALL\",\n      \"VIEW_COMMISSIONS\": \"ALL\",\n      \"MANAGE_COMMISSIONS\": \"ALL\",\n      \"VIEW_REFERRALS\": \"ALL\",\n      \"MANAGE_REFERRALS\": \"ALL\",\n      \"VIEW_TEAM\": \"ALL\",\n      \"VIEW_RECEIVABLES\": \"ALL\",\n      \"MANAGE_RECEIVABLES\": \"ALL\",\n      \"VIEW_OPERATOR_PAYMENTS\": \"ALL\",\n      \"MANAGE_OPERATOR_PAYMENTS\": \"ALL\",\n      \"VIEW_TASKS\": \"ALL\",\n      \"MANAGE_TASKS\": \"ALL\",\n      \"MANAGE_EMAIL_TEMPLATES\": \"ALL\",\n      \"SEND_EMAILS\": \"ALL\",\n      \"VIEW_DOCUMENTS\": \"ALL\",\n      \"MANAGE_DOCUMENTS\": \"ALL\",\n      \"VIEW_SENSITIVE_DOCUMENTS\": \"ALL\"\n    },\n    \"session\": {\n      \"idleTimeoutMinutes\": 10\n    }\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 Wrong password",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/two-factor",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "two-factor"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"enabled\": true,\n  \"currentPassword\": \"not-it\"\n}"
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/auth/two-factor\",\n  \"timestamp\": \"2026-10-06T06:33:22.432Z\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "04 \u00b7 Turn your two-factor off",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/two-factor",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "two-factor"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": false,\n  \"currentPassword\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Puts the account back as the previous request found it."
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Turned off",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/two-factor",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "two-factor"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"enabled\": false,\n  \"currentPassword\": \"\\u2026\"\n}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"8da9a879-ec00-4008-9281-fe88edd91e85\",\n    \"email\": \"assistant@tribecajets.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-10-06T06:33:22.278Z\",\n    \"createdAt\": \"2026-10-04T04:56:54.312Z\",\n    \"commissionTerms\": null,\n    \"permissions\": {\n      \"VIEW_DASHBOARD\": \"ALL\",\n      \"VIEW_TRIPS\": \"ALL\",\n      \"MANAGE_TRIPS\": \"ALL\",\n      \"DELETE_TRIPS\": \"ALL\",\n      \"VIEW_FINANCIALS\": \"ALL\",\n      \"EXPORT_DATA\": \"ALL\",\n      \"MANAGE_USERS\": \"ALL\",\n      \"OPERATOR_SOURCING\": \"ALL\",\n      \"VIEW_CLIENTS\": \"ALL\",\n      \"MANAGE_CLIENTS\": \"ALL\",\n      \"MANAGE_AIRPORTS\": \"ALL\",\n      \"MANAGE_OPERATORS\": \"ALL\",\n      \"MANAGE_AIRCRAFT\": \"ALL\",\n      \"VIEW_COMMISSIONS\": \"ALL\",\n      \"MANAGE_COMMISSIONS\": \"ALL\",\n      \"VIEW_REFERRALS\": \"ALL\",\n      \"MANAGE_REFERRALS\": \"ALL\",\n      \"VIEW_TEAM\": \"ALL\",\n      \"VIEW_RECEIVABLES\": \"ALL\",\n      \"MANAGE_RECEIVABLES\": \"ALL\",\n      \"VIEW_OPERATOR_PAYMENTS\": \"ALL\",\n      \"MANAGE_OPERATOR_PAYMENTS\": \"ALL\",\n      \"VIEW_TASKS\": \"ALL\",\n      \"MANAGE_TASKS\": \"ALL\",\n      \"MANAGE_EMAIL_TEMPLATES\": \"ALL\",\n      \"SEND_EMAILS\": \"ALL\",\n      \"VIEW_DOCUMENTS\": \"ALL\",\n      \"MANAGE_DOCUMENTS\": \"ALL\",\n      \"VIEW_SENSITIVE_DOCUMENTS\": \"ALL\"\n    },\n    \"session\": {\n      \"idleTimeoutMinutes\": 10\n    }\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "05 \u00b7 Sign out one other device",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Signs in once more, as a second device, then picks whichever live",
+                      "// session is not the one this request will be sent from.",
+                      "const base = pm.collectionVariables.get('baseUrl');",
+                      "pm.sendRequest({",
+                      "    url: base + '/auth/login', method: 'POST',",
+                      "    header: { 'Content-Type': 'application/json' },",
+                      "    body: { mode: 'raw', raw: JSON.stringify({",
+                      "        email: pm.collectionVariables.get('assistantEmail'),",
+                      "        password: pm.collectionVariables.get('password'),",
+                      "    }) },",
+                      "}, function (err, res) {",
+                      "    if (err || !res) { return; }",
+                      "    res.headers.all().filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                      "        .forEach(function (h) {",
+                      "            const match = /tj_csrf=([^;]+)/.exec(h.value);",
+                      "            if (match) { pm.collectionVariables.set('csrfToken', match[1]); }",
+                      "        });",
+                      "    pm.sendRequest({ url: base + '/auth/sessions?limit=100', method: 'GET' }, function (e, listed) {",
+                      "        const other = ((listed && listed.json().data) || []).find(function (s) { return !s.current; });",
+                      "        pm.collectionVariables.set('otherSessionId', other ? other.id : '');",
+                      "    });",
+                      "});"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/sessions/{{otherSessionId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "sessions",
+                    "{{otherSessionId}}"
+                  ]
+                },
+                "description": "Ends one of your sessions on another device. 404 for an id that is not one of your live sessions (someone else's is not confirmed to exist); 400 for this device \u2014 use logout."
+              },
+              "response": [
+                {
+                  "name": "204 \u00b7 Signed out",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/sessions/{{otherSessionId}}",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "sessions",
+                        "{{otherSessionId}}"
+                      ]
+                    }
+                  },
+                  "status": "No Content",
+                  "code": 204,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": ""
+                },
+                {
+                  "name": "400 \u00b7 That is this device",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/sessions/<this session>",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "sessions",
+                        "<this session>"
+                      ]
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That is this device. Use Sign out instead.\",\n  \"path\": \"/api/auth/sessions/31d78dac-5503-474f-828c-2a3394fcebd1\",\n  \"timestamp\": \"2026-10-06T06:33:22.450Z\"\n}"
+                },
+                {
+                  "name": "404 \u00b7 Not one of your sessions",
+                  "originalRequest": {
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/sessions/00000000-0000-4000-8000-000000000000",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "sessions",
+                        "00000000-0000-4000-8000-000000000000"
+                      ]
+                    }
+                  },
+                  "status": "Not Found",
+                  "code": 404,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That session does not exist\",\n  \"path\": \"/api/auth/sessions/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-10-06T06:33:22.452Z\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "06 \u00b7 Sign out all other devices",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/sessions/revoke-others",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "sessions",
+                    "revoke-others"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Ends every session but this one. `signedOutSessions` says how many."
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Others signed out",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/sessions/revoke-others",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "sessions",
+                        "revoke-others"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"signedOutSessions\": 1\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "07 \u00b7 Change your password",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// A fresh interim password per run; the next request changes it back.",
+                      "pm.collectionVariables.set('interimPassword', 'Interim-' + Date.now() + 'aA');"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/change-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "change-password"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"{{interimPassword}}\",\n  \"confirmPassword\": \"{{interimPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Needs the current password. The new one: 10\u2013128 characters with an uppercase letter, a lowercase letter and a number, different from the current one. Every other session is signed out; this one stays signed in. A wrong current password is a 400, not a 401 \u2014 the session is fine, the form is not."
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Changed",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/change-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "change-password"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"currentPassword\": \"\\u2026\",\n  \"newPassword\": \"Interim-Pass-2026\",\n  \"confirmPassword\": \"Interim-Pass-2026\"\n}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Your password has been changed.\",\n    \"signedOutSessions\": 0\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 Wrong current password",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/change-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "change-password"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"currentPassword\": \"not-it\",\n  \"newPassword\": \"Interim-Pass-2026\",\n  \"confirmPassword\": \"Interim-Pass-2026\"\n}"
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/auth/change-password\",\n  \"timestamp\": \"2026-10-06T06:33:22.525Z\"\n}"
+                },
+                {
+                  "name": "400 \u00b7 Confirmation does not match",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/change-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "change-password"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"currentPassword\": \"ChangeMe123!\",\n  \"newPassword\": \"Interim-Pass-2026\",\n  \"confirmPassword\": \"Something-Else-1\"\n}"
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"confirmPassword\": \"Passwords do not match\"\n  },\n  \"path\": \"/api/auth/change-password\",\n  \"timestamp\": \"2026-10-06T06:33:22.530Z\"\n}"
+                },
+                {
+                  "name": "401 \u00b7 Not signed in",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/change-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "change-password"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"currentPassword\": \"ChangeMe123!\",\n  \"newPassword\": \"Interim-Pass-2026\",\n  \"confirmPassword\": \"Interim-Pass-2026\"\n}"
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/change-password\",\n  \"timestamp\": \"2026-10-06T06:33:22.530Z\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "08 \u00b7 Change it back",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/change-password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "change-password"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{interimPassword}}\",\n  \"newPassword\": \"{{password}}\",\n  \"confirmPassword\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Restores the seeded password, so the run leaves the account as it found it."
+              },
+              "response": [
+                {
+                  "name": "200 \u00b7 Changed back",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/change-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "change-password"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"currentPassword\": \"Interim-Pass-2026\",\n  \"newPassword\": \"ChangeMe123!\",\n  \"confirmPassword\": \"ChangeMe123!\"\n}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Your password has been changed.\",\n    \"signedOutSessions\": 0\n  }\n}"
+                }
+              ]
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "/*",
+                  " * Signs this folder in as the seeded assistant \u2014 never the owner, so a run",
+                  " * cannot sign the person testing the app out of their own browser.",
+                  " *",
+                  " * Runs before every request in the folder but only acts when the",
+                  " * current session is for a different account, so it costs one login",
+                  " * per run rather than one per request. `pm.variables` is run-scoped,",
+                  " * so a fresh run always re-authenticates.",
+                  " *",
+                  " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+                  " * auth endpoints are documented once, in one place.",
+                  " */",
+                  "const NEEDED = 'assistant';",
+                  "",
+                  "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                email: pm.collectionVariables.get('assistantEmail'),",
+                  "                password: pm.collectionVariables.get('password'),",
+                  "            }),",
+                  "        },",
+                  "    }, function (err, res) {",
+                  "        if (err) { console.error('session setup failed', err); return; }",
+                  "",
+                  "        const body = res.json();",
+                  "        // security@ has two-factor on, so a password alone leaves the",
+                  "        // session incomplete. Finish the challenge before continuing,",
+                  "        // or every request in the folder 401s.",
+                  "        if (body && body.data && body.data.requiresTwoFactor) {",
+                  "            const code = body.data.devCode && body.data.devCode.code;",
+                  "            pm.sendRequest({",
+                  "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+                  "                method: 'POST',",
+                  "                header: { 'Content-Type': 'application/json' },",
+                  "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+                  "            }, function (e, verifyRes) {",
+                  "                pm.variables.set('_sessionAs', NEEDED);",
+                  "                captureCsrf(verifyRes);",
+                  "            });",
+                  "            return;",
+                  "        }",
+                  "",
+                  "        pm.variables.set('_sessionAs', NEEDED);",
+                  "        captureCsrf(res);",
+                  "    });",
+                  "}",
+                  "",
+                  "// Writes need X-CSRF-Token, and the value is only readable from the",
+                  "// cookie the server just set.",
+                  "//",
+                  "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+                  "// the jar is not reliably populated in Newman, and a jar read that",
+                  "// comes back empty would clobber a working token with undefined.",
+                  "function captureCsrf(res) {",
+                  "    if (!res) return;",
+                  "    const cookies = res.headers.all()",
+                  "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "        .map(function (h) { return h.value; });",
+                  "    for (var i = 0; i < cookies.length; i++) {",
+                  "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+                  "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 \u00b7 Sign out",
           "description": "Clears every auth cookie and revokes the refresh token server-side. Runs last in this module so the folders above keep their session.",
           "item": [
             {
