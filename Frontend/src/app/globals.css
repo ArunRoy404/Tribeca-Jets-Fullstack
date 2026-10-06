@@ -55,6 +55,12 @@
   --color-pending-border: var(--pending-border);
   --color-pending-fg: var(--pending-fg);
   --color-page-bg: var(--page-bg);
+  --color-signal: var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-surface: var(--surface);
+  --color-toggle-on: var(--toggle-on);
+  --color-toggle-off: var(--toggle-off);
+  --color-toggle-outline: var(--toggle-outline);
 
   /* Auth-screen specific text colors (Figma uses distinct shades here vs the dashboard) */
   --color-ink: var(--ink);
@@ -123,6 +129,14 @@
   --pending-border: #fee685;
   --pending-fg: #bb4d00;
   --page-bg: #f3f4f8;
+  /* Settings (Figma "Signal Blue"): the selected section and its pills. */
+  --signal: #5b7ff0;
+  --signal-soft: #e8edff;
+  --surface: #f8f9fc;
+  /* The settings switch (Figma's M3 switch). */
+  --toggle-on: #6750a4;
+  --toggle-off: #e6e0e9;
+  --toggle-outline: #79747e;
 
   /* Auth-specific text */
   --ink: #0d1220;
