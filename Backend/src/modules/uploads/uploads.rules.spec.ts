@@ -3,8 +3,10 @@ import { UploadKind } from '../../generated/prisma/enums.js';
 import {
   MAX_UPLOAD_BYTES,
   UPLOAD_KIND_RULES,
+  OPAQUE_CONTENT_TYPE,
   formatBytes,
   ruleFor,
+  storedContentType,
 } from './uploads.rules.js';
 
 describe('upload kind rules', () => {
@@ -43,7 +45,7 @@ describe('upload kind rules', () => {
    * accepting them would mean trusting the sender's declared type — the exact
    * thing reading the bytes exists to avoid.
    */
-  it('never accepts legacy Office or archive formats', () => {
+  it('never *recognises* legacy Office or archive formats as their own type', () => {
     const refused = [
       'application/msword',
       'application/vnd.ms-excel',
@@ -53,6 +55,22 @@ describe('upload kind rules', () => {
     for (const rule of Object.values(UPLOAD_KIND_RULES)) {
       for (const type of refused) expect(rule.accept).not.toContain(type);
     }
+  });
+
+  /**
+   * Since 6 Oct 2026 a document may be any file — but anything unrecognised
+   * is stored as opaque bytes, so it always downloads and never renders.
+   * Images stay strict: they are served inline.
+   */
+  it('stores an unrecognised document as opaque bytes, and refuses it as an image', () => {
+    const documents = ruleFor(UploadKind.DOCUMENT);
+    const images = ruleFor(UploadKind.IMAGE);
+    expect(storedContentType(documents, 'application/pdf')).toBe('application/pdf');
+    expect(storedContentType(documents, null)).toBe(OPAQUE_CONTENT_TYPE);
+    expect(storedContentType(documents, 'image/png')).toBe(OPAQUE_CONTENT_TYPE);
+    expect(storedContentType(images, 'image/png')).toBe('image/png');
+    expect(storedContentType(images, null)).toBeNull();
+    expect(storedContentType(images, 'application/pdf')).toBeNull();
   });
 
   it('keeps images and documents disjoint, so a kind is unambiguous', () => {

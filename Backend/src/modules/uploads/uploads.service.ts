@@ -29,7 +29,7 @@ import {
   mayRead,
   visibilityWhere,
 } from './uploads.access.js';
-import { formatBytes, ruleFor } from './uploads.rules.js';
+import { formatBytes, ruleFor, storedContentType } from './uploads.rules.js';
 import type { ListUploadsQuery } from './dto/upload-query.dto.js';
 
 /** The multipart part multer hands us, narrowed to what is actually read. */
@@ -172,15 +172,15 @@ export class UploadsService {
    */
   private resolveContentType(file: IncomingFile, kind: UploadKind): string {
     const rule = ruleFor(kind);
-    const sniffed = sniffContentType(file.buffer, file.mimetype);
+    const stored = storedContentType(rule, sniffContentType(file.buffer, file.mimetype));
 
-    if (!sniffed || !rule.accept.includes(sniffed)) {
+    if (!stored) {
       throw new UnsupportedMediaTypeException(
         `This endpoint accepts ${rule.label}. Allowed types: ${rule.accept.join(', ')}.`,
       );
     }
 
-    return sniffed;
+    return stored;
   }
 
   /**

@@ -27,7 +27,17 @@ export interface UploadKindRule {
 
   /** Extension written into the storage key, per accepted content type. */
   extensions: Readonly<Record<string, string>>;
+
+  /**
+   * Whether a file the sniffer does not recognise is still taken, stored as
+   * opaque bytes (`application/octet-stream`). Documents only — see
+   * `storedContentType`.
+   */
+  acceptsAnyFile: boolean;
 }
+
+/** What an unrecognised document is stored and served as. */
+export const OPAQUE_CONTENT_TYPE = 'application/octet-stream';
 
 const MB = 1024 * 1024;
 
@@ -53,6 +63,9 @@ const IMAGE_EXTENSIONS = {
  * Archives are absent for a different reason: a zip carries its contents past
  * whatever checked the outer file.
  */
+// What follows describes the *recognised* document types — the ones kept as
+// their own type. Anything else is still accepted as opaque bytes
+// (`storedContentType`).
 const DOCUMENT_EXTENSIONS = {
   'application/pdf': '.pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
@@ -69,6 +82,8 @@ export const UPLOAD_KIND_RULES: Record<UploadKind, UploadKindRule> = {
     maxBytes: 15 * MB,
     label: 'an image',
     extensions: IMAGE_EXTENSIONS,
+    // An image is rendered inline, so it must be one the sniffer proved.
+    acceptsAnyFile: false,
   },
   [UploadKind.DOCUMENT]: {
     folder: 'documents',
@@ -76,8 +91,28 @@ export const UPLOAD_KIND_RULES: Record<UploadKind, UploadKindRule> = {
     maxBytes: 25 * MB,
     label: 'a document',
     extensions: DOCUMENT_EXTENSIONS,
+    acceptsAnyFile: true,
   },
 };
+
+/**
+ * The content type a file is stored and later served under, or null to
+ * refuse it.
+ *
+ * A recognised type keeps its own. **Since 6 Oct 2026 (owner's decision) a
+ * document may be any file**: a scanned ID photo, a legacy `.xls`, a zip of
+ * receipts. Anything the sniffer cannot place on the document list is stored
+ * as `application/octet-stream` — never as what the sender claimed — so the
+ * download route always sends it as an attachment, with `nosniff`. It is
+ * saved to disk, never rendered by the browser on our origin, which is what
+ * the old exclusions (SVG, HTML, archives, OLE2) protected against. What it
+ * does not do is vouch for the file: opening a downloaded macro workbook is
+ * the reader's machine's risk, as with any email attachment.
+ */
+export function storedContentType(rule: UploadKindRule, sniffed: string | null): string | null {
+  if (sniffed && rule.accept.includes(sniffed)) return sniffed;
+  return rule.acceptsAnyFile ? OPAQUE_CONTENT_TYPE : null;
+}
 
 /** The rule for a kind. Total by construction — every value has a row. */
 export function ruleFor(kind: UploadKind): UploadKindRule {
