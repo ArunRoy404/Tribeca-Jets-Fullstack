@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { passwordSchema } from '../../auth/dto/verification.dto.js';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
 import {
   paginationSchema,
@@ -70,15 +71,17 @@ export type QueryUsersInput = z.infer<typeof queryUsersSchema>;
 export class QueryUsersDto extends createZodDto(queryUsersSchema) {}
 
 /**
- * Invitation, not creation: no password is accepted here.
+ * An invitation carries the first password (owner's decision, 6 Oct 2026).
  *
- * The account is created in INVITED status with an unusable random password,
- * and the invitee sets a real one through the existing password-reset flow.
- * That way a password is never chosen by, transmitted to, or known by the
- * person doing the inviting.
+ * The administrator chooses it, the invitation email delivers it, and the
+ * account stays INVITED until that password is first used to sign in. Same
+ * policy as every other password. The trade-off is deliberate: the inviter
+ * knows it and it sits in an inbox, so the email tells the invitee to change
+ * it from My Account.
  */
 export const inviteUserSchema = z.object({
   email: z.email().toLowerCase().trim(),
+  password: passwordSchema,
   firstName: z.string().trim().min(1, 'First name is required').max(100),
   lastName: z.string().trim().min(1, 'Last name is required').max(100),
   phone: z.string().trim().max(40).optional(),

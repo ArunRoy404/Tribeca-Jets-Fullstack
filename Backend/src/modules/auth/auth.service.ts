@@ -125,12 +125,27 @@ export class AuthService {
       throw invalid;
     }
 
-    if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException(
-        user.status === UserStatus.SUSPENDED
-          ? 'This account has been suspended. Contact an administrator.'
-          : 'This invitation has not been accepted yet. Use "Forgot password?" to set your password and activate the account.',
-      );
+    if (user.status === UserStatus.SUSPENDED) {
+      throw new UnauthorizedException('This account has been suspended. Contact an administrator.');
+    }
+
+    // The invitation carried the first password, so signing in with it *is*
+    // accepting the invitation. Only INVITED is promoted — a suspension is
+    // refused above and never lifted by signing in.
+    if (user.status === UserStatus.INVITED) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { status: UserStatus.ACTIVE },
+      });
+      await this.audit.record({
+        actorId: user.id,
+        action: 'user.invitation_accepted',
+        entityType: 'User',
+        entityId: user.id,
+        metadata: { from: UserStatus.INVITED, to: UserStatus.ACTIVE, via: 'first_sign_in' },
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      });
     }
 
     // lastLoginAt is stamped once the session actually exists — for a

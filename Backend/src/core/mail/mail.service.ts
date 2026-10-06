@@ -107,28 +107,30 @@ export class MailService {
   }
 
   /**
-   * Carries no credential and no access link.
-   *
-   * The invited account has no usable password, so the invitee sets one via
-   * the normal password-reset flow. The button opens that flow's first
-   * screen — it grants nothing by itself; the code it leads to is mailed
-   * separately. Mailing a temporary password or a sign-in-on-click link
-   * would put a working credential in an inbox.
+   * The invitation, carrying the first password the administrator chose
+   * (owner's decision, 6 Oct 2026). It is a credential in an inbox, so the
+   * email says so and asks for it to be changed from My Account.
    */
   async sendInvitation(
     to: string,
     firstName: string,
     invitedByName: string,
+    password: string,
   ): Promise<void> {
-    const setUp = `${this.config.webAppUrl}/forgot-password`;
+    const signIn = `${this.config.webAppUrl}/sign-in`;
+    const advice =
+      'For your security, change this password after you sign in: open your profile menu, choose My Account, then Change Password.';
     await this.send(to, 'You\u2019re invited to Tribeca Jets Command Center', {
       text: lines([
         `Hi ${firstName},`,
         '',
         `${invitedByName} has created an account for you at Tribeca Jets Command Center.`,
         '',
-        `To set your password, open ${setUp} and enter this email address (${to}).`,
-        'We will email you a code to choose your own password.',
+        `Sign in at ${signIn}`,
+        `Email: ${to}`,
+        `Password: ${password}`,
+        '',
+        advice,
         '',
         'Not expecting this? You can ignore this email.',
       ]),
@@ -138,11 +140,14 @@ export class MailService {
         heading: 'Welcome aboard',
         paragraphs: [
           `Hi ${firstName},`,
-          `${invitedByName} has created an account for you at Tribeca Jets Command Center.`,
-          `To get started, choose your own password. On the next screen, enter ${to} and we will email you a 6-digit code.`,
+          `${invitedByName} has created an account for you at Tribeca Jets Command Center. Here are your sign-in details:`,
         ],
-        button: { label: 'Set Your Password', href: setUp },
-        notice: 'Not expecting this invitation? You can safely ignore this email \u2014 nothing happens until a password is set.',
+        credentials: [
+          { label: 'Email', value: to },
+          { label: 'Password', value: password },
+        ],
+        button: { label: 'Sign In', href: signIn },
+        notice: advice,
       }),
     });
   }

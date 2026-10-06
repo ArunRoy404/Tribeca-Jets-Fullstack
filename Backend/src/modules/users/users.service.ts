@@ -5,8 +5,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomBytes } from 'node:crypto';
-import * as argon2 from 'argon2';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { MailService } from '../../core/mail/mail.service.js';
@@ -44,6 +42,7 @@ import type {
   QueryUsersInput,
   UpdateUserInput,
 } from './dto/user.dto.js';
+import { AuthService } from '../auth/auth.service.js';
 
 /**
  * Explicit select, never a bare row spread.
@@ -402,17 +401,11 @@ export class UsersService {
       throw new ConflictException('An account with that email already exists');
     }
 
-    /**
-     * A random, discarded password. The account is unusable until the invitee
-     * completes the password-reset flow, so no human ever sees or transmits a
-     * credential. Hashed like any other so the column shape stays uniform and
-     * a login attempt takes the same time as a real one.
-     */
-    const placeholder = await argon2.hash(randomBytes(32).toString('hex'), {
-      type: argon2.argon2id,
-    });
+    // The first password, chosen by the inviter and mailed with the
+    // invitation. Hashed exactly as every other password is.
+    const passwordHash = await AuthService.hashPassword(dto.password);
 
-    const { commissionBasis, commissionPercentage, commissionAmount, ...profile } = dto;
+    const { commissionBasis, commissionPercentage, commissionAmount, password, ...profile } = dto;
     const commission = this.commissionStructure(dto.role, {
       commissionBasis,
       commissionPercentage,
@@ -423,7 +416,7 @@ export class UsersService {
       data: {
         ...profile,
         ...commission,
-        passwordHash: placeholder,
+        passwordHash,
         status: UserStatus.INVITED,
         createdById: actor.id,
         updatedById: actor.id,
@@ -439,7 +432,7 @@ export class UsersService {
       metadata: { email: user.email, role: user.role },
     });
 
-    const delivered = await this.sendInvitation(actor, user.email, user.firstName);
+    const delivered = await this.sendInvitation(actor, user.email, user.firstName, password);
 
     return {
       // The inviter manages users, so this is the full projection — with the
@@ -458,6 +451,7 @@ export class UsersService {
     actor: AuthenticatedUser,
     email: string,
     firstName: string,
+    password: string,
   ) {
     // The invitee reads a name, not an address; the email is the fallback.
     const inviter = await this.prisma.user.findUnique({
@@ -465,13 +459,13 @@ export class UsersService {
       select: { firstName: true, lastName: true },
     });
     const inviterName = inviter ? `${inviter.firstName} ${inviter.lastName}`.trim() : '';
-    await this.mail.sendInvitation(email, firstName, inviterName || actor.email);
+    await this.mail.sendInvitation(email, firstName, inviterName || actor.email, password);
 
     if (this.mail.driverName === 'log') {
       return {
         emailSent: false,
         notice:
-          'SMTP is not configured, so no invitation email was sent. Ask the user to open the sign-in page and use "Forgot password?" with this email address — setting their password accepts the invitation and activates the account.',
+          'SMTP is not configured, so no invitation email was sent. Give the user their email address and the password you set — their first sign-in activates the account.',
       };
     }
     return { emailSent: true, notice: null };

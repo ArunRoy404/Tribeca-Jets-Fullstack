@@ -48,6 +48,8 @@ export interface EmailContent {
   bodyHtml?: string;
   /** A one-time code, shown large and spaced. */
   code?: { value: string; caption: string };
+  /** Labelled values in a box — an invitation's email and first password. */
+  credentials?: { label: string; value: string }[];
   button?: { label: string; href: string };
   /** A boxed line with a gold rule — the "if this wasn't you" warning. */
   notice?: string;
@@ -79,6 +81,22 @@ function codeBlock(code: { value: string; caption: string }): string {
     <tr><td align="center" style="background:${COLOR.codeBg};border:1px solid ${COLOR.rule};border-radius:8px;padding:26px 16px;">
       <div style="font-family:${MONO};font-size:34px;font-weight:600;letter-spacing:12px;color:${COLOR.ink};padding-left:12px;">${escapeHtml(code.value)}</div>
       <div style="margin-top:12px;font-family:${FONT};font-size:12px;letter-spacing:0.3px;color:${COLOR.muted};">${escapeHtml(code.caption)}</div>
+    </td></tr></table>`;
+}
+
+function credentials(rows: { label: string; value: string }[]): string {
+  const cells = rows
+    .map(
+      (row, i) => `<tr>
+        <td style="padding:${i ? '12px' : '0'} 0 0;font-family:${FONT};font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:${COLOR.muted};">${escapeHtml(row.label)}</td>
+      </tr><tr>
+        <td style="padding:4px 0 0;font-family:${MONO};font-size:16px;font-weight:600;color:${COLOR.ink};word-break:break-all;">${escapeHtml(row.value)}</td>
+      </tr>`,
+    )
+    .join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 24px;">
+    <tr><td style="background:${COLOR.codeBg};border:1px solid ${COLOR.rule};border-radius:8px;padding:20px 24px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${cells}</table>
     </td></tr></table>`;
 }
 
@@ -116,6 +134,7 @@ export function renderEmail(content: EmailContent): string {
     content.bodyHtml ?? '',
     ...(content.paragraphs ?? []).filter(Boolean).map((text) => paragraph(escapeHtml(text))),
     content.code ? codeBlock(content.code) : '',
+    content.credentials?.length ? credentials(content.credentials) : '',
     content.button ? button(content.button) : '',
     ...(content.after ?? []).filter(Boolean).map((text) => paragraph(escapeHtml(text))),
     content.notice ? notice(content.notice) : '',
