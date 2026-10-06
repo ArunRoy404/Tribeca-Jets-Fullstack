@@ -265,7 +265,8 @@ def capture():
     # Unique per run, mirroring the collection's own pre-request script: a
     # fixed address would 409 on every run after the first.
     invite_body = {
-        "email": f"avery.new+{int(time.time())}@tribecajets.com",
+        "password": "Welcome-Aboard-26",
+        "email": f"avery.new+{int(time.time())}@example.com",  # example.com never delivers
         "firstName": "Avery",
         "lastName": "Newman",
         "phone": "+1 555 0163",

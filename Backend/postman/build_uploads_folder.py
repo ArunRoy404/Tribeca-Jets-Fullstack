@@ -281,7 +281,6 @@ def build(admin, mark_id):
     # Rejections, all captured from real responses.
     svg = admin.upload('/uploads/image', SVG_SRC)
     pdf_to_image = admin.upload('/uploads/image', DOCUMENT_SRC)
-    image_to_doc = admin.upload('/uploads/document', PHOTO_SRC)
 
     no_file = admin.request('POST', '/uploads/image')
 
@@ -480,10 +479,6 @@ def build(admin, mark_id):
                         '/uploads/document', 201, doc,
                         form=formdata(description='The document.', src=DOCUMENT_SRC,
                                       owner=mark_id, label='2025 Form 1099')),
-                example('Error (415 · an image is not a document)', 'POST', '/uploads/document',
-                        *image_to_doc,
-                        form=formdata(description='A PNG posted to the document route.',
-                                      src=PHOTO_SRC)),
             ],
         },
         {

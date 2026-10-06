@@ -5307,7 +5307,7 @@
                   "// A fresh address per run. A fixed one would 409 on every run",
                   "// after the first, making a working collection look broken.",
                   "pm.collectionVariables.set('inviteEmail',",
-                  "    `avery.new+${Date.now()}@tribecajets.com`);"
+                  "    `avery.new+${Date.now()}@example.com`);"
                 ]
               }
             },
@@ -5356,7 +5356,7 @@
             "description": "Creates an account in `INVITED` status.\n\n**How the account activates.** `INVITED` is a pending state, not a disabled one, and nothing an administrator can send will move it. The invitee opens the sign-in page, uses \u201cForgot password?\u201d with this address, and sets a password \u2014 that act *is* accepting the invitation, and the account becomes `ACTIVE` in the same transaction. Until then they cannot sign in, and `06 \u00b7 Update team member` refuses any status change on the row. To withdraw an invitation, remove the user.\n\n**No password is accepted here, by design.** The account is created with a random, discarded password that is never usable, and the invitee sets a real one through the normal password-reset flow. So a credential is never chosen by, transmitted to, or known by the person doing the inviting.\n\n**Email delivery follows the SMTP config.** With SMTP configured an invitation goes out and `invitation.emailSent` is `true`. Without it, `emailSent` is `false` and `invitation.notice` explains what to tell the invitee instead \u2014 rather than failing silently and leaving them waiting for mail that never sent.\n\nRe-inviting a previously removed account revives that row rather than creating a duplicate, so its audit history stays attached.\n\nRequires `Manage Users`.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{inviteEmail}}\",  // required \u00b7 valid email, stored lowercase. This is the login identity and cannot be changed later. Already in use by a live account \u2192 409.\n\n  \"firstName\": \"Avery\",        // required \u00b7 1-100 chars\n\n  \"lastName\": \"Newman\",        // required \u00b7 1-100 chars\n\n  \"phone\": \"+1 555 0163\",      // optional \u00b7 max 40 chars, free-form\n\n  \"role\": \"BROKER\"             // optional \u00b7 default \"BROKER\" \u00b7 Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\" \"SUPER_ADMIN\" is deliberately NOT assignable: it would let an admin mint an account immune to their own administration.\n}",
+              "raw": "{\n  \"email\": \"{{inviteEmail}}\",  // required \u00b7 valid email, stored lowercase. This is the login identity and cannot be changed later. Already in use by a live account \u2192 409.\n\n  \"password\": \"Welcome-Aboard-26\",  // required \u00b7 10-128 chars with an uppercase letter, a lowercase letter and a number. Mailed to the invitee with the invitation; their first sign-in with it activates the account.\n\n  \"firstName\": \"Avery\",        // required \u00b7 1-100 chars\n\n  \"lastName\": \"Newman\",        // required \u00b7 1-100 chars\n\n  \"phone\": \"+1 555 0163\",      // optional \u00b7 max 40 chars, free-form\n\n  \"role\": \"BROKER\"             // optional \u00b7 default \"BROKER\" \u00b7 Allowed (case-sensitive): \"ADMIN\" | \"SENIOR_BROKER\" | \"BROKER\" | \"ASSISTANT\" \"SUPER_ADMIN\" is deliberately NOT assignable: it would let an admin mint an account immune to their own administration.\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -15443,45 +15443,6 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"86086007-f16c-454e-baa5-ef2ad59ff384\",\n    \"url\": \"/api/uploads/86086007-f16c-454e-baa5-ef2ad59ff384\",\n    \"filename\": \"sample-document.pdf\",\n    \"label\": \"2025 Form 1099\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 633,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": \"b9acd669-1d8d-4619-8eb9-82f00fe4bdf2\",\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-09-26T05:52:59.625Z\"\n  }\n}"
-            },
-            {
-              "name": "Error (415 \u00b7 an image is not a document)",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/uploads/document",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "uploads",
-                    "document"
-                  ]
-                },
-                "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    {
-                      "key": "file",
-                      "type": "file",
-                      "src": "postman/fixtures/sample-photo.png",
-                      "description": "A PNG posted to the document route."
-                    }
-                  ]
-                }
-              },
-              "status": "Unsupported Media Type",
-              "code": 415,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 415,\n  \"message\": \"This endpoint accepts a document. Allowed types: application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/plain, text/csv.\",\n  \"path\": \"/api/uploads/document\",\n  \"timestamp\": \"2026-09-26T05:53:16.206Z\"\n}"
             }
           ]
         },
