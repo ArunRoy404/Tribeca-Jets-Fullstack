@@ -55,8 +55,28 @@ Legend: ✅ done · ◐ partly done · ⬅ next · ⬜ not started
   tabs, with a minute's warning — and the API refuses to refresh a session that
   has demonstrably been idle past the limit. The limit ships from `/auth/me`
   rather than the frontend's env, so the two cannot drift
+- **Reviewed 6 Oct 2026** (module-by-module pass). Fixed: an idle refusal
+  now signs out only that device (it revoked every session the user had);
+  "Remember me" survives two-factor; the audit log says
+  `auth.login.password_accepted` until a two-factor code is verified, so
+  "success" means a session exists; the profile menus' Account and Settings
+  items now go somewhere.
+- **My Account** (`/dashboard/account`, profile menu → My Account): own name,
+  phone and photo (`PATCH /auth/me`), password change (`POST
+  /auth/change-password` — signs out every other device), own two-factor on
+  and off (`PATCH /auth/two-factor`, password required), and the signed-in
+  devices list with Revoke and "sign out all other devices"
+  (`/auth/sessions`). The same list and password dialog sit in Settings ›
+  Security. Postman: `01 · Auth › 05 · My Account`, run as the assistant and
+  self-restoring.
 
-**Waiting on a dependency** — none. Auth depends on nothing.
+**Waiting on a dependency**
+
+| Not yet | What brings it back |
+|---|---|
+| Idle timeout and warning length from Settings (today `AUTH_IDLE_TIMEOUT_MINUTES` and a fixed one minute) | Settings API (#26) |
+| "Require two-factor for administrators" enforced at sign-in | Settings API (#26) |
+| Session location (city) | Dropped — would need a paid IP-lookup service |
 
 **Known gap** (not a dependency): an invitation cannot be withdrawn and the
 email stays reserved, so a mistyped invitation address is unrecoverable.
@@ -1338,8 +1358,10 @@ and so is **offline / PWA support**.
   kept in the store), a live document contact block, three document toggles.
 - **CRM & Quote Defaults** — markup with presets, quote validity, default
   FET and "apply by default", follow-up interval, lead stage, quote terms.
-- **Security & Session** — idle timeout and warning, admin 2FA, Change
-  Password, active sessions with Revoke (sample rows, labelled as such).
+- **Security & Session** — idle timeout and warning, "require 2FA for
+  administrators" (local until the API), and two pieces that are **live**
+  since 6 Oct: Change Password (`POST /auth/change-password`) and the active
+  sessions list with Revoke / sign out all others (`/auth/sessions`).
 - **Notifications & Automation** — email / in-app channels, flight alerts to
   brokers, follow-up / payment / quote-expiry reminders and their timing.
 - **Integrations** — quick links to Avinode, DocuSign and the website.
@@ -1355,8 +1377,6 @@ and so is **offline / PWA support**.
 | Overview tab | Repeated the nav; its toggles duplicated other tabs | Nothing — a real status page, if wanted, reads live health |
 | "Preview PDF Header" | No PDF generator | The PDF generator |
 | "Client & trip behavior" toggles (notes timelines, admin keeps deleted clients) | Always-on system rules, not preferences | Never a toggle |
-| Change Password | Signed-in users are bounced from `/forgot-password`; no change-password endpoint | `POST /auth/change-password` |
-| Active sessions list / Revoke | Sample rows; no endpoint lists refresh tokens | Sessions endpoint over `RefreshToken` |
 | Session "Location" column | Needs a paid IP-lookup service | A geo-IP provider, if the client pays for one |
 | New-device login alerts, remember trusted device | Features nobody asked for | A client request |
 | "Audit & deletion safeguards" toggles | Always on | Never a toggle |

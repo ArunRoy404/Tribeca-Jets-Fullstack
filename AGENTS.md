@@ -354,6 +354,49 @@ no PDF generator behind them) is correct, but it must land in that module's
 naming what was removed and what would bring it back. A feature that vanishes
 from the screen *and* the record is a feature nobody builds.
 
+## A setting is read by the module it governs
+
+The Settings screens (#26) hold values that other modules use — default
+markup, FET, quote validity and terms, lead stage, follow-up interval, the
+idle timeout, company identity, reminder timing. **A setting does nothing
+until the module it governs reads it**, so the work of a setting is spread
+across the modules, not done once in Settings.
+
+The map is in `docs/MODULES.md` → §26, "Which module reads which setting":
+each setting, the module that reads it, and the value hardcoded today.
+
+**Every time a module is built, reviewed or fixed:**
+
+1. **Check the map for that module's rows.** If any exist, wiring them is
+   part of the module, not a later task.
+2. **Read the value from the Settings API** — through the owning service on
+   the backend, through a shared settings hook on the frontend — and delete
+   the hardcoded copy in the same pass (`0.075` in the quotes service, the
+   `AUTH_IDLE_TIMEOUT_MINUTES` env default, the letterhead's literal
+   address). Two sources for one number drift, exactly as a second copy of
+   the permission matrix would.
+3. **A default seeds a new record; it never rewrites an old one.** Changing
+   the default FET changes the next quote, not the quotes already sent — the
+   same rule as a commission copying the agent's terms at creation.
+4. **The server reads the setting when it decides.** A form may prefill from
+   it, but the API applies it on create when the field is absent, so a
+   caller that omits a field gets the setting, not a stale constant.
+5. **If the Settings API does not exist yet,** leave the current behaviour
+   in place and the row ⬜ — never invent a second, local copy of the value
+   to "wire it later".
+6. **Mark the row ✅** in the map and move its line to "working" in
+   `MODULE_FEATURE_STATUS.md`, in the same pass.
+
+Two rules on adding settings:
+
+- **Never add a setting nothing reads.** A new control on the Settings
+  screen arrives with its row in the map, naming its reader. A toggle with no
+  reader is a fake control.
+- **Never make a system rule a setting.** Soft delete, the audit trail,
+  notes timelines, import preview and history preservation are how this
+  system works. A switch that turns one off is a way to lose data — which is
+  why the Figma file's toggles for them were removed (6 Oct 2026).
+
 ## Communication
 
 - Report what is actually true: if a check was skipped, say so; if tests fail, show the output.
@@ -1530,6 +1573,34 @@ the user's favour.
 **The limit ships from `/auth/me`, never from the frontend's own env** — the
 same reason the permission matrix does. Two copies of one number drift, and
 they drift silently.
+
+## A session is one device, and only theft ends them all
+
+Every sign-in is its own `RefreshToken` chain — one per browser — renewed
+independently and carrying `sessionStartedAt` forward on each rotation. What
+ends what is fixed (6 Oct 2026):
+
+- **One device:** signing out, its idle timeout, its own expiry, and being
+  revoked from the sessions list. **An idle refusal revokes only the row it
+  refused.** It used to revoke every session the user had, so a phone left
+  on a desk signed the owner out of the laptop they were working on.
+- **Every device:** a reused refresh token (theft), a password reset, an
+  administrator suspending the account (the per-request user check), and a
+  signed-in password change — which keeps the device that made it.
+
+`GET /auth/sessions` lists only sessions that could still refresh — not
+revoked, not expired, not idle past the limit — because a closed browser
+holds a token nobody revoked and must not read as signed in. There is **no
+location column**: it would need a paid IP-lookup service. Two-factor carries
+the sign-in's "Remember me" on the verification code (`rememberMe`), or a
+two-factor account always got the short session.
+
+The signed-in user's own account — profile, photo (`users.avatarUrl`, an
+upload URL), password, two-factor, devices — is `/auth/*` and the
+`/dashboard/account` page, with no permission decorator: every route acts
+only on the caller's own row. A password or two-factor change re-checks the
+current password and answers a wrong one with **400, not 401** — a 401 would
+send the browser into a pointless refresh-and-retry.
 
 ## Required fields must agree with the API
 

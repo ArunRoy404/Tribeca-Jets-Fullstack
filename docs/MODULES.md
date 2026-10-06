@@ -62,7 +62,7 @@ set of broken joins the day the real table arrives.
 | 23 | **Reports** | ✅ Done (4 Oct) — revenue/profit by departure, cash and FET by payment; CSV and Excel export | All financial modules |
 | 24 | **Dashboard** | ✅ Done (28 Sep) — tiles, priorities, activity; lists read the owning modules | Nearly everything — built last |
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
-| 26 | **Settings / Import / Export / Backup** | No screen yet | All |
+| 26 | **Settings / Import / Export / Backup** | 🟡 Screens only (6 Oct) — no API; see the settings map below | Users, Uploads; every module in the map reads it |
 | 27 | **AI Assistant** | Stub only | All |
 | 28 | **Uploads** | ✅ Done | — (built out of order; see below) |
 | 29 | **Notes / Timeline** | ✅ Done — Clients, Trips, Referrals, Flights | Clients, Users (built out of order; adjustment #5) |
@@ -77,8 +77,7 @@ without waiting on the client; #11's agent portal followed the same day, and
 **Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
 on 28 September — everything that hangs off Trips — the **Tasks Board
 (#20)** and **Email Templates (#21)**; the **Dashboard (#24)** and **Document
-Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:**
-**Settings / Import / Export / Backup (#26)**.
+Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:** the module-by-module review below, from #1.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -107,6 +106,61 @@ counts twice — once against dummy data, once for real.
    project is PostgreSQL, which is the right choice for this data — it is
    relational throughout, and half these modules are joins. Needs a
    client-facing decision, not a technical one.
+
+---
+
+## Review order (from 6 October 2026)
+
+The owner now tests and fixes **one module at a time, as SUPER_ADMIN**, in
+this order. It is the dependency order above with two changes: the
+**Settings API moves up to fourth**, because a dozen modules read a setting
+and each should be reviewed against the real value rather than a hardcoded
+one; and the modules built out of order (Uploads, Notes, Credits, Charter
+Rates, Referrals) sit where their dependencies put them. A module is done
+when the owner has clicked through it, not when its tests pass.
+
+**The Review column is the tracker.** When the owner signs a module off,
+mark it ✅ with the date in the same pass, and record what the review fixed
+under that module in `MODULE_FEATURE_STATUS.md` ("Reviewed …"). ⬜ means not
+reviewed yet — the module may still be built and working.
+
+| # | Module | Reads settings? | Review |
+|---|---|---|---|
+| 1 | Auth & Sessions | Yes — idle timeout, warning, admin 2FA | ✅ 6 Oct — owner tested |
+| 2 | Users & Roles | — | ⬜ |
+| 3 | Uploads | — | ⬜ |
+| 4 | **Settings API** (#26, backend for the built screens) | — (it is the source) | ⬜ |
+| 5 | Airports | — | ⬜ |
+| 6 | Charter Rates / Instant Estimate | — | ⬜ |
+| 7 | Operators | — | ⬜ |
+| 8 | Aircraft | — | ⬜ |
+| 9 | Clients | Yes — default lead stage, follow-up interval | ⬜ |
+| 10 | Notes / Timeline | — | ⬜ |
+| 11 | Client Credits | — | ⬜ |
+| 12 | Leads & Agents | Yes — default lead stage, follow-up interval | ⬜ |
+| 13 | Trip Requests | — | ⬜ |
+| 14 | Operator Sourcing | — | ⬜ |
+| 15 | Quotes | Yes — markup, validity, FET, terms, document identity | ⬜ |
+| 16 | Trips | Yes — apply FET by default | ⬜ |
+| 17 | Itineraries | Yes — document identity and toggles | ⬜ |
+| 18 | Schedule | — | ⬜ |
+| 19 | Flight Tracking | Yes — flight alerts to brokers | ⬜ |
+| 20 | Empty Legs | — | ⬜ |
+| 21 | Receivables | Yes — payment reminders | ⬜ |
+| 22 | Operator Payments | Yes — payment reminders | ⬜ |
+| 23 | Commissions | — | ⬜ |
+| 24 | Referrals / Referral Agent | — | ⬜ |
+| 25 | Transactions | — | ⬜ |
+| 26 | Tasks Board & notification bell | Yes — in-app channel, follow-up reminders | ⬜ |
+| 27 | Email Templates & sending | Yes — company identity, email channel | ⬜ |
+| 28 | Document Vault | — | ⬜ |
+| 29 | Reports | — | ⬜ |
+| 30 | Dashboard | — | ⬜ |
+| 31 | Import / Export (#26, the rest) | — | ⬜ |
+| 32 | PDF generator | Yes — document identity and toggles | ⬜ |
+| 33 | Client Portal (#25) | — | ⬜ |
+| 34 | AI Assistant (#27) | — | ⬜ |
+| 35 | Offline / PWA | — | ⬜ |
 
 ---
 
@@ -634,11 +688,46 @@ trips through the one `tallyTrips` in `trips/trips.figures.ts`.
 An external-facing view for clients to see their quotes, trips and documents.
 A separate authentication surface. **No screen exists.**
 
-### 26. Settings / Import / Export / Backup
+### 26. Settings / Import / Export / Backup 🟡 *(screens 6 October 2026)*
 
-Import and export are **acceptance criteria in the signed scope with no code
-written**. So is offline/PWA support. Both need to be scheduled, not
-discovered at delivery.
+`/dashboard/settings` exists as screens only — six sections, store-backed,
+every Save saying nothing reached the server. What was dropped from the
+Figma file and why is in `MODULE_FEATURE_STATUS.md` (#26). Import and export
+are still **acceptance criteria in the signed scope with no API**; so is
+offline/PWA support.
+
+**A setting is only real once something reads it.** Building the Settings
+API makes the Save buttons work; it changes nothing else. Each setting takes
+effect only when the module it governs reads it — so the map below is the
+work list, and every module review checks its rows (rule in `AGENTS.md`,
+"A setting is read by the module it governs").
+
+#### Which module reads which setting
+
+| Setting (section) | Read by | Hardcoded today | Status |
+|---|---|---|---|
+| Company name, email, website, phone, address, client-services label (Company) | Email Templates (sender, merge fields), Quotes/Itineraries letterhead | `TribecaLetterhead.jsx`; `MAIL_FROM` env default | ⬜ |
+| Logo (Company) | Letterhead, PDF generator | `/dashboard/img/logo_black.svg` | ⬜ |
+| Show contact block / logo on PDFs / broker contact (Company) | PDF generator, Itinerary preview | always shown | ⬜ waits on PDF generator |
+| Default markup + presets (Defaults) | Quotes — new-quote form | none (blank) | ⬜ |
+| Quote validity (Defaults) | Quotes — new quote's expiry | — | ⬜ |
+| Default FET % (Defaults) | Quotes, Trips — new records only | `0.075` in `quotes.service.ts`, `DEFAULT_FET_RATE` in `lib/quote.js` | ⬜ |
+| Apply FET by default (Defaults) | Quotes, Trips — create forms | on | ⬜ |
+| Default follow-up interval (Defaults) | Clients, Leads — create / follow-up dialogs | — | ⬜ |
+| Default lead stage (Defaults) | Clients, Leads — create forms | `NEW` in the forms | ⬜ |
+| Default quote terms (Defaults) | Quotes — new-quote form | — | ⬜ |
+| Inactivity timeout (Security) | Auth — `/auth/me` and the refresh check | `AUTH_IDLE_TIMEOUT_MINUTES` env | ⬜ |
+| Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` | fixed in the watcher | ⬜ |
+| Require 2FA for admins (Security) | Auth — sign-in | per-user `twoFactorEnabled` only | ⬜ |
+| Email / in-app channels (Notifications) | Tasks Board notifications, Email sending | both always on | ⬜ |
+| Flight alerts to brokers (Notifications) | Flight Tracking — status change | — | ⬜ |
+| Follow-up / payment / quote-expiry reminders + timing (Notifications) | A reminder scheduler (new) reading Clients, Receivables, Operator Payments, Quotes | no scheduler | ⬜ waits on scheduler |
+| Import type, export scope and dates (Data) | Import / Export API | — | ⬜ |
+| Backup line (Data) | — (states the server's schedule) | `BACKUP_POLICY` in `lib/settings.js` | ✅ static by design |
+| Quick links (Integrations) | — | `QUICK_LINKS` in `lib/settings.js` | ✅ static by design |
+
+When a row is wired, mark it ✅ here and move its line in
+`MODULE_FEATURE_STATUS.md` from waiting to working, in the same pass.
 
 ### 27. AI Assistant
 
