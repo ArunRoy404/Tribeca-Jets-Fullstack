@@ -1325,13 +1325,55 @@ role.
 
 ---
 
-## 26. Settings / Import / Export / Backup ⬜
+## 26. Settings / Import / Export / Backup 🟡 *(screens 6 Oct 2026, no API)*
 
-**No screen exists.** Import, export and backup are **acceptance criteria in the
-signed scope with no code written**. So is **offline / PWA support**.
+**Built — frontend only.** `/dashboard/settings`, six sections from the
+Figma file (node 253:21850), the open one in the URL (`?section=`). Values
+sit in `useSettingsStore`, seeded from `dummyData/settings.js`; every Save
+says in its toast that nothing reached the server. Import, export and
+backup are still **acceptance criteria in the signed scope with no API**,
+and so is **offline / PWA support**.
 
-Not blocked by anything. They need to be *scheduled*, not discovered at
-delivery.
+- **Company & Branding** — profile fields, logo upload (a real upload, URL
+  kept in the store), a live document contact block, three document toggles.
+- **CRM & Quote Defaults** — markup with presets, quote validity, default
+  FET and "apply by default", follow-up interval, lead stage, quote terms.
+- **Security & Session** — idle timeout and warning, admin 2FA, Change
+  Password, active sessions with Revoke (sample rows, labelled as such).
+- **Notifications & Automation** — email / in-app channels, flight alerts to
+  brokers, follow-up / payment / quote-expiry reminders and their timing.
+- **Integrations** — quick links to Avinode, DocuSign and the website.
+- **Data Import & Export** — import type, file pick (CSV/XLSX, 25 MB), a
+  column mapping read from a CSV's header in the browser; export scope and
+  dates; the backup schedule as one read-only line.
+
+**Waiting on a dependency**
+
+| Removed or inert | Why | What brings it back |
+|---|---|---|
+| Every Save (all sections) | No Settings API; values live on the screen only | Settings API (#26) |
+| Overview tab | Repeated the nav; its toggles duplicated other tabs | Nothing — a real status page, if wanted, reads live health |
+| "Preview PDF Header" | No PDF generator | The PDF generator |
+| "Client & trip behavior" toggles (notes timelines, admin keeps deleted clients) | Always-on system rules, not preferences | Never a toggle |
+| Change Password | Signed-in users are bounced from `/forgot-password`; no change-password endpoint | `POST /auth/change-password` |
+| Active sessions list / Revoke | Sample rows; no endpoint lists refresh tokens | Sessions endpoint over `RefreshToken` |
+| Session "Location" column | Needs a paid IP-lookup service | A geo-IP provider, if the client pays for one |
+| New-device login alerts, remember trusted device | Features nobody asked for | A client request |
+| "Audit & deletion safeguards" toggles | Always on | Never a toggle |
+| WhatsApp Business | No integration | WhatsApp Business API |
+| Weather alerts | No weather data feed | aviationweather.gov integration |
+| Empty-leg email importer | No mailbox parser | Inbound email integration |
+| Flight alerts to clients | Flight tracking is manual | FlightAware AeroAPI |
+| Reminders actually firing | No scheduled job runs | A scheduler in the API |
+| Gmail / Google Calendar / Cloud Storage / Weather / Flight Tracking API rows | Their "Connected" badges were invented | Each row returns when its service exists, showing a measured status |
+| API & webhooks panel | No public API | A public API, if ever scoped |
+| Validate Import, Export XLSX/CSV | No import/export endpoint (exports will reuse `common/export/tabular.ts`) | Import & Export API |
+| Excel column mapping | An `.xlsx` header needs the server to read it | Import API |
+| "File Format" dropdowns, legacy `.xls` | The format is read from the file; `.xls` is refused by the upload rules | Never |
+| "Period" dropdown | The start and end dates are the period | Never |
+| "Import safeguards" toggles | Preview and history preservation are always on | Never a toggle |
+| Backup on/off, frequency, destination, Run Now, Download, Restore upload, "Healthy" / last-backup | Backups run on the server (03:00 UTC to R2); a browser restore is too dangerous; the status was invented | A read-only status from the server, if wanted |
+| Record retention section | "Nothing is ever deleted" makes retention periods meaningless | Never |
 
 ---
 
