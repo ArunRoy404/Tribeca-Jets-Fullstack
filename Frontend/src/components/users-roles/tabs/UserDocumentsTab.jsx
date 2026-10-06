@@ -41,14 +41,16 @@ export default function UserDocumentsTab({ userId, userName, canManage }) {
   // "which half am I looking at" will disagree.
   const [archived, setArchived] = useState(false);
 
-  const { data, meta, isPending, error, refetch } = useUserDocuments(userId, {
+  // The query's data is the page — `{ data, meta }` — not the rows.
+  const { data: page, isPending, error, refetch } = useUserDocuments(userId, {
     archived: archived || undefined,
     limit: 50,
   });
   const { mutate: removeDocument, isPending: isRemoving } = useRemoveUpload();
   const { mutate: restoreDocument, isPending: isRestoring } = useRestoreUpload();
 
-  const documents = data ?? [];
+  const documents = page?.data ?? [];
+  const meta = page?.meta;
   const busy = isRemoving || isRestoring;
 
   return (
@@ -65,17 +67,24 @@ export default function UserDocumentsTab({ userId, userName, canManage }) {
           </p>
         </div>
 
-        {canManage ? (
-          <FileUpload
-            kind="document"
-            visibility="PRIVATE"
-            ownerUserId={userId}
-            accept={ACCEPT.document}
-            buttonLabel="Upload Document"
-            disabled={archived}
-          />
-        ) : null}
       </div>
+
+      {/* The shared drop box. Nothing is held in `value`: each upload lands in
+          the folder below (the hook refreshes it), so the box stays ready for
+          the next file. Hidden on the Removed view, where nothing is filed. */}
+      {canManage && !archived ? (
+        <FileUpload
+          variant="dropzone"
+          kind="document"
+          visibility="PRIVATE"
+          ownerUserId={userId}
+          accept={ACCEPT.document}
+          multiple
+          buttonLabel="Choose Files"
+          heading="Drag & drop files here"
+          description="PDF, DOC, DOCX, XLS, XLSX, CSV, TXT, JPG, PNG, ZIP or any other file · max 25 MB each"
+        />
+      ) : null}
 
       {/* Two views of one list. Rendered as a pair of small toggles rather than
           a tab strip, because this sits inside a sheet that already has tabs. */}

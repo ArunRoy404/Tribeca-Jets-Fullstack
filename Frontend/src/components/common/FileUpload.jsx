@@ -384,9 +384,7 @@ export default function FileUpload({
  */
 export const ACCEPT = {
   image: "image/jpeg,image/png,image/webp,image/gif",
-  document:
-    ".pdf,.docx,.xlsx,.csv,.txt,application/pdf," +
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet," +
-    "text/plain,text/csv",
+  // Any file since 6 Oct 2026: the document route stores what it does not
+  // recognise as opaque bytes that always download (uploads.rules.ts).
+  document: "",
 };

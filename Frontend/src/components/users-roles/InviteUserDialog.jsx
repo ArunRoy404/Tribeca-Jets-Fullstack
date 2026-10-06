@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Pencil, UserPlus, Info } from "lucide-react";
+import { X, Pencil, UserPlus, Info, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { useUsersRolesStore } from "@/store/useUsersRolesStore";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -41,10 +41,29 @@ const EMPTY_FORM = {
   firstName: "",
   lastName: "",
   phone: "",
+  password: "",
   role: "BROKER",
   status: "ACTIVE",
   ...commissionTermsForm(null),
 };
+
+const PASSWORD_ALPHABETS = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnpqrstuvwxyz", "23456789", "!@#$%&*?"];
+
+/**
+ * A strong password that already meets the API's policy (10+ characters, an
+ * uppercase and a lowercase letter, a number). Look-alike characters (O/0,
+ * l/1) are left out, because the invitee may have to type it from an email.
+ */
+function generatePassword(length = 14) {
+  const pick = (alphabet) => alphabet[crypto.getRandomValues(new Uint32Array(1))[0] % alphabet.length];
+  const all = PASSWORD_ALPHABETS.join("");
+  const chars = [...PASSWORD_ALPHABETS.map(pick), ...Array.from({ length: length - PASSWORD_ALPHABETS.length }, () => pick(all))];
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
+}
 
 /** Splits a display name back into the two fields the API takes. */
 function splitName(name) {
@@ -69,11 +88,10 @@ function initialForm(editingUser) {
 /**
  * Invite a new team member, or edit an existing one.
  *
- * **No password field.** The previous version had one, but the API does not
- * accept a password on either path by design: an invited account is created
- * with an unusable random secret and the invitee sets their own through the
- * reset flow, so a credential is never chosen by or transmitted to whoever is
- * doing the inviting. A password box here could only ever be discarded.
+ * **Inviting sets the first password** (owner's decision, 6 Oct 2026): the
+ * invitation email carries it, and the invitee signs in with it straight
+ * away. Editing has no password field — a person changes their own from
+ * My Account.
  */
 export default function InviteUserDialog() {
   const open = useUsersRolesStore((s) => s.inviteModalOpen);
@@ -108,13 +126,14 @@ function UserForm({ editingUser, onDone }) {
   const isEditing = Boolean(editingUser);
 
   // An outstanding invitation has no status to set: the account activates
-  // itself when the invitee chooses a password. The API refuses the change, so
+  // itself the first time the invitee signs in. The API refuses the change, so
   // the control is absent rather than present-and-failing.
   const isInvited = isPendingInvite(editingUser?.rawStatus);
 
   const mutation = isEditing ? update : invite;
   const [form, setForm] = useState(() => initialForm(editingUser));
   const [localErrors, setLocalErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
   const fieldErrors = { ...(mutation?.error?.fieldErrors ?? {}), ...localErrors };
 
   // Commission terms belong to a referral agent only (#11); the API refuses
@@ -172,6 +191,7 @@ function UserForm({ editingUser, onDone }) {
         firstName: form.firstName,
         lastName: form.lastName,
         ...(form.phone ? { phone: form.phone } : {}),
+        password: form.password,
         role: form.role,
         ...(isAgent ? commissionTermsPayload(form) : {}),
       },
@@ -248,6 +268,48 @@ function UserForm({ editingUser, onDone }) {
           />
         </FormField>
 
+        {!isEditing && (
+          <FormField
+            label="Password"
+            labelClassName={LABEL_CLASS}
+            error={fieldErrors?.password}
+          >
+            <div className="flex gap-2">
+              <div className="relative flex-1 min-w-0">
+                <Input
+                  className={`${FIELD_CLASS} pr-11`}
+                  type={showPassword ? "text" : "password"}
+                  placeholder="At least 10 characters"
+                  autoComplete="new-password"
+                  value={form.password}
+                  onChange={(e) => setField("password")(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground"
+                >
+                  {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                </button>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-13 gap-2 px-4 shrink-0"
+                onClick={() => {
+                  setField("password")(generatePassword());
+                  setShowPassword(true);
+                }}
+              >
+                <RefreshCw className="size-4" />
+                Generate
+              </Button>
+            </div>
+          </FormField>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
             label="Role"
@@ -302,7 +364,7 @@ function UserForm({ editingUser, onDone }) {
               <span className="font-semibold text-foreground">pending</span>, so
               its status cannot be changed here. The account becomes{" "}
               <span className="font-semibold text-foreground">Active</span> the
-              moment they set their password. To withdraw it, remove the user.
+              first time they sign in.
             </p>
           </div>
         )}
@@ -311,10 +373,12 @@ function UserForm({ editingUser, onDone }) {
           <div className="flex gap-2 items-start rounded-sm border border-border bg-secondary/40 p-3">
             <Info className="size-4 shrink-0 text-purple mt-0.5" />
             <p className="font-montserrat text-[12px] text-muted-foreground leading-relaxed">
-              No password is set here. The account is created as{" "}
-              <span className="font-semibold text-foreground">Invited</span>,
-              and they choose their own password from the sign-in page using
-              &ldquo;Forgot password?&rdquo;.
+              The invitation email gives them this password, and they can sign
+              in right away. The account shows as{" "}
+              <span className="font-semibold text-foreground">Invited</span>{" "}
+              until their first sign-in, then turns{" "}
+              <span className="font-semibold text-foreground">Active</span>.
+              They can change the password from My Account.
             </p>
           </div>
         )}

@@ -48,7 +48,7 @@ export const FILTERABLE_STATUSES = ["ACTIVE", "INVITED", "SUSPENDED"];
  * Statuses an administrator can actually set.
  *
  * `INVITED` is filterable but not settable: an account leaves that state on its
- * own, when the invitee sets a password through "Forgot password?". Offering it
+ * own, the first time the invitee signs in. Offering it
  * as a choice would produce a 400, and pushing a live account back to pending is
  * not a state anything could undo. Mirrors `manageableStatusSchema` on the API.
  */
