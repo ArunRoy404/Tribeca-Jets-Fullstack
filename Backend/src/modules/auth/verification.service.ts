@@ -15,6 +15,8 @@ export interface IssuedChallenge {
 export interface VerifiedChallenge {
   id: string;
   userId: string;
+  /** Two-factor: the "Remember me" chosen at sign-in. */
+  rememberMe: boolean;
 }
 
 /**
@@ -64,6 +66,7 @@ export class VerificationService {
     userId: string,
     purpose: VerificationPurpose,
     context: { ipAddress?: string | null; userAgent?: string | null } = {},
+    rememberMe = false,
   ): Promise<IssuedChallenge> {
     const ttlMinutes = this.ttlMinutesFor(purpose);
     const code = this.generateCode();
@@ -84,6 +87,7 @@ export class VerificationService {
           expiresAt,
           ipAddress: context.ipAddress ?? null,
           userAgent: context.userAgent ?? null,
+          rememberMe,
         },
       }),
     ]);
@@ -101,10 +105,12 @@ export class VerificationService {
   ): Promise<IssuedChallenge & { userId: string; email: string; firstName: string }> {
     const record = await this.loadActive(challengeToken, purpose);
 
-    const issued = await this.issue(record.userId, purpose, {
-      ipAddress: record.ipAddress,
-      userAgent: record.userAgent,
-    });
+    const issued = await this.issue(
+      record.userId,
+      purpose,
+      { ipAddress: record.ipAddress, userAgent: record.userAgent },
+      record.rememberMe,
+    );
 
     return {
       ...issued,
@@ -213,7 +219,7 @@ export class VerificationService {
       });
     }
 
-    return { id: record.id, userId: record.userId };
+    return { id: record.id, userId: record.userId, rememberMe: record.rememberMe };
   }
 
   /**
@@ -232,7 +238,7 @@ export class VerificationService {
       );
     }
 
-    return { id: record.id, userId: record.userId };
+    return { id: record.id, userId: record.userId, rememberMe: record.rememberMe };
   }
 
   async consume(id: string): Promise<void> {

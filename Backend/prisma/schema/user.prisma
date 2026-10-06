@@ -32,6 +32,9 @@ model User {
   /// Storage key (not a URL) — resolved by StorageService at read time so the
   /// same record works on both the S3 and local drivers.
   avatarKey String?
+  /// The profile photo as an upload URL (`/api/uploads/<id>`), set from the
+  /// My Account page. Supersedes `avatarKey`, which nothing writes any more.
+  avatarUrl String?
 
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
@@ -282,6 +285,11 @@ model RefreshToken {
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
+
+  /// When the sign-in this token descends from happened. Copied forward on
+  /// every rotation, so "Signed in" on the sessions list survives the token
+  /// being replaced every few minutes; `createdAt` is the last renewal.
+  sessionStartedAt DateTime @default(now())
 
   @@index([userId, revokedAt])
   @@index([expiresAt])

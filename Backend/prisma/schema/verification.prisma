@@ -29,6 +29,11 @@ model VerificationCode {
   /// a new password. Two-factor consumes the code outright instead.
   verifiedAt DateTime?
   consumedAt DateTime?
+
+  /// Two-factor only: the sign-in's "Remember me", carried to the session the
+  /// code completes. Without it a two-factor account always got the short
+  /// session, whatever the checkbox said.
+  rememberMe Boolean @default(false)
   expiresAt  DateTime
 
   ipAddress String?

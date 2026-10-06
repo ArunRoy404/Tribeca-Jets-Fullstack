@@ -1,10 +1,17 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
@@ -24,6 +31,15 @@ import { permissionsFor } from '../../common/authorization/permissions.js';
 import { AuthService } from './auth.service.js';
 import { TokenService, type SessionContext } from './token.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import {
+  ChangePasswordDto,
+  SessionsQueryDto,
+  SetTwoFactorDto,
+  UpdateProfileDto,
+} from './dto/account.dto.js';
+import { describeUserAgent } from './user-agent.js';
+import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
+import { paginate } from '../../common/types/api.types.js';
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
@@ -88,7 +104,7 @@ export class AuthController {
     const user = await this.auth.validateCredentials(dto, context);
 
     if (user.twoFactorEnabled) {
-      const challenge = await this.auth.startTwoFactorChallenge(user, context);
+      const challenge = await this.auth.startTwoFactorChallenge(user, context, dto.rememberMe);
       this.tokens.setChallenge(
         res,
         'twoFactor',
@@ -129,8 +145,8 @@ export class AuthController {
     const context = this.contextOf(req);
     const challengeToken = req.cookies?.[TWO_FACTOR_COOKIE] as string | undefined;
 
-    const user = await this.auth.verifyTwoFactor(challengeToken, dto.code, context);
-    await this.tokens.startSession(res, user, context);
+    const { user, rememberMe } = await this.auth.verifyTwoFactor(challengeToken, dto.code, context);
+    await this.tokens.startSession(res, user, context, rememberMe);
 
     return { user: await this.auth.getProfile(user.id) };
   }
@@ -205,10 +221,20 @@ export class AuthController {
       'How the frontend learns who is signed in — the session token is httpOnly and unreadable by JavaScript. Carries `permissions`, the caller\'s row of the permission matrix, so the UI can hide actions their role cannot perform.',
   })
   async me(@CurrentUser('id') userId: string) {
-    const profile = await this.auth.getProfile(userId);
+    return this.session(await this.auth.getProfile(userId));
+  }
+
+  /**
+   * The `/auth/me` shape, built in one place so every My Account write can
+   * answer with exactly what the session query caches.
+   */
+  private async session(profile: Awaited<ReturnType<AuthService['getProfile']>>) {
+    const { avatarKey, ...rest } = profile;
     return {
-      ...profile,
-      avatarUrl: await this.storage.signedUrlOrNull(profile.avatarKey),
+      ...rest,
+      // An upload URL from My Account; the legacy storage key only as a
+      // fallback for a photo set before that existed.
+      avatarUrl: profile.avatarUrl ?? (await this.storage.signedUrlOrNull(avatarKey)),
       /**
        * The caller's row of the permission matrix, as `{ PERMISSION: Scope }`.
        *
@@ -238,6 +264,118 @@ export class AuthController {
         idleTimeoutMinutes: this.config.auth.idleTimeoutMinutes,
       },
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // My Account — no permission decorator: every route acts only on the
+  // caller's own row, which the session already identifies.
+  // ---------------------------------------------------------------------------
+
+  @Patch('me')
+  @ApiOperation({
+    summary: 'Update your own profile',
+    description:
+      'First name, last name, phone and photo (an upload URL from POST /uploads/image, or null). ' +
+      'Email, role and status are not accepted here. Answers with the same shape as GET /auth/me.',
+  })
+  async updateMe(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateProfileDto,
+    @Req() req: Request,
+  ) {
+    return this.session(await this.auth.updateProfile(userId, dto, this.contextOf(req)));
+  }
+
+  @RateLimit({ limit: 5, windowSeconds: 900 })
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Change your password',
+    description:
+      'Needs the current password. Signs out every other session; this one stays signed in.',
+  })
+  async changePassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+  ) {
+    const keep = await this.tokens.currentSessionId(userId, this.refreshCookie(req));
+    const result = await this.auth.changePassword(userId, dto, keep, this.contextOf(req));
+    return { message: 'Your password has been changed.', ...result };
+  }
+
+  @RateLimit({ limit: 5, windowSeconds: 900 })
+  @Patch('two-factor')
+  @ApiOperation({
+    summary: 'Turn your own two-factor on or off',
+    description: 'Needs the current password either way. Answers with the GET /auth/me shape.',
+  })
+  async setTwoFactor(
+    @CurrentUser('id') userId: string,
+    @Body() dto: SetTwoFactorDto,
+    @Req() req: Request,
+  ) {
+    return this.session(await this.auth.setTwoFactor(userId, dto, this.contextOf(req)));
+  }
+
+  @Get('sessions')
+  @ApiOperation({
+    summary: 'Your signed-in devices',
+    description:
+      'One row per live session — not revoked, not expired, not idle past the limit — most ' +
+      'recently active first. `current` marks the device making this request.',
+  })
+  async sessions(
+    @CurrentUser('id') userId: string,
+    @Query() query: SessionsQueryDto,
+    @Req() req: Request,
+  ) {
+    const { skip, take } = toPrismaPagination(query);
+    const [{ rows, total }, currentId] = await Promise.all([
+      this.tokens.listSessions(userId, skip, take),
+      this.tokens.currentSessionId(userId, this.refreshCookie(req)),
+    ]);
+    const items = rows.map((row) => ({
+      id: row.id,
+      device: describeUserAgent(row.userAgent),
+      ipAddress: row.ipAddress,
+      signedInAt: row.sessionStartedAt,
+      lastActiveAt: row.createdAt,
+      current: row.id === currentId,
+    }));
+    return paginate(items, total, query.page, query.limit);
+  }
+
+  @Post('sessions/revoke-others')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sign out every other device' })
+  async revokeOtherSessions(@CurrentUser('id') userId: string, @Req() req: Request) {
+    const keep = await this.tokens.currentSessionId(userId, this.refreshCookie(req));
+    return { signedOutSessions: await this.tokens.revokeOtherSessions(userId, keep) };
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Sign out one device',
+    description:
+      '404 for an id that is not one of your live sessions. Not for this device — use logout.',
+  })
+  async revokeSession(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    if (id === (await this.tokens.currentSessionId(userId, this.refreshCookie(req)))) {
+      throw new BadRequestException('That is this device. Use Sign out instead.');
+    }
+    if (!(await this.tokens.revokeOwnSession(userId, id))) {
+      throw new NotFoundException('That session does not exist');
+    }
+  }
+
+  private refreshCookie(req: Request): string | undefined {
+    return req.cookies?.[REFRESH_TOKEN_COOKIE] as string | undefined;
   }
 
   // ---------------------------------------------------------------------------
