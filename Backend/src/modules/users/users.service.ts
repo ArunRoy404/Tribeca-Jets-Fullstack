@@ -459,7 +459,13 @@ export class UsersService {
     email: string,
     firstName: string,
   ) {
-    await this.mail.sendInvitation(email, firstName, actor.email);
+    // The invitee reads a name, not an address; the email is the fallback.
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: actor.id },
+      select: { firstName: true, lastName: true },
+    });
+    const inviterName = inviter ? `${inviter.firstName} ${inviter.lastName}`.trim() : '';
+    await this.mail.sendInvitation(email, firstName, inviterName || actor.email);
 
     if (this.mail.driverName === 'log') {
       return {

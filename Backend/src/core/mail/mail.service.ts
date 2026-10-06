@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { MAIL_DRIVER, type MailDriver, type MailMessage } from './mail.interface.js';
 import { AppConfigService } from '../../config/config.service.js';
+import { renderEmail, renderMessage } from './mail.layout.js';
 
 /**
  * The only mail entry point feature modules should use.
@@ -31,10 +32,10 @@ export class MailService {
   private async send(
     to: string,
     subject: string,
-    text: string,
+    body: { text: string; html: string },
   ): Promise<void> {
     try {
-      await this.driver.send({ to, subject, text });
+      await this.driver.send({ to, subject, ...body });
     } catch (error) {
       this.logger.error(
         `Failed to send "${subject}" to ${to}`,
@@ -57,7 +58,12 @@ export class MailService {
     message: MailMessage,
   ): Promise<{ delivered: boolean; error: string | null }> {
     try {
-      await this.driver.send(message);
+      // A composed message goes out in the same shell as every other email,
+      // with the plain text kept for clients that never render HTML.
+      await this.driver.send({
+        ...message,
+        html: message.html ?? renderMessage(message.text, message.text.slice(0, 120)),
+      });
       return { delivered: this.driver.name === 'smtp', error: null };
     } catch (error) {
       this.logger.error(
@@ -77,54 +83,68 @@ export class MailService {
     code: string,
     expiresInMinutes: number,
   ): Promise<void> {
-    await this.send(
-      to,
-      'Your Tribeca Jets sign-in code',
-      [
+    const caption = `Expires in ${expiresInMinutes} minutes · Single use`;
+    const notice =
+      'Didn\u2019t try to sign in? Someone may know your password. Change it right away and let your administrator know.';
+    await this.send(to, 'Your Tribeca Jets sign-in code', {
+      text: lines([
         `Hi ${firstName},`,
         '',
         `Your sign-in verification code is: ${code}`,
+        caption,
         '',
-        `This code expires in ${expiresInMinutes} minutes and can be used once.`,
-        '',
-        'If you did not try to sign in, someone may have your password.',
-        'Change it immediately.',
-        '',
-        '— Tribeca Jets Command Center',
-      ].join('\n'),
-    );
+        notice,
+      ]),
+      html: renderEmail({
+        preheader: `Your sign-in code is ${code}. It expires in ${expiresInMinutes} minutes.`,
+        eyebrow: 'Sign-in verification',
+        heading: 'Your sign-in code',
+        paragraphs: [`Hi ${firstName},`, 'Enter this code to finish signing in to Tribeca Jets Command Center.'],
+        code: { value: code, caption },
+        notice,
+      }),
+    });
   }
 
   /**
-   * Carries no credential and no link.
+   * Carries no credential and no access link.
    *
    * The invited account has no usable password, so the invitee sets one via
-   * the normal password-reset flow. Mailing a temporary password — or a
-   * link that grants access on click — would put a working credential in an
-   * inbox, which is the thing the reset flow exists to avoid.
+   * the normal password-reset flow. The button opens that flow's first
+   * screen — it grants nothing by itself; the code it leads to is mailed
+   * separately. Mailing a temporary password or a sign-in-on-click link
+   * would put a working credential in an inbox.
    */
   async sendInvitation(
     to: string,
     firstName: string,
     invitedByName: string,
   ): Promise<void> {
-    await this.send(
-      to,
-      'You have been invited to Tribeca Jets Command Center',
-      [
+    const setUp = `${this.config.webAppUrl}/forgot-password`;
+    await this.send(to, 'You\u2019re invited to Tribeca Jets Command Center', {
+      text: lines([
         `Hi ${firstName},`,
         '',
         `${invitedByName} has created an account for you at Tribeca Jets Command Center.`,
         '',
-        'To get started, open the sign-in page, choose "Forgot password?",',
-        `and enter this email address (${to}). You will receive a code to set`,
-        'your own password.',
+        `To set your password, open ${setUp} and enter this email address (${to}).`,
+        'We will email you a code to choose your own password.',
         '',
-        'If you were not expecting this invitation, you can ignore this email.',
-        '',
-        '— Tribeca Jets Command Center',
-      ].join('\n'),
-    );
+        'Not expecting this? You can ignore this email.',
+      ]),
+      html: renderEmail({
+        preheader: `${invitedByName} has invited you to Tribeca Jets Command Center.`,
+        eyebrow: 'Invitation',
+        heading: 'Welcome aboard',
+        paragraphs: [
+          `Hi ${firstName},`,
+          `${invitedByName} has created an account for you at Tribeca Jets Command Center.`,
+          `To get started, choose your own password. On the next screen, enter ${to} and we will email you a 6-digit code.`,
+        ],
+        button: { label: 'Set Your Password', href: setUp },
+        notice: 'Not expecting this invitation? You can safely ignore this email \u2014 nothing happens until a password is set.',
+      }),
+    });
   }
 
   async sendPasswordResetCode(
@@ -133,43 +153,56 @@ export class MailService {
     code: string,
     expiresInMinutes: number,
   ): Promise<void> {
-    await this.send(
-      to,
-      'Reset your Tribeca Jets password',
-      [
-        `Hi ${firstName},`,
-        '',
-        `Your password reset code is: ${code}`,
-        '',
-        `This code expires in ${expiresInMinutes} minutes and can be used once.`,
-        '',
-        'If you did not request a password reset, you can ignore this email —',
-        'your password has not been changed.',
-        '',
-        '— Tribeca Jets Command Center',
-      ].join('\n'),
-    );
+    const caption = `Expires in ${expiresInMinutes} minutes · Single use`;
+    const notice =
+      'Didn\u2019t ask to reset your password? You can ignore this email \u2014 your password has not been changed.';
+    await this.send(to, 'Reset your Tribeca Jets password', {
+      text: lines([`Hi ${firstName},`, '', `Your password reset code is: ${code}`, caption, '', notice]),
+      html: renderEmail({
+        preheader: `Your password reset code is ${code}.`,
+        eyebrow: 'Password reset',
+        heading: 'Reset your password',
+        paragraphs: [`Hi ${firstName},`, 'Enter this code to choose a new password for your account.'],
+        code: { value: code, caption },
+        notice,
+      }),
+    });
   }
 
   /**
-   * Sent after a successful reset. Not a courtesy: it is how a user finds out
-   * their account was taken over if someone else completed the flow.
+   * Sent after any password change — a reset or a signed-in change. Not a
+   * courtesy: it is how a user finds out their account was taken over if
+   * someone else did it.
    */
   async sendPasswordChangedNotice(to: string, firstName: string): Promise<void> {
-    await this.send(
-      to,
-      'Your Tribeca Jets password was changed',
-      [
+    const signIn = `${this.config.webAppUrl}/sign-in`;
+    const notice = 'Didn\u2019t make this change? Contact your administrator immediately.';
+    await this.send(to, 'Your Tribeca Jets password was changed', {
+      text: lines([
         `Hi ${firstName},`,
         '',
-        'Your password was just changed and all other sessions were signed out.',
+        'Your password was just changed, and your other signed-in devices were signed out.',
         '',
-        'If this was not you, contact your administrator immediately.',
+        notice,
         '',
-        `Sign in: ${this.config.webAppUrl}/sign-in`,
-        '',
-        '— Tribeca Jets Command Center',
-      ].join('\n'),
-    );
+        `Sign in: ${signIn}`,
+      ]),
+      html: renderEmail({
+        preheader: 'Your password was just changed.',
+        eyebrow: 'Security notice',
+        heading: 'Your password was changed',
+        paragraphs: [
+          `Hi ${firstName},`,
+          'Your password was just changed, and your other signed-in devices were signed out.',
+        ],
+        button: { label: 'Sign In', href: signIn },
+        notice,
+      }),
+    });
   }
+}
+
+/** A plain-text body from lines, signed the same way every time. */
+function lines(body: string[]): string {
+  return [...body, '', '\u2014 Tribeca Jets Command Center'].join('\n');
 }
