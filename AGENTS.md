@@ -536,24 +536,29 @@ A sixth exception needs a line here, with its reason, in the same pass.
 
 `UserStatus` has three values but only two are settable by a person:
 
-- **`INVITED`** is where an account is born, and it leaves exactly once — on its
-  own, when the invitee sets a password through the reset flow. That act *is*
-  accepting the invitation, and `completePasswordReset` flips the row to
-  `ACTIVE` in the same transaction. Nothing else may write it: the update DTO's
-  enum excludes it, and the service refuses any status change on a row that is
-  still `INVITED`. Suspending a pending invitation would strand it for good —
-  only an `INVITED` row can be promoted by a reset, so a suspended one could
-  never move again.
+- **`INVITED`** is where an account is born, and it leaves exactly once — on
+  its own. Since 6 Oct 2026 (owner's decision) **the invitation carries the
+  first password**: the administrator sets it on the invite form, the
+  invitation email delivers it, and **the first successful sign-in with it
+  flips the row to `ACTIVE`** (`validateCredentials`, audited as
+  `user.invitation_accepted` with `via: first_sign_in`). A password reset
+  completed by an invitee still promotes it too. Nothing else may write
+  `INVITED`: the update DTO's enum excludes it, and the service refuses any
+  status change on a row that is still `INVITED`.
 
-  **Known gap:** with account removal withdrawn there is now no way to withdraw
-  a mistaken invitation at all. The row stays `INVITED` and keeps its email
-  address reserved. Withdrawing one needs its own deliberate operation; do not
-  solve it by loosening the status guard.
+  The trade-off was chosen knowingly: the inviter knows the first password
+  and it sits in an inbox, so the email tells the invitee to change it from
+  My Account.
+
+  **Known gap:** there is no way to withdraw a mistaken invitation. The row
+  stays `INVITED` and keeps its email address reserved. Withdrawing one needs
+  its own deliberate operation; do not solve it by loosening the status guard.
 - **`ACTIVE` / `SUSPENDED`** are an administrator's call, made through
   `PATCH /users/:id` by a `MANAGE_USERS` holder, and nothing else.
 
-**A password reset must never be a route around a suspension.** The promotion
-above is narrow by design — it fires only when the current status is `INVITED`.
+**Neither a password reset nor a sign-in is a route around a suspension.**
+Both promotions above are narrow by design — they fire only when the current
+status is `INVITED`, and sign-in refuses `SUSPENDED` before it gets there.
 A suspended user who completes a reset stays suspended, including when the code
 was issued before the suspension landed. Any future flow that sets a password
 inherits this rule.
@@ -814,16 +819,20 @@ API's own origin, with the session cookie attached.
 *that*. The sender's header settles exactly one question: whether text is
 `text/plain` or `text/csv`, which are the same bytes and differ only in intent.
 
-Three formats stay off every allowlist, for reasons that are not about
-convenience:
+**A document may be any file** (owner's decision, 6 Oct 2026). The
+*recognised* document types — PDF, DOCX, XLSX, text, CSV — keep their own
+type; anything else (a scanned photo, legacy `.doc`/`.xls`, an archive, SVG,
+HTML) is stored as `application/octet-stream`, decided by
+`storedContentType` in `uploads.rules.ts`. That is what makes accepting it
+safe for *us*: an opaque file is always an attachment with `nosniff`, so it
+is saved to disk and never rendered on the API's origin. It does not make
+the file safe to open — a macro workbook is the reader's machine's risk, as
+any email attachment is.
 
-- **SVG** is a document that executes script. Serving one from the API's origin
-  is stored XSS wearing an image's clothes.
-- **Archives** carry their contents past whatever checked the outer file.
-- **Legacy `.doc`/`.xls`** are both OLE2 and byte-identical at the header, so
-  nothing can tell them apart without trusting the sender — which is the thing
-  sniffing exists to avoid. They are also the macro-bearing formats, and Word
-  and Excel have written the modern equivalents by default since 2007.
+**Images stay strict**, because images are served `inline`: only sniffed
+JPEG, PNG, WebP and GIF. SVG is never an image — it executes script — and
+legacy OLE2 and archives are never *recognised* as their own type, because
+nothing can tell them apart without trusting the sender.
 
 Then serve defensively too: `X-Content-Type-Options: nosniff` on every
 response, and `Content-Disposition: inline` **only** for images. Everything else

@@ -120,6 +120,19 @@ email stays reserved, so a mistyped invitation address is unrecoverable.
 
 The three unfilled figures render "—" in `toTeamMember`.
 
+**Review in progress (6 Oct 2026)**
+
+- Fixed: the Documents tab crashed ("documents?.map is not a function") — it
+  read the page object `{ data, meta }` as the rows.
+- Changed (owner's decision): **the invite form sets the first password**,
+  with a Generate button; the invitation email carries it with a Sign In
+  button; the first sign-in turns the account from Invited to Active. The
+  "Forgot password?" route to activation is no longer what the email or the
+  form describes (it still works).
+- Documents tab uses the shared `FileUpload` drop box (several files at
+  once), and **a document may be any file type**: unrecognised types are
+  stored as opaque bytes that always download (Uploads, `storedContentType`).
+
 **By design, not pending:** no archive/restore here. Suspension is enough — a
 user is a person with history attached, and removing the row orphans every
 audit trail pointing at them.
