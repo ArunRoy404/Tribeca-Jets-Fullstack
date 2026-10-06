@@ -1197,6 +1197,13 @@ never builds its own dialog, its own preview or its own merge.
 - **Marking a record sent is a separate act from emailing it.** A quote's
   or an itinerary's "Mark as Sent" delivers nothing and says so; the compose
   form marks it sent only when the email's status is `SENT`.
+- **Every email is built in one shell, `core/mail/mail.layout.ts`.** Account
+  emails call `renderEmail` (eyebrow, heading, code or button, notice);
+  a composed message is wrapped by `renderMessage` inside `MailService.deliver`.
+  Both always send a plain-text part too. No email builds its own HTML, and
+  every value from a person is escaped there. The brand is a text wordmark
+  until the logo setting exists; then pass `logoUrl` — an absolute,
+  publicly reachable URL, because an inbox cannot send our session cookie.
 - **A Postman run never emails a real person.** `26 · Email Templates`
   writes a probe client on `example.com`, which never delivers, and emails
   only that.
