@@ -1,4 +1,4 @@
-import { request } from "@/lib/axios";
+import { request, requestWithMeta } from "@/lib/axios";
 
 /**
  * Thin, one-to-one wrappers around the API's auth endpoints.
@@ -52,4 +52,31 @@ export const authService = {
       method: "POST",
       data: { newPassword, confirmPassword },
     }),
+
+  // --- My Account -----------------------------------------------------------
+
+  /** PATCH /auth/me — own name, phone, photo. Answers with the /auth/me shape. */
+  updateProfile: (data) => request({ url: "/auth/me", method: "PATCH", data }),
+
+  /** POST /auth/change-password — signs out every other session. */
+  changePassword: ({ currentPassword, newPassword, confirmPassword }) =>
+    request({
+      url: "/auth/change-password",
+      method: "POST",
+      data: { currentPassword, newPassword, confirmPassword },
+    }),
+
+  /** PATCH /auth/two-factor — own two-factor on/off, password required. */
+  setTwoFactor: ({ enabled, currentPassword }) =>
+    request({ url: "/auth/two-factor", method: "PATCH", data: { enabled, currentPassword } }),
+
+  /** GET /auth/sessions — signed-in devices, paginated. */
+  sessions: (params) => requestWithMeta({ url: "/auth/sessions", method: "GET", params }),
+
+  /** DELETE /auth/sessions/:id — sign out one other device. */
+  revokeSession: (id) => request({ url: `/auth/sessions/${id}`, method: "DELETE" }),
+
+  /** POST /auth/sessions/revoke-others — sign out every other device. */
+  revokeOtherSessions: () =>
+    request({ url: "/auth/sessions/revoke-others", method: "POST", data: {} }),
 };

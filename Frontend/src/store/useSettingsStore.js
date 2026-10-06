@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import {
-  activeSessions,
   companySettings,
   dataSettings,
   notificationSettings,
@@ -19,12 +18,8 @@ export const useSettingsStore = create((set) => ({
   security: { ...securitySettings },
   notifications: { ...notificationSettings },
   data: { ...dataSettings },
-  sessions: [...activeSessions],
 
   /** `setField("company", "phone")` returns the change handler for one field. */
   setField: (section, key) => (value) =>
     set((state) => ({ [section]: { ...state[section], [key]: value } })),
-
-  revokeSession: (id) =>
-    set((state) => ({ sessions: state.sessions?.filter((session) => session?.id !== id) })),
 }));

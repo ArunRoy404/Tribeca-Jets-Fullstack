@@ -1,3 +1,4 @@
+import { uploadUrl } from "@/services/uploads.service";
 
 /**
  * Display helpers for the authenticated user.
@@ -142,7 +143,8 @@ export function toDisplayUser(user, { isLoading = false } = {}) {
     // not collapse to an empty row on load.
     name: isLoading ? "Loading…" : getFullName(user),
     role: formatUserRole(user?.role),
-    avatarUrl: user?.avatarUrl ?? null,
+    // An upload URL is relative; this is where it becomes loadable.
+    avatarUrl: uploadUrl(user?.avatarUrl),
   };
 }
 

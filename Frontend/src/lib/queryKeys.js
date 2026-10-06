@@ -8,6 +8,9 @@ export const queryKeys = {
   auth: {
     all: ["auth"],
     currentUser: ["auth", "me"],
+    /** The signed-in devices list (My Account and Settings › Security). */
+    sessions: (params) => ["auth", "sessions", params ?? {}],
+    sessionsAll: ["auth", "sessions"],
   },
 
   /**

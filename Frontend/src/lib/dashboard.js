@@ -1,7 +1,7 @@
 import { formatMoney, formatMoneyExact } from "@/lib/money";
 import { displayName } from "@/lib/client";
 import { actorName, formatDate } from "@/lib/archive";
-import { formatCalendarDate } from "@/lib/date";
+import { formatCalendarDate, timeAgo } from "@/lib/date";
 import { formatTripReference } from "@/lib/trip";
 import { formatTaskReference } from "@/lib/task";
 import { formatDocumentCategory } from "@/lib/document";
@@ -430,21 +430,6 @@ const SUBJECT_HREFS = {
   OperatorPayable: (id) => `/dashboard/operator-payments?bill=${id}`,
   Task: (id) => `/dashboard/tasks-board?task=${id}`,
 };
-
-/** "2h ago", "Yesterday", or the date — relative to now, for a feed. */
-export function timeAgo(value) {
-  const at = new Date(value);
-  if (Number.isNaN(at.getTime())) return DASH;
-  const minutes = Math.floor((Date.now() - at.getTime()) / 60_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days} days ago`;
-  return formatDate(at);
-}
 
 /** One feed line: who, what, which record, when. */
 export function toActivityItem(entry) {

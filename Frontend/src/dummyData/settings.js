@@ -34,11 +34,6 @@ export const securitySettings = {
   requireAdminTwoFactor: true,
 };
 
-export const activeSessions = [
-  { id: "s1", device: "Chrome on macOS", lastActive: "Now", current: true },
-  { id: "s2", device: "Safari on iPhone", lastActive: "2 hours ago", current: false },
-];
-
 export const notificationSettings = {
   emailNotifications: true,
   inAppNotifications: true,

@@ -31,6 +31,7 @@ const routeNameMap = {
   "/dashboard/tasks-board": "Tasks Board",
   "/dashboard/users-roles": "Users & Roles",
   "/dashboard/settings": "Settings",
+  "/dashboard/account": "My Account",
 };
 
 function getRouteTitle(pathname) {
