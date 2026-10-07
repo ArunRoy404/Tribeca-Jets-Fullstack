@@ -17,6 +17,23 @@ import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { resolveAccess, type AccessMap } from '../../common/authorization/access.js';
 import { UserRole } from '../../generated/prisma/enums.js';
 
+/**
+ * How long a just-rotated refresh token is still honoured. Two tabs share one
+ * cookie jar: when both find the access token expired at the same moment,
+ * the first renews and the second arrives with the token the first just
+ * replaced. Inside this window that is a race, not theft — the second gets
+ * the session back without new cookies (the browser already holds the
+ * newer ones), instead of every session being revoked.
+ */
+const ROTATION_GRACE_MS = 30_000;
+
+/**
+ * Slack on the idle limit for the browser's activity ping, which is
+ * throttled to every couple of minutes. Always in the user's favour: the
+ * browser's own timer is the precise one.
+ */
+const ACTIVITY_SLACK_MS = 5 * 60_000;
+
 /** First entry of `tj_modules` for a partner: their area is the portal. */
 const PORTAL_MARKER = 'PORTAL';
 
@@ -99,7 +116,7 @@ export class TokenService {
     userId: string,
     context: SessionContext,
     rememberMe: boolean,
-    replaces?: { id: string; sessionStartedAt: Date },
+    replaces?: { id: string; sessionStartedAt: Date; lastActiveAt: Date },
   ): Promise<string> {
     const token = randomBytes(48).toString('base64url');
     const expiresAt = new Date(Date.now() + this.refreshTtlMs(rememberMe));
@@ -111,8 +128,12 @@ export class TokenService {
         expiresAt,
         ipAddress: context.ipAddress ?? null,
         userAgent: context.userAgent ?? null,
-        // A rotation continues the same sign-in, so it inherits its start.
-        ...(replaces ? { sessionStartedAt: replaces.sessionStartedAt } : {}),
+        // A rotation continues the same sign-in, so it inherits its start —
+        // and its last activity: renewing a token is not a person doing
+        // anything.
+        ...(replaces
+          ? { sessionStartedAt: replaces.sessionStartedAt, lastActiveAt: replaces.lastActiveAt }
+          : {}),
       },
       select: { id: true },
     });
@@ -150,7 +171,9 @@ export class TokenService {
    *
    * If a token that was already revoked is presented, it has been replayed —
    * which means it leaked. Every session for that user is killed rather than
-   * just rejecting the one request.
+   * just rejecting the one request. The one exception is a token rotated
+   * within the last `ROTATION_GRACE_MS` whose replacement is still live: two
+   * tabs renewing at once, answered without new cookies.
    */
   async rotateSession(
     res: Response,
@@ -172,6 +195,13 @@ export class TokenService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    if (stored.revokedAt && (await this.isConcurrentRenewal(stored))) {
+      if (!stored.user || stored.user.deletedAt || stored.user.status !== 'ACTIVE') {
+        throw new UnauthorizedException('Account is no longer active');
+      }
+      return { id: stored.user.id, email: stored.user.email, role: stored.user.role };
+    }
+
     if (stored.revokedAt) {
       this.logger.warn(
         `Refresh token reuse detected for user ${stored.userId}; revoking all sessions`,
@@ -185,7 +215,7 @@ export class TokenService {
       throw new UnauthorizedException('Session expired. Please sign in again.');
     }
 
-    if (this.hasBeenIdle(stored.createdAt)) {
+    if (this.hasBeenIdle(stored.lastActiveAt)) {
       this.logger.warn(
         `Refusing a refresh for user ${stored.userId}: session idle past the limit`,
       );
@@ -220,12 +250,51 @@ export class TokenService {
       this.issueRefreshToken(user.id, context, rememberMe, {
         id: stored.id,
         sessionStartedAt: stored.sessionStartedAt,
+        lastActiveAt: stored.lastActiveAt,
       }),
     ]);
 
     this.writeCookies(res, accessToken, refreshToken, rememberMe);
     await this.writeModulesFor(res, user.id);
     return user;
+  }
+
+  /**
+   * A revoked token that was *rotated* (not signed out or ended) within the
+   * grace window, whose replacement is still live — the losing side of two
+   * tabs renewing at once.
+   */
+  private async isConcurrentRenewal(stored: {
+    revokedAt: Date | null;
+    replacedByTokenId: string | null;
+  }): Promise<boolean> {
+    if (!stored.revokedAt || !stored.replacedByTokenId) return false;
+    if (Date.now() - stored.revokedAt.getTime() > ROTATION_GRACE_MS) return false;
+    const replacement = await this.prisma.refreshToken.findUnique({
+      where: { id: stored.replacedByTokenId },
+      select: { revokedAt: true, expiresAt: true },
+    });
+    return Boolean(replacement && !replacement.revokedAt && replacement.expiresAt.getTime() > Date.now());
+  }
+
+  /**
+   * Records that a person is using this device — the browser's throttled
+   * activity ping. Only a live session is touched; false means there is none
+   * (signed out, expired, or already idle past the limit), which the caller
+   * answers with a 401 so the browser ends the session it thought it had.
+   */
+  async touchSession(presentedToken: string | undefined): Promise<boolean> {
+    if (!presentedToken) return false;
+    const { count } = await this.prisma.refreshToken.updateMany({
+      where: {
+        tokenHash: this.hash(presentedToken),
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+        lastActiveAt: { gt: new Date(Date.now() - this.idleLimitMs()) },
+      },
+      data: { lastActiveAt: new Date() },
+    });
+    return count > 0;
   }
 
   /**
@@ -272,12 +341,16 @@ export class TokenService {
    * request, which is a write per request to save a few minutes at the tail of
    * an already-expired session.
    */
-  private hasBeenIdle(issuedAt: Date): boolean {
-    const limit =
-      parseDuration(this.config.auth.accessTtl) +
-      this.config.auth.idleTimeoutMinutes * 60_000;
-    return Date.now() - issuedAt.getTime() > limit;
+  /** The idle limit the server holds a session to — see ACTIVITY_SLACK_MS. */
+  private idleLimitMs(): number {
+    return this.config.auth.idleTimeoutMinutes * 60_000 + ACTIVITY_SLACK_MS;
   }
+
+  /** Whether nobody has used this device for longer than the idle limit. */
+  private hasBeenIdle(lastActiveAt: Date): boolean {
+    return Date.now() - lastActiveAt.getTime() > this.idleLimitMs();
+  }
+
 
   async endSession(res: Response, presentedToken?: string): Promise<void> {
     if (presentedToken) {
@@ -303,13 +376,11 @@ export class TokenService {
    * but it is not signed in any more and must not be listed as if it were.
    */
   private liveSessionWhere(userId: string) {
-    const idleLimitMs =
-      parseDuration(this.config.auth.accessTtl) + this.config.auth.idleTimeoutMinutes * 60_000;
     return {
       userId,
       revokedAt: null,
       expiresAt: { gt: new Date() },
-      createdAt: { gt: new Date(Date.now() - idleLimitMs) },
+      lastActiveAt: { gt: new Date(Date.now() - this.idleLimitMs()) },
     };
   }
 
@@ -329,7 +400,7 @@ export class TokenService {
     const [rows, total] = await Promise.all([
       this.prisma.refreshToken.findMany({
         where,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        orderBy: [{ lastActiveAt: 'desc' }, { id: 'desc' }],
         skip,
         take,
         select: {
@@ -337,7 +408,7 @@ export class TokenService {
           userAgent: true,
           ipAddress: true,
           sessionStartedAt: true,
-          createdAt: true,
+          lastActiveAt: true,
         },
       }),
       this.prisma.refreshToken.count({ where }),

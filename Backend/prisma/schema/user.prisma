@@ -299,6 +299,14 @@ model RefreshToken {
   /// being replaced every few minutes; `createdAt` is the last renewal.
   sessionStartedAt DateTime @default(now())
 
+  /// When a person last did something on this device — a click or a key,
+  /// reported by the browser's throttled `POST /auth/activity`, or a sign-in.
+  /// The server's idle limit reads this, not `createdAt`: a token is renewed
+  /// only when a request finds the access token expired, so its age said
+  /// nothing about someone reading or typing without saving (7 Oct 2026).
+  /// Copied forward on every rotation, which is not activity.
+  lastActiveAt DateTime @default(now())
+
   @@index([userId, revokedAt])
   @@index([expiresAt])
   @@map("refresh_tokens")

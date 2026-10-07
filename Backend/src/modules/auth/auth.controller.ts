@@ -14,6 +14,7 @@ import {
   Query,
   Req,
   Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -202,6 +203,31 @@ export class AuthController {
     return this.session(await this.auth.getProfile(user.id));
   }
 
+  /**
+   * The browser's activity ping: a person clicked or typed on this device.
+   * Throttled there to one every couple of minutes, shared across tabs.
+   *
+   * Public like refresh, because the refresh cookie — scoped to `/api/auth`
+   * — is what names the session, and an expired access token must not stop
+   * a person who is actively working from being counted as active.
+   */
+  @Public()
+  @RateLimit({ limit: 120, windowSeconds: 900 })
+  @Post('activity')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Record activity on this device',
+    description:
+      "Moves this session's last-active time to now, so the server's idle limit follows what the person does rather than when a token happened to be renewed. 401 when the session is gone, expired or already idle past the limit. No body.",
+  })
+  async activity(@Req() req: Request) {
+    const presented = req.cookies?.[REFRESH_TOKEN_COOKIE] as string | undefined;
+    if (!(await this.tokens.touchSession(presented))) {
+      throw new UnauthorizedException('This session has ended. Please sign in again.');
+    }
+    return { active: true };
+  }
+
   @Public()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -352,7 +378,7 @@ export class AuthController {
       device: describeUserAgent(row.userAgent),
       ipAddress: row.ipAddress,
       signedInAt: row.sessionStartedAt,
-      lastActiveAt: row.createdAt,
+      lastActiveAt: row.lastActiveAt,
       current: row.id === currentId,
     }));
     return paginate(items, total, query.page, query.limit);
