@@ -9,6 +9,7 @@ import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
 import { ImagePreview } from "@/components/common/image-preview";
 import { PhotoLibraryDialog } from "@/components/common/photo-library";
 import { cn } from "@/lib/utils";
+import { toastError } from "@/lib/toast";
 
 /**
  * The one uploader in this application.
@@ -99,7 +100,29 @@ export default function FileUpload({
   // importer takes a PDF, a screenshot, or a text file) — the upload API has
   // exactly two routes, so the route is resolved per file from its actual
   // MIME type rather than fixed on the component.
-  const resolveKind = (file) => (kind === "auto" ? (file.type.startsWith("image/") ? "image" : "document") : kind);
+  //
+  // Only the four types the image route accepts go there. A HEIC from an
+  // iPhone, a TIFF scan or a BMP is still `image/*`, but the image route
+  // refuses it (415) — as a document it is stored and downloads.
+  const resolveKind = (file) => (kind === "auto" ? (IMAGE_TYPES.includes(file.type) ? "image" : "document") : kind);
+
+  // The browser's picker filter. A union that includes "any file" (the
+  // document route's "") is any file: `image/png,` would otherwise offer
+  // images only, because a browser ignores the empty entry rather than
+  // reading it as "everything".
+  const pickerAccept = accept && accept.split(",").every((part) => part.trim()) ? accept : undefined;
+
+  // Said before the bytes travel, not after: a 30 MB file otherwise uploads
+  // in full and is then refused. The server still enforces the same limits.
+  const tooBig = (file) => {
+    const route = resolveKind(file);
+    if (file.size <= UPLOAD_LIMITS[route]) return false;
+    toastError(
+      `${file.name} is too large`,
+      `${route === "image" ? "Images" : "Documents"} can be up to ${UPLOAD_LIMITS[route] / MB} MB.`,
+    );
+    return true;
+  };
 
   const uploadOne = (file) =>
     new Promise((resolve) => {
@@ -117,7 +140,7 @@ export default function FileUpload({
     });
 
   const handleFiles = async (fileList) => {
-    const files = Array.from(fileList ?? []);
+    const files = Array.from(fileList ?? []).filter((file) => !tooBig(file));
     if (files.length === 0) return;
 
     if (!multiple) {
@@ -181,7 +204,7 @@ export default function FileUpload({
       ref={inputRef}
       type="file"
       className="hidden"
-      accept={accept}
+      accept={pickerAccept}
       multiple={multiple}
       onChange={handlePick}
     />
@@ -382,9 +405,22 @@ export default function FileUpload({
  * by reading the bytes. Keeping them roughly in step just means the picker does
  * not offer files that will be refused.
  */
+/** The only types the image route takes (`uploads.rules.ts`, IMAGE). */
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 export const ACCEPT = {
-  image: "image/jpeg,image/png,image/webp,image/gif",
+  image: IMAGE_TYPES.join(","),
   // Any file since 6 Oct 2026: the document route stores what it does not
-  // recognise as opaque bytes that always download (uploads.rules.ts).
+  // recognise as opaque bytes that always download (uploads.rules.ts). Empty
+  // means "no filter", and so does any list that includes it.
   document: "",
 };
+
+const MB = 1024 * 1024;
+
+/**
+ * Per-route ceilings, paired with `maxBytes` in the API's `uploads.rules.ts`
+ * — change one and change the other. The server is the check; this only
+ * spares a person uploading 30 MB to be told no.
+ */
+const UPLOAD_LIMITS = { image: 15 * MB, document: 25 * MB };

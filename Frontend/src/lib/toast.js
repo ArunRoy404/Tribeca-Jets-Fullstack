@@ -49,6 +49,16 @@ export function toastInfo(title, description, options) {
   });
 }
 
+/** A refusal decided in the browser, before any request — "that file is too big". */
+export function toastError(title, description, options) {
+  return gooeyToast.error(title, {
+    description,
+    duration: TOAST_DURATION.long,
+    classNames: BASE_CLASS_NAMES,
+    ...options,
+  });
+}
+
 /**
  * Surfaces a normalised API error.
  *

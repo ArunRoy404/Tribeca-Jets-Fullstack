@@ -87,6 +87,11 @@ export default function UserDetailSheet() {
   const mayWithdraw = isInvited && canAccess(Module.USERS, Action.CREATE);
   const [withdrawing, setWithdrawing] = useState(false);
 
+  // Someone's folder opens for an administrator (who files into it) and for
+  // its owner; the API answers anyone else 403, so the tab is not offered.
+  const mayFile = canAccess(Module.USERS, Action.EDIT);
+  const tabs = mayFile || isSelf ? TABS : TABS.filter((entry) => entry.id !== "documents");
+
   const toggleAccess = () => {
     if (!item?.id) return;
     updateUser({
@@ -132,13 +137,13 @@ export default function UserDetailSheet() {
             </div>
           </div>
 
-          <DetailTabNav tabs={TABS} activeTab={tab} onTabChange={setTab} />
+          <DetailTabNav tabs={tabs} activeTab={tab} onTabChange={setTab} />
 
           {tab === "documents" ? (
             <UserDocumentsTab
               userId={item.id}
               userName={item.name}
-              canManage={canAccess(Module.USERS, Action.EDIT)}
+              canManage={mayFile}
             />
           ) : tab === "permissions" ? (
             <SectionCard>

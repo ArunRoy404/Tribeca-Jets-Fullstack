@@ -16,6 +16,14 @@ const API_PROXY_TARGET =
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    // Every request is buffered up to this size on its way through the
+    // server, and a body beyond it is cut short — so a 12 MB upload reached
+    // the API truncated and failed with a 500. The API takes documents up to
+    // 25 MB (uploads.rules.ts); this leaves room for the multipart envelope.
+    // Change it with that limit.
+    proxyClientMaxBodySize: "26mb",
+  },
   async rewrites() {
     return [
       {
