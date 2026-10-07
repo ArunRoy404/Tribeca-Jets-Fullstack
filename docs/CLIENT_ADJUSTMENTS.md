@@ -8,228 +8,28 @@ ordered by dependency.
 `docs/Client_Adjustments.txt`, which held the raw messages and nothing else.
 The original is not needed and has been deleted.
 
-*Last updated: 27 September 2026.*
+*Last updated: 7 October 2026.*
 
 ---
 
-## 0. Handoff brief — read this first if you are new to this work
+## 0. Where this fits now
 
-You are picking up a workstream mid-flight. Everything you need to continue is
-in this section and the two documents it names. Nothing important lives only in
-a chat log.
+**All eleven of the client's adjustments are built** (19–27 Sep 2026), and
+the project has moved on to the owner's **module-by-module review** (since
+6 Oct 2026). This file is now the record of what the client asked for, in his
+own words, and how each request was built — §3 and §4. It is no longer the
+handoff brief.
 
-### 0.0 The three phases — the shape of the whole remaining project
+- **Where the project stands, what is next, and how to start a session:**
+  [`HANDOFF.md`](../HANDOFF.md) at the repository root.
+- **The rules:** `AGENTS.md`. **Per-module state:**
+  [`MODULE_FEATURE_STATUS.md`](MODULE_FEATURE_STATUS.md). **The review
+  tracker:** [`MODULES.md`](MODULES.md), "Review order".
 
-This is the repository owner's plan, in his own framing. It governs what order
-everything happens in, and **it had been living only in a chat log**, which is
-exactly the failure this document exists to prevent.
-
-| | Phase | State |
-|---|---|---|
-| **1** | **The client's adjustments.** The thirteen messages in §3, built in the dependency order in §2. | **11 of 11 built** — #3, #6, #10b and #11 completed 27 Sep, after Trips, Empty Legs and Commissions were pulled forward from Phase 3 to unblock them. Not yet live-tested from Empty Legs on. #1 needs only its demo. See §1. |
-| **2** | **Frontend changes.** Existing screens change, and new screens that do not exist yet get built. | **Done for the two screens the client's Figma redesigns targeted** — the Build Itinerary preview (24 Sep) and the Quotes form + live preview (25 Sep). See the 25 September entry in §4. No further phase-2 item is queued; if he sends another redesign it reopens this phase for that screen only. |
-| **3** | **Backend + Postman + API integration**, module by module, in dependency order. | **Partly done — and that is the complication.** |
-
-**The complication, stated by the owner and worth understanding before you
-touch anything:**
-
-> *"before doing 1 and 2 we already did some modules, fully and partially. and
-> after doing the 1 and 2, the architecture may update, so for the step 3 we
-> might need to start doing and refactoring from the start."*
-
-So thirteen modules are already wired end to end (see
-`MODULE_FEATURE_STATUS.md`), and phase 2 may change the screens those modules
-were built against. **Expect to revise shipped modules rather than only adding
-new ones.** That is the plan working, not scope creep — the same thing
-`AGENTS.md` says about the schema not being designed up front.
-
-Two consequences that are easy to get wrong:
-
-- **Do not start phase 3 work on a module whose screens phase 2 will redesign.**
-  Read the phase-2 change list first. Building an API against a screen that is
-  about to change is how the work gets done twice.
-- **Phase 1 is not blocking phase 2.** The remaining adjustments are either
-  #11's agent portal, deferred by the client, or a conversation rather than code
-  (see §1). Nothing in phase 1 is both unblocked and independent of the phase-2
-  redesign.
-
-**Where phase 2's specification lived:** nowhere written down — it arrived as
-Figma links dropped into a session, not a doc. Two redesigns came through that
-way and both shipped:
-
-- **Build Itinerary** — a full-screen form with a live document preview,
-  24 September 2026.
-- **Quotes** — the same full-screen-with-live-preview treatment, plus the
-  fields the Figma redesign added (an aircraft exterior photo, a live pricing
-  preview), 25 September 2026. See the entry in §4.
-
-No further phase-2 item is queued as of this update. If another redesign link
-arrives, treat it as reopening phase 2 for that one screen — read the change
-list off the Figma file the same way these two were, and log it here in the
-same pass as the code, per §0.7.
-
-### 0.1 What the project is
-
-A private-jet charter brokerage CRM. Two apps, deployed separately:
-
-| | Stack | Notes |
-|---|---|---|
-| `Frontend/` | Next.js 16, **JavaScript** | Not TypeScript. Deliberate and settled. |
-| `Backend/` | NestJS 12, **TypeScript**, **ESM** | `"type": "module"`; every relative import ends in `.js`. |
-| Database | PostgreSQL + **Prisma 7** | Driver adapters; multi-file schema at `Backend/prisma/schema/*.prisma`. |
-
-**Never migrate the frontend to TS or the backend to JS.**
-
-### 0.2 The documents that govern this work
-
-Read these before writing code. They are not optional background.
-
-| File | What it is |
-|---|---|
-| **`AGENTS.md`** (repo root) | **The whole rulebook.** One file, three parts: everywhere / backend / frontend. Every convention below is stated there in full, with the incident that produced it. |
-| **`docs/MODULE_FEATURE_STATUS.md`** | Per module: what is wired end to end today, and what is deliberately blank until its dependency ships. **Updated in the same pass as every module.** |
-| **`docs/MODULES.md`** | What each module is and why it sits where it does in the queue. |
-| **`docs/Tribeca_Jets_Command_Center_Team_Scope.docx`** | The signed scope. The baseline, and not always right — §13 specifies MongoDB for a database that is relational throughout, and §17 lists twenty-two decisions still open. Where it and the build disagree, say so and continue under a stated assumption. |
-| **This file** | The client's adjustments: specification, status, order. |
-| **`HANDOFF.md`** (repo root) | Setting the project up on a new machine, the commands that hang, and the prompt to open a new session with. |
-
-### 0.3 Standing constraints — these are absolute
-
-These came from the client or the repository owner directly. Breaking one is
-not a style disagreement.
-
-1. **Never run `git commit` or `git push` unless the user says so in that
-   message.** Approval of the *work* is not approval to commit. Leaving
-   finished work uncommitted is the correct resting state. When asked, commit
-   in batches split by concern, and stop at the push if credentials are
-   missing rather than working around it.
-2. **There is no permanent delete anywhere in this system**, and no endpoint
-   that offers one. Removing a record archives it (`deletedAt`); it can always
-   be restored.
-3. **Do not delete any component or modal until its whole module is finished.**
-   Screens still on dummy data are not dead code — they are the specification.
-4. **When a module is wired to its API, its dummy data dies in the same pass** —
-   the file in `src/dummyData/`, the store's copy, and every placeholder left
-   in the JSX. Never display a number the data did not supply.
-5. **If B references A, A ships first.** Do not reorder the queue in §2 because
-   an item looked quick. That is how a foreign key becomes a string.
-6. **Build to the screens he redesigns, not ahead of them.** Quotes and
-   Itinerary were held back at his request until his UI changes arrived; both
-   redesigns shipped (24 and 25 Sep 2026), so neither is deferred any more.
-   What remains of #6 waits on his rate data, not on a screen. See §3, items 3
-   and 6.
-
-### 0.4 Conventions you will trip over if you do not know them
-
-The full reasoning for each is in `AGENTS.md`. This is the short list of the
-ones that bite first.
-
-**Backend**
-
-- **ESM.** Every relative import ends in `.js`, even though the source is `.ts`.
-- **vitest + oxlint**, not jest + eslint. `npm test` runs `vitest run`.
-- **`@nestjs/throttler` and `nestjs-zod` do not support Nest 12.** `RateLimitGuard`
-  and `createZodDto` are hand-rolled. Do not add either package back.
-- **Never build an update schema with `.partial()`** — it does not remove
-  `.default()`, so absent fields arrive carrying defaults and get written.
-  Write update schemas out longhand, every field `.optional()`, no defaults.
-- **Never `z.coerce.number()` or `z.coerce.date()`** on anything a form touches.
-  `Number('')` is `0`; `z.coerce.date()` accepts `true` as 1 Jan 1970. Use
-  `common/dto/numbers.ts` and `common/dto/dates.ts`.
-- **DTOs document themselves.** `createZodDto` publishes OpenAPI through
-  `_OPENAPI_METADATA_FACTORY`. Never hand-write schema metadata.
-- **Three authorization layers, kept separate**: global `JwtAuthGuard` →
-  `@RequirePermissions` + `PermissionsGuard` → **row-level scope in the service,
-  never in a guard.**
-- **404, never 403, for a row the caller may not see.** A 403 confirms the row
-  exists and turns any id into an oracle. 403 is for "your role cannot do this
-  at all".
-- **`findOne` loads archived rows** (the Archived tab links to it); writes go
-  through a private `findLive`.
-- **Every model carries four audit columns and six archive columns**, set from
-  the session and never from the request body.
-- **`prisma migrate dev` is interactive and fails in this environment.** Use:
-  `npx prisma migrate diff --from-config-datasource prisma7.config.ts --to-schema prisma/schema --script`,
-  hand-edit the output, then `prisma migrate deploy`.
-
-**Frontend**
-
-- **URL is the source of truth for table state** — every tab, page, filter,
-  sort and search term. Use `useTableQueryParams`
-  (`src/hooks/common/useTableQueryParams.js`); never hand-roll `useSearchParams`.
-- **Server data comes from React Query, never from a zustand store.** A store
-  may hold client-only state (which dialog is open); nothing the server owns.
-- **A control's value is the wire format; its label is for reading.** Enums
-  travel as `SCREAMING_SNAKE_CASE`; dates travel as `YYYY-MM-DD`. This rule
-  exists because `CommonDatePicker` emitted `"Aug 12, 2026"` and silently broke
-  date saving in four modules.
-- **Hide controls a role cannot use, never disable them.** `usePermissions()`
-  reads the matrix the API ships with `/auth/me`.
-- **Responsiveness is mandatory.** Tables get a card view below `lg`, not
-  horizontal scroll. Stat tiles go 2-column on mobile, not 1.
-- **Never hardcode a colour, radius or shadow** — tokens live in
-  `src/app/globals.css`. Light theme only.
-
-**Both**
-
-- Every list endpoint is paginated and returns `{ success, data, meta }`.
-- Auth is **httpOnly cookies only**. No token ever reaches JavaScript.
-- `Backend/postman/` is a deliverable. Every endpoint gets its entry, with a
-  real captured example for every status it can return, in the same pass as the
-  code.
-
-### 0.5 Commands
-
-```bash
-# Backend  (cwd: Backend/)
-npm run start:dev          # dev server on :4000, API prefix /api
-npm test                   # vitest run
-npm run lint               # oxlint --type-aware
-npm run build              # nest build
-npm run db:deploy          # prisma migrate deploy  (NOT db:migrate — interactive)
-npm run db:seed
-npm run test:api           # newman — the Postman collection must pass before a module is done
-
-# Frontend  (cwd: Frontend/)
-npm run dev
-npm run build              # must be clean before calling a screen done
-```
-
-Swagger: `http://localhost:4000/api/docs`. Seed password: `ChangeMe123!`.
-Seeded accounts include `admin@`, `broker@`, `mark@`, `barry@` and
-`assistant@tribecajets.com`.
-
-There is no `psql` in this environment. Query the database with a short `.cjs`
-script placed **in `Backend/`** (not `/tmp`) using `dotenv` + `pg`.
-
-### 0.6 Git state at handoff
-
-Branch **`roy`**, `origin/roy` up to date through `07f608f` (the
-26 September audit, in six commits) as of 27 September 2026. **The working
-tree is not clean:** all of the 27 September work — #3's fleet photos and photo
-library, #6's suggested price and estimate, the Postman fixes, Trips, Empty
-Legs with #10b, Commissions, and #11's referral work so far (§4) — is
-uncommitted, because nobody has asked for a commit yet. Five new migrations
-(`20260927090000` … `20260927160000`) must be deployed before the API starts
-against an existing database. Commits are pushed only when the
-user asks for it in that message — a session ending with unpushed work
-committed locally is the normal resting state, not a problem to fix. Check
-`git status` and `git log origin/roy..HEAD` on pickup rather than trusting this
-paragraph, since it goes stale the moment the next session commits.
-
-### 0.7 Keeping this file current is part of the work
-
-- **Tick the box in the same pass as the code.** A box ticked later is a box
-  ticked from memory.
-- **When an item is partly done, say which part.** Several of these split across
-  a dependency that has not shipped. Write the remainder down under the item
-  rather than ticking it optimistically.
-- **The client's words are the specification, and they are quoted, not
-  paraphrased. Do not edit a quote.** Where the analysis disagrees with him —
-  items 1 and 9 both do — the disagreement is stated in the item, not resolved
-  silently.
-- **New requests append to §3** with the same treatment: quoted in full,
-  analysed, placed in the order.
+Keeping it current: the client's words are the specification and are quoted,
+never paraphrased; a new request is appended to §3, quoted in full, analysed
+and placed in the order; where the analysis disagrees with him, the item says
+so rather than resolving it silently.
 
 ---
 
