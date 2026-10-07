@@ -3,6 +3,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import DashboardTopNav from "@/components/dashboard/nav/DashboardTopNav";
 import IdleLogoutWatcher from "@/components/common/IdleLogoutWatcher";
 import AreaGate from "@/components/common/AreaGate";
+import ModuleGate from "@/components/common/ModuleGate";
 
 /**
  * Access is gated before this ever renders — `src/proxy.js` redirects requests
@@ -18,6 +19,8 @@ import AreaGate from "@/components/common/AreaGate";
  *
  * `AreaGate` sends a referral agent on to the partner portal (#11): the CRM is
  * staff-only, and the API refuses an agent every panel on it anyway.
+ * `ModuleGate` refuses a page whose module the person's permissions leave
+ * out, the same rule the sidebar applies.
  */
 export default function DashboardLayout({ children }) {
   return (
@@ -27,7 +30,9 @@ export default function DashboardLayout({ children }) {
         <SidebarInset className="flex min-h-screen w-full flex-col bg-background min-w-0">
           <IdleLogoutWatcher />
           <DashboardTopNav />
-          <div className="flex-1 w-full flex flex-col min-w-0">{children}</div>
+          <div className="flex-1 w-full flex flex-col min-w-0">
+            <ModuleGate>{children}</ModuleGate>
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </AreaGate>

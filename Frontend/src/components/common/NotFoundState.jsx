@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
 
+/** `icon` is optional and defaults to the search glyph; the page gate passes a lock. */
 export default function NotFoundState({
+  icon: Icon = SearchX,
   itemType = "Item",
   title,
   message,
@@ -33,7 +35,7 @@ export default function NotFoundState({
       <Reveal className="w-full max-w-md">
         <CommonCard className="flex flex-col items-center justify-center p-8 text-center border-border shadow-card bg-white rounded-lg">
           <div className="size-16 rounded-full bg-purple/10 border border-purple/20 flex items-center justify-center mb-4">
-            <SearchX className="size-8 text-purple stroke-[1.5]" />
+            <Icon className="size-8 text-purple stroke-[1.5]" />
           </div>
 
           <h2 className="font-montserrat font-bold text-[18px] sm:text-[20px] text-foreground mb-2">

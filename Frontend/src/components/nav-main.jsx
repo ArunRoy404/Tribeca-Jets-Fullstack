@@ -18,69 +18,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-
-const CRM_SECTIONS = [
-  {
-    label: "Operations",
-    items: [
-      { label: "Trips", icon: "nav-trips", href: "/dashboard/trips" },
-      { label: "Schedule", icon: "nav-schedule", href: "/dashboard/schedule" },
-      { label: "Operators Sourcing", icon: "nav-operators-sourcing", href: "/dashboard/operator-sourcing" },
-      { label: "Flight Tracking", icon: "nav-flight-tracking", href: "/dashboard/flight-tracking" },
-      { label: "Itineraries", icon: "nav-itineraries", href: "/dashboard/itineraries" },
-      { label: "Empty Legs", icon: "nav-empty-legs", href: "/dashboard/empty-legs" },
-    ],
-  },
-  {
-    label: "Sales & CRM",
-    items: [
-      { label: "Clients", icon: "nav-clients", href: "/dashboard/clients" },
-      { label: "Leads & Agents", icon: "nav-leads-agents", href: "/dashboard/leads-agents" },
-      // Between leads and quotes because that is the order of the pipeline:
-      // someone becomes a client, asks for something, and then gets a price.
-      { label: "Trip Requests", icon: "nav-trips", href: "/dashboard/trip-requests" },
-      // Where the partner portal's submissions arrive (#11). Beside trip
-      // requests because converting one creates a trip request.
-      { label: "Referrals", icon: "nav-leads-agents", href: "/dashboard/referrals" },
-      { label: "Quotes", icon: "nav-quotes", href: "/dashboard/quotes" },
-      { label: "Email Templates", icon: "nav-email-templates", href: "/dashboard/email-templates" },
-    ],
-  },
-  {
-    label: "Database",
-    items: [
-      { label: "Operators", icon: "nav-operators-sourcing", href: "/dashboard/operators" },
-      { label: "Aircraft", icon: "nav-flight-tracking", href: "/dashboard/aircraft" },
-      { label: "Airports", icon: "nav-airports", href: "/dashboard/airports" },
-      // Document Vault (#22) — no Figma icon was exported for it; the
-      // itineraries document glyph is the nearest honest match.
-      { label: "Document Vault", icon: "nav-itineraries", href: "/dashboard/documents" },
-    ],
-  },
-  {
-    label: "Finance",
-    items: [
-      { label: "Receivables", icon: "nav-receivables", href: "/dashboard/receivables" },
-      { label: "Operator Payments", icon: "nav-operator-payments", href: "/dashboard/operator-payments" },
-      { label: "Commissions", icon: "nav-commissions", href: "/dashboard/commissions" },
-      { label: "Transactions", icon: "nav-transactions", href: "/dashboard/transactions" },
-    ],
-  },
-  {
-    label: "Reports",
-    items: [{ label: "Reports", icon: "nav-reports", href: "/dashboard/reports" }],
-  },
-  {
-    label: "System",
-    items: [
-      { label: "Tasks Board", icon: "nav-tasks-board", href: "/dashboard/tasks-board" },
-      { label: "Users & Roles", icon: "nav-users-roles", href: "/dashboard/users-roles" },
-      { label: "Settings", icon: "nav-settings", href: "/dashboard/settings" },
-    ],
-  },
-];
-
-const CRM_HOME = { label: "Dashboard", icon: "nav-dashboard", href: "/dashboard" };
+import { CRM_HOME, CRM_SECTIONS } from "@/components/dashboard/nav/crmNav";
+import { usePermissions } from "@/hooks/common/usePermissions";
 
 /**
  * The sidebar's links: a home entry, then collapsible sections.
@@ -88,9 +27,18 @@ const CRM_HOME = { label: "Dashboard", icon: "nav-dashboard", href: "/dashboard"
  * Both are optional and default to the CRM's, so the dashboard renders exactly
  * as before; the partner portal (#11) passes its own five items. One menu
  * component for both shells, rather than a second copy of this markup.
+ *
+ * An item that names a `module` is shown only to someone who may view it, and
+ * a section left empty is not shown at all (7 Oct 2026). Items without one —
+ * the portal's — always show.
  */
 export function NavMain({ home = CRM_HOME, sections = CRM_SECTIONS }) {
   const pathname = usePathname();
+  const { canAccess } = usePermissions();
+  const visible = (item) => !item?.module || canAccess(item.module);
+  const shownSections = sections
+    .map((section) => ({ ...section, items: section.items.filter(visible) }))
+    .filter((section) => section.items.length);
   const isDashboardActive = pathname === home.href;
   const { isMobile, state, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
@@ -101,21 +49,23 @@ export function NavMain({ home = CRM_HOME, sections = CRM_SECTIONS }) {
 
   return (
     <>
-      <SidebarMenu className={`px-2 pt-2 ${isCollapsed ? "!p-0" : ""}`}>
-        <SidebarMenuItem className={isCollapsed ? "flex justify-center" : ""}>
-          <SidebarMenuButton
-            isActive={isDashboardActive}
-            render={<Link href={home.href} />}
-            onClick={closeOnMobile}
-            className="data-active:border-y data-active:border-white data-active:bg-sidebar-primary/15 data-active:text-white hover:bg-sidebar-primary/20"
-          >
-            <Image src={`/dashboard/icons/${home.icon}.svg`} alt="" width={20} height={20} className="shrink-0" />
-            {!isCollapsed && <span>{home.label}</span>}
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      {visible(home) && (
+        <SidebarMenu className={`px-2 pt-2 ${isCollapsed ? "!p-0" : ""}`}>
+          <SidebarMenuItem className={isCollapsed ? "flex justify-center" : ""}>
+            <SidebarMenuButton
+              isActive={isDashboardActive}
+              render={<Link href={home.href} />}
+              onClick={closeOnMobile}
+              className="data-active:border-y data-active:border-white data-active:bg-sidebar-primary/15 data-active:text-white hover:bg-sidebar-primary/20"
+            >
+              <Image src={`/dashboard/icons/${home.icon}.svg`} alt="" width={20} height={20} className="shrink-0" />
+              {!isCollapsed && <span>{home.label}</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      )}
 
-      {sections.map((section) => (
+      {shownSections.map((section) => (
         <Collapsible key={section.label} defaultOpen className="group/collapsible">
           <SidebarGroup className={isCollapsed ? "!p-0" : ""}>
             {!isCollapsed && (

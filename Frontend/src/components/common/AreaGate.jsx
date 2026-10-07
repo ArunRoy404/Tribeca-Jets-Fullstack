@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import FullPageLoader from "@/components/common/FullPageLoader";
 import { useCurrentUser } from "@/hooks/auth";
 import { homeFor, isPartnerRole } from "@/lib/roles";
-import { ROLE_RESTRICTIONS_ENABLED } from "@/lib/permissions";
 
 /**
  * Keeps each kind of user in their own half of the app: staff in the CRM,
@@ -28,9 +27,8 @@ export default function AreaGate({ area, children }) {
   const { data: user, isPending } = useCurrentUser();
 
   const partner = isPartnerRole(user?.role);
-  // Restrictions off: every user may use both areas (ROLE_RESTRICTIONS_ENABLED).
-  const misplaced =
-    ROLE_RESTRICTIONS_ENABLED && Boolean(user) && (area === "partner" ? !partner : partner);
+  // By the real role, whatever the temporary switch says — see `homeFor`.
+  const misplaced = Boolean(user) && (area === "partner" ? !partner : partner);
 
   useEffect(() => {
     if (misplaced) router.replace(homeFor(user?.role));

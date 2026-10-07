@@ -30,8 +30,10 @@ const routeNameMap = {
   "/dashboard/reports": "Reports",
   "/dashboard/tasks-board": "Tasks Board",
   "/dashboard/users-roles": "Users & Roles",
+  "/dashboard/users-roles/invite": "Invite User",
   "/dashboard/settings": "Settings",
   "/dashboard/account": "My Account",
+  "/dashboard/no-access": "No Access",
 };
 
 function getRouteTitle(pathname) {
@@ -48,6 +50,7 @@ function getRouteTitle(pathname) {
   if (pathname?.startsWith("/dashboard/leads-agents/")) return "Agent Details";
   if (pathname?.startsWith("/dashboard/clients/")) return "Client Details";
   if (pathname?.startsWith("/dashboard/aircraft/")) return "Aircraft Details";
+  if (pathname?.startsWith("/dashboard/users-roles/") && pathname?.endsWith("/edit")) return "Edit User";
 
   const matchedRoute = Object.keys(routeNameMap)
     .filter((route) => route !== "/dashboard" && pathname?.startsWith(route))
