@@ -62,7 +62,7 @@ set of broken joins the day the real table arrives.
 | 23 | **Reports** | ✅ Done (4 Oct) — revenue/profit by departure, cash and FET by payment; CSV and Excel export | All financial modules |
 | 24 | **Dashboard** | ✅ Done (28 Sep) — tiles, priorities, activity; lists read the owning modules | Nearly everything — built last |
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
-| 26 | **Settings / Import / Export / Backup** | 🟡 Screens only (6 Oct) — no API; see the settings map below | Users, Uploads; every module in the map reads it |
+| 26 | **Settings / Import / Export / Backup** | 🟡 Settings API built 7 Oct (awaiting owner sign-off); Import hidden, Export not connected — see the settings map below | Users, Uploads; every module in the map reads it |
 | 27 | **AI Assistant** | Stub only | All |
 | 28 | **Uploads** | ✅ Done | — (built out of order; see below) |
 | 29 | **Notes / Timeline** | ✅ Done — Clients, Trips, Referrals, Flights | Clients, Users (built out of order; adjustment #5) |
@@ -77,7 +77,7 @@ without waiting on the client; #11's agent portal followed the same day, and
 **Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
 on 28 September — everything that hangs off Trips — the **Tasks Board
 (#20)** and **Email Templates (#21)**; the **Dashboard (#24)** and **Document
-Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:** the module-by-module review below, from #1.
+Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:** the module-by-module review below — #1–#3 signed off, #4 Settings waiting for the owner's test, #5 Airports next (7 Oct 2026).
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -129,8 +129,8 @@ reviewed yet — the module may still be built and working.
 | 1 | Auth & Sessions | Yes — idle timeout, warning, admin 2FA | ✅ 6 Oct — owner tested |
 | 2 | Users & Roles | — | ✅ 7 Oct — owner tested |
 | 3 | Uploads | — | ✅ 7 Oct — owner tested |
-| 4 | **Settings API** (#26, backend for the built screens) | — (it is the source) | ⬜ |
-| 5 | Airports | — | ⬜ |
+| 4 | **Settings API** (#26, backend for the built screens) | — (it is the source) | 🟡 built and pushed 7 Oct — waiting for the owner's click-through |
+| 5 | Airports | — | ⬅ next — see HANDOFF.md for the plan and the open picker decision |
 | 6 | Charter Rates / Instant Estimate | — | ⬜ |
 | 7 | Operators | — | ⬜ |
 | 8 | Aircraft | — | ⬜ |
@@ -181,8 +181,10 @@ their password is still suspended.
 
 ### 2. Users & Roles ✅
 
-Invite, edit, change role, suspend, reactivate. Five roles:
-`SUPER_ADMIN`, `ADMIN`, `SENIOR_BROKER`, `BROKER`, `ASSISTANT`.
+Invite, edit, change role, suspend, reactivate, withdraw a pending
+invitation. Roles: `SUPER_ADMIN`, `ADMIN`, `BROKER`, `ASSISTANT` and the
+partner role `REFERRAL_AGENT` (`SENIOR_BROKER` was withdrawn 7 Oct 2026).
+Permissions are per person, module by module — see `AGENTS.md`.
 
 **Authorization runs in three layers**, and every module follows this pattern:
 
@@ -1041,23 +1043,9 @@ most likely source of a surprise at delivery.
 
 ## If you are an agent picking this up cold
 
-1. Read **`AGENTS.md`** at the repository root, in full. It is the whole
-   rulebook and its conventions are not guessable — ESM `.js` imports on a TS
-   source tree, no `.partial()` on update schemas, no `z.coerce.*` on anything
-   a form touches, 404-not-403 for rows outside scope, URL-as-source-of-truth
-   for table state.
-2. Read **[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md)** §0 — it carries the
-   handoff brief, the standing constraints and the current work queue. **§0.0
-   is the three-phase plan** that governs what order the rest of the project
-   happens in; read it before deciding anything is "next".
-3. Read this file for the module you are about to touch, and
-   **[MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md)** for what it can
-   actually do today.
-4. **Read the frontend before writing schema.** The screens were built first
-   and they are the specification.
-5. **Never commit or push unless asked in that message.** Finished work sitting
-   uncommitted is the correct resting state.
-
-Setting the project up on a new machine — env, database, the commands that
-hang, and the prompt to open a session with — is **[HANDOFF.md](../HANDOFF.md)**
-at the repository root.
+Start with **[HANDOFF.md](../HANDOFF.md)** at the repository root — where the
+review stands, what is next, how to run everything, and the prompt to open a
+session with. Then read **`AGENTS.md`** in full, the **Review order** table
+above, and **[MODULE_FEATURE_STATUS.md](MODULE_FEATURE_STATUS.md)** for the
+module you are about to touch. Read the frontend before writing schema, and
+never commit or push unless asked in that message.
