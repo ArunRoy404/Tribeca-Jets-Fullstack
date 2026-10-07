@@ -2,13 +2,18 @@
 """
 Builds the `11 · Uploads` folder, capturing every example from a live API.
 
-Run the backend and seed it first:
+Capture against a second API with `MAIL_DRIVER=log` and its own Redis
+database (see README), then tidy the body comments:
 
-    npm run db:seed && npm run start:dev
-    python3 postman/build_uploads_folder.py
+    POSTMAN_BASE=http://localhost:4100/api python3 postman/build_uploads_folder.py
 
 Examples are captured, never typed — a hand-written example drifts from the
 response the moment a field is added, and this collection is a deliverable.
+
+Rebuilt on `builder_common` for the Uploads review (7 Oct 2026), when role
+restrictions came back on: the access examples — another broker refused a
+file filed about Mark, a referral agent kept to their own uploads — could not
+be captured while every account acted as SUPER_ADMIN.
 
 Re-runnable, twice over:
 
@@ -20,126 +25,52 @@ Re-runnable, twice over:
     examples captured here, since it is the behaviour a caller has to expect.
 """
 
+from __future__ import annotations
+
 import json
-import re
-import mimetypes
 import pathlib
 import urllib.error
 import urllib.request
-import uuid
-from http.cookiejar import CookieJar
+
+from builder_common import BASE, FIXTURES, MISSING, Session, copy_folder_login, example, script
 from collection_order import place_folder
 
-BASE = 'http://localhost:4000/api'
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
-FIXTURES = pathlib.Path(__file__).with_name('fixtures')
-PASSWORD = 'ChangeMe123!'
 
 PHOTO_SRC = FIXTURES / 'sample-photo.png'
 DOCUMENT_SRC = FIXTURES / 'sample-document.pdf'
 SVG_SRC = FIXTURES / 'sample-logo.svg'
+ARCHIVE_SRC = FIXTURES / 'sample-archive.zip'
 
+CSRF_HEADER = [{
+    'key': 'X-CSRF-Token',
+    'value': '{{csrfToken}}',
+    'description': 'Required on every write. Captured automatically after any login or refresh.',
+}]
 
-class Session:
-    """A cookie-backed caller, echoing the CSRF cookie the way the app does."""
-
-    def __init__(self, email: str) -> None:
-        self.jar = CookieJar()
-        self.opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(self.jar)
-        )
-        self.request('POST', '/auth/login', {'email': email, 'password': PASSWORD})
-
-    @property
-    def csrf(self) -> str:
-        for cookie in self.jar:
-            if cookie.name == 'tj_csrf':
-                return cookie.value or ''
-        return ''
-
-    def _send(self, req):
-        """Returns (status, parsed body). Errors are captured, not raised."""
-        req.add_header('X-CSRF-Token', self.csrf)
-        try:
-            with self.opener.open(req) as response:
-                raw = response.read()
-                if not raw:
-                    return response.status, None
-                try:
-                    return response.status, json.loads(raw.decode())
-                except (UnicodeDecodeError, json.JSONDecodeError):
-                    # A file fetch. The bytes are the body, not an example we
-                    # can print — and a PDF decodes as text perfectly happily,
-                    # so catching only UnicodeDecodeError is not enough.
-                    return response.status, {'bytes': len(raw)}
-        except urllib.error.HTTPError as error:
-            raw = error.read().decode()
-            try:
-                return error.code, json.loads(raw)
-            except json.JSONDecodeError:
-                return error.code, raw
-
-    def request(self, method: str, path: str, body=None):
-        data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(BASE + path, data=data, method=method)
-        if data is not None:
-            req.add_header('Content-Type', 'application/json')
-        return self._send(req)
-
-    def upload(self, route: str, path: pathlib.Path, declared: str | None = None,
-               filename: str | None = None, fields: dict | None = None):
-        """A real multipart POST, so the sniffer sees real bytes."""
-        boundary = f'----tribeca{uuid.uuid4().hex}'
-        name = filename or path.name
-        content_type = (
-            declared
-            or mimetypes.guess_type(name)[0]
-            or 'application/octet-stream'
-        )
-        parts = []
-        for key, value in (fields or {}).items():
-            parts.append(
-                f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"'
-                f'\r\n\r\n{value}\r\n'.encode()
-            )
-        parts.append(
-            f'--{boundary}\r\nContent-Disposition: form-data; name="file"; '
-            f'filename="{name}"\r\nContent-Type: {content_type}\r\n\r\n'.encode()
-            + path.read_bytes()
-            + b'\r\n'
-        )
-        parts.append(f'--{boundary}--\r\n'.encode())
-        body = b''.join(parts)
-        req = urllib.request.Request(BASE + route, data=body, method='POST')
-        req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
-        return self._send(req)
-
-
-STATUS_TEXT = {
-    200: 'OK', 201: 'Created', 204: 'No Content', 400: 'Bad Request',
-    401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 409: 'Conflict',
-    413: 'Payload Too Large', 415: 'Unsupported Media Type',
-}
-
+IMAGE_TYPES = 'image/jpeg | image/png | image/webp | image/gif'
+DOCUMENT_TYPES = ('application/pdf | '
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document (.docx) | '
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet (.xlsx) | '
+                  'text/plain | text/csv')
 
 VISIBILITY_DESC = (
-    'optional · PUBLIC | PRIVATE. Default PRIVATE. PUBLIC is any signed-in user — aircraft '
-    'photographs, brochures, logos. PRIVATE is the uploader, an administrator, and ownerUserId '
-    'if given. The default fails closed on purpose: the mistake is then a brochure nobody can '
-    'see, not a tax form everybody can.'
+    'optional · PUBLIC | PRIVATE (case-sensitive). Default PRIVATE. PUBLIC is any signed-in user — '
+    'aircraft photographs, brochures, logos. PRIVATE is the uploader, the person named in ownerUserId, '
+    'and SUPER_ADMIN / ADMIN. The default fails closed on purpose: the mistake is then a brochure '
+    'nobody can see, not a tax form everybody can. A REFERRAL_AGENT may not send PUBLIC (403).'
 )
 
 OWNER_DESC = (
     'optional · uuid. The user this document is *about*, who may then read it. This is what files '
-    'a 1099 into a broker\'s folder. Naming anyone but yourself needs MANAGE_USERS, or any broker '
-    'could drop a document into any other broker\'s folder.'
+    'a 1099 into a broker\'s folder. Naming anyone but yourself needs MANAGE_USERS (SUPER_ADMIN, '
+    'ADMIN), or any broker could drop a document into any other broker\'s folder (403).'
 )
 
 LABEL_DESC = 'optional · max 200 chars. A human name shown instead of the filename — "2025 Form 1099".'
 
 
-def formdata(*, description: str, src: pathlib.Path, visibility=None,
-             owner=None, label=None):
+def formdata(*, description: str, src: pathlib.Path, visibility=None, owner=None, label=None):
     """The multipart body Postman sends, with every field described."""
     form = [{
         'key': 'file',
@@ -161,138 +92,126 @@ def formdata(*, description: str, src: pathlib.Path, visibility=None,
     return form
 
 
-def example(name, method, path, status, body, form=None, preview='json'):
+def fetch_bytes(session: Session, path: str) -> tuple[int, int]:
     """
-    One Postman response example, carrying the request that produced it.
+    GET a stored file and return (status, byte count).
 
-    Raises when the status written in the name disagrees with the status the
-    API returned — a captured example is not an assertion, so this is the only
-    place a mislabelled one can be caught (see AGENTS.md, Postman).
+    `Session.request` parses JSON; a file's body is the file, so it is read
+    raw here rather than teaching the shared session about binary bodies.
     """
-    promised = re.search(r'\b(\d{3})\b', name)
-    if promised and int(promised.group(1)) != status:
-        raise SystemExit(
-            f"example '{name}' promises {promised.group(1)} but the API returned "
-            f"{status}: {json.dumps(body)[:300]}"
-        )
-    original = {
-        'method': method,
-        'header': [],
-        'url': {
-            'raw': '{{baseUrl}}' + path,
-            'host': ['{{baseUrl}}'],
-            'path': [p for p in path.lstrip('/').split('/') if p and '?' not in p],
-        },
-    }
-    if '?' in path:
-        original['url']['query'] = [
-            {'key': k, 'value': v}
-            for k, v in (pair.split('=', 1) for pair in path.split('?', 1)[1].split('&'))
-        ]
-    if form is not None:
-        original['body'] = {'mode': 'formdata', 'formdata': form}
+    req = urllib.request.Request(BASE + path, method='GET')
+    try:
+        with session.opener.open(req) as response:
+            return response.status, len(response.read())
+    except urllib.error.HTTPError as error:
+        return error.code, 0
 
-    return {
-        'name': name,
-        'originalRequest': original,
-        'status': STATUS_TEXT[status],
-        'code': status,
-        '_postman_previewlanguage': preview,
-        'header': [{'key': 'Content-Type', 'value': 'application/json; charset=utf-8'}],
-        'cookie': [],
-        'body': '' if body is None else json.dumps(body, indent=2, ensure_ascii=False),
-    }
-
-
-def script(listen, lines):
-    return {'listen': listen, 'script': {'type': 'text/javascript', 'exec': lines}}
-
-
-CSRF_HEADER = [{
-    'key': 'X-CSRF-Token',
-    'value': '{{csrfToken}}',
-    'description': 'Required on every write. Captured automatically after any login or refresh.',
-}]
-
-IMAGE_TYPES = 'image/jpeg | image/png | image/webp | image/gif'
-DOCUMENT_TYPES = ('application/pdf | '
-                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document (.docx) | '
-                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet (.xlsx) | '
-                  'text/plain | text/csv')
 
 HOW_IT_WORKS = """One upload surface for the whole product.
 
-A screen posts a file here, gets back a **URL**, and stores that URL on whatever record it is editing — `photoUrl` on an aircraft, an attachment on a referral, a document on a user. Nothing in this folder knows or cares what a file is *for*; that is the business of the record holding the URL.
+A screen posts a file here, gets back a **URL**, and stores that URL on whatever record it is editing — `photoUrl` on an aircraft, an attachment on a referral, a document in the vault, an avatar. Nothing in this folder knows or cares what a file is *for*; that is the business of the record holding the URL.
 
-**Why it works this way.** The upload does not need to know what the file will be attached to, so a photograph can be chosen on a *create* form — before the record it belongs to exists. An API that wanted the aircraft id at upload time could not do that, and every create form would have to save first and upload second, leaving a record with no picture whenever the second call failed.
+**Why it works this way.** The upload does not need to know what the file will be attached to, so a photograph can be chosen on a *create* form — before the record it belongs to exists.
 
-**Two routes, because there are two kinds of file.** `image` and `document` describe what a file *is*. A *purpose* — "tax form", "id proof", "brochure" — is not a kind, and making it one would put every new upload button in the product behind a migration.
+**Two routes, because there are two kinds of file.** `image` and `document` describe what a file *is*. A *purpose* — "tax form", "id proof", "brochure" — is not a kind, and making it one would put every new upload button behind a migration.
 
-| Route | Accepts | Limit | Folder |
+| Route | Accepts | Limit | Stored under |
 |---|---|---|---|
-| `POST /uploads/image` | `%s` | 15 MB | `images/` |
-| `POST /uploads/document` | `%s` | 25 MB | `documents/` |
+| `POST /uploads/image` | `%s` — nothing else | 15 MB | `images/<sha256>.<ext>` |
+| `POST /uploads/document` | **any file**. `%s` keep their own type; anything else is stored as `application/octet-stream` | 25 MB | `documents/<sha256>.<ext>`, no extension for an unrecognised file |
 
-**The content type is read from the bytes, never from the upload header.** A multipart part's `Content-Type` is chosen by whoever sent it, so believing it would let them decide what a browser is later handed — `text/html` served from this API's own origin, with the session cookie attached. Renaming a `.exe` to `.png` changes nothing.
+**The content type is read from the bytes, never from the upload header or the filename.** A multipart part's `Content-Type` is chosen by whoever sent it, so believing it would let them decide what a browser is later handed — `text/html` served from this API's own origin, with the session cookie attached. Images stay strict because they are served `inline`; SVG is never an image, because it executes script. A document the server cannot recognise (a zip, a legacy `.xls`, a scan) is accepted but always served as an **attachment** with `nosniff`, so it is saved to disk and never rendered here.
 
-Three formats are refused on purpose. **SVG** is a document that executes script. **Archives** carry their contents past whatever checked the outer file. **Legacy `.doc`/`.xls`** are both OLE2 and byte-identical at the header, so telling them apart would mean trusting the sender.
+**Who may open a file — two columns on the row:**
 
-**Re-uploading a file returns the one already on file.** Deduplication is by SHA-256 of the bytes, scoped to the uploader: the same file sent twice answers `deduplicated: true` with the original `id` and `createdAt`, and writes nothing. Storage is content-addressed (`images/<sha256>.png`), so two people holding the same image cost two rows and one object.
+| `visibility` | Who may read it |
+|---|---|
+| `PUBLIC` | anyone signed in (the photo library, brochures) |
+| `PRIVATE` (default) | the uploader · the person named in `ownerUserId` · **SUPER_ADMIN and ADMIN, always** |
+
+Everyone else gets a **404, not a 403** — on fetch, describe and remove alike — because a 403 would confirm the file exists. The administrator rule is the stored role, not a per-person permission. A **REFERRAL_AGENT** is a partner: their uploads are always PRIVATE with no owner (a PUBLIC or filed upload is a 403), and their list holds only their own uploads.
+
+**A folder is a query, not a directory.** A broker's folder is `GET /uploads?ownerUserId=<id>`; the photo library is `?kind=IMAGE&visibility=PUBLIC`. Storage itself is flat and content-addressed — on local disk and on Cloudflare R2 alike — so identical bytes are stored once.
+
+**Re-uploading a file returns the one already on file.** Deduplication is by SHA-256 of the bytes, scoped to the uploader, the owner and the visibility: the same file sent twice answers `deduplicated: true` with the original `id`, and writes nothing.
 
 **Removal archives the record and leaves the bytes alone.** Nothing in this system is permanently deleted, and the object may be shared with another user's row — erasing it would break a record the request never looked at.""" % (IMAGE_TYPES, DOCUMENT_TYPES)
 
 
-def build(admin, mark_id):
-    photo_status, photo = admin.upload(
-        '/uploads/image', PHOTO_SRC,
-        fields={'visibility': 'PUBLIC', 'label': 'Global 7500 cabin'},
-    )
+def build(owner: Session, mark: Session, barry: Session, agent: Session, mark_id: str):
+    probes: list[tuple[Session, str]] = []
+
+    photo_status, photo = owner.upload('/uploads/image', PHOTO_SRC,
+                                       {'visibility': 'PUBLIC', 'label': 'Global 7500 cabin'})
     assert photo_status == 201, (photo_status, photo)
     photo_id = photo['data']['id']
+    probes.append((owner, photo_id))
 
-    # The same bytes again — the deduplication example, captured live.
-    dup_status, dup = admin.upload(
-        '/uploads/image', PHOTO_SRC, filename='same-photo-renamed.png',
-        fields={'visibility': 'PUBLIC', 'label': 'Global 7500 cabin'},
-    )
+    # The same bytes again, under another name — the deduplication example.
+    dup_status, dup = owner.upload('/uploads/image', PHOTO_SRC,
+                                   {'visibility': 'PUBLIC', 'label': 'Global 7500 cabin'},
+                                   filename='same-photo-renamed.png')
     assert dup_status == 201 and dup['data']['deduplicated'] is True, dup
 
-    # A broker's tax form: the client's own example, and the one case where
-    # getting the access rule wrong matters.
-    doc_status, doc = admin.upload(
-        '/uploads/document', DOCUMENT_SRC,
-        fields={'ownerUserId': mark_id, 'label': '2025 Form 1099'},
-    )
-    assert doc_status == 201, (doc_status, doc)
-    assert doc['data']['visibility'] == 'PRIVATE', doc
+    # Mark's tax form: the client's own example, and the case where getting
+    # the access rule wrong matters.
+    doc_status, doc = owner.upload('/uploads/document', DOCUMENT_SRC,
+                                   {'ownerUserId': mark_id, 'label': '2025 Form 1099'})
+    assert doc_status == 201 and doc['data']['visibility'] == 'PRIVATE', (doc_status, doc)
     doc_id = doc['data']['id']
+    probes.append((owner, doc_id))
 
-    folder = admin.request(
-        'GET', f'/uploads?ownerUserId={mark_id}&kind=DOCUMENT&page=1&limit=10')
-    listing = admin.request('GET', '/uploads?page=1&limit=10')
-    # Client adjustment #3's photo library: PUBLIC images only.
-    library = admin.request('GET', '/uploads?kind=IMAGE&visibility=PUBLIC&page=1&limit=10')
-    # A broker opening somebody else's folder. It used to be the administrator
-    # asking — who manages users, so may open any folder — and the example
-    # labelled 403 held a 200. Fixed at the request, not the label.
-    forbidden_owner = Session('broker@example.com').request(
-        'GET', f'/uploads?ownerUserId={mark_id}')
+    # Any file is a document; one the sniffer cannot place is stored opaque.
+    zip_status, zipped = owner.upload('/uploads/document', ARCHIVE_SRC,
+                                      {'label': 'Fuel receipts, October'})
+    assert zip_status == 201 and zipped['data']['contentType'] == 'application/octet-stream', zipped
+    probes.append((owner, zipped['data']['id']))
 
-    # Rejections, all captured from real responses.
-    svg = admin.upload('/uploads/image', SVG_SRC)
-    pdf_to_image = admin.upload('/uploads/image', DOCUMENT_SRC)
+    # A name with accents, as every browser sends it (UTF-8). Kept intact
+    # since 7 Oct 2026; it used to be stored as "CotizaciÃ³n".
+    named_status, named = owner.upload('/uploads/document', DOCUMENT_SRC,
+                                       {'label': 'Signed quote'}, filename='Cotización – Müller.pdf')
+    assert named_status == 201 and named['data']['filename'] == 'Cotización – Müller.pdf', named
+    probes.append((owner, named['data']['id']))
 
-    no_file = admin.request('POST', '/uploads/image')
+    # The agent's own attachment, so their list has something in it.
+    agent_status, agent_file = agent.upload('/uploads/document', DOCUMENT_SRC,
+                                            {'label': 'Client itinerary notes'})
+    assert agent_status == 201 and agent_file['data']['visibility'] == 'PRIVATE', agent_file
+    probes.append((agent, agent_file['data']['id']))
 
-    meta = admin.request('GET', f'/uploads/{doc_id}/meta')
-    fetch = admin.request('GET', f'/uploads/{photo_id}')
-    missing = admin.request('GET', '/uploads/11111111-1111-4111-8111-111111111111')
-    bad_uuid = admin.request('GET', '/uploads/not-a-uuid')
+    listing = owner.request('GET', '/uploads?page=1&limit=10')
+    folder = owner.request('GET', f'/uploads?ownerUserId={mark_id}&kind=DOCUMENT&page=1&limit=10')
+    library = owner.request('GET', '/uploads?kind=IMAGE&visibility=PUBLIC&page=1&limit=10')
+    others_folder = barry.request('GET', f'/uploads?ownerUserId={mark_id}')
+    agent_list = agent.request('GET', '/uploads?page=1&limit=10')
+    assert all(row['id'] != doc_id for row in agent_list[1]['data']), 'agent list leaked a private file'
 
-    removed = admin.request('DELETE', f'/uploads/{doc_id}')
-    gone = admin.request('GET', f'/uploads/{doc_id}')
-    restored = admin.request('POST', f'/uploads/{doc_id}/restore')
-    already_live = admin.request('POST', f'/uploads/{doc_id}/restore')
+    svg = owner.upload('/uploads/image', SVG_SRC)
+    pdf_to_image = owner.upload('/uploads/image', DOCUMENT_SRC)
+    renamed = owner.upload('/uploads/image', DOCUMENT_SRC, filename='cabin.png', declared='image/png')
+    no_file = owner.request('POST', '/uploads/image')
+    filed_by_broker = barry.upload('/uploads/document', DOCUMENT_SRC, {'ownerUserId': mark_id})
+    agent_public = agent.upload('/uploads/document', DOCUMENT_SRC, {'visibility': 'PUBLIC'})
+
+    fetch_status, fetch_size = fetch_bytes(owner, f'/uploads/{photo_id}')
+    assert fetch_status == 200, fetch_status
+    barry_fetch = barry.request('GET', f'/uploads/{doc_id}/meta')
+    missing = owner.request('GET', f'/uploads/{MISSING}')
+    bad_uuid = owner.request('GET', '/uploads/not-a-uuid')
+
+    meta = owner.request('GET', f'/uploads/{doc_id}/meta')
+    marks_meta = mark.request('GET', f'/uploads/{doc_id}/meta')
+    barry_meta = barry.request('GET', f'/uploads/{doc_id}/meta')
+
+    barry_remove = barry.request('DELETE', f'/uploads/{doc_id}')
+    removed = owner.request('DELETE', f'/uploads/{doc_id}')
+    gone = owner.request('GET', f'/uploads/{doc_id}/meta')
+    gone_fetch_status, _ = fetch_bytes(owner, f'/uploads/{doc_id}')
+    gone_fetch = owner.request('GET', f'/uploads/{MISSING}') if gone_fetch_status != 404 else None
+    restored = owner.request('POST', f'/uploads/{doc_id}/restore')
+    already_live = owner.request('POST', f'/uploads/{doc_id}/restore')
+    assert gone_fetch is None, 'an archived file still served'
 
     requests = [
         {
@@ -301,8 +220,6 @@ def build(admin, mark_id):
                 "pm.test('200 OK', () => pm.response.to.have.status(200));",
                 "pm.test('paginated like every other list', () =>",
                 "  pm.expect(pm.response.json().meta).to.have.property('totalPages'));",
-                "// Scoped on the way out: a caller sees public files, their own",
-                "// uploads, and anything filed about them. An administrator sees all.",
             ])],
             'request': {
                 'method': 'GET',
@@ -312,27 +229,23 @@ def build(admin, mark_id):
                     'host': ['{{baseUrl}}'],
                     'path': ['uploads'],
                     'query': [
-                        {'key': 'page', 'value': '1',
-                         'description': 'optional · integer ≥ 1. Default 1.'},
-                        {'key': 'limit', 'value': '10',
-                         'description': 'optional · integer 1-100. Default 10.'},
+                        {'key': 'page', 'value': '1', 'description': 'optional · integer ≥ 1. Default 1.'},
+                        {'key': 'limit', 'value': '10', 'description': 'optional · integer 1-100. Default 10.'},
                         {'key': 'search', 'value': None, 'disabled': True,
                          'description': 'optional · matches filename and label.'},
                         {'key': 'ownerUserId', 'value': None, 'disabled': True,
-                         'description': 'optional · uuid. Opens one person\'s folder. '
-                                        'Anyone but yourself needs MANAGE_USERS.'},
+                         'description': 'optional · uuid. Opens one person\'s folder. Anyone but yourself '
+                                        'needs MANAGE_USERS (SUPER_ADMIN, ADMIN) — 403 otherwise.'},
                         {'key': 'kind', 'value': None, 'disabled': True,
-                         'description': 'optional · IMAGE | DOCUMENT.'},
+                         'description': 'optional · IMAGE | DOCUMENT (case-sensitive).'},
                         {'key': 'visibility', 'value': None, 'disabled': True,
-                         'description': 'optional · PUBLIC | PRIVATE (case-sensitive). Only narrows: '
-                                        'the caller\'s own read rule still applies. '
-                                        'kind=IMAGE&visibility=PUBLIC is the photo library.'},
+                         'description': 'optional · PUBLIC | PRIVATE (case-sensitive). Only narrows: the '
+                                        'caller\'s own read rule still applies. kind=IMAGE&visibility=PUBLIC '
+                                        'is the photo library.'},
                         {'key': 'archived', 'value': None, 'disabled': True,
-                         'description': 'optional · true | false. Default false. '
-                                        'true returns only removed files.'},
+                         'description': 'optional · true | false. Default false. true returns only removed files.'},
                         {'key': 'sortBy', 'value': None, 'disabled': True,
-                         'description': 'optional · createdAt | updatedAt | filename | label | size. '
-                                        'Default createdAt.'},
+                         'description': 'optional · createdAt | updatedAt | filename | label | size. Default createdAt.'},
                         {'key': 'sortOrder', 'value': None, 'disabled': True,
                          'description': 'optional · asc | desc. Default desc — newest first.'},
                     ],
@@ -341,23 +254,24 @@ def build(admin, mark_id):
                     'A page of files the caller may see.\n\n'
                     '**`ownerUserId` is what makes this a folder.** The client asked for "a folder for each '
                     'broker that I can attach tax forms to"; that folder is every live upload filed about '
-                    'them. A query, not a second table — so removing the document and removing the file are '
-                    'one act rather than two rows to keep in step.\n\n'
-                    'The result is scoped on the way out: public files, the caller\'s own uploads, and '
-                    'anything filed about them. An administrator sees everything.'
+                    'them. A query, not a second table or a storage directory.\n\n'
+                    'Scoped on the way out, by exactly the rule a fetch uses: public files, the caller\'s '
+                    'own uploads, and anything filed about them. SUPER_ADMIN and ADMIN see everything. A '
+                    'REFERRAL_AGENT sees only their own uploads — they may open a public file by its '
+                    'address, but not browse the desk\'s.'
                 ),
             },
             'response': [
                 example('Success (200 · everything this caller may see)', 'GET',
                         '/uploads?page=1&limit=10', *listing),
                 example('Success (200 · one broker\'s document folder)', 'GET',
-                        f'/uploads?ownerUserId={mark_id}&kind=DOCUMENT&page=1&limit=10',
-                        *folder),
+                        f'/uploads?ownerUserId={mark_id}&kind=DOCUMENT&page=1&limit=10', *folder),
                 example('Success (200 · the photo library: PUBLIC images)', 'GET',
                         '/uploads?kind=IMAGE&visibility=PUBLIC&page=1&limit=10', *library),
-                example('Error (403 · another user\'s folder)', 'GET',
-                        f'/uploads?ownerUserId={mark_id}',
-                        *forbidden_owner),
+                example('Success (200 · a referral agent sees only their own uploads)', 'GET',
+                        '/uploads?page=1&limit=10', *agent_list),
+                example('Error (403 · a broker opening another user\'s folder)', 'GET',
+                        f'/uploads?ownerUserId={mark_id}', *others_folder),
             ],
         },
         {
@@ -380,22 +294,18 @@ def build(admin, mark_id):
             'request': {
                 'method': 'POST',
                 'header': CSRF_HEADER,
-                'url': {'raw': '{{baseUrl}}/uploads/image', 'host': ['{{baseUrl}}'],
-                        'path': ['uploads', 'image']},
-                'body': {'mode': 'formdata',
-                         'formdata': formdata(
-                             description=f'Required · the bytes. Accepted: {IMAGE_TYPES}. Maximum 15 MB. '
-                                         'SVG is refused — it executes script. The type is read from the '
-                                         'bytes, so the filename and the part\'s Content-Type are ignored.',
-                             src=PHOTO_SRC, visibility='PUBLIC',
-                             label='Global 7500 cabin')},
+                'url': {'raw': '{{baseUrl}}/uploads/image', 'host': ['{{baseUrl}}'], 'path': ['uploads', 'image']},
+                'body': {'mode': 'formdata', 'formdata': formdata(
+                    description=f'Required · the bytes. Accepted: {IMAGE_TYPES}. Maximum 15 MB. SVG is '
+                                'refused — it executes script. The type is read from the bytes, so the '
+                                'filename and the part\'s Content-Type are ignored.',
+                    src=PHOTO_SRC, visibility='PUBLIC', label='Global 7500 cabin')},
                 'description': (
                     'Stores the file under `images/` and returns the URL to save on whatever record is '
                     'being edited.\n\n'
                     'The response `url` is **relative** (`/api/uploads/<id>`) on purpose: an absolute URL '
-                    'captured at upload time embeds whatever host was running then, so every row written '
-                    'in development would point at localhost for ever. It works directly in an `<img src>` '
-                    'because the session is an httpOnly cookie and needs no token in the URL.\n\n'
+                    'captured at upload time embeds whatever host was running then, so a domain change or '
+                    'a move to a CDN would strand every file already uploaded.\n\n'
                     '`deduplicated: true` means these exact bytes were already on file for this user and '
                     'the existing record was returned — no second copy was written, and `createdAt` may be '
                     'older than this request.'
@@ -408,15 +318,15 @@ def build(admin, mark_id):
                 example('Success (201 · already uploaded, existing record returned)',
                         'POST', '/uploads/image', 201, dup,
                         form=formdata(description='The same bytes, under a different filename.',
-                                      src=PHOTO_SRC, visibility='PUBLIC',
-                                      label='Global 7500 cabin')),
+                                      src=PHOTO_SRC, visibility='PUBLIC', label='Global 7500 cabin')),
                 example('Error (415 · SVG refused)', 'POST', '/uploads/image', *svg,
-                        form=formdata(description='An SVG — a document that executes script.',
-                                      src=SVG_SRC)),
-                example('Error (415 · a PDF is not an image)', 'POST', '/uploads/image',
-                        *pdf_to_image,
-                        form=formdata(description='A PDF posted to the image route.',
-                                      src=DOCUMENT_SRC)),
+                        form=formdata(description='An SVG — a document that executes script.', src=SVG_SRC)),
+                example('Error (415 · a PDF is not an image)', 'POST', '/uploads/image', *pdf_to_image,
+                        form=formdata(description='A PDF posted to the image route.', src=DOCUMENT_SRC)),
+                example('Error (415 · a PDF renamed cabin.png and declared image/png)', 'POST',
+                        '/uploads/image', *renamed,
+                        form=formdata(description='The PDF again, sent as cabin.png with Content-Type '
+                                                  'image/png. The bytes decide.', src=DOCUMENT_SRC)),
                 example('Error (400 · no file part)', 'POST', '/uploads/image', *no_file),
             ],
         },
@@ -427,7 +337,7 @@ def build(admin, mark_id):
                 '// trusting {{userId}}, which `04 · Users` sets. Without this the',
                 '// folder passed inside a full run and answered 400 run on its own.',
                 "const base = pm.collectionVariables.get('baseUrl');",
-                "pm.sendRequest({ url: base + '/users?limit=1&role=BROKER', method: 'GET' }, function (err, res) {",
+                "pm.sendRequest({ url: base + '/users?limit=1&role=BROKER&status=ACTIVE', method: 'GET' }, function (err, res) {",
                 '    if (!err && res.code === 200 && res.json().data.length) {',
                 "        pm.collectionVariables.set('userId', res.json().data[0].id);",
                 '    }',
@@ -451,34 +361,48 @@ def build(admin, mark_id):
                 'header': CSRF_HEADER,
                 'url': {'raw': '{{baseUrl}}/uploads/document', 'host': ['{{baseUrl}}'],
                         'path': ['uploads', 'document']},
-                'body': {'mode': 'formdata',
-                         'formdata': formdata(
-                             description=f'Required · the bytes. Accepted: {DOCUMENT_TYPES}. Maximum 25 MB. '
-                                         'Legacy .doc and .xls are refused: both are OLE2 and byte-identical '
-                                         'at the header, so telling them apart would mean trusting the sender.',
-                             src=DOCUMENT_SRC, owner='{{userId}}',
-                             label='2025 Form 1099')},
+                'body': {'mode': 'formdata', 'formdata': formdata(
+                    description='Required · the bytes, any file, maximum 25 MB. '
+                                f'{DOCUMENT_TYPES} keep their own type; anything else is stored as '
+                                'application/octet-stream and always downloads.',
+                    src=DOCUMENT_SRC, owner='{{userId}}', label='2025 Form 1099')},
                 'description': (
                     'Stores the file under `documents/` and returns the URL to save on the record being '
                     'edited.\n\n'
                     '**This example is the client\'s own:** *"a broker (mark) makes a commission with us, we '
                     'need to give him a 1099 tax form. I want to be able to add that form into his own '
                     'personal folder."* Passing `ownerUserId` is what files it there.\n\n'
-                    'It stays **PRIVATE** because that is the default. Mark can read it and so can an '
-                    'administrator; another broker of identical rank gets a **404, not a 403** — a 403 would '
-                    'confirm the document exists and turn a list of user ids into a register of who has been '
-                    'paid.\n\n'
-                    'A file whose bytes are plain text is stored as `text/plain` whatever it was named — '
-                    'so HTML uploaded as `invoice.pdf` is stored as text and served as an **attachment** '
-                    'with `X-Content-Type-Options: nosniff`, which means a browser downloads it instead of '
-                    'executing it on this API\'s origin.'
+                    'It stays **PRIVATE** because that is the default. Mark can read it, and so can '
+                    'SUPER_ADMIN and ADMIN; another broker gets a **404, not a 403** (see `04` and `05`).\n\n'
+                    '**Any file is accepted** (owner\'s decision, 6 Oct 2026). One the server cannot '
+                    'recognise — a zip, a legacy `.xls`, a scan — is stored as `application/octet-stream` '
+                    'whatever it was named or declared, and served as an attachment with `nosniff`, so it '
+                    'can never run in a tab on this API\'s origin.\n\n'
+                    'The **filename** is kept as sent — accents and all — with any client-side path '
+                    'and control characters removed, and shortened to 255 characters with its extension '
+                    'kept. It is only a label: the storage key is the content hash.\n\n'
+                    '**Refused:** filing about someone else without MANAGE_USERS, and a referral agent '
+                    'publishing (PUBLIC) or filing — a partner\'s upload is a private attachment.'
                 ),
             },
             'response': [
-                example('Success (201 · filed in a broker\'s folder)', 'POST',
-                        '/uploads/document', 201, doc,
+                example('Success (201 · filed in a broker\'s folder)', 'POST', '/uploads/document', 201, doc,
                         form=formdata(description='The document.', src=DOCUMENT_SRC,
                                       owner=mark_id, label='2025 Form 1099')),
+                example('Success (201 · an unrecognised file is stored as application/octet-stream)',
+                        'POST', '/uploads/document', zip_status, zipped,
+                        form=formdata(description='A zip of receipts.', src=ARCHIVE_SRC,
+                                      label='Fuel receipts, October')),
+                example('Success (201 · a filename with accents is kept as sent)', 'POST',
+                        '/uploads/document', named_status, named,
+                        form=formdata(description='A PDF named "Cotización – Müller.pdf".',
+                                      src=DOCUMENT_SRC, label='Signed quote')),
+                example('Error (403 · a broker filing into another user\'s folder)', 'POST',
+                        '/uploads/document', *filed_by_broker,
+                        form=formdata(description='The document.', src=DOCUMENT_SRC, owner=mark_id)),
+                example('Error (403 · a referral agent publishing a file)', 'POST',
+                        '/uploads/document', *agent_public,
+                        form=formdata(description='The document.', src=DOCUMENT_SRC, visibility='PUBLIC')),
             ],
         },
         {
@@ -502,21 +426,21 @@ def build(admin, mark_id):
                 'description': (
                     'Streams the bytes. **This is the address returned by the upload routes and stored on '
                     'records** — it works directly in an `<img src>`.\n\n'
-                    'Requires a session: there is no unauthenticated path to a stored file. Permission is '
-                    're-checked on every fetch rather than frozen into a signature, so access that is '
-                    'revoked actually stops working — unlike a presigned link, which keeps working because '
-                    'it was signed before anyone revoked anything.\n\n'
-                    'Images are served `inline`; everything else `attachment`.'
+                    'Requires a session: there is no unauthenticated path to a stored file, and the storage '
+                    'bucket itself is never public. Permission is re-checked on every fetch rather than '
+                    'frozen into a signature, so access that is revoked actually stops working.\n\n'
+                    'A file the caller may not read answers **404**, exactly like one that does not exist '
+                    '— a 403 would confirm it is there.'
                 ),
             },
             'response': [
                 example('Success (200 · the bytes)', 'GET', '/uploads/{{uploadImageId}}', 200,
-                        {'_': 'The response body is the file itself — '
-                              f'{fetch[1].get("bytes", 0)} bytes of image/png. '
+                        {'_': f'The response body is the file itself — {fetch_size} bytes of image/png. '
                               'Postman renders binary rather than JSON here.'},
                         preview='text'),
-                example('Error (404 · no such file)', 'GET',
-                        '/uploads/11111111-1111-4111-8111-111111111111', *missing),
+                example('Error (404 · another broker\'s private file)', 'GET',
+                        f'/uploads/{doc_id}', *barry_fetch),
+                example('Error (404 · no such file)', 'GET', f'/uploads/{MISSING}', *missing),
                 example('Error (400 · not a uuid)', 'GET', '/uploads/not-a-uuid', *bad_uuid),
             ],
         },
@@ -530,19 +454,21 @@ def build(admin, mark_id):
             'request': {
                 'method': 'GET',
                 'header': [],
-                'url': {'raw': '{{baseUrl}}/uploads/{{uploadDocumentId}}/meta',
-                        'host': ['{{baseUrl}}'],
+                'url': {'raw': '{{baseUrl}}/uploads/{{uploadDocumentId}}/meta', 'host': ['{{baseUrl}}'],
                         'path': ['uploads', '{{uploadDocumentId}}', 'meta']},
                 'description': (
                     'The record behind a stored URL — filename, type, size, and whether it has been '
                     'removed — without downloading the bytes.\n\n'
                     'For a screen that lists an attachment as a row rather than rendering it. Unlike the '
                     'fetch route this answers for an archived file too, so a list can show "removed" '
-                    'instead of a broken link.'
+                    'instead of a broken link. The same read rule applies as on fetch.'
                 ),
             },
             'response': [
-                example('Success (200)', 'GET', '/uploads/{{uploadDocumentId}}/meta', *meta),
+                example('Success (200 · an administrator)', 'GET', '/uploads/{{uploadDocumentId}}/meta', *meta),
+                example('Success (200 · the broker it was filed about)', 'GET',
+                        '/uploads/{{uploadDocumentId}}/meta', *marks_meta),
+                example('Error (404 · another broker)', 'GET', '/uploads/{{uploadDocumentId}}/meta', *barry_meta),
             ],
         },
         {
@@ -561,16 +487,18 @@ def build(admin, mark_id):
                     'Archives the record. **The bytes stay in storage.**\n\n'
                     'Nothing in this system is permanently deleted, and a restore that could not hand back '
                     'the same file would not be a restore. Storage is also content-addressed, so the object '
-                    'may be shared with another user who uploaded the same file — erasing it here would '
-                    'break a record this request never looked at.\n\n'
-                    'The file stops serving immediately: a URL stored on another record will 404.'
+                    'may be shared with another user who uploaded the same file.\n\n'
+                    'Who may remove: the uploader and SUPER_ADMIN / ADMIN. Anyone who may not read the file '
+                    'gets a 404. The file stops serving immediately: a URL stored on another record will '
+                    '404, while `/meta` still describes it as archived.'
                 ),
             },
             'response': [
-                example('Success (200 · archived)', 'DELETE', '/uploads/{{uploadDocumentId}}',
-                        *removed),
-                example('Then the file no longer serves (404)', 'GET',
-                        '/uploads/{{uploadDocumentId}}', *gone),
+                example('Success (200 · archived)', 'DELETE', '/uploads/{{uploadDocumentId}}', *removed),
+                example('Error (404 · another broker cannot see it to remove it)', 'DELETE',
+                        '/uploads/{{uploadDocumentId}}', *barry_remove),
+                example('Then /meta says it was removed (200)', 'GET',
+                        '/uploads/{{uploadDocumentId}}/meta', *gone),
             ],
         },
         {
@@ -582,8 +510,7 @@ def build(admin, mark_id):
             'request': {
                 'method': 'POST',
                 'header': CSRF_HEADER,
-                'url': {'raw': '{{baseUrl}}/uploads/{{uploadDocumentId}}/restore',
-                        'host': ['{{baseUrl}}'],
+                'url': {'raw': '{{baseUrl}}/uploads/{{uploadDocumentId}}/restore', 'host': ['{{baseUrl}}'],
                         'path': ['uploads', '{{uploadDocumentId}}', 'restore']},
                 'description': (
                     'Clears the deletion stamp and touches nothing else. Every URL that pointed at this '
@@ -592,8 +519,7 @@ def build(admin, mark_id):
                 ),
             },
             'response': [
-                example('Success (200 · restored)', 'POST', '/uploads/{{uploadDocumentId}}/restore',
-                        *restored),
+                example('Success (200 · restored)', 'POST', '/uploads/{{uploadDocumentId}}/restore', *restored),
                 example('Error (400 · it was never removed)', 'POST',
                         '/uploads/{{uploadDocumentId}}/restore', *already_live),
             ],
@@ -613,8 +539,7 @@ def build(admin, mark_id):
                 'description': (
                     'Archives the image this run uploaded.\n\n'
                     'The bytes remain in storage; archiving is about the record. A second run re-uploads '
-                    'the same fixture, which creates a fresh row rather than reviving this one — '
-                    're-uploading a removed file is a request to have it back, not a restore.'
+                    'the same fixture, which creates a fresh row rather than reviving this one.'
                 ),
             },
             'response': [],
@@ -634,68 +559,49 @@ def build(admin, mark_id):
                 'description': (
                     'Archives the document again.\n\n'
                     'Requests 06 and 07 removed and restored it to demonstrate both, so it is live at this '
-                    'point. Without this the collection would leave one live row behind on every run — the '
-                    'exact drift that put 26 Postman clients into the client directory before anyone '
-                    'noticed.'
+                    'point. Without this the collection would leave one live row behind on every run.'
                 ),
             },
             'response': [],
         },
     ]
 
-    folder = {
-        'name': '11 · Uploads',
-        'description': HOW_IT_WORKS,
-        'item': requests,
-    }
-    # Every row this build created, so main() can archive them again. The
-    # builder is run repeatedly while a folder is being written, and without
-    # this each pass leaves another live probe in the table — the same drift
-    # that put 26 Postman clients into the client directory.
-    return folder, [photo_id, doc_id]
+    return {'name': '11 · Uploads', 'description': HOW_IT_WORKS, 'item': requests}, probes
 
 
 def main() -> None:
-    for fixture in (PHOTO_SRC, DOCUMENT_SRC, SVG_SRC):
+    for fixture in (PHOTO_SRC, DOCUMENT_SRC, SVG_SRC, ARCHIVE_SRC):
         if not fixture.exists():
             raise SystemExit(f'Missing fixture: {fixture}')
 
-    admin = Session('admin@example.com')
+    owner = Session('admin@example.com')
+    mark = Session('mark@example.com')
+    barry = Session('barry@example.com')
+    agent = Session('agent@example.com')
 
     # A real broker to file a document about — the client's example is Mark.
-    _, users = admin.request('GET', '/users?search=mark&limit=1')
+    _, users = owner.request('GET', '/users?search=mark@example.com&limit=1')
     mark_id = users['data'][0]['id']
 
-    folder, probes = build(admin, mark_id)
+    folder, probes = build(owner, mark, barry, agent, mark_id)
 
     collection = json.loads(COLLECTION.read_text())
-    # The folder login is copied from an existing folder rather than retyped,
-    # as the notes and credits builders do. Without it the folder passes only
-    # inside a full run, and every request answers 401 when it is run alone —
-    # which is what happened the first time this builder was re-run after the
-    # login had been patched in by hand.
-    source = next(f for f in collection['item'] if f['name'].startswith('10 ·'))
-    folder['event'] = json.loads(json.dumps(source['event']))
+    copy_folder_login(collection, folder)
     place_folder(collection, folder)
-
     # Escaped non-ASCII, like every other builder: writing it raw re-encodes
-    # every '·' in the collection and turns one folder's rebuild into a
-    # diff of the whole file.
+    # every '·' in the collection and turns one folder's rebuild into a diff
+    # of the whole file.
     COLLECTION.write_text(json.dumps(collection, indent=2) + '\n')
 
-    # Archive what this build uploaded. The examples above are already captured
-    # as text, so nothing is lost — and the bytes stay in storage regardless,
-    # because archiving never touches them.
-    archived = 0
-    for probe in probes:
-        status, _ = admin.request('DELETE', f'/uploads/{probe}')
-        if status == 200:
-            archived += 1
+    # Archive what this build uploaded. The examples are already captured as
+    # text, and the bytes stay in storage regardless.
+    archived = sum(1 for session, probe in probes
+                   if session.request('DELETE', f'/uploads/{probe}')[0] == 200)
 
     count = len(folder['item'])
     examples = sum(len(r['response']) for r in folder['item'])
     print(f'11 · Uploads — {count} requests, {examples} captured examples')
-    print(f'             — {archived} probe rows archived, none left live')
+    print(f'             — {archived} of {len(probes)} probe rows archived')
 
 
 if __name__ == '__main__':

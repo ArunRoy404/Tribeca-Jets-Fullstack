@@ -68,14 +68,18 @@ class Session:
             req.add_header('Content-Type', 'application/json')
         return self._send(req)
 
-    def upload(self, route: str, path: pathlib.Path, fields: dict | None = None):
+    def upload(self, route: str, path: pathlib.Path, fields: dict | None = None,
+               filename: str | None = None, declared: str | None = None):
         """
-        A real multipart POST, so the server sniffs real bytes. Lifted from
-        `build_uploads_folder.py` when a second builder needed it; that one
-        moves over when its own folder is next rebuilt.
+        A real multipart POST, so the server sniffs real bytes.
+
+        `filename` and `declared` (the part's Content-Type) default to what the
+        file is; the Uploads folder overrides them to show that the server
+        ignores both.
         """
         boundary = f'----tribeca{uuid.uuid4().hex}'
-        content_type = mimetypes.guess_type(path.name)[0] or 'application/octet-stream'
+        name = filename or path.name
+        content_type = declared or mimetypes.guess_type(name)[0] or 'application/octet-stream'
         crlf = '\r\n'
         parts = [
             f'--{boundary}{crlf}Content-Disposition: form-data; name="{key}"{crlf}{crlf}{value}{crlf}'.encode()
@@ -83,7 +87,7 @@ class Session:
         ]
         parts.append(
             f'--{boundary}{crlf}Content-Disposition: form-data; name="file"; '
-            f'filename="{path.name}"{crlf}Content-Type: {content_type}{crlf}{crlf}'.encode()
+            f'filename="{name}"{crlf}Content-Type: {content_type}{crlf}{crlf}'.encode()
             + path.read_bytes() + crlf.encode()
         )
         parts.append(f'--{boundary}--{crlf}'.encode())
@@ -118,7 +122,7 @@ def url(path: str, query: list | None = None) -> dict:
     return out
 
 
-def example(name, method, path, status, body, req_body=None):
+def example(name, method, path, status, body, req_body=None, form=None, preview='json'):
     """
     One captured example, refused if its label disagrees with the status.
 
@@ -140,10 +144,12 @@ def example(name, method, path, status, body, req_body=None):
     }
     if req_body is not None:
         original['body'] = {'mode': 'raw', 'raw': json.dumps(req_body, indent=2)}
+    if form is not None:
+        original['body'] = {'mode': 'formdata', 'formdata': form}
     return {
         'name': name, 'originalRequest': original,
         'status': STATUS_TEXT[status], 'code': status,
-        '_postman_previewlanguage': 'json',
+        '_postman_previewlanguage': preview,
         'header': [{'key': 'Content-Type', 'value': 'application/json; charset=utf-8'}],
         'cookie': [], 'body': '' if body is None else json.dumps(body, indent=2),
     }

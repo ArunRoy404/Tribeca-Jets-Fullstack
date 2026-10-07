@@ -14,9 +14,9 @@ Whitfield (one priced, one not), invoices the priced one and records half
 of it as paid — then withdraws the payment and archives the invoice and both
 trips before it saves anything, so a build leaves no debris behind.
 
-No 403 examples while role restrictions are switched off (AGENTS.md): every
-account acts as SUPER_ADMIN, so nobody can be refused, and `example()`
-refuses to write a 403 label on the 200 a refusal would now return.
+No 403 examples yet: this folder was captured while role restrictions were
+switched off (4–7 Oct 2026), when nobody could be refused. They are captured
+when Reports is reviewed.
 """
 
 from __future__ import annotations
@@ -299,7 +299,7 @@ def build(owner: Session, anonymous: Session):
             'Reports (#23): every figure is read through the module that owns it, nothing is stored. Revenue, '
             'profit, margin and trips by departure date; cash and FET collected by payment date; outstanding '
             'AR/AP as of today. Reads only — the examples were captured against probe trips the builder created '
-            'and archived again. No 403 examples while role restrictions are switched off.'),
+            'and archived again. An assistant or referral agent is refused every route here with 403 (VIEW_FINANCIALS); those examples are captured when Reports is reviewed.'),
         'item': items,
     }
 

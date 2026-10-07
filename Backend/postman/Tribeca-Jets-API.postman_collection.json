@@ -15237,7 +15237,7 @@
     },
     {
       "name": "11 \u00b7 Uploads",
-      "description": "One upload surface for the whole product.\n\nA screen posts a file here, gets back a **URL**, and stores that URL on whatever record it is editing \u2014 `photoUrl` on an aircraft, an attachment on a referral, a document on a user. Nothing in this folder knows or cares what a file is *for*; that is the business of the record holding the URL.\n\n**Why it works this way.** The upload does not need to know what the file will be attached to, so a photograph can be chosen on a *create* form \u2014 before the record it belongs to exists. An API that wanted the aircraft id at upload time could not do that, and every create form would have to save first and upload second, leaving a record with no picture whenever the second call failed.\n\n**Two routes, because there are two kinds of file.** `image` and `document` describe what a file *is*. A *purpose* \u2014 \"tax form\", \"id proof\", \"brochure\" \u2014 is not a kind, and making it one would put every new upload button in the product behind a migration.\n\n| Route | Accepts | Limit | Folder |\n|---|---|---|---|\n| `POST /uploads/image` | `image/jpeg | image/png | image/webp | image/gif` | 15 MB | `images/` |\n| `POST /uploads/document` | `application/pdf | application/vnd.openxmlformats-officedocument.wordprocessingml.document (.docx) | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet (.xlsx) | text/plain | text/csv` | 25 MB | `documents/` |\n\n**The content type is read from the bytes, never from the upload header.** A multipart part's `Content-Type` is chosen by whoever sent it, so believing it would let them decide what a browser is later handed \u2014 `text/html` served from this API's own origin, with the session cookie attached. Renaming a `.exe` to `.png` changes nothing.\n\nThree formats are refused on purpose. **SVG** is a document that executes script. **Archives** carry their contents past whatever checked the outer file. **Legacy `.doc`/`.xls`** are both OLE2 and byte-identical at the header, so telling them apart would mean trusting the sender.\n\n**Re-uploading a file returns the one already on file.** Deduplication is by SHA-256 of the bytes, scoped to the uploader: the same file sent twice answers `deduplicated: true` with the original `id` and `createdAt`, and writes nothing. Storage is content-addressed (`images/<sha256>.png`), so two people holding the same image cost two rows and one object.\n\n**Removal archives the record and leaves the bytes alone.** Nothing in this system is permanently deleted, and the object may be shared with another user's row \u2014 erasing it would break a record the request never looked at.",
+      "description": "One upload surface for the whole product.\n\nA screen posts a file here, gets back a **URL**, and stores that URL on whatever record it is editing \u2014 `photoUrl` on an aircraft, an attachment on a referral, a document in the vault, an avatar. Nothing in this folder knows or cares what a file is *for*; that is the business of the record holding the URL.\n\n**Why it works this way.** The upload does not need to know what the file will be attached to, so a photograph can be chosen on a *create* form \u2014 before the record it belongs to exists.\n\n**Two routes, because there are two kinds of file.** `image` and `document` describe what a file *is*. A *purpose* \u2014 \"tax form\", \"id proof\", \"brochure\" \u2014 is not a kind, and making it one would put every new upload button behind a migration.\n\n| Route | Accepts | Limit | Stored under |\n|---|---|---|---|\n| `POST /uploads/image` | `image/jpeg | image/png | image/webp | image/gif` \u2014 nothing else | 15 MB | `images/<sha256>.<ext>` |\n| `POST /uploads/document` | **any file**. `application/pdf | application/vnd.openxmlformats-officedocument.wordprocessingml.document (.docx) | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet (.xlsx) | text/plain | text/csv` keep their own type; anything else is stored as `application/octet-stream` | 25 MB | `documents/<sha256>.<ext>`, no extension for an unrecognised file |\n\n**The content type is read from the bytes, never from the upload header or the filename.** A multipart part's `Content-Type` is chosen by whoever sent it, so believing it would let them decide what a browser is later handed \u2014 `text/html` served from this API's own origin, with the session cookie attached. Images stay strict because they are served `inline`; SVG is never an image, because it executes script. A document the server cannot recognise (a zip, a legacy `.xls`, a scan) is accepted but always served as an **attachment** with `nosniff`, so it is saved to disk and never rendered here.\n\n**Who may open a file \u2014 two columns on the row:**\n\n| `visibility` | Who may read it |\n|---|---|\n| `PUBLIC` | anyone signed in (the photo library, brochures) |\n| `PRIVATE` (default) | the uploader \u00b7 the person named in `ownerUserId` \u00b7 **SUPER_ADMIN and ADMIN, always** |\n\nEveryone else gets a **404, not a 403** \u2014 on fetch, describe and remove alike \u2014 because a 403 would confirm the file exists. The administrator rule is the stored role, not a per-person permission. A **REFERRAL_AGENT** is a partner: their uploads are always PRIVATE with no owner (a PUBLIC or filed upload is a 403), and their list holds only their own uploads.\n\n**A folder is a query, not a directory.** A broker's folder is `GET /uploads?ownerUserId=<id>`; the photo library is `?kind=IMAGE&visibility=PUBLIC`. Storage itself is flat and content-addressed \u2014 on local disk and on Cloudflare R2 alike \u2014 so identical bytes are stored once.\n\n**Re-uploading a file returns the one already on file.** Deduplication is by SHA-256 of the bytes, scoped to the uploader, the owner and the visibility: the same file sent twice answers `deduplicated: true` with the original `id`, and writes nothing.\n\n**Removal archives the record and leaves the bytes alone.** Nothing in this system is permanently deleted, and the object may be shared with another user's row \u2014 erasing it would break a record the request never looked at.",
       "item": [
         {
           "name": "01 \u00b7 List files",
@@ -15249,9 +15249,7 @@
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
                   "pm.test('paginated like every other list', () =>",
-                  "  pm.expect(pm.response.json().meta).to.have.property('totalPages'));",
-                  "// Scoped on the way out: a caller sees public files, their own",
-                  "// uploads, and anything filed about them. An administrator sees all."
+                  "  pm.expect(pm.response.json().meta).to.have.property('totalPages'));"
                 ]
               }
             }
@@ -15288,13 +15286,13 @@
                   "key": "ownerUserId",
                   "value": null,
                   "disabled": true,
-                  "description": "optional \u00b7 uuid. Opens one person's folder. Anyone but yourself needs MANAGE_USERS."
+                  "description": "optional \u00b7 uuid. Opens one person's folder. Anyone but yourself needs MANAGE_USERS (SUPER_ADMIN, ADMIN) \u2014 403 otherwise."
                 },
                 {
                   "key": "kind",
                   "value": null,
                   "disabled": true,
-                  "description": "optional \u00b7 IMAGE | DOCUMENT."
+                  "description": "optional \u00b7 IMAGE | DOCUMENT (case-sensitive)."
                 },
                 {
                   "key": "visibility",
@@ -15322,7 +15320,7 @@
                 }
               ]
             },
-            "description": "A page of files the caller may see.\n\n**`ownerUserId` is what makes this a folder.** The client asked for \"a folder for each broker that I can attach tax forms to\"; that folder is every live upload filed about them. A query, not a second table \u2014 so removing the document and removing the file are one act rather than two rows to keep in step.\n\nThe result is scoped on the way out: public files, the caller's own uploads, and anything filed about them. An administrator sees everything."
+            "description": "A page of files the caller may see.\n\n**`ownerUserId` is what makes this a folder.** The client asked for \"a folder for each broker that I can attach tax forms to\"; that folder is every live upload filed about them. A query, not a second table or a storage directory.\n\nScoped on the way out, by exactly the rule a fetch uses: public files, the caller's own uploads, and anything filed about them. SUPER_ADMIN and ADMIN see everything. A REFERRAL_AGENT sees only their own uploads \u2014 they may open a public file by its address, but not browse the desk's."
           },
           "response": [
             {
@@ -15335,16 +15333,8 @@
                   "host": [
                     "{{baseUrl}}"
                   ],
-                  "path": [],
-                  "query": [
-                    {
-                      "key": "page",
-                      "value": "1"
-                    },
-                    {
-                      "key": "limit",
-                      "value": "10"
-                    }
+                  "path": [
+                    "uploads"
                   ]
                 }
               },
@@ -15358,7 +15348,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"86086007-f16c-454e-baa5-ef2ad59ff384\",\n      \"url\": \"/api/uploads/86086007-f16c-454e-baa5-ef2ad59ff384\",\n      \"filename\": \"sample-document.pdf\",\n      \"label\": \"2025 Form 1099\",\n      \"contentType\": \"application/pdf\",\n      \"size\": 633,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": \"b9acd669-1d8d-4619-8eb9-82f00fe4bdf2\",\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-09-26T05:52:59.625Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    },\n    {\n      \"id\": \"34b419f4-bb47-4bfc-9005-d14b83be1944\",\n      \"url\": \"/api/uploads/34b419f4-bb47-4bfc-9005-d14b83be1944\",\n      \"filename\": \"sample-photo.png\",\n      \"label\": \"Global 7500 cabin\",\n      \"contentType\": \"image/png\",\n      \"size\": 73,\n      \"kind\": \"IMAGE\",\n      \"visibility\": \"PUBLIC\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-09-26T05:52:55.501Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    },\n    {\n      \"id\": \"dc7b378f-0a3f-414a-86fe-6ddc8e794537\",\n      \"url\": \"/api/uploads/dc7b378f-0a3f-414a-86fe-6ddc8e794537\",\n      \"filename\": \"g550.jpg\",\n      \"label\": null,\n      \"contentType\": \"image/jpeg\",\n      \"size\": 36741,\n      \"kind\": \"IMAGE\",\n      \"visibility\": \"PUBLIC\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-09-26T04:25:20.297Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 3,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"d86f3e76-dcf8-413a-b3f6-8ebdc8243fb0\",\n      \"url\": \"/api/uploads/d86f3e76-dcf8-413a-b3f6-8ebdc8243fb0\",\n      \"filename\": \"sample-document.pdf\",\n      \"label\": \"Client itinerary notes\",\n      \"contentType\": \"application/pdf\",\n      \"size\": 601,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-07T09:02:39.351Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"ba4ade5e-34ed-4813-b11b-8970be500afe\",\n        \"firstName\": \"Riley\",\n        \"lastName\": \"Partner\",\n        \"email\": \"agent@example.com\"\n      }\n    },\n    {\n      \"id\": \"4ad1d6ee-b633-4114-acf8-7e3819212029\",\n      \"url\": \"/api/uploads/4ad1d6ee-b633-4114-acf8-7e3819212029\",\n      \"filename\": \"Cotizaci\\u00f3n \\u2013 M\\u00fcller.pdf\",\n      \"label\": \"Signed quote\",\n      \"contentType\": \"application/pdf\",\n      \"size\": 601,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-07T09:02:39.343Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    },\n    {\n      \"id\": \"43522bb4-9400-4ab5-b919-d63ad3ba3315\",\n      \"url\": \"/api/uploads/43522bb4-9400-4ab5-b919-d63ad3ba3315\",\n      \"filename\": \"sample-archive.zip\",\n      \"label\": \"Fuel receipts, October\",\n      \"contentType\": \"application/octet-stream\",\n      \"size\": 219,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-07T09:02:39.330Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    },\n    {\n      \"id\": \"c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n      \"url\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n      \"filename\": \"sample-document.pdf\",\n      \"label\": \"2025 Form 1099\",\n      \"contentType\": \"application/pdf\",\n      \"size\": 601,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": \"893860d9-6bcc-49a2-83bc-74994ba16a12\",\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-07T09:02:39.317Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    },\n    {\n      \"id\": \"19c09883-441a-4a0f-8bd0-a4255cbd452f\",\n      \"url\": \"/api/uploads/19c09883-441a-4a0f-8bd0-a4255cbd452f\",\n      \"filename\": \"sample-photo.png\",\n      \"label\": \"Global 7500 cabin\",\n      \"contentType\": \"image/png\",\n      \"size\": 73,\n      \"kind\": \"IMAGE\",\n      \"visibility\": \"PUBLIC\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-07T09:02:39.304Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    },\n    {\n      \"id\": \"319c559b-65f8-4c7e-9618-406ed49124ff\",\n      \"url\": \"/api/uploads/319c559b-65f8-4c7e-9618-406ed49124ff\",\n      \"filename\": \"Screenshot 2026-10-06 at 12.43.04\\u00e2\\u0080\\u00afPM.png\",\n      \"label\": null,\n      \"contentType\": \"application/octet-stream\",\n      \"size\": 79866,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": \"68b049b9-c31f-49bc-9039-1de9c2c6430c\",\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-07T08:37:30.760Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"45545332-3756-4302-ab33-588bebfc961a\",\n        \"firstName\": \"Arun\",\n        \"lastName\": \"Roy\",\n        \"email\": \"roy.techreion@gmail.com\"\n      }\n    },\n    {\n      \"id\": \"56098ca4-8d8e-46cb-9b56-fc14b3fa2a9b\",\n      \"url\": \"/api/uploads/56098ca4-8d8e-46cb-9b56-fc14b3fa2a9b\",\n      \"filename\": \"Screenshot 2026-10-06 at 10.22.44\\u00e2\\u0080\\u00afAM.png\",\n      \"label\": null,\n      \"contentType\": \"application/octet-stream\",\n      \"size\": 20035,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": \"45545332-3756-4302-ab33-588bebfc961a\",\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-06T08:38:00.405Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": \"2026-10-06T08:38:36.865Z\",\n      \"restoredBy\": {\n        \"id\": \"45545332-3756-4302-ab33-588bebfc961a\",\n        \"firstName\": \"Arun\",\n        \"lastName\": \"Roy\",\n        \"email\": \"roy.techreion@gmail.com\"\n      },\n      \"uploadedBy\": {\n        \"id\": \"45545332-3756-4302-ab33-588bebfc961a\",\n        \"firstName\": \"Arun\",\n        \"lastName\": \"Roy\",\n        \"email\": \"roy.techreion@gmail.com\"\n      }\n    },\n    {\n      \"id\": \"0c110f49-289b-40ff-96f3-cad947c3f63a\",\n      \"url\": \"/api/uploads/0c110f49-289b-40ff-96f3-cad947c3f63a\",\n      \"filename\": \"Screenshot 2026-10-06 at 12.43.04\\u00e2\\u0080\\u00afPM.png\",\n      \"label\": null,\n      \"contentType\": \"application/octet-stream\",\n      \"size\": 79866,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": \"45545332-3756-4302-ab33-588bebfc961a\",\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-06T08:37:52.683Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"45545332-3756-4302-ab33-588bebfc961a\",\n        \"firstName\": \"Arun\",\n        \"lastName\": \"Roy\",\n        \"email\": \"roy.techreion@gmail.com\"\n      }\n    },\n    {\n      \"id\": \"269352cb-7cc1-4182-8ab4-9682bd86dd24\",\n      \"url\": \"/api/uploads/269352cb-7cc1-4182-8ab4-9682bd86dd24\",\n      \"filename\": \"Screenshot 2026-10-06 at 12.43.04\\u00e2\\u0080\\u00afPM.png\",\n      \"label\": null,\n      \"contentType\": \"image/png\",\n      \"size\": 79866,\n      \"kind\": \"IMAGE\",\n      \"visibility\": \"PUBLIC\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-06T06:58:07.446Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"45545332-3756-4302-ab33-588bebfc961a\",\n        \"firstName\": \"Arun\",\n        \"lastName\": \"Roy\",\n        \"email\": \"roy.techreion@gmail.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 9,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "Success (200 \u00b7 one broker's document folder)",
@@ -15366,28 +15356,12 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/uploads?ownerUserId=b9acd669-1d8d-4619-8eb9-82f00fe4bdf2&kind=DOCUMENT&page=1&limit=10",
+                  "raw": "{{baseUrl}}/uploads?ownerUserId=893860d9-6bcc-49a2-83bc-74994ba16a12&kind=DOCUMENT&page=1&limit=10",
                   "host": [
                     "{{baseUrl}}"
                   ],
-                  "path": [],
-                  "query": [
-                    {
-                      "key": "ownerUserId",
-                      "value": "b9acd669-1d8d-4619-8eb9-82f00fe4bdf2"
-                    },
-                    {
-                      "key": "kind",
-                      "value": "DOCUMENT"
-                    },
-                    {
-                      "key": "page",
-                      "value": "1"
-                    },
-                    {
-                      "key": "limit",
-                      "value": "10"
-                    }
+                  "path": [
+                    "uploads"
                   ]
                 }
               },
@@ -15401,7 +15375,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"86086007-f16c-454e-baa5-ef2ad59ff384\",\n      \"url\": \"/api/uploads/86086007-f16c-454e-baa5-ef2ad59ff384\",\n      \"filename\": \"sample-document.pdf\",\n      \"label\": \"2025 Form 1099\",\n      \"contentType\": \"application/pdf\",\n      \"size\": 633,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": \"b9acd669-1d8d-4619-8eb9-82f00fe4bdf2\",\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-09-26T05:52:59.625Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n      \"url\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n      \"filename\": \"sample-document.pdf\",\n      \"label\": \"2025 Form 1099\",\n      \"contentType\": \"application/pdf\",\n      \"size\": 601,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": \"893860d9-6bcc-49a2-83bc-74994ba16a12\",\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-07T09:02:39.317Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "Success (200 \u00b7 the photo library: PUBLIC images)",
@@ -15413,24 +15387,8 @@
                   "host": [
                     "{{baseUrl}}"
                   ],
-                  "path": [],
-                  "query": [
-                    {
-                      "key": "kind",
-                      "value": "IMAGE"
-                    },
-                    {
-                      "key": "visibility",
-                      "value": "PUBLIC"
-                    },
-                    {
-                      "key": "page",
-                      "value": "1"
-                    },
-                    {
-                      "key": "limit",
-                      "value": "10"
-                    }
+                  "path": [
+                    "uploads"
                   ]
                 }
               },
@@ -15444,24 +15402,47 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"34b419f4-bb47-4bfc-9005-d14b83be1944\",\n      \"url\": \"/api/uploads/34b419f4-bb47-4bfc-9005-d14b83be1944\",\n      \"filename\": \"sample-photo.png\",\n      \"label\": \"Global 7500 cabin\",\n      \"contentType\": \"image/png\",\n      \"size\": 73,\n      \"kind\": \"IMAGE\",\n      \"visibility\": \"PUBLIC\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-09-26T05:52:55.501Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    },\n    {\n      \"id\": \"dc7b378f-0a3f-414a-86fe-6ddc8e794537\",\n      \"url\": \"/api/uploads/dc7b378f-0a3f-414a-86fe-6ddc8e794537\",\n      \"filename\": \"g550.jpg\",\n      \"label\": null,\n      \"contentType\": \"image/jpeg\",\n      \"size\": 36741,\n      \"kind\": \"IMAGE\",\n      \"visibility\": \"PUBLIC\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-09-26T04:25:20.297Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"19c09883-441a-4a0f-8bd0-a4255cbd452f\",\n      \"url\": \"/api/uploads/19c09883-441a-4a0f-8bd0-a4255cbd452f\",\n      \"filename\": \"sample-photo.png\",\n      \"label\": \"Global 7500 cabin\",\n      \"contentType\": \"image/png\",\n      \"size\": 73,\n      \"kind\": \"IMAGE\",\n      \"visibility\": \"PUBLIC\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-07T09:02:39.304Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\",\n        \"email\": \"admin@example.com\"\n      }\n    },\n    {\n      \"id\": \"269352cb-7cc1-4182-8ab4-9682bd86dd24\",\n      \"url\": \"/api/uploads/269352cb-7cc1-4182-8ab4-9682bd86dd24\",\n      \"filename\": \"Screenshot 2026-10-06 at 12.43.04\\u00e2\\u0080\\u00afPM.png\",\n      \"label\": null,\n      \"contentType\": \"image/png\",\n      \"size\": 79866,\n      \"kind\": \"IMAGE\",\n      \"visibility\": \"PUBLIC\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-06T06:58:07.446Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"45545332-3756-4302-ab33-588bebfc961a\",\n        \"firstName\": \"Arun\",\n        \"lastName\": \"Roy\",\n        \"email\": \"roy.techreion@gmail.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
-              "name": "Error (403 \u00b7 another user's folder)",
+              "name": "Success (200 \u00b7 a referral agent sees only their own uploads)",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/uploads?ownerUserId=b9acd669-1d8d-4619-8eb9-82f00fe4bdf2",
+                  "raw": "{{baseUrl}}/uploads?page=1&limit=10",
                   "host": [
                     "{{baseUrl}}"
                   ],
-                  "path": [],
-                  "query": [
-                    {
-                      "key": "ownerUserId",
-                      "value": "b9acd669-1d8d-4619-8eb9-82f00fe4bdf2"
-                    }
+                  "path": [
+                    "uploads"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"d86f3e76-dcf8-413a-b3f6-8ebdc8243fb0\",\n      \"url\": \"/api/uploads/d86f3e76-dcf8-413a-b3f6-8ebdc8243fb0\",\n      \"filename\": \"sample-document.pdf\",\n      \"label\": \"Client itinerary notes\",\n      \"contentType\": \"application/pdf\",\n      \"size\": 601,\n      \"kind\": \"DOCUMENT\",\n      \"visibility\": \"PRIVATE\",\n      \"ownerUserId\": null,\n      \"deduplicated\": false,\n      \"createdAt\": \"2026-10-07T09:02:39.351Z\",\n      \"archived\": false,\n      \"deletedAt\": null,\n      \"deletedBy\": null,\n      \"restoredAt\": null,\n      \"restoredBy\": null,\n      \"uploadedBy\": {\n        \"id\": \"ba4ade5e-34ed-4813-b11b-8970be500afe\",\n        \"firstName\": \"Riley\",\n        \"lastName\": \"Partner\",\n        \"email\": \"agent@example.com\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "Error (403 \u00b7 a broker opening another user's folder)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads?ownerUserId=893860d9-6bcc-49a2-83bc-74994ba16a12",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads"
                   ]
                 }
               },
@@ -15475,7 +15456,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Reading another user's documents needs permission to manage users.\",\n  \"path\": \"/api/uploads?ownerUserId=b9acd669-1d8d-4619-8eb9-82f00fe4bdf2\",\n  \"timestamp\": \"2026-09-26T05:53:10.077Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Reading another user's documents needs permission to manage users.\",\n  \"path\": \"/api/uploads?ownerUserId=893860d9-6bcc-49a2-83bc-74994ba16a12\",\n  \"timestamp\": \"2026-10-07T09:02:39.387Z\"\n}"
             }
           ]
         },
@@ -15536,7 +15517,7 @@
                   "key": "visibility",
                   "value": "PUBLIC",
                   "type": "text",
-                  "description": "optional \u00b7 PUBLIC | PRIVATE. Default PRIVATE. PUBLIC is any signed-in user \u2014 aircraft photographs, brochures, logos. PRIVATE is the uploader, an administrator, and ownerUserId if given. The default fails closed on purpose: the mistake is then a brochure nobody can see, not a tax form everybody can."
+                  "description": "optional \u00b7 PUBLIC | PRIVATE (case-sensitive). Default PRIVATE. PUBLIC is any signed-in user \u2014 aircraft photographs, brochures, logos. PRIVATE is the uploader, the person named in ownerUserId, and SUPER_ADMIN / ADMIN. The default fails closed on purpose: the mistake is then a brochure nobody can see, not a tax form everybody can. A REFERRAL_AGENT may not send PUBLIC (403)."
                 },
                 {
                   "key": "label",
@@ -15546,7 +15527,7 @@
                 }
               ]
             },
-            "description": "Stores the file under `images/` and returns the URL to save on whatever record is being edited.\n\nThe response `url` is **relative** (`/api/uploads/<id>`) on purpose: an absolute URL captured at upload time embeds whatever host was running then, so every row written in development would point at localhost for ever. It works directly in an `<img src>` because the session is an httpOnly cookie and needs no token in the URL.\n\n`deduplicated: true` means these exact bytes were already on file for this user and the existing record was returned \u2014 no second copy was written, and `createdAt` may be older than this request."
+            "description": "Stores the file under `images/` and returns the URL to save on whatever record is being edited.\n\nThe response `url` is **relative** (`/api/uploads/<id>`) on purpose: an absolute URL captured at upload time embeds whatever host was running then, so a domain change or a move to a CDN would strand every file already uploaded.\n\n`deduplicated: true` means these exact bytes were already on file for this user and the existing record was returned \u2014 no second copy was written, and `createdAt` may be older than this request."
           },
           "response": [
             {
@@ -15577,7 +15558,7 @@
                       "key": "visibility",
                       "value": "PUBLIC",
                       "type": "text",
-                      "description": "optional \u00b7 PUBLIC | PRIVATE. Default PRIVATE. PUBLIC is any signed-in user \u2014 aircraft photographs, brochures, logos. PRIVATE is the uploader, an administrator, and ownerUserId if given. The default fails closed on purpose: the mistake is then a brochure nobody can see, not a tax form everybody can."
+                      "description": "optional \u00b7 PUBLIC | PRIVATE (case-sensitive). Default PRIVATE. PUBLIC is any signed-in user \u2014 aircraft photographs, brochures, logos. PRIVATE is the uploader, the person named in ownerUserId, and SUPER_ADMIN / ADMIN. The default fails closed on purpose: the mistake is then a brochure nobody can see, not a tax form everybody can. A REFERRAL_AGENT may not send PUBLIC (403)."
                     },
                     {
                       "key": "label",
@@ -15598,7 +15579,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"34b419f4-bb47-4bfc-9005-d14b83be1944\",\n    \"url\": \"/api/uploads/34b419f4-bb47-4bfc-9005-d14b83be1944\",\n    \"filename\": \"sample-photo.png\",\n    \"label\": \"Global 7500 cabin\",\n    \"contentType\": \"image/png\",\n    \"size\": 73,\n    \"kind\": \"IMAGE\",\n    \"visibility\": \"PUBLIC\",\n    \"ownerUserId\": null,\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-09-26T05:52:55.501Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"19c09883-441a-4a0f-8bd0-a4255cbd452f\",\n    \"url\": \"/api/uploads/19c09883-441a-4a0f-8bd0-a4255cbd452f\",\n    \"filename\": \"sample-photo.png\",\n    \"label\": \"Global 7500 cabin\",\n    \"contentType\": \"image/png\",\n    \"size\": 73,\n    \"kind\": \"IMAGE\",\n    \"visibility\": \"PUBLIC\",\n    \"ownerUserId\": null,\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-10-07T09:02:39.304Z\"\n  }\n}"
             },
             {
               "name": "Success (201 \u00b7 already uploaded, existing record returned)",
@@ -15628,7 +15609,7 @@
                       "key": "visibility",
                       "value": "PUBLIC",
                       "type": "text",
-                      "description": "optional \u00b7 PUBLIC | PRIVATE. Default PRIVATE. PUBLIC is any signed-in user \u2014 aircraft photographs, brochures, logos. PRIVATE is the uploader, an administrator, and ownerUserId if given. The default fails closed on purpose: the mistake is then a brochure nobody can see, not a tax form everybody can."
+                      "description": "optional \u00b7 PUBLIC | PRIVATE (case-sensitive). Default PRIVATE. PUBLIC is any signed-in user \u2014 aircraft photographs, brochures, logos. PRIVATE is the uploader, the person named in ownerUserId, and SUPER_ADMIN / ADMIN. The default fails closed on purpose: the mistake is then a brochure nobody can see, not a tax form everybody can. A REFERRAL_AGENT may not send PUBLIC (403)."
                     },
                     {
                       "key": "label",
@@ -15649,7 +15630,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"34b419f4-bb47-4bfc-9005-d14b83be1944\",\n    \"url\": \"/api/uploads/34b419f4-bb47-4bfc-9005-d14b83be1944\",\n    \"filename\": \"sample-photo.png\",\n    \"label\": \"Global 7500 cabin\",\n    \"contentType\": \"image/png\",\n    \"size\": 73,\n    \"kind\": \"IMAGE\",\n    \"visibility\": \"PUBLIC\",\n    \"ownerUserId\": null,\n    \"deduplicated\": true,\n    \"createdAt\": \"2026-09-26T05:52:55.501Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"19c09883-441a-4a0f-8bd0-a4255cbd452f\",\n    \"url\": \"/api/uploads/19c09883-441a-4a0f-8bd0-a4255cbd452f\",\n    \"filename\": \"sample-photo.png\",\n    \"label\": \"Global 7500 cabin\",\n    \"contentType\": \"image/png\",\n    \"size\": 73,\n    \"kind\": \"IMAGE\",\n    \"visibility\": \"PUBLIC\",\n    \"ownerUserId\": null,\n    \"deduplicated\": true,\n    \"createdAt\": \"2026-10-07T09:02:39.304Z\"\n  }\n}"
             },
             {
               "name": "Error (415 \u00b7 SVG refused)",
@@ -15688,7 +15669,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 415,\n  \"message\": \"This endpoint accepts an image. Allowed types: image/jpeg, image/png, image/webp, image/gif.\",\n  \"path\": \"/api/uploads/image\",\n  \"timestamp\": \"2026-09-26T05:53:12.111Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 415,\n  \"message\": \"This endpoint accepts an image. Allowed types: image/jpeg, image/png, image/webp, image/gif.\",\n  \"path\": \"/api/uploads/image\",\n  \"timestamp\": \"2026-10-07T09:02:39.397Z\"\n}"
             },
             {
               "name": "Error (415 \u00b7 a PDF is not an image)",
@@ -15727,7 +15708,46 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 415,\n  \"message\": \"This endpoint accepts an image. Allowed types: image/jpeg, image/png, image/webp, image/gif.\",\n  \"path\": \"/api/uploads/image\",\n  \"timestamp\": \"2026-09-26T05:53:14.148Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 415,\n  \"message\": \"This endpoint accepts an image. Allowed types: image/jpeg, image/png, image/webp, image/gif.\",\n  \"path\": \"/api/uploads/image\",\n  \"timestamp\": \"2026-10-07T09:02:39.400Z\"\n}"
+            },
+            {
+              "name": "Error (415 \u00b7 a PDF renamed cabin.png and declared image/png)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/image",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "image"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-document.pdf",
+                      "description": "The PDF again, sent as cabin.png with Content-Type image/png. The bytes decide."
+                    }
+                  ]
+                }
+              },
+              "status": "Unsupported Media Type",
+              "code": 415,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 415,\n  \"message\": \"This endpoint accepts an image. Allowed types: image/jpeg, image/png, image/webp, image/gif.\",\n  \"path\": \"/api/uploads/image\",\n  \"timestamp\": \"2026-10-07T09:02:39.402Z\"\n}"
             },
             {
               "name": "Error (400 \u00b7 no file part)",
@@ -15755,7 +15775,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Invalid input: expected object, received undefined\"\n  },\n  \"path\": \"/api/uploads/image\",\n  \"timestamp\": \"2026-09-26T05:53:18.227Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Invalid input: expected object, received undefined\"\n  },\n  \"path\": \"/api/uploads/image\",\n  \"timestamp\": \"2026-10-07T09:02:39.404Z\"\n}"
             }
           ]
         },
@@ -15771,7 +15791,7 @@
                   "// trusting {{userId}}, which `04 \u00b7 Users` sets. Without this the",
                   "// folder passed inside a full run and answered 400 run on its own.",
                   "const base = pm.collectionVariables.get('baseUrl');",
-                  "pm.sendRequest({ url: base + '/users?limit=1&role=BROKER', method: 'GET' }, function (err, res) {",
+                  "pm.sendRequest({ url: base + '/users?limit=1&role=BROKER&status=ACTIVE', method: 'GET' }, function (err, res) {",
                   "    if (!err && res.code === 200 && res.json().data.length) {",
                   "        pm.collectionVariables.set('userId', res.json().data[0].id);",
                   "    }",
@@ -15826,13 +15846,13 @@
                   "key": "file",
                   "type": "file",
                   "src": "postman/fixtures/sample-document.pdf",
-                  "description": "Required \u00b7 the bytes. Accepted: application/pdf | application/vnd.openxmlformats-officedocument.wordprocessingml.document (.docx) | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet (.xlsx) | text/plain | text/csv. Maximum 25 MB. Legacy .doc and .xls are refused: both are OLE2 and byte-identical at the header, so telling them apart would mean trusting the sender."
+                  "description": "Required \u00b7 the bytes, any file, maximum 25 MB. application/pdf | application/vnd.openxmlformats-officedocument.wordprocessingml.document (.docx) | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet (.xlsx) | text/plain | text/csv keep their own type; anything else is stored as application/octet-stream and always downloads."
                 },
                 {
                   "key": "ownerUserId",
                   "value": "{{userId}}",
                   "type": "text",
-                  "description": "optional \u00b7 uuid. The user this document is *about*, who may then read it. This is what files a 1099 into a broker's folder. Naming anyone but yourself needs MANAGE_USERS, or any broker could drop a document into any other broker's folder."
+                  "description": "optional \u00b7 uuid. The user this document is *about*, who may then read it. This is what files a 1099 into a broker's folder. Naming anyone but yourself needs MANAGE_USERS (SUPER_ADMIN, ADMIN), or any broker could drop a document into any other broker's folder (403)."
                 },
                 {
                   "key": "label",
@@ -15842,7 +15862,7 @@
                 }
               ]
             },
-            "description": "Stores the file under `documents/` and returns the URL to save on the record being edited.\n\n**This example is the client's own:** *\"a broker (mark) makes a commission with us, we need to give him a 1099 tax form. I want to be able to add that form into his own personal folder.\"* Passing `ownerUserId` is what files it there.\n\nIt stays **PRIVATE** because that is the default. Mark can read it and so can an administrator; another broker of identical rank gets a **404, not a 403** \u2014 a 403 would confirm the document exists and turn a list of user ids into a register of who has been paid.\n\nA file whose bytes are plain text is stored as `text/plain` whatever it was named \u2014 so HTML uploaded as `invoice.pdf` is stored as text and served as an **attachment** with `X-Content-Type-Options: nosniff`, which means a browser downloads it instead of executing it on this API's origin."
+            "description": "Stores the file under `documents/` and returns the URL to save on the record being edited.\n\n**This example is the client's own:** *\"a broker (mark) makes a commission with us, we need to give him a 1099 tax form. I want to be able to add that form into his own personal folder.\"* Passing `ownerUserId` is what files it there.\n\nIt stays **PRIVATE** because that is the default. Mark can read it, and so can SUPER_ADMIN and ADMIN; another broker gets a **404, not a 403** (see `04` and `05`).\n\n**Any file is accepted** (owner's decision, 6 Oct 2026). One the server cannot recognise \u2014 a zip, a legacy `.xls`, a scan \u2014 is stored as `application/octet-stream` whatever it was named or declared, and served as an attachment with `nosniff`, so it can never run in a tab on this API's origin.\n\nThe **filename** is kept as sent \u2014 accents and all \u2014 with any client-side path and control characters removed, and shortened to 255 characters with its extension kept. It is only a label: the storage key is the content hash.\n\n**Refused:** filing about someone else without MANAGE_USERS, and a referral agent publishing (PUBLIC) or filing \u2014 a partner's upload is a private attachment."
           },
           "response": [
             {
@@ -15871,9 +15891,9 @@
                     },
                     {
                       "key": "ownerUserId",
-                      "value": "b9acd669-1d8d-4619-8eb9-82f00fe4bdf2",
+                      "value": "893860d9-6bcc-49a2-83bc-74994ba16a12",
                       "type": "text",
-                      "description": "optional \u00b7 uuid. The user this document is *about*, who may then read it. This is what files a 1099 into a broker's folder. Naming anyone but yourself needs MANAGE_USERS, or any broker could drop a document into any other broker's folder."
+                      "description": "optional \u00b7 uuid. The user this document is *about*, who may then read it. This is what files a 1099 into a broker's folder. Naming anyone but yourself needs MANAGE_USERS (SUPER_ADMIN, ADMIN), or any broker could drop a document into any other broker's folder (403)."
                     },
                     {
                       "key": "label",
@@ -15894,7 +15914,187 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"86086007-f16c-454e-baa5-ef2ad59ff384\",\n    \"url\": \"/api/uploads/86086007-f16c-454e-baa5-ef2ad59ff384\",\n    \"filename\": \"sample-document.pdf\",\n    \"label\": \"2025 Form 1099\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 633,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": \"b9acd669-1d8d-4619-8eb9-82f00fe4bdf2\",\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-09-26T05:52:59.625Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"url\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"filename\": \"sample-document.pdf\",\n    \"label\": \"2025 Form 1099\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": \"893860d9-6bcc-49a2-83bc-74994ba16a12\",\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-10-07T09:02:39.317Z\"\n  }\n}"
+            },
+            {
+              "name": "Success (201 \u00b7 an unrecognised file is stored as application/octet-stream)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/document",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "document"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-archive.zip",
+                      "description": "A zip of receipts."
+                    },
+                    {
+                      "key": "label",
+                      "value": "Fuel receipts, October",
+                      "type": "text",
+                      "description": "optional \u00b7 max 200 chars. A human name shown instead of the filename \u2014 \"2025 Form 1099\"."
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"43522bb4-9400-4ab5-b919-d63ad3ba3315\",\n    \"url\": \"/api/uploads/43522bb4-9400-4ab5-b919-d63ad3ba3315\",\n    \"filename\": \"sample-archive.zip\",\n    \"label\": \"Fuel receipts, October\",\n    \"contentType\": \"application/octet-stream\",\n    \"size\": 219,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": null,\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-10-07T09:02:39.330Z\"\n  }\n}"
+            },
+            {
+              "name": "Success (201 \u00b7 a filename with accents is kept as sent)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/document",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "document"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-document.pdf",
+                      "description": "A PDF named \"Cotizaci\u00f3n \u2013 M\u00fcller.pdf\"."
+                    },
+                    {
+                      "key": "label",
+                      "value": "Signed quote",
+                      "type": "text",
+                      "description": "optional \u00b7 max 200 chars. A human name shown instead of the filename \u2014 \"2025 Form 1099\"."
+                    }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"4ad1d6ee-b633-4114-acf8-7e3819212029\",\n    \"url\": \"/api/uploads/4ad1d6ee-b633-4114-acf8-7e3819212029\",\n    \"filename\": \"Cotizaci\\u00f3n \\u2013 M\\u00fcller.pdf\",\n    \"label\": \"Signed quote\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": null,\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-10-07T09:02:39.343Z\"\n  }\n}"
+            },
+            {
+              "name": "Error (403 \u00b7 a broker filing into another user's folder)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/document",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "document"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-document.pdf",
+                      "description": "The document."
+                    },
+                    {
+                      "key": "ownerUserId",
+                      "value": "893860d9-6bcc-49a2-83bc-74994ba16a12",
+                      "type": "text",
+                      "description": "optional \u00b7 uuid. The user this document is *about*, who may then read it. This is what files a 1099 into a broker's folder. Naming anyone but yourself needs MANAGE_USERS (SUPER_ADMIN, ADMIN), or any broker could drop a document into any other broker's folder (403)."
+                    }
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Filing a document against another user needs permission to manage users.\",\n  \"path\": \"/api/uploads/document\",\n  \"timestamp\": \"2026-10-07T09:02:39.407Z\"\n}"
+            },
+            {
+              "name": "Error (403 \u00b7 a referral agent publishing a file)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/document",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "document"
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "postman/fixtures/sample-document.pdf",
+                      "description": "The document."
+                    },
+                    {
+                      "key": "visibility",
+                      "value": "PUBLIC",
+                      "type": "text",
+                      "description": "optional \u00b7 PUBLIC | PRIVATE (case-sensitive). Default PRIVATE. PUBLIC is any signed-in user \u2014 aircraft photographs, brochures, logos. PRIVATE is the uploader, the person named in ownerUserId, and SUPER_ADMIN / ADMIN. The default fails closed on purpose: the mistake is then a brochure nobody can see, not a tax form everybody can. A REFERRAL_AGENT may not send PUBLIC (403)."
+                    }
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Partner uploads are private attachments.\",\n  \"path\": \"/api/uploads/document\",\n  \"timestamp\": \"2026-10-07T09:02:39.409Z\"\n}"
             }
           ]
         },
@@ -15932,7 +16132,7 @@
                 "{{uploadImageId}}"
               ]
             },
-            "description": "Streams the bytes. **This is the address returned by the upload routes and stored on records** \u2014 it works directly in an `<img src>`.\n\nRequires a session: there is no unauthenticated path to a stored file. Permission is re-checked on every fetch rather than frozen into a signature, so access that is revoked actually stops working \u2014 unlike a presigned link, which keeps working because it was signed before anyone revoked anything.\n\nImages are served `inline`; everything else `attachment`."
+            "description": "Streams the bytes. **This is the address returned by the upload routes and stored on records** \u2014 it works directly in an `<img src>`.\n\nRequires a session: there is no unauthenticated path to a stored file, and the storage bucket itself is never public. Permission is re-checked on every fetch rather than frozen into a signature, so access that is revoked actually stops working.\n\nA file the caller may not read answers **404**, exactly like one that does not exist \u2014 a 403 would confirm it is there."
           },
           "response": [
             {
@@ -15961,21 +16161,21 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"_\": \"The response body is the file itself \u2014 73 bytes of image/png. Postman renders binary rather than JSON here.\"\n}"
+              "body": "{\n  \"_\": \"The response body is the file itself \\u2014 73 bytes of image/png. Postman renders binary rather than JSON here.\"\n}"
             },
             {
-              "name": "Error (404 \u00b7 no such file)",
+              "name": "Error (404 \u00b7 another broker's private file)",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/uploads/11111111-1111-4111-8111-111111111111",
+                  "raw": "{{baseUrl}}/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "uploads",
-                    "11111111-1111-4111-8111-111111111111"
+                    "c55f9b28-cba8-4423-b8e5-0c12d370b9f2"
                   ]
                 }
               },
@@ -15989,7 +16189,35 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That file does not exist.\",\n  \"path\": \"/api/uploads/11111111-1111-4111-8111-111111111111\",\n  \"timestamp\": \"2026-09-26T05:53:24.400Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That file does not exist.\",\n  \"path\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2/meta\",\n  \"timestamp\": \"2026-10-07T09:02:39.416Z\"\n}"
+            },
+            {
+              "name": "Error (404 \u00b7 no such file)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/00000000-0000-4000-8000-000000000000",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "00000000-0000-4000-8000-000000000000"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That file does not exist.\",\n  \"path\": \"/api/uploads/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-10-07T09:02:39.418Z\"\n}"
             },
             {
               "name": "Error (400 \u00b7 not a uuid)",
@@ -16017,7 +16245,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed (uuid is expected)\",\n  \"path\": \"/api/uploads/not-a-uuid\",\n  \"timestamp\": \"2026-09-26T05:53:26.460Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed (uuid is expected)\",\n  \"path\": \"/api/uploads/not-a-uuid\",\n  \"timestamp\": \"2026-10-07T09:02:39.420Z\"\n}"
             }
           ]
         },
@@ -16050,11 +16278,11 @@
                 "meta"
               ]
             },
-            "description": "The record behind a stored URL \u2014 filename, type, size, and whether it has been removed \u2014 without downloading the bytes.\n\nFor a screen that lists an attachment as a row rather than rendering it. Unlike the fetch route this answers for an archived file too, so a list can show \"removed\" instead of a broken link."
+            "description": "The record behind a stored URL \u2014 filename, type, size, and whether it has been removed \u2014 without downloading the bytes.\n\nFor a screen that lists an attachment as a row rather than rendering it. Unlike the fetch route this answers for an archived file too, so a list can show \"removed\" instead of a broken link. The same read rule applies as on fetch."
           },
           "response": [
             {
-              "name": "Success (200)",
+              "name": "Success (200 \u00b7 an administrator)",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -16080,7 +16308,65 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"86086007-f16c-454e-baa5-ef2ad59ff384\",\n    \"url\": \"/api/uploads/86086007-f16c-454e-baa5-ef2ad59ff384\",\n    \"filename\": \"sample-document.pdf\",\n    \"label\": \"2025 Form 1099\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 633,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": \"b9acd669-1d8d-4619-8eb9-82f00fe4bdf2\",\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-09-26T05:52:59.625Z\",\n    \"archived\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"url\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"filename\": \"sample-document.pdf\",\n    \"label\": \"2025 Form 1099\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": \"893860d9-6bcc-49a2-83bc-74994ba16a12\",\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-10-07T09:02:39.317Z\",\n    \"archived\": false\n  }\n}"
+            },
+            {
+              "name": "Success (200 \u00b7 the broker it was filed about)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/{{uploadDocumentId}}/meta",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "{{uploadDocumentId}}",
+                    "meta"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"url\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"filename\": \"sample-document.pdf\",\n    \"label\": \"2025 Form 1099\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": \"893860d9-6bcc-49a2-83bc-74994ba16a12\",\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-10-07T09:02:39.317Z\",\n    \"archived\": false\n  }\n}"
+            },
+            {
+              "name": "Error (404 \u00b7 another broker)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/{{uploadDocumentId}}/meta",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "{{uploadDocumentId}}",
+                    "meta"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That file does not exist.\",\n  \"path\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2/meta\",\n  \"timestamp\": \"2026-10-07T09:02:39.427Z\"\n}"
             }
           ]
         },
@@ -16118,7 +16404,7 @@
                 "{{uploadDocumentId}}"
               ]
             },
-            "description": "Archives the record. **The bytes stay in storage.**\n\nNothing in this system is permanently deleted, and a restore that could not hand back the same file would not be a restore. Storage is also content-addressed, so the object may be shared with another user who uploaded the same file \u2014 erasing it here would break a record this request never looked at.\n\nThe file stops serving immediately: a URL stored on another record will 404."
+            "description": "Archives the record. **The bytes stay in storage.**\n\nNothing in this system is permanently deleted, and a restore that could not hand back the same file would not be a restore. Storage is also content-addressed, so the object may be shared with another user who uploaded the same file.\n\nWho may remove: the uploader and SUPER_ADMIN / ADMIN. Anyone who may not read the file gets a 404. The file stops serving immediately: a URL stored on another record will 404, while `/meta` still describes it as archived."
           },
           "response": [
             {
@@ -16147,12 +16433,12 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"86086007-f16c-454e-baa5-ef2ad59ff384\",\n    \"removed\": true\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"removed\": true\n  }\n}"
             },
             {
-              "name": "Then the file no longer serves (404)",
+              "name": "Error (404 \u00b7 another broker cannot see it to remove it)",
               "originalRequest": {
-                "method": "GET",
+                "method": "DELETE",
                 "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/uploads/{{uploadDocumentId}}",
@@ -16175,7 +16461,36 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That file does not exist.\",\n  \"path\": \"/api/uploads/86086007-f16c-454e-baa5-ef2ad59ff384\",\n  \"timestamp\": \"2026-09-26T05:53:30.539Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That file does not exist.\",\n  \"path\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n  \"timestamp\": \"2026-10-07T09:02:39.429Z\"\n}"
+            },
+            {
+              "name": "Then /meta says it was removed (200)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/uploads/{{uploadDocumentId}}/meta",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "uploads",
+                    "{{uploadDocumentId}}",
+                    "meta"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"url\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"filename\": \"sample-document.pdf\",\n    \"label\": \"2025 Form 1099\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": \"893860d9-6bcc-49a2-83bc-74994ba16a12\",\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-10-07T09:02:39.317Z\",\n    \"archived\": true\n  }\n}"
             }
           ]
         },
@@ -16243,7 +16558,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"86086007-f16c-454e-baa5-ef2ad59ff384\",\n    \"url\": \"/api/uploads/86086007-f16c-454e-baa5-ef2ad59ff384\",\n    \"filename\": \"sample-document.pdf\",\n    \"label\": \"2025 Form 1099\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 633,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": \"b9acd669-1d8d-4619-8eb9-82f00fe4bdf2\",\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-09-26T05:52:59.625Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"url\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2\",\n    \"filename\": \"sample-document.pdf\",\n    \"label\": \"2025 Form 1099\",\n    \"contentType\": \"application/pdf\",\n    \"size\": 601,\n    \"kind\": \"DOCUMENT\",\n    \"visibility\": \"PRIVATE\",\n    \"ownerUserId\": \"893860d9-6bcc-49a2-83bc-74994ba16a12\",\n    \"deduplicated\": false,\n    \"createdAt\": \"2026-10-07T09:02:39.317Z\"\n  }\n}"
             },
             {
               "name": "Error (400 \u00b7 it was never removed)",
@@ -16272,7 +16587,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That file has not been removed.\",\n  \"path\": \"/api/uploads/86086007-f16c-454e-baa5-ef2ad59ff384/restore\",\n  \"timestamp\": \"2026-09-26T05:53:34.625Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That file has not been removed.\",\n  \"path\": \"/api/uploads/c55f9b28-cba8-4423-b8e5-0c12d370b9f2/restore\",\n  \"timestamp\": \"2026-10-07T09:02:39.445Z\"\n}"
             }
           ]
         },
@@ -16310,7 +16625,7 @@
                 "{{uploadImageId}}"
               ]
             },
-            "description": "Archives the image this run uploaded.\n\nThe bytes remain in storage; archiving is about the record. A second run re-uploads the same fixture, which creates a fresh row rather than reviving this one \u2014 re-uploading a removed file is a request to have it back, not a restore."
+            "description": "Archives the image this run uploaded.\n\nThe bytes remain in storage; archiving is about the record. A second run re-uploads the same fixture, which creates a fresh row rather than reviving this one."
           },
           "response": []
         },
@@ -16348,7 +16663,7 @@
                 "{{uploadDocumentId}}"
               ]
             },
-            "description": "Archives the document again.\n\nRequests 06 and 07 removed and restored it to demonstrate both, so it is live at this point. Without this the collection would leave one live row behind on every run \u2014 the exact drift that put 26 Postman clients into the client directory before anyone noticed."
+            "description": "Archives the document again.\n\nRequests 06 and 07 removed and restored it to demonstrate both, so it is live at this point. Without this the collection would leave one live row behind on every run."
           },
           "response": []
         }
@@ -21223,7 +21538,7 @@
     },
     {
       "name": "29 \u00b7 Reports",
-      "description": "Reports (#23): every figure is read through the module that owns it, nothing is stored. Revenue, profit, margin and trips by departure date; cash and FET collected by payment date; outstanding AR/AP as of today. Reads only \u2014 the examples were captured against probe trips the builder created and archived again. No 403 examples while role restrictions are switched off.",
+      "description": "Reports (#23): every figure is read through the module that owns it, nothing is stored. Revenue, profit, margin and trips by departure date; cash and FET collected by payment date; outstanding AR/AP as of today. Reads only \u2014 the examples were captured against probe trips the builder created and archived again. An assistant or referral agent is refused every route here with 403 (VIEW_FINANCIALS); those examples are captured when Reports is reviewed.",
       "item": [
         {
           "name": "01 \u00b7 Summary",
