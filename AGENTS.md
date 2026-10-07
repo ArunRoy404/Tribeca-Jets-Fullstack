@@ -441,23 +441,46 @@ each setting, the module that reads it, and the value hardcoded today.
 
 1. **Check the map for that module's rows.** If any exist, wiring them is
    part of the module, not a later task.
-2. **Read the value from the Settings API** — through the owning service on
-   the backend, through a shared settings hook on the frontend — and delete
+2. **Read the value from the settings** — on the backend inject the global
+   `SettingsService` and `await settings.read()` when deciding (`current()`
+   only inside a synchronous rule, like the idle limit); on the frontend
+   use `useSettings()`, or `useBranding()` for anything public — and delete
    the hardcoded copy in the same pass (`0.075` in the quotes service, the
-   `AUTH_IDLE_TIMEOUT_MINUTES` env default, the letterhead's literal
-   address). Two sources for one number drift, exactly as a second copy of
-   the permission matrix would.
+   letterhead's literal address). Two sources for one number drift, exactly
+   as a second copy of the permission matrix would — which is why the
+   `AUTH_IDLE_TIMEOUT_MINUTES` env var was deleted when Auth started
+   reading the setting.
 3. **A default seeds a new record; it never rewrites an old one.** Changing
    the default FET changes the next quote, not the quotes already sent — the
    same rule as a commission copying the agent's terms at creation.
 4. **The server reads the setting when it decides.** A form may prefill from
    it, but the API applies it on create when the field is absent, so a
    caller that omits a field gets the setting, not a stale constant.
-5. **If the Settings API does not exist yet,** leave the current behaviour
-   in place and the row ⬜ — never invent a second, local copy of the value
-   to "wire it later".
+5. **The Settings API exists** (7 Oct 2026): `GET`/`PATCH /settings`, one
+   row for the whole company (`company_settings`, held to `id = 1`). A new
+   setting is a column, a field in `settings.dto.ts` and `settings.view.ts`,
+   a line in the frontend's `SETTINGS_FIELDS`, and its row in the map.
 6. **Mark the row ✅** in the map and move its line to "working" in
    `MODULE_FEATURE_STATUS.md`, in the same pass.
+
+**The branding is public, and only the branding.** `GET
+/settings/branding` and `/settings/branding/logo` need no session — the
+sign-in page and every sidebar read them — so `brandingView` returns the
+name, the logo's public address, contact details only while the company
+shows them, and the document switches. Nothing else ever goes in it, and
+the logo route serves only the one upload the settings name.
+
+**The company's name and logo are never hardcoded.** The logo is
+`BrandLogo` (with `fallbackSrc` for a screen drawn with its own built-in
+mark); the letterhead is `TribecaLetterhead`, whose contact block is **all or
+nothing** — name, website, email, phone and address while "Show company
+contact block" is on, none of them while it is off (owner's rule); "<Company> Command Center" is
+`useProductName()`; tab titles come from the root layout's template; emails
+take `brand` from `MailService`. A new screen or email uses these.
+
+**The settings row is not soft-deletable**, like users: it is one row that
+is never created or removed by anyone, so it carries the four audit columns
+and no archive trail. Every change is in the audit log instead.
 
 Two rules on adding settings:
 
@@ -916,7 +939,7 @@ the file safe to open — a macro workbook is the reader's machine's risk, as
 any email attachment is.
 
 **Images stay strict**, because images are served `inline`: only sniffed
-JPEG, PNG, WebP and GIF. SVG is never an image — it executes script — and
+JPEG, PNG, WebP, GIF and AVIF (since 7 Oct 2026). SVG is never an image — it executes script — and
 legacy OLE2 and archives are never *recognised* as their own type, because
 nothing can tell them apart without trusting the sender.
 

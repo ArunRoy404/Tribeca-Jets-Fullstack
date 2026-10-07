@@ -1403,35 +1403,79 @@ role.
 
 ---
 
-## 26. Settings / Import / Export / Backup 🟡 *(screens 6 Oct 2026, no API)*
+## 26. Settings / Import / Export / Backup 🟡 *(screens 6 Oct, API 7 Oct 2026 — waiting on the owner's click-through)*
 
-**Built — frontend only.** `/dashboard/settings`, six sections from the
-Figma file (node 253:21850), the open one in the URL (`?section=`). Values
-sit in `useSettingsStore`, seeded from `dummyData/settings.js`; every Save
-says in its toast that nothing reached the server. Import, export and
-backup are still **acceptance criteria in the signed scope with no API**,
-and so is **offline / PWA support**.
+**One set of settings for the whole company** (owner's decision, 7 Oct
+2026), never per user: the `company_settings` table holds exactly one row
+(a CHECK keeps `id = 1`; the migration inserts it). `/dashboard/settings`
+has five sections, the open one in the URL (`?section=`).
 
-- **Company & Branding** — profile fields, logo upload (a real upload, URL
-  kept in the store), a live document contact block, three document toggles.
-- **CRM & Quote Defaults** — markup with presets, quote validity, default
-  FET and "apply by default", follow-up interval, lead stage, quote terms.
-- **Security & Session** — idle timeout and warning, "require 2FA for
-  administrators" (local until the API), and two pieces that are **live**
-  since 6 Oct: Change Password (`POST /auth/change-password`) and the active
-  sessions list with Revoke / sign out all others (`/auth/sessions`).
-- **Notifications & Automation** — email / in-app channels, flight alerts to
-  brokers, follow-up / payment / quote-expiry reminders and their timing.
-- **Integrations** — quick links to Avinode, DocuSign and the website.
-- **Data Import & Export** — import type, file pick (CSV/XLSX, 25 MB), a
-  column mapping read from a CSV's header in the browser; export scope and
-  dates; the backup schedule as one read-only line.
+**Working now**
+
+- **`GET /settings`** (Settings · View) and **`PATCH /settings`** (Settings ·
+  Edit) — one object per screen; a screen saves only the fields it changed.
+  Unknown keys and values a screen does not offer are 400s. Every change is
+  audited as `settings.updated` with `{ field: { from, to } }`.
+- **Public branding** — `GET /settings/branding` (name, logo address; email,
+  website, phone, address only while "Show company contact block" is on;
+  the three document switches) and `GET /settings/branding/logo` (the logo
+  image, only that one file). No session needed: **every sidebar and the
+  sign-in page read the logo from it** (`BrandLogo`), with the built-in
+  Tribeca marks while none is uploaded.
+- **The company brand reaches every surface that is not a module still
+  waiting for review:** the logo (`BrandLogo`) on the sidebars, sign-in
+  card and hero, splash, loading screen and 404; the letterhead on every
+  detail sheet (`TribecaLetterhead`); the browser tab titles; the sign-in
+  and reset wording; the referral portal's wording and the assistant's
+  title; and every email's header, footer, subject and sign-off (logo by
+  absolute public URL, name otherwise). AVIF logos are accepted.
+- **The contact block is all or nothing** (owner's rule, 7 Oct 2026): on,
+  the letterhead shows the company name, website, email, phone and address
+  (whichever are filled in); off, it shows none of them — only the logo.
+- **Company & Branding** — profile, logo upload / replace / back to built-in
+  (checked to be a live image), contact-block preview that follows its
+  toggle, three document toggles.
+- **Security & Session — read by Auth now:** the inactivity timeout (the
+  server's idle limit and `/auth/me` → `session`; the
+  `AUTH_IDLE_TIMEOUT_MINUTES` env var is gone), the warning length and
+  whether it shows (the browser's watcher), and **require 2FA for
+  administrators** (SUPER_ADMIN and ADMIN get an emailed code at sign-in
+  whether or not they turned two-factor on; off by default). Change Password
+  and the sessions list were already live.
+- **CRM & Quote Defaults** and **Notifications & Automation** — saved and
+  shown; each screen says what reads them and when (below).
+- Read-only without Settings · Edit: no Save, no upload, controls disabled.
+- Postman `30 · Settings` — 5 requests, 16 captured examples, restores every
+  value it changes; 12 unit tests (branding never leaks, the audit diff,
+  validation).
+
+**Hidden (owner's decision, 7 Oct 2026)**
+
+> ⚠️ **Import is hidden, not dropped.** The Import card is behind
+> `IMPORT_ENABLED` in `DataSection.jsx`. It is built in **Import / Export
+> (#31)**, which also builds Export (the card stays visible and says it is
+> not connected). **When the review reaches #31, tell the owner** — they
+> asked to be reminded.
+>
+> **Integrations is hidden**: three static links that stored nothing.
+> `IntegrationsSection` and `QUICK_LINKS` remain; adding `integrations` back
+> to `SETTINGS_SECTIONS` restores it.
+
+**Read by a module when that module is reviewed** (the map in MODULES.md §26)
+
+| Setting | Module that will read it |
+|---|---|
+| Markup, quote validity, FET %, apply FET, quote terms | Quotes (#15), Trips (#16) |
+| Follow-up interval, lead stage | Clients (#9), Leads & Agents (#12) |
+| Company name, contact, logo on documents, broker contact | Email Templates (#27), Itineraries (#17), the letterhead, the PDF generator |
+| Notification channels, flight alerts, reminders and timing | A reminder scheduler and notification inbox — with Tasks & bell (#26 in the review order) and Flight Tracking (#19) |
+| "Use the company logo on documents", "Show assigned broker contact" | The quote and itinerary documents — Quotes (#15), Itineraries (#17), the PDF generator |
 
 **Waiting on a dependency**
 
 | Removed or inert | Why | What brings it back |
 |---|---|---|
-| Every Save (all sections) | No Settings API; values live on the screen only | Settings API (#26) |
+| ~~Every Save (all sections)~~ | ✅ The Settings API, 7 Oct 2026 | — |
 | Overview tab | Repeated the nav; its toggles duplicated other tabs | Nothing — a real status page, if wanted, reads live health |
 | "Preview PDF Header" | No PDF generator | The PDF generator |
 | "Client & trip behavior" toggles (notes timelines, admin keeps deleted clients) | Always-on system rules, not preferences | Never a toggle |
@@ -1447,7 +1491,7 @@ and so is **offline / PWA support**.
 | API & webhooks panel | No public API | A public API, if ever scoped |
 | Validate Import, Export XLSX/CSV | No import/export endpoint (exports will reuse `common/export/tabular.ts`) | Import & Export API |
 | Excel column mapping | An `.xlsx` header needs the server to read it | Import API |
-| "File Format" dropdowns, legacy `.xls` | The format is read from the file; `.xls` is refused by the upload rules | Never |
+| "File Format" dropdowns | The format is read from the file | Never |
 | "Period" dropdown | The start and end dates are the period | Never |
 | "Import safeguards" toggles | Preview and history preservation are always on | Never a toggle |
 | Backup on/off, frequency, destination, Run Now, Download, Restore upload, "Healthy" / last-backup | Backups run on the server (03:00 UTC to R2); a browser restore is too dangerous; the status was invented | A read-only status from the server, if wanted |
@@ -1479,7 +1523,7 @@ every future upload button behind a new enum value and a migration. It was
 replaced before any screen consumed it, so nothing was migrated and no real data
 existed.
 
-**Reviewed 7 Oct 2026 — waiting on the owner's click-through**
+**Reviewed 7 Oct 2026 — owner signed off**
 
 - **Every broker and assistant could open every private file.** "Is this an
   administrator?" was asked of the role matrix, which answered SUPER_ADMIN for

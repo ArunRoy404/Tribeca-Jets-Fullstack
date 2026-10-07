@@ -128,7 +128,7 @@ reviewed yet — the module may still be built and working.
 |---|---|---|---|
 | 1 | Auth & Sessions | Yes — idle timeout, warning, admin 2FA | ✅ 6 Oct — owner tested |
 | 2 | Users & Roles | — | ✅ 7 Oct — owner tested |
-| 3 | Uploads | — | ⬜ |
+| 3 | Uploads | — | ✅ 7 Oct — owner tested |
 | 4 | **Settings API** (#26, backend for the built screens) | — (it is the source) | ⬜ |
 | 5 | Airports | — | ⬜ |
 | 6 | Charter Rates / Instant Estimate | — | ⬜ |
@@ -156,7 +156,7 @@ reviewed yet — the module may still be built and working.
 | 28 | Document Vault | — | ⬜ |
 | 29 | Reports | — | ⬜ |
 | 30 | Dashboard | — | ⬜ |
-| 31 | Import / Export (#26, the rest) | — | ⬜ |
+| 31 | Import / Export (#26, the rest) — **tell the owner when we reach it** (Import hidden, Export not connected since 7 Oct) | — | ⬜ |
 | 32 | PDF generator | Yes — document identity and toggles | ⬜ |
 | 33 | Client Portal (#25) | — | ⬜ |
 | 34 | AI Assistant (#27) | — | ⬜ |
@@ -688,13 +688,15 @@ trips through the one `tallyTrips` in `trips/trips.figures.ts`.
 An external-facing view for clients to see their quotes, trips and documents.
 A separate authentication surface. **No screen exists.**
 
-### 26. Settings / Import / Export / Backup 🟡 *(screens 6 October 2026)*
+### 26. Settings / Import / Export / Backup 🟡 *(screens 6 October, API 7 October 2026)*
 
-`/dashboard/settings` exists as screens only — six sections, store-backed,
-every Save saying nothing reached the server. What was dropped from the
-Figma file and why is in `MODULE_FEATURE_STATUS.md` (#26). Import and export
-are still **acceptance criteria in the signed scope with no API**; so is
-offline/PWA support.
+**One set of settings for the whole company**, in one row
+(`company_settings`), behind `GET`/`PATCH /settings`; the branding (name,
+logo, contact when shown) is public at `GET /settings/branding` and every
+sidebar and the sign-in page read the logo from it. Integrations and Import
+are hidden (owner's decision); Import and Export are built in #31. What was
+dropped from the Figma file and why is in `MODULE_FEATURE_STATUS.md` (#26).
+Offline/PWA support is still open.
 
 **A setting is only real once something reads it.** Building the Settings
 API makes the Save buttons work; it changes nothing else. Each setting takes
@@ -706,8 +708,8 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 
 | Setting (section) | Read by | Hardcoded today | Status |
 |---|---|---|---|
-| Company name, email, website, phone, address, client-services label (Company) | Email Templates (sender, merge fields), Quotes/Itineraries letterhead | `TribecaLetterhead.jsx`; `MAIL_FROM` env default | ⬜ |
-| Logo (Company) | Letterhead, PDF generator | `/dashboard/img/logo_black.svg` | ⬜ |
+| Company name, email, website, phone, address, client-services label (Company) | Public branding ✅; Email Templates (sender, merge fields), Quotes/Itineraries letterhead ⬜ | `TribecaLetterhead.jsx`; `MAIL_FROM` env default | 🟡 stored; branding reads it |
+| Logo (Company) | Every sidebar and the sign-in page ✅; letterhead, PDF generator ⬜ | built-in marks until one is uploaded | 🟡 app ✅, documents ⬜ |
 | Show contact block / logo on PDFs / broker contact (Company) | PDF generator, Itinerary preview | always shown | ⬜ waits on PDF generator |
 | Default markup + presets (Defaults) | Quotes — new-quote form | none (blank) | ⬜ |
 | Quote validity (Defaults) | Quotes — new quote's expiry | — | ⬜ |
@@ -716,15 +718,15 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 | Default follow-up interval (Defaults) | Clients, Leads — create / follow-up dialogs | — | ⬜ |
 | Default lead stage (Defaults) | Clients, Leads — create forms | `NEW` in the forms | ⬜ |
 | Default quote terms (Defaults) | Quotes — new-quote form | — | ⬜ |
-| Inactivity timeout (Security) | Auth — `/auth/me` and the refresh check | `AUTH_IDLE_TIMEOUT_MINUTES` env | ⬜ |
-| Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` | fixed in the watcher | ⬜ |
-| Require 2FA for admins (Security) | Auth — sign-in | per-user `twoFactorEnabled` only | ⬜ |
+| Inactivity timeout (Security) | Auth — `/auth/me` and the refresh check | — (env var removed 7 Oct) | ✅ |
+| Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` via `/auth/me` → `session` | — | ✅ |
+| Require 2FA for admins (Security) | Auth — sign-in (SUPER_ADMIN and ADMIN) | — | ✅ |
 | Email / in-app channels (Notifications) | Tasks Board notifications, Email sending | both always on | ⬜ |
 | Flight alerts to brokers (Notifications) | Flight Tracking — status change | — | ⬜ |
 | Follow-up / payment / quote-expiry reminders + timing (Notifications) | A reminder scheduler (new) reading Clients, Receivables, Operator Payments, Quotes | no scheduler | ⬜ waits on scheduler |
-| Import type, export scope and dates (Data) | Import / Export API | — | ⬜ |
+| Import type, export scope and dates (Data) | Import / Export API (#31) — Import hidden until then | — | ⬜ not settings; screen state |
 | Backup line (Data) | — (states the server's schedule) | `BACKUP_POLICY` in `lib/settings.js` | ✅ static by design |
-| Quick links (Integrations) | — | `QUICK_LINKS` in `lib/settings.js` | ✅ static by design |
+| Quick links (Integrations) | — | `QUICK_LINKS` in `lib/settings.js` | Hidden 7 Oct (owner's decision) |
 
 When a row is wired, mark it ✅ here and move its line in
 `MODULE_FEATURE_STATUS.md` from waiting to working, in the same pass.
@@ -770,7 +772,9 @@ not a kind, and encoding one here is how the category design went wrong.
   multipart part's `Content-Type` is chosen by whoever sent it, so storing it
   means the fetch route eventually hands a browser exactly what an attacker
   picked — `text/html` on the API's own origin, with the session cookie
-  attached. SVG, archives and legacy `.doc`/`.xls` are refused outright.
+  attached. Images are strict (never SVG); since 6 Oct 2026 a document may
+  be any file, and one the server cannot recognise is stored as
+  `application/octet-stream` and always downloads.
 - **Storage is content-addressed** — `images/<sha256>.png`. Identical bytes
   always resolve to the same object, so re-uploading overwrites a file with
   itself rather than filling the disk. There is deliberately no date folder: a
