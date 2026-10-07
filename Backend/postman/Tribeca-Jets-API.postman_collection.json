@@ -234,6 +234,16 @@
       "key": "withdrawUserId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "settingsBefore",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "probeValidity",
+      "value": "48",
+      "type": "string"
     }
   ],
   "event": [
@@ -22416,6 +22426,771 @@
               ],
               "cookie": [],
               "body": "(binary .xlsx workbook \u2014 one sheet, \"Operations\", same columns as the CSV)"
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "30 \u00b7 Settings",
+      "description": "One set of settings for the whole company (owner's decision, 7 Oct 2026) \u2014 never per user. One object per Settings screen:\n\n| Section | Fields | Read by |\n|---|---|---|\n| `company` | `companyName`, `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |\n| `defaults` | `defaultMarkupPercent`, `quoteValidityHours`, `defaultFetPercent`, `applyFetByDefault`, `followUpIntervalDays`, `defaultLeadStage`, `defaultQuoteTerms` | Quotes, Trips, Clients and Leads \u2014 each when its module is reviewed. **New records only.** |\n| `security` | `idleTimeoutMinutes`, `idleWarningMinutes`, `showIdleWarning`, `requireAdminTwoFactor` | Auth, now: the idle limit, the warning (`/auth/me` \u2192 `session`) and sign-in |\n| `notifications` | `emailNotifications`, `inAppNotifications`, `flightAlertsToBrokers`, `followUpReminders`, `paymentReminders`, `quoteExpiryReminders`, `quoteExpiryWarningHours`, `paymentReminderDays`, `followUpReminderMinutes` | Stored; read when the alerts are built |\n\n**Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 \u00b7 24 \u00b7 48 \u00b7 72 \u00b7 168 \u2014 `followUpIntervalDays` 1 \u00b7 2 \u00b7 3 \u00b7 5 \u00b7 7 \u2014 `idleTimeoutMinutes` 5 \u00b7 10 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `idleWarningMinutes` 1 \u00b7 2 \u00b7 5 (less than the timeout) \u2014 `quoteExpiryWarningHours` 1 \u00b7 2 \u00b7 4 \u00b7 12 \u00b7 24 \u2014 `paymentReminderDays` 0 \u00b7 1 \u00b7 3 \u00b7 7 \u2014 `followUpReminderMinutes` 0 \u00b7 15 \u00b7 60 \u00b7 1440. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.\n\n**Permissions:** reading needs Settings \u00b7 View, changing needs Settings \u00b7 Edit \u2014 administrators by default; every other role is locked out (403). The branding and the logo are **public**.",
+      "item": [
+        {
+          "name": "01 \u00b7 Read the settings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const current = pm.response.json().data;",
+                  "pm.test('one object per screen', () =>",
+                  "  pm.expect(current).to.include.keys('company', 'defaults', 'security', 'notifications'));",
+                  "// Saved whole, so 05 \u00b7 Teardown can put every value back.",
+                  "const { updatedAt, ...sections } = current;",
+                  "pm.collectionVariables.set('settingsBefore', JSON.stringify(sections));",
+                  "pm.collectionVariables.set('probeValidity', current.defaults.quoteValidityHours === 48 ? 72 : 48);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings"
+              ]
+            },
+            "description": "The company's settings, one object per Settings screen, in the shape `PATCH` accepts. Needs Settings \u00b7 View."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 The settings",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null,\n      \"logoUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-07T10:00:47.006Z\"\n  }\n}"
+            },
+            {
+              "name": "403 \u00b7 A broker (Settings is locked for the role)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 View\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.381Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Signed out",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.382Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 Change a setting",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('the change is stored', () => pm.expect(pm.response.json().data.defaults.quoteValidityHours)",
+                  "  .to.eql(Number(pm.collectionVariables.get('probeValidity'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"defaults\": {\n    \"quoteValidityHours\": {{probeValidity}}\n  }\n}"
+            },
+            "description": "Send one or more sections, and in each only the fields to change \u2014 a Settings screen saves its own section. **Absent fields are left alone**; an emptied text field (`\"\"`) clears it. Every section is strict: an unknown key is a 400, not a save that quietly did nothing.\n\nA default seeds the **next** record; quotes and clients that already exist never change.\n\nAudited as `settings.updated` with each value that moved (`{ field: { from, to } }`). Needs Settings \u00b7 Edit."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Saved",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"defaults\": {\n    \"quoteValidityHours\": 72\n  }\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null,\n      \"logoUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 72,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-07T10:01:03.386Z\"\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 A logo set (an image upload URL)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/bf9f793a-222a-4d34-8048-ba9be944b3e2\"\n  }\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null,\n      \"logoUrl\": \"/api/uploads/bf9f793a-222a-4d34-8048-ba9be944b3e2\",\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 72,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-07T10:01:03.432Z\"\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Not one of the offered values",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"defaults\": {\n    \"quoteValidityHours\": 36\n  }\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults.quoteValidityHours\": \"Quote validity must be one of 12, 24, 48, 72, 168\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.393Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 An unknown field",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"defaults\": {\n    \"quoteValidity\": 48\n  }\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults\": \"Unrecognized key: \\\"quoteValidity\\\"\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.394Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 The warning must come before the timeout",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"security\": {\n    \"idleTimeoutMinutes\": 5,\n    \"idleWarningMinutes\": 5\n  }\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"security.idleWarningMinutes\": \"The warning must come before the timeout\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.395Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 A document is not a logo",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/<a document>\"\n  }\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Bad Request Exception\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.409Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 A broker",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"defaults\": {\n    \"quoteValidityHours\": 72\n  }\n}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 Edit\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.397Z\"\n}"
+            },
+            {
+              "name": "200 \u00b7 Then, with \"require 2FA for administrators\" on, the owner signing in is asked for a code",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"{{password}}\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"ad***@example.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"601790\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Company branding (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('carries the company name', () => pm.expect(pm.response.json().data.companyName).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings/branding",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "branding"
+              ]
+            },
+            "description": "**Public \u2014 no session.** The sign-in page and every sidebar read it.\n\n- `companyName` and `logoUrl` always. `logoUrl` is the public logo route below, versioned by its upload (`?v=`), so a new logo is a new address \u2014 never the upload URL, which needs a session.\n- `contact` (email, website, phone, address, client-services label) **only while `showContactBlock` is on**; otherwise `null`.\n- `documents`: the three client-facing document switches.\n\nNothing else \u2014 no defaults, security policy or notification settings."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 The branding with the contact block",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/branding",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "branding"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"logoUrl\": null,\n    \"contact\": {\n      \"email\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null\n    },\n    \"documents\": {\n      \"showContactBlock\": true,\n      \"showLogo\": true,\n      \"showBrokerContact\": true\n    }\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 The branding without the contact block",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/branding",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "branding"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"logoUrl\": null,\n    \"contact\": null,\n    \"documents\": {\n      \"showContactBlock\": false,\n      \"showLogo\": true,\n      \"showBrokerContact\": true\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Company logo (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 200 with the image when a logo is set, 404 when none is.",
+                  "pm.test('200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('an image', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('image/'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings/branding/logo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "branding",
+                "logo"
+              ]
+            },
+            "description": "**Public \u2014 no session.** The logo image itself, for `<img src>` on the sign-in page and in every sidebar. Only the one upload the settings name is ever served here, so this is not a way to read any other file. Cached for an hour; a new logo has a new `?v=` address. 404 when no logo is set \u2014 the app then shows its built-in mark."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 The logo",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/branding/logo?v=bf9f793a-222a-4d34-8048-ba9be944b3e2",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "branding",
+                    "logo"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"_\": \"The body is the image itself \\u2014 73 bytes of image/png.\"\n}"
+            },
+            {
+              "name": "404 \u00b7 No logo set",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/branding/logo",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "branding",
+                    "logo"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo has been set.\",\n  \"path\": \"/api/settings/branding/logo\",\n  \"timestamp\": \"2026-10-07T10:01:03.424Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Teardown \u2014 put the settings back",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Every value as 01 read it, so the run changes nothing the desk set.",
+                  "pm.variables.set('settingsBody', pm.collectionVariables.get('settingsBefore'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('restored', () => pm.response.to.have.status(200));",
+                  "const before = JSON.parse(pm.collectionVariables.get('settingsBefore'));",
+                  "pm.test('exactly as before', () => pm.expect(pm.response.json().data.defaults).to.eql(before.defaults));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{settingsBody}}"
+            },
+            "description": "Sends back every value `01` read. The run is a demonstration; it must not change a setting the desk chose."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Restored",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"companyEmail\": null,\n    \"website\": null,\n    \"phone\": null,\n    \"address\": null,\n    \"clientServicesLabel\": null,\n    \"logoUrl\": null,\n    \"showContactBlock\": true,\n    \"logoOnDocuments\": true,\n    \"showBrokerContact\": true\n  },\n  \"defaults\": {\n    \"defaultMarkupPercent\": 15,\n    \"quoteValidityHours\": 48,\n    \"defaultFetPercent\": 7.5,\n    \"applyFetByDefault\": true,\n    \"followUpIntervalDays\": 3,\n    \"defaultLeadStage\": \"NEW\",\n    \"defaultQuoteTerms\": null\n  },\n  \"security\": {\n    \"idleTimeoutMinutes\": 10,\n    \"idleWarningMinutes\": 1,\n    \"showIdleWarning\": true,\n    \"requireAdminTwoFactor\": false\n  },\n  \"notifications\": {\n    \"emailNotifications\": true,\n    \"inAppNotifications\": true,\n    \"flightAlertsToBrokers\": true,\n    \"followUpReminders\": true,\n    \"paymentReminders\": true,\n    \"quoteExpiryReminders\": true,\n    \"quoteExpiryWarningHours\": 4,\n    \"paymentReminderDays\": 1,\n    \"followUpReminderMinutes\": 0\n  }\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null,\n      \"logoUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-07T10:01:03.478Z\"\n  }\n}"
             }
           ]
         }
