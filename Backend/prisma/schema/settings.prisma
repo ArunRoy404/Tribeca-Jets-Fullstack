@@ -1,0 +1,71 @@
+/// The company's settings — one row, for the whole company (owner's decision,
+/// 7 Oct 2026). Never per user.
+///
+/// `id` is always 1, held there by a CHECK constraint, so "the settings" can
+/// never become two rows that disagree. The row is created by its migration;
+/// nothing inserts or deletes it, so it carries no archive trail (like users,
+/// it is not soft-deletable) — every change is audited as `settings.updated`
+/// with what moved.
+///
+/// **A default seeds a new record; it never rewrites an old one.** Changing
+/// the FET here changes the next quote, not the quotes already sent. Each
+/// value does nothing until the module it governs reads it — the map is in
+/// docs/MODULES.md §26.
+model CompanySettings {
+  id Int @id @default(1)
+
+  // ---- Company & branding ---------------------------------------------------
+  companyName         String  @default("Tribeca Jets") @db.VarChar(120)
+  companyEmail        String? @db.VarChar(254)
+  website             String? @db.VarChar(200)
+  phone               String? @db.VarChar(40)
+  address             String? @db.VarChar(300)
+  clientServicesLabel String? @db.VarChar(120)
+  /// An image upload URL (`/api/uploads/<id>`). Served publicly — only this
+  /// one file — at `GET /settings/branding/logo`.
+  logoUrl             String? @db.VarChar(80)
+  /// Email, website, phone and address in the app's branding and documents.
+  showContactBlock    Boolean @default(true)
+  /// The logo on client-facing documents (the app itself always shows it).
+  logoOnDocuments     Boolean @default(true)
+  /// The assigned broker's contact on client-facing documents.
+  showBrokerContact   Boolean @default(true)
+
+  // ---- CRM & quote defaults (new records only) -------------------------------
+  defaultMarkupPercent Decimal   @default(15) @db.Decimal(5, 2)
+  quoteValidityHours   Int       @default(24)
+  defaultFetPercent    Decimal   @default(7.5) @db.Decimal(6, 3)
+  applyFetByDefault    Boolean   @default(true)
+  followUpIntervalDays Int       @default(3)
+  defaultLeadStage     LeadStage @default(NEW)
+  defaultQuoteTerms    String?   @db.Text
+
+  // ---- Security & session ----------------------------------------------------
+  idleTimeoutMinutes    Int     @default(10)
+  idleWarningMinutes    Int     @default(1)
+  showIdleWarning       Boolean @default(true)
+  /// Administrators sign in with an emailed code whether or not they turned
+  /// two-factor on themselves. Off until the owner switches it on.
+  requireAdminTwoFactor Boolean @default(false)
+
+  // ---- Notifications & automation (stored; read when their senders exist) ---
+  emailNotifications      Boolean @default(true)
+  inAppNotifications      Boolean @default(true)
+  flightAlertsToBrokers   Boolean @default(true)
+  followUpReminders       Boolean @default(true)
+  paymentReminders        Boolean @default(true)
+  quoteExpiryReminders    Boolean @default(true)
+  quoteExpiryWarningHours Int     @default(4)
+  paymentReminderDays     Int     @default(1)
+  followUpReminderMinutes Int     @default(0)
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("CompanySettingsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("CompanySettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("company_settings")
+}

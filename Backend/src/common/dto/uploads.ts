@@ -17,10 +17,14 @@ import { z } from 'zod';
  *
  * Every column holding an upload uses this, so the rule is written once.
  */
+const UPLOAD_URL = /^\/api\/uploads\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
 export const uploadUrl = z
   .string()
   .trim()
-  .regex(
-    /^\/api\/uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-    'Use the URL the upload returned, like /api/uploads/<id>',
-  );
+  .regex(UPLOAD_URL, 'Use the URL the upload returned, like /api/uploads/<id>');
+
+/** The upload id inside a stored `/api/uploads/<id>` URL, or null. */
+export function uploadIdFrom(url: string | null | undefined): string | null {
+  return url ? (UPLOAD_URL.exec(url.trim())?.[1]?.toLowerCase() ?? null) : null;
+}

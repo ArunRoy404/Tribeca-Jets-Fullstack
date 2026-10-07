@@ -431,6 +431,26 @@ export class UploadsService {
   }
 
   /**
+   * Checks that `id` is a live image the caller may read, before another
+   * module stores it — the company logo (#26) is the first caller.
+   *
+   * A 400 naming the field rather than a 404: the caller is filling in a
+   * form, and "that is not an image you can use" is what they need to fix.
+   */
+  async assertUsableImage(actor: AuthenticatedUser, id: string, field: string): Promise<void> {
+    const row = await this.prisma.upload.findFirst({
+      where: { id, deletedAt: null },
+      select: { kind: true, visibility: true, ownerUserId: true, uploadedById: true },
+    });
+    if (!row || !mayRead(actor, row)) {
+      throw new BadRequestException({ [field]: 'That image does not exist or has been removed.' });
+    }
+    if (row.kind !== UploadKind.IMAGE) {
+      throw new BadRequestException({ [field]: 'Upload an image (JPEG, PNG, WebP, GIF or AVIF).' });
+    }
+  }
+
+  /**
    * The record without its bytes — for a caller that wants the metadata.
    *
    * Unlike the stream, this answers for an archived row: a list showing an
