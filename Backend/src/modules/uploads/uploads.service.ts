@@ -12,6 +12,7 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { StorageService } from '../../core/storage/storage.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { sniffContentType } from '../../common/files/file-signature.js';
+import { cleanFilename } from '../../common/files/filename.js';
 import {
   ARCHIVE_ACTOR_SELECT,
   ARCHIVE_SELECT,
@@ -26,6 +27,7 @@ import { paginate, type AuthenticatedUser } from '../../common/types/api.types.j
 import { UploadKind, UploadVisibility } from '../../generated/prisma/enums.js';
 import {
   administersUsers,
+  mayManage,
   mayRead,
   visibilityWhere,
 } from './uploads.access.js';
@@ -239,6 +241,9 @@ export class UploadsService {
     }
 
     const contentType = this.resolveContentType(file, kind);
+    // Decoded from multer's latin1, path and control characters dropped, and
+    // shortened to the column — see `cleanFilename`.
+    const filename = cleanFilename(file.originalname);
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
 
     // A referral agent (#11) uploads attachments for the desk and nothing
@@ -309,7 +314,7 @@ export class UploadsService {
         // given, so storing the header here would hand a browser the
         // attacker's choice of content type.
         contentType,
-        filename: file.originalname,
+        filename,
       });
     }
 
@@ -319,7 +324,7 @@ export class UploadsService {
       data: {
         storageKey: key,
         driver: this.storage.driverName,
-        filename: file.originalname,
+        filename,
         contentType,
         kind,
         size: file.size,
@@ -538,6 +543,7 @@ export class UploadsService {
     if (!row || !mayRead(actor, row)) {
       throw new NotFoundException('That file does not exist.');
     }
+    this.assertMayManage(actor, row);
 
     await this.prisma.upload.update({
       where: { id },
@@ -572,6 +578,7 @@ export class UploadsService {
     if (!row || !mayRead(actor, row)) {
       throw new NotFoundException('That file does not exist.');
     }
+    this.assertMayManage(actor, row);
     if (!row.deletedAt) {
       throw new BadRequestException('That file has not been removed.');
     }
@@ -591,5 +598,17 @@ export class UploadsService {
     });
 
     return this.shape(restored, false);
+  }
+
+  /** Removing and restoring: the uploader or an administrator (`mayManage`). */
+  private assertMayManage(
+    actor: AuthenticatedUser,
+    row: Parameters<typeof mayManage>[1],
+  ): void {
+    if (!mayManage(actor, row)) {
+      throw new ForbiddenException(
+        'Only the person who uploaded this file or an administrator can remove or restore it.',
+      );
+    }
   }
 }

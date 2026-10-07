@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole, UploadVisibility } from '../../generated/prisma/enums.js';
-// Role restrictions are switched off for now (see ROLE_RESTRICTIONS_ENABLED);
-// the tests that assert a role is refused run again when they come back.
-import { ROLE_RESTRICTIONS_ENABLED } from '../../common/authorization/permissions.js';
 import {
   administersUsers,
+  mayManage,
   mayRead,
   visibilityWhere,
   type UploadAccessFacts,
@@ -44,11 +42,11 @@ describe('who may read an upload', () => {
     expect(mayRead(mark, marksTaxForm)).toBe(true);
   });
 
-  it.skipIf(!ROLE_RESTRICTIONS_ENABLED)('does NOT let another broker read it', () => {
+  it('does NOT let another broker read it', () => {
     expect(mayRead(barry, marksTaxForm)).toBe(false);
   });
 
-  it.skipIf(!ROLE_RESTRICTIONS_ENABLED)('does not let an assistant read it either', () => {
+  it('does not let an assistant read it either', () => {
     expect(mayRead(assistant, marksTaxForm)).toBe(false);
   });
 
@@ -57,7 +55,7 @@ describe('who may read an upload', () => {
     expect(mayRead(superAdmin, marksTaxForm)).toBe(true);
   });
 
-  it.skipIf(!ROLE_RESTRICTIONS_ENABLED)('lets the uploader read their own private file', () => {
+  it('lets the uploader read their own private file', () => {
     const barrysOwn: UploadAccessFacts = {
       visibility: UploadVisibility.PRIVATE,
       ownerUserId: null,
@@ -71,7 +69,7 @@ describe('who may read an upload', () => {
    * A null owner must never match a caller whose id is somehow absent — the
    * comparison has to be to a real id, not to two nullish values agreeing.
    */
-  it.skipIf(!ROLE_RESTRICTIONS_ENABLED)('treats a null owner as nobody, not as everybody', () => {
+  it('treats a null owner as nobody, not as everybody', () => {
     const orphan: UploadAccessFacts = {
       visibility: UploadVisibility.PRIVATE,
       ownerUserId: null,
@@ -88,7 +86,7 @@ describe('the list filter agrees with the row check', () => {
     expect(administersUsers(admin)).toBe(true);
   });
 
-  it.skipIf(!ROLE_RESTRICTIONS_ENABLED)('gives everyone else exactly the three branches of mayRead', () => {
+  it('gives everyone else exactly the three branches of mayRead', () => {
     expect(visibilityWhere(barry)).toEqual({
       OR: [
         { visibility: UploadVisibility.PUBLIC },
@@ -124,6 +122,37 @@ describe('the list filter agrees with the row check', () => {
           expect(sqlWouldMatch, JSON.stringify(row)).toBe(mayRead(barry, row));
         }
       }
+    }
+  });
+});
+
+describe('who may remove or restore an upload', () => {
+  it('lets the uploader and administrators remove a file', () => {
+    expect(mayManage(admin, marksTaxForm)).toBe(true);
+    expect(mayManage(superAdmin, marksTaxForm)).toBe(true);
+    const barrysOwn = { ...marksTaxForm, ownerUserId: null, uploadedById: barry.id };
+    expect(mayManage(barry, barrysOwn)).toBe(true);
+  });
+
+  /** Read is wide for a PUBLIC file; removal must not follow it. */
+  it('does not let a broker remove a public photo they can read', () => {
+    expect(mayRead(mark, brochure)).toBe(true);
+    expect(mayManage(mark, brochure)).toBe(false);
+    expect(mayManage(assistant, brochure)).toBe(false);
+  });
+
+  it('does not let the person a document is filed about remove it', () => {
+    expect(mayRead(mark, marksTaxForm)).toBe(true);
+    expect(mayManage(mark, marksTaxForm)).toBe(false);
+  });
+});
+
+describe('administrators are decided by the stored role', () => {
+  it('is SUPER_ADMIN and ADMIN, and no one else', () => {
+    expect(administersUsers(admin)).toBe(true);
+    expect(administersUsers(superAdmin)).toBe(true);
+    for (const actor of [mark, assistant, { id: 'agent-1', role: UserRole.REFERRAL_AGENT }]) {
+      expect(administersUsers(actor), actor.role).toBe(false);
     }
   });
 });

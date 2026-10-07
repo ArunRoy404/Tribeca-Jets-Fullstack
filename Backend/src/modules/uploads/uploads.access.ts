@@ -1,8 +1,4 @@
-import {
-  Permission,
-  Scope,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
 import { UploadVisibility } from '../../generated/prisma/enums.js';
 import type { UserRole } from '../../generated/prisma/enums.js';
 
@@ -34,13 +30,16 @@ export interface UploadActor {
 }
 
 /**
- * Whether the caller administers user accounts, and therefore every folder.
+ * Whether the caller reads every stored file: SUPER_ADMIN and ADMIN.
  *
- * Derived from the permission matrix rather than a role list, so a change to
- * who manages users changes who can read their documents in the same edit.
+ * The stored role, never the matrix switch or a per-person permission. This
+ * used to go through the matrix, which answered SUPER_ADMIN for everyone
+ * while role restrictions were switched off (4–7 Oct 2026) — so every broker
+ * and assistant could open every private file, 1099s included. Who sees the
+ * whole filing cabinet is a fact about the role, and must not be switchable.
  */
 export function administersUsers(actor: UploadActor): boolean {
-  return scopeFor(actor.role, Permission.MANAGE_USERS) === Scope.ALL;
+  return isAdministrator(actor.role);
 }
 
 /**
@@ -56,6 +55,24 @@ export function mayRead(actor: UploadActor, row: UploadAccessFacts): boolean {
   if (row.uploadedById === actor.id) return true;
   if (row.ownerUserId === actor.id) return true;
   return administersUsers(actor);
+}
+
+/**
+ * Whether `actor` may remove or restore a file they can already read.
+ *
+ * Narrower than reading, on purpose: the uploader and an administrator, and
+ * nobody else. Reading is wide — every signed-in user may open a PUBLIC
+ * photo — and removing a file makes it stop serving everywhere its URL is
+ * stored, so "may read" as the rule let any broker take the aircraft
+ * photographs and brochures off every record that used them. The person a
+ * document is filed about may read it but not remove it: Mark's 1099 is the
+ * company's filing, not his upload.
+ *
+ * Asked only after `mayRead` passes, so a refusal here is a 403 — the caller
+ * has already seen the file, and a 404 would protect nothing.
+ */
+export function mayManage(actor: UploadActor, row: UploadAccessFacts): boolean {
+  return row.uploadedById === actor.id || administersUsers(actor);
 }
 
 /**

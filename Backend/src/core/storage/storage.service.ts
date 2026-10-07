@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-import { extname } from 'node:path';
 import type { Readable } from 'node:stream';
 import { Inject, Injectable } from '@nestjs/common';
 import {
@@ -27,37 +25,15 @@ export class StorageService {
   }
 
   /**
-   * Builds a collision-proof, traversal-proof key.
-   *
-   * The original filename is never used as the key — only its extension is
-   * kept — because filenames arrive from uploads and would otherwise be a path
-   * traversal vector and a collision source.
+   * Writes bytes at `key`. Uploads build the key from the content hash
+   * (`UploadsService.keyFor`) — the one way a file enters storage.
    */
-  buildKey(scope: string, originalFilename: string): string {
-    const ext = extname(originalFilename).slice(0, 12).toLowerCase();
-    const safeScope = scope.replace(/[^a-zA-Z0-9/_-]/g, '');
-    const date = new Date().toISOString().slice(0, 10);
-    return `${safeScope}/${date}/${randomUUID()}${ext}`;
-  }
-
   upload(
     key: string,
     body: Buffer | Readable,
     options?: PutObjectOptions,
   ): Promise<StoredObject> {
     return this.driver.put(key, body, options);
-  }
-
-  /** Convenience: generate a key and upload in one call. */
-  async uploadFor(
-    scope: string,
-    file: { buffer: Buffer; originalname: string; mimetype: string },
-  ): Promise<StoredObject> {
-    const key = this.buildKey(scope, file.originalname);
-    return this.upload(key, file.buffer, {
-      contentType: file.mimetype,
-      filename: file.originalname,
-    });
   }
 
   download(key: string): Promise<Readable> {

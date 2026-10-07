@@ -172,13 +172,33 @@ export const envSchema = z
 
     // Fail loudly rather than silently writing client passports to local disk
     // because one of four S3 variables was fat-fingered.
+    const s3Keys = ['S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;
     if (env.STORAGE_DRIVER === 's3') {
-      for (const key of ['S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const) {
+      for (const key of s3Keys) {
         if (!env[key]) {
           ctx.addIssue({
             code: 'custom',
             path: [key],
             message: `${key} is required when STORAGE_DRIVER=s3`,
+          });
+        }
+      }
+    }
+
+    // `auto` picks S3 (R2) only with a complete set, and local disk with none.
+    // A partial set is neither: it is an R2 deployment with a typo, and
+    // falling back would write every upload to a container disk that the
+    // next redeploy throws away — silently, until someone opens a file.
+    if (env.STORAGE_DRIVER === 'auto') {
+      const present = s3Keys.filter((key) => Boolean(env[key]));
+      if (present.length > 0 && present.length < s3Keys.length) {
+        for (const key of s3Keys.filter((k) => !env[k])) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message:
+              `${key} is missing while ${present.join(', ')} ${present.length === 1 ? 'is' : 'are'} set. ` +
+              'Complete the S3/R2 settings, or remove them all to store files on local disk.',
           });
         }
       }
