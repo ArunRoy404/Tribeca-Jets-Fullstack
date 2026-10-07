@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import BrandLogo from "@/components/common/BrandLogo";
 import Image from "next/image";
 import { motion } from "framer-motion";
 
@@ -27,7 +28,7 @@ export default function SplashPage() {
         transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
         className="relative"
       >
-        <Image src="/auth/img/logo-splash.svg" alt="Tribeca Jets" width={400} height={238} className="h-[238px] w-[400px]" />
+        <BrandLogo fallbackSrc="/auth/img/logo-splash.svg" width={400} height={238} className="h-[238px] w-[400px]" />
       </motion.div>
     </Link>
   );

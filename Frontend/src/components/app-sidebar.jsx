@@ -1,6 +1,6 @@
 "use client";
 
-import Logo from "@/components/common/Logo";
+import BrandLogo from "@/components/common/BrandLogo";
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
 import {
@@ -20,9 +20,9 @@ function AppSidebarContent({ home, sections, ...props }) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="h-[57px] sm:h-[65px] shrink-0 items-center justify-center border-b border-sidebar-border px-3 sm:px-6 py-0">
         {isCollapsed ? (
-          <Logo src="/dashboard/img/logo_icon.svg" className="h-6 w-auto object-contain" />
+          <BrandLogo compact width={24} height={24} className="h-6 w-auto object-contain" />
         ) : (
-          <Logo className="h-7 sm:h-9 w-auto object-contain" />
+          <BrandLogo tone="light" width={80} height={48} className="h-7 sm:h-9 w-auto object-contain" />
         )}
       </SidebarHeader>
       <SidebarContent className="gap-0">

@@ -2,6 +2,7 @@
 
 import SuccessCard from "@/components/auth/SuccessCard";
 import { useCurrentUser } from "@/hooks/auth";
+import { useBranding, useProductName } from "@/hooks/settings";
 import { homeFor, isPartnerRole } from "@/lib/roles";
 
 /**
@@ -13,14 +14,16 @@ import { homeFor, isPartnerRole } from "@/lib/roles";
 export default function SignInCompletePage() {
   const { data: user } = useCurrentUser();
   const partner = isPartnerRole(user?.role);
+  const { data: branding } = useBranding();
+  const productName = useProductName();
 
   return (
     <SuccessCard
       title="You’re all set"
       description={
         partner
-          ? "Your Tribeca Jets referral partner account is verified and ready to go."
-          : "Your Tribeca Jets Command Center account is verified and ready to go."
+          ? `Your ${branding?.companyName ? `${branding.companyName} ` : ""}referral partner account is verified and ready to go.`
+          : `Your ${productName} account is verified and ready to go.`
       }
       ctaLabel={partner ? "Continue to Referral Portal" : "Continue to Dashboard"}
       ctaHref={homeFor(user?.role)}

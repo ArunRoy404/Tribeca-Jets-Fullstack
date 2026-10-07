@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import BrandLogo from "@/components/common/BrandLogo";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowLeft, Compass } from "lucide-react";
+import { useBranding } from "@/hooks/settings";
 
 export default function NotFound() {
+  // The company's name, from Settings › Company & Branding (public).
+  const { data: branding } = useBranding();
+  const companyName = branding?.companyName;
   return (
     <main className="relative min-h-screen w-full overflow-hidden bg-ink text-white flex flex-col justify-between selection:bg-purple selection:text-white">
       {/* Background Visual Layer */}
@@ -31,9 +36,8 @@ export default function NotFound() {
       {/* Top Header */}
       <header className="relative z-10 flex items-center justify-between p-4 sm:p-6 md:px-12 md:py-8 w-full max-w-7xl mx-auto">
         <Link href="/dashboard" className="flex items-center gap-2 group cursor-pointer">
-          <Image
-            src="/auth/img/logo-white.svg"
-            alt="Tribeca Jets"
+          <BrandLogo
+            fallbackSrc="/auth/img/logo-white.svg"
             width={140}
             height={48}
             className="h-8 sm:h-10 w-auto object-contain transition-opacity group-hover:opacity-90"
@@ -102,7 +106,7 @@ export default function NotFound() {
       <footer className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-3 p-4 sm:px-8 md:px-12 sm:py-6 w-full max-w-7xl mx-auto border-t border-white/10 text-[11px] sm:text-[12px] font-montserrat text-white/50 text-center sm:text-left">
         <div className="flex items-center gap-2">
           <span className="size-1.5 rounded-full bg-success inline-block shrink-0" />
-          <span className="tracking-wide">TRIBECA JETS CHARTER COMMAND</span>
+          <span className="tracking-wide uppercase">{companyName ? `${companyName} Charter Command` : "Charter Command"}</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-[11px] tracking-wider text-white/40 font-mono">
           <span>HDG 240°</span>
@@ -112,7 +116,7 @@ export default function NotFound() {
           <span>MACH 0.85</span>
         </div>
         <div>
-          <span>© {new Date().getFullYear()} Tribeca Jets. All rights reserved.</span>
+          <span>© {new Date().getFullYear()}{companyName ? ` ${companyName}` : ""}. All rights reserved.</span>
         </div>
       </footer>
     </main>

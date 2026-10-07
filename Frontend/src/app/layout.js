@@ -22,10 +22,32 @@ const outfit = Outfit({
   subsets: ["latin"],
 });
 
-export const metadata = {
-  title: "Tribeca Jets",
-  description: "Charter operations dashboard",
-};
+/**
+ * The tab title carries the company's name from Settings › Company &
+ * Branding, read on the server from the public branding endpoint and kept
+ * for five minutes. A page sets only its own part (`title: "Quotes"`); the
+ * template adds the company. Without an answer from the API the title is the
+ * product's own name rather than a guessed company.
+ */
+const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? "http://localhost:4000";
+
+async function companyName() {
+  try {
+    const response = await fetch(`${API_PROXY_TARGET}/api/settings/branding`, { next: { revalidate: 300 } });
+    if (!response.ok) return null;
+    return (await response.json())?.data?.companyName ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata() {
+  const brand = (await companyName()) ?? "Command Center";
+  return {
+    title: { default: brand, template: `%s | ${brand}` },
+    description: "Charter operations dashboard",
+  };
+}
 
 export default function RootLayout({ children }) {
   return (

@@ -1,7 +1,7 @@
 import QuotesPage from "@/templates/QuotesPage";
 
 export const metadata = {
-  title: "Quotes | Tribeca Jets",
+  title: "Quotes",
   description: "Manage client charter quotes, flight versions, pricing breakdowns, and approvals.",
 };
 

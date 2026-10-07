@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import BrandLogo from "@/components/common/BrandLogo";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
@@ -36,7 +37,7 @@ export default function AuthCard({ backHref, showLogo = false, children }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
         >
-          <Image src="/auth/img/logo-dark.svg" alt="Tribeca Jets" width={168} height={100} className="h-[100px] w-[168px]" />
+          <BrandLogo fallbackSrc="/auth/img/logo-dark.svg" width={168} height={100} className="h-[100px] w-[168px]" />
         </motion.div>
       )}
 
