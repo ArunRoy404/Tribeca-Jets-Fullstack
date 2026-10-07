@@ -1,19 +1,19 @@
 "use client";
 
 import CommonInput from "@/components/common/CommonInput";
-import { useSettingsStore } from "@/store/useSettingsStore";
+import { useSettingsSection } from "@/hooks/settings";
 import { LEAD_STAGES, formatLeadStage } from "@/lib/lead";
 import {
   FOLLOW_UP_INTERVAL_OPTIONS,
   MARKUP_PRESETS,
   QUOTE_VALIDITY_OPTIONS,
-  announceLocalSave,
 } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 import SettingsCard from "../SettingsCard";
 import SettingRow from "../SettingRow";
 import SettingsSelect from "../SettingsSelect";
 import SettingsButton from "../SettingsButton";
+import SettingsSectionStatus from "../SettingsSectionStatus";
 
 const STAGE_OPTIONS = LEAD_STAGES.map((stage) => ({ value: stage, label: formatLeadStage(stage) }));
 
@@ -24,18 +24,28 @@ const STAGE_OPTIONS = LEAD_STAGES.map((stage) => ({ value: stage, label: formatL
  * (MODULE_FEATURE_STATUS.md, Settings).
  */
 export default function QuoteDefaultsSection() {
-  const defaults = useSettingsStore((s) => s.defaults);
-  const setField = useSettingsStore((s) => s.setField);
-  const set = (key) => setField("defaults", key);
+  const {
+    values: defaults,
+    set,
+    save,
+    isDirty,
+    isSaving,
+    canEdit,
+    isPending,
+    error,
+    refetch,
+  } = useSettingsSection("defaults");
 
-  const markup = defaults?.defaultMarkup ?? "";
+  if (isPending || error) return <SettingsSectionStatus isPending={isPending} error={error} onRetry={refetch} />;
+
+  const markup = defaults?.defaultMarkupPercent ?? "";
   const isPreset = MARKUP_PRESETS.some((preset) => String(preset) === markup);
 
   return (
     <>
       <SettingsCard
         title="Pricing & quote defaults"
-        description="These defaults can still be overridden while building an individual quote."
+        description="Starting values for new quotes, still editable on each quote. Existing quotes never change. New quotes start using them when the quote form is connected."
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full">
           <CommonInput
@@ -46,12 +56,14 @@ export default function QuoteDefaultsSection() {
             min={0}
             step="0.5"
             value={markup}
-            onChange={(e) => set("defaultMarkup")(e.target.value)}
+            onChange={(e) => set("defaultMarkupPercent")(e.target.value)}
+            disabled={!canEdit}
           />
           <SettingsSelect
             label="Quote Validity"
             value={defaults?.quoteValidityHours}
             onChange={set("quoteValidityHours")}
+            disabled={!canEdit}
             options={QUOTE_VALIDITY_OPTIONS}
           />
           <CommonInput
@@ -63,6 +75,7 @@ export default function QuoteDefaultsSection() {
             step="0.1"
             value={defaults?.defaultFetPercent ?? ""}
             onChange={(e) => set("defaultFetPercent")(e.target.value)}
+            disabled={!canEdit}
           />
         </div>
 
@@ -77,7 +90,8 @@ export default function QuoteDefaultsSection() {
                 <button
                   key={preset}
                   type="button"
-                  onClick={() => set("defaultMarkup")(String(preset))}
+                  onClick={() => set("defaultMarkupPercent")(String(preset))}
+                  disabled={!canEdit}
                   aria-pressed={active}
                   className={cn(
                     "rounded-sm border px-4 py-2.5 font-montserrat font-medium text-[14px] leading-normal cursor-pointer transition-colors",
@@ -94,6 +108,7 @@ export default function QuoteDefaultsSection() {
               type="button"
               // Custom is the markup box itself — focusing it is the whole action.
               onClick={() => document.getElementById("default-markup")?.focus()}
+              disabled={!canEdit}
               aria-pressed={!isPreset}
               className={cn(
                 "rounded-sm border px-4 py-2.5 font-montserrat font-medium text-[14px] leading-normal cursor-pointer transition-colors",
@@ -112,24 +127,27 @@ export default function QuoteDefaultsSection() {
           description={`Federal Excise Tax is calculated at ${defaults?.defaultFetPercent || "—"}% unless the trip is marked Non-FET / Exempt.`}
           checked={defaults?.applyFetByDefault}
           onCheckedChange={set("applyFetByDefault")}
+          disabled={!canEdit}
         />
       </SettingsCard>
 
       <SettingsCard
         title="Client & trip workflow"
-        description="Starting values for new clients and their follow-ups."
+        description="Starting values for new clients and their follow-ups, used once the client forms are connected."
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <SettingsSelect
             label="Default Follow-up Interval"
             value={defaults?.followUpIntervalDays}
             onChange={set("followUpIntervalDays")}
+            disabled={!canEdit}
             options={FOLLOW_UP_INTERVAL_OPTIONS}
           />
           <SettingsSelect
             label="Default Lead Stage"
             value={defaults?.defaultLeadStage}
             onChange={set("defaultLeadStage")}
+            disabled={!canEdit}
             options={STAGE_OPTIONS}
           />
         </div>
@@ -139,13 +157,16 @@ export default function QuoteDefaultsSection() {
         <CommonInput
           name="quote-terms"
           type="textarea"
-          value={defaults?.quoteTerms ?? ""}
-          onChange={(e) => set("quoteTerms")(e.target.value)}
+          value={defaults?.defaultQuoteTerms ?? ""}
+          onChange={(e) => set("defaultQuoteTerms")(e.target.value)}
+          disabled={!canEdit}
           className="min-h-[110px] rounded-sm p-3.5 font-montserrat text-[13px] leading-normal text-foreground"
         />
-        <SettingsButton primary onClick={() => announceLocalSave("CRM & Quote Defaults")}>
-          Save CRM & Quote Defaults
-        </SettingsButton>
+        {canEdit ? (
+          <SettingsButton primary disabled={!isDirty || isSaving} onClick={save}>
+            {isSaving ? "Saving…" : "Save CRM & Quote Defaults"}
+          </SettingsButton>
+        ) : null}
       </SettingsCard>
     </>
   );

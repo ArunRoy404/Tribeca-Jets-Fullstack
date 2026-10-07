@@ -43,9 +43,6 @@ import { useCurrentUser } from "@/hooks/auth";
 /** Shared across tabs of this origin. Not a secret — a millisecond timestamp. */
 const ACTIVITY_KEY = "tj_last_activity";
 
-/** How long before the deadline the warning appears. */
-const WARNING_LEAD_MS = 60_000;
-
 /** When any tab last told the server about activity — shared like the stamp above. */
 const PING_KEY = "tj_last_activity_ping";
 
@@ -147,6 +144,14 @@ export function useIdleLogout({ enabled = true } = {}) {
     ? user.session.idleTimeoutMinutes * 60_000
     : null;
 
+  // How long before the deadline the "Stay signed in" warning appears, and
+  // whether it appears at all — Settings › Security & Session, via the
+  // session. Off means the session still ends on time, just without notice.
+  const warningMs =
+    user?.session?.showIdleWarning && user?.session?.idleWarningMinutes
+      ? user.session.idleWarningMinutes * 60_000
+      : 0;
+
   const active = enabled && Boolean(user) && Boolean(timeoutMs);
 
   const [secondsLeft, setSecondsLeft] = useState(null);
@@ -228,7 +233,7 @@ export function useIdleLogout({ enabled = true } = {}) {
         return;
       }
       setSecondsLeft(
-        remaining <= WARNING_LEAD_MS ? Math.ceil(remaining / 1000) : null,
+        remaining <= warningMs ? Math.ceil(remaining / 1000) : null,
       );
     };
 
@@ -244,7 +249,7 @@ export function useIdleLogout({ enabled = true } = {}) {
         window.removeEventListener(event, onActivity);
       }
     };
-  }, [active, timeoutMs, markActive]);
+  }, [active, timeoutMs, warningMs, markActive]);
 
   return {
     /** Seconds remaining once inside the warning window, else null. */

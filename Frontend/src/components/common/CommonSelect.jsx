@@ -9,6 +9,7 @@ export default function CommonSelect({
   options = [],
   placeholder = "Select...",
   className,
+  disabled = false,
 }) {
   const normalizedOptions = options.map((opt) =>
     typeof opt === "string" ? { label: opt, value: opt } : opt
@@ -25,14 +26,19 @@ export default function CommonSelect({
   // happen to be rendered — without it, the trigger falls back to printing
   // the raw `value` once something is actually picked.
   return (
-    <Select items={normalizedOptions} value={value || undefined} onValueChange={(val) => onChange?.(val)}>
+    <Select
+      items={normalizedOptions}
+      value={value || undefined}
+      onValueChange={(val) => onChange?.(val)}
+      disabled={disabled}
+    >
       <SelectTrigger
         className={cn(
           // The primitive's own base classes set the height behind a
           // `data-[size=default]:` variant; a plain `h-11` here shares no
           // modifier with that rule, so it never wins the cascade. Matching
           // the same variant is what actually overrides it.
-          "data-[size=default]:h-11 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-foreground outline-none focus:ring-2 focus:ring-purple/50 focus:border-purple cursor-pointer transition-all flex items-center justify-between",
+          "data-[size=default]:h-11 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-foreground outline-none focus:ring-2 focus:ring-purple/50 focus:border-purple cursor-pointer transition-all flex items-center justify-between disabled:cursor-not-allowed disabled:opacity-60",
           className
         )}
       >

@@ -1,4 +1,3 @@
-import { toastInfo } from "@/lib/toast";
 
 /**
  * The Settings sections, in the order the left-hand nav lists them.
@@ -9,6 +8,13 @@ import { toastInfo } from "@/lib/toast";
  * read-only line under Data Import & Export. What was dropped, and why, is
  * logged in docs/MODULE_FEATURE_STATUS.md (Settings).
  */
+/**
+ * The Settings screens, in nav order.
+ *
+ * **Integrations is hidden** (owner's decision, 7 Oct 2026): it was three
+ * static links and stored nothing. `IntegrationsSection` and `QUICK_LINKS`
+ * stay so it can come back as one entry here — MODULE_FEATURE_STATUS.md, #26.
+ */
 export const SETTINGS_SECTIONS = [
   {
     id: "company",
@@ -16,7 +22,7 @@ export const SETTINGS_SECTIONS = [
     description: "Company profile, logo and document identity",
     title: "Company & Branding",
     subtitle:
-      "Control company identity, contact information and how Tribeca Jets appears in client-facing documents.",
+      "Control company identity, contact information and how the company appears in the app and in client-facing documents.",
   },
   {
     id: "defaults",
@@ -38,13 +44,6 @@ export const SETTINGS_SECTIONS = [
     description: "Alerts, reminders and automation",
     title: "Notifications & Automation",
     subtitle: "Control alerts, reminders, automated messages and who receives them.",
-  },
-  {
-    id: "integrations",
-    label: "Integrations",
-    description: "Quick links to the desk's other tools",
-    title: "Integrations",
-    subtitle: "Quick links to the sourcing, signing and website tools the desk works alongside.",
   },
   {
     id: "data",
@@ -179,10 +178,89 @@ export const QUICK_LINKS = [
 ];
 
 /**
- * Said on every Save until the Settings API (#26) exists. The values change
- * on this screen only, and the toast says exactly that rather than reporting
- * a save the server never received.
+ * How each stored setting travels between the API and the screens, per
+ * section — the keys are the API's own.
+ *
+ * - `text` — sent trimmed; the API stores an emptied box as cleared, and
+ *   answers a required one (the company name) with its own message.
+ * - `upload` — an upload URL, or `null` to remove it.
+ * - `number` — a number on the wire, a string in a box or a select (the
+ *   option lists above are strings); a blank box is sent as `null`, which
+ *   the API refuses with the field's message rather than storing 0.
+ * - `bool`, `enum` — the same either side.
  */
-export function announceLocalSave(what) {
-  toastInfo(`${what} updated on this screen`, "Not stored on the server yet — that arrives with the Settings API.");
+export const SETTINGS_FIELDS = {
+  company: {
+    companyName: "text",
+    companyEmail: "text",
+    website: "text",
+    phone: "text",
+    address: "text",
+    clientServicesLabel: "text",
+    logoUrl: "upload",
+    showContactBlock: "bool",
+    logoOnDocuments: "bool",
+    showBrokerContact: "bool",
+  },
+  defaults: {
+    defaultMarkupPercent: "number",
+    quoteValidityHours: "number",
+    defaultFetPercent: "number",
+    applyFetByDefault: "bool",
+    followUpIntervalDays: "number",
+    defaultLeadStage: "enum",
+    defaultQuoteTerms: "text",
+  },
+  security: {
+    idleTimeoutMinutes: "number",
+    idleWarningMinutes: "number",
+    showIdleWarning: "bool",
+    requireAdminTwoFactor: "bool",
+  },
+  notifications: {
+    emailNotifications: "bool",
+    inAppNotifications: "bool",
+    flightAlertsToBrokers: "bool",
+    followUpReminders: "bool",
+    paymentReminders: "bool",
+    quoteExpiryReminders: "bool",
+    quoteExpiryWarningHours: "number",
+    paymentReminderDays: "number",
+    followUpReminderMinutes: "number",
+  },
+};
+
+/** A section as the API sent it, in the shape its form edits. */
+export function settingsToForm(section, values) {
+  const fields = SETTINGS_FIELDS[section] ?? {};
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, kind]) => {
+      const value = values?.[key];
+      if (kind === "number") return [key, value === null || value === undefined ? "" : String(value)];
+      if (kind === "text" || kind === "upload") return [key, value ?? ""];
+      if (kind === "bool") return [key, Boolean(value)];
+      return [key, value ?? ""];
+    }),
+  );
+}
+
+/**
+ * The PATCH body for one section: only the fields that differ from what the
+ * server holds, so a save never rewrites a value nobody touched.
+ */
+export function settingsPayload(section, form, saved) {
+  const fields = SETTINGS_FIELDS[section] ?? {};
+  const changed = Object.entries(fields).filter(([key]) => form?.[key] !== saved?.[key]);
+  if (changed.length === 0) return null;
+  return {
+    [section]: Object.fromEntries(
+      changed.map(([key, kind]) => {
+        const value = form[key];
+        if (kind === "number") return [key, value === "" ? null : Number(value)];
+        if (kind === "text") return [key, value.trim()];
+        if (kind === "upload") return [key, value || null];
+        return [key, value];
+      }),
+    ),
+  };
 }

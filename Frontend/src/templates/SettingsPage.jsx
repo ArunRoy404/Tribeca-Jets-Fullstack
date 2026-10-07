@@ -7,7 +7,6 @@ import CompanyBrandingSection from "@/components/settings/sections/CompanyBrandi
 import QuoteDefaultsSection from "@/components/settings/sections/QuoteDefaultsSection";
 import SecuritySection from "@/components/settings/sections/SecuritySection";
 import NotificationsSection from "@/components/settings/sections/NotificationsSection";
-import IntegrationsSection from "@/components/settings/sections/IntegrationsSection";
 import DataSection from "@/components/settings/sections/DataSection";
 
 const SECTIONS = {
@@ -15,7 +14,7 @@ const SECTIONS = {
   defaults: QuoteDefaultsSection,
   security: SecuritySection,
   notifications: NotificationsSection,
-  integrations: IntegrationsSection,
+  // Integrations is hidden (7 Oct 2026) — see SETTINGS_SECTIONS.
   data: DataSection,
 };
 

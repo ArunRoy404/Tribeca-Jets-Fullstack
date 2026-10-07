@@ -21,6 +21,17 @@ export const queryKeys = {
    * uploading into Mark's folder must refresh his tab without refetching every
    * other list on screen.
    */
+  /**
+   * The company's settings. `branding` is its own key under the same
+   * prefix: saving Company & Branding invalidates `settings.all`, which
+   * refreshes every sidebar's logo as well as the Settings screen.
+   */
+  settings: {
+    all: ["settings"],
+    detail: ["settings", "detail"],
+    branding: ["settings", "branding"],
+  },
+
   uploads: {
     all: ["uploads"],
     list: (params) => ["uploads", "list", params ?? {}],

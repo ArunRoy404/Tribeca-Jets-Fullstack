@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import DatePicker from "@/components/common/DatePicker";
 import { Label } from "@/components/ui/label";
-import { useSettingsStore } from "@/store/useSettingsStore";
 import {
   BACKUP_POLICY,
   EXPORT_SCOPES,
@@ -20,6 +19,16 @@ import SettingsButton from "../SettingsButton";
 import SettingsPill from "../SettingsPill";
 
 const SKIP = "__skip";
+
+/**
+ * **Import is hidden** (owner's decision, 7 Oct 2026) until the Import &
+ * Export module (#31) is built — it has no API, and its column mapping
+ * previews a file nothing would ever save. The card stays here, behind this
+ * flag, so that module turns it on rather than rebuilding it. Logged in
+ * MODULE_FEATURE_STATUS.md, #26. Export stays visible and says it is not
+ * connected; it is built in the same module.
+ */
+const IMPORT_ENABLED = false;
 
 /** A source column matched to the target field with the same name, ignoring case and spacing. */
 function guessTarget(column, targets) {
@@ -60,9 +69,10 @@ async function readCsvHeader(file) {
  * are left out — MODULE_FEATURE_STATUS.md, Settings.
  */
 export default function DataSection() {
-  const data = useSettingsStore((s) => s.data);
-  const setField = useSettingsStore((s) => s.setField);
-  const set = (key) => setField("data", key);
+  // The import and export choices are this screen's own, disposable form
+  // state — nothing here is a stored setting.
+  const [data, setData] = useState({ importType: "CLIENTS", exportScope: "ALL", exportFrom: "", exportTo: "" });
+  const set = (key) => (value) => setData((current) => ({ ...current, [key]: value }));
 
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
@@ -101,98 +111,100 @@ export default function DataSection() {
 
   return (
     <>
-      <SettingsCard
-        title="Import CRM data"
-        description="Upload a CSV or XLSX file, then map source columns before committing records."
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-          <SettingsSelect
-            label="Import Type"
-            value={data?.importType}
-            onChange={changeImportType}
-            options={IMPORT_TYPES}
-          />
-        </div>
-
-        <input
-          ref={inputRef}
-          type="file"
-          accept={IMPORT_ACCEPT}
-          className="hidden"
-          onChange={(e) => {
-            pick(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragging(false);
-            pick(e.dataTransfer.files?.[0]);
-          }}
-          className={cn(
-            "flex flex-col items-center gap-2 w-full p-5 rounded-md border bg-surface text-center cursor-pointer transition-colors",
-            dragging ? "border-signal bg-signal-soft" : "border-border hover:border-signal/50"
-          )}
+      {IMPORT_ENABLED ? (
+        <SettingsCard
+          title="Import CRM data"
+          description="Upload a CSV or XLSX file, then map source columns before committing records."
         >
-          <span className="font-montserrat font-medium text-[14px] leading-normal text-foreground break-all">
-            {file ? file.name : "Drop file here or browse"}
-          </span>
-          <span className="font-montserrat text-[11px] leading-normal text-muted-foreground">
-            {file ? "Choose another file to replace it" : `CSV, XLSX • max ${IMPORT_MAX_MB} MB`}
-          </span>
-        </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <SettingsSelect
+              label="Import Type"
+              value={data?.importType}
+              onChange={changeImportType}
+              options={IMPORT_TYPES}
+            />
+          </div>
 
-        <div className="flex flex-col gap-2 w-full">
-          <p className="font-montserrat font-semibold text-[13px] leading-normal text-foreground">
-            Column mapping preview
-          </p>
-          {columns.length ? (
-            columns.map((column) => (
-              <div key={column} className="flex items-center gap-2 sm:gap-3 w-full">
-                <span className="flex-1 min-w-0 truncate rounded-full bg-surface px-3 py-2 font-montserrat text-[11px] leading-normal text-foreground">
-                  {column}
-                </span>
-                <span className="font-montserrat font-medium text-[13px] text-muted-foreground shrink-0">→</span>
-                <div className="flex-1 min-w-0">
-                  <select
-                    aria-label={`Map ${column} to`}
-                    value={mapping[column] ?? SKIP}
-                    onChange={(e) => setMapping((prev) => ({ ...prev, [column]: e.target.value }))}
-                    className={cn(
-                      "w-full truncate rounded-full px-3 py-2 font-montserrat text-[11px] leading-normal outline-none cursor-pointer appearance-none",
-                      mapping[column] === SKIP ? "bg-surface text-muted-foreground" : "bg-signal-soft text-signal"
-                    )}
-                  >
-                    {targetOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="font-montserrat text-[12px] leading-normal text-muted-foreground">
-              {file
-                ? "An Excel file's columns are read when it is validated."
-                : "Choose a CSV file to map its columns here."}
+          <input
+            ref={inputRef}
+            type="file"
+            accept={IMPORT_ACCEPT}
+            className="hidden"
+            onChange={(e) => {
+              pick(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              pick(e.dataTransfer.files?.[0]);
+            }}
+            className={cn(
+              "flex flex-col items-center gap-2 w-full p-5 rounded-md border bg-surface text-center cursor-pointer transition-colors",
+              dragging ? "border-signal bg-signal-soft" : "border-border hover:border-signal/50"
+            )}
+          >
+            <span className="font-montserrat font-medium text-[14px] leading-normal text-foreground break-all">
+              {file ? file.name : "Drop file here or browse"}
+            </span>
+            <span className="font-montserrat text-[11px] leading-normal text-muted-foreground">
+              {file ? "Choose another file to replace it" : `CSV, XLSX • max ${IMPORT_MAX_MB} MB`}
+            </span>
+          </button>
+
+          <div className="flex flex-col gap-2 w-full">
+            <p className="font-montserrat font-semibold text-[13px] leading-normal text-foreground">
+              Column mapping preview
             </p>
-          )}
-        </div>
+            {columns.length ? (
+              columns.map((column) => (
+                <div key={column} className="flex items-center gap-2 sm:gap-3 w-full">
+                  <span className="flex-1 min-w-0 truncate rounded-full bg-surface px-3 py-2 font-montserrat text-[11px] leading-normal text-foreground">
+                    {column}
+                  </span>
+                  <span className="font-montserrat font-medium text-[13px] text-muted-foreground shrink-0">→</span>
+                  <div className="flex-1 min-w-0">
+                    <select
+                      aria-label={`Map ${column} to`}
+                      value={mapping[column] ?? SKIP}
+                      onChange={(e) => setMapping((prev) => ({ ...prev, [column]: e.target.value }))}
+                      className={cn(
+                        "w-full truncate rounded-full px-3 py-2 font-montserrat text-[11px] leading-normal outline-none cursor-pointer appearance-none",
+                        mapping[column] === SKIP ? "bg-surface text-muted-foreground" : "bg-signal-soft text-signal"
+                      )}
+                    >
+                      {targetOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="font-montserrat text-[12px] leading-normal text-muted-foreground">
+                {file
+                  ? "An Excel file's columns are read when it is validated."
+                  : "Choose a CSV file to map its columns here."}
+              </p>
+            )}
+          </div>
 
-        <SettingsButton primary disabled={!file} onClick={() => notConnected("Import validation")}>
-          Validate Import
-        </SettingsButton>
-      </SettingsCard>
+          <SettingsButton primary disabled={!file} onClick={() => notConnected("Import validation")}>
+            Validate Import
+          </SettingsButton>
+        </SettingsCard>
+      ) : null}
 
       <SettingsCard
         title="Export CRM data"

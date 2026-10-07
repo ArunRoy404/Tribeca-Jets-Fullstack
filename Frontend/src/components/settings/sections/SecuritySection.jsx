@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useSettingsStore } from "@/store/useSettingsStore";
-import { IDLE_TIMEOUT_OPTIONS, IDLE_WARNING_OPTIONS, announceLocalSave } from "@/lib/settings";
+import { useSettingsSection } from "@/hooks/settings";
+import { IDLE_TIMEOUT_OPTIONS, IDLE_WARNING_OPTIONS } from "@/lib/settings";
 import ChangePasswordDialog from "@/components/account/ChangePasswordDialog";
 import SessionsList from "@/components/account/SessionsList";
 import SettingsCard from "../SettingsCard";
 import SettingRow from "../SettingRow";
 import SettingsSelect from "../SettingsSelect";
 import SettingsButton from "../SettingsButton";
+import SettingsSectionStatus from "../SettingsSectionStatus";
 
 /**
  * Left out of the design, each for its own reason (MODULE_FEATURE_STATUS.md,
@@ -17,10 +18,20 @@ import SettingsButton from "../SettingsButton";
  * "Audit & deletion safeguards" toggles (always on — not a preference).
  */
 export default function SecuritySection() {
-  const security = useSettingsStore((s) => s.security);
-  const setField = useSettingsStore((s) => s.setField);
-  const set = (key) => setField("security", key);
+  const {
+    values: security,
+    set,
+    save,
+    isDirty,
+    isSaving,
+    canEdit,
+    isPending,
+    error,
+    refetch,
+  } = useSettingsSection("security");
   const [changingPassword, setChangingPassword] = useState(false);
+
+  if (isPending || error) return <SettingsSectionStatus isPending={isPending} error={error} onRetry={refetch} />;
 
   return (
     <>
@@ -37,12 +48,14 @@ export default function SecuritySection() {
             label="Inactivity Timeout"
             value={security?.idleTimeoutMinutes}
             onChange={set("idleTimeoutMinutes")}
+            disabled={!canEdit}
             options={IDLE_TIMEOUT_OPTIONS}
           />
           <SettingsSelect
             label="Warning Before Logout"
             value={security?.idleWarningMinutes}
             onChange={set("idleWarningMinutes")}
+            disabled={!canEdit}
             options={IDLE_WARNING_OPTIONS}
           />
         </div>
@@ -51,6 +64,7 @@ export default function SecuritySection() {
           description="Display a “Stay Signed In” warning before the session expires."
           checked={security?.showIdleWarning}
           onCheckedChange={set("showIdleWarning")}
+          disabled={!canEdit}
         />
       </SettingsCard>
 
@@ -60,12 +74,15 @@ export default function SecuritySection() {
           description="Every administrator account must enter an emailed code at sign-in. Your own two-factor is on My Account."
           checked={security?.requireAdminTwoFactor}
           onCheckedChange={set("requireAdminTwoFactor")}
+          disabled={!canEdit}
         />
         <div className="flex flex-wrap gap-2.5">
           <SettingsButton onClick={() => setChangingPassword(true)}>Change Password</SettingsButton>
-          <SettingsButton primary onClick={() => announceLocalSave("Security settings")}>
-            Save Security Settings
-          </SettingsButton>
+          {canEdit ? (
+            <SettingsButton primary disabled={!isDirty || isSaving} onClick={save}>
+              {isSaving ? "Saving…" : "Save Security Settings"}
+            </SettingsButton>
+          ) : null}
         </div>
       </SettingsCard>
 
