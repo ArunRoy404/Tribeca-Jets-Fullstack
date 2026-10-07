@@ -10,6 +10,7 @@ import { ImagePreview } from "@/components/common/image-preview";
 import { PhotoLibraryDialog } from "@/components/common/photo-library";
 import { cn } from "@/lib/utils";
 import { toastError } from "@/lib/toast";
+import { shortFilename } from "@/lib/file";
 
 /**
  * The one uploader in this application.
@@ -297,7 +298,9 @@ export default function FileUpload({
                       className="font-montserrat text-[11px] text-muted-foreground text-center w-full truncate"
                       title={name}
                     >
-                      {name}
+                      {/* Shortened in the middle so the type stays visible —
+                          "Trib….docx", not "Tribeca_J…". Full name on hover. */}
+                      {shortFilename(name)}
                     </span>
                   </div>
                 );
