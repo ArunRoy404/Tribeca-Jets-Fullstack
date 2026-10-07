@@ -86,8 +86,8 @@ def set_body(example: dict, status: int, body) -> dict:
 
 
 def main() -> None:
-    owner = Session('admin@tribecajets.com')
-    broker = Session('broker@tribecajets.com')
+    owner = Session('admin@example.com')
+    broker = Session('broker@example.com')
     anon = Session()
 
     collection = json.loads(COLLECTION.read_text())
@@ -103,7 +103,7 @@ def main() -> None:
         'lastName': 'Probe',
         'type': 'DIRECT',
         'status': 'LEAD',
-        'email': 'postman.probe@tribecajets.com',
+        'email': 'postman.probe@example.com',
         'phone': '+1 555 0100',
         'leadSource': 'DIRECT',
         'leadStage': 'NEW',

@@ -275,7 +275,7 @@ def build(admin, mark_id):
     # A broker opening somebody else's folder. It used to be the administrator
     # asking — who manages users, so may open any folder — and the example
     # labelled 403 held a 200. Fixed at the request, not the label.
-    forbidden_owner = Session('broker@tribecajets.com').request(
+    forbidden_owner = Session('broker@example.com').request(
         'GET', f'/uploads?ownerUserId={mark_id}')
 
     # Rejections, all captured from real responses.
@@ -660,7 +660,7 @@ def main() -> None:
         if not fixture.exists():
             raise SystemExit(f'Missing fixture: {fixture}')
 
-    admin = Session('admin@tribecajets.com')
+    admin = Session('admin@example.com')
 
     # A real broker to file a document about — the client's example is Mark.
     _, users = admin.request('GET', '/users?search=mark&limit=1')

@@ -506,9 +506,9 @@ def build(owner, broker, assistant):
 
 
 def main():
-    owner = Session('admin@tribecajets.com')
-    broker = Session('broker@tribecajets.com')
-    assistant = Session('assistant@tribecajets.com')
+    owner = Session('admin@example.com')
+    broker = Session('broker@example.com')
+    assistant = Session('assistant@example.com')
 
     collection = json.loads(COLLECTION.read_text())
     operators = next(f for f in collection['item'] if f['name'].startswith('06'))

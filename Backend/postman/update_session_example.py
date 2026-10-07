@@ -51,8 +51,8 @@ def example(name, body):
 
 
 def main():
-    owner = get(session('admin@tribecajets.com'), '/auth/me')
-    assistant = get(session('assistant@tribecajets.com'), '/auth/me')
+    owner = get(session('admin@example.com'), '/auth/me')
+    assistant = get(session('assistant@example.com'), '/auth/me')
 
     collection = json.loads(COLLECTION.read_text())
     # `01 Auth` nests its requests in sub-folders, so `03 Session` is a folder

@@ -32,7 +32,7 @@ from session_setup import ACCOUNTS, PASSWORD, with_session
 COLLECTION_VARIABLES = [
     ("baseUrl", "http://localhost:4000/api",
      "API root. The only value to change when pointing at another environment."),
-    ("ownerEmail", "admin@tribecajets.com",
+    ("ownerEmail", "admin@example.com",
      "The seeded SUPER_ADMIN. Used by its sign-in request and by the folder "
      "session scripts in Clients and Users."),
     ("password", "ChangeMe123!",
@@ -265,7 +265,7 @@ def capture_sign_ins():
             )
 
             clear_rate_limits()
-            missing = {"email": "nobody@tribecajets.com", "password": PASSWORD}
+            missing = {"email": "nobody@example.com", "password": PASSWORD}
             s, p = session.call("/auth/login", "POST", missing)
             responses.append(
                 example(

@@ -19,6 +19,12 @@ import {
   EmailTemplateCategory,
 } from '../src/generated/prisma/enums.js';
 import argon2 from 'argon2';
+import {
+  Action,
+  Module,
+  defaultGrants,
+  type AccessGrants,
+} from '../src/common/authorization/access.js';
 
 /**
  * Idempotent development seed. Safe to run repeatedly — every write is an
@@ -46,10 +52,10 @@ async function main(): Promise<void> {
   const password = await hash('ChangeMe123!');
 
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@tribecajets.com' },
+    where: { email: 'admin@example.com' },
     update: { passwordHash: password, status: UserStatus.ACTIVE, deletedAt: null },
     create: {
-      email: 'admin@tribecajets.com',
+      email: 'admin@example.com',
       passwordHash: password,
       firstName: 'Ari',
       lastName: 'Admin',
@@ -58,10 +64,10 @@ async function main(): Promise<void> {
   });
 
   const broker = await prisma.user.upsert({
-    where: { email: 'broker@tribecajets.com' },
+    where: { email: 'broker@example.com' },
     update: { passwordHash: password, status: UserStatus.ACTIVE, deletedAt: null },
     create: {
-      email: 'broker@tribecajets.com',
+      email: 'broker@example.com',
       passwordHash: password,
       firstName: 'Jordan',
       lastName: 'Broker',
@@ -73,10 +79,10 @@ async function main(): Promise<void> {
   // the Postman collection or by hand) never disturbs the accounts the sign-in
   // and scoping tests depend on. Its password is force-reset on every seed run.
   await prisma.user.upsert({
-    where: { email: 'reset-demo@tribecajets.com' },
+    where: { email: 'reset-demo@example.com' },
     update: { passwordHash: password, status: UserStatus.ACTIVE, deletedAt: null },
     create: {
-      email: 'reset-demo@tribecajets.com',
+      email: 'reset-demo@example.com',
       passwordHash: password,
       firstName: 'Riley',
       lastName: 'Reset',
@@ -87,7 +93,7 @@ async function main(): Promise<void> {
   // Two-factor is off for the accounts above so the common path stays quick to
   // test; this one exercises the challenge flow.
   await prisma.user.upsert({
-    where: { email: 'security@tribecajets.com' },
+    where: { email: 'security@example.com' },
     update: {
       passwordHash: password,
       twoFactorEnabled: true,
@@ -95,7 +101,7 @@ async function main(): Promise<void> {
       deletedAt: null,
     },
     create: {
-      email: 'security@tribecajets.com',
+      email: 'security@example.com',
       passwordHash: password,
       firstName: 'Sam',
       lastName: 'Secure',
@@ -111,35 +117,37 @@ async function main(): Promise<void> {
    */
   const directory = [
     {
-      email: 'senior@tribecajets.com',
+      email: 'senior@example.com',
       firstName: 'Sasha',
       lastName: 'Senior',
-      role: UserRole.SENIOR_BROKER,
+      // SENIOR_BROKER was withdrawn on 7 Oct 2026. The account stays, as a
+      // broker, because the Postman folders sign in with it.
+      role: UserRole.BROKER,
       status: UserStatus.ACTIVE,
     },
     {
-      email: 'assistant@tribecajets.com',
+      email: 'assistant@example.com',
       firstName: 'Avery',
       lastName: 'Assist',
       role: UserRole.ASSISTANT,
       status: UserStatus.ACTIVE,
     },
     {
-      email: 'barry@tribecajets.com',
+      email: 'barry@example.com',
       firstName: 'Barry',
       lastName: 'Wilson',
       role: UserRole.BROKER,
       status: UserStatus.ACTIVE,
     },
     {
-      email: 'mark@tribecajets.com',
+      email: 'mark@example.com',
       firstName: 'Mark',
       lastName: 'Evans',
       role: UserRole.BROKER,
       status: UserStatus.ACTIVE,
     },
     {
-      email: 'tom@tribecajets.com',
+      email: 'tom@example.com',
       firstName: 'Tom',
       lastName: 'Walsh',
       role: UserRole.BROKER,
@@ -148,7 +156,7 @@ async function main(): Promise<void> {
       status: UserStatus.SUSPENDED,
     },
     {
-      email: 'newhire@tribecajets.com',
+      email: 'newhire@example.com',
       firstName: 'Nina',
       lastName: 'Newhire',
       role: UserRole.BROKER,
@@ -159,7 +167,7 @@ async function main(): Promise<void> {
       // A referral partner (#11): signs in to the portal at /portal, and is
       // what Postman's `18 · Referrals` submits as. Standing terms of 10% of
       // profit, so a linked trip raises a commission with a value.
-      email: 'agent@tribecajets.com',
+      email: 'agent@example.com',
       firstName: 'Riley',
       lastName: 'Partner',
       role: UserRole.REFERRAL_AGENT,
@@ -169,17 +177,41 @@ async function main(): Promise<void> {
     },
   ];
 
+  /**
+   * Per-person permissions (7 Oct 2026). Everyone stores their role's
+   * defaults, except two brokers adjusted by hand, so the Edit form and the
+   * sidebar show a real difference between people in the same role:
+   * Barry has more than a broker starts with, Mark has less.
+   */
+  const brokerDefaults = defaultGrants(UserRole.BROKER);
+  const adjusted: Record<string, AccessGrants> = {
+    'barry@example.com': {
+      ...brokerDefaults,
+      [Module.TRIPS]: [...(brokerDefaults.TRIPS ?? []), Action.ARCHIVE],
+      [Module.REPORTS]: [Action.VIEW, Action.EXPORT],
+    },
+    'mark@example.com': Object.fromEntries(
+      Object.entries({
+        ...brokerDefaults,
+        [Module.QUOTES]: (brokerDefaults.QUOTES ?? []).filter((a) => a !== Action.VIEW_MONEY),
+      }).filter(([module]) => module !== Module.RECEIVABLES && module !== Module.REPORTS),
+    ),
+  };
+
   for (const member of directory) {
+    const permissions = adjusted[member.email] ?? defaultGrants(member.role);
     await prisma.user.upsert({
       where: { email: member.email },
       update: {
         passwordHash: password,
         role: member.role,
         status: member.status,
+        permissions,
         deletedAt: null,
       },
       create: {
         ...member,
+        permissions,
         passwordHash: password,
         createdById: admin.id,
         updatedById: admin.id,
@@ -207,7 +239,7 @@ async function main(): Promise<void> {
       firstName: 'Dana',
       lastName: 'Whitfield',
       companyName: 'Whitfield Travel Group',
-      email: 'dana@whitfieldtravel.com',
+      email: 'dana@whitfieldtravel.example.com',
       type: ClientType.TRAVEL_AGENT,
       leadStage: LeadStage.QUOTED,
       leadSource: LeadSource.FACEBOOK_GROUP_1,
@@ -266,12 +298,12 @@ async function main(): Promise<void> {
   }
 
   const operators = [
-    { name: 'FlexJet', status: OperatorStatus.PREFERRED, homeBase: 'Cleveland, OH', website: 'www.flexjet.com', primaryContact: 'James Miller', contactEmail: 'jmiller@flexjet.com', contactPhone: '+1 (212) 555-0184', aircraftTypes: ['Global 7500', 'Challenger 350'], serviceRoutes: ['KTEB ↔ KMIA', 'KJFK ↔ EGLL', 'KLAX ↔ KLAS'], reliabilityRating: 4.8, safetyRating: 'ARG/US Platinum', responseSpeed: '< 15 min', paymentTerms: 'Net 30', cancellationPolicy: 'Full refund up to 72 hours prior to departure. 50% fee within 48-72h. 100% fee within 24h.', sourcingNotes: 'Preferred long-range partner with direct dispatch line. High reliability on transcontinental routes.' },
-    { name: 'VistaJet', status: OperatorStatus.ACTIVE, homeBase: 'Luton, UK', website: 'www.vistajet.com', primaryContact: 'Sarah Blake', contactEmail: 'sblake@vistajet.com', contactPhone: '+44 20 7946 0912', aircraftTypes: ['Global 7500', 'Global 6000'], serviceRoutes: ['EGLL ↔ KJFK', 'EGGW ↔ OMDB', 'LFMN ↔ KTEB'], reliabilityRating: 4.7, safetyRating: 'Wyvern Wingman', responseSpeed: '< 20 min', paymentTerms: 'Net 15', cancellationPolicy: 'Standard international charter terms. 10% non-refundable deposit.', sourcingNotes: 'Excellent global coverage with distinctive silver and red stripe fleet.' },
-    { name: 'ExecuJet', status: OperatorStatus.ACTIVE, homeBase: 'Zurich, CH', website: 'www.execujet.com', primaryContact: 'Mark Hughes', contactEmail: 'mhughes@execujet.com', contactPhone: '+41 44 804 1616', aircraftTypes: ['Gulfstream G550', 'Falcon 7X'], serviceRoutes: ['LSZH ↔ LFMN', 'LSGG ↔ EGLL'], reliabilityRating: 4.6, safetyRating: 'IS-BAO Stage 3', responseSpeed: '< 30 min', paymentTerms: 'Due upon receipt', cancellationPolicy: 'Standard European business aviation contract.', sourcingNotes: 'Premier European charter operator with heavy jet capabilities.' },
-    { name: 'NetJets', status: OperatorStatus.PREFERRED, homeBase: 'Columbus, OH', website: 'www.netjets.com', primaryContact: 'Jennifer Vance', contactEmail: 'jvance@netjets.com', contactPhone: '+1 (877) 356-5825', aircraftTypes: ['Citation Latitude', 'Challenger 650', 'Global 6000'], serviceRoutes: ['KCMH ↔ KTEB', 'KTEB ↔ KPBI', 'KLAX ↔ KSFO'], reliabilityRating: 4.9, safetyRating: 'ARG/US Platinum', responseSpeed: '< 10 min', paymentTerms: 'Net 30', cancellationPolicy: 'NetJets broker agreement terms with 48-hour cancellation grace period.', sourcingNotes: 'Largest private jet operator globally. Instant guaranteed availability.' },
+    { name: 'FlexJet', status: OperatorStatus.PREFERRED, homeBase: 'Cleveland, OH', website: 'www.flexjet.com', primaryContact: 'James Miller', contactEmail: 'jmiller@flexjet.example.com', contactPhone: '+1 (212) 555-0184', aircraftTypes: ['Global 7500', 'Challenger 350'], serviceRoutes: ['KTEB ↔ KMIA', 'KJFK ↔ EGLL', 'KLAX ↔ KLAS'], reliabilityRating: 4.8, safetyRating: 'ARG/US Platinum', responseSpeed: '< 15 min', paymentTerms: 'Net 30', cancellationPolicy: 'Full refund up to 72 hours prior to departure. 50% fee within 48-72h. 100% fee within 24h.', sourcingNotes: 'Preferred long-range partner with direct dispatch line. High reliability on transcontinental routes.' },
+    { name: 'VistaJet', status: OperatorStatus.ACTIVE, homeBase: 'Luton, UK', website: 'www.vistajet.com', primaryContact: 'Sarah Blake', contactEmail: 'sblake@vistajet.example.com', contactPhone: '+44 20 7946 0912', aircraftTypes: ['Global 7500', 'Global 6000'], serviceRoutes: ['EGLL ↔ KJFK', 'EGGW ↔ OMDB', 'LFMN ↔ KTEB'], reliabilityRating: 4.7, safetyRating: 'Wyvern Wingman', responseSpeed: '< 20 min', paymentTerms: 'Net 15', cancellationPolicy: 'Standard international charter terms. 10% non-refundable deposit.', sourcingNotes: 'Excellent global coverage with distinctive silver and red stripe fleet.' },
+    { name: 'ExecuJet', status: OperatorStatus.ACTIVE, homeBase: 'Zurich, CH', website: 'www.execujet.com', primaryContact: 'Mark Hughes', contactEmail: 'mhughes@execujet.example.com', contactPhone: '+41 44 804 1616', aircraftTypes: ['Gulfstream G550', 'Falcon 7X'], serviceRoutes: ['LSZH ↔ LFMN', 'LSGG ↔ EGLL'], reliabilityRating: 4.6, safetyRating: 'IS-BAO Stage 3', responseSpeed: '< 30 min', paymentTerms: 'Due upon receipt', cancellationPolicy: 'Standard European business aviation contract.', sourcingNotes: 'Premier European charter operator with heavy jet capabilities.' },
+    { name: 'NetJets', status: OperatorStatus.PREFERRED, homeBase: 'Columbus, OH', website: 'www.netjets.com', primaryContact: 'Jennifer Vance', contactEmail: 'jvance@netjets.example.com', contactPhone: '+1 (877) 356-5825', aircraftTypes: ['Citation Latitude', 'Challenger 650', 'Global 6000'], serviceRoutes: ['KCMH ↔ KTEB', 'KTEB ↔ KPBI', 'KLAX ↔ KSFO'], reliabilityRating: 4.9, safetyRating: 'ARG/US Platinum', responseSpeed: '< 10 min', paymentTerms: 'Net 30', cancellationPolicy: 'NetJets broker agreement terms with 48-hour cancellation grace period.', sourcingNotes: 'Largest private jet operator globally. Instant guaranteed availability.' },
     // One INACTIVE row so the status filter has something to exclude.
-    { name: 'Clay Lacy Aviation', status: OperatorStatus.INACTIVE, homeBase: 'Van Nuys, CA', website: 'www.claylacy.com', primaryContact: 'Dana Ruiz', contactEmail: 'druiz@claylacy.com', contactPhone: '+1 (800) 423-2904', aircraftTypes: ['Citation X'], serviceRoutes: ['KVNY ↔ KLAS'], reliabilityRating: 4.2, safetyRating: 'IS-BAO Stage 2', responseSpeed: '< 45 min', paymentTerms: 'Net 30', cancellationPolicy: 'Standard domestic terms.', sourcingNotes: 'Dormant since the West Coast desk moved to NetJets.' },
+    { name: 'Clay Lacy Aviation', status: OperatorStatus.INACTIVE, homeBase: 'Van Nuys, CA', website: 'www.claylacy.com', primaryContact: 'Dana Ruiz', contactEmail: 'druiz@claylacy.example.com', contactPhone: '+1 (800) 423-2904', aircraftTypes: ['Citation X'], serviceRoutes: ['KVNY ↔ KLAS'], reliabilityRating: 4.2, safetyRating: 'IS-BAO Stage 2', responseSpeed: '< 45 min', paymentTerms: 'Net 30', cancellationPolicy: 'Standard domestic terms.', sourcingNotes: 'Dormant since the West Coast desk moved to NetJets.' },
   ];
 
   for (const operator of operators) {
@@ -721,14 +753,14 @@ async function main(): Promise<void> {
   });
 
   console.log('Seed complete.');
-  console.log('  admin@tribecajets.com  / ChangeMe123!  (SUPER_ADMIN)');
-  console.log('  broker@tribecajets.com / ChangeMe123!  (BROKER)');
-  console.log('  security@tribecajets.com / ChangeMe123!  (ADMIN, 2FA on)');
-  console.log('  reset-demo@tribecajets.com / ChangeMe123!  (BROKER, password-reset target)');
-  console.log('  senior@tribecajets.com / ChangeMe123!  (SENIOR_BROKER)');
-  console.log('  assistant@tribecajets.com / ChangeMe123!  (ASSISTANT)');
-  console.log('  + barry / mark (BROKER, active), tom (SUSPENDED), newhire (INVITED)');
-  console.log('  agent@tribecajets.com / ChangeMe123!  (REFERRAL_AGENT — the partner portal, 10% of profit)');
+  console.log('  admin@example.com  / ChangeMe123!  (SUPER_ADMIN)');
+  console.log('  broker@example.com / ChangeMe123!  (BROKER)');
+  console.log('  security@example.com / ChangeMe123!  (ADMIN, 2FA on)');
+  console.log('  reset-demo@example.com / ChangeMe123!  (BROKER, password-reset target)');
+  console.log('  senior@example.com / ChangeMe123!  (BROKER)');
+  console.log('  assistant@example.com / ChangeMe123!  (ASSISTANT)');
+  console.log('  + barry (BROKER, extra permissions), mark (BROKER, fewer permissions), tom (SUSPENDED), newhire (INVITED)');
+  console.log('  agent@example.com / ChangeMe123!  (REFERRAL_AGENT — the partner portal, 10% of profit)');
   // Counted, not typed: a hardcoded "3 operator quotes" went on printing 3
   // while a skipped row meant only 2 were ever written.
   const [operatorQuoteCount, quoteCount, templateCount] = await Promise.all([

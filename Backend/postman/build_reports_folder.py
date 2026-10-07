@@ -305,7 +305,7 @@ def build(owner: Session, anonymous: Session):
 
 
 def main() -> None:
-    owner = Session('admin@tribecajets.com')
+    owner = Session('admin@example.com')
     anonymous = Session(None)
 
     collection = json.loads(COLLECTION.read_text(encoding='utf-8'))

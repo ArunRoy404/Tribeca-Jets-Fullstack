@@ -59,7 +59,7 @@ SETUP = [
     "pm.sendRequest({ url: base + '/users?limit=100', method: 'GET' }, function (e1, users) {",
     "    pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (e2, clients) {",
     '        if (e1 || e2) { return; }',
-    "        const broker = users.json().data.find(function (u) { return u.email === 'broker@tribecajets.com'; });",
+    "        const broker = users.json().data.find(function (u) { return u.email === 'broker@example.com'; });",
     "        if (broker) { pm.collectionVariables.set('taskAssigneeId', broker.id); }",
     "        pm.collectionVariables.set('taskClientId', clients.json().data[0].id);",
     '    });',
@@ -271,9 +271,9 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
 
 
 def main() -> None:
-    owner = Session('admin@tribecajets.com')
-    broker = Session('broker@tribecajets.com')
-    agent = Session('agent@tribecajets.com')
+    owner = Session('admin@example.com')
+    broker = Session('broker@example.com')
+    agent = Session('agent@example.com')
     anonymous = Session(None)
 
     collection = json.loads(COLLECTION.read_text(encoding='utf-8'))

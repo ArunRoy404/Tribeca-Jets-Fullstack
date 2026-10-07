@@ -103,7 +103,7 @@ Two ordering rules the folders encode, both learned the hard way:
   unauthenticated caller is rejected.
 
 `01 · Auth → 04 · Password reset` **really changes a password**. It targets the
-dedicated `reset-demo@tribecajets.com` account so nothing else breaks; run
+dedicated `reset-demo@example.com` account so nothing else breaks; run
 `npm run db:seed` afterwards to restore it.
 
 ```bash
@@ -137,25 +137,42 @@ that line or scope the feature.
 
 | Email | Password | Role | 2FA |
 |---|---|---|---|
-| admin@tribecajets.com | ChangeMe123! | SUPER_ADMIN | off |
-| broker@tribecajets.com | ChangeMe123! | BROKER | off |
-| security@tribecajets.com | ChangeMe123! | ADMIN | **on** |
-| reset-demo@tribecajets.com | ChangeMe123! | BROKER | off |
-| agent@tribecajets.com | ChangeMe123! | REFERRAL_AGENT (10% of profit) | off |
+| admin@example.com | ChangeMe123! | SUPER_ADMIN | off |
+| broker@example.com | ChangeMe123! | BROKER | off |
+| security@example.com | ChangeMe123! | ADMIN | **on** |
+| reset-demo@example.com | ChangeMe123! | BROKER | off |
+| agent@example.com | ChangeMe123! | REFERRAL_AGENT (10% of profit) | off |
 
 `agent@` is the referral partner (#11). `17 · Commissions` and `18 · Referrals`
 sign in as it for the requests marked "(as the agent)" — see below.
 
 ## Running the whole collection
 
+Run it against an API that **does not send email** — inviting, two-factor
+and password reset all email, and the two-factor requests read the code an
+API without a mail server returns. If your `.env` has a mail server, start a
+second API for the run (every seeded address is on example.com, but a run
+should send nothing at all):
+
 ```bash
 npx prisma db seed                       # restores known passwords and fixtures
+npm run build && PORT=4100 MAIL_DRIVER=log RATE_LIMIT_MULTIPLIER=20 \
+  REDIS_URL=redis://localhost:6380/1 node dist/main.js &
 npx newman run postman/Tribeca-Jets-API.postman_collection.json \
-  -e postman/Local.postman_environment.json
+  -e postman/Local.postman_environment.json --env-var baseUrl=http://localhost:4100/api
 ```
 
+`REDIS_URL=…/1` gives the test API its own Redis database. The email queue
+lives in Redis, so on the shared one your everyday API's mail worker picks up
+the run's emails and tries to send them — Resend then refuses every
+example.com address with a 550.
+
+Run it from `Backend/`: the upload fixtures are addressed as
+`postman/fixtures/…`. Rebuilding a folder takes the same API:
+`POSTMAN_BASE=http://localhost:4100/api python3 postman/build_users_folder.py`.
+
 **Re-seed before each full run.** The password-reset folder actually changes
-`reset-demo@tribecajets.com`'s password, so a second consecutive run without a
+`reset-demo@example.com`'s password, so a second consecutive run without a
 re-seed fails on "new password must differ from the current one" — the API
 behaving correctly, not a broken collection. That account exists precisely so
 the reset flow never disturbs the accounts the other folders depend on.
@@ -291,7 +308,7 @@ and `build_users_folder.py` + `reorganize.py` for 04 (above).
 **16, 17 and 18 were written on 27 Sep 2026, 19 to 27 on 28 Sep and 28 on 29 Sep;
 none has been run yet** — the collection does not contain those folders until they are. Run
 them against a freshly seeded API with the latest migrations deployed (16–18
-need `agent@tribecajets.com`; 19–21 sign in as `admin@`, `broker@` and
+need `agent@example.com`; 19–21 sign in as `admin@`, `broker@` and
 `assistant@`, and 19–20 need the seeded broker `mark@`; 23 signs in as
 `admin@`, `broker@` and `agent@`, 24 as those and `assistant@`, and 25 and 26 as
 `admin@`, `broker@` and `agent@`, 27 as those and `assistant@`, and 28 as

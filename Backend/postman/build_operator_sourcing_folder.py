@@ -635,9 +635,9 @@ def build(owner, broker, assistant):
 
 
 def main() -> None:
-    owner = Session('admin@tribecajets.com')
-    broker = Session('broker@tribecajets.com')
-    assistant = Session('assistant@tribecajets.com')
+    owner = Session('admin@example.com')
+    broker = Session('broker@example.com')
+    assistant = Session('assistant@example.com')
 
     collection = json.loads(COLLECTION.read_text())
 

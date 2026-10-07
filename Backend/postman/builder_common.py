@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import pathlib
 import re
 import urllib.error
@@ -19,7 +20,9 @@ import urllib.request
 import uuid
 from http.cookiejar import CookieJar
 
-BASE = 'http://localhost:4000/api'
+# Override to capture against a second API instance — one started with
+# MAIL_DRIVER=log, so a capture run never emails anyone.
+BASE = os.environ.get('POSTMAN_BASE', 'http://localhost:4000/api')
 PASSWORD = 'ChangeMe123!'
 MISSING = '00000000-0000-4000-8000-000000000000'
 FIXTURES = pathlib.Path(__file__).with_name('fixtures')

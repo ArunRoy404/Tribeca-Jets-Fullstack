@@ -26,7 +26,7 @@ import pathlib
 from builder_common import MISSING, PASSWORD, WRITE_HEADERS, Session, ensure_variables, example, script, status_test, url
 
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
-ASSISTANT = 'assistant@tribecajets.com'
+ASSISTANT = 'assistant@example.com'
 TEMP_PASSWORD = 'Interim-Pass-2026'
 
 
