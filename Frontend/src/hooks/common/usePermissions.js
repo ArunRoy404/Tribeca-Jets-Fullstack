@@ -30,8 +30,8 @@ import { Action, hasAccess } from "@/lib/access";
  *   enforced: the sidebar, the page gate and every module already moved
  *   (Users & Roles) read these.
  * - **`can` / `canWrite` / `scopeFor`** — the old role matrix (`matrix`),
- *   for modules not yet moved. Answers yes to everything while
- *   ROLE_RESTRICTIONS_ENABLED is off.
+ *   for modules not yet moved. Would answer yes to everything if
+ *   ROLE_RESTRICTIONS_ENABLED were switched off.
  *
  * @example
  *   const { canAccess } = usePermissions();

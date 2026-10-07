@@ -22,6 +22,7 @@ import {
 } from '../../common/database/filters.js';
 import {
   ASSIGNABLE_ROLES,
+  isAdministrator,
   ROLE_DESCRIPTIONS,
   ROLE_PERMISSION_LEVEL,
 } from '../../common/authorization/permissions.js';
@@ -361,14 +362,13 @@ export class UsersService {
     });
     if (!target) return;
 
-    const wasAdmin =
-      target.role === UserRole.SUPER_ADMIN || target.role === UserRole.ADMIN;
+    const wasAdmin = isAdministrator(target.role);
     if (!wasAdmin || target.status !== UserStatus.ACTIVE) return;
 
     const stillAdmin =
       next.role === undefined
         ? wasAdmin
-        : next.role === UserRole.SUPER_ADMIN || next.role === UserRole.ADMIN;
+        : isAdministrator(next.role);
     const stillActive =
       next.status === undefined ? true : next.status === UserStatus.ACTIVE;
 

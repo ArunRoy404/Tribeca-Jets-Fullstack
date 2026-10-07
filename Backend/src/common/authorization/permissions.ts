@@ -386,21 +386,18 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
 };
 
 /**
- * TEMPORARY (4 Oct 2026): role restrictions are switched off.
+ * Whether the role matrix is enforced. On since 7 Oct 2026.
  *
- * The owner's decision: finish the CRM end to end for SUPER_ADMIN first, then
- * redesign the role architecture. Until then every user, whatever their stored
- * role, acts with SUPER_ADMIN authority — every guard passes, every row scope
- * is ALL, and no response is trimmed for a partner.
- *
- * Everything below still exists and is untouched; flipping this to `true`
- * restores the matrix exactly. Every place that *restricts* by role reads the
- * role through `actsAs()`, so this one constant is the whole switch. Places
- * that use a role as *data* — "the agent on a commission must be an agent",
- * "you cannot change your own role", "the last admin cannot be demoted" — read
- * the stored role directly and are unaffected.
+ * It was switched off from 4 to 7 Oct 2026 (owner's decision: finish the CRM
+ * end to end as SUPER_ADMIN first), when every user acted with SUPER_ADMIN
+ * authority. Every place that *restricts* by role still reads the role through
+ * `actsAs()`, so this constant remains the one switch for the old matrix until
+ * the last module moves to per-user permissions and the matrix is deleted.
+ * Places that use a role as *data* or *identity* — "the agent on a commission
+ * must be an agent", "you cannot change your own role", `isAdministrator`,
+ * `isPartner` — read the stored role directly and never pass through it.
  */
-export const ROLE_RESTRICTIONS_ENABLED = false;
+export const ROLE_RESTRICTIONS_ENABLED = true;
 
 /**
  * The role a user's *authority* is judged by. Their stored role while
@@ -455,9 +452,25 @@ export const ASSIGNABLE_ROLES: UserRole[] = [
  * the portal; this exists for the few routes that carry no permission
  * decorator by design — uploads and notes — where the rule has to be stated
  * in the service instead.
+ *
+ * Identity, not authority: read from the stored role and never through
+ * `actsAs()`, for the same reason the frontend picks a person's area from it.
+ * A partner is a partner whatever the matrix switch says, and a rule that
+ * keeps desk files from an outsider must not be switchable off.
  */
 export function isPartner(role: UserRole): boolean {
-  return actsAs(role) === UserRole.REFERRAL_AGENT;
+  return role === UserRole.REFERRAL_AGENT;
+}
+
+/**
+ * Whether this role administers the company: SUPER_ADMIN or ADMIN.
+ *
+ * Identity, like `isPartner`. Used where "an administrator" is the rule
+ * itself — every stored file is readable by one, and the last active one
+ * cannot be removed — rather than a capability a person is granted.
+ */
+export function isAdministrator(role: UserRole): boolean {
+  return role === UserRole.SUPER_ADMIN || role === UserRole.ADMIN;
 }
 
 /**
