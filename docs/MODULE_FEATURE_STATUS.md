@@ -120,7 +120,7 @@ email stays reserved, so a mistyped invitation address is unrecoverable.
 
 The three unfilled figures render "—" in `toTeamMember`.
 
-**Review in progress (6 Oct 2026)**
+**Reviewed 6–7 Oct 2026 — owner signed off**
 
 - Fixed: the Documents tab crashed ("documents?.map is not a function") — it
   read the page object `{ data, meta }` as the rows.
@@ -132,6 +132,45 @@ The three unfilled figures render "—" in `toTeamMember`.
 - Documents tab uses the shared `FileUpload` drop box (several files at
   once), and **a document may be any file type**: unrecognised types are
   stored as opaque bytes that always download (Uploads, `storedContentType`).
+- **Per-user permissions (owner's design, 7 Oct 2026)** — the first module
+  moved off the role matrix. Roles are now Super Admin, Admin, Broker,
+  Assistant and Referral Agent; **Senior Broker is withdrawn** (not in the
+  scope) and its accounts became brokers.
+  - Invite and Edit are **full pages** (`/dashboard/users-roles/invite`,
+    `/dashboard/users-roles/<id>/edit`), replacing the dialog: details on the
+    left, permissions on the right, Save in a sticky header, a warning before
+    leaving with unsaved changes. The **Permissions** picker folds by sidebar
+    section ("5 of 6 on"): 25 modules, each with its actions, starting from
+    the role's defaults. Locked
+    modules and actions show a lock; ticking a module that needs another
+    turns that on too and says so; a needed module cannot be turned off
+    first. A role change resets to the new role's defaults with a warning
+    before saving. Nobody edits their own set; the owner's is fixed.
+  - The detail sheet has a read-only **Permissions** tab.
+  - Roles & Permissions tab: each role's defaults, optional extras, locks
+    and reach, grouped by sidebar section.
+  - Edit, Suspend and Invite appear only with the matching permission;
+    Suspend never on your own account.
+  - API: `/users/stats`, `/users/:id`, invite and edit are on
+    `@RequireAccess`; new `GET /roles` and `GET /roles/:role/defaults`.
+    `GET /users` stays on the old `VIEW_TEAM` because every module's broker
+    picker reads it; Users & Roles · View decides how much of each row shows.
+- **For every module:** the sidebar, `proxy.js` (from the `tj_modules`
+  cookie, before render) and the page gate follow each person's own set; a
+  refused page shows "No access". The APIs of the other modules still use
+  the old matrix (off), until each is moved during its review.
+- **Withdraw invitation** (7 Oct 2026): a pending invitation can be deleted
+  permanently from the row menu or the detail panel, freeing the address;
+  refused while clients, trips, documents or anything else are attached.
+  The one permanent delete in the system.
+- A Referral Agent lands in the partner portal again (by real role, not the
+  switch); staff are kept out of it. The Invite/Edit page asks before any
+  link leaves it with unsaved changes.
+- Seed (7 Oct 2026): every account and contact on example.com; Barry is a
+  broker with extra permissions, Mark one with fewer.
+- Postman: `04 · Users` rebuilt (7 requests, 40 examples, `/roles` and
+  permissions), the Auth session examples recaptured, `02 · Senior Broker`
+  sign-in removed, `08 · Withdraw invitation` added. Full collection green twice: 199 requests, 0 failures.
 
 **By design, not pending:** no archive/restore here. Suspension is enough — a
 user is a person with history attached, and removing the row orphans every

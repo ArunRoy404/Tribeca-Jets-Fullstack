@@ -56,9 +56,13 @@ whatever role is stored on their row.
   directly and is unaffected: "a commission's agent must be an agent",
   "you cannot change your own role", "the last admin cannot be demoted".
   **New code follows the same split** — a restriction goes through `actsAs`.
-- **Frontend:** `usePermissions()` answers yes to everything, and every user
-  lands on `/dashboard` and may open `/portal`. Keep writing `canWrite(...)`
+- **Frontend:** `usePermissions()`'s old-matrix answers (`can`/`canWrite`)
+  are yes to everything. Which area a person lands in is no longer under the
+  switch: a Referral Agent goes to `/portal`, staff to `/dashboard`. Keep writing `canWrite(...)`
   checks on new controls as the rules below say; they simply pass for now.
+- **This switch governs only the old matrix.** Per-user permissions (below)
+  are always on: the sidebar, the page gate and every module already moved
+  to them enforce them whatever this switch says.
 - **Tests:** the five upload tests asserting a role is refused are
   `it.skipIf(!ROLE_RESTRICTIONS_ENABLED)`. Any new test that depends on a
   role being refused does the same.
@@ -66,6 +70,68 @@ whatever role is stored on their row.
 The rules in this file about scopes, 404-not-403, partner views and hiding
 controls still describe the design; they are dormant, not withdrawn. The
 redesign revisits them.
+
+## Permissions are per person, module by module (since 7 Oct 2026)
+
+**The owner's design, replacing the role matrix one module at a time.** A
+permission is a **module** — one per sidebar screen — and an **action** in it
+(`VIEW`, `CREATE`, `EDIT`, `ARCHIVE`, `ASSIGN`, `SEND`, `PAY`, `EXPORT`,
+`VIEW_MONEY`, `VIEW_SENSITIVE`, `MANAGE_ACCESS`).
+
+- **Catalogue:** `Backend/src/common/authorization/access.catalogue.ts` —
+  each module's actions and the modules it `requires`. **Roles:**
+  `access.roles.ts` — per role and module, the **reach** (OWN / ASSIGNED /
+  ALL), the **defaults** and the **optional** extras. Anything else is
+  **locked**: the role can never hold it. **Rules:** `access.ts`.
+- **Roles are Super Admin, Admin, Broker, Assistant** (the signed scope, §4)
+  **and Referral Agent** (client adjustment #11). `SENIOR_BROKER` was
+  withdrawn on 7 Oct 2026; its accounts became brokers.
+- **Each user stores their own set**, `users.permissions` =
+  `{ MODULE: [ACTION] }`, seeded from the role's defaults at invitation and
+  adjusted for that one person. Changing the role defaults later does not
+  touch existing people. A null column reads as the role's defaults.
+- **Reach is the role's, never per person.** "A broker sees only their own"
+  is not a checkbox.
+- **The server refuses** a locked module or action, granting what the grantor
+  does not hold (the owner excepted — role defaults are checked too, so
+  inviting an admin is not a way round it), editing your own set, and editing
+  the owner's. It adds VIEW to any ticked module and VIEW on what a ticked
+  module requires. A role change without a set resets to the new role's
+  defaults. Changing role or permissions needs `USERS · MANAGE_ACCESS`.
+- **Every request loads the set** with the user (`JwtStrategy` →
+  `user.access`), so a change applies on the next click. `/auth/me` returns it
+  as `permissions: { MODULE: { reach, actions } }`; the old matrix moved to
+  `matrix`.
+- **Backend:** a moved route carries `@RequireAccess(Module.X, Action.Y)`
+  (`AccessGuard`); a service reads `canDo(user.access, …)` and
+  `reachOf(user.access, …)`. **Frontend:** `usePermissions().canAccess(module,
+  action)` / `reachOf(module)`; names in `src/lib/access.js`.
+- **Which area a person uses is their real role, never a permission and
+  never the temporary switch:** a Referral Agent works in `/portal`, staff
+  in `/dashboard`. `homeFor` / `AreaGate` read the role, and `tj_modules`
+  starts with `PORTAL` for a partner so `proxy.js` routes them before render.
+- **The sidebar and pages follow the set already, for every module:** each
+  item in `components/dashboard/nav/crmNav.js` names its module, `NavMain`
+  hides what the person cannot view, and two layers refuse a page:
+  - **`proxy.js`, before render**, from the `tj_modules` cookie — the
+    modules the person may view, `DASHBOARD.TRIPS…`, written by the API on
+    sign-in, every refresh and every `/auth/me`, cleared on sign-out. A
+    refused page goes to `/dashboard/no-access?module=…`; `/dashboard`
+    without the Dashboard goes to the first page they may open. It is a
+    routing hint, not a credential — editing it only shows pages whose API
+    calls are still refused — and a session without it is let through.
+  - **`ModuleGate`, live**, from `/auth/me` — for a permission removed since
+    the cookie was written.
+- **Moving a module over is part of reviewing it:** swap its
+  `@RequirePermissions` for `@RequireAccess`, its `scopeFor` for `reachOf`,
+  and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
+  Action.Y)`. **Moved so far: Users & Roles.** Every other module's API is
+  still on the old matrix, so its server lets everyone in while the switch
+  above is off. When the last one moves, delete the old matrix and the
+  switch.
+- **A new action or module** is a line in the catalogue, a decision per role
+  in `access.roles.ts`, and the check on its route — never a route that
+  checks something the catalogue does not list.
 
 ## How this project is built
 
@@ -302,6 +368,15 @@ Tracking (#14), which read the same trip facts a third and fourth time.
 - **The label check reads the status wherever it sits in the name.** The
   Uploads examples are named `Success (200 · …)`; an audit that only looked at
   the start of the name skipped them, and one of them was a 403 label on a 200.
+- **Capture and run against a second API with `MAIL_DRIVER=log` and its own
+  Redis database** (`REDIS_URL=redis://localhost:6380/1`), never the one
+  with a mail server: inviting and two-factor send email, and the 2FA
+  examples read the code a log-driver API returns. The separate Redis
+  database matters as much as the driver — the mail queue lives there, and
+  on a shared one the everyday API's worker picks up the run's emails. Builders on
+  `builder_common` take `POSTMAN_BASE` (e.g. `http://localhost:4100/api`);
+  Newman takes `--env-var baseUrl=…`. Run Newman from `Backend/`, where the
+  fixture paths resolve.
 - **A local Newman run needs `RATE_LIMIT_MULTIPLIER=20`** in `Backend/.env`.
   A full run signs in more often than the login limit allows, so at `1` it
   fails with 429s that look like real failures. Never raise the limits
@@ -528,7 +603,9 @@ written once and never edited, so an `updatedBy` would have nothing to say:
 - `RefreshToken`, `VerificationCode` — session machinery, owned by the user
   row they hang off, rotated or consumed rather than edited.
 - `EmailMessage` (#21) — an email as it was sent; `createdById` is the
-  sender. It has no archive trail either: an email cannot be unsent.
+  sender. It has no archive trail either: an email cannot be unsent. Its
+  content is never edited; only the mail worker moves `status` on from
+  QUEUED, which is the system reporting delivery, not a person's edit.
 
 A sixth exception needs a line here, with its reason, in the same pass.
 
@@ -550,9 +627,10 @@ A sixth exception needs a line here, with its reason, in the same pass.
   and it sits in an inbox, so the email tells the invitee to change it from
   My Account.
 
-  **Known gap:** there is no way to withdraw a mistaken invitation. The row
-  stays `INVITED` and keeps its email address reserved. Withdrawing one needs
-  its own deliberate operation; do not solve it by loosening the status guard.
+  **A mistaken invitation is withdrawn, not suspended** (7 Oct 2026):
+  `DELETE /users/:id/invitation` deletes the row permanently and frees the
+  address — see "Nothing is ever permanently deleted" for the limits. Do
+  not solve it by loosening the status guard.
 - **`ACTIVE` / `SUSPENDED`** are an administrator's call, made through
   `PATCH /users/:id` by a `MANAGE_USERS` holder, and nothing else.
 
@@ -568,8 +646,9 @@ for a pending invitation and offers only Active/Suspended otherwise.
 
 ## Nothing is ever permanently deleted
 
-There is **no hard delete anywhere in this system, and no endpoint that offers
-one.** Removing a record archives it; it can always be brought back. Every
+There is **no hard delete anywhere in this system, with one exception: a
+pending invitation** (below). Removing a record archives it; it can always be
+brought back. Every
 soft-deletable model therefore carries six columns, not one:
 
 ```prisma
@@ -632,8 +711,17 @@ any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
   `bulkResult`, same partial-success rule — `POST /<resource>/bulk-restore`.
   Read `affected` rather than `deleted`, which is kept only as an alias for the
   existing delete callers.
-- **Users are not soft-deletable at all.** The Users module has no `DELETE`
-  and no `restore`, its query DTO has no `archived` param, and the `users` table
+- **Withdrawing a pending invitation is the one permanent delete**
+  (owner's decision, 7 Oct 2026): `DELETE /users/:id/invitation`, only while
+  the account is still `INVITED` — the invitee never signed in, so there is
+  no history to lose, and the address is freed for a correct invitation.
+  It is refused (409, naming them) while anything is attached — clients,
+  trips, quotes, tasks, referrals, commissions, documents in their folder —
+  because most of those links would silently clear on delete and the folder
+  would be deleted with the row. The audit log keeps `user.invitation_withdrawn`.
+  Never widen this to an account that has signed in; suspend it.
+- **Users are not soft-deletable at all.** The Users module has no archive
+  `DELETE` and no `restore`, its query DTO has no `archived` param, and the `users` table
   carries no archive trail — suspending an account is the way out, which is a
   status change through `PATCH /users/:id`. `users.deletedAt` survives as a
   database-level kill switch (auth refuses a stamped row a session) and hides
@@ -663,8 +751,8 @@ line still printed "3 operator quotes" because the number was a literal. So:
 look up by a natural key the seed writes, and **count** what it wrote rather
 than printing a figure.
 
-**The seed never runs in production.** It is a development fixture: seven
-accounts sharing the public password `ChangeMe123!`, plus invented clients and
+**The seed never runs in production.** It is a development fixture: eleven
+accounts on `example.com` sharing the public password `ChangeMe123!`, plus invented clients and
 enquiries. Production's first account comes from `npm run
 db:bootstrap-admin` (`prisma/bootstrap-admin.ts`), which creates one
 SUPER_ADMIN and refuses an email that already exists rather than resetting it.
@@ -673,9 +761,10 @@ Production runs on Dokploy on the Hostinger VPS — one domain, Traefik routing
 
 ## The permission matrix ships with the session
 
-`GET /auth/me` returns `permissions` — the caller's row of the matrix, as
-`{ PERMISSION: Scope }` — so the frontend can stop offering actions the guard
-will refuse. A role seeing Edit and Remove on every row and collecting a 403
+`GET /auth/me` returns `matrix` — the caller's row of the old matrix, as
+`{ PERMISSION: Scope }` — and `permissions`, their own per-user set (see
+"Permissions are per person"), so the frontend can stop offering actions the
+guard will refuse. A role seeing Edit and Remove on every row and collecting a 403
 toast reads as a broken app rather than a permission boundary.
 
 **This is not an enforcement point and never can be.** It travels to a browser,
@@ -1198,6 +1287,18 @@ never builds its own dialog, its own preview or its own merge.
   put a figure in an email its sender could not have opened. A field that
   cannot be filled **stays as its token and is named**; it is never blanked
   and never guessed, and nothing is sent while one remains.
+- **Every email goes out through the mail queue, never inside a request**
+  (6 Oct 2026). `MailService` adds a job to the BullMQ queue `mail`
+  (`core/mail/mail.queue.ts`, on the app's Redis) and returns; the worker in
+  `mail.processor.ts` sends it, retrying five times with backoff and stopping
+  at once on a 5xx refusal. An invitation, a reset code or a composed email
+  answers in milliseconds. Never call the mail driver from a request handler.
+- A composed email is written as **QUEUED** first; the worker moves it to
+  SENT, LOGGED or FAILED and only then writes the `email.sent` /
+  `email.failed` timeline entries. The response carries `willDeliver` (a
+  mail server is configured), and the compose form marks a quote or
+  itinerary sent when the email is SENT, or QUEUED with `willDeliver` —
+  never when it will only be LOGGED.
 - **`SENT` means a mail server accepted it.** Without one configured the
   email is recorded as `LOGGED` — printed to the server log, delivered to
   nobody — and every screen and toast says "not delivered". A refusal is
@@ -1205,7 +1306,7 @@ never builds its own dialog, its own preview or its own merge.
   mail server did not take.
 - **Marking a record sent is a separate act from emailing it.** A quote's
   or an itinerary's "Mark as Sent" delivers nothing and says so; the compose
-  form marks it sent only when the email's status is `SENT`.
+  form marks it sent only for an email that will reach someone (above).
 - **Every email is built in one shell, `core/mail/mail.layout.ts`.** Account
   emails call `renderEmail` (eyebrow, heading, code or button, notice);
   a composed message is wrapped by `renderMessage` inside `MailService.deliver`.
@@ -1215,7 +1316,10 @@ never builds its own dialog, its own preview or its own merge.
   publicly reachable URL, because an inbox cannot send our session cookie.
 - **A Postman run never emails a real person.** `26 · Email Templates`
   writes a probe client on `example.com`, which never delivers, and emails
-  only that.
+  only that. **Every seeded account and contact is on `example.com`** (or a
+  `*.example.com` subdomain for operators) since 7 Oct 2026 — the seed used
+  `@tribecajets.com` and real operators' domains, which a configured mail
+  server would have reached.
 
 ## Read every generated migration before it ships
 
@@ -1303,6 +1407,12 @@ This project uses shadcn/ui (the `base-nova` style, built on Base UI — `@base-
 - **Every uploaded or gallery image is previewable, through one component.** Wrap it in `<ImagePreview>` (`src/components/common/image-preview/`) rather than a bare `<Image>` — hover shows an expand icon, click opens a full-screen zoom/pan lightbox, and passing the whole set an image belongs to (not just the one image) gets prev/next navigation for free. `FileUpload`'s upload bricks and `ItineraryPreview`'s aircraft gallery are the pattern to follow. This is the same "one reusable component, not one per screen" rule as everything else in this file — do not hand-roll a second hover-to-zoom treatment.
 - **A photo field that feeds a document offers the photo library.** Pass `library` to `FileUpload` (and `suggested` when the form knows which photos are relevant, as the quote form does with the chosen aircraft's). The library is every `PUBLIC` image already on the server — client adjustment #3's "stock image database" — so the desk picks a photo again rather than uploading it twice. Never build a second picker.
 - **Layouts, not wrappers**: if a visual shell wraps every page in a route group (the auth hero-split panel, the dashboard sidebar), it belongs in that group's `layout.js` — never re-imported and wrapped around each page's JSX by hand. `src/app/(auth)/layout.js` and `src/app/dashboard/layout.js` are the examples to follow.
+- **Never `window.confirm` / `alert`.** A question goes in
+  `components/common/ConfirmDialog.jsx`; a form that can lose work uses
+  `useUnsavedChangesGuard` (links and Cancel ask in that dialog; only tab
+  close and reload get the browser's prompt, which browsers insist on). A
+  refusal about the rows a dialog lists shows inside it (`BulkDeleteDialog`'s
+  `error`), not as a toast behind it.
 - **Reuse, don't duplicate.** Before adding a new status-color map, badge variant, or avatar treatment, check `src/components/common/StatusBadge.jsx` / `UserAvatar.jsx` first — these exist specifically because 4+ components used to hand-roll their own copies.
 
 ## Never duplicate code — extract a reusable component
@@ -1498,10 +1608,12 @@ copy is the bug this section exists to prevent.
 
 ## Do not offer an action the caller's role cannot perform
 
-`usePermissions()` (`src/hooks/common/usePermissions.js`) reads the matrix row
-the API ships with `/auth/me`. Use `canWrite(Permission.X)` to decide whether
-to render a write control — Add, Edit, Remove, Restore, bulk actions and the
-checkbox column that feeds them.
+`usePermissions()` (`src/hooks/common/usePermissions.js`) reads what the API
+ships with `/auth/me`. In a module moved to per-user permissions, use
+`canAccess(Module.X, Action.Y)`; in one still on the old matrix,
+`canWrite(Permission.X)`. Either decides whether to render a write control —
+Add, Edit, Remove, Restore, bulk actions and the checkbox column that feeds
+them.
 
 - **Hide, do not disable.** A greyed-out button invites a click and explains
   nothing. An assistant should see the record and the View action, not four

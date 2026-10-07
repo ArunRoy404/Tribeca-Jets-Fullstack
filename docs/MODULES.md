@@ -127,7 +127,7 @@ reviewed yet — the module may still be built and working.
 | # | Module | Reads settings? | Review |
 |---|---|---|---|
 | 1 | Auth & Sessions | Yes — idle timeout, warning, admin 2FA | ✅ 6 Oct — owner tested |
-| 2 | Users & Roles | — | ⬜ |
+| 2 | Users & Roles | — | ✅ 7 Oct — owner tested |
 | 3 | Uploads | — | ⬜ |
 | 4 | **Settings API** (#26, backend for the built screens) | — (it is the source) | ⬜ |
 | 5 | Airports | — | ⬜ |
