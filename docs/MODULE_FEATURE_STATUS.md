@@ -16,13 +16,10 @@ the scope asks for that we chose not to build yet, with the reason.
 > second list is *visibly* blank on screen — nothing in this project quietly
 > pretends a missing dependency is a zero.
 
-> **Deferred by decision, every module (4 Oct 2026): role restrictions.** Every
-> user currently acts as SUPER_ADMIN — no scoping, no hidden controls, no
-> partner-only views — until the CRM is finished and the role architecture is
-> redesigned. Everything below that mentions a broker's scope, an assistant's
-> read-only access or the referral portal describes the dormant design. The
-> switch and what it covers: `AGENTS.md`, "TEMPORARY: role restrictions are
-> switched off".
+> **Role restrictions are on again (7 Oct 2026).** From 4 to 7 Oct every user
+> acted as SUPER_ADMIN; the old role matrix is enforced again, and each module
+> moves to per-user permissions during its review. See `AGENTS.md`, "Role
+> restrictions are on again".
 
 Companion to [MODULES.md](MODULES.md), which explains what each module *is* and
 why it sits where it does in the queue, and to
@@ -736,6 +733,7 @@ of these cards makes a second request.
 | Print-ready / PDF output | **A PDF generator** — nothing in this system produces a document; the vault (#22) stores files, it does not make them |
 | ~~Emailing the itinerary to the client~~ | ✅ Shipped with **Email Templates (#21)** — "Email It" in the Send dialog; no PDF is attached, because none is generated |
 | Extracting flight data from the operator's own itinerary file | **Not modelled anywhere in this system** — the file attaches for reference; typed fields are typed by a person |
+| The operator itinerary file opening for anyone but its uploader and admins | **The Itineraries review (#17)** — it is uploaded PRIVATE, so since role restrictions came back on (7 Oct 2026) another broker gets a 404. Serve it through the itinerary (`openVouched` after the itinerary's own scope check), as the vault and referrals do |
 
 **Not done:** Postman `22 · Itineraries` — the builder (`build_itineraries_folder.py`)
 is written, syntax-checked, and **not run** (no live server in this
@@ -1337,7 +1335,7 @@ deleted and `useReportsStore` keeps only the export dialog.
 | Sales funnel and open-quote status (§6.21) | Buildable now from Trip Requests and Quotes — not drawn in the design yet |
 | Forecast from open quotes (§6.21) | **A decision** — the probability formula is open (§17) |
 | Admin daily activity report (§6.21) | The Dashboard's activity feed exists; a daily digest needs **a scheduled job** |
-| 403 examples in `29 · Reports` | **Role restrictions** — switched off; nobody can be refused yet |
+| 403 examples in `29 · Reports` | **The Reports review (#29)** — restrictions are on again; captured when the folder is rebuilt |
 
 **Open, not decided here:** gross profit includes the FET, because
 `priceQuote` computes it as total price minus operator cost — Reports reuses
@@ -1481,6 +1479,58 @@ every future upload button behind a new enum value and a migration. It was
 replaced before any screen consumed it, so nothing was migrated and no real data
 existed.
 
+**Reviewed 7 Oct 2026 — waiting on the owner's click-through**
+
+- **Every broker and assistant could open every private file.** "Is this an
+  administrator?" was asked of the role matrix, which answered SUPER_ADMIN for
+  everyone while restrictions were off. It now reads the stored role
+  (`isAdministrator`): SUPER_ADMIN and ADMIN read every file; everyone else
+  only public files, their own uploads and what is filed about them.
+- **Any signed-in user could remove a public file** — an aircraft photo, a
+  brochure — because removing only checked reading; the file then stopped
+  serving on every record using it. Remove and restore now need the uploader
+  or an administrator (`mayManage`): 403 for someone who can see the file,
+  404 for someone who cannot. The person a document is filed about can no
+  longer remove it.
+- **The partner rules** (an agent's upload is private with no owner; an
+  agent lists only their own) read the stored role, so no switch can turn
+  them off.
+- **Role restrictions switched back on**, both sides, at the owner's request.
+- The broker Documents tab is offered only to an administrator or on your own
+  record — anyone else would get the API's 403.
+- Storage layout kept flat and content-addressed (owner's decision): R2 and
+  local disk alike, the bucket private, files served only through the API.
+- Postman `11 · Uploads` rebuilt on `builder_common`, with the refusals that
+  could not be captured before: another broker's 404 on fetch, describe and
+  remove; a broker filing into someone else's folder; an agent publishing;
+  an agent's own-only list; a PDF renamed `.png`; a zip stored opaque.
+- **Files of 10–25 MB failed with a 500 from the app.** Next buffers a
+  request through its server only up to 10 MB by default; the API was fine.
+  `proxyClientMaxBodySize: "26mb"` in `next.config.mjs`, paired with the
+  25 MB document limit.
+- **Accented filenames were garbled** ("Résumé" stored as "RÃ©sumÃ©"):
+  multer reads the name as latin1. **A name over 255 characters 500'd** on
+  the column. Both fixed by `cleanFilename` (`common/files/filename.ts`),
+  which also drops a client-side path and control characters.
+- **PDFs could not be picked** where a field takes images *and* documents
+  (operator itinerary, referral attachments): `image/png,…,` with the empty
+  "any file" entry offers images only. `FileUpload` now treats a list that
+  includes "any" as no filter.
+- **A HEIC, TIFF or BMP photo was refused** in "auto" fields (the vault,
+  referral attachments): any `image/*` went to the strict image route. Only
+  JPEG, PNG, WebP and GIF go there now; anything else is a document.
+- **Size is checked before the upload** (15 MB image, 25 MB document) with a
+  toast, instead of after the bytes have travelled.
+- **A missing object no longer names its storage path** in the 404, and on
+  R2 an outage is no longer reported as "file not found".
+- **A partly filled R2 configuration refuses to start** rather than falling
+  back to local disk, and production on local disk logs a warning at boot.
+- Removed `StorageService.uploadFor` / `buildKey`: unused, and a second way
+  into storage with date folders and the sender's content type.
+- Tests: 6 more on the access rule (who manages, who administers), 9 on
+  `cleanFilename`; the five that were skipped while the switch was off now
+  run.
+
 **Working now**
 
 - **`POST /api/uploads/image`** and **`POST /api/uploads/document`** — the whole
@@ -1488,9 +1538,10 @@ existed.
   whatever record it was editing. Nothing in the upload path knows what a file
   is *for*, so a new upload spot anywhere in the product needs no backend change
 - **The content type is read from the bytes**, never the upload header, so
-  renaming a file changes nothing. SVG, archives and legacy `.doc`/`.xls` are
-  refused — the first executes script, the second hides its contents from any
-  check, and the last two are byte-identical at the header
+  renaming a file changes nothing. Images are strict (JPEG, PNG, WebP, GIF;
+  never SVG). **A document may be any file** since 6 Oct 2026: PDF, DOCX,
+  XLSX, text and CSV keep their type, anything else is stored as
+  `application/octet-stream` and always downloads
 - **Files land in the folders the client asked for**: `images/` and
   `documents/`, content-addressed as `<sha256>.<ext>`
 - **Per-file access control**: `visibility` (PUBLIC / PRIVATE, defaulting to
@@ -1511,7 +1562,7 @@ existed.
   answers for archived files too, so a list can show "removed" rather than a
   broken link
 - Remove and restore, with **the bytes untouched** either way
-- 9 Postman requests, 18 captured examples, real multipart fixtures, a teardown
+- 9 Postman requests, 28 captured examples, real multipart fixtures, a teardown
   that leaves nothing live, and a folder login so it passes run alone
 - Unit tests: 8 on the rules, 10 on the access rule (every combination), 11 on
   the byte sniffer, and 7 on `uploadUrl` — the shared validator any DTO that

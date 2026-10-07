@@ -39,37 +39,34 @@ This is absolute. Not when a batch "feels done", not when tests pass, not when t
 
 Leaving finished work uncommitted in the tree is the correct resting state. Say what is uncommitted and why; do not fix it by committing.
 
-## TEMPORARY: role restrictions are switched off (since 4 Oct 2026)
+## Role restrictions are on again (since 7 Oct 2026)
 
-**The owner's decision:** finish the CRM end to end as SUPER_ADMIN first, then
-redesign the role architecture. Until then **every user acts as SUPER_ADMIN**,
-whatever role is stored on their row.
+From 4 to 7 Oct 2026 the owner had every user act as SUPER_ADMIN while the
+CRM was finished. **That is over: the old role matrix is enforced again,**
+on both sides, while modules move to per-user permissions one review at a
+time.
 
-- **One switch per side, both `false`:** `ROLE_RESTRICTIONS_ENABLED` in
-  `Backend/src/common/authorization/permissions.ts` and in
-  `Frontend/src/lib/permissions.js`. Flip both to `true` to restore everything
-  exactly — the matrix, the scoping and the partner rules are untouched.
-- **Backend:** every place that *restricts* by role reads it through
-  `actsAs(role)`, which answers SUPER_ADMIN while the switch is off — the
-  matrix (`scopeFor`), `isPartner`, the broker-only lines in Clients and Trip
-  Requests, the owner-account guard. A role used as *data* reads `user.role`
-  directly and is unaffected: "a commission's agent must be an agent",
-  "you cannot change your own role", "the last admin cannot be demoted".
-  **New code follows the same split** — a restriction goes through `actsAs`.
-- **Frontend:** `usePermissions()`'s old-matrix answers (`can`/`canWrite`)
-  are yes to everything. Which area a person lands in is no longer under the
-  switch: a Referral Agent goes to `/portal`, staff to `/dashboard`. Keep writing `canWrite(...)`
-  checks on new controls as the rules below say; they simply pass for now.
-- **This switch governs only the old matrix.** Per-user permissions (below)
-  are always on: the sidebar, the page gate and every module already moved
-  to them enforce them whatever this switch says.
-- **Tests:** the five upload tests asserting a role is refused are
-  `it.skipIf(!ROLE_RESTRICTIONS_ENABLED)`. Any new test that depends on a
-  role being refused does the same.
-
-The rules in this file about scopes, 404-not-403, partner views and hiding
-controls still describe the design; they are dormant, not withdrawn. The
-redesign revisits them.
+- **The switch still exists, and is `true`:** `ROLE_RESTRICTIONS_ENABLED`
+  in `Backend/src/common/authorization/permissions.ts` and in
+  `Frontend/src/lib/permissions.js`. It governs only the old matrix, and
+  goes away with it. Do not turn it off to get past a 403 — fix the module.
+- **Authority goes through `actsAs(role)`** (the matrix, `scopeFor`, the
+  broker-only lines in Clients and Trip Requests, the owner-account guard),
+  so the switch can still govern it.
+- **Identity never does.** Who is an administrator (`isAdministrator`) and
+  who is a partner (`isPartner`) read the stored role directly, like "the
+  agent on a commission must be an agent" and "you cannot change your own
+  role". A rule that keeps desk files from an outsider, or decides who sees
+  every stored file, must not be switchable. While the switch was off,
+  uploads asked the *matrix* who was an administrator, so every broker and
+  assistant could open every private file — that is why.
+- **Until a module is reviewed, its routes follow the old matrix** and its
+  sidebar entry follows the person's own set. Where the two disagree (a
+  broker whose set drops Receivables still passes the matrix's OWN scope),
+  the module's review moves it to `@RequireAccess` and settles it.
+- **Tests that assert a refusal run.** The `it.skipIf(!ROLE_RESTRICTIONS_ENABLED)`
+  guards stay valid for the old-matrix tests; a rule moved to identity drops
+  its guard, as the uploads tests did.
 
 ## Permissions are per person, module by module (since 7 Oct 2026)
 
@@ -125,10 +122,10 @@ permission is a **module** — one per sidebar screen — and an **action** in i
 - **Moving a module over is part of reviewing it:** swap its
   `@RequirePermissions` for `@RequireAccess`, its `scopeFor` for `reachOf`,
   and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
-  Action.Y)`. **Moved so far: Users & Roles.** Every other module's API is
-  still on the old matrix, so its server lets everyone in while the switch
-  above is off. When the last one moves, delete the old matrix and the
-  switch.
+  Action.Y)`. **Moved so far: Users & Roles.** Uploads needs no move — its
+  routes carry no permission by design and its rules are identity-based.
+  Every other module's API is still on the old matrix, enforced by role.
+  When the last one moves, delete the old matrix and the switch.
 - **A new action or module** is a line in the catalogue, a decision per role
   in `access.roles.ts`, and the check on its route — never a route that
   checks something the catalogue does not list.
@@ -927,6 +924,22 @@ Then serve defensively too: `X-Content-Type-Options: nosniff` on every
 response, and `Content-Disposition: inline` **only** for images. Everything else
 downloads.
 
+**The filename is a label, cleaned once** by `cleanFilename`
+(`common/files/filename.ts`): multer decodes it as latin1 (so it is re-read
+as UTF-8), a client may send a path, and the column is 255 characters. Never
+store `originalname` raw.
+
+**Three size limits are one number.** `maxBytes` in `uploads.rules.ts`
+(15 MB image, 25 MB document), `UPLOAD_LIMITS` in `FileUpload.jsx`, and
+`proxyClientMaxBodySize` in `next.config.mjs` — Next buffers a request
+through its server only up to that size and cuts the rest, so a limit raised
+on the API alone fails every larger file with a 500. Change all three.
+
+**Storage is configured completely or not at all.** With `STORAGE_DRIVER=auto`
+a partial S3/R2 set refuses to start; it used to fall back to local disk,
+which on a container is lost on the next deploy. The bucket stays private —
+every file is served through `GET /uploads/:id` and its read rule.
+
 ## Who may read a file is two columns, never a category
 
 An earlier design gave every file a required `category` and made that category
@@ -950,6 +963,19 @@ It is also what makes a personal folder a **query rather than a second table**:
 the client's "folder for each broker" is `GET /uploads?ownerUserId=<id>`. So
 removing a document and removing the file are one act, with no join row to keep
 in step.
+
+**"An administrator" is SUPER_ADMIN or ADMIN by stored role**
+(`isAdministrator`), never the matrix switch and never a per-person
+permission. Both read every file, private or not.
+
+**Removing or restoring is narrower than reading** (`mayManage`): the
+uploader or an administrator. Reading is wide — anyone signed in opens a
+PUBLIC photo — and removing a file makes it stop serving on every record
+that stores its URL, so "may read" as the rule let any broker take the
+aircraft photos and brochures off the system. The person a document is
+filed about may read it, not remove it. A caller who cannot read the file
+gets 404; one who can read but not manage gets **403**, since the file is
+already visible to them.
 
 Three rules follow:
 
@@ -1132,7 +1158,8 @@ closes a leak that the permission matrix alone would not:
   `/users/roles` and `/users/:id`. Those routes used to need only a session,
   which was fine while every session was staff.
 - **A partner's upload is forced `PRIVATE` with no owner**, and a partner's
-  `GET /uploads` lists only their own files. An agent must never be able to
+  `GET /uploads` lists only their own files. `isPartner` reads the stored
+  role, so this holds whatever the matrix switch says. An agent must never be able to
   publish into the photo library or file something into a broker's folder.
 - **Referral attachments are streamed through the referral, not the upload.**
   `GET /referrals/:id/attachments/:uploadId` resolves the referral in scope
