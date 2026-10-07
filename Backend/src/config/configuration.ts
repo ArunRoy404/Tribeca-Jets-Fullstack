@@ -26,8 +26,6 @@ export interface AppConfig {
     accessSecret: string;
     refreshSecret: string;
     accessTtl: string;
-    /** Minutes a session may sit untouched. See AUTH_IDLE_TIMEOUT_MINUTES. */
-    idleTimeoutMinutes: number;
     refreshTtl: string;
     refreshTtlRemembered: string;
     cookieDomain?: string;
@@ -153,7 +151,6 @@ export function buildConfig(env: Env): AppConfig {
       accessSecret: env.JWT_ACCESS_SECRET,
       refreshSecret: env.JWT_REFRESH_SECRET,
       accessTtl: env.JWT_ACCESS_TTL,
-      idleTimeoutMinutes: env.AUTH_IDLE_TIMEOUT_MINUTES,
       refreshTtl: env.JWT_REFRESH_TTL,
       refreshTtlRemembered: env.JWT_REFRESH_TTL_REMEMBERED,
       cookieDomain: env.COOKIE_DOMAIN || undefined,

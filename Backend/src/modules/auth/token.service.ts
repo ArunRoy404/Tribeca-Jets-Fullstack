@@ -11,6 +11,7 @@ import {
   REFRESH_TOKEN_COOKIE,
   TWO_FACTOR_COOKIE,
 } from '../../common/constants/auth.constants.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { AppConfigService } from '../../config/config.service.js';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
@@ -72,6 +73,7 @@ export class TokenService {
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
     private readonly config: AppConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   private hash(token: string): string {
@@ -343,7 +345,8 @@ export class TokenService {
    */
   /** The idle limit the server holds a session to — see ACTIVITY_SLACK_MS. */
   private idleLimitMs(): number {
-    return this.config.auth.idleTimeoutMinutes * 60_000 + ACTIVITY_SLACK_MS;
+    // The company's Security & Session setting, read when deciding.
+    return this.settings.current().idleTimeoutMinutes * 60_000 + ACTIVITY_SLACK_MS;
   }
 
   /** Whether nobody has used this device for longer than the idle limit. */

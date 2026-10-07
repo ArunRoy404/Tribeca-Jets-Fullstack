@@ -4,7 +4,9 @@ import type { Queue } from 'bullmq';
 import { MAIL_DRIVER, type MailDriver, type MailMessage } from './mail.interface.js';
 import { MAIL_JOB_OPTIONS, MAIL_QUEUE, type MailJob } from './mail.queue.js';
 import { AppConfigService } from '../../config/config.service.js';
-import { renderEmail, renderMessage } from './mail.layout.js';
+import { renderEmail, renderMessage, type EmailBrand } from './mail.layout.js';
+import { SettingsService } from '../../modules/settings/settings.service.js';
+import { brandingView } from '../../modules/settings/settings.view.js';
 
 /**
  * The only mail entry point feature modules should use.
@@ -20,7 +22,21 @@ export class MailService {
     @Inject(MAIL_DRIVER) private readonly driver: MailDriver,
     @InjectQueue(MAIL_QUEUE) private readonly queue: Queue<MailJob>,
     private readonly config: AppConfigService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /**
+   * The company as Settings names it, for the email's header, footer and
+   * wording. The logo is the public branding route made absolute on the web
+   * app's address — an inbox fetches it with no session, from outside.
+   */
+  private async brand(): Promise<EmailBrand> {
+    const branding = brandingView(await this.settings.read());
+    return {
+      name: branding.companyName,
+      logoUrl: branding.logoUrl ? `${this.config.webAppUrl}${branding.logoUrl}` : null,
+    };
+  }
 
   get driverName() {
     return this.driver.name;
@@ -61,7 +77,10 @@ export class MailService {
     await this.queue.add(
       'composed',
       {
-        message: { ...message, html: message.html ?? renderMessage(message.text, message.text.slice(0, 120)) },
+        message: {
+          ...message,
+          html: message.html ?? renderMessage(message.text, message.text.slice(0, 120), await this.brand()),
+        },
         emailMessageId,
       },
       MAIL_JOB_OPTIONS,
@@ -74,11 +93,12 @@ export class MailService {
     code: string,
     expiresInMinutes: number,
   ): Promise<void> {
+    const brand = await this.brand();
     const caption = `Expires in ${expiresInMinutes} minutes · Single use`;
     const notice =
       'Didn\u2019t try to sign in? Someone may know your password. Change it right away and let your administrator know.';
-    await this.send(to, 'Your Tribeca Jets sign-in code', {
-      text: lines([
+    await this.send(to, `Your ${brand.name} sign-in code`, {
+      text: lines(brand, [
         `Hi ${firstName},`,
         '',
         `Your sign-in verification code is: ${code}`,
@@ -87,10 +107,11 @@ export class MailService {
         notice,
       ]),
       html: renderEmail({
+        brand,
         preheader: `Your sign-in code is ${code}. It expires in ${expiresInMinutes} minutes.`,
         eyebrow: 'Sign-in verification',
         heading: 'Your sign-in code',
-        paragraphs: [`Hi ${firstName},`, 'Enter this code to finish signing in to Tribeca Jets Command Center.'],
+        paragraphs: [`Hi ${firstName},`, `Enter this code to finish signing in to ${brand.name} Command Center.`],
         code: { value: code, caption },
         notice,
       }),
@@ -108,14 +129,15 @@ export class MailService {
     invitedByName: string,
     password: string,
   ): Promise<void> {
+    const brand = await this.brand();
     const signIn = `${this.config.webAppUrl}/sign-in`;
     const advice =
       'For your security, change this password after you sign in: open your profile menu, choose My Account, then Change Password.';
-    await this.send(to, 'You\u2019re invited to Tribeca Jets Command Center', {
-      text: lines([
+    await this.send(to, `You\u2019re invited to ${brand.name} Command Center`, {
+      text: lines(brand, [
         `Hi ${firstName},`,
         '',
-        `${invitedByName} has created an account for you at Tribeca Jets Command Center.`,
+        `${invitedByName} has created an account for you at ${brand.name} Command Center.`,
         '',
         `Sign in at ${signIn}`,
         `Email: ${to}`,
@@ -126,12 +148,13 @@ export class MailService {
         'Not expecting this? You can ignore this email.',
       ]),
       html: renderEmail({
-        preheader: `${invitedByName} has invited you to Tribeca Jets Command Center.`,
+        brand,
+        preheader: `${invitedByName} has invited you to ${brand.name} Command Center.`,
         eyebrow: 'Invitation',
         heading: 'Welcome aboard',
         paragraphs: [
           `Hi ${firstName},`,
-          `${invitedByName} has created an account for you at Tribeca Jets Command Center. Here are your sign-in details:`,
+          `${invitedByName} has created an account for you at ${brand.name} Command Center. Here are your sign-in details:`,
         ],
         credentials: [
           { label: 'Email', value: to },
@@ -149,12 +172,14 @@ export class MailService {
     code: string,
     expiresInMinutes: number,
   ): Promise<void> {
+    const brand = await this.brand();
     const caption = `Expires in ${expiresInMinutes} minutes · Single use`;
     const notice =
       'Didn\u2019t ask to reset your password? You can ignore this email \u2014 your password has not been changed.';
-    await this.send(to, 'Reset your Tribeca Jets password', {
-      text: lines([`Hi ${firstName},`, '', `Your password reset code is: ${code}`, caption, '', notice]),
+    await this.send(to, `Reset your ${brand.name} password`, {
+      text: lines(brand, [`Hi ${firstName},`, '', `Your password reset code is: ${code}`, caption, '', notice]),
       html: renderEmail({
+        brand,
         preheader: `Your password reset code is ${code}.`,
         eyebrow: 'Password reset',
         heading: 'Reset your password',
@@ -171,10 +196,11 @@ export class MailService {
    * someone else did it.
    */
   async sendPasswordChangedNotice(to: string, firstName: string): Promise<void> {
+    const brand = await this.brand();
     const signIn = `${this.config.webAppUrl}/sign-in`;
     const notice = 'Didn\u2019t make this change? Contact your administrator immediately.';
-    await this.send(to, 'Your Tribeca Jets password was changed', {
-      text: lines([
+    await this.send(to, `Your ${brand.name} password was changed`, {
+      text: lines(brand, [
         `Hi ${firstName},`,
         '',
         'Your password was just changed, and your other signed-in devices were signed out.',
@@ -184,6 +210,7 @@ export class MailService {
         `Sign in: ${signIn}`,
       ]),
       html: renderEmail({
+        brand,
         preheader: 'Your password was just changed.',
         eyebrow: 'Security notice',
         heading: 'Your password was changed',
@@ -199,6 +226,6 @@ export class MailService {
 }
 
 /** A plain-text body from lines, signed the same way every time. */
-function lines(body: string[]): string {
-  return [...body, '', '\u2014 Tribeca Jets Command Center'].join('\n');
+function lines(brand: EmailBrand, body: string[]): string {
+  return [...body, '', `\u2014 ${brand.name} Command Center`].join('\n');
 }

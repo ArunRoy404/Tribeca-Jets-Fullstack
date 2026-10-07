@@ -6,8 +6,10 @@
  * conservative dialect — nested tables, inline styles, web-safe fonts, no
  * images required — and it reads correctly with images blocked.
  *
- * The brand is a wordmark in text until the logo setting (#26) exists; pass
- * `logoUrl` then and the same header carries the image instead. Every value
+ * The brand comes from the company's settings (#26) through `brand`: the
+ * logo when one is uploaded (an absolute, public URL — an inbox cannot send
+ * our session cookie), otherwise the company name as a text wordmark. Every
+ * value
  * that came from a person is escaped here, so a client named `<script>` is a
  * name, not markup.
  */
@@ -60,19 +62,33 @@ export interface EmailContent {
    * person wrote, whose replies reach them.
    */
   footer?: 'system' | 'personal';
+  /** The company, from Settings. Absent only in tests. */
+  brand?: EmailBrand;
+  /** @deprecated pass `brand.logoUrl`; kept for existing callers. */
   logoUrl?: string | null;
 }
+
+/** Who the email is from, as the company's settings name it. */
+export interface EmailBrand {
+  name: string;
+  /** Absolute and publicly reachable, or null for the text wordmark. */
+  logoUrl?: string | null;
+}
+
+/** The shell's own default, for a caller with no settings to hand (tests). */
+const DEFAULT_BRAND: EmailBrand = { name: 'Tribeca Jets', logoUrl: null };
 
 function paragraph(text: string): string {
   return `<p style="margin:0 0 16px;font-family:${FONT};font-size:15px;line-height:24px;color:${COLOR.text};">${text}</p>`;
 }
 
-function header(logoUrl?: string | null): string {
-  const brand = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="Tribeca Jets" height="40" style="display:block;height:40px;width:auto;border:0;">`
-    : `<div style="font-family:${FONT};font-size:17px;font-weight:600;letter-spacing:7px;color:#ffffff;">TRIBECA&nbsp;JETS</div>
+function header(brand: EmailBrand): string {
+  const name = escapeHtml(brand.name);
+  const mark = brand.logoUrl
+    ? `<img src="${escapeHtml(brand.logoUrl)}" alt="${name}" height="40" style="display:block;height:40px;width:auto;border:0;">`
+    : `<div style="font-family:${FONT};font-size:17px;font-weight:600;letter-spacing:7px;color:#ffffff;">${name.toUpperCase().replace(/ /g, '&nbsp;')}</div>
        <div style="margin-top:6px;font-family:${FONT};font-size:10px;letter-spacing:3.5px;color:#9aa1b5;">COMMAND&nbsp;CENTER</div>`;
-  return `<tr><td style="background:${COLOR.ink};padding:30px 40px;border-radius:10px 10px 0 0;">${brand}</td></tr>
+  return `<tr><td style="background:${COLOR.ink};padding:30px 40px;border-radius:10px 10px 0 0;">${mark}</td></tr>
     <tr><td style="background:${COLOR.gold};height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>`;
 }
 
@@ -112,18 +128,20 @@ function notice(text: string): string {
     <tr><td style="background:${COLOR.goldSoft};border-left:3px solid ${COLOR.gold};padding:14px 18px;font-family:${FONT};font-size:13px;line-height:20px;color:${COLOR.text};">${escapeHtml(text)}</td></tr></table>`;
 }
 
-function footer(kind: 'system' | 'personal'): string {
+function footer(kind: 'system' | 'personal', brand: EmailBrand): string {
+  const name = escapeHtml(brand.name);
   const line =
     kind === 'system'
-      ? 'This is an automated message from Tribeca Jets Command Center. Replies to this address are not monitored.'
-      : 'Sent from Tribeca Jets Command Center. Reply to this email to reach the sender directly.';
+      ? `This is an automated message from ${name} Command Center. Replies to this address are not monitored.`
+      : `Sent from ${name} Command Center. Reply to this email to reach the sender directly.`;
   return `<tr><td style="padding:24px 40px 0;font-family:${FONT};font-size:11px;line-height:18px;color:${COLOR.muted};text-align:center;">
-      ${line}<br>&copy; ${new Date().getFullYear()} Tribeca Jets
+      ${line}<br>&copy; ${new Date().getFullYear()} ${name}
     </td></tr>`;
 }
 
 /** The full HTML document for one email. */
 export function renderEmail(content: EmailContent): string {
+  const brand: EmailBrand = content.brand ?? { ...DEFAULT_BRAND, logoUrl: content.logoUrl ?? null };
   const body = [
     content.eyebrow
       ? `<div style="margin:0 0 10px;font-family:${FONT};font-size:11px;font-weight:600;letter-spacing:2.2px;text-transform:uppercase;color:${COLOR.gold};">${escapeHtml(content.eyebrow)}</div>`
@@ -151,11 +169,11 @@ export function renderEmail(content: EmailContent): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLOR.page};">
   <tr><td align="center" style="padding:40px 16px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-      ${header(content.logoUrl)}
+      ${header(brand)}
       <tr><td style="background:#ffffff;padding:40px 40px 28px;border-radius:0 0 10px 10px;border:1px solid ${COLOR.rule};border-top:0;">
         ${body}
       </td></tr>
-      ${footer(content.footer ?? 'system')}
+      ${footer(content.footer ?? 'system', brand)}
     </table>
   </td></tr>
 </table>
@@ -176,7 +194,7 @@ function linkify(escaped: string): string {
  * No heading — the subject line is the heading, and repeating it in the body
  * reads as a newsletter rather than a letter.
  */
-export function renderMessage(text: string, preheader: string, logoUrl?: string | null): string {
+export function renderMessage(text: string, preheader: string, brand?: EmailBrand): string {
   const bodyHtml = text
     .replace(/\r\n/g, '\n')
     .split(/\n{2,}/)
@@ -184,5 +202,5 @@ export function renderMessage(text: string, preheader: string, logoUrl?: string 
     .filter(Boolean)
     .map((block) => paragraph(linkify(escapeHtml(block)).replace(/\n/g, '<br>')))
     .join('\n');
-  return renderEmail({ preheader, bodyHtml, footer: 'personal', logoUrl });
+  return renderEmail({ preheader, bodyHtml, footer: 'personal', brand });
 }

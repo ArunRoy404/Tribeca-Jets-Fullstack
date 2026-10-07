@@ -35,11 +35,12 @@ describe('TokenService sessions', () => {
       accessTtl: '10m',
       refreshTtl: '7d',
       refreshTtlRemembered: '30d',
-      idleTimeoutMinutes: 10,
       cookieDomain: undefined,
       cookieSecure: false,
     },
   };
+  // The idle timeout is the company's Security & Session setting.
+  const settings = { current: () => ({ idleTimeoutMinutes: 10 }) };
   const user = { id: 'u1', email: 'a@example.com', role: 'BROKER', status: 'ACTIVE', deletedAt: null };
 
   function setup(stored: Record<string, unknown> | null, replacement?: Record<string, unknown>) {
@@ -56,7 +57,7 @@ describe('TokenService sessions', () => {
     };
     const jwt = { signAsync: vi.fn(async () => 'access') };
     const res = { cookie: vi.fn(), clearCookie: vi.fn() };
-    const service = new TokenService(jwt as never, prisma as never, config as never);
+    const service = new TokenService(jwt as never, prisma as never, config as never, settings as never);
     return { service, prisma, res };
   }
 

@@ -27,7 +27,7 @@ import {
   TWO_FACTOR_COOKIE,
 } from '../../common/constants/auth.constants.js';
 import { StorageService } from '../../core/storage/storage.service.js';
-import { AppConfigService } from '../../config/config.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { permissionsFor } from '../../common/authorization/permissions.js';
 import { AuthService } from './auth.service.js';
 import { TokenService, type SessionContext } from './token.service.js';
@@ -67,7 +67,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly tokens: TokenService,
     private readonly storage: StorageService,
-    private readonly config: AppConfigService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   private contextOf(req: Request): SessionContext {
@@ -104,7 +104,7 @@ export class AuthController {
     const context = this.contextOf(req);
     const user = await this.auth.validateCredentials(dto, context);
 
-    if (user.twoFactorEnabled) {
+    if (user.twoFactorRequired) {
       const challenge = await this.auth.startTwoFactorChallenge(user, context, dto.rememberMe);
       this.tokens.setChallenge(
         res,
@@ -255,6 +255,19 @@ export class AuthController {
   }
 
   /**
+   * The idle policy the browser follows, from the company's Settings
+   * (Security & Session) — never the frontend's own copy.
+   */
+  private sessionPolicy() {
+    const settings = this.settingsService.current();
+    return {
+      idleTimeoutMinutes: settings.idleTimeoutMinutes,
+      idleWarningMinutes: settings.idleWarningMinutes,
+      showIdleWarning: settings.showIdleWarning,
+    };
+  }
+
+  /**
    * The `/auth/me` shape, built in one place so every My Account write can
    * answer with exactly what the session query caches.
    */
@@ -298,9 +311,7 @@ export class AuthController {
        * refuses a refresh for a session that has demonstrably been idle past
        * it, so the two agree without either trusting the other.
        */
-      session: {
-        idleTimeoutMinutes: this.config.auth.idleTimeoutMinutes,
-      },
+      session: this.sessionPolicy(),
     };
   }
 

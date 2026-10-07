@@ -30,6 +30,27 @@ describe('renderEmail', () => {
   });
 });
 
+describe('the company brand (Settings)', () => {
+  const branded = renderEmail({
+    preheader: 'x',
+    heading: 'y',
+    brand: { name: 'Acme Air & Co', logoUrl: 'https://app.example.com/api/settings/branding/logo?v=1' },
+  });
+
+  it('carries the company logo and names the company in the footer', () => {
+    expect(branded).toContain('<img src="https://app.example.com/api/settings/branding/logo?v=1"');
+    expect(branded).toContain('alt="Acme Air &amp; Co"');
+    expect(branded).toContain('Acme Air &amp; Co Command Center');
+    expect(branded).not.toContain('Tribeca');
+  });
+
+  it('falls back to the company name as the wordmark without a logo', () => {
+    const html = renderEmail({ preheader: 'x', brand: { name: 'Acme Air', logoUrl: null } });
+    expect(html).toContain('ACME&nbsp;AIR');
+    expect(html).not.toContain('<img');
+  });
+});
+
 describe('renderMessage', () => {
   it('keeps paragraphs and line breaks, links URLs, and escapes the rest', () => {
     const html = renderMessage('Hi Dana,\n\nYour quote: https://example.com/q/1\nThanks <3', 'Hi Dana');

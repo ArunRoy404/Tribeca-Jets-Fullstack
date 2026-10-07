@@ -21,6 +21,8 @@ import type {
 } from './dto/account.dto.js';
 import type { SessionContext } from './token.service.js';
 import { VerificationService } from './verification.service.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
 
 /**
  * Argon2id with parameters sized for an interactive login on a modest VPS:
@@ -53,6 +55,7 @@ export class AuthService {
     private readonly mail: MailService,
     private readonly verification: VerificationService,
     private readonly config: AppConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -92,7 +95,7 @@ export class AuthService {
   async validateCredentials(
     input: LoginInput,
     context: SessionContext,
-  ): Promise<AuthenticatedUser & { firstName: string; twoFactorEnabled: boolean }> {
+  ): Promise<AuthenticatedUser & { firstName: string; twoFactorRequired: boolean }> {
     const user = await this.prisma.user.findFirst({
       where: { email: input.email, deletedAt: null },
       select: {
@@ -149,9 +152,17 @@ export class AuthService {
       });
     }
 
+    // A code is required when the person turned two-factor on, or — the
+    // company's "Require 2FA for admins" setting — when they administer the
+    // company, whether or not they turned it on themselves. The stored role,
+    // never the matrix switch: who is an administrator is identity.
+    const twoFactorRequired =
+      user.twoFactorEnabled ||
+      (isAdministrator(user.role) && (await this.settings.read()).requireAdminTwoFactor);
+
     // lastLoginAt is stamped once the session actually exists — for a
     // two-factor account that is after the code is verified, not here.
-    if (!user.twoFactorEnabled) {
+    if (!twoFactorRequired) {
       await this.prisma.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
@@ -162,10 +173,10 @@ export class AuthService {
     // "success" is written for it later, as `auth.two_factor.verified`.
     await this.audit.record({
       actorId: user.id,
-      action: user.twoFactorEnabled ? 'auth.login.password_accepted' : 'auth.login.success',
+      action: twoFactorRequired ? 'auth.login.password_accepted' : 'auth.login.success',
       entityType: 'User',
       entityId: user.id,
-      metadata: { twoFactorRequired: user.twoFactorEnabled },
+      metadata: { twoFactorRequired, byCompanySetting: twoFactorRequired && !user.twoFactorEnabled },
       ipAddress: context.ipAddress,
       userAgent: context.userAgent,
     });
@@ -175,7 +186,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       firstName: user.firstName,
-      twoFactorEnabled: user.twoFactorEnabled,
+      twoFactorRequired,
     };
   }
 
