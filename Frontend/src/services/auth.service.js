@@ -30,6 +30,12 @@ export const authService = {
   /** GET /auth/me — how the app learns who is signed in. */
   currentUser: () => request({ url: "/auth/me", method: "GET" }),
 
+  /**
+   * POST /auth/activity — tells the server a person is using this device, so
+   * its idle limit follows real activity. Throttled by `useIdleLogout`.
+   */
+  activity: () => request({ url: "/auth/activity", method: "POST", data: {} }),
+
   /** POST /auth/logout — revokes the refresh token server-side. */
   logout: () => request({ url: "/auth/logout", method: "POST", data: {} }),
 

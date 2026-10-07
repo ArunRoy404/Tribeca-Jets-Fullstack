@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearSession } from "@/lib/session";
+import { authService } from "@/services/auth.service";
 import { useCurrentUser } from "@/hooks/auth";
 
 /**
@@ -29,6 +30,14 @@ import { useCurrentUser } from "@/hooks/auth";
  * drifts from the server's, silently. The API independently refuses to refresh
  * a session that has been idle past the limit, so this is the precise half of
  * a policy rather than the whole of it.
+ *
+ * **The server has to hear about the activity** (7 Oct 2026). Its idle limit
+ * reads the session's last-active time, which only moves when the browser
+ * says so: a throttled `POST /auth/activity` on real input, and at once on
+ * "Stay signed in". Without it, someone reading or typing for twenty minutes
+ * without saving kept this timer happy while the server's clock ran out, and
+ * the next reload landed on the sign-in page. The ping is claimed through a
+ * shared `localStorage` stamp, so one tab sends it for all of them.
  */
 
 /** Shared across tabs of this origin. Not a secret — a millisecond timestamp. */
@@ -36,6 +45,15 @@ const ACTIVITY_KEY = "tj_last_activity";
 
 /** How long before the deadline the warning appears. */
 const WARNING_LEAD_MS = 60_000;
+
+/** When any tab last told the server about activity — shared like the stamp above. */
+const PING_KEY = "tj_last_activity_ping";
+
+/**
+ * At most one activity ping per this long, across every tab. Well inside the
+ * server's slack on the idle limit, so steady work never reaches it.
+ */
+const PING_INTERVAL_MS = 2 * 60_000;
 
 /** How often the clock is compared against the stamp. */
 const TICK_MS = 1_000;
@@ -68,12 +86,39 @@ function readStamp() {
   }
 }
 
-function writeStamp(value) {
+function writeStamp(value, key = ACTIVITY_KEY) {
   try {
-    window.localStorage.setItem(ACTIVITY_KEY, String(value));
+    window.localStorage.setItem(key, String(value));
   } catch {
     // As above — never let a storage failure stop the timer from running.
   }
+}
+
+/** Last ping by any tab; in memory when storage is unavailable. */
+let lastPingFallback = 0;
+
+function readPing() {
+  try {
+    const parsed = Number(window.localStorage.getItem(PING_KEY));
+    return Number.isFinite(parsed) ? parsed : 0;
+  } catch {
+    return lastPingFallback;
+  }
+}
+
+/**
+ * Tells the server a person is here — unless any tab already did within
+ * PING_INTERVAL_MS, or `force` ("Stay signed in"). The stamp is claimed
+ * before the request goes, so two tabs active at once send one ping. A
+ * failure is left to the API client: a 401 tries a refresh and, if the
+ * session is really over, signs out — which is then the truth.
+ */
+function reportActivity(force = false) {
+  const now = Date.now();
+  if (!force && now - readPing() < PING_INTERVAL_MS) return;
+  lastPingFallback = now;
+  writeStamp(now, PING_KEY);
+  authService.activity().catch(() => {});
 }
 
 /**
@@ -106,8 +151,10 @@ export function useIdleLogout({ enabled = true } = {}) {
 
   const [secondsLeft, setSecondsLeft] = useState(null);
   // The stamp is mirrored in a ref so the tick reads it without re-subscribing,
-  // and so it still works when localStorage is unavailable.
-  const lastActivity = useRef(Date.now());
+  // and so it still works when localStorage is unavailable. It starts at 0
+  // because reading the clock during render is impure; the effect sets the
+  // real value before the first tick reads it.
+  const lastActivity = useRef(0);
   const signingOut = useRef(false);
 
   const markActive = useCallback(() => {
@@ -115,7 +162,14 @@ export function useIdleLogout({ enabled = true } = {}) {
     lastActivity.current = now;
     writeStamp(now);
     setSecondsLeft(null);
+    reportActivity();
   }, []);
+
+  /** "I'm still here": the clock resets everywhere, and the server hears now. */
+  const staySignedIn = useCallback(() => {
+    markActive();
+    reportActivity(true);
+  }, [markActive]);
 
   useEffect(() => {
     if (!active) return undefined;
@@ -195,8 +249,8 @@ export function useIdleLogout({ enabled = true } = {}) {
   return {
     /** Seconds remaining once inside the warning window, else null. */
     secondsLeft,
-    /** "I'm still here" — resets the clock in every tab. */
-    staySignedIn: markActive,
+    /** "I'm still here" — resets the clock in every tab and on the server. */
+    staySignedIn,
     idleTimeoutMinutes: user?.session?.idleTimeoutMinutes ?? null,
   };
 }
