@@ -79,12 +79,11 @@ Legend: ✅ done · ◐ partly done · ⬅ next · ⬜ not started
 
 | Not yet | What brings it back |
 |---|---|
-| Idle timeout and warning length from Settings (today `AUTH_IDLE_TIMEOUT_MINUTES` and a fixed one minute) | Settings API (#26) |
-| "Require two-factor for administrators" enforced at sign-in | Settings API (#26) |
 | Session location (city) | Dropped — would need a paid IP-lookup service |
 
-**Known gap** (not a dependency): an invitation cannot be withdrawn and the
-email stays reserved, so a mistyped invitation address is unrecoverable.
+Since 7 Oct 2026 the idle timeout, the warning and "require two-factor for
+administrators" are read from **Settings (#26)**, and a mistaken invitation
+can be withdrawn (`DELETE /users/:id/invitation`).
 
 ---
 
@@ -93,8 +92,9 @@ email stays reserved, so a mistyped invitation address is unrecoverable.
 **Working now**
 
 - Invite, edit, change role, suspend, reactivate
-- Six roles: `SUPER_ADMIN`, `ADMIN`, `SENIOR_BROKER`, `BROKER`, `ASSISTANT`,
-  and since 27 Sep 2026 **`REFERRAL_AGENT`** — a partner, not staff, with NONE
+- Five roles: `SUPER_ADMIN`, `ADMIN`, `BROKER`, `ASSISTANT` (`SENIOR_BROKER`
+  withdrawn 7 Oct 2026, its accounts became brokers), and since 27 Sep 2026
+  **`REFERRAL_AGENT`** — a partner, not staff, with NONE
   on every staff permission (see **Referrals (#32)**). An agent carries their
   standard commission structure on the user row (`commissionBasis` /
   `commissionPercentage` / `commissionAmount`), accepted only on that role
@@ -1935,89 +1935,34 @@ the call site.
 
 ## The short version
 
-**Usable against the real database today:** Auth, Users & Roles, Airports,
-Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
-Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
-Empty Legs, Commissions, Referrals** (desk and portal), **Receivables**,
-**Operator Payments**, **Transactions**, **Itineraries**, **Schedule**,
-**Flight Tracking** (manual), the **Tasks Board** with the notification
-bell, and **Email Templates** with sending.
+*Updated 7 October 2026.* The full picture of where the project is — the
+review stage, what is next, the promises to keep — is **[HANDOFF.md](../HANDOFF.md)**.
+In brief:
 
-**Most recent change (28 September), uncommitted:** Email Templates (#21),
-with sending and its second pass — see its own section. One migration,
-`20260928200000_add_email_templates`, must be deployed (`npm run db:deploy`),
-and `npm run db:seed` adds the starter templates. Written **without live
-testing, by the owner's instruction**: backend `tsc`, oxlint and vitest (221
-tests, 23 files) are clean, frontend eslint reports nothing in the files
-changed, and `npm run build` passes. `26 · Email Templates` is written and
-not run.
+**Built and usable against the real database:** every module in
+[MODULES.md](MODULES.md)'s build table except the Client Portal (#25), the
+AI Assistant (#27, a stub), Import / Export (Import hidden, Export not
+connected) and the PDF generator.
 
-**Before that (28 September, committed and pushed):** Tasks Board (#20) and
-the notification bell. Migration `20260928180000_add_tasks`. `25 · Tasks` is
-written and not run.
+**The stage:** the owner's module-by-module review (MODULES.md, "Review
+order"). Signed off: Auth & Sessions (6 Oct), Users & Roles (7 Oct), Uploads
+(7 Oct). **Settings API (#26)** built and pushed 7 Oct, waiting for the
+owner's click-through. **Airports** is next.
 
-**Before that (28 September, committed and pushed):** Flight Tracking (#14),
-manual. Migration `20260928160000_add_flight_tracking`.
-`24 · Flight Tracking` is written and not run.
-
-**Before that (28 September, committed and pushed):** Schedule (#13) — the
-calendar as a read-only view over trip legs, no migration. `23 · Schedule` is
-written and not run.
-
-**Before that (28 September):** Itineraries (#12) — see its own
-section above for the design (a thin document over its trip, no duplicated
-aircraft/route/passenger data) and the Trips second pass it made. Two
-migrations, `20260928100000_add_receivables`,
-`20260928120000_add_operator_payments` and `20260928140000_add_itineraries`,
-must be deployed (`npm run db:deploy`) on any environment that has not run
-them. Itineraries was written **without live testing, by the owner's
-instruction**: backend `tsc`, oxlint and vitest (185 tests, 18 files) are
-clean, frontend eslint reports nothing in the files changed, and
-`npm run build` passes. Its Postman builder is written and not run.
-
-**Transactions (#19), Receivables (#16), Operator Payments (#17) and
-Itineraries (#12) are all committed and pushed to `origin/roy`** — the working
-tree was clean through `4a7ffc9` before this session started, and Itineraries
-followed in this pass; an earlier note here calling Transactions uncommitted
-was stale.
-
-**Most recent change (27 September), all uncommitted:** Trips (#11) with every
-second pass it owed; Empty Legs (#15) with client adjustment #10b's matching;
-Commissions (#18); and client adjustment #11's `REFERRAL_AGENT` role, referrals
-and the desk's Referrals page. One migration,
-`20260927160000_add_empty_legs_commissions_referrals`, must be deployed
-(`npm run db:deploy`) before the API starts against an existing database.
-
-**How far that was verified:** Trips was checked with live requests, in the
-browser at three widths and with its own Postman folder, which passed. Empty
-Legs, Commissions and Referrals were written **without live testing, by the
-owner's instruction** — backend `tsc`, oxlint and vitest (150 tests, 15 files)
-are clean, frontend eslint reports nothing in the files changed, and frontend
-`npm run build` passes (27 Sep, end of day). A full Newman run has **not**
-been run since.
-
-**The agent portal (`/portal`) was built 27 Sep, after the commits above**,
-also without live testing: build, eslint, backend lint and tests pass.
-**Left of client adjustment #11:** nothing to build. The three Postman builders
-are written and need one run against a freshly seeded API, then Newman.
-
-**Next in the module queue:** everything that hangs off Trips is complete,
-and so are the Tasks Board (#20), Email Templates (#21), Document Vault (#22)
-and the Dashboard (#24). **Reports (#23)** landed 4 Oct 2026. Next in the queue is
-**Settings / Import / Export / Backup (#26)**, which reuses Reports' export writer.
+**Permissions:** role restrictions are on again (7 Oct); Users & Roles and
+Settings are on per-person permissions (`@RequireAccess`), every other module
+on the old role matrix until its review moves it.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational
-data), the flight-tracking data feed (manual until the client asks), whether a credit **refund** is a movement
-the desk needs (see #30), and whether gross profit should count the FET
-(`CLIENT_ADJUSTMENTS.md` §5) — which now also moves every percent-of-profit
-commission.
+data), the flight-tracking data feed (manual until the client asks), whether a
+credit **refund** is a movement the desk needs (see #30), and whether gross
+profit should count the FET (`CLIENT_ADJUSTMENTS.md` §5) — which also moves
+every percent-of-profit commission.
 
-**Known debt:** twelve components nothing imports (listed in
-[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §4, 26 Sep) — kept, because a
-component is not deleted until its module is finished, and one of them
-(`airports/AirportCardsContainer.jsx`) imports a file that does not exist.
-Frontend lint reports two errors, both in older files this work did not
-touch: `react-hooks/set-state-in-effect` in `TripRequestDialog` and
-`react-hooks/purity` in `useIdleLogout.js` (28 Sep, whole `src`); each is
-fixed on its module's turn.
+**Known debt** (each fixed on its module's turn): Postman folders 16–28 are
+missing from the collection JSON though their builders exist; frontend lint
+has one pre-existing error (`set-state-in-effect` in `TripRequestDialog`);
+twelve components nothing imports (listed in
+[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §4, 26 Sep) are kept until
+their modules are finished.
