@@ -48,7 +48,7 @@ CSRF_HEADER = [{
     'description': 'Required on every write. Captured automatically after any login or refresh.',
 }]
 
-IMAGE_TYPES = 'image/jpeg | image/png | image/webp | image/gif'
+IMAGE_TYPES = 'image/jpeg | image/png | image/webp | image/gif | image/avif'
 DOCUMENT_TYPES = ('application/pdf | '
                   'application/vnd.openxmlformats-officedocument.wordprocessingml.document (.docx) | '
                   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet (.xlsx) | '

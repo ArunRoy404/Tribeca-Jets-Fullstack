@@ -125,4 +125,32 @@ describe('sniffContentType', () => {
       'text/plain',
     );
   });
+
+  describe('AVIF and its HEIC sibling', () => {
+    /** An ISO-BMFF `ftyp` box: size, "ftyp", major brand, version, compatible brands. */
+    const ftyp = (major: string, ...compatible: string[]) => {
+      const body = Buffer.concat([
+        Buffer.from('ftyp', 'ascii'),
+        Buffer.from(major, 'ascii'),
+        Buffer.alloc(4),
+        ...compatible.map((brand) => Buffer.from(brand, 'ascii')),
+      ]);
+      const size = Buffer.alloc(4);
+      size.writeUInt32BE(body.length + 4);
+      return Buffer.concat([size, body, Buffer.alloc(16)]);
+    };
+
+    it('recognises an AVIF still and sequence', () => {
+      expect(sniffContentType(ftyp('avif', 'mif1', 'miaf'), undefined)).toBe('image/avif');
+      expect(sniffContentType(ftyp('avis', 'avif'), undefined)).toBe('image/avif');
+    });
+
+    it('recognises AVIF listed only among the compatible brands', () => {
+      expect(sniffContentType(ftyp('mif1', 'avif'), undefined)).toBe('image/avif');
+    });
+
+    it('does not call a HEIC photo an image — browsers cannot show it', () => {
+      expect(sniffContentType(ftyp('heic', 'mif1', 'heic'), 'image/heic')).toBeNull();
+    });
+  });
 });

@@ -51,6 +51,8 @@ const IMAGE_EXTENSIONS = {
   'image/png': '.png',
   'image/webp': '.webp',
   'image/gif': '.gif',
+  // Added 7 Oct 2026 for the company logo; every modern browser renders it.
+  'image/avif': '.avif',
 } as const;
 
 /**

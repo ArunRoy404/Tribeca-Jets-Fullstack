@@ -102,7 +102,7 @@ export default function FileUpload({
   // exactly two routes, so the route is resolved per file from its actual
   // MIME type rather than fixed on the component.
   //
-  // Only the four types the image route accepts go there. A HEIC from an
+  // Only the types the image route accepts go there. A HEIC from an
   // iPhone, a TIFF scan or a BMP is still `image/*`, but the image route
   // refuses it (415) — as a document it is stored and downloads.
   const resolveKind = (file) => (kind === "auto" ? (IMAGE_TYPES.includes(file.type) ? "image" : "document") : kind);
@@ -409,7 +409,7 @@ export default function FileUpload({
  * not offer files that will be refused.
  */
 /** The only types the image route takes (`uploads.rules.ts`, IMAGE). */
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
 
 export const ACCEPT = {
   image: IMAGE_TYPES.join(","),
