@@ -17,6 +17,7 @@ import { useBookQuote } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Permission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
+import { emailWillReachRecipient } from "@/lib/email";
 
 const BUTTON = "w-full h-11 justify-center gap-2 font-montserrat font-medium text-[13px] transition-all";
 
@@ -233,7 +234,7 @@ export default function QuoteStatusActionsCard({ quote }) {
           category="QUOTE_FOLLOW_UP"
           title={`Email ${quote.reference} to the client`}
           description="The quote's total, FET and validity are filled in by the system. Once it is accepted, the quote is marked sent."
-          onSent={(email) => email?.status === "SENT" && send({ id: quote.id })}
+          onSent={(email) => emailWillReachRecipient(email) && send({ id: quote.id })}
         />
       )}
     </DetailCard>

@@ -1,5 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import { MAIL_DRIVER, type MailDriver, type MailMessage } from './mail.interface.js';
+import { MAIL_JOB_OPTIONS, MAIL_QUEUE, type MailJob } from './mail.queue.js';
 import { AppConfigService } from '../../config/config.service.js';
 import { renderEmail, renderMessage } from './mail.layout.js';
 
@@ -15,6 +18,7 @@ export class MailService {
 
   constructor(
     @Inject(MAIL_DRIVER) private readonly driver: MailDriver,
+    @InjectQueue(MAIL_QUEUE) private readonly queue: Queue<MailJob>,
     private readonly config: AppConfigService,
   ) {}
 
@@ -23,11 +27,13 @@ export class MailService {
   }
 
   /**
-   * Delivery failures are logged, not thrown.
-   *
-   * A failed send must not turn into a 500 that tells an attacker their target
-   * address exists, and must not roll back the code that was already issued —
-   * the user can simply request a resend.
+   * Queues an account email and returns at once; the worker
+   * (`mail.processor.ts`) sends it, retrying a mail server that is briefly
+   * unreachable. Nothing here throws on a delivery problem — that happens
+   * later, off the request — and a failure to *queue* is logged, not
+   * thrown: it must not turn into a 500 that tells an attacker their target
+   * address exists, and must not roll back a code already issued. The user
+   * can ask for a resend.
    */
   private async send(
     to: string,
@@ -35,46 +41,31 @@ export class MailService {
     body: { text: string; html: string },
   ): Promise<void> {
     try {
-      await this.driver.send({ to, subject, ...body });
+      await this.queue.add('account', { message: { to, subject, ...body } }, MAIL_JOB_OPTIONS);
     } catch (error) {
       this.logger.error(
-        `Failed to send "${subject}" to ${to}`,
+        `Could not queue "${subject}" to ${to}`,
         error instanceof Error ? error.stack : undefined,
       );
     }
   }
 
   /**
-   * A message a person composed — an email to a client or an operator
-   * (Email Templates, #21). Unlike the account emails above, the outcome is
-   * **reported, not swallowed**: the desk must know whether a quote went out,
-   * and the record of it must say which.
-   *
-   * `delivered` is false under the log driver — printed to the server log,
-   * delivered to nobody — so the caller can record exactly that rather than
-   * "sent". A mail server's refusal comes back as `error`.
+   * Queues a message a person composed (Email Templates, #21), wrapped in the
+   * same shell as every other email. The caller has already written its
+   * `EmailMessage` row as QUEUED; the worker moves it to SENT, LOGGED or
+   * FAILED. Unlike `send`, a failure to queue **is** thrown — the broker is
+   * waiting on this one and must not be told it is on its way when it is not.
    */
-  async deliver(
-    message: MailMessage,
-  ): Promise<{ delivered: boolean; error: string | null }> {
-    try {
-      // A composed message goes out in the same shell as every other email,
-      // with the plain text kept for clients that never render HTML.
-      await this.driver.send({
-        ...message,
-        html: message.html ?? renderMessage(message.text, message.text.slice(0, 120)),
-      });
-      return { delivered: this.driver.name === 'smtp', error: null };
-    } catch (error) {
-      this.logger.error(
-        `Failed to send "${message.subject}" to ${message.to}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      return {
-        delivered: false,
-        error: error instanceof Error ? error.message : 'The mail server refused the message',
-      };
-    }
+  async enqueue(message: MailMessage, emailMessageId: string): Promise<void> {
+    await this.queue.add(
+      'composed',
+      {
+        message: { ...message, html: message.html ?? renderMessage(message.text, message.text.slice(0, 120)) },
+        emailMessageId,
+      },
+      MAIL_JOB_OPTIONS,
+    );
   }
 
   async sendTwoFactorCode(

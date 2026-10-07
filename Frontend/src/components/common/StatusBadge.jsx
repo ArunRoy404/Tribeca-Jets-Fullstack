@@ -70,7 +70,8 @@ const STATUS_TONES = {
   General: "neutral",
   "Travel Agent": "infoStrong",
   "Client Update": "info",
-  // The sent log (#21): delivered, recorded but delivered to nobody, refused
+  // The sent log (#21): on the queue, delivered, recorded but delivered to nobody, refused
+  Sending: "pending",
   Sent: "success",
   "Not delivered": "warning",
   Failed: "destructive",

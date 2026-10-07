@@ -1,9 +1,13 @@
 import { Global, Logger, Module, type Provider } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
+import { Redis } from 'ioredis';
 import { AppConfigService } from '../../config/config.service.js';
 import { MAIL_DRIVER, type MailDriver } from './mail.interface.js';
 import { LogMailDriver } from './drivers/log.driver.js';
 import { SmtpMailDriver } from './drivers/smtp.driver.js';
 import { MailService } from './mail.service.js';
+import { MailProcessor } from './mail.processor.js';
+import { MAIL_QUEUE } from './mail.queue.js';
 
 /**
  * Picks the mail backend once, at boot: SMTP when credentials are present,
@@ -39,7 +43,18 @@ const mailDriverProvider: Provider = {
 
 @Global()
 @Module({
-  providers: [mailDriverProvider, MailService],
+  imports: [
+    // The queue's own Redis connection. BullMQ needs `maxRetriesPerRequest:
+    // null`, and the worker duplicates this one for its blocking reads.
+    BullModule.forRootAsync({
+      inject: [AppConfigService],
+      useFactory: (config: AppConfigService) => ({
+        connection: new Redis(config.redis.url, { maxRetriesPerRequest: null }),
+      }),
+    }),
+    BullModule.registerQueue({ name: MAIL_QUEUE }),
+  ],
+  providers: [mailDriverProvider, MailService, MailProcessor],
   exports: [MailService],
 })
 export class MailModule {}

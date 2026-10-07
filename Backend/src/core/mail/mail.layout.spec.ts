@@ -45,3 +45,13 @@ describe('escapeHtml', () => {
     expect(escapeHtml(`"a" & 'b'`)).toBe('&quot;a&quot; &amp; &#39;b&#39;');
   });
 });
+
+describe('isPermanentMailFailure', async () => {
+  const { isPermanentMailFailure } = await import('./mail.queue.js');
+  it('stops on a 5xx refusal and retries anything else', () => {
+    expect(isPermanentMailFailure({ responseCode: 550 })).toBe(true);
+    expect(isPermanentMailFailure({ responseCode: 421 })).toBe(false);
+    expect(isPermanentMailFailure(new Error('ECONNREFUSED'))).toBe(false);
+    expect(isPermanentMailFailure(null)).toBe(false);
+  });
+});

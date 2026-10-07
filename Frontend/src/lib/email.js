@@ -37,16 +37,26 @@ export const formatEmailCategory = (value) => (value ? (CATEGORY_LABELS[value] ?
 export const TEMPLATE_ACTIVITY = ["true", "false"];
 export const formatTemplateActivity = (value) => (value === "true" ? "Active" : value === "false" ? "Inactive" : DASH);
 
-export const EMAIL_STATUSES = ["SENT", "LOGGED", "FAILED"];
-const STATUS_LABELS = { SENT: "Sent", LOGGED: "Not delivered", FAILED: "Failed" };
+export const EMAIL_STATUSES = ["QUEUED", "SENT", "LOGGED", "FAILED"];
+const STATUS_LABELS = { QUEUED: "Sending", SENT: "Sent", LOGGED: "Not delivered", FAILED: "Failed" };
 export const formatEmailStatus = (value) => (value ? (STATUS_LABELS[value] ?? value) : DASH);
 
 /** What each status means, for the tooltip and the detail sheet. */
 export const EMAIL_STATUS_HINTS = {
+  QUEUED: "Accepted and waiting for the mail server — this usually takes a few seconds.",
   SENT: "The mail server accepted it.",
   LOGGED: "No mail server is configured, so it was recorded and delivered to nobody.",
   FAILED: "The mail server refused it. Nothing was delivered.",
 };
+
+/**
+ * Whether an email just composed counts as sent for the record it was about
+ * (a quote, an itinerary). The API answers with QUEUED and says whether a
+ * mail server will take it; without one it ends up LOGGED, delivered to
+ * nobody, and the record must not claim otherwise.
+ */
+export const emailWillReachRecipient = (email) =>
+  email?.status === "SENT" || (email?.status === "QUEUED" && email?.willDeliver === true);
 
 /** The tabs: the live library, the sent log, and the archived library. */
 export const EMAIL_TABS = { LIVE: "live", SENT: "sent", ARCHIVED: "archived" };

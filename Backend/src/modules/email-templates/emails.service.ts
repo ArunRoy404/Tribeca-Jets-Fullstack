@@ -309,26 +309,17 @@ export class EmailsService {
       );
     }
 
-    const outcome = await this.mail.deliver({
-      to: recipient.email,
-      subject: subject.text,
-      text: body.text,
-      replyTo: values.broker_email ?? undefined,
-    });
-    const status = outcome.error
-      ? EmailMessageStatus.FAILED
-      : outcome.delivered
-        ? EmailMessageStatus.SENT
-        : EmailMessageStatus.LOGGED;
-
+    // Written first as QUEUED, then handed to the mail queue, so the broker
+    // gets an answer at once. The worker moves the row to SENT (a mail server
+    // took it), LOGGED (none configured) or FAILED, and writes the timeline
+    // entries then — `email.sent` means sent, not "about to be".
     const row = await this.prisma.emailMessage.create({
       data: {
         toEmail: recipient.email,
         toName: recipient.name,
         subject: subject.text,
         body: body.text,
-        status,
-        error: outcome.error,
+        status: EmailMessageStatus.QUEUED,
         templateId: template?.id ?? null,
         clientId: recipient.kind === 'client' ? recipient.id : null,
         operatorId: recipient.kind === 'operator' ? recipient.id : null,
@@ -340,32 +331,25 @@ export class EmailsService {
       select: EMAIL_DETAIL_SELECT,
     });
 
-    // On the timeline of each record it was about — the client's and the
-    // trip's — so "email sent" sits beside the notes and status changes.
-    const metadata = {
-      emailId: row.id,
-      subject: row.subject,
-      to: row.toEmail,
-      toName: row.toName,
-      status,
-      template: template?.name ?? null,
-    };
-    const action = status === EmailMessageStatus.FAILED ? 'email.failed' : 'email.sent';
-    const subjects = [
-      ...(recipient.kind === 'client' ? [{ entityType: 'Client', entityId: recipient.id }] : []),
-      ...(recipient.kind === 'operator' ? [{ entityType: 'Operator', entityId: recipient.id }] : []),
-      ...(input.tripId ? [{ entityType: 'Trip', entityId: input.tripId }] : []),
-    ];
-    for (const subject of subjects) {
-      await this.audit.record({ actorId: user.id, action, ...subject, metadata });
-    }
-
-    if (status === EmailMessageStatus.FAILED) {
+    try {
+      await this.mail.enqueue(
+        { to: recipient.email, subject: subject.text, text: body.text, replyTo: values.broker_email ?? undefined },
+        row.id,
+      );
+    } catch {
+      await this.prisma.emailMessage.update({
+        where: { id: row.id },
+        data: { status: EmailMessageStatus.FAILED, error: 'The email could not be queued for sending' },
+      });
       throw new BadGatewayException(
-        `The mail server refused the email to ${recipient.name}, so nothing was delivered. The attempt is in the sent log.`,
+        `The email to ${recipient.name} could not be queued, so nothing was sent. The attempt is in the sent log.`,
       );
     }
-    return serialise(row);
+
+    // QUEUED alone cannot say whether it will reach anyone: without a mail
+    // server the worker records it LOGGED. `willDeliver` tells the compose
+    // form, which marks a quote or itinerary sent only when it is true.
+    return { ...serialise(row), willDeliver: this.mail.driverName === 'smtp' };
   }
 
   // ---- The sent log -------------------------------------------------------

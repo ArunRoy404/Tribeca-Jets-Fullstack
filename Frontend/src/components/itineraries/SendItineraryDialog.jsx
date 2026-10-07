@@ -10,6 +10,7 @@ import { toItineraryRow } from "@/lib/itinerary";
 import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { emailWillReachRecipient } from "@/lib/email";
 
 /**
  * Sending the itinerary to the client. Two acts, said apart: **Email it**
@@ -102,7 +103,7 @@ export default function SendItineraryDialog() {
         description="The trip's route, date and aircraft are filled in by the system. Once it is accepted, the itinerary is marked sent."
         // Delivered to nobody (no mail server) is not sent — only a real
         // delivery marks the document.
-        onSent={(email) => email?.status === "SENT" && markSent(composeFor?.id)}
+        onSent={(email) => emailWillReachRecipient(email) && markSent(composeFor?.id)}
       />
     </>
   );

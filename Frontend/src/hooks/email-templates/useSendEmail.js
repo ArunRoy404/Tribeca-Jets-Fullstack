@@ -5,25 +5,27 @@ import { emailsService } from "@/services/emailTemplates.service";
 import { invalidate } from "@/lib/queryClient";
 import { queryKeys } from "@/lib/queryKeys";
 import { toastApiError, toastInfo, toastSuccess } from "@/lib/toast";
+import { emailWillReachRecipient } from "@/lib/email";
 
 /**
- * Sends an email and records it. The toast says what actually happened:
- * "sent" only when a mail server accepted it. Without one configured the API
- * records it as LOGGED — delivered to nobody — and the toast says exactly
- * that, so nobody chases a client about an email that never left.
+ * Queues an email and records it; the API answers at once and a background
+ * worker sends it. The toast says what will actually happen: "on its way"
+ * when a mail server is configured, and "recorded, not delivered" when none
+ * is — so nobody chases a client about an email that never left. A later
+ * refusal shows as Failed in the sent log and on the record's timeline.
  */
 export function useSendEmail() {
   return useMutation({
     mutationFn: (payload) => emailsService.send(payload),
     onSuccess: (data) => {
       invalidate(queryKeys.emails.all, queryKeys.emailTemplates.all, queryKeys.notes.all);
-      if (data?.status === "LOGGED") {
+      if (!emailWillReachRecipient(data)) {
         toastInfo(
           "Recorded, not delivered",
-          `No mail server is configured, so nothing reached ${data?.toEmail}. It is in the sent log.`,
+          `No mail server is configured, so nothing will reach ${data?.toEmail}. It is in the sent log.`,
         );
       } else {
-        toastSuccess(`Email sent to ${data?.toName}`, data?.toEmail);
+        toastSuccess(`Email on its way to ${data?.toName}`, `${data?.toEmail} · the sent log shows when it is delivered.`);
       }
     },
     onError: (error) => {
