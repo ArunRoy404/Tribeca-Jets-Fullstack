@@ -11,6 +11,7 @@ import {
   UserStatus,
 } from '../../../generated/prisma/enums.js';
 import { nullableNumber, optionalNumber } from '../../../common/dto/numbers.js';
+import { Action, Module } from '../../../common/authorization/access.js';
 
 /** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
 export const USER_SORTABLE_FIELDS = [
@@ -31,11 +32,21 @@ export const USER_SORTABLE_FIELDS = [
  */
 export const assignableRoleSchema = z.enum([
   UserRole.ADMIN,
-  UserRole.SENIOR_BROKER,
   UserRole.BROKER,
   UserRole.ASSISTANT,
   UserRole.REFERRAL_AGENT,
 ]);
+
+/**
+ * One person's permissions: the actions ticked per module,
+ * `{ "QUOTES": ["VIEW", "SEND"] }`. A module left out has no access. What the
+ * role may never hold is refused by the service, which also adds VIEW and
+ * the modules a ticked one depends on — see `normaliseGrants`.
+ */
+export const permissionsSchema = z.partialRecord(
+  z.enum(Module),
+  z.array(z.enum(Action)).max(Object.keys(Action).length),
+);
 
 /**
  * A referral agent's standard commission (#11). Only meaningful on a
@@ -87,6 +98,11 @@ export const inviteUserSchema = z.object({
   phone: z.string().trim().max(40).optional(),
   role: assignableRoleSchema.default(UserRole.BROKER),
   /**
+   * Omit for the role's defaults. Sending it needs Users & Roles · Change
+   * roles & permissions.
+   */
+  permissions: permissionsSchema.optional(),
+  /**
    * A referral agent's standard commission, settable with the invitation so
    * the desk does not have to invite and then edit. Same rules as on update;
    * refused for any other role.
@@ -114,7 +130,14 @@ export const updateUserSchema = z
     firstName: z.string().trim().min(1).max(100).optional(),
     lastName: z.string().trim().min(1).max(100).optional(),
     phone: z.string().trim().max(40).nullable().optional(),
+    /**
+     * Changing the role without `permissions` resets them to the new role's
+     * defaults: the old role's ticks may include what the new one can never
+     * hold.
+     */
     role: assignableRoleSchema.optional(),
+    /** The full set — what is sent replaces what is stored. */
+    permissions: permissionsSchema.optional(),
     /** ACTIVE or SUSPENDED only — see `manageableStatusSchema`. */
     status: manageableStatusSchema.optional(),
     twoFactorEnabled: z.boolean().optional(),

@@ -582,7 +582,7 @@ export class ClientsService {
       where: {
         deletedAt: null,
         role: {
-          in: [UserRole.BROKER, UserRole.SENIOR_BROKER, UserRole.ADMIN],
+          in: [UserRole.BROKER, UserRole.ADMIN],
         },
       },
       select: {

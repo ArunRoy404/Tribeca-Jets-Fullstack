@@ -125,7 +125,7 @@ export class AuthController {
 
     return {
       requiresTwoFactor: false,
-      user: await this.auth.getProfile(user.id),
+      user: await this.session(await this.auth.getProfile(user.id)),
     };
   }
 
@@ -148,7 +148,7 @@ export class AuthController {
     const { user, rememberMe } = await this.auth.verifyTwoFactor(challengeToken, dto.code, context);
     await this.tokens.startSession(res, user, context, rememberMe);
 
-    return { user: await this.auth.getProfile(user.id) };
+    return { user: await this.session(await this.auth.getProfile(user.id)) };
   }
 
   @Public()
@@ -199,7 +199,7 @@ export class AuthController {
       presented,
       this.contextOf(req),
     );
-    return this.auth.getProfile(user.id);
+    return this.session(await this.auth.getProfile(user.id));
   }
 
   @Public()
@@ -218,10 +218,14 @@ export class AuthController {
   @ApiOperation({
     summary: 'Current user',
     description:
-      'How the frontend learns who is signed in — the session token is httpOnly and unreadable by JavaScript. Carries `permissions`, the caller\'s row of the permission matrix, so the UI can hide actions their role cannot perform.',
+      'How the frontend learns who is signed in — the session token is httpOnly and unreadable by JavaScript. Carries `permissions` — the caller\'s own module permissions with their reach — so the UI can hide modules and actions they do not have, and `matrix`, the old role matrix for modules not yet moved over.',
   })
-  async me(@CurrentUser('id') userId: string) {
-    return this.session(await this.auth.getProfile(userId));
+  async me(@CurrentUser('id') userId: string, @Res({ passthrough: true }) res: Response) {
+    const profile = await this.auth.getProfile(userId);
+    // Keeps the proxy's routing hint in step with permissions an
+    // administrator changed since this session began.
+    this.tokens.writeModulesCookie(res, profile.access, profile.role);
+    return this.session(profile);
   }
 
   /**
@@ -229,14 +233,22 @@ export class AuthController {
    * answer with exactly what the session query caches.
    */
   private async session(profile: Awaited<ReturnType<AuthService['getProfile']>>) {
-    const { avatarKey, ...rest } = profile;
+    const { avatarKey, access, ...rest } = profile;
     return {
       ...rest,
       // An upload URL from My Account; the legacy storage key only as a
       // fallback for a photo set before that existed.
       avatarUrl: profile.avatarUrl ?? (await this.storage.signedUrlOrNull(avatarKey)),
       /**
-       * The caller's row of the permission matrix, as `{ PERMISSION: Scope }`.
+       * This person's own permissions (7 Oct 2026), as
+       * `{ MODULE: { reach, actions } }`. A module that is absent has no
+       * access: the sidebar hides it and the browser cannot open it. Same
+       * caveat as below — it renders buttons; the API enforces.
+       */
+      permissions: access,
+      /**
+       * The old role matrix, as `{ PERMISSION: Scope }`, for the modules not
+       * yet moved to the per-user permissions. Goes when the last one moves.
        *
        * Sent so the UI can stop offering actions the guard will refuse — an
        * assistant seeing Edit and Remove on every aircraft, then getting a 403
@@ -248,7 +260,7 @@ export class AuthController {
        * frontend re-derive it from `role` is the whole point — a second copy
        * of the matrix in JavaScript would drift the first time a scope changed.
        */
-      permissions: permissionsFor(profile.role),
+      matrix: permissionsFor(profile.role),
       /**
        * Session policy the browser has to honour, shipped from here for the
        * same reason the permission matrix is: a copy of the number in the

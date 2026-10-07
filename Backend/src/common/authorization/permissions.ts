@@ -83,7 +83,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_DASHBOARD]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: ALL,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -91,7 +90,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_TRIPS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: ASSIGNED,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -99,7 +97,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_TRIPS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -107,7 +104,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.DELETE_TRIPS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: NONE,
     [UserRole.BROKER]: NONE,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -115,7 +111,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_FINANCIALS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -123,7 +118,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.EXPORT_DATA]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: NONE,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -131,7 +125,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_USERS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: NONE,
     [UserRole.BROKER]: NONE,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -139,7 +132,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.OPERATOR_SOURCING]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: READ,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -152,7 +144,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_CLIENTS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ASSIGNED,
     [UserRole.ASSISTANT]: ASSIGNED,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -160,7 +151,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_CLIENTS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ASSIGNED,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -177,7 +167,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_AIRPORTS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     // Airports are objective facts about the world, not desk opinion. A wrong
     // runway length silently makes a trip unbookable, so editing the list is
     // deliberately narrower than editing an operator.
@@ -190,7 +179,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_OPERATORS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     // A broker who sources a new operator adds it themselves; matching
     // OPERATOR_SOURCING, which already grants them ALL.
     [UserRole.BROKER]: ALL,
@@ -206,7 +194,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_AIRCRAFT]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: READ,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -215,13 +202,12 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
    * Commissions (#11's Commission Center, scope §6.12). OWN means a different
    * column per role, resolved in `CommissionsService`: a broker sees the
    * commissions booked against them, a referral agent the ones paid to them.
-   * Recording and paying one is an administrator's or senior broker's call —
+   * Recording and paying one is an administrator's call —
    * it is money leaving the company.
    */
   [Permission.VIEW_COMMISSIONS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: OWN,
@@ -229,7 +215,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_COMMISSIONS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: NONE,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -244,7 +229,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_REFERRALS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: OWN,
@@ -252,7 +236,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_REFERRALS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: OWN,
@@ -266,7 +249,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_TEAM]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: ALL,
     [UserRole.ASSISTANT]: ALL,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -284,7 +266,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_RECEIVABLES]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -292,7 +273,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_RECEIVABLES]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -302,12 +282,11 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
    * A broker reads the payables on the trips they may see (OWN, through
    * `TripsService`), because the operator's bill is part of working the trip.
    * Recording and sending money is money *leaving* the company, so — as with
-   * commissions — only administrators and senior brokers write.
+   * commissions — only administrators write.
    */
   [Permission.VIEW_OPERATOR_PAYMENTS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -315,7 +294,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_OPERATOR_PAYMENTS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: NONE,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -331,7 +309,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_TASKS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: OWN,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -339,7 +316,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_TASKS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: OWN,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -353,7 +329,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_EMAIL_TEMPLATES]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: READ,
     [UserRole.ASSISTANT]: READ,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -367,7 +342,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.SEND_EMAILS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: OWN,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -381,7 +355,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_DOCUMENTS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: ASSIGNED,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -394,7 +367,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.MANAGE_DOCUMENTS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -407,7 +379,6 @@ const PERMISSION_MATRIX: Record<Permission, RoleScopes> = {
   [Permission.VIEW_SENSITIVE_DOCUMENTS]: {
     [UserRole.SUPER_ADMIN]: ALL,
     [UserRole.ADMIN]: ALL,
-    [UserRole.SENIOR_BROKER]: ALL,
     [UserRole.BROKER]: OWN,
     [UserRole.ASSISTANT]: NONE,
     [UserRole.REFERRAL_AGENT]: NONE,
@@ -472,7 +443,6 @@ export function permissionsFor(role: UserRole): Record<Permission, Scope> {
 /** Roles an administrator may actually assign — SUPER_ADMIN is never offered. */
 export const ASSIGNABLE_ROLES: UserRole[] = [
   UserRole.ADMIN,
-  UserRole.SENIOR_BROKER,
   UserRole.BROKER,
   UserRole.ASSISTANT,
   UserRole.REFERRAL_AGENT,
@@ -498,13 +468,11 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   [UserRole.SUPER_ADMIN]:
     'Owner account. Full administration, and cannot be demoted, suspended or removed.',
   [UserRole.ADMIN]:
-    'Full system administration, user management, and financial exports.',
-  [UserRole.SENIOR_BROKER]:
-    'Full trip management, operator sourcing, and team financial visibility.',
+    'Full system administration: every module, every record, user management and financial exports.',
   [UserRole.BROKER]:
-    'Create and manage own trips, leads, quotes, and operator queries.',
+    'Their own trips, quotes and requests and their assigned clients. No company-wide figures.',
   [UserRole.ASSISTANT]:
-    'View assigned trips, flight tracking, and support operational workflows.',
+    'Supports the desk on the trips and clients assigned to them. No financial figures.',
   [UserRole.REFERRAL_AGENT]:
     'Outside partner. Partner portal only: submit referrals, follow their status, see their own commissions and the resources library.',
 };
@@ -513,7 +481,6 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
 export const ROLE_PERMISSION_LEVEL: Record<UserRole, string> = {
   [UserRole.SUPER_ADMIN]: 'Owner',
   [UserRole.ADMIN]: 'Admin',
-  [UserRole.SENIOR_BROKER]: 'High',
   [UserRole.BROKER]: 'Medium',
   [UserRole.ASSISTANT]: 'Low',
   [UserRole.REFERRAL_AGENT]: 'Partner',
@@ -522,13 +489,13 @@ export const ROLE_PERMISSION_LEVEL: Record<UserRole, string> = {
 /** Display labels for the permission rows, in the order the UI lists them. */
 export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.VIEW_DASHBOARD]: 'View Dashboard',
-  [Permission.VIEW_TRIPS]: 'View All Trips',
+  [Permission.VIEW_TRIPS]: 'View Trips',
   [Permission.MANAGE_TRIPS]: 'Create/Edit Trips',
   [Permission.DELETE_TRIPS]: 'Delete Trips',
   [Permission.VIEW_FINANCIALS]: 'View Financials',
   [Permission.EXPORT_DATA]: 'Export Data',
   [Permission.MANAGE_USERS]: 'Manage Users',
-  [Permission.OPERATOR_SOURCING]: 'Operator Sourcing',
+  [Permission.OPERATOR_SOURCING]: 'Work Empty Legs',
   [Permission.VIEW_CLIENTS]: 'View Clients',
   [Permission.MANAGE_CLIENTS]: 'Create/Edit Clients',
   [Permission.MANAGE_AIRPORTS]: 'Manage Airports',
@@ -551,3 +518,4 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.MANAGE_DOCUMENTS]: 'File/Edit Documents',
   [Permission.VIEW_SENSITIVE_DOCUMENTS]: 'View Passports & IDs',
 };
+

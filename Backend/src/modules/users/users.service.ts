@@ -22,15 +22,20 @@ import {
 } from '../../common/database/filters.js';
 import {
   ASSIGNABLE_ROLES,
-  PERMISSION_LABELS,
-  Permission,
   ROLE_DESCRIPTIONS,
   ROLE_PERMISSION_LEVEL,
-  Scope,
-  actsAs,
-  permissionsFor,
-  scopeFor,
 } from '../../common/authorization/permissions.js';
+import {
+  Action,
+  Module,
+  canDo,
+  defaultGrants,
+  normaliseGrants,
+  resolveAccess,
+  roleDefaults,
+  type AccessGrants,
+  type AccessMap,
+} from '../../common/authorization/access.js';
 import {
   CommissionBasis,
   UserRole,
@@ -65,6 +70,7 @@ const USER_SELECT = {
   commissionBasis: true,
   commissionPercentage: true,
   commissionAmount: true,
+  permissions: true,
   createdAt: true,
   createdById: true,
   updatedAt: true,
@@ -104,33 +110,41 @@ export class UsersService {
   // Reads
   // ---------------------------------------------------------------------------
 
+  /** Whether the caller may open the Users & Roles screen. */
+  private seesTeamAdmin(user: AuthenticatedUser): boolean {
+    return canDo(user.access, Module.USERS, Action.VIEW);
+  }
+
   /**
    * Row-level visibility for the directory.
    *
    * Anyone signed in may see who their colleagues are — the assigned-broker
    * dropdown on the client form depends on it, and a staff directory is not
-   * sensitive. What varies is the *detail*: only MANAGE_USERS holders get
-   * status, last-login and the audit trail. See `projectFor`.
+   * sensitive. What varies is the *detail*: only someone with Users & Roles
+   * gets status, last-login, permissions and the audit trail. See
+   * `projectFor`.
    */
   private visibilityScope(user: AuthenticatedUser): Prisma.UserWhereInput {
-    const scope = scopeFor(user.role, Permission.MANAGE_USERS);
-    if (scope === Scope.ALL) return {};
+    if (this.seesTeamAdmin(user)) return {};
 
-    // Without MANAGE_USERS a caller sees only accounts that can be worked
-    // with: suspended and invited colleagues are administrative state.
+    // Without it a caller sees only accounts that can be worked with:
+    // suspended and invited colleagues are administrative state.
     return { status: UserStatus.ACTIVE };
   }
 
   /**
-   * Strips administrative fields for callers who cannot manage users, so the
-   * broker filling in an "Assigned Broker" dropdown gets names, not the team's
-   * login history.
+   * Strips administrative fields for callers without Users & Roles, so the
+   * broker filling in an "Assigned Broker" dropdown gets names, not the
+   * team's login history or permissions.
    */
   private projectFor(user: AuthenticatedUser, row: UserRow) {
-    const canManage = scopeFor(user.role, Permission.MANAGE_USERS) === Scope.ALL;
-    if (canManage || row.id === user.id) {
+    if (this.seesTeamAdmin(user) || row.id === user.id) {
+      const { permissions, ...rest } = row;
       return {
-        ...row,
+        ...rest,
+        // The effective set — the stored ticks within what the role allows,
+        // with the role's reach — never the raw JSON.
+        permissions: resolveAccess(row.role, permissions),
         // Decimals serialise as strings; the screen wants numbers, and null
         // stays null — "no structure set" is not a 0% commission.
         commissionPercentage: toNumber(row.commissionPercentage),
@@ -231,53 +245,40 @@ export class UsersService {
       suspended,
       admins:
         (counts[UserRole.SUPER_ADMIN] ?? 0) + (counts[UserRole.ADMIN] ?? 0),
-      seniorBrokers: counts[UserRole.SENIOR_BROKER] ?? 0,
       brokers: counts[UserRole.BROKER] ?? 0,
       assistants: counts[UserRole.ASSISTANT] ?? 0,
     };
   }
 
   /**
-   * Powers the Roles & Permissions tab.
-   *
-   * Served from the matrix rather than hardcoded in the frontend, so the table
-   * an administrator reads is generated from the rules the API actually
-   * enforces. A UI copy of this table would drift the first time a permission
-   * changed, and would then be actively misleading.
+   * Powers the Roles & Permissions tab: each role's card and its defaults,
+   * locks and reach, module by module — generated from `access.roles.ts`, so
+   * the table an administrator reads is the rule the API applies.
    */
   async rolesOverview(user: AuthenticatedUser) {
-    const where: Prisma.UserWhereInput = {
-      deletedAt: null,
-      ...this.visibilityScope(user),
-    };
     const byRole = await this.prisma.user.groupBy({
       by: ['role'],
-      where,
+      where: { deletedAt: null, ...this.visibilityScope(user) },
       _count: { _all: true },
     });
     const counts = Object.fromEntries(
       byRole.map((entry) => [entry.role, entry._count._all]),
     ) as Record<string, number | undefined>;
 
-    const roles = Object.values(UserRole).map((role) => ({
-      role,
-      label: role,
-      permissionLevel: ROLE_PERMISSION_LEVEL[role],
-      description: ROLE_DESCRIPTIONS[role],
-      userCount: counts[role] ?? 0,
-      assignable: ASSIGNABLE_ROLES.includes(role),
-      permissions: permissionsFor(role),
-    }));
+    return {
+      roles: Object.values(UserRole).map((role) => ({
+        ...roleDefaults(role),
+        permissionLevel: ROLE_PERMISSION_LEVEL[role],
+        description: ROLE_DESCRIPTIONS[role],
+        userCount: counts[role] ?? 0,
+        assignable: ASSIGNABLE_ROLES.includes(role),
+      })),
+    };
+  }
 
-    const matrix = Object.values(Permission).map((permission) => ({
-      permission,
-      label: PERMISSION_LABELS[permission],
-      scopes: Object.fromEntries(
-        Object.values(UserRole).map((role) => [role, scopeFor(role, permission)]),
-      ) as Record<UserRole, Scope>,
-    }));
-
-    return { roles, matrix, scopes: Object.values(Scope) };
+  /** One role's form view, for the invite and edit forms. */
+  roleDefaults(role: UserRole) {
+    return roleDefaults(role);
   }
 
   // ---------------------------------------------------------------------------
@@ -295,7 +296,10 @@ export class UsersService {
     actor: AuthenticatedUser,
     target: { id: string; role: UserRole },
   ): void {
-    if (target.role === UserRole.SUPER_ADMIN && actsAs(actor.role) !== UserRole.SUPER_ADMIN) {
+    // The actor's real role: Users & Roles is on the per-user permissions
+    // (7 Oct 2026), so the temporary everyone-is-owner switch no longer
+    // reaches this guard.
+    if (target.role === UserRole.SUPER_ADMIN && actor.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException('The owner account cannot be modified');
     }
   }
@@ -405,7 +409,8 @@ export class UsersService {
     // invitation. Hashed exactly as every other password is.
     const passwordHash = await AuthService.hashPassword(dto.password);
 
-    const { commissionBasis, commissionPercentage, commissionAmount, password, ...profile } = dto;
+    const { commissionBasis, commissionPercentage, commissionAmount, password, permissions, ...profile } = dto;
+    const grants = this.grantsFor(actor, dto.role, permissions);
     const commission = this.commissionStructure(dto.role, {
       commissionBasis,
       commissionPercentage,
@@ -416,6 +421,7 @@ export class UsersService {
       data: {
         ...profile,
         ...commission,
+        permissions: grants as Prisma.InputJsonValue,
         passwordHash,
         status: UserStatus.INVITED,
         createdById: actor.id,
@@ -429,7 +435,7 @@ export class UsersService {
       action: 'user.invited',
       entityType: 'User',
       entityId: user.id,
-      metadata: { email: user.email, role: user.role },
+      metadata: { email: user.email, role: user.role, permissions: grants },
     });
 
     const delivered = await this.sendInvitation(actor, user.email, user.firstName, password);
@@ -474,13 +480,14 @@ export class UsersService {
   async update(actor: AuthenticatedUser, id: string, dto: UpdateUserInput) {
     const target = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true, role: true, status: true, email: true },
+      select: { id: true, role: true, status: true, email: true, permissions: true },
     });
     if (!target) throw new NotFoundException('User not found');
 
     this.assertMayAdminister(actor, target);
     this.assertStatusChangeAllowed(target, dto);
     this.assertNotSelfDemotion(actor, id, dto);
+    const grants = this.nextGrants(actor, target, dto);
     await this.assertNotLastAdministrator(id, {
       role: dto.role,
       status: dto.status,
@@ -492,11 +499,17 @@ export class UsersService {
     delete fields.commissionBasis;
     delete fields.commissionPercentage;
     delete fields.commissionAmount;
+    delete fields.permissions;
     const user = await this.prisma.user.update({
       where: { id },
       // `updatedById` is set here rather than left to the caller: an audit
       // column that a caller can supply is not an audit column.
-      data: { ...fields, ...commission, updatedById: actor.id },
+      data: {
+        ...fields,
+        ...commission,
+        ...(grants ? { permissions: grants as Prisma.InputJsonValue } : {}),
+        updatedById: actor.id,
+      },
       select: USER_SELECT,
     });
 
@@ -509,6 +522,15 @@ export class UsersService {
     if (dto.status && dto.status !== target.status) {
       changes.status = { from: target.status, to: dto.status };
     }
+    if (grants) {
+      const diff = permissionDiff(
+        resolveAccess(target.role, target.permissions),
+        resolveAccess(user.role, grants),
+      );
+      if (diff.granted.length || diff.removed.length) {
+        changes.permissions = { from: diff.removed, to: diff.granted };
+      }
+    }
 
     await this.audit.record({
       actorId: actor.id,
@@ -519,6 +541,145 @@ export class UsersService {
     });
 
     return this.projectFor(actor, user);
+  }
+
+  /**
+   * The permissions a new account is created with: its role's defaults, or
+   * what the inviter ticked — which needs Users & Roles · Change roles &
+   * permissions, and is checked against the role's locks and against what
+   * the inviter holds themselves.
+   */
+  private grantsFor(actor: AuthenticatedUser, role: UserRole, input: AccessGrants | undefined): AccessGrants {
+    if (input !== undefined) this.assertMayManageAccess(actor);
+    // The defaults are checked against the inviter too: inviting an
+    // administrator would otherwise be a way to mint access you do not hold.
+    return normaliseGrants(role, input ?? defaultGrants(role), this.grantor(actor)).grants;
+  }
+
+  private grantor(actor: AuthenticatedUser) {
+    return { role: actor.role, access: actor.access ?? {} };
+  }
+
+  /**
+   * The permissions an edit leaves the account with, or undefined when it
+   * does not touch them. A role change without a permission set resets to the
+   * new role's defaults — the old role's ticks may hold what the new role can
+   * never have. The owner's are never edited, and nobody edits their own:
+   * that would be a way to grant yourself anything.
+   */
+  private nextGrants(
+    actor: AuthenticatedUser,
+    target: { id: string; role: UserRole },
+    dto: UpdateUserInput,
+  ): AccessGrants | undefined {
+    const roleChanges = dto.role !== undefined && dto.role !== target.role;
+    if (dto.permissions === undefined && !roleChanges) return undefined;
+
+    this.assertMayManageAccess(actor);
+    if (target.role === UserRole.SUPER_ADMIN) {
+      throw new BadRequestException('The owner account always has every permission.');
+    }
+    if (target.id === actor.id && dto.permissions !== undefined) {
+      throw new BadRequestException('You cannot change your own permissions. Ask another administrator.');
+    }
+
+    const role = dto.role ?? target.role;
+    return normaliseGrants(role, dto.permissions ?? defaultGrants(role), this.grantor(actor)).grants;
+  }
+
+  private assertMayManageAccess(actor: AuthenticatedUser): void {
+    if (!canDo(actor.access, Module.USERS, Action.MANAGE_ACCESS)) {
+      throw new ForbiddenException(
+        'You do not have permission for Users & Roles · Change roles & permissions',
+      );
+    }
+  }
+
+  /**
+   * Withdraws an invitation nobody accepted: **the one permanent delete in
+   * this system** (owner's decision, 7 Oct 2026).
+   *
+   * It is allowed because a pending invitee has no history — they never
+   * signed in, so nothing in the CRM was written by them — and leaving the
+   * row would keep a mistyped address reserved for ever. An account that has
+   * signed in is never deleted; suspending it is the way out.
+   *
+   * Refused while anything has been put on the person: a user row is linked
+   * from clients, trips, quotes, tasks and more, most of which would silently
+   * lose the link on delete, and the documents filed in their folder would be
+   * deleted with them. The refusal names what to move first. The audit trail
+   * keeps the invitation and its withdrawal.
+   */
+  async withdrawInvitation(actor: AuthenticatedUser, id: string) {
+    const target = await this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        _count: {
+          select: {
+            assignedClients: true,
+            originatedClients: true,
+            assignedTripRequests: true,
+            assignedQuotes: true,
+            assignedTrips: true,
+            assignedTasks: true,
+            assignedReferrals: true,
+            submittedReferrals: true,
+            commissionsReceived: true,
+            brokerCommissions: true,
+            ownedUploads: true,
+            uploads: true,
+            sentEmails: true,
+            sentItineraries: true,
+          },
+        },
+      },
+    });
+    if (!target) throw new NotFoundException('User not found');
+    if (target.status !== UserStatus.INVITED) {
+      throw new BadRequestException(
+        'Only an invitation that has not been accepted can be withdrawn. Suspend an account that has signed in.',
+      );
+    }
+
+    const counts = target._count;
+    const attached = [
+      [counts.assignedClients + counts.originatedClients, 'client'],
+      [counts.assignedTripRequests, 'trip request'],
+      [counts.assignedQuotes, 'quote'],
+      [counts.assignedTrips, 'trip'],
+      [counts.assignedTasks, 'task'],
+      [counts.assignedReferrals + counts.submittedReferrals, 'referral'],
+      [counts.commissionsReceived + counts.brokerCommissions, 'commission'],
+      [counts.ownedUploads + counts.uploads, 'document in their folder'],
+      [counts.sentEmails + counts.sentItineraries, 'sent email'],
+    ]
+      .filter(([count]) => (count as number) > 0)
+      .map(([count, noun]) => `${count} ${noun}${count === 1 ? '' : 's'}`);
+    if (attached.length) {
+      throw new ConflictException(
+        `This invitation has records attached: ${attached.join(', ')}. Reassign or remove them first.`,
+      );
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.verificationCode.deleteMany({ where: { userId: id } }),
+      this.prisma.refreshToken.deleteMany({ where: { userId: id } }),
+      this.prisma.user.delete({ where: { id } }),
+    ]);
+
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'user.invitation_withdrawn',
+      entityType: 'User',
+      entityId: id,
+      metadata: { email: target.email, role: target.role },
+    });
+
+    return { id, email: target.email, withdrawn: true };
   }
 
   /**
@@ -571,4 +732,20 @@ export class UsersService {
     // CUSTOM: agreed per referral, so there is no standing figure to keep.
     return { commissionBasis: basis, commissionPercentage: null, commissionAmount: null };
   }
+}
+
+/** "QUOTES.SEND"-style lists of what an edit granted and took away, for the audit trail. */
+function permissionDiff(before: AccessMap, after: AccessMap) {
+  const flatten = (map: AccessMap) =>
+    new Set(
+      Object.entries(map).flatMap(([module, grant]) =>
+        (grant?.actions ?? []).map((action) => `${module}.${action}`),
+      ),
+    );
+  const was = flatten(before);
+  const now = flatten(after);
+  return {
+    granted: [...now].filter((key) => !was.has(key)),
+    removed: [...was].filter((key) => !now.has(key)),
+  };
 }

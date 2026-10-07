@@ -5,6 +5,7 @@ import type { CookieOptions, Response } from 'express';
 import {
   ACCESS_TOKEN_COOKIE,
   CSRF_COOKIE,
+  MODULES_COOKIE,
   PASSWORD_RESET_COOKIE,
   REFRESH_COOKIE_PATH,
   REFRESH_TOKEN_COOKIE,
@@ -13,6 +14,17 @@ import {
 import { AppConfigService } from '../../config/config.service.js';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
+import { resolveAccess, type AccessMap } from '../../common/authorization/access.js';
+import { UserRole } from '../../generated/prisma/enums.js';
+
+/** First entry of `tj_modules` for a partner: their area is the portal. */
+const PORTAL_MARKER = 'PORTAL';
+
+/**
+ * The real role, never `actsAs`: which half of the app a person uses is not
+ * a permission, so the temporary everyone-is-owner switch does not move it.
+ */
+const isPartner = (role: UserRole) => role === UserRole.REFERRAL_AGENT;
 import type { JwtPayload } from './strategies/jwt.strategy.js';
 
 export interface SessionContext {
@@ -128,6 +140,7 @@ export class TokenService {
     ]);
 
     this.writeCookies(res, accessToken, refreshToken, rememberMe);
+    await this.writeModulesFor(res, user.id);
     // The sign-in flow is over; drop any challenge cookie still hanging around.
     this.clearChallenge(res, 'twoFactor');
   }
@@ -211,7 +224,32 @@ export class TokenService {
     ]);
 
     this.writeCookies(res, accessToken, refreshToken, rememberMe);
+    await this.writeModulesFor(res, user.id);
     return user;
+  }
+
+  /**
+   * The routing hint `proxy.js` reads: the modules this person may view.
+   * Rewritten on sign-in, on every refresh and on every `/auth/me`, so a
+   * change an administrator makes reaches the proxy within one of those.
+   */
+  writeModulesCookie(res: Response, access: AccessMap, role: UserRole): void {
+    // A partner works in the portal, never the CRM; the marker lets the proxy
+    // send them there before a CRM page renders.
+    const entries = [...(isPartner(role) ? [PORTAL_MARKER] : []), ...Object.keys(access)];
+    res.cookie(MODULES_COOKIE, entries.join('.'), {
+      ...this.baseCookieOptions(),
+      path: '/',
+      maxAge: this.refreshTtlMs(true),
+    });
+  }
+
+  private async writeModulesFor(res: Response, userId: string): Promise<void> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, permissions: true },
+    });
+    if (row) this.writeModulesCookie(res, resolveAccess(row.role, row.permissions), row.role);
   }
 
   /**
@@ -396,6 +434,7 @@ export class TokenService {
     res.clearCookie(ACCESS_TOKEN_COOKIE, { ...base, path: '/' });
     res.clearCookie(REFRESH_TOKEN_COOKIE, { ...base, path: REFRESH_COOKIE_PATH });
     res.clearCookie(CSRF_COOKIE, { ...base, httpOnly: false, path: '/' });
+    res.clearCookie(MODULES_COOKIE, { ...base, path: '/' });
   }
 }
 

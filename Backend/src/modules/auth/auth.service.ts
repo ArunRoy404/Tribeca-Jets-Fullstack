@@ -1,3 +1,4 @@
+import { resolveAccess } from '../../common/authorization/access.js';
 import { randomBytes } from 'node:crypto';
 import {
   BadRequestException,
@@ -607,7 +608,7 @@ export class AuthService {
    * signed in, so this endpoint is how the app bootstraps its session state.
    */
   async getProfile(userId: string) {
-    const { commissionBasis, commissionPercentage, commissionAmount, ...profile } =
+    const { commissionBasis, commissionPercentage, commissionAmount, permissions, ...profile } =
       await this.prisma.user.findFirstOrThrow({
         where: { id: userId, deletedAt: null },
         select: {
@@ -626,11 +627,14 @@ export class AuthService {
           commissionBasis: true,
           commissionPercentage: true,
           commissionAmount: true,
+          permissions: true,
         },
       });
 
     return {
       ...profile,
+      /** This person's own permissions with their role's reach (7 Oct 2026). */
+      access: resolveAccess(profile.role, permissions),
       /**
        * A referral agent's own standing terms, for the portal's Commission
        * Center (#11) — their own agreement, so theirs to read. Null for staff,

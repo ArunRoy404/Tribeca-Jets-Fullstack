@@ -32,3 +32,15 @@ export const RATE_LIMIT_KEY = 'rateLimit';
 
 /** Metadata key for @RequirePermissions, read by PermissionsGuard. */
 export const PERMISSIONS_KEY = 'permissions';
+
+/** Metadata key for `@RequireAccess` — a module and an action. */
+export const ACCESS_KEY = 'requiredAccess';
+
+/**
+ * The modules the signed-in person may view, `DASHBOARD.TRIPS.QUOTES` —
+ * written with the session and on every `/auth/me`, so the frontend's
+ * `proxy.js` can refuse a page before it renders (it cannot read `/auth/me`).
+ * A routing hint, not a credential: editing it only shows pages whose every
+ * API call is still refused.
+ */
+export const MODULES_COOKIE = 'tj_modules';

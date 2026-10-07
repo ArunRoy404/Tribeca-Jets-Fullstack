@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -10,11 +13,10 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator.js';
+import { RequireAccess } from '../../common/decorators/access.decorator.js';
 import { Permission } from '../../common/authorization/permissions.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UsersService } from './users.service.js';
 import {
@@ -37,7 +39,9 @@ export class UsersController {
    * response carries names and roles only, no status or login history.
    *
    * VIEW_TEAM is what keeps a referral agent (#11) out: every desk role holds
-   * it, the partner role does not.
+   * it, the partner role does not. It stays on the old matrix while the
+   * pickers' own modules are, and the per-user Users & Roles permission
+   * decides only how much each row shows (see `projectFor`).
    */
   @Get()
   @RequirePermissions(Permission.VIEW_TEAM)
@@ -54,7 +58,7 @@ export class UsersController {
   }
 
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_TEAM)
+  @RequireAccess(Module.USERS, Action.VIEW)
   @ApiOperation({
     summary: 'Team headcount tiles',
     description: 'Totals by status and role for the cards above the table.',
@@ -63,24 +67,8 @@ export class UsersController {
     return this.users.stats(user);
   }
 
-  /**
-   * Served to every signed-in user, not just administrators: the frontend uses
-   * it to hide controls the caller cannot use. Hiding a button is a courtesy —
-   * the guard on each route is the actual enforcement.
-   */
-  @Get('roles')
-  @RequirePermissions(Permission.VIEW_TEAM)
-  @ApiOperation({
-    summary: 'Roles and the permission matrix',
-    description:
-      'Generated from the server-side matrix, so the table an administrator reads is the ruleset the API enforces rather than a frontend copy that can drift.',
-  })
-  roles(@CurrentUser() user: AuthenticatedUser) {
-    return this.users.rolesOverview(user);
-  }
-
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_TEAM)
+  @RequireAccess(Module.USERS, Action.VIEW)
   @ApiOperation({ summary: 'Get one team member' })
   findOne(
     @CurrentUser() user: AuthenticatedUser,
@@ -90,22 +78,22 @@ export class UsersController {
   }
 
   @Post('invite')
-  @RequireWritePermissions(Permission.MANAGE_USERS)
+  @RequireAccess(Module.USERS, Action.CREATE)
   @ApiOperation({
     summary: 'Invite a team member',
     description:
-      'Creates the account in INVITED status with no usable password. The invitee sets their own through the password-reset flow, so no credential is ever chosen by or transmitted to the inviter.',
+      'Creates the account in INVITED status with the first password the inviter set, emailed with the invitation; the first sign-in activates it. `permissions` defaults to the role\'s; sending it needs Users & Roles · Change roles & permissions, and anything the role can never hold is refused.',
   })
   invite(@CurrentUser() user: AuthenticatedUser, @Body() dto: InviteUserDto) {
     return this.users.invite(user, dto);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_USERS)
+  @RequireAccess(Module.USERS, Action.EDIT)
   @ApiOperation({
     summary: 'Update a team member',
     description:
-      'Role, status, profile and the two-factor flag. Email is immutable. Refuses self-demotion and refuses to leave the system without an active administrator.',
+      'Role, status, permissions, profile and the two-factor flag. Email is immutable. Changing role or permissions needs Users & Roles · Change roles & permissions; a role change without `permissions` resets them to the new role\'s defaults. Refuses self-demotion, editing your own permissions, and leaving the system without an active administrator.',
   })
   update(
     @CurrentUser() user: AuthenticatedUser,
@@ -113,5 +101,20 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ) {
     return this.users.update(user, id, dto);
+  }
+
+  @Delete(':id/invitation')
+  @HttpCode(HttpStatus.OK)
+  @RequireAccess(Module.USERS, Action.CREATE)
+  @ApiOperation({
+    summary: 'Withdraw a pending invitation',
+    description:
+      'Permanently deletes an account still INVITED — the one permanent delete in the system, allowed because the invitee never signed in and has no history. Frees the email address. 400 for an account that has signed in (suspend it instead); 409, naming them, while clients, trips, documents or anything else are attached. Audited as `user.invitation_withdrawn`. Needs Users & Roles · Invite users.',
+  })
+  withdrawInvitation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.users.withdrawInvitation(user, id);
   }
 }
