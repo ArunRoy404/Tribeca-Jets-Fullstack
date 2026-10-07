@@ -11,7 +11,6 @@ import { uploadUrl } from "@/services/uploads.service";
 const ROLE_LABELS = {
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
-  SENIOR_BROKER: "Senior Broker",
   BROKER: "Broker",
   ASSISTANT: "Assistant",
   REFERRAL_AGENT: "Referral Agent",
@@ -32,7 +31,6 @@ const STATUS_LABELS = {
  */
 export const ASSIGNABLE_ROLES = [
   "ADMIN",
-  "SENIOR_BROKER",
   "BROKER",
   "ASSISTANT",
   "REFERRAL_AGENT",
@@ -113,6 +111,11 @@ export function toTeamMember(user) {
     commissionBasis: user?.commissionBasis ?? null,
     commissionPercentage: user?.commissionPercentage ?? null,
     commissionAmount: user?.commissionAmount ?? null,
+
+    // Their own permissions, `{ MODULE: { reach, actions } }` — present only
+    // for a caller who may open Users & Roles. Null, never `{}`, when absent:
+    // an empty map would read as "no access to anything".
+    permissions: user?.permissions ?? null,
 
     activeLeads: "—",
     activeTrips: user?.activeTrips ?? "—",

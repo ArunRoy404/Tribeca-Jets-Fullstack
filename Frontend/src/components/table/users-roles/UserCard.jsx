@@ -2,7 +2,7 @@
 
 import StatusBadge from "@/components/common/StatusBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
-import { cn } from "@/lib/utils";
+import RoleBadge from "@/components/users-roles/RoleBadge";
 
 export default function UserCard({ item, onClick, actions }) {
   return (
@@ -30,18 +30,7 @@ export default function UserCard({ item, onClick, actions }) {
           <span className="font-space-grotesk font-semibold text-[10px] text-muted-foreground tracking-widest uppercase">
             Role
           </span>
-          <span
-            className={cn(
-              "font-montserrat font-medium text-[11px] px-2 py-0.5 rounded-md border w-fit whitespace-nowrap",
-              item?.role === "ADMIN" || item?.role === "SUPER_ADMIN"
-                ? "bg-[#eef2ff] text-[#6366f1] border-[#c7d2fe]/60"
-                : item?.role === "ASSISTANT"
-                ? "bg-[#dcfce7] text-[#16a34a] border-[#bbf7d0]/60"
-                : "bg-[#e0f2fe] text-[#0284c7] border-[#bae6fd]/60"
-            )}
-          >
-            {item?.roleLabel}
-          </span>
+          <RoleBadge role={item?.role} />
         </div>
         <div className="flex flex-col gap-1">
           <span className="font-space-grotesk font-semibold text-[10px] text-muted-foreground tracking-widest uppercase">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, RotateCcw, X } from "lucide-react";
+import { AlertCircle, Trash2, RotateCcw, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/button";
  *
  * @param items `[{ id, primary, secondary? }]` — what to list.
  * @param action `"remove" | "restore"`
+ * @param error optional — a refusal to show inside the dialog, beside the
+ *   rows it is about, rather than in a toast behind it. Absent, nothing shows.
  */
 export default function BulkDeleteDialog({
   open,
@@ -37,6 +39,7 @@ export default function BulkDeleteDialog({
   isPending = false,
   note,
   action = "remove",
+  error,
 }) {
   const count = items.length;
   const noun = count === 1 ? itemLabel.replace(/s$/, "") : itemLabel;
@@ -90,6 +93,13 @@ export default function BulkDeleteDialog({
             </li>
           ))}
         </ul>
+
+        {error && (
+          <div className="flex gap-2 items-start rounded-sm border border-destructive/30 bg-destructive/10 p-3 w-full">
+            <AlertCircle className="size-4 shrink-0 mt-0.5 text-destructive" />
+            <p className="font-montserrat text-[12px] text-destructive leading-relaxed">{error}</p>
+          </div>
+        )}
 
         <div className="flex items-center justify-end gap-3 w-full">
           <Button

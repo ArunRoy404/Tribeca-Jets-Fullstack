@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, UserCheck, UserX } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, UserCheck, UserMinus, UserX } from "lucide-react";
 import { useUsersRolesStore } from "@/store/useUsersRolesStore";
 import { SheetTitle } from "@/components/ui/sheet";
 import DetailSheet from "@/components/common/DetailSheet";
@@ -13,8 +14,11 @@ import SectionCard from "@/components/common/SectionCard";
 import TableStatus from "@/components/table/common/TableStatus";
 import { useUpdateUser, useUser } from "@/hooks/users";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { useCurrentUser } from "@/hooks/auth";
+import { Action, Module, grantsFromPermissions } from "@/lib/access";
 import UserDocumentsTab from "@/components/users-roles/tabs/UserDocumentsTab";
+import PermissionPicker from "@/components/users-roles/PermissionPicker";
+import WithdrawInvitationDialog from "@/components/users-roles/WithdrawInvitationDialog";
 import { formatLastLogin, isPendingInvite, toTeamMember } from "@/lib/user";
 import { formatStructure } from "@/lib/commission";
 import { isPartnerRole } from "@/lib/roles";
@@ -30,24 +34,27 @@ function actorName(actor) {
 }
 
 /**
- * Two tabs, and the second is client adjustment #7 — a folder per broker for
- * tax forms. Details stays first because it is what the sheet was opened for.
+ * Details first, because it is what the sheet was opened for; Permissions is
+ * this person's own set (7 Oct 2026), read-only — changing it is Edit; and
+ * Documents is client adjustment #7, a folder per broker for tax forms.
  */
 const TABS = [
   { id: "details", label: "Details" },
+  { id: "permissions", label: "Permissions" },
   { id: "documents", label: "Documents" },
 ];
 
 export default function UserDetailSheet() {
   const selectedId = useUsersRolesStore((s) => s.selectedUserId);
   const close = useUsersRolesStore((s) => s.closeUserDetail);
-  const openEditUserModal = useUsersRolesStore((s) => s.openEditUserModal);
+  const router = useRouter();
 
   // Fetched rather than read from the table's page, so the sheet shows the
   // full record — invited-by, client counts — that the list projection omits.
   const { data, isPending, error, refetch } = useUser(selectedId);
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser();
-  const { canWrite } = usePermissions();
+  const { canAccess } = usePermissions();
+  const { data: me } = useCurrentUser();
 
   // Local and disposable: which tab is showing inside a sheet is not something
   // another component reads, and it is not worth a URL param on an overlay.
@@ -68,10 +75,17 @@ export default function UserDetailSheet() {
 
   const item = data ? toTeamMember(data) : null;
   const isSuspended = item?.rawStatus === "SUSPENDED";
+  const isSelf = item?.id === me?.id;
+  // The owner's account is editable only by the owner, as on the API.
+  const mayEdit =
+    canAccess(Module.USERS, Action.EDIT) && (item?.role !== "SUPER_ADMIN" || me?.role === "SUPER_ADMIN");
 
   // A pending invitation has no status anyone may set — it activates itself
-  // when the invitee sets a password. Withdrawing it is Remove, not Suspend.
+  // on the invitee's first sign-in.
   const isInvited = isPendingInvite(item?.rawStatus);
+  // Withdrawing is the inviter's right, the same one the API checks.
+  const mayWithdraw = isInvited && canAccess(Module.USERS, Action.CREATE);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const toggleAccess = () => {
     if (!item?.id) return;
@@ -111,8 +125,8 @@ export default function UserDetailSheet() {
               </p>
               {isInvited && (
                 <p className="font-montserrat font-normal text-[12px] text-muted-foreground">
-                  Invitation pending — the account activates when they set
-                  their password.
+                  Invitation pending — the account activates on their first
+                  sign-in.
                 </p>
               )}
             </div>
@@ -124,8 +138,12 @@ export default function UserDetailSheet() {
             <UserDocumentsTab
               userId={item.id}
               userName={item.name}
-              canManage={canWrite(Permission.MANAGE_USERS)}
+              canManage={canAccess(Module.USERS, Action.EDIT)}
             />
+          ) : tab === "permissions" ? (
+            <SectionCard>
+              <PermissionPicker role={item.role} value={grantsFromPermissions(item.permissions)} readOnly />
+            </SectionCard>
           ) : (
           <SectionCard>
             <div className="flex gap-4 w-full">
@@ -201,39 +219,57 @@ export default function UserDetailSheet() {
           </SectionCard>
           )}
 
-          <div className="border-t border-secondary flex items-center justify-between gap-3 pt-4 w-full mt-auto flex-wrap">
-            <Button
-              variant="outline"
-              className="gap-2 px-4"
-              onClick={() => {
-                close();
-                openEditUserModal(item);
-              }}
-            >
-              <Pencil className="size-4" />
-              Edit
-            </Button>
-
-            <div className="flex items-center gap-2">
-              {/* One control, both directions: a suspended account needs a
-                  way back, and a separate "Reactivate" button that is
-                  disabled most of the time reads worse than a toggle.
-                  Absent entirely while the invitation is pending. */}
-              {!isInvited && (
+          {(mayEdit || mayWithdraw) && (
+            <div className="border-t border-secondary flex items-center justify-between gap-3 pt-4 w-full mt-auto flex-wrap">
+              {mayEdit ? (
                 <Button
                   variant="outline"
                   className="gap-2 px-4"
-                  onClick={toggleAccess}
-                  disabled={isUpdating}
+                  onClick={() => {
+                    close();
+                    router.push(`/dashboard/users-roles/${item.id}/edit`);
+                  }}
                 >
-                  {isSuspended ? <UserCheck className="size-4" /> : <UserX className="size-4" />}
-                  {isSuspended ? "Reactivate" : "Suspend"}
+                  <Pencil className="size-4" />
+                  Edit
                 </Button>
+              ) : (
+                <span />
               )}
+
+              <div className="flex items-center gap-2">
+                {/* One control, both directions: a suspended account needs a
+                    way back, and a separate "Reactivate" button that is
+                    disabled most of the time reads worse than a toggle.
+                    Absent while the invitation is pending, and on your own
+                    account, which the API refuses to deactivate. */}
+                {mayWithdraw && (
+                  <Button
+                    variant="outline"
+                    className="gap-2 px-4 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={() => setWithdrawing(true)}
+                  >
+                    <UserMinus className="size-4" />
+                    Withdraw Invitation
+                  </Button>
+                )}
+                {mayEdit && !isInvited && !isSelf && (
+                  <Button
+                    variant="outline"
+                    className="gap-2 px-4"
+                    onClick={toggleAccess}
+                    disabled={isUpdating}
+                  >
+                    {isSuspended ? <UserCheck className="size-4" /> : <UserX className="size-4" />}
+                    {isSuspended ? "Reactivate" : "Suspend"}
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
+      <WithdrawInvitationDialog user={withdrawing ? item : null} onClose={() => setWithdrawing(false)} />
     </DetailSheet>
   );
 }

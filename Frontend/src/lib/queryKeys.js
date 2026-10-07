@@ -254,6 +254,7 @@ export const queryKeys = {
      * the backend's rules do.
      */
     roles: ["users", "roles"],
+    roleDefaults: (role) => ["users", "roles", "defaults", role],
   },
 
   clients: {

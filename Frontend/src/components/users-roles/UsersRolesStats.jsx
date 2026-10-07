@@ -22,7 +22,7 @@ export default function UsersRolesStats() {
       { label: "INVITED", value: isPending ? "—" : String(data?.invited ?? 0), tone: "warning" },
       { label: "SUSPENDED", value: isPending ? "—" : String(data?.suspended ?? 0), tone: "destructive" },
       { label: "ADMINS", value: isPending ? "—" : String(data?.admins ?? 0), tone: "purple" },
-      { label: "BROKERS", value: isPending ? "—" : String((data?.brokers ?? 0) + (data?.seniorBrokers ?? 0)), tone: "foreground" },
+      { label: "BROKERS", value: isPending ? "—" : String(data?.brokers ?? 0), tone: "foreground" },
     ],
     [data, isPending],
   );

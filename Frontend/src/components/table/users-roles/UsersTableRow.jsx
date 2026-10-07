@@ -3,7 +3,7 @@
 import StatusBadge from "@/components/common/StatusBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import RoleBadge from "@/components/users-roles/RoleBadge";
 
 export default function UsersTableRow({ item, getRowActions, onSelectUser }) {
   return (
@@ -19,18 +19,7 @@ export default function UsersTableRow({ item, getRowActions, onSelectUser }) {
         {item?.email}
       </TableCell>
       <TableCell className="p-[12px]">
-        <span
-          className={cn(
-            "font-montserrat font-medium text-[11px] px-2 py-0.5 rounded-md border whitespace-nowrap",
-            item?.role === "ADMIN" || item?.role === "SUPER_ADMIN"
-              ? "bg-[#eef2ff] text-[#6366f1] border-[#c7d2fe]/60"
-              : item?.role === "ASSISTANT"
-              ? "bg-[#dcfce7] text-[#16a34a] border-[#bbf7d0]/60"
-              : "bg-[#e0f2fe] text-[#0284c7] border-[#bae6fd]/60"
-          )}
-        >
-          {item?.roleLabel}
-        </span>
+        <RoleBadge role={item?.role} />
       </TableCell>
       <TableCell className="p-[12px] font-montserrat font-medium text-[11px] text-foreground">
         {item?.permissionLevel}

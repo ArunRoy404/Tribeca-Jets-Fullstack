@@ -12,20 +12,12 @@ import { create } from "zustand";
  * - Table state lives in the URL (`useUsersTableParams`), so a link reproduces
  *   the exact view and back/forward work.
  *
- * What remains is what neither of those should own: which dialog is open and
- * which row the detail sheet is showing.
+ * What remains is what neither of those should own: which row the detail
+ * sheet is showing. Invite and Edit are their own pages (7 Oct 2026).
  */
 export const useUsersRolesStore = create((set) => ({
   selectedUserId: null,
 
-  inviteModalOpen: false,
-  /** The user being edited, or null when inviting someone new. */
-  editingUser: null,
-
   selectUser: (id) => set({ selectedUserId: id }),
   closeUserDetail: () => set({ selectedUserId: null }),
-
-  openInviteModal: () => set({ inviteModalOpen: true, editingUser: null }),
-  openEditUserModal: (user) => set({ inviteModalOpen: true, editingUser: user }),
-  closeInviteModal: () => set({ inviteModalOpen: false, editingUser: null }),
 }));

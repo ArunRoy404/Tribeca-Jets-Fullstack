@@ -24,17 +24,23 @@ export const usersService = {
   stats: () => request({ url: "/users/stats", method: "GET" }),
 
   /**
-   * GET /users/roles
+   * GET /roles
    *
-   * Roles, their live headcounts and the permission matrix, generated from the
-   * server-side rules rather than duplicated in the frontend.
+   * Every role with its headcount and, per module, its reach and each action
+   * as default, optional or locked — generated from the server's rules.
    */
-  roles: () => request({ url: "/users/roles", method: "GET" }),
+  roles: () => request({ url: "/roles", method: "GET" }),
+
+  /** GET /roles/:role/defaults — what the invite and edit forms load for a role. */
+  roleDefaults: (role) => request({ url: `/roles/${role}/defaults`, method: "GET" }),
 
   /** GET /users/:id */
   detail: (id) => request({ url: `/users/${id}`, method: "GET" }),
 
-  /** POST /users/invite → { user, invitation: { emailSent, notice } } */
+  /**
+   * POST /users/invite → { user, invitation: { emailSent, notice } }.
+   * `permissions` is `{ MODULE: [ACTION, …] }`; omit it for the role's defaults.
+   */
   invite: (payload) =>
     request({ url: "/users/invite", method: "POST", data: payload }),
 
@@ -42,6 +48,10 @@ export const usersService = {
   update: ({ id, ...payload }) =>
     request({ url: `/users/${id}`, method: "PATCH", data: payload }),
 
-  // No remove or restore: a staff account is never deleted. Suspending is the
-  // way out, and that goes through `update`.
+  /**
+   * DELETE /users/:id/invitation — permanently deletes an invitation nobody
+   * accepted. Any other account is never deleted: suspending is the way out,
+   * through `update`.
+   */
+  withdrawInvitation: (id) => request({ url: `/users/${id}/invitation`, method: "DELETE" }),
 };
