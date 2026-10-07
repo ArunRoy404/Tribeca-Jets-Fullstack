@@ -1692,11 +1692,20 @@ requirements:
 - **Warn before acting.** Signing out silently loses whatever was on screen.
 
 **And the server has to refuse the refresh**, or the whole thing is a UI
-convention that anyone can switch off in a browser. The signal is the age of
-the refresh-token row: a rotation only happens once the access token has
-expired, so a session in continuous use presents a row at most one access-token
-lifetime old, while an abandoned one keeps ageing. Approximate, and always in
-the user's favour.
+convention that anyone can switch off in a browser. The signal is the
+session's **`lastActiveAt`**, moved only by real activity: the browser sends
+`POST /auth/activity` on real input — at most every two minutes, claimed
+through a shared `localStorage` stamp so one tab pings for all — and at once
+on "Stay signed in". The limit is the idle timeout plus five minutes of slack
+for that throttle; a renewal copies `lastActiveAt` forward, because renewing
+a token is not a person doing anything.
+
+It used to be the refresh token's *age*, which only resets when a request
+happens to find the access token expired. Someone reading, or typing a long
+form without saving, kept the browser's timer alive ("Stay signed in" reset
+only the browser) while the server's clock ran out, and the next reload
+landed on sign-in (fixed 7 Oct 2026). **Any new "I'm still here" path must
+reach the server.**
 
 **The limit ships from `/auth/me`, never from the frontend's own env** — the
 same reason the permission matrix does. Two copies of one number drift, and
@@ -1712,6 +1721,11 @@ ends what is fixed (6 Oct 2026):
   revoked from the sessions list. **An idle refusal revokes only the row it
   refused.** It used to revoke every session the user had, so a phone left
   on a desk signed the owner out of the laptop they were working on.
+- **Two tabs renewing at once is not theft.** They share one cookie jar, so
+  the second arrives with the token the first just replaced. A token rotated
+  within the last 30 seconds whose replacement is still live is answered
+  with the session and no new cookies (`ROTATION_GRACE_MS`); outside that
+  window a replay still ends every session.
 - **Every device:** a reused refresh token (theft), a password reset, an
   administrator suspending the account (the per-request user check), and a
   signed-in password change — which keeps the device that made it.

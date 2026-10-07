@@ -98,6 +98,36 @@ def main() -> None:
     status, answer = Session('broker@example.com').request('POST', '/auth/refresh', {})
     replace(refresh, '200 · Rotated', example('200 · Rotated', 'POST', '/auth/refresh', status, answer, {}))
 
+    # --- the activity ping (7 Oct 2026) -----------------------------------------
+    active = Session('broker@example.com')
+    status, answer = active.request('POST', '/auth/activity', {})
+    ok = example('200 · Activity recorded', 'POST', '/auth/activity', status, answer, {})
+    status, answer = Session(None).request('POST', '/auth/activity', {})
+    gone = example('401 · No live session', 'POST', '/auth/activity', status, answer, {})
+    activity = {
+        'name': '03 · Record activity',
+        'event': [{'listen': 'test', 'script': {'type': 'text/javascript', 'exec': [
+            "pm.test('activity recorded', () => pm.response.to.have.status(200));",
+        ]}}],
+        'request': {
+            'method': 'POST',
+            'header': [{'key': 'Content-Type', 'value': 'application/json'},
+                       {'key': 'X-CSRF-Token', 'value': '{{csrfToken}}'}],
+            'url': {'raw': '{{baseUrl}}/auth/activity', 'host': ['{{baseUrl}}'], 'path': ['auth', 'activity']},
+            'body': {'mode': 'raw', 'raw': '{}'},
+            'description': (
+                "The browser's activity ping: a person clicked or typed on this device. Moves the session's "
+                "last-active time to now — the server's idle limit (the idle timeout plus five minutes) is "
+                "measured from it, not from when a token was last renewed. The app sends it at most every "
+                "two minutes across all tabs, and at once on \"Stay signed in\".\n\n"
+                "Named by the refresh cookie, so it works with an expired access token. 401 when the "
+                "session is gone, expired or already idle past the limit. No body."
+            ),
+        },
+        'response': [ok, gone],
+    }
+    sessions['item'] = [r for r in sessions['item'] if r['name'] != '03 · Record activity'] + [activity]
+
     # --- the cookie tables name the routing cookie -----------------------------
     def add_cookie_row(node):
         for item in node.get('item', []):

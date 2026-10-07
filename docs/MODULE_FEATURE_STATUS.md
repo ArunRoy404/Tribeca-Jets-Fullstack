@@ -69,6 +69,14 @@ Legend: ✅ done · ◐ partly done · ⬅ next · ⬜ not started
   (`/auth/sessions`). The same list and password dialog sit in Settings ›
   Security. Postman: `01 · Auth › 05 · My Account`, run as the assistant and
   self-restoring.
+- **Fixed 7 Oct 2026: signed out on reload after "Stay signed in".** The
+  server measured idleness by the refresh token's age, which real activity
+  never moved. Sessions now carry `lastActiveAt`, moved by `POST
+  /auth/activity` (sent on real input, at most every two minutes across
+  tabs, and at once on "Stay signed in"); the server's limit is the idle
+  timeout plus five minutes. Two tabs renewing at once within 30 seconds is
+  no longer mistaken for theft. The devices list shows last activity.
+  Postman: `01 · Auth › 03 · Session › 03 · Record activity`.
 
 **Waiting on a dependency**
 
