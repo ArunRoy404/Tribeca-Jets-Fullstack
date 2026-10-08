@@ -17,7 +17,13 @@ live, and one place to look for it.
 It is in three parts: what applies **everywhere**, then **backend**, then
 **frontend**. Read part one whatever you are touching.
 
-Alongside it, in `docs/`:
+Alongside it: `HANDOFF.md` at the root (where the project is, what is next,
+the session log — read it first), and in `docs/`:
+
+- `REVIEW_PLAYBOOK.md` — the module-review procedure, the shared components a
+  reviewed module must use, how the owner works, and the local environment.
+  For every AI tool; `GEMINI.md`, `.agent/` and `.claude/commands/` point to
+  it and to this file.
 
 - `Tribeca_Jets_Command_Center_Team_Scope.docx` — the signed scope. The
   baseline, and not always right: §13 specifies MongoDB for a database that is

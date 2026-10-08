@@ -4,7 +4,12 @@
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
-Three parts: **where we are**, **get it running**, **the prompt to paste**.
+New machine or new AI tool? Start with [START_HERE.md](START_HERE.md).
+
+Four parts: **where we are**, **get it running** (including on a new
+machine), **the prompt to paste**, and the **session log**. The procedure
+for a review, and how the owner likes to work, is in
+[docs/REVIEW_PLAYBOOK.md](docs/REVIEW_PLAYBOOK.md) — any AI tool reads it.
 
 ---
 
@@ -40,40 +45,43 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What changed in the last session (7 Oct)
+### What is next — Aircraft (#8)
 
-- **Role restrictions back on.** The 4–7 Oct "everyone is SUPER_ADMIN" switch
-  is `true` again on both sides; unreviewed modules follow the old role
-  matrix until their review moves them to per-person permissions. Identity
-  (`isAdministrator`, `isPartner`) never goes through the switch.
-- **Uploads review:** private files no longer leak, removal is narrower than
-  reading (403 vs 404), filenames cleaned, size limits in three places agreed,
-  partial S3/R2 config refuses to boot, filenames shown middle-truncated so
-  the extension stays visible, AVIF accepted as an image.
-- **Settings (#26) API built:** one `company_settings` row for the whole
-  company; `GET/PATCH /settings` (`SETTINGS · VIEW/EDIT`), audited; public
-  `GET /settings/branding` and `/settings/branding/logo`. Auth reads the idle
-  timeout, warning and "require 2FA for admins" from it (the
-  `AUTH_IDLE_TIMEOUT_MINUTES` env var is gone). Every email is branded from it.
-- **Branding everywhere:** `BrandLogo` in every sidebar (CRM and portal),
-  auth screens, splash, loader and 404; company name in tab titles, the
-  portal wording and the assistant; `TribecaLetterhead`'s contact block is
-  **all or nothing** (name, website, email, phone, address — or none).
-  The sign-in page's stats (240+, $18M, 96%) are kept as they are, by the
-  owner's decision.
-- **Hidden, by the owner's decision (logged in MODULE_FEATURE_STATUS):** the
-  Integrations tab, and the Import card on the Data tab. Export stays visible
-  but is not connected yet.
+What was found when the session ended (8 Oct), for the agent that starts it:
 
-### What is next
+- **Backend** (`modules/aircraft/aircraft.controller.ts`): still on the old
+  matrix — every GET has `@RequirePermissions(MANAGE_AIRCRAFT)`, writes have
+  `@RequireWritePermissions`. Move GETs to session-only and writes to
+  `@RequireAccess(Module.AIRCRAFT, CREATE/EDIT/ARCHIVE)`. Ask the owner
+  whether aircraft reads are desk data (`@StaffOnly`) — the referral portal
+  may not need them.
+- **Picked ids:** `assertHomeBase` is a private copy → replace with
+  `AirportsService.usable(id, 'home base')`. `assertOperator` refuses missing
+  and archived; **ask the owner** whether a *Suspended* operator may get a
+  new aircraft (recommendation: refuse — and this is the natural place to
+  create `OperatorsService.usable`, which Sourcing, Quotes, Trips and Empty
+  Legs will reuse).
+- **Form** (`components/aircraft/AddAircraftDialog.jsx`): loads operators and
+  airports as plain lists via `useOperators` / `useAirports` → switch to
+  `OperatorPicker` and `AirportPicker`. Check every select is `CommonSelect`
+  and photos/documents use `FileUpload`. `ChangeStatusDialog` too.
+- **Table/card:** "—" in every empty cell; `canAccess` gating (hide, not
+  disable); checkbox column only with a bulk action.
+- **Figma check:** keep/drop review of the aircraft fields with the owner,
+  as was done for Operators.
+- **Postman:** `build_aircraft_folder.py` → `builder_common`, teardown as its
+  own last request, run on `tribeca_postman`. It needs an operator and an
+  airport to exist in that copy (refresh the copy first).
+- **Data:** the owner's DB has one test operator ("test") and five airports
+  (KTEB, KOPF, KVNY, KHPN, EGGW); enough to add an aircraft.
 
-1. **Aircraft (#8)** — first consumer of `OperatorPicker` and
-   `AirportPicker` (home base). Operators (#7) was signed off 8 Oct
-   (MODULE_FEATURE_STATUS §4); migration `20261008120000_operator_choices`.
+After Aircraft: Clients (#9), Notes (#10), Client Credits (#11), Leads &
+Agents (#12)… in the Review order table.
 
 **Postman now runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
-Refresh the copy after a migration. Teardowns are their own last request.
+Refresh the copy after a migration (commands in REVIEW_PLAYBOOK §6).
+Teardowns are their own last request.
 
 **The owner's rule for every review from now on (8 Oct 2026):** every `GET`
 needs only a session, every write needs the person's own permission, reach
@@ -102,8 +110,17 @@ accounts (admin@, security@, broker@, assistant@, agent@ on example.com, and
 the owner's own Super Admin and Referral Agent accounts) and the owner's
 profile photo. Airports, operators, clients, trips, quotes, rates, audit log
 and every other upload are gone; the owner re-adds real data while testing.
-A backup was taken first (pg_dump + storage copy in that session's
-scratchpad, not in the repo).
+A backup was taken first. Since then the owner added five airports (KTEB,
+KOPF, KVNY, KHPN, EGGW), one test operator ("test", with a document) and
+some charter rates while testing.
+
+**Backups, outside the repo** (they hold password hashes — never commit them),
+in `~/Desktop/works/Tribeca-Jets-Handoff/` on the owner's Mac:
+- `db/tribeca_jets_2026-10-08_after_operators.dump` — the dev database as
+  it stood at Operators' sign-off. **Restore this on a new machine** (Part 2).
+- `storage_now/` — `Backend/storage/` at the same moment (the owner's
+  photo, the test operator's document). Copy it to `Backend/storage/`.
+- `backup_before_wipe/` — the database and storage before the 8 Oct wipe.
 
 - **Do not run `npm run db:seed`** — it would bring the demo data and the
   removed accounts back.
@@ -121,20 +138,31 @@ scratchpad, not in the repo).
   builders exist in `Backend/postman/`). Rebuild each with its module's review.
 - Frontend lint: one pre-existing error, `react-hooks/set-state-in-effect` in
   `TripRequestDialog.jsx` — Trip Requests (#13).
-- Turboprop has a $33/hour rate on file — looks like an old test value; ask the owner.
-- `RecordPicker` / `AirportPicker` (8 Oct): the shared searchable, paged picker. Only the estimate uses it so far; every other airport picker still loads the first 100 — switch each form on its module's review.
+- `RecordPicker` (8 Oct): the shared searchable, paged picker. Wrappers so
+  far: `AirportPicker` (used by the Instant Estimate) and `OperatorPicker`
+  (not used yet — Aircraft is first). Every other airport/operator picker
+  still loads the first 100 — switch each form on its module's review.
+- `OperatorsService.usable` (refuse a suspended or archived operator) does
+  not exist yet — create it on Aircraft, reuse it in Sourcing, Quotes,
+  Trips, Empty Legs.
 - Airport form upper-cases "State" (fine for NY, wrong for "Ontario") — offered, not decided.
 - An uploaded logo is shown on the dark sidebar and on light pages alike; a
   dark-only logo may lack contrast in the sidebar. A second "logo for dark
   backgrounds" field was offered, not built.
-- `Frontend/src/hooks/operators/README.md` describes the old role table
-  (`SENIOR_BROKER`) like the airports one — rewrite it in Operators' review.
 - Probe files (~70 MB) from upload testing sit in `Backend/storage/documents`
   (local disk only; safe to delete).
 
 ---
 
 ## Part 2 — Get it running
+
+### On a new machine, carrying the owner's data across
+
+Follow **[START_HERE.md](START_HERE.md)** — what to copy, restoring the dev
+database instead of seeding, the uploads folder, the Postman copy, and the
+start/end-of-session routine for Claude Code and Antigravity.
+
+### From scratch
 
 ```bash
 git checkout roy          # the working branch, NOT main
@@ -156,10 +184,11 @@ npm install
 npm run dev               # http://localhost:3000
 ```
 
-- **Seeded accounts** are all on `example.com` with password `ChangeMe123!`:
-  `admin@` (SUPER_ADMIN), `broker@`, `mark@`, `barry@`, `assistant@`,
-  `security@` (ADMIN, 2FA on), `reset-demo@`, and the referral agent
-  `agent@example.com`, who signs in to `/portal`.
+- **Accounts in the owner's (wiped) database**, all `ChangeMe123!`:
+  `admin@example.com` (SUPER_ADMIN), `security@` (ADMIN, 2FA on), `broker@`,
+  `assistant@`, `agent@` (referral agent, signs in to `/portal`), plus the
+  owner's own two. A freshly seeded database also has `mark@`, `barry@`,
+  `reset-demo@` and demo data.
 - **Storage:** `STORAGE_DRIVER=auto` with the three S3/R2 keys **empty** uses
   local disk (`Backend/storage/`). Never put production R2 keys in the local
   `.env`; a partial set refuses to boot.
@@ -175,12 +204,13 @@ npm run dev               # http://localhost:3000
 
 ```bash
 cd Backend
-npx tsc --noEmit && npm run lint && npm test      # 7 Oct baseline: 327 tests pass
+npx tsc --noEmit && npm run lint && npm test      # 8 Oct baseline: 343 tests pass
 cd ../Frontend && npx eslint src/<touched> && npm run build
 ```
 
 **Postman / Newman** — never against the dev API on 4000 (it sends mail):
 
+- Exact commands: REVIEW_PLAYBOOK §6.
 - Run a second API on **port 4100** with `MAIL_DRIVER=log` and
   `REDIS_URL=redis://localhost:6380/1` (its own Redis DB, so the dev API's
   mail worker never picks up a run's emails). `RATE_LIMIT_MULTIPLIER=20` in
@@ -189,9 +219,12 @@ cd ../Frontend && npx eslint src/<touched> && npm run build
   `cd postman && python rewrite_body_comments.py`.
 - Newman from `Backend/`:
   `npx newman run postman/Tribeca-Jets-API.postman_collection.json -e postman/Local.postman_environment.json --env-var baseUrl=http://localhost:4100/api`
-  — 7 Oct baseline: 205 requests, 0 failures. Run twice.
-- The two APIs **share one database**: a folder that changes settings or
-  business data restores it in its teardown. Never email a real person.
+  — run one reviewed folder with `--folder "06 · Operators"`; run it twice.
+  Since the wipe, folders of modules not yet reviewed fail for lack of data —
+  expected until their review.
+- The 4100 API uses its own database, `tribeca_postman`. A folder that
+  changes settings or business data still restores it in its teardown.
+  Never email a real person.
 
 ---
 
@@ -207,13 +240,15 @@ Paste this as the first message of a new session.
 >
 > Read, in this order, before doing anything:
 >
-> 1. `HANDOFF.md` — where we are and what is next.
+> 1. `HANDOFF.md` — where we are and what is next, and the session log.
 > 2. `AGENTS.md` — the whole rulebook, in full. Every rule in it was written
 >    after something broke.
-> 3. `docs/MODULES.md` — the **Review order** table is the tracker; §26 has
+> 3. `docs/REVIEW_PLAYBOOK.md` — how a module is reviewed, the shared
+>    components to use, how I work, and the local environment.
+> 4. `docs/MODULES.md` — the **Review order** table is the tracker; §26 has
 >    the map of which module reads which setting.
-> 4. `docs/MODULE_FEATURE_STATUS.md` — per module, what works and what is
->    waiting or hidden.
+> 5. `docs/MODULE_FEATURE_STATUS.md` — per module, what works and what is
+>    waiting or hidden (read the section of the module we are on).
 >
 > We are **reviewing modules one at a time**. For each one: tell me in a
 > short list what it does and what needs doing, wait for my decisions, then
@@ -227,5 +262,45 @@ Paste this as the first message of a new session.
 > never email a real person from Postman or the seed; no destructive database
 > reset without my consent; keep the docs current in the same pass as the code.
 >
-> Start by reading the four files, then tell me the current state and the
-> next step in a short list. Don't write code until I confirm.
+> Use the shared components (CommonSelect, RecordPicker wrappers,
+> FileUpload, CommonInput…) — I check. Every empty cell shows "—".
+> Before my usage or the session ends, update HANDOFF.md (tracker, what is
+> next, session log) so the next tool can pick up.
+>
+> Start with `git pull`, read the files, then tell me the current state and
+> the next step in a short list. Don't write code until I confirm.
+
+---
+
+## Part 4 — Session log
+
+Newest first. One entry per working session: what was decided and why, in
+the owner's words where it matters. Code and git history say *what* changed;
+this says *what the owner decided*, which nothing else records.
+
+### 8 Oct 2026 — Settings, Airports, Charter Rates, Operators signed off (Claude Code)
+
+- **Open reads (owner's rule):** every GET needs only a session — pickers in
+  other modules need the lists — and only company branding is public. Writes
+  need the person's own permission. A broker with limited reach sees
+  filtered results, pickers included, and the server re-checks every picked
+  id. Exceptions are decided per module: Charter Rates reads need Quotes ·
+  View money and only administrators set rates; Operators are `@StaffOnly`.
+- **FBO details** stay optional, Airports-only.
+- **Database wiped** for clean testing (owner's consent); one account per
+  role kept plus the owner's two; the owner re-enters real data.
+- **Instant Estimate:** skeleton keeps the dialog height steady; From/To use
+  the new `RecordPicker` — search always visible, 10 a page by default
+  (10/25/50/100), page numbers, server-side, the module's hooks passed as
+  props so every form can reuse it.
+- **Operators:** Suspended status added (red badge, "do not book", no
+  Request Quote). Safety is a **0–5 number, as in Figma** (owner overrode the
+  audit-list idea). Response speed Fast/Average/Slow; payment terms
+  Prepaid/Due on receipt/Net 7/15/30 — kept although Figma lacks it.
+  No certificate number or insurance-expiry fields (vault documents cover
+  them). Documents can be dropped into the Add/Edit form (shared
+  `FileUpload`), all filed as one chosen type. All selects use `CommonSelect`.
+  Empty cells "—".
+- **Postman** runs on its own database copy; teardowns are their own last
+  request.
+- Commits up to `b26e996`, pushed to `origin/roy`.
