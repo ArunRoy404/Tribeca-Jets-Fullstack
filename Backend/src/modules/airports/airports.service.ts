@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -149,6 +150,36 @@ export class AirportsService {
     // screen to show it on, so it is not counted.
     const trips = !user || isPartner(user.role) ? null : await this.trips.countThroughAirport(id);
     return { ...this.serialise(row as AirportRow), trips };
+  }
+
+  /**
+   * An airport another module is about to use — picked in a form, sent in a
+   * body. Live, or a 400 naming the field: "does not exist" for an id that
+   * matches nothing, "archived" for one that was removed, because the fix
+   * for each is different (AGENTS.md, "say archived when it is archived").
+   *
+   * The server's half of "a write re-checks what was picked": the picker
+   * offers only live airports, but nothing stops a stale form or a direct
+   * call from sending an archived one.
+   */
+  async usable(id: string, label: string) {
+    const row = await this.prisma.airport.findFirst({
+      where: { id },
+      select: { id: true, icao: true, name: true, latitude: true, longitude: true, deletedAt: true },
+    });
+    if (!row) throw new BadRequestException(`That ${label} airport does not exist`);
+    if (row.deletedAt) {
+      throw new BadRequestException(
+        `${row.icao} has been archived. Restore it on the Airports screen, or pick another ${label} airport.`,
+      );
+    }
+    return {
+      id: row.id,
+      icao: row.icao,
+      name: row.name,
+      latitude: row.latitude === null ? null : Number(row.latitude),
+      longitude: row.longitude === null ? null : Number(row.longitude),
+    };
   }
 
   /** The four tiles above the airports table. */
