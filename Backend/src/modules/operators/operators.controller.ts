@@ -13,11 +13,8 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { OperatorsService } from './operators.service.js';
@@ -28,17 +25,22 @@ import {
 } from './dto/operator.dto.js';
 
 /**
- * Assistants hold MANAGE_OPERATORS at READ scope, so the GETs below are open
- * to them and every write is not — which is what `@RequireWritePermissions`
- * enforces and `@RequirePermissions` would not.
+ * **Reads need only a staff session; every write needs the caller's own
+ * Operators permission** (AGENTS.md, "Reads are open to every signed-in
+ * user") — aircraft, sourcing, quotes, trips, empty legs and payments all
+ * pick an operator.
+ *
+ * `@StaffOnly`: a referral agent never picks an operator, and an operator's
+ * contacts, terms and payment totals are desk data, so the partner is
+ * refused as before.
  */
 @ApiTags('Operators')
+@StaffOnly()
 @Controller('operators')
 export class OperatorsController {
   constructor(private readonly operators: OperatorsService) {}
 
   @Get()
-  @RequirePermissions(Permission.MANAGE_OPERATORS)
   @ApiOperation({
     summary: 'List charter operators',
     description:
@@ -50,14 +52,12 @@ export class OperatorsController {
 
   /** Before `:id` — Nest matches in order and would otherwise read it as an id. */
   @Get('stats')
-  @RequirePermissions(Permission.MANAGE_OPERATORS)
   @ApiOperation({ summary: 'Counts for the tiles above the operators table' })
   stats() {
     return this.operators.stats();
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.MANAGE_OPERATORS)
   @ApiOperation({
     summary: 'Get one operator',
     description:
@@ -68,7 +68,7 @@ export class OperatorsController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_OPERATORS)
+  @RequireAccess(Module.OPERATORS, Action.CREATE)
   @ApiOperation({ summary: 'Add an operator' })
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -78,7 +78,7 @@ export class OperatorsController {
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_OPERATORS)
+  @RequireAccess(Module.OPERATORS, Action.EDIT)
   @ApiOperation({ summary: 'Update an operator' })
   update(
     @CurrentUser() user: AuthenticatedUser,
@@ -98,7 +98,7 @@ export class OperatorsController {
    * would turn "remove these three" into "remove nothing" with a 200.
    */
   @Post('bulk-delete')
-  @RequireWritePermissions(Permission.MANAGE_OPERATORS)
+  @RequireAccess(Module.OPERATORS, Action.ARCHIVE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Remove several operators at once (soft)',
@@ -116,7 +116,7 @@ export class OperatorsController {
    * Also declared before `:id`, and POST for the same reason as bulk-delete.
    */
   @Post('bulk-restore')
-  @RequireWritePermissions(Permission.MANAGE_OPERATORS)
+  @RequireAccess(Module.OPERATORS, Action.ARCHIVE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Restore several archived operators at once',
@@ -137,11 +137,11 @@ export class OperatorsController {
    */
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_OPERATORS)
+  @RequireAccess(Module.OPERATORS, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Restore an archived operator',
     description:
-      'Clears the deletion stamp and nothing else, so every field comes back untouched. Requires the same write permission as removing it. A row that is not archived returns 404.',
+      'Clears the deletion stamp and nothing else, so every field comes back untouched. Requires Operators · Archive, the same as removing it. A row that is not archived returns 404.',
   })
   restore(
     @CurrentUser() user: AuthenticatedUser,
@@ -151,7 +151,7 @@ export class OperatorsController {
   }
 
   @Delete(':id')
-  @RequireWritePermissions(Permission.MANAGE_OPERATORS)
+  @RequireAccess(Module.OPERATORS, Action.ARCHIVE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Remove an operator (soft)',

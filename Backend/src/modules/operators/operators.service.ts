@@ -243,21 +243,22 @@ export class OperatorsService {
   async stats() {
     const where: Prisma.OperatorWhereInput = { deletedAt: null };
 
-    const [total, active, preferred] = await this.prisma.$transaction([
+    // One grouped count rather than "total minus the others": with a fourth
+    // status, the remainder would have counted suspended operators as
+    // inactive.
+    const [total, byStatus] = await Promise.all([
       this.prisma.operator.count({ where }),
-      this.prisma.operator.count({
-        where: { ...where, status: OperatorStatus.ACTIVE },
-      }),
-      this.prisma.operator.count({
-        where: { ...where, status: OperatorStatus.PREFERRED },
-      }),
+      this.prisma.operator.groupBy({ by: ['status'], where, _count: { _all: true } }),
     ]);
+    const count = (status: OperatorStatus) =>
+      byStatus.find((row) => row.status === status)?._count._all ?? 0;
 
     return {
       total,
-      active,
-      preferred,
-      inactive: total - active - preferred,
+      active: count(OperatorStatus.ACTIVE),
+      preferred: count(OperatorStatus.PREFERRED),
+      inactive: count(OperatorStatus.INACTIVE),
+      suspended: count(OperatorStatus.SUSPENDED),
       // "Total Fleet" counts airframes across every operator. A real number
       // now that Aircraft has shipped; it was null while the table did not
       // exist, which is the honest stand-in this project uses for an aggregate
