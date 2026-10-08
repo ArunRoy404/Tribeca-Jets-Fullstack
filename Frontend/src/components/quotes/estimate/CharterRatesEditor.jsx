@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCharterRates, useSetCharterRate } from "@/hooks/charter-rates";
-import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission, Scope } from "@/lib/permissions";
+import { useCurrentUser } from "@/hooks/auth";
+import { isAdministratorRole } from "@/lib/roles";
 import { formatAircraftCategory } from "@/lib/aircraft";
 import { formatMoney } from "@/lib/money";
 import { optionalNumber } from "@/lib/form";
@@ -17,15 +17,16 @@ const INPUT_CLASS =
  * The desk's rates per aircraft category — the data behind the instant
  * estimate. Every category is listed, priced or not.
  *
- * Editing is for a caller with company-wide financial scope (administrators,
- * senior brokers); everyone else who can see financials sees the table
- * read-only. The inputs are hidden rather than disabled for them, per the
- * project rule, and the API refuses the write regardless.
+ * Editing is for an administrator (owner's decision, 8 Oct 2026): every
+ * estimate is built on these company-wide numbers. Everyone else who can see
+ * quote money sees the table read-only. The inputs are hidden rather than
+ * disabled for them, per the project rule, and the API refuses the write
+ * regardless.
  */
 export default function CharterRatesEditor({ enabled = true }) {
   const { data, isLoading } = useCharterRates({ enabled });
-  const { scopeFor } = usePermissions();
-  const mayEdit = scopeFor(Permission.VIEW_FINANCIALS) === Scope.ALL;
+  const { data: me } = useCurrentUser();
+  const mayEdit = isAdministratorRole(me?.role);
   const rates = data?.data ?? [];
 
   if (isLoading) {
@@ -41,7 +42,7 @@ export default function CharterRatesEditor({ enabled = true }) {
       <p className="font-montserrat text-[12px] text-muted-foreground">
         {mayEdit
           ? "What the desk pays per flight hour, by aircraft size. Leave a field blank to clear it; a category with no hourly rate or speed cannot be estimated."
-          : "The desk's rates per flight hour. An administrator or senior broker sets them."}
+          : "The desk's rates per flight hour. An administrator sets them."}
       </p>
       <div className="flex flex-col gap-2">
         {rates.map((rate) =>

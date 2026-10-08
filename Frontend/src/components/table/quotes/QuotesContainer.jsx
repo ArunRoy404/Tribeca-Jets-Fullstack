@@ -37,6 +37,7 @@ import {
 } from "@/hooks/quotes";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toQuoteRow } from "@/lib/quote";
 import { ARCHIVE_TABS } from "@/lib/archive";
 
@@ -60,12 +61,13 @@ export default function QuotesContainer({ revealDelay = 0 }) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  const { canWrite } = usePermissions();
+  const { canWrite, canAccess } = usePermissions();
   const mayWrite = canWrite(Permission.MANAGE_TRIPS);
   const mayArchive = canWrite(Permission.DELETE_TRIPS);
   // The estimate is an operator cost — margin information — so it goes with
-  // VIEW_FINANCIALS, exactly as the API gates it.
-  const mayEstimate = canWrite(Permission.VIEW_FINANCIALS);
+  // Quotes · View money, exactly as the API gates it (Charter Rates review,
+  // 8 Oct 2026). The rest of this screen moves over in Quotes' own review.
+  const mayEstimate = canAccess(Module.QUOTES, Action.VIEW_MONEY);
 
   const [selected, setSelected] = useState(() => new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -298,7 +300,7 @@ export default function QuotesContainer({ revealDelay = 0 }) {
         />
 
         <AddQuoteDialog />
-        {mayEstimate && <InstantEstimateDialog />}
+        {mayEstimate && <InstantEstimateDialog mayStartQuote={mayWrite} />}
         <DeleteQuoteDialog />
       </CommonCard>
     </Reveal>

@@ -20,6 +20,16 @@ export function isPartnerRole(role) {
   return role === REFERRAL_AGENT;
 }
 
+/**
+ * SUPER_ADMIN or ADMIN by stored role — the API's `isAdministrator`, for the
+ * few rules the owner tied to who someone *is* rather than a permission
+ * (changing the company's charter rates). It only decides what to render;
+ * the API checks the same.
+ */
+export function isAdministratorRole(role) {
+  return role === "SUPER_ADMIN" || role === "ADMIN";
+}
+
 export const PORTAL_HOME = "/portal";
 export const CRM_HOME = "/dashboard";
 
