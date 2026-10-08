@@ -1,5 +1,6 @@
 """
-Adds `05 · Airports` and `06 · Operators` to the collection.
+Adds `06 · Operators` to the collection. (`05 · Airports` moved to
+`build_airports_folder.py`, 8 Oct 2026.)
 
 Every example body here is a real response captured from a run against the
 seeded database (see the session's capture script) rather than hand-written —
@@ -631,9 +632,13 @@ import sys
 sys.path.insert(0, ".")
 from session_setup import with_session
 
-collection["item"] = [f for f in collection["item"] if f["name"] not in ("05 · Airports", "06 · Operators")]
-collection["item"].append(with_session(airports, "owner"))
+# `05 · Airports` is written by build_airports_folder.py since Airports'
+# review (8 Oct 2026); this builder writes only Operators until its own
+# review moves it onto builder_common the same way. The `airports` folder
+# above is kept only because the operators requests share its helpers.
+collection["item"] = [f for f in collection["item"] if f["name"] != "06 · Operators"]
 collection["item"].append(with_session(operators, "owner"))
+collection["item"].sort(key=lambda f: f["name"].split(" ", 1)[0])
 
 existing = {v["key"] for v in collection.get("variable", [])}
 for key, description in (
@@ -648,4 +653,4 @@ for key, description in (
         )
 
 COLLECTION.write_text(json.dumps(collection, indent=2, ensure_ascii=True) + "\n")
-print("added 05 · Airports (7 requests) and 06 · Operators (6 requests)")
+print("added 06 · Operators")

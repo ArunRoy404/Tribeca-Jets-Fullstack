@@ -244,6 +244,11 @@
       "key": "probeValidity",
       "value": "48",
       "type": "string"
+    },
+    {
+      "key": "newAirportIcao",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -6544,7 +6549,7 @@
     },
     {
       "name": "05 \u00b7 Airports",
-      "description": "Airports are **shared reference data**: every signed-in caller sees the same rows, because unlike a client, nobody owns an airport. There is no row-level scoping here \u2014 only whether you may edit the master list.\n\n### Who may write\n\n| Role | Read | Create / Edit / Remove |\n|---|---|---|\n| SUPER_ADMIN, ADMIN | \u2713 | \u2713 |\n| BROKER, ASSISTANT | \u2713 | 403 |\n\nBrokers and assistants hold `MANAGE_AIRPORTS` at **READ** scope. They must be able to read the table \u2014 a broker cannot build a trip without picking an airport \u2014 but an airport is an objective fact about the world, not desk opinion, and a wrong runway length silently makes a trip unbookable.\n\nThis folder runs as the seeded owner.",
+      "description": "Airports are **shared reference data**: the same rows for everyone, because nobody owns an airport.\n\n### Who may do what (since 8 Oct 2026)\n\n| | Needs |\n|---|---|\n| List, stats, countries, one airport | **A session only** \u2014 about eight forms pick an airport (clients, aircraft, trip requests, trips, quotes, empty legs, leads, the instant estimate, the referral portal) |\n| Add | `Airports \u00b7 Create` in the caller's own permissions |\n| Edit | `Airports \u00b7 Edit` |\n| Remove, restore, bulk remove / restore | `Airports \u00b7 Archive` |\n\nPermissions are per person (Users & Roles \u203a Permissions), not per role: a broker holds Airports \u00b7 View by default and may be given Add and Edit; Archive is for administrators. Opening the Airports *screen* is Airports \u00b7 View \u2014 a frontend gate, since the data itself is open to every signed-in user.\n\nThis folder runs as the seeded owner; the refusals were captured as the seeded broker.",
       "item": [
         {
           "name": "01 \u00b7 List airports",
@@ -6552,7 +6557,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/airports?page=1&limit=10&search=&sortOrder=desc&country=&sortBy=createdAt&archived=false",
+              "raw": "{{baseUrl}}/airports?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -6574,12 +6579,7 @@
                   "key": "search",
                   "value": "",
                   "disabled": true,
-                  "description": "Case-insensitive substring. Trimmed, max 200 chars."
-                },
-                {
-                  "key": "sortOrder",
-                  "value": "desc",
-                  "description": "Allowed (case-sensitive): asc | desc. Default desc \u2014 tables open newest-first."
+                  "description": "Case-insensitive substring across ICAO, IATA, name, city and country. Trimmed, max 200 chars."
                 },
                 {
                   "key": "country",
@@ -6590,17 +6590,22 @@
                 {
                   "key": "sortBy",
                   "value": "createdAt",
-                  "description": "Allowed (case-sensitive): createdAt | updatedAt | icao | iata | name | city | country | longestRunwayFt. Default createdAt, paired with sortOrder desc, so a newly added airport is the first row. A closed list \u2014 anything else returns 400 rather than reaching the database."
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | icao | iata | name | city | country | longestRunwayFt. Default createdAt, paired with sortOrder desc, so a newly added airport is the first row. Anything else \u2192 400."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Allowed (case-sensitive): asc | desc. Default desc \u2014 tables open newest-first."
                 },
                 {
                   "key": "archived",
                   "value": "false",
                   "disabled": true,
-                  "description": "Allowed (case-sensitive): true | false. Default false \u2014 only live rows. `true` returns ONLY archived ones, which is what the Archived tab reads. One endpoint serves both halves of the table; a separate /archived route would duplicate every filter and sort param and the two would drift."
+                  "description": "Allowed (case-sensitive): true | false. Default false \u2014 only live rows. `true` returns ONLY archived ones, which is what the Archived tab reads."
                 }
               ]
             },
-            "description": "Paginated list. Search covers **ICAO, IATA, name, city and country** in one term.\n\n`latitude` and `longitude` come back as JSON numbers, not the `{s,e,d}` shape a raw Prisma Decimal would serialise to.\n\nSee the Params tab for every filter, its default and its bounds."
+            "description": "Paginated list. **Any signed-in user** \u2014 the pickers read it. Search covers ICAO, IATA, name, city and country in one term. `latitude` and `longitude` are JSON numbers.\n\nSee the Params tab for every filter, its default and its bounds."
           },
           "response": [
             {
@@ -6609,7 +6614,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/airports",
+                  "raw": "{{baseUrl}}/airports?page=1&limit=3",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -6628,7 +6633,61 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e37fbbb6-9de9-4187-a3bd-2244cb1159a3\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"aaaa\",\n      \"city\": \"dddd\",\n      \"state\": \"SSSS\",\n      \"country\": \"USA\",\n      \"latitude\": 48.9694,\n      \"longitude\": 2.4414,\n      \"longestRunwayFt\": 9843,\n      \"assignedFbo\": \"Jetex Paris Le Bourget\",\n      \"notes\": \"Premier private aviation airport serving Paris.\",\n      \"createdAt\": \"2026-09-15T09:44:55.276Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T10:18:54.352Z\",\n      \"updatedById\": \"89ebbaa1-dbbe-4190-8fda-337fe16d0947\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"78be496a-f938-4a77-87a0-1bdd815ee80d\",\n      \"icao\": \"EGLL\",\n      \"iata\": \"LHR\",\n      \"name\": \"London Heathrow Airport\",\n      \"city\": \"London\",\n      \"state\": \"ENG\",\n      \"country\": \"United Kingdom\",\n      \"latitude\": 51.47,\n      \"longitude\": -0.4543,\n      \"longestRunwayFt\": 7011,\n      \"assignedFbo\": \"Jet Aviation Bedford\",\n      \"notes\": \"Slot controlled. 24/7 UK Border Force available.\",\n      \"createdAt\": \"2026-09-15T09:44:55.272Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:46:05.529Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"0fc4304d-2332-433d-b7d2-4d901bb8aab2\",\n      \"icao\": \"KJFK\",\n      \"iata\": \"JFK\",\n      \"name\": \"John F. Kennedy Intl\",\n      \"city\": \"New York\",\n      \"state\": \"NY\",\n      \"country\": \"USA\",\n      \"latitude\": 40.6413,\n      \"longitude\": -73.7781,\n      \"longestRunwayFt\": 14511,\n      \"assignedFbo\": \"Sheltair Aviation\",\n      \"notes\": \"Slot controlled during afternoon peak hours.\",\n      \"createdAt\": \"2026-09-15T09:44:55.267Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.267Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"5a24fd04-08fb-4838-a4ea-5a57df616628\",\n      \"icao\": \"KLAX\",\n      \"iata\": \"LAX\",\n      \"name\": \"Los Angeles International\",\n      \"city\": \"Los Angeles\",\n      \"state\": \"CA\",\n      \"country\": \"USA\",\n      \"latitude\": 33.9416,\n      \"longitude\": -118.4085,\n      \"longestRunwayFt\": 12091,\n      \"assignedFbo\": \"Atlantic Aviation\",\n      \"notes\": \"Major West Coast international gateway.\",\n      \"createdAt\": \"2026-09-15T09:44:55.263Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.263Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"1ab27851-bacb-4f60-84cb-c36b93ba5e8a\",\n      \"icao\": \"KASE\",\n      \"iata\": \"ASE\",\n      \"name\": \"Aspen/Pitkin County\",\n      \"city\": \"Aspen\",\n      \"state\": \"CO\",\n      \"country\": \"USA\",\n      \"latitude\": 39.2232,\n      \"longitude\": -106.8688,\n      \"longestRunwayFt\": 8006,\n      \"assignedFbo\": \"Atlantic Aviation\",\n      \"notes\": \"High altitude mountain airport with strict curfew.\",\n      \"createdAt\": \"2026-09-15T09:44:55.258Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.258Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"0eb0e928-8e7c-410e-b868-4b883d7273b5\",\n      \"icao\": \"KVNY\",\n      \"iata\": \"VNY\",\n      \"name\": \"Van Nuys Airport\",\n      \"city\": \"Los Angeles\",\n      \"state\": \"CA\",\n      \"country\": \"USA\",\n      \"latitude\": 34.2098,\n      \"longitude\": -118.4899,\n      \"longestRunwayFt\": 8001,\n      \"assignedFbo\": \"Castle & Cooke Aviation\",\n      \"notes\": \"World's busiest dedicated general aviation airport.\",\n      \"createdAt\": \"2026-09-15T09:44:55.253Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.253Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"756b0f77-adf9-4a73-a011-d58e0d5b98f6\",\n      \"icao\": \"KLAS\",\n      \"iata\": \"LAS\",\n      \"name\": \"Harry Reid International\",\n      \"city\": \"Las Vegas\",\n      \"state\": \"NV\",\n      \"country\": \"USA\",\n      \"latitude\": 36.084,\n      \"longitude\": -115.1537,\n      \"longestRunwayFt\": 14515,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"High traffic during major conventions and events.\",\n      \"createdAt\": \"2026-09-15T09:44:55.249Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.249Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"57a99adb-d189-45e8-8400-6b652b7de03d\",\n      \"icao\": \"KMIA\",\n      \"iata\": \"MIA\",\n      \"name\": \"Miami International\",\n      \"city\": \"Miami\",\n      \"state\": \"FL\",\n      \"country\": \"USA\",\n      \"latitude\": 25.7959,\n      \"longitude\": -80.287,\n      \"longestRunwayFt\": 13016,\n      \"assignedFbo\": \"Signature Aviation\",\n      \"notes\": \"Heavy commercial and cargo traffic; prefer KOPF for light jets.\",\n      \"createdAt\": \"2026-09-15T09:44:55.244Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.244Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"6d8f3898-07be-4808-b285-9e62be79c61a\",\n      \"icao\": \"KPBI\",\n      \"iata\": \"PBI\",\n      \"name\": \"Palm Beach International\",\n      \"city\": \"West Palm Beach\",\n      \"state\": \"FL\",\n      \"country\": \"USA\",\n      \"latitude\": 26.6832,\n      \"longitude\": -80.0956,\n      \"longestRunwayFt\": 10008,\n      \"assignedFbo\": \"Atlantic Aviation\",\n      \"notes\": \"Key winter hub for South Florida private aviation traffic.\",\n      \"createdAt\": \"2026-09-15T09:44:55.238Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.238Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    },\n    {\n      \"id\": \"2e9ba485-d679-4e58-aeae-6f667e435de0\",\n      \"icao\": \"KTEB\",\n      \"iata\": \"TEB\",\n      \"name\": \"Teterboro Airport\",\n      \"city\": \"Teterboro\",\n      \"state\": \"NJ\",\n      \"country\": \"USA\",\n      \"latitude\": 40.8508,\n      \"longitude\": -74.0613,\n      \"longestRunwayFt\": 7000,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"Primary departure airport for NYC clients.\",\n      \"createdAt\": \"2026-09-15T09:44:55.231Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.231Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 10,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e6ac11e8-2386-4206-85f1-7fc980461d63\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\",\n      \"state\": \"IDF\",\n      \"country\": \"France\",\n      \"latitude\": 48.9694,\n      \"longitude\": 2.4414,\n      \"longestRunwayFt\": 9843,\n      \"assignedFbo\": \"Jetex Paris Le Bourget\",\n      \"notes\": \"Premier private aviation airport serving Paris.\",\n      \"createdAt\": \"2026-10-07T05:20:22.120Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.120Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"ec5d4412-7119-4e4e-b242-279aeca1688c\",\n      \"icao\": \"EGLL\",\n      \"iata\": \"LHR\",\n      \"name\": \"London Heathrow Airport\",\n      \"city\": \"London\",\n      \"state\": \"ENG\",\n      \"country\": \"United Kingdom\",\n      \"latitude\": 51.47,\n      \"longitude\": -0.4543,\n      \"longestRunwayFt\": 12799,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"Slot controlled. 24/7 UK Border Force available.\",\n      \"createdAt\": \"2026-10-07T05:20:22.117Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.117Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"39eda73d-afb3-4c36-be74-32ca830db98d\",\n      \"icao\": \"KJFK\",\n      \"iata\": \"JFK\",\n      \"name\": \"John F. Kennedy Intl\",\n      \"city\": \"New York\",\n      \"state\": \"NY\",\n      \"country\": \"USA\",\n      \"latitude\": 40.6413,\n      \"longitude\": -73.7781,\n      \"longestRunwayFt\": 14511,\n      \"assignedFbo\": \"Sheltair Aviation\",\n      \"notes\": \"Slot controlled during afternoon peak hours.\",\n      \"createdAt\": \"2026-10-07T05:20:22.114Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.114Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 10,\n    \"totalPages\": 4,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 A broker (reads need only a session)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports?page=1&limit=2",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e6ac11e8-2386-4206-85f1-7fc980461d63\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\",\n      \"state\": \"IDF\",\n      \"country\": \"France\",\n      \"latitude\": 48.9694,\n      \"longitude\": 2.4414,\n      \"longestRunwayFt\": 9843,\n      \"assignedFbo\": \"Jetex Paris Le Bourget\",\n      \"notes\": \"Premier private aviation airport serving Paris.\",\n      \"createdAt\": \"2026-10-07T05:20:22.120Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.120Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"ec5d4412-7119-4e4e-b242-279aeca1688c\",\n      \"icao\": \"EGLL\",\n      \"iata\": \"LHR\",\n      \"name\": \"London Heathrow Airport\",\n      \"city\": \"London\",\n      \"state\": \"ENG\",\n      \"country\": \"United Kingdom\",\n      \"latitude\": 51.47,\n      \"longitude\": -0.4543,\n      \"longestRunwayFt\": 12799,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"Slot controlled. 24/7 UK Border Force available.\",\n      \"createdAt\": \"2026-10-07T05:20:22.117Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.117Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 2,\n    \"total\": 10,\n    \"totalPages\": 5,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 The referral agent, searching for the submit form",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports?search=KTEB",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"6e074a25-ce30-40a1-b613-b0a43203533d\",\n      \"icao\": \"KTEB\",\n      \"iata\": \"TEB\",\n      \"name\": \"Teterboro Airport\",\n      \"city\": \"Teterboro\",\n      \"state\": \"NJ\",\n      \"country\": \"USA\",\n      \"latitude\": 40.8508,\n      \"longitude\": -74.0613,\n      \"longestRunwayFt\": 7000,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"Primary departure airport for NYC clients.\",\n      \"createdAt\": \"2026-10-07T05:20:22.093Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.093Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "400 \u00b7 Unsortable column",
@@ -6636,7 +6695,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/airports",
+                  "raw": "{{baseUrl}}/airports?sortBy=elevation",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -6655,7 +6714,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"icao\\\"|\\\"iata\\\"|\\\"name\\\"|\\\"city\\\"|\\\"country\\\"|\\\"longestRunwayFt\\\"\"\n  },\n  \"path\": \"/api/airports?sortBy=notes\",\n  \"timestamp\": \"2026-09-15T09:45:29.034Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"icao\\\"|\\\"iata\\\"|\\\"name\\\"|\\\"city\\\"|\\\"country\\\"|\\\"longestRunwayFt\\\"\"\n  },\n  \"path\": \"/api/airports?sortBy=elevation\",\n  \"timestamp\": \"2026-10-08T03:38:45.907Z\"\n}"
             },
             {
               "name": "400 \u00b7 Limit above the cap",
@@ -6663,7 +6722,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/airports",
+                  "raw": "{{baseUrl}}/airports?limit=500",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -6682,7 +6741,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"limit\": \"Too big: expected number to be <=100\"\n  },\n  \"path\": \"/api/airports?limit=250\",\n  \"timestamp\": \"2026-09-15T09:45:29.042Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"limit\": \"Too big: expected number to be <=100\"\n  },\n  \"path\": \"/api/airports?limit=500\",\n  \"timestamp\": \"2026-10-08T03:38:45.909Z\"\n}"
             },
             {
               "name": "401 \u00b7 Not signed in",
@@ -6709,7 +6768,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-09-15T09:45:29.068Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.909Z\"\n}"
             }
           ],
           "event": [
@@ -6718,15 +6777,11 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// The detail, update and delete requests below need a real id.",
-                  "// Taking it from this list keeps the folder runnable end to end",
-                  "// without anyone pasting a airport id by hand.",
-                  "pm.test('list returned rows', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "    const rows = pm.response.json().data;",
-                  "    pm.expect(rows).to.be.an('array').that.is.not.empty;",
-                  "    pm.collectionVariables.set('airportId', rows[0].id);",
-                  "});"
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "// 04 reads a real airport; taking it from here keeps the folder runnable alone.",
+                  "const rows = pm.response.json().data;",
+                  "pm.test('rows', () => pm.expect(rows).to.be.an('array').that.is.not.empty);",
+                  "pm.collectionVariables.set('airportId', rows[0].id);"
                 ]
               }
             }
@@ -6747,7 +6802,7 @@
                 "stats"
               ]
             },
-            "description": "The four tiles above the table.\n\n`domestic` counts rows whose country equals `homeCountry`, and `international` is the remainder. `homeCountry` is returned explicitly rather than assumed by the UI, because \"domestic\" is meaningless without saying relative to where.\n\n`withAssignedFbo` ignores rows saved with a blank FBO, not only null ones."
+            "description": "The four tiles above the table. `domestic` counts rows whose country equals `homeCountry`; `international` is the remainder. `withAssignedFbo` ignores an FBO saved blank."
           },
           "response": [
             {
@@ -6778,6 +6833,17 @@
               "cookie": [],
               "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 10,\n    \"domestic\": 8,\n    \"international\": 2,\n    \"withAssignedFbo\": 10,\n    \"homeCountry\": \"USA\"\n  }\n}"
             }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -6795,7 +6861,7 @@
                 "countries"
               ]
             },
-            "description": "Distinct countries across live airports, alphabetical \u2014 the option list for the `country` filter.\n\nServed from the data rather than hardcoded in the UI, which previously offered five countries chosen at design time: wrong the moment anyone adds a sixth, and offering dead options if one is removed."
+            "description": "Distinct countries across live airports, alphabetical \u2014 the `country` filter's options, from the data rather than a list in the UI."
           },
           "response": [
             {
@@ -6826,6 +6892,17 @@
               "cookie": [],
               "body": "{\n  \"success\": true,\n  \"data\": [\n    \"France\",\n    \"USA\",\n    \"United Kingdom\"\n  ]\n}"
             }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
           ]
         },
         {
@@ -6834,23 +6911,16 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/airports/:id",
+              "raw": "{{baseUrl}}/airports/{{airportId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "airports",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "{{airportId}}",
-                  "description": "UUID. Populated by `01 \u00b7 List airports`, so this folder runs end to end unattended."
-                }
+                "{{airportId}}"
               ]
             },
-            "description": "Full record including the `createdBy` / `updatedBy` audit trail.\n\nA removed airport returns **404**, not a tombstone."
+            "description": "One airport with its audit trail. Archived airports open too \u2014 the Archived tab links here.\n\n`trips` counts **live, uncancelled trips with a leg departing from or arriving here** (`total`, and `thisYear` by departure date); a round trip counts once. It is `null` for a referral agent, who reads airports only to pick one."
           },
           "response": [
             {
@@ -6879,7 +6949,35 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e37fbbb6-9de9-4187-a3bd-2244cb1159a3\",\n    \"icao\": \"LFPB\",\n    \"iata\": \"LBG\",\n    \"name\": \"aaaa\",\n    \"city\": \"dddd\",\n    \"state\": \"SSSS\",\n    \"country\": \"USA\",\n    \"latitude\": 48.9694,\n    \"longitude\": 2.4414,\n    \"longestRunwayFt\": 9843,\n    \"assignedFbo\": \"Jetex Paris Le Bourget\",\n    \"notes\": \"Premier private aviation airport serving Paris.\",\n    \"createdAt\": \"2026-09-15T09:44:55.276Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T10:18:54.352Z\",\n    \"updatedById\": \"89ebbaa1-dbbe-4190-8fda-337fe16d0947\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"89ebbaa1-dbbe-4190-8fda-337fe16d0947\",\n      \"firstName\": \"Arun\",\n      \"lastName\": \"Roy\",\n      \"email\": \"roy@tribeca.com\"\n    },\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e6ac11e8-2386-4206-85f1-7fc980461d63\",\n    \"icao\": \"LFPB\",\n    \"iata\": \"LBG\",\n    \"name\": \"Paris Le Bourget\",\n    \"city\": \"Paris\",\n    \"state\": \"IDF\",\n    \"country\": \"France\",\n    \"latitude\": 48.9694,\n    \"longitude\": 2.4414,\n    \"longestRunwayFt\": 9843,\n    \"assignedFbo\": \"Jetex Paris Le Bourget\",\n    \"notes\": \"Premier private aviation airport serving Paris.\",\n    \"createdAt\": \"2026-10-07T05:20:22.120Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-07T05:20:22.120Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"trips\": {\n      \"total\": 0,\n      \"thisYear\": 0\n    }\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 The referral agent (no trip count)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e6ac11e8-2386-4206-85f1-7fc980461d63\",\n    \"icao\": \"LFPB\",\n    \"iata\": \"LBG\",\n    \"name\": \"Paris Le Bourget\",\n    \"city\": \"Paris\",\n    \"state\": \"IDF\",\n    \"country\": \"France\",\n    \"latitude\": 48.9694,\n    \"longitude\": 2.4414,\n    \"longestRunwayFt\": 9843,\n    \"assignedFbo\": \"Jetex Paris Le Bourget\",\n    \"notes\": \"Premier private aviation airport serving Paris.\",\n    \"createdAt\": \"2026-10-07T05:20:22.120Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-07T05:20:22.120Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"trips\": null\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not found",
@@ -6907,7 +7005,19 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Airport not found\",\n  \"path\": \"/api/airports/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T09:45:29.061Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Airport not found\",\n  \"path\": \"/api/airports/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-10-08T03:38:45.932Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('carries the trip count', () => pm.expect(pm.response.json().data).to.have.property('trips'));"
+                ]
+              }
             }
           ]
         },
@@ -6926,15 +7036,6 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"icao\": \"{{newAirportIcao}}\",                      // required \u00b7 4 letters or digits, stored upper-case. Unique across live AND removed rows \u2192 duplicate returns 409.\n\n  \"iata\": \"BED\",                                     // optional \u00b7 3 letters or digits, stored upper-case. Many airports have none, so it is not required and not unique.\n\n  \"name\": \"Laurence G Hanscom Field\",                // required \u00b7 1-200 chars\n\n  \"city\": \"Bedford\",                                 // required \u00b7 1-120 chars\n\n  \"state\": \"MA\",                                     // optional \u00b7 max 60 chars. State or region; most countries outside the US do not use one.\n\n  \"country\": \"USA\",                                  // required \u00b7 1-100 chars. Exact string the country filter matches on.\n\n  \"latitude\": 42.4700,                               // optional \u00b7 signed decimal degrees. latitude -90..90, longitude -180..180. Stored as DECIMAL(9,6) and returned as a JSON number.\n  \"longitude\": -71.2890,\n\n  \"longestRunwayFt\": 7011,                           // optional \u00b7 integer feet, 0-30000. Decides which aircraft can operate here.\n\n  \"assignedFbo\": \"Signature Flight Support\",         // optional \u00b7 max 200 chars. The FBO the desk defaults to here.\n\n  \"notes\": \"Boston-area business aviation gateway.\"  // optional \u00b7 max 2000 chars. Curfews, slots, customs hours.\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/airports",
               "host": [
@@ -6944,28 +7045,23 @@
                 "airports"
               ]
             },
-            "description": "Creates an airport. Requires `Manage Airports` at write scope \u2014 brokers and assistants receive 403.\n\n**ICAO is normalised and unique.** It is upper-cased on the way in, so `kteb` and `KTEB` are the same airport and cannot both exist.\n\n**Adding a removed airport restores it** rather than returning 409. A soft delete keeps the code occupied, so refusing would strand the caller: they can see no KBED in the list and cannot create one either. The revived row keeps its original audit history instead of starting a second record for the same physical airport, and the audit entry reads `airport.restored`. The 409 below is for a code held by a **live** airport."
+            "description": "Needs **Airports \u00b7 Create**. ICAO is upper-cased and unique across live **and archived** rows: re-adding an archived code is a 409 that names the Archived tab, because restoring brings back every stored field and re-creating would overwrite them.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"icao\": \"{{newAirportIcao}}\",                      // required \u00b7 4 letters or digits, stored upper-case. Unique across live AND archived rows \u2192 a duplicate returns 409.\n  \"iata\": \"BED\",                                     // optional \u00b7 3 letters or digits, stored upper-case. Many airports have none.\n  \"name\": \"Laurence G Hanscom Field\",                // required \u00b7 1-200 chars\n  \"city\": \"Bedford\",                                 // required \u00b7 1-120 chars\n  \"state\": \"MA\",                                     // optional \u00b7 max 60 chars. Most countries outside the US use none.\n  \"country\": \"USA\",                                  // required \u00b7 1-100 chars. The exact string the country filter matches.\n  \"latitude\": 42.47,                                 // required \u00b7 signed decimal degrees, -90..90\n  \"longitude\": -71.289,                              // required \u00b7 signed decimal degrees, -180..180\n  \"longestRunwayFt\": 7011,                           // required \u00b7 integer feet, 0-30000. Decides which aircraft can operate here.\n  \"assignedFbo\": \"Signature Flight Support\",         // optional \u00b7 max 200 chars. The FBO itineraries default to here.\n  \"notes\": \"Boston-area business aviation gateway.\"  // optional \u00b7 max 2000 chars. Curfews, slots, customs hours.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
               "name": "201 \u00b7 Created",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"icao\": \"{{newAirportIcao}}\",                      // required \u00b7 4 letters or digits, stored upper-case. Unique across live AND removed rows \u2192 duplicate returns 409.\n\n  \"iata\": \"BED\",                                     // optional \u00b7 3 letters or digits, stored upper-case. Many airports have none, so it is not required and not unique.\n\n  \"name\": \"Laurence G Hanscom Field\",                // required \u00b7 1-200 chars\n\n  \"city\": \"Bedford\",                                 // required \u00b7 1-120 chars\n\n  \"state\": \"MA\",                                     // optional \u00b7 max 60 chars. State or region; most countries outside the US do not use one.\n\n  \"country\": \"USA\",                                  // required \u00b7 1-100 chars. Exact string the country filter matches on.\n\n  \"latitude\": 42.4700,                               // optional \u00b7 signed decimal degrees. latitude -90..90, longitude -180..180. Stored as DECIMAL(9,6) and returned as a JSON number.\n  \"longitude\": -71.2890,\n\n  \"longestRunwayFt\": 7011,                           // optional \u00b7 integer feet, 0-30000. Decides which aircraft can operate here.\n\n  \"assignedFbo\": \"Signature Flight Support\",         // optional \u00b7 max 200 chars. The FBO the desk defaults to here.\n\n  \"notes\": \"Boston-area business aviation gateway.\"  // optional \u00b7 max 2000 chars. Curfews, slots, customs hours.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports",
                   "host": [
@@ -6974,6 +7070,10 @@
                   "path": [
                     "airports"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"icao\": \"QLCZ\",\n  \"iata\": \"BED\",\n  \"name\": \"Laurence G Hanscom Field\",\n  \"city\": \"Bedford\",\n  \"state\": \"MA\",\n  \"country\": \"USA\",\n  \"latitude\": 42.47,\n  \"longitude\": -71.289,\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Signature Flight Support\",\n  \"notes\": \"Boston-area business aviation gateway.\"\n}"
                 }
               },
               "status": "Created",
@@ -6986,27 +7086,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"5bf354d0-668a-44e4-af6e-0a658dbf7a72\",\n    \"icao\": \"KBED\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Signature Flight Support\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-09-15T09:45:29.100Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:45:29.100Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n    \"icao\": \"QLCZ\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Signature Flight Support\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-10-08T03:38:45.936Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T03:38:45.936Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
             },
             {
               "name": "409 \u00b7 ICAO already in use",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"icao\": \"KTEB\",\n  \"name\": \"Dup\",\n  \"city\": \"X\",\n  \"country\": \"USA\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports",
                   "host": [
@@ -7027,27 +7113,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An airport with ICAO KTEB already exists\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-09-15T09:45:29.087Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An airport with ICAO LFPB already exists\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.942Z\"\n}"
             },
             {
-              "name": "400 \u00b7 Validation failed",
+              "name": "409 \u00b7 ICAO held by an archived airport",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"icao\": \"TOOLONG\",\n  \"name\": \"\",\n  \"city\": \"X\",\n  \"country\": \"USA\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports",
                   "host": [
@@ -7056,6 +7128,41 @@
                   "path": [
                     "airports"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"icao\": \"QLCZ\",\n  \"\\u2026\": \"the same body\"\n}"
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"QLCZ belongs to an archived airport. Restore it from the Archived tab instead of creating a duplicate.\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.960Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"icao\": \"TOOLONG\",\n  \"name\": \"\",\n  \"city\": \"X\",\n  \"country\": \"USA\"\n}"
                 }
               },
               "status": "Bad Request",
@@ -7068,27 +7175,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"icao\": \"ICAO must be 4 letters or digits, e.g. KTEB\",\n    \"name\": \"Airport name is required\"\n  },\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-09-15T09:45:29.077Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"icao\": \"ICAO must be 4 letters or digits, e.g. KTEB\",\n    \"name\": \"Airport name is required\",\n    \"latitude\": \"Latitude is required\",\n    \"longitude\": \"Longitude is required\",\n    \"longestRunwayFt\": \"Longest runway is required\"\n  },\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.944Z\"\n}"
             },
             {
-              "name": "403 \u00b7 Role may read but not write",
+              "name": "403 \u00b7 A broker without Airports \u00b7 Create",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"icao\": \"{{newAirportIcao}}\",                      // required \u00b7 4 letters or digits, stored upper-case. Unique across live AND removed rows \u2192 duplicate returns 409.\n\n  \"iata\": \"BED\",                                     // optional \u00b7 3 letters or digits, stored upper-case. Many airports have none, so it is not required and not unique.\n\n  \"name\": \"Laurence G Hanscom Field\",                // required \u00b7 1-200 chars\n\n  \"city\": \"Bedford\",                                 // required \u00b7 1-120 chars\n\n  \"state\": \"MA\",                                     // optional \u00b7 max 60 chars. State or region; most countries outside the US do not use one.\n\n  \"country\": \"USA\",                                  // required \u00b7 1-100 chars. Exact string the country filter matches on.\n\n  \"latitude\": 42.4700,                               // optional \u00b7 signed decimal degrees. latitude -90..90, longitude -180..180. Stored as DECIMAL(9,6) and returned as a JSON number.\n  \"longitude\": -71.2890,\n\n  \"longestRunwayFt\": 7011,                           // optional \u00b7 integer feet, 0-30000. Decides which aircraft can operate here.\n\n  \"assignedFbo\": \"Signature Flight Support\",         // optional \u00b7 max 200 chars. The FBO the desk defaults to here.\n\n  \"notes\": \"Boston-area business aviation gateway.\"  // optional \u00b7 max 2000 chars. Curfews, slots, customs hours.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports",
                   "host": [
@@ -7109,7 +7202,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Airports)\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-09-15T09:45:29.052Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Create\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.945Z\"\n}"
             }
           ],
           "event": [
@@ -7118,14 +7211,11 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// A code this run has not used before. See 05 \u00b7 Add airport:",
-                  "// an archived ICAO stays reserved, so a fixed one would 409 on",
-                  "// the second run rather than exercising the endpoint.",
+                  "// A code this run has not used: an archived ICAO stays taken, so a",
+                  "// fixed one would 409 on the second run.",
                   "const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';",
                   "let code = 'Q';",
-                  "for (let i = 0; i < 3; i++) {",
-                  "    code += letters[Math.floor(Math.random() * letters.length)];",
-                  "}",
+                  "for (let i = 0; i < 3; i++) code += letters[Math.floor(Math.random() * letters.length)];",
                   "pm.collectionVariables.set('newAirportIcao', code);"
                 ]
               }
@@ -7135,19 +7225,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// The update and delete requests below operate on this new airport,",
-                  "// so running the folder never touches seeded reference data.",
-                  "pm.test('created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "    pm.collectionVariables.set('newAirportId', pm.response.json().data.id);",
-                  "});",
-                  "",
-                  "// Kept separately from the id the list request captures, which later",
-                  "// requests overwrite. The teardown needs to know which row *this run*",
-                  "// created.",
-                  "if (pm.response.code < 400) {",
-                  "    pm.collectionVariables.set('newAirportId', pm.response.json().data.id);",
-                  "}"
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "// 06-10 work on this probe, so the run never touches a seeded airport.",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('newAirportId', pm.response.json().data.id);"
                 ]
               }
             }
@@ -7168,54 +7248,33 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // All fields optional \u00b7 send at least one, or 400.\n  // Every field from Create is accepted, including \"icao\": it is a\n  // correctable data-entry mistake, not an identity, and nothing\n  // references the code as a foreign key yet. A new code still has to\n  // be unique.\n  //\n  // Nullable fields accept null to clear them: iata, state, latitude,\n  // longitude, longestRunwayFt, assignedFbo, notes.\n\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Jet Aviation Bedford\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/airports/:id",
+              "raw": "{{baseUrl}}/airports/{{newAirportId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "airports",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "{{newAirportId}}",
-                  "description": "UUID of the airport to update. Populated by `05 \u00b7 Add airport`, so a folder run never edits a seeded airport."
-                }
+                "{{newAirportId}}"
               ]
             },
-            "description": "Partial update. Send only what changes; an empty body returns 400."
+            "description": "Needs **Airports \u00b7 Edit**. Send only what changes. An empty body is a 400, and so is clearing latitude, longitude or runway length \u2014 required on create, so never emptied on edit.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // All fields optional \u00b7 send at least one, or 400.\n  // icao may be corrected; a new code must still be unique.\n  // null clears iata, state, assignedFbo or notes. latitude, longitude\n  // and longestRunwayFt are required on create, so they can be changed\n  // but never cleared \u2014 null or \"\" is a 400.\n\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Jet Aviation Bedford\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
               "name": "200 \u00b7 Updated",
               "originalRequest": {
                 "method": "PATCH",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  // All fields optional \u00b7 send at least one, or 400.\n  // Every field from Create is accepted, including \"icao\": it is a\n  // correctable data-entry mistake, not an identity, and nothing\n  // references the code as a foreign key yet. A new code still has to\n  // be unique.\n  //\n  // Nullable fields accept null to clear them: iata, state, latitude,\n  // longitude, longestRunwayFt, assignedFbo, notes.\n\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Jet Aviation Bedford\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/:id",
                   "host": [
@@ -7225,6 +7284,10 @@
                     "airports",
                     ":id"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Jet Aviation Bedford\"\n}"
                 }
               },
               "status": "OK",
@@ -7237,27 +7300,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"5bf354d0-668a-44e4-af6e-0a658dbf7a72\",\n    \"icao\": \"KBED\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Jet Aviation Bedford\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-09-15T09:45:29.100Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:45:29.130Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n    \"icao\": \"QLCZ\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Jet Aviation Bedford\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-10-08T03:38:45.936Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T03:38:45.948Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
             },
             {
               "name": "400 \u00b7 Empty patch",
               "originalRequest": {
                 "method": "PATCH",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/:id",
                   "host": [
@@ -7267,6 +7316,10 @@
                     "airports",
                     ":id"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
                 }
               },
               "status": "Bad Request",
@@ -7279,7 +7332,82 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/airports/5bf354d0-668a-44e4-af6e-0a658dbf7a72\",\n  \"timestamp\": \"2026-09-15T09:45:29.143Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n  \"timestamp\": \"2026-10-08T03:38:45.952Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 A required number cleared",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"latitude\": null\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"latitude\": \"Latitude is required\"\n  },\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n  \"timestamp\": \"2026-10-08T03:38:45.953Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 A broker without Airports \u00b7 Edit",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Jet Aviation Bedford\"\n}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Edit\",\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n  \"timestamp\": \"2026-10-08T03:38:45.954Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
@@ -7289,29 +7417,26 @@
             "method": "DELETE",
             "header": [
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "X-CSRF-Token",
                 "value": "{{csrfToken}}",
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/airports/:id",
+              "raw": "{{baseUrl}}/airports/{{newAirportId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "airports",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "{{newAirportId}}",
-                  "description": "UUID of the airport to remove \u2014 the one `05 \u00b7 Add airport` just created, so the folder cleans up after itself instead of deleting seeded reference data."
-                }
+                "{{newAirportId}}"
               ]
             },
-            "description": "Soft delete \u2014 `deletedAt` is stamped and the row stays.\n\nTrips and itineraries will reference airports, so destroying one would orphan the history of every flight through it. The ICAO stays taken; see `05 \u00b7 Add airport`."
+            "description": "Needs **Airports \u00b7 Archive**. Soft: `deletedAt` is stamped and the row stays, so trips and itineraries through it keep their history. The ICAO stays taken."
           },
           "response": [
             {
@@ -7341,6 +7466,45 @@
               ],
               "cookie": [],
               "body": ""
+            },
+            {
+              "name": "403 \u00b7 A broker without Airports \u00b7 Archive",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n  \"timestamp\": \"2026-10-08T03:38:45.955Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
             }
           ]
         },
@@ -7350,30 +7514,27 @@
             "method": "POST",
             "header": [
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "X-CSRF-Token",
                 "value": "{{csrfToken}}",
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/airports/:id/restore",
+              "raw": "{{baseUrl}}/airports/{{newAirportId}}/restore",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "airports",
-                ":id",
+                "{{newAirportId}}",
                 "restore"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "{{newAirportId}}",
-                  "description": "UUID of the archived airport, from `05 \u00b7 Add airport`."
-                }
               ]
             },
-            "description": "Brings an archived airport back **exactly as it was** \u2014 clears the deletion stamp and touches nothing else.\n\nThis is the only way to restore. `05 \u00b7 Add airport` refuses an archived ICAO rather than reviving it, because re-running a create form would overwrite eleven stored fields with whatever was typed into it.\n\nNo conflict check is needed: ICAO is unique across live *and* archived rows, so nothing can have taken the code while this row held it.\n\nA row that is not archived returns 404 \u2014 restoring something that was never removed is meaningless, and a 403 would confirm the id exists."
+            "description": "Needs **Airports \u00b7 Archive**. Clears the deletion stamp and nothing else \u2014 every field comes back as it was. 200, not 201: nothing is created. A row that is not archived is a 404."
           },
           "response": [
             {
@@ -7403,7 +7564,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"1af65f00-8c3d-41c0-a2df-9ccb9eb96c90\",\n    \"icao\": \"QXYZ\",\n    \"iata\": \"QXY\",\n    \"name\": \"Example Field\",\n    \"city\": \"Example\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Signature Flight Support\",\n    \"notes\": \"Example record.\",\n    \"createdAt\": \"2026-09-15T10:43:14.806Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T10:43:14.833Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-15T10:43:14.832Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n    \"icao\": \"QLCZ\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Jet Aviation Bedford\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-10-08T03:38:45.936Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T03:38:45.963Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-10-08T03:38:45.962Z\",\n    \"restoredById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    }\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not archived",
@@ -7432,7 +7593,47 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived airport not found\",\n  \"path\": \"/api/airports/1af65f00-8c3d-41c0-a2df-9ccb9eb96c90/restore\",\n  \"timestamp\": \"2026-09-15T10:43:14.843Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived airport not found\",\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114/restore\",\n  \"timestamp\": \"2026-10-08T03:38:45.967Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 A broker without Airports \u00b7 Archive",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114/restore\",\n  \"timestamp\": \"2026-10-08T03:38:45.961Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
@@ -7451,15 +7652,6 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/airports/bulk-delete",
               "host": [
@@ -7470,28 +7662,23 @@
                 "bulk-delete"
               ]
             },
-            "description": "Removes every id in one statement, for the table's checkbox column.\n\n**POST, not DELETE.** Request bodies on DELETE are unevenly supported by proxies and HTTP clients; a silently dropped body would remove nothing and still answer 200.\n\n**Partial success is success.** Ids matching nothing \u2014 already removed, or never there \u2014 come back in `skipped` rather than failing the batch. Two people clearing the same rows is ordinary, and refusing the second one would make their click do nothing at all.\n\nSoft delete, like `07`: re-adding an ICAO restores that airport."
+            "description": "Needs **Airports \u00b7 Archive**. For the table's checkbox column. POST, not DELETE (a dropped DELETE body would remove nothing and answer 200). Ids that match nothing come back in `skipped` \u2014 partial success is success.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs. Ids that match nothing come back in `skipped` rather than failing the batch.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
               "name": "200 \u00b7 Removed",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/bulk-delete",
                   "host": [
@@ -7501,6 +7688,10 @@
                     "airports",
                     "bulk-delete"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -7513,27 +7704,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 3,\n    \"deleted\": 3,\n    \"skipped\": []\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
             },
             {
               "name": "200 \u00b7 Already removed (partial)",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/bulk-delete",
                   "host": [
@@ -7543,6 +7720,10 @@
                     "airports",
                     "bulk-delete"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -7555,27 +7736,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 3,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"55604a70-8b94-408d-a1a9-622a31f48562\",\n      \"f006044a-a4a3-4bd1-a251-ccf7625a89e2\",\n      \"8a1e463e-8299-44bf-a909-a356201406b1\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n    ]\n  }\n}"
             },
             {
               "name": "400 \u00b7 Nothing selected",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": []\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/bulk-delete",
                   "host": [
@@ -7585,6 +7752,10 @@
                     "airports",
                     "bulk-delete"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": []\n}"
                 }
               },
               "status": "Bad Request",
@@ -7597,27 +7768,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-09-15T10:12:40.948Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-10-08T03:38:45.975Z\"\n}"
             },
             {
-              "name": "403 \u00b7 Role may read but not write",
+              "name": "403 \u00b7 A broker without Airports \u00b7 Archive",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/bulk-delete",
                   "host": [
@@ -7627,6 +7784,10 @@
                     "airports",
                     "bulk-delete"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
                 }
               },
               "status": "Forbidden",
@@ -7639,7 +7800,18 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Airports)\",\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-09-15T10:12:40.957Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-10-08T03:38:45.968Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
@@ -7658,15 +7830,6 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/airports/bulk-restore",
               "host": [
@@ -7677,28 +7840,23 @@
                 "bulk-restore"
               ]
             },
-            "description": "Brings every id in the list back in one statement, for the Archived tab's checkbox column. The mirror of the bulk remove above.\n\n**POST, not DELETE**, and **partial success is success** \u2014 the same two rules. Ids that are not archived come back in `skipped` rather than failing the batch, so two people restoring the same selection both succeed.\n\nRestore clears the deletion stamp and touches nothing else, so each row returns exactly as it was.\n\nRequires `Manage Airports`."
+            "description": "Needs **Airports \u00b7 Archive**. The Archived tab's bulk action, the mirror of `09`. Ids that are not archived come back in `skipped`.\n\nThe folder's teardown archives the probe again, so a run leaves nothing live behind.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
               "name": "200 \u00b7 Restored",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/bulk-restore",
                   "host": [
@@ -7708,6 +7866,10 @@
                     "airports",
                     "bulk-restore"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -7726,21 +7888,7 @@
               "name": "200 \u00b7 Already live (partial)",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/bulk-restore",
                   "host": [
@@ -7750,6 +7898,10 @@
                     "airports",
                     "bulk-restore"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -7762,27 +7914,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"b4f7315a-f556-4c99-a232-22a50c38fa7f\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n    ]\n  }\n}"
             },
             {
               "name": "400 \u00b7 Nothing selected",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": []\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/bulk-restore",
                   "host": [
@@ -7792,6 +7930,10 @@
                     "airports",
                     "bulk-restore"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": []\n}"
                 }
               },
               "status": "Bad Request",
@@ -7804,27 +7946,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:19.370Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-10-08T03:38:45.983Z\"\n}"
             },
             {
-              "name": "403 \u00b7 Role may read but not write",
+              "name": "403 \u00b7 A broker without Airports \u00b7 Archive",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/airports/bulk-restore",
                   "host": [
@@ -7834,6 +7962,10 @@
                     "airports",
                     "bulk-restore"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
                 }
               },
               "status": "Forbidden",
@@ -7846,7 +7978,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Airports)\",\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:19.484Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-10-08T03:38:45.976Z\"\n}"
             }
           ],
           "event": [
@@ -7855,25 +7987,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Teardown. This is the last request in the folder, and the folder ends",
-                  "// by restoring the airport it created \u2014 so every run used to leave",
-                  "// one more live airport behind. Thirty-seven had piled up in",
-                  "// operators before anyone looked.",
-                  "//",
-                  "// There is no hard delete in this system by design, so the run cannot",
-                  "// erase its own row. Archiving it is the best available end state: the",
-                  "// debris sits in the Archived tab instead of among the records the desk",
-                  "// actually works.",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "// Teardown: there is no hard delete, so the probe ends archived \u2014",
+                  "// in the Archived tab, not among the airports the desk works.",
                   "const id = pm.collectionVariables.get('newAirportId');",
                   "if (id) {",
-                  "    pm.sendRequest({",
-                  "        url: pm.collectionVariables.get('baseUrl') + '/airports/' + id,",
-                  "        method: 'DELETE',",
-                  "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
-                  "    }, function (err) {",
-                  "        if (err) { console.warn('teardown could not archive ' + id, err); }",
-                  "    });",
-                  "    pm.collectionVariables.set('newAirportId', '');",
+                  "  pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/airports/' + id, method: 'DELETE',",
+                  "    header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') } }, function () {});",
+                  "  pm.collectionVariables.set('newAirportId', '');",
                   "}"
                 ]
               }

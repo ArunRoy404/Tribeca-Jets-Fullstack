@@ -283,12 +283,13 @@ The reference folders are generated, not hand-edited:
 python3 add_restore_requests.py      # patches restore into Clients
 ```
 
-**Do not re-run `build_reference_folders.py`** (05 · Airports, 06 · Operators).
-It reads its captured responses from a scratchpad directory on the machine that
-first ran it, which no longer exists, and it would write back 7 + 6 requests
-over folders that have since grown to 10 + 9. It is kept as the record of how
-those folders were made. The next time Airports or Operators changes, replace
-it with a live-capturing builder like the ones below.
+**`05 · Airports` is built by `build_airports_folder.py`** (8 Oct 2026), live
+against a running API, on `builder_common`.
+
+**Do not re-run `build_reference_folders.py`** (now 06 · Operators only). It
+reads its captured responses from a scratchpad directory on the machine that
+first ran it, which no longer exists. It is kept as the record of how the
+folder was made; Operators' review replaces it with a live-capturing builder.
 
 Every other module folder has its own builder, which captures live against a
 running, seeded API — `build_aircraft_folder.py` (07),
