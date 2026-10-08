@@ -86,14 +86,16 @@ export default function OperatorsToolbar({
         {/* The checkbox column is on both tabs, so both get a bulk action —
             Remove on the live list, Restore on Archived. Leaving Archived with
             checkboxes and no button was a selection that did nothing. */}
-        <BulkDeleteButton
-          count={selectedCount}
-          itemLabel="operators"
-          onClick={onBulkAction}
-          action={isArchived ? "restore" : "remove"}
-        />
-        {/* Adding is a live-tab verb only. */}
-        {isArchived ? null : (
+        {onBulkAction ? (
+          <BulkDeleteButton
+            count={selectedCount}
+            itemLabel="operators"
+            onClick={onBulkAction}
+            action={isArchived ? "restore" : "remove"}
+          />
+        ) : null}
+        {/* Adding is a live-tab verb only, and absent without Operators · Add. */}
+        {isArchived || !onAddOperator ? null : (
           <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" onClick={() => onAddOperator?.()}>
             <Plus className="size-3.5" />
             <span>Add Operator</span>

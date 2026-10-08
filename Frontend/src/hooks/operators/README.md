@@ -3,16 +3,27 @@
 Charter operators — the companies that fly the aircraft. Shared master data,
 the same rows for everyone signed in, no row-level scoping.
 
-## Who can write
+## Who can do what (since 8 Oct 2026)
 
-| Role | Read | Create / Edit / Remove |
-|---|---|---|
-| SUPER_ADMIN, ADMIN, SENIOR_BROKER, BROKER | yes | yes |
-| ASSISTANT | yes | **403** |
+**Every read needs only a staff session** — the list, stats and one operator.
+Aircraft, sourcing, quotes, trips, empty legs and payments all pick an
+operator. A **referral agent is refused** (`@StaffOnly`): an operator's
+contacts and terms are desk data the portal never needs.
 
-Brokers may write here but not in `hooks/airports`: a broker who sources a new
-operator adds it themselves, matching the `Operator Sourcing` permission they
-already hold at full scope.
+**Every write needs the person's own Operators permission** (Users & Roles ›
+Permissions):
+
+| Action | Permission |
+|---|---|
+| Add | `OPERATORS · CREATE` |
+| Edit | `OPERATORS · EDIT` |
+| Remove, restore, bulk | `OPERATORS · ARCHIVE` |
+
+The screens hide what the person cannot do. "Request Quote" follows Operator
+Sourcing's own check and is never offered for a SUSPENDED operator.
+
+To pick an operator in a form, use **`OperatorPicker`**
+(`components/operators/`), the shared `RecordPicker` over this list.
 
 ## Hooks
 
@@ -27,16 +38,17 @@ already hold at full scope.
 | `useRemoveOperators(ids)` | `POST /operators/bulk-delete` — soft, several at once |
 | `useOperatorsTableParams()` | URL state: page, limit, search, status, sort |
 
-## Fields nothing can supply yet
+## Fixed choices (since 8 Oct 2026)
 
-`totalTrips`, `totalPaid` and `totalFleet` are aggregates over trips, operator
-payments and aircraft — none of which exist. The API returns **null**, and
-`toOperatorRow` renders an em dash. A confident "0 trips" against an operator
-the desk has flown twice is a wrong answer; "—" is an honest one.
+| Field | Values |
+|---|---|
+| `status` | ACTIVE · PREFERRED · INACTIVE · **SUSPENDED** ("do not book until further notice") |
+| `safetyRating` | a number 0–5, optional — the desk's own rating, like `reliabilityRating` |
+| `responseSpeed` | FAST · AVERAGE · SLOW (the desk's judgment) |
+| `paymentTerms` | PREPAID · DUE_ON_RECEIPT · NET_7 · NET_15 · NET_30 |
 
-The detail page's Fleet, Trips and Payments tabs bind to empty arrays for the
-same reason. They fill in when those modules land — see the build-order rule in
-the root `AGENTS.md`.
+Labels come from `lib/operator.js`. The form's documents are filed into the
+operator's vault folder after it saves (`useFileDocuments`).
 
 ## Things worth knowing
 
@@ -45,8 +57,11 @@ the root `AGENTS.md`.
 - **Array fields are replaced, not merged.** The form edits `aircraftTypes` and
   `serviceRoutes` as one comma-separated field, so what the user typed is the
   complete list — a merge would make removing a chip impossible.
-- **`safetyRating` is a certification, not a number** ("ARG/US Platinum").
-  The old form defaulted it to `"4.9"`, which was a bug.
+- **Safety is a 0–5 rating the desk enters, never a default.** The old form
+  pre-filled `"4.9"`, so every operator carried a rating nobody gave; blank
+  now means "Not rated".
+- **Home base, contact name and contact email can be changed, never cleared**
+  — they are required when an operator is added.
 
 ## Bulk remove
 

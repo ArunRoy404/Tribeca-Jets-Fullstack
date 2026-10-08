@@ -1,6 +1,7 @@
 "use client";
 
 import { Building2 } from "lucide-react";
+import StatusBadge from "@/components/common/StatusBadge";
 
 export default function OperatorHeaderTitle({ operator }) {
   if (!operator) return null;
@@ -24,15 +25,17 @@ export default function OperatorHeaderTitle({ operator }) {
           <h1 className="font-montserrat font-bold text-[20px] sm:text-[24px] text-foreground leading-tight truncate">
             {name}
           </h1>
-          {statusLabel && (
-            <span className="px-2 py-0.5 rounded font-montserrat font-medium text-[11px] border border-border/80 bg-secondary/50 text-muted-foreground">
-              {statusLabel}
-            </span>
-          )}
+          {/* The same badge as the table, so Suspended reads as a warning here too. */}
+          {statusLabel ? <StatusBadge status={statusLabel} bordered /> : null}
         </div>
         <p className="font-montserrat text-[12px] sm:text-[13px] text-muted-foreground">
           {subtitleParts.join(" · ")}
         </p>
+        {operator.isSuspended ? (
+          <p className="font-montserrat text-[12px] font-medium text-destructive">
+            Suspended — do not book until further notice.
+          </p>
+        ) : null}
       </div>
     </div>
   );
