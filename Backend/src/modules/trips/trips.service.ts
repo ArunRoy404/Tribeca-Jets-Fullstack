@@ -1569,6 +1569,31 @@ export class TripsService {
     return this.countBy('aircraftId', aircraftIds);
   }
 
+  /**
+   * Live, uncancelled trips with a live leg departing from or arriving at one
+   * airport, for the airport's detail (#5's second pass). Desk-wide, like the
+   * operator and aircraft counts: a fact about the airport, not a list of
+   * trips. A round trip through the airport counts once.
+   */
+  async countThroughAirport(airportId: string) {
+    const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+    const where: Prisma.TripWhereInput = {
+      deletedAt: null,
+      status: { not: TripStatus.CANCELLED },
+      legs: {
+        some: {
+          deletedAt: null,
+          OR: [{ originAirportId: airportId }, { destinationAirportId: airportId }],
+        },
+      },
+    };
+    const [total, thisYear] = await this.prisma.$transaction([
+      this.prisma.trip.count({ where }),
+      this.prisma.trip.count({ where: { ...where, departureDate: { gte: yearStart } } }),
+    ]);
+    return { total, thisYear };
+  }
+
   /** Active (not completed, not cancelled) trips per broker. */
   async activeCountByBroker(brokerIds: string[]) {
     if (brokerIds.length === 0) return new Map<string, number>();

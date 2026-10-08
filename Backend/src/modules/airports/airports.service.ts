@@ -25,6 +25,8 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { isPartner } from '../../common/authorization/permissions.js';
+import { TripsService } from '../trips/trips.service.js';
 import type {
   CreateAirportInput,
   QueryAirportsInput,
@@ -81,6 +83,7 @@ export class AirportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly trips: TripsService,
   ) {}
 
   /**
@@ -97,7 +100,7 @@ export class AirportsService {
   }
 
   // The caller is not read here: reference data is the same rows for
-  // everyone signed in, and the guard has already settled access.
+  // everyone signed in — every read needs only a session.
   async findAll(query: QueryAirportsInput): Promise<Paginated<unknown>> {
     const { skip, take } = toPrismaPagination(query);
 
@@ -134,13 +137,18 @@ export class AirportsService {
    * equivalent. The Archived tab links here, so excluding them turned every
    * archived airport's detail into a 404.
    */
-  async findOne(id: string) {
+  async findOne(id: string, user?: AuthenticatedUser) {
     const row = await this.prisma.airport.findFirst({
       where: { id },
       select: AIRPORT_DETAIL_SELECT,
     });
     if (!row) throw new NotFoundException('Airport not found');
-    return this.serialise(row as AirportRow);
+    // A partner reads airports only to pick one; the desk's traffic is not
+    // theirs to see, so the count is absent rather than zero.
+    // Without a caller (another module resolving an airport) there is no
+    // screen to show it on, so it is not counted.
+    const trips = !user || isPartner(user.role) ? null : await this.trips.countThroughAirport(id);
+    return { ...this.serialise(row as AirportRow), trips };
   }
 
   /** The four tiles above the airports table. */

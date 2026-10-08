@@ -5,10 +5,7 @@ import {
   sortableBy,
 } from '../../../common/dto/pagination.dto.js';
 import { archiveQuerySchema } from '../../../common/database/archive.js';
-import {
-  nullableNumber,
-  requiredNumber,
-} from '../../../common/dto/numbers.js';
+import { requiredNumber } from '../../../common/dto/numbers.js';
 
 /** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
 export const AIRPORT_SORTABLE_FIELDS = [
@@ -105,9 +102,12 @@ export const updateAirportSchema = z
     city: z.string().trim().min(1).max(120).optional(),
     state: z.string().trim().max(60).nullable().optional(),
     country: z.string().trim().min(1).max(100).optional(),
-    latitude: nullableNumber('Latitude must be between -90 and 90', LATITUDE),
-    longitude: nullableNumber('Longitude must be between -180 and 180', LONGITUDE),
-    longestRunwayFt: nullableNumber('Runway length must be in feet', RUNWAY),
+    // Required on create, so an edit may change them but never clear them —
+    // `null` or an emptied box is refused with the create form's message
+    // rather than stored, or silently ignored.
+    latitude: requiredNumber('Latitude is required', LATITUDE).optional(),
+    longitude: requiredNumber('Longitude is required', LONGITUDE).optional(),
+    longestRunwayFt: requiredNumber('Longest runway is required', RUNWAY).optional(),
     assignedFbo: z.string().trim().max(200).nullable().optional(),
     notes: z.string().trim().max(2_000).nullable().optional(),
   })
