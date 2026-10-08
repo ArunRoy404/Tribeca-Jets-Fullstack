@@ -247,8 +247,17 @@ audit trail pointing at them.
   textarea in, `whitespace-pre-line` out, up to 5,000 characters, so a tiered
   policy stays a tier per line instead of collapsing into one paragraph
   (client request #2)
-- `reliabilityRating` as a real 0–5 number; `safetyRating` and `responseSpeed`
-  as the free text they actually are
+- `reliabilityRating` and `safetyRating` as the desk's own 0–5 ratings, as
+  the Figma form (stars only beside a real one; blank is "Not rated")
+- **Fixed choices** (owner's review, 8 Oct 2026): `responseSpeed`
+  Fast/Average/Slow; `paymentTerms` Prepaid/Due on receipt/Net 7/15/30
+- **Status SUSPENDED** — "do not book until further notice"; Request Quote is
+  not offered for it, and the page says so
+- **Documents in the form** — the shared `FileUpload` drop zone; files
+  attached on Add/Edit are filed into the operator's vault folder, under one
+  chosen type, once it saves (`useFileDocuments`), and the Documents tab
+  (already there) lists, dates and archives them
+- Every dropdown in the form is the shared `CommonSelect`
 - **Fleet tab is real** — filled in the second pass the day Aircraft shipped,
   mapped through the aircraft module's own formatter so a tail reads identically
   in both screens
@@ -262,6 +271,44 @@ audit trail pointing at them.
 | ~~Trip history tab~~ | ✅ Shipped with **Trips (#11)** |
 | ~~Payments tab~~ | ✅ Shipped with **Operator Payments (#17)** — the operator's bills and totals from `GET /operator-payments?operatorId=`; the API's `payments: []` stand-in is gone. Hidden without `VIEW_OPERATOR_PAYMENTS` |
 | ~~Sourcing response history~~ | ✅ Shipped — response rate, win rate, average response time and last asked |
+
+**Reviewed 8 Oct 2026** (review row 7), owner tested and signed off 8 Oct. Fixed:
+
+- **Permissions per person.** Reads need only a staff session (pickers in
+  six modules); writes need Operators · Create / Edit / Archive. A referral
+  agent is refused as before (`@StaffOnly`).
+- **The screens hide what a person cannot do** — Add, Edit, Remove, Restore,
+  bulk, checkboxes, Request Quote.
+- **Figma vs. the build, settled by the owner:** Suspended added; safety a
+  0–5 number as in Figma (the owner chose it over a list of audits);
+  response speed and payment terms as dropdowns; payment terms kept though Figma lacks it (Operator Payments
+  reads it); documents added to the form. Certificate number and insurance
+  expiry are not fields — they are vault documents with an expiry date.
+- **Migration `20261008120000_operator_choices`**, hand-written: every typed
+  value that matches a choice is carried across, anything else is appended to
+  the notes ("… (as entered before 8 Oct 2026)") — tested on the pre-wipe
+  backup, where every real value mapped.
+- **Edit could copy the general phone onto the contact** (the form read the
+  table's fallback) — it reads the contact's own fields now.
+- **Edit can change, never clear, home base, contact name and email**
+  (required on create).
+- Overview shows every stored field (contact and general lines, home base,
+  aircraft types, payment terms); no grey stars for safety or speed.
+- Stats count Suspended on its own instead of folding it into Inactive.
+- `OperatorPicker` (on `RecordPicker`) built for the forms that pick an
+  operator; each switches on its own review.
+- Removed `OperatorDetailHeader.jsx` (imported nowhere).
+- Postman `06 · Operators` rebuilt live (`build_operators_folder.py`, 10
+  requests, 29 examples); `build_reference_folders.py` deleted.
+
+**Waiting on other modules' reviews**
+
+| What | Where |
+|---|---|
+| Refuse a SUSPENDED or archived operator when one is picked | Operator Sourcing, Quotes, Trips, Empty Legs — an `OperatorsService.usable` like `AirportsService.usable` |
+| Operator pickers on `OperatorPicker` | Aircraft, Sourcing, Quotes, Trips, Empty Legs, Operator Payments |
+| A bill's due date from the operator's payment terms | Operator Payments |
+| Measured response time beside the desk's Fast/Average/Slow | Operator Sourcing (the scorecard already counts it) |
 
 **Two bugs fixed here on 2026-09-17:** the status dropdown's options carried
 display labels (`value="Active"`) rather than enum values, so it showed "Active"
@@ -2023,10 +2070,10 @@ connected) and the PDF generator.
 **The stage:** the owner's module-by-module review (MODULES.md, "Review
 order"). Signed off: Auth & Sessions (6 Oct), Users & Roles (7 Oct), Uploads
 (7 Oct), **Settings (8 Oct)** — Import/Export left for review row 31.
-**Airports (8 Oct)**. **Charter Rates (8 Oct)**. Operators is next.
+**Airports (8 Oct)**. **Charter Rates (8 Oct)**. **Operators (8 Oct)**. Next: Aircraft (#8).
 
 **Permissions:** role restrictions are on again (7 Oct); Users & Roles,
-Settings and Airports are on per-person permissions (`@RequireAccess`), every other module
+Settings, Airports, Charter Rates and Operators are on per-person permissions (`@RequireAccess`), every other module
 on the old role matrix until its review moves it.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13

@@ -32,11 +32,12 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 4 | Settings API | ✅ 8 Oct — owner tested. Left for later: Import/Export (row 31), each module's settings (in its review), reminders firing, document toggles (PDF generator) |
 | 5 | Airports | ✅ 8 Oct — owner signed off; reads open to every signed-in user, writes per person |
 | 6 | Charter Rates / Instant Estimate | ✅ 8 Oct — owner tested; first form on the shared `AirportPicker` |
-| 7 | **Operators** | ⬅ **Next** |
-| 8–35 | Aircraft, Clients, … | ⬜ in the table's order |
+| 7 | Operators | ✅ 8 Oct — owner tested; first module with `@StaffOnly` and `OperatorPicker` |
+| 8 | **Aircraft** | ⬜ **next** |
+| 9–35 | Clients, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
-`20261007180000_company_settings` (run `npm run db:deploy` on any database
+`20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
 ### What changed in the last session (7 Oct)
@@ -66,12 +67,13 @@ that has not had it).
 
 ### What is next
 
-1. **Operators (#7).** Move to per-person permissions (reads open, writes
-   per person); hide controls; check the screens; give it an
-   `OperatorPicker` on `RecordPicker` and use it where operators are picked
-   in this module; replace `build_reference_folders.py` with a live builder
-   (the old one still writes `06 · Operators` from a dead capture folder);
-   the database was wiped, so the folder must create its own data.
+1. **Aircraft (#8)** — first consumer of `OperatorPicker` and
+   `AirportPicker` (home base). Operators (#7) was signed off 8 Oct
+   (MODULE_FEATURE_STATUS §4); migration `20261008120000_operator_choices`.
+
+**Postman now runs on its own database** — `tribeca_postman`, a copy of the
+dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
+Refresh the copy after a migration. Teardowns are their own last request.
 
 **The owner's rule for every review from now on (8 Oct 2026):** every `GET`
 needs only a session, every write needs the person's own permission, reach

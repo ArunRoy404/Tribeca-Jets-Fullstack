@@ -122,7 +122,7 @@ permission is a **module** — one per sidebar screen — and an **action** in i
 - **Moving a module over is part of reviewing it:** swap its
   `@RequirePermissions` for `@RequireAccess`, its `scopeFor` for `reachOf`,
   and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
-  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports.** Uploads needs no move — its
+  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators.** Uploads needs no move — its
   routes carry no permission by design and its rules are identity-based.
   Every other module's API is still on the old matrix, enforced by role.
   When the last one moves, delete the old matrix and the switch.
@@ -154,7 +154,10 @@ is readable without a session except the company branding. Beyond that:
   not see (the staff directory, desk data): the rule was given for picker
   data and those cases are not decided yet.
 
-Done so far: **Airports** (pinned by `airports.controller.spec.ts`).
+Done so far: **Airports** (pinned by `airports.controller.spec.ts`) and
+**Operators** — with `@StaffOnly()`: an open read over desk data a partner
+never needs refuses the referral agent (403) by stored role, in
+`AccessGuard`. Put it on the controller for the whole module.
 **Charter Rates** is the first "money" case, decided by the owner: its reads
 need Quotes · View money, and changing a rate is administrators only.
 
@@ -289,9 +292,12 @@ kind of thing that gets someone hurt.
 
 Two corollaries:
 
-- **Render a field as what it is.** `safetyRating` is a certification string
-  ("ARG/US Platinum") and `responseSpeed` is free text ("< 15 min"); only
-  `reliabilityRating` is a 0-5 number. A star row is for scores.
+- **Render a field as what it is.** A star row is for scores and nothing
+  else. On operators, `reliabilityRating` and `safetyRating` are the desk's
+  own 0–5 ratings (safety became a number by the owner's decision, 8 Oct
+  2026, as the Figma form) — so they get stars, **but only when someone
+  entered one**: blank is "Not rated", never a default, never derived.
+  `responseSpeed` is a word (Fast / Average / Slow), never stars.
 - **A placeholder attribute is fine** — it is a format hint, greyed, and never
   submitted. A `value` or a default is not.
 
@@ -407,6 +413,12 @@ Tracking (#14), which read the same trip facts a third and fourth time.
   `builder_common` take `POSTMAN_BASE` (e.g. `http://localhost:4100/api`);
   Newman takes `--env-var baseUrl=…`. Run Newman from `Backend/`, where the
   fixture paths resolve.
+- **…and on its own database** (since 8 Oct 2026): a copy of the dev
+  database, `tribeca_postman` (`pg_dump tribeca_jets | pg_restore` into it,
+  then start the 4100 API with `DATABASE_URL` pointing there). The owner
+  tests in the dev database, and every run leaves archived probes in its
+  Archived tabs; on the copy they bother nobody. Refresh the copy after a
+  migration.
 - **A local Newman run needs `RATE_LIMIT_MULTIPLIER=20`** in `Backend/.env`.
   A full run signs in more often than the login limit allows, so at `1` it
   fails with 429s that look like real failures. Never raise the limits
@@ -419,6 +431,12 @@ Tracking (#14), which read the same trip facts a third and fourth time.
   the probe is the correct end state: the debris sits in the Archived tab
   rather than among the records a broker works. `build_aircraft_folder.py` and
   `build_trip_requests_folder.py` are the pattern.
+- **The teardown is its own last request, never a `pm.sendRequest` in the
+  last test script.** Run alone, Newman can finish before such a call
+  completes, and the probe stays live — ten "Q…" test airports sat in the
+  airport picker that way (8 Oct 2026). `05 · Airports` and `06 · Operators`
+  end with a `Teardown — archive the probe` request; move each older folder
+  over on its review.
 - **A folder must pass on its own, not only inside a full run.** Requests
   reference collection variables — `{{clientId}}`, `{{operatorId}}` — that
   earlier folders happen to set, so a folder run alone sends empty strings and
@@ -1727,8 +1745,8 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault, Reports, Airports (per-person: `canAccess(Module.AIRPORTS, …)`). Not yet: the
-Clients table, Operators — each on its own turn.
+Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault, Reports, Airports and Operators (per-person: `canAccess(Module.X, …)`). Not
+yet: the Clients table — on its own turn.
 
 **A control narrower than a permission is gated by scope, not by
 `canWrite`.** A broker may edit a client (`MANAGE_CLIENTS` at `ASSIGNED`) but
