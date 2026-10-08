@@ -173,7 +173,7 @@ function AirportForm({ editingAirport, onDone }) {
 
           {/* Row 3: City, State, Country */}
           <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
-            <FormField label="City" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
+            <FormField label="City" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full" error={fieldErrors?.city}>
               <Input
                 className={FIELD_CLASS}
                 placeholder="Type..."
@@ -182,7 +182,7 @@ function AirportForm({ editingAirport, onDone }) {
                 required
               />
             </FormField>
-            <FormField label="State (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
+            <FormField label="State (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full" error={fieldErrors?.state}>
               <Input
                 className={FIELD_CLASS}
                 placeholder="Type..."
@@ -190,7 +190,7 @@ function AirportForm({ editingAirport, onDone }) {
                 onChange={(e) => handleChange("state", e.target.value)}
               />
             </FormField>
-            <FormField label="Country" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
+            <FormField label="Country" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full" error={fieldErrors?.country}>
               <Input
                 className={FIELD_CLASS}
                 placeholder="USA"
@@ -203,7 +203,7 @@ function AirportForm({ editingAirport, onDone }) {
 
           {/* Row 4: Latitude & Longitude */}
           <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
-            <FormField label="Latitude" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
+            <FormField label="Latitude" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full" error={fieldErrors?.latitude}>
               <Input
                 className={FIELD_CLASS}
                 placeholder="40.8508"
@@ -212,7 +212,7 @@ function AirportForm({ editingAirport, onDone }) {
                 required
               />
             </FormField>
-            <FormField label="Longitude" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full">
+            <FormField label="Longitude" labelClassName={LABEL_CLASS} className="flex-1 min-w-0 w-full" error={fieldErrors?.longitude}>
               <Input
                 className={FIELD_CLASS}
                 placeholder="-74.0613"

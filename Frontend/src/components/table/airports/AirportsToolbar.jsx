@@ -83,21 +83,21 @@ export default function AirportsToolbar({
         {/* The checkbox column is on both tabs, so both get a bulk action —
             Remove on the live list, Restore on Archived. Leaving Archived with
             checkboxes and no button was a selection that did nothing. */}
-        <BulkDeleteButton
-          count={selectedCount}
-          itemLabel="airports"
-          onClick={onBulkAction}
-          action={isArchived ? "restore" : "remove"}
-        />
-        {isArchived ? null : <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onAddAirport?.()}
-        className="px-3 sm:px-4 gap-2"
-      >
-        <Plus className="size-3.5" />
-        <span>Add Airport</span>
-        </Button>}
+        {onBulkAction ? (
+          <BulkDeleteButton
+            count={selectedCount}
+            itemLabel="airports"
+            onClick={onBulkAction}
+            action={isArchived ? "restore" : "remove"}
+          />
+        ) : null}
+        {/* Absent rather than disabled for someone without Airports · Add. */}
+        {isArchived || !onAddAirport ? null : (
+          <Button variant="outline" size="sm" onClick={() => onAddAirport?.()} className="px-3 sm:px-4 gap-2">
+            <Plus className="size-3.5" />
+            <span>Add Airport</span>
+          </Button>
+        )}
       </div>
       </div>
     </div>

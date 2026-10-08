@@ -57,6 +57,10 @@ export function toAirportRow(airport) {
     assignedFbo: airport?.assignedFbo || DASH,
     notes: airport?.notes ?? "",
 
+    // Detail only: live, uncancelled trips with a leg here — `{ total,
+    // thisYear }`, or null when the API does not count them for this person.
+    trips: airport?.trips ?? null,
+
     // Audit trail, present on every record in every module.
     createdAt: airport?.createdAt ?? null,
     updatedAt: airport?.updatedAt ?? null,

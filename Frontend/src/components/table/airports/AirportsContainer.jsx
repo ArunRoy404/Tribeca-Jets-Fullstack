@@ -23,6 +23,8 @@ import {
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { useAirportsStore } from "@/store/useAirportsStore";
 import { toAirportRow } from "@/lib/airport";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Action, Module } from "@/lib/access";
 
 export default function AirportsContainer({ revealDelay = 0 }) {
   // The URL is the state. Every filter below reads and writes it, so the view
@@ -51,6 +53,15 @@ export default function AirportsContainer({ revealDelay = 0 }) {
   const { mutate: restoreAirport } = useRestoreAirport();
 
   const isArchived = params?.tab === ARCHIVE_TABS.ARCHIVED;
+
+  // Each control follows the person's own Airports permissions; the API
+  // refuses the same actions. Removing and restoring are one permission.
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.AIRPORTS, Action.CREATE);
+  const mayEdit = canAccess(Module.AIRPORTS, Action.EDIT);
+  const mayArchive = canAccess(Module.AIRPORTS, Action.ARCHIVE);
+  // The checkbox column feeds only the bulk remove/restore, so it goes with it.
+  const selectable = mayArchive;
 
   // The selection holds ids; the dialog lists the rows behind them. Derived
   // from the current page, so a row removed underneath us simply drops out
@@ -85,27 +96,26 @@ export default function AirportsContainer({ revealDelay = 0 }) {
       return next;
     });
 
-  const getRowActions = (apt) =>
-    isArchived
-      ? [
-          { label: "View Details", icon: <Eye />, onSelect: () => openDetailsSidebar?.(apt) },
-          {
-            label: "Restore Airport",
-            icon: <RotateCcw />,
-            onSelect: () => restoreAirport?.(apt),
-          },
-        ]
-      : [
-          { label: "View Details", icon: <Eye />, onSelect: () => openDetailsSidebar?.(apt) },
-          { label: "Edit Airport", icon: <Edit2 />, onSelect: () => openEditModal?.(apt) },
-          "separator",
-          {
-            label: "Remove Airport",
-            icon: <Trash2 />,
-            variant: "destructive",
-            onSelect: () => openDeleteModal?.(apt),
-          },
-        ];
+  const getRowActions = (apt) => {
+    const viewItem = { label: "View Details", icon: <Eye />, onSelect: () => openDetailsSidebar?.(apt) };
+    if (isArchived) {
+      return [
+        viewItem,
+        mayArchive && { label: "Restore Airport", icon: <RotateCcw />, onSelect: () => restoreAirport?.(apt) },
+      ].filter(Boolean);
+    }
+    return [
+      viewItem,
+      mayEdit && { label: "Edit Airport", icon: <Edit2 />, onSelect: () => openEditModal?.(apt) },
+      mayArchive && "separator",
+      mayArchive && {
+        label: "Remove Airport",
+        icon: <Trash2 />,
+        variant: "destructive",
+        onSelect: () => openDeleteModal?.(apt),
+      },
+    ].filter(Boolean);
+  };
 
   const isEmpty = !airportsQuery?.isPending && !airportsQuery?.error && rows.length === 0;
 
@@ -119,9 +129,9 @@ export default function AirportsContainer({ revealDelay = 0 }) {
           setCountryFilter={params?.setCountry}
           limit={params?.limit}
           setLimit={params?.setLimit}
-          onAddAirport={openAddModal}
+          onAddAirport={mayCreate ? openAddModal : undefined}
           selectedCount={selectedRows.length}
-          onBulkAction={() => setBulkOpen(true)}
+          onBulkAction={selectable ? () => setBulkOpen(true) : undefined}
           tab={params?.tab}
           setTab={params?.setTab}
         />
@@ -148,6 +158,8 @@ export default function AirportsContainer({ revealDelay = 0 }) {
             <div className="relative w-full lg:hidden">
               <AirportsCardsContainer
                 airports={rows}
+                archived={isArchived}
+                selectable={selectable}
                 selected={selected}
                 onToggleRow={toggleRow}
                 getRowActions={getRowActions}
@@ -157,6 +169,7 @@ export default function AirportsContainer({ revealDelay = 0 }) {
 
             <AirportsTable
               archived={isArchived}
+              selectable={selectable}
               pageAirports={rows}
               selected={selected}
               onSelectAll={() =>

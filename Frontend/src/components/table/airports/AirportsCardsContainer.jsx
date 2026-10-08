@@ -4,6 +4,8 @@ import AirportCard from "./AirportCard";
 
 export default function AirportsCardsContainer({
   airports,
+  archived = false,
+  selectable = true,
   selected,
   onToggleRow,
   getRowActions,
@@ -15,6 +17,8 @@ export default function AirportsCardsContainer({
         <AirportCard
           key={apt?.id}
           airport={apt}
+          archived={archived}
+          selectable={selectable}
           selected={selected?.has?.(apt?.id)}
           onToggleSelect={() => onToggleRow?.(apt?.id)}
           actions={getRowActions?.(apt)}
