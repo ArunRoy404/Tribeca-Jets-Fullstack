@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { ACCESS_KEY } from '../constants/auth.constants.js';
+import { ACCESS_KEY, STAFF_ONLY_KEY } from '../constants/auth.constants.js';
+import { isPartner } from '../authorization/permissions.js';
 import type { AccessRequirement } from '../decorators/access.decorator.js';
 import { MODULE_BY_KEY, actionLabel } from '../authorization/access.catalogue.js';
 import { canDo } from '../authorization/access.js';
@@ -25,6 +26,14 @@ export class AccessGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    const targets = [context.getHandler(), context.getClass()];
+    if (this.reflector.getAllAndOverride<boolean>(STAFF_ONLY_KEY, targets)) {
+      const caller = context.switchToHttp().getRequest<Request>().user as AuthenticatedUser | undefined;
+      if (caller && isPartner(caller.role)) {
+        throw new ForbiddenException('This is desk data; the referral portal cannot read it.');
+      }
+    }
+
     const requirement = this.reflector.getAllAndOverride<AccessRequirement>(ACCESS_KEY, [
       context.getHandler(),
       context.getClass(),

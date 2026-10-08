@@ -36,6 +36,9 @@ export const PERMISSIONS_KEY = 'permissions';
 /** Metadata key for `@RequireAccess` — a module and an action. */
 export const ACCESS_KEY = 'requiredAccess';
 
+/** Metadata key for `@StaffOnly` — refused to a referral agent (a partner). */
+export const STAFF_ONLY_KEY = 'staffOnly';
+
 /**
  * The modules the signed-in person may view, `DASHBOARD.TRIPS.QUOTES` —
  * written with the session and on every `/auth/me`, so the frontend's

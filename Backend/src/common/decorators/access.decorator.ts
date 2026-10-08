@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { ACCESS_KEY } from '../constants/auth.constants.js';
+import { ACCESS_KEY, STAFF_ONLY_KEY } from '../constants/auth.constants.js';
 import { Action, type Module } from '../authorization/access.js';
 
 export interface AccessRequirement {
@@ -19,3 +19,13 @@ export interface AccessRequirement {
  */
 export const RequireAccess = (module: Module, action: Action = Action.VIEW) =>
   SetMetadata(ACCESS_KEY, { module, action } satisfies AccessRequirement);
+
+/**
+ * Staff only: a referral agent (a partner) is refused with 403, whatever
+ * else the route allows. For the open reads (AGENTS.md, "Reads are open to
+ * every signed-in user") over desk data a partner never needs — an
+ * operator's contacts and terms. Identity, like `isPartner`: never switchable.
+ *
+ * On a controller it covers every route; on a handler, that route.
+ */
+export const StaffOnly = () => SetMetadata(STAFF_ONLY_KEY, true);

@@ -11,6 +11,7 @@ import {
   ACCESS_KEY,
   IS_PUBLIC_KEY,
   PERMISSIONS_KEY,
+  STAFF_ONLY_KEY,
 } from '../constants/auth.constants.js';
 import type { PermissionRequirement } from '../decorators/permissions.decorator.js';
 import type { AccessRequirement } from '../decorators/access.decorator.js';
@@ -29,6 +30,8 @@ type RouteFacts = {
   permissions: string[];
   /** `@RequireAccess` — the per-person permission, as `MODULE · ACTION`. */
   access?: string;
+  /** `@StaffOnly`, on the route or its controller. */
+  staffOnly?: boolean;
   /**
    * The status an explicit `@HttpCode` sets, if any.
    *
@@ -108,6 +111,7 @@ function collectRouteFacts(app: INestApplication): Map<string, RouteFacts> {
             reflector.get<boolean | undefined>(IS_PUBLIC_KEY, handler) === true,
           permissions: requirement?.permissions ?? [],
           access: access ? `${access.module} · ${access.action}` : undefined,
+          staffOnly: reflector.getAllAndOverride<boolean>(STAFF_ONLY_KEY, [handler, metatype]) === true,
           httpCode: Reflect.getMetadata(HTTP_CODE_METADATA, handler) as
             | number
             | undefined,
@@ -262,9 +266,13 @@ export function describeResponses(
         );
       }
 
-      if (route.access && !op.responses['403']) {
+      if ((route.access || route.staffOnly) && !op.responses['403']) {
+        const reasons = [
+          route.access && `you do not hold ${route.access} in your own permissions (Users & Roles › Permissions)`,
+          route.staffOnly && 'you are a referral agent — this is desk data',
+        ].filter(Boolean);
         op.responses['403'] = errorResponse(
-          `You do not hold ${route.access} in your own permissions (Users & Roles › Permissions). A record you merely cannot see returns 404 instead.`,
+          `Refused when ${reasons.join(', or ')}. A record you merely cannot see returns 404 instead.`,
         );
       }
 
