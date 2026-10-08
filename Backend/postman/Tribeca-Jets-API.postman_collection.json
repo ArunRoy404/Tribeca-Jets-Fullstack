@@ -19536,7 +19536,7 @@
                 "MIDSIZE_JET"
               ]
             },
-            "description": "Creates the category's row the first time, updates it after. `null` clears a figure.\n\n**`:category`** \u2014 case-sensitive: TURBOPROP | LIGHT_JET | MIDSIZE_JET | SUPER_MIDSIZE | HEAVY_JET | ULTRA_LONG_RANGE | VIP_AIRLINER.\n\nOnly VIEW_FINANCIALS at **ALL** scope (administrator, senior broker) may change a company-wide rate; a broker gets 403. Every change is audited with before and after.\n\nThe pre-request script saves the current rate and `04 \u00b7 Put the rate back` restores it \u2014 running the collection never changes the desk's real rates."
+            "description": "Creates the category's row the first time, updates it after. `null` clears a figure.\n\n**`:category`** \u2014 case-sensitive: TURBOPROP | LIGHT_JET | MIDSIZE_JET | SUPER_MIDSIZE | HEAVY_JET | ULTRA_LONG_RANGE | VIP_AIRLINER.\n\nNeeds **Quotes \u00b7 View money and an administrator** (SUPER_ADMIN or ADMIN \u2014 owner's decision, 8 Oct 2026): every estimate is built on these company-wide numbers, so a broker gets 403. Every change is audited with before and after.\n\nThe pre-request script saves the current rate and `04 \u00b7 Put the rate back` restores it \u2014 running the collection never changes the desk's real rates."
           },
           "response": [
             {
@@ -19569,7 +19569,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"category\": \"MIDSIZE_JET\",\n    \"id\": \"55b6eeb8-b19b-4505-b9f3-9b626eeed29d\",\n    \"hourlyRate\": 4500,\n    \"averageSpeedKnots\": 420,\n    \"typicalSeats\": 8,\n    \"minimumHours\": 1.5,\n    \"notes\": null,\n    \"updatedAt\": \"2026-09-26T06:30:41.463Z\",\n    \"updatedBy\": {\n      \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\"\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"category\": \"MIDSIZE_JET\",\n    \"id\": \"66df103f-7479-4275-a8b2-8c4e7bd480fa\",\n    \"hourlyRate\": 4500,\n    \"averageSpeedKnots\": 420,\n    \"typicalSeats\": 8,\n    \"minimumHours\": 1.5,\n    \"notes\": null,\n    \"updatedAt\": \"2026-10-08T05:32:30.545Z\",\n    \"updatedBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\"\n    }\n  }\n}"
             },
             {
               "name": "400 \u00b7 Out of bounds",
@@ -19601,7 +19601,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"hourlyRate\": \"The hourly rate must be a number of dollars\",\n    \"averageSpeedKnots\": \"The average speed must be whole knots\"\n  },\n  \"path\": \"/api/charter-rates/MIDSIZE_JET\",\n  \"timestamp\": \"2026-09-26T06:30:51.757Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"hourlyRate\": \"The hourly rate must be a number of dollars\",\n    \"averageSpeedKnots\": \"The average speed must be whole knots\"\n  },\n  \"path\": \"/api/charter-rates/MIDSIZE_JET\",\n  \"timestamp\": \"2026-10-08T05:32:30.558Z\"\n}"
             },
             {
               "name": "400 \u00b7 Category is case-sensitive",
@@ -19633,10 +19633,10 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"category\": \"Invalid option: expected one of \\\"TURBOPROP\\\"|\\\"LIGHT_JET\\\"|\\\"MIDSIZE_JET\\\"|\\\"SUPER_MIDSIZE\\\"|\\\"HEAVY_JET\\\"|\\\"ULTRA_LONG_RANGE\\\"|\\\"VIP_AIRLINER\\\"\"\n  },\n  \"path\": \"/api/charter-rates/midsize_jet\",\n  \"timestamp\": \"2026-09-26T06:30:53.797Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"category\": \"Invalid option: expected one of \\\"TURBOPROP\\\"|\\\"LIGHT_JET\\\"|\\\"MIDSIZE_JET\\\"|\\\"SUPER_MIDSIZE\\\"|\\\"HEAVY_JET\\\"|\\\"ULTRA_LONG_RANGE\\\"|\\\"VIP_AIRLINER\\\"\"\n  },\n  \"path\": \"/api/charter-rates/midsize_jet\",\n  \"timestamp\": \"2026-10-08T05:32:30.560Z\"\n}"
             },
             {
-              "name": "403 \u00b7 A broker cannot set company-wide rates",
+              "name": "403 \u00b7 A broker (only an administrator sets rates)",
               "originalRequest": {
                 "method": "PUT",
                 "header": [],
@@ -19665,7 +19665,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Charter rates are company-wide; only an administrator or senior broker can change them.\",\n  \"path\": \"/api/charter-rates/MIDSIZE_JET\",\n  \"timestamp\": \"2026-09-26T06:30:55.846Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Charter rates are company-wide; only an administrator can change them.\",\n  \"path\": \"/api/charter-rates/MIDSIZE_JET\",\n  \"timestamp\": \"2026-10-08T05:32:30.562Z\"\n}"
             }
           ]
         },
@@ -19706,7 +19706,7 @@
                 }
               ]
             },
-            "description": "One row per aircraft category \u2014 **including categories with no rate on file**, whose figures are all `null`. Hiding them would hide that they cannot be estimated.\n\nNeeds VIEW_FINANCIALS: an hourly rate is what the desk expects to pay. No search, and the query is strict \u2014 an unknown parameter is a 400, not silently ignored."
+            "description": "One row per aircraft category \u2014 **including categories with no rate on file**, whose figures are all `null`. Hiding them would hide that they cannot be estimated.\n\nNeeds **Quotes \u00b7 View money** \u2014 rates are money, so this is not one of the open reads: an hourly rate is what the desk expects to pay. A broker holds it by default; an assistant cannot. No search, and the query is strict \u2014 an unknown parameter is a 400, not silently ignored."
           },
           "response": [
             {
@@ -19734,7 +19734,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"category\": \"TURBOPROP\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"LIGHT_JET\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"MIDSIZE_JET\",\n      \"id\": \"55b6eeb8-b19b-4505-b9f3-9b626eeed29d\",\n      \"hourlyRate\": 4500,\n      \"averageSpeedKnots\": 420,\n      \"typicalSeats\": 8,\n      \"minimumHours\": 1.5,\n      \"notes\": null,\n      \"updatedAt\": \"2026-09-26T06:30:41.463Z\",\n      \"updatedBy\": {\n        \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\"\n      }\n    },\n    {\n      \"category\": \"SUPER_MIDSIZE\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"HEAVY_JET\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"ULTRA_LONG_RANGE\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"VIP_AIRLINER\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 7,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"category\": \"TURBOPROP\",\n      \"id\": \"23fc0918-7d30-4093-85a8-3eaff02dbf33\",\n      \"hourlyRate\": 33,\n      \"averageSpeedKnots\": 53,\n      \"typicalSeats\": 4,\n      \"minimumHours\": 1.5,\n      \"notes\": null,\n      \"updatedAt\": \"2026-10-08T05:26:41.411Z\",\n      \"updatedBy\": {\n        \"id\": \"45545332-3756-4302-ab33-588bebfc961a\",\n        \"firstName\": \"Arun\",\n        \"lastName\": \"Roy\"\n      }\n    },\n    {\n      \"category\": \"LIGHT_JET\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"MIDSIZE_JET\",\n      \"id\": \"66df103f-7479-4275-a8b2-8c4e7bd480fa\",\n      \"hourlyRate\": 4500,\n      \"averageSpeedKnots\": 420,\n      \"typicalSeats\": 8,\n      \"minimumHours\": 1.5,\n      \"notes\": null,\n      \"updatedAt\": \"2026-10-08T05:32:30.545Z\",\n      \"updatedBy\": {\n        \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\"\n      }\n    },\n    {\n      \"category\": \"SUPER_MIDSIZE\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"HEAVY_JET\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"ULTRA_LONG_RANGE\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"VIP_AIRLINER\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 7,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "400 \u00b7 Unknown parameter",
@@ -19761,7 +19761,34 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"search\\\"\"\n  },\n  \"path\": \"/api/charter-rates?search=jet\",\n  \"timestamp\": \"2026-09-26T06:30:45.552Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"search\\\"\"\n  },\n  \"path\": \"/api/charter-rates?search=jet\",\n  \"timestamp\": \"2026-10-08T05:32:30.554Z\"\n}"
+            },
+            {
+              "name": "200 \u00b7 A broker (read-only)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/charter-rates?page=1&limit=3",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "charter-rates"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"category\": \"TURBOPROP\",\n      \"id\": \"23fc0918-7d30-4093-85a8-3eaff02dbf33\",\n      \"hourlyRate\": 33,\n      \"averageSpeedKnots\": 53,\n      \"typicalSeats\": 4,\n      \"minimumHours\": 1.5,\n      \"notes\": null,\n      \"updatedAt\": \"2026-10-08T05:26:41.411Z\",\n      \"updatedBy\": {\n        \"id\": \"45545332-3756-4302-ab33-588bebfc961a\",\n        \"firstName\": \"Arun\",\n        \"lastName\": \"Roy\"\n      }\n    },\n    {\n      \"category\": \"LIGHT_JET\",\n      \"id\": null,\n      \"hourlyRate\": null,\n      \"averageSpeedKnots\": null,\n      \"typicalSeats\": null,\n      \"minimumHours\": null,\n      \"notes\": null,\n      \"updatedAt\": null,\n      \"updatedBy\": null\n    },\n    {\n      \"category\": \"MIDSIZE_JET\",\n      \"id\": \"66df103f-7479-4275-a8b2-8c4e7bd480fa\",\n      \"hourlyRate\": 4500,\n      \"averageSpeedKnots\": 420,\n      \"typicalSeats\": 8,\n      \"minimumHours\": 1.5,\n      \"notes\": null,\n      \"updatedAt\": \"2026-10-08T05:32:30.545Z\",\n      \"updatedBy\": {\n        \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n        \"firstName\": \"Ari\",\n        \"lastName\": \"Admin\"\n      }\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 7,\n    \"totalPages\": 3,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "401 \u00b7 Not signed in",
@@ -19788,10 +19815,10 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/charter-rates\",\n  \"timestamp\": \"2026-09-26T06:30:47.616Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/charter-rates\",\n  \"timestamp\": \"2026-10-08T05:32:30.554Z\"\n}"
             },
             {
-              "name": "403 \u00b7 Assistant cannot see rates",
+              "name": "403 \u00b7 An assistant (no Quotes \u00b7 View money)",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
@@ -19815,7 +19842,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (View Financials)\",\n  \"path\": \"/api/charter-rates\",\n  \"timestamp\": \"2026-09-26T06:30:49.680Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Quotes \\u00b7 See cost & profit\",\n  \"path\": \"/api/charter-rates\",\n  \"timestamp\": \"2026-10-08T05:32:30.556Z\"\n}"
             }
           ]
         },
@@ -19881,7 +19908,7 @@
                 "estimate"
               ]
             },
-            "description": "Client adjustment #6. Great-circle distance between the two airports, then for every category: flight hours at its average speed, billed hours (never below its minimum) and estimated operator cost \u2014 doubled for a round trip. **A category without a rate returns `estimate: null`, never $0.** `fitsParty` compares `passengers` to typical seats; null when either is unknown. Winds, routing and positioning are not modelled. Nothing saved.\n\nThe pre-request script picks two airports that have coordinates, so the folder runs alone."
+            "description": "Client adjustment #6. Great-circle distance between the two airports, then for every category: flight hours at its average speed, billed hours (never below its minimum) and estimated operator cost \u2014 doubled for a round trip. **A category without a rate returns `estimate: null`, never $0.** `fitsParty` compares `passengers` to typical seats; null when either is unknown. Winds, routing and positioning are not modelled. Nothing saved.\n\nNeeds **Quotes \u00b7 View money**. Both airports must exist **and be live** \u2014 an archived one is a 400 naming it.\n\nThe pre-request script picks two airports that have coordinates, so the folder runs alone."
           },
           "response": [
             {
@@ -19901,7 +19928,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"originAirportId\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n  \"destinationAirportId\": \"8edc2c86-8d33-4740-af6d-7b9ddfdd0128\",\n  \"passengers\": 6,\n  \"roundTrip\": true\n}"
+                  "raw": "{\n  \"originAirportId\": \"a8ee45ac-6a11-41f1-9eb7-8930efe541b9\",\n  \"destinationAirportId\": \"ff330e60-2c68-45a0-8015-a7c0fcf217ab\",\n  \"passengers\": 6,\n  \"roundTrip\": true\n}"
                 }
               },
               "status": "OK",
@@ -19914,7 +19941,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"origin\": {\n      \"id\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n      \"icao\": \"LFPB\",\n      \"name\": \"Paris Le Bourget\"\n    },\n    \"destination\": {\n      \"id\": \"8edc2c86-8d33-4740-af6d-7b9ddfdd0128\",\n      \"icao\": \"EGLL\",\n      \"name\": \"London Heathrow Airport\"\n    },\n    \"distanceNm\": 186.8,\n    \"legs\": 2,\n    \"passengers\": 6,\n    \"options\": [\n      {\n        \"category\": \"TURBOPROP\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"LIGHT_JET\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"MIDSIZE_JET\",\n        \"hourlyRate\": 4500,\n        \"averageSpeedKnots\": 420,\n        \"typicalSeats\": 8,\n        \"minimumHours\": 1.5,\n        \"fitsParty\": true,\n        \"estimate\": {\n          \"flightHoursPerLeg\": 0.4,\n          \"billedHoursPerLeg\": 1.5,\n          \"totalBilledHours\": 3,\n          \"estimatedCost\": 13500\n        }\n      },\n      {\n        \"category\": \"SUPER_MIDSIZE\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"HEAVY_JET\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"ULTRA_LONG_RANGE\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"VIP_AIRLINER\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      }\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"origin\": {\n      \"id\": \"a8ee45ac-6a11-41f1-9eb7-8930efe541b9\",\n      \"icao\": \"QZQA\",\n      \"name\": \"Laurence G Hanscom Field\"\n    },\n    \"destination\": {\n      \"id\": \"ff330e60-2c68-45a0-8015-a7c0fcf217ab\",\n      \"icao\": \"QCQX\",\n      \"name\": \"Laurence G Hanscom Field\"\n    },\n    \"distanceNm\": 0,\n    \"legs\": 2,\n    \"passengers\": 6,\n    \"options\": [\n      {\n        \"category\": \"TURBOPROP\",\n        \"hourlyRate\": 33,\n        \"averageSpeedKnots\": 53,\n        \"typicalSeats\": 4,\n        \"minimumHours\": 1.5,\n        \"fitsParty\": false,\n        \"estimate\": {\n          \"flightHoursPerLeg\": 0,\n          \"billedHoursPerLeg\": 1.5,\n          \"totalBilledHours\": 3,\n          \"estimatedCost\": 99\n        }\n      },\n      {\n        \"category\": \"LIGHT_JET\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"MIDSIZE_JET\",\n        \"hourlyRate\": 4500,\n        \"averageSpeedKnots\": 420,\n        \"typicalSeats\": 8,\n        \"minimumHours\": 1.5,\n        \"fitsParty\": true,\n        \"estimate\": {\n          \"flightHoursPerLeg\": 0,\n          \"billedHoursPerLeg\": 1.5,\n          \"totalBilledHours\": 3,\n          \"estimatedCost\": 13500\n        }\n      },\n      {\n        \"category\": \"SUPER_MIDSIZE\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"HEAVY_JET\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"ULTRA_LONG_RANGE\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"VIP_AIRLINER\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      }\n    ]\n  }\n}"
             },
             {
               "name": "400 \u00b7 Same airport twice",
@@ -19933,7 +19960,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"originAirportId\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n  \"destinationAirportId\": \"e4752216-7581-4753-99fd-2c445f58490a\"\n}"
+                  "raw": "{\n  \"originAirportId\": \"a8ee45ac-6a11-41f1-9eb7-8930efe541b9\",\n  \"destinationAirportId\": \"a8ee45ac-6a11-41f1-9eb7-8930efe541b9\"\n}"
                 }
               },
               "status": "Bad Request",
@@ -19946,7 +19973,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"destinationAirportId\": \"Origin and destination must be different airports\"\n  },\n  \"path\": \"/api/charter-rates/estimate\",\n  \"timestamp\": \"2026-09-26T06:31:00.071Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"destinationAirportId\": \"Origin and destination must be different airports\"\n  },\n  \"path\": \"/api/charter-rates/estimate\",\n  \"timestamp\": \"2026-10-08T05:32:30.584Z\"\n}"
             },
             {
               "name": "400 \u00b7 Unknown airport",
@@ -19965,7 +19992,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"originAirportId\": \"00000000-0000-4000-8000-000000000000\",\n  \"destinationAirportId\": \"8edc2c86-8d33-4740-af6d-7b9ddfdd0128\"\n}"
+                  "raw": "{\n  \"originAirportId\": \"00000000-0000-4000-8000-000000000000\",\n  \"destinationAirportId\": \"ff330e60-2c68-45a0-8015-a7c0fcf217ab\"\n}"
                 }
               },
               "status": "Bad Request",
@@ -19978,10 +20005,10 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That origin airport does not exist\",\n  \"path\": \"/api/charter-rates/estimate\",\n  \"timestamp\": \"2026-09-26T06:31:02.145Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That origin airport does not exist\",\n  \"path\": \"/api/charter-rates/estimate\",\n  \"timestamp\": \"2026-10-08T05:32:30.586Z\"\n}"
             },
             {
-              "name": "403 \u00b7 Assistant cannot estimate",
+              "name": "200 \u00b7 A broker",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -19997,7 +20024,71 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"originAirportId\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n  \"destinationAirportId\": \"8edc2c86-8d33-4740-af6d-7b9ddfdd0128\",\n  \"passengers\": 6,\n  \"roundTrip\": true\n}"
+                  "raw": "{\n  \"originAirportId\": \"a8ee45ac-6a11-41f1-9eb7-8930efe541b9\",\n  \"destinationAirportId\": \"ff330e60-2c68-45a0-8015-a7c0fcf217ab\",\n  \"passengers\": 6,\n  \"roundTrip\": true\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"origin\": {\n      \"id\": \"a8ee45ac-6a11-41f1-9eb7-8930efe541b9\",\n      \"icao\": \"QZQA\",\n      \"name\": \"Laurence G Hanscom Field\"\n    },\n    \"destination\": {\n      \"id\": \"ff330e60-2c68-45a0-8015-a7c0fcf217ab\",\n      \"icao\": \"QCQX\",\n      \"name\": \"Laurence G Hanscom Field\"\n    },\n    \"distanceNm\": 0,\n    \"legs\": 2,\n    \"passengers\": 6,\n    \"options\": [\n      {\n        \"category\": \"TURBOPROP\",\n        \"hourlyRate\": 33,\n        \"averageSpeedKnots\": 53,\n        \"typicalSeats\": 4,\n        \"minimumHours\": 1.5,\n        \"fitsParty\": false,\n        \"estimate\": {\n          \"flightHoursPerLeg\": 0,\n          \"billedHoursPerLeg\": 1.5,\n          \"totalBilledHours\": 3,\n          \"estimatedCost\": 99\n        }\n      },\n      {\n        \"category\": \"LIGHT_JET\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"MIDSIZE_JET\",\n        \"hourlyRate\": 4500,\n        \"averageSpeedKnots\": 420,\n        \"typicalSeats\": 8,\n        \"minimumHours\": 1.5,\n        \"fitsParty\": true,\n        \"estimate\": {\n          \"flightHoursPerLeg\": 0,\n          \"billedHoursPerLeg\": 1.5,\n          \"totalBilledHours\": 3,\n          \"estimatedCost\": 13500\n        }\n      },\n      {\n        \"category\": \"SUPER_MIDSIZE\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"HEAVY_JET\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"ULTRA_LONG_RANGE\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      },\n      {\n        \"category\": \"VIP_AIRLINER\",\n        \"hourlyRate\": null,\n        \"averageSpeedKnots\": null,\n        \"typicalSeats\": null,\n        \"minimumHours\": null,\n        \"fitsParty\": null,\n        \"estimate\": null\n      }\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 An archived airport",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/charter-rates/estimate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "charter-rates",
+                    "estimate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"originAirportId\": \"4d101317-5d09-4e1b-9351-2fe2e8e59442\",\n  \"destinationAirportId\": \"ff330e60-2c68-45a0-8015-a7c0fcf217ab\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"QSVQ has been archived. Restore it on the Airports screen, or pick another origin airport.\",\n  \"path\": \"/api/charter-rates/estimate\",\n  \"timestamp\": \"2026-10-08T05:32:30.590Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 An assistant (no Quotes \u00b7 View money)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/charter-rates/estimate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "charter-rates",
+                    "estimate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"originAirportId\": \"a8ee45ac-6a11-41f1-9eb7-8930efe541b9\",\n  \"destinationAirportId\": \"ff330e60-2c68-45a0-8015-a7c0fcf217ab\",\n  \"passengers\": 6,\n  \"roundTrip\": true\n}"
                 }
               },
               "status": "Forbidden",
@@ -20010,7 +20101,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (View Financials)\",\n  \"path\": \"/api/charter-rates/estimate\",\n  \"timestamp\": \"2026-09-26T06:31:04.181Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Quotes \\u00b7 See cost & profit\",\n  \"path\": \"/api/charter-rates/estimate\",\n  \"timestamp\": \"2026-10-08T05:32:30.588Z\"\n}"
             }
           ]
         },
@@ -20105,7 +20196,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"category\": \"MIDSIZE_JET\",\n    \"id\": \"55b6eeb8-b19b-4505-b9f3-9b626eeed29d\",\n    \"hourlyRate\": null,\n    \"averageSpeedKnots\": null,\n    \"typicalSeats\": null,\n    \"minimumHours\": null,\n    \"notes\": null,\n    \"updatedAt\": \"2026-09-26T06:31:06.219Z\",\n    \"updatedBy\": {\n      \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\"\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"category\": \"MIDSIZE_JET\",\n    \"id\": \"66df103f-7479-4275-a8b2-8c4e7bd480fa\",\n    \"hourlyRate\": null,\n    \"averageSpeedKnots\": null,\n    \"typicalSeats\": null,\n    \"minimumHours\": null,\n    \"notes\": null,\n    \"updatedAt\": \"2026-10-08T05:32:30.594Z\",\n    \"updatedBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\"\n    }\n  }\n}"
             }
           ]
         }

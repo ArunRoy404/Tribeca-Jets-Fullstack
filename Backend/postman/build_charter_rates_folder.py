@@ -3,8 +3,7 @@
 Builds `14 · Charter Rates` — client adjustment #6's instant estimate —
 capturing every example from a live API.
 
-    npm run start:dev
-    python3 postman/build_charter_rates_folder.py
+    POSTMAN_BASE=http://localhost:4100/api python3 postman/build_charter_rates_folder.py
     cd postman && python3 rewrite_body_comments.py
 
 **It must never overwrite a real rate.** The desk's rates are business data
@@ -92,6 +91,9 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
     airports = owner.request('GET', '/airports?limit=100')[1]['data']
     located = [a for a in airports if a.get('latitude') is not None and a.get('longitude') is not None]
     origin, destination = located[0], located[1]
+    # An archived airport with coordinates — the estimate must refuse it by name.
+    archived = next(a for a in owner.request('GET', '/airports?limit=100&archived=true')[1]['data']
+                    if a.get('latitude') is not None)
 
     set_payload = {'hourlyRate': 4500, 'averageSpeedKnots': 420, 'typicalSeats': 8, 'minimumHours': 1.5}
     estimate_payload = {'originAirportId': origin['id'], 'destinationAirportId': destination['id'],
@@ -106,6 +108,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         cap['set_400'] = owner.request('PUT', f'/charter-rates/{CATEGORY}', {'hourlyRate': -5, 'averageSpeedKnots': 5000})
         cap['set_400_category'] = owner.request('PUT', '/charter-rates/midsize_jet', {'hourlyRate': 4500})
         cap['set_403'] = broker.request('PUT', f'/charter-rates/{CATEGORY}', set_payload)
+        cap['list_broker'] = broker.request('GET', '/charter-rates?page=1&limit=3')
+        cap['estimate_broker'] = broker.request('POST', '/charter-rates/estimate', estimate_payload)
 
         cap['estimate'] = owner.request('POST', '/charter-rates/estimate', estimate_payload)
         cap['estimate_400_same'] = owner.request('POST', '/charter-rates/estimate', {
@@ -113,6 +117,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         cap['estimate_400_unknown'] = owner.request('POST', '/charter-rates/estimate', {
             'originAirportId': MISSING, 'destinationAirportId': destination['id']})
         cap['estimate_403'] = assistant.request('POST', '/charter-rates/estimate', estimate_payload)
+        cap['archived_payload'] = {'originAirportId': archived['id'], 'destinationAirportId': destination['id']}
+        cap['estimate_400_archived'] = owner.request('POST', '/charter-rates/estimate', cap['archived_payload'])
     finally:
         cap['restore'] = owner.request('PUT', f'/charter-rates/{CATEGORY}', saved)
         assert cap['restore'][0] == 200, cap['restore']
@@ -133,8 +139,9 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                 'description': (
                     'Creates the category\'s row the first time, updates it after. `null` clears a figure.\n\n'
                     f'**`:category`** — case-sensitive: {CATEGORIES}.\n\n'
-                    'Only VIEW_FINANCIALS at **ALL** scope (administrator, senior broker) may change a '
-                    'company-wide rate; a broker gets 403. Every change is audited with before and after.\n\n'
+                    'Needs **Quotes · View money and an administrator** (SUPER_ADMIN or ADMIN — owner\'s decision, '
+                    '8 Oct 2026): every estimate is built on these company-wide numbers, so a broker gets 403. '
+                    'Every change is audited with before and after.\n\n'
                     'The pre-request script saves the current rate and `04 · Put the rate back` restores it — '
                     'running the collection never changes the desk\'s real rates.'),
             },
@@ -144,7 +151,7 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                         req_body={'hourlyRate': -5, 'averageSpeedKnots': 5000}),
                 example('400 · Category is case-sensitive', 'PUT', '/charter-rates/midsize_jet',
                         *cap['set_400_category'], req_body={'hourlyRate': 4500}),
-                example('403 · A broker cannot set company-wide rates', 'PUT', f'/charter-rates/{CATEGORY}',
+                example('403 · A broker (only an administrator sets rates)', 'PUT', f'/charter-rates/{CATEGORY}',
                         *cap['set_403'], req_body=set_payload),
             ],
         },
@@ -157,14 +164,17 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                 'description': (
                     'One row per aircraft category — **including categories with no rate on file**, whose '
                     'figures are all `null`. Hiding them would hide that they cannot be estimated.\n\n'
-                    'Needs VIEW_FINANCIALS: an hourly rate is what the desk expects to pay. No search, and '
+                    'Needs **Quotes · View money** — rates are money, so this is not one of the open reads: an '
+                    'hourly rate is what the desk expects to pay. A broker holds it by default; an assistant '
+                    'cannot. No search, and '
                     'the query is strict — an unknown parameter is a 400, not silently ignored.'),
             },
             'response': [
                 example('200 · Every category', 'GET', '/charter-rates?page=1&limit=10', *cap['list']),
                 example('400 · Unknown parameter', 'GET', '/charter-rates?search=jet', *cap['list_400']),
+                example('200 · A broker (read-only)', 'GET', '/charter-rates?page=1&limit=3', *cap['list_broker']),
                 example('401 · Not signed in', 'GET', '/charter-rates', *cap['list_401']),
-                example('403 · Assistant cannot see rates', 'GET', '/charter-rates', *cap['list_403']),
+                example('403 · An assistant (no Quotes · View money)', 'GET', '/charter-rates', *cap['list_403']),
             ],
         },
         {
@@ -180,6 +190,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                     'estimated operator cost — doubled for a round trip. **A category without a rate returns '
                     '`estimate: null`, never $0.** `fitsParty` compares `passengers` to typical seats; null '
                     'when either is unknown. Winds, routing and positioning are not modelled. Nothing saved.\n\n'
+                    'Needs **Quotes · View money**. Both airports must exist **and be live** — an archived one '
+                    'is a 400 naming it.\n\n'
                     'The pre-request script picks two airports that have coordinates, so the folder runs alone.'),
             },
             'response': [
@@ -188,7 +200,11 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                         req_body={'originAirportId': origin['id'], 'destinationAirportId': origin['id']}),
                 example('400 · Unknown airport', 'POST', '/charter-rates/estimate', *cap['estimate_400_unknown'],
                         req_body={'originAirportId': MISSING, 'destinationAirportId': destination['id']}),
-                example('403 · Assistant cannot estimate', 'POST', '/charter-rates/estimate', *cap['estimate_403'],
+                example('200 · A broker', 'POST', '/charter-rates/estimate', *cap['estimate_broker'],
+                        req_body=estimate_payload),
+                example('400 · An archived airport', 'POST', '/charter-rates/estimate', *cap['estimate_400_archived'],
+                        req_body=cap['archived_payload']),
+                example('403 · An assistant (no Quotes · View money)', 'POST', '/charter-rates/estimate', *cap['estimate_403'],
                         req_body=estimate_payload),
             ],
         },
