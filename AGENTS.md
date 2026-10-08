@@ -155,6 +155,13 @@ is readable without a session except the company branding. Beyond that:
   data and those cases are not decided yet.
 
 Done so far: **Airports** (pinned by `airports.controller.spec.ts`).
+**Charter Rates** is the first "money" case, decided by the owner: its reads
+need Quotes · View money, and changing a rate is administrators only.
+
+**A picked airport is checked with `AirportsService.usable(id, label)`** —
+live, or a 400 naming the field ("does not exist", or "KTEB has been
+archived"). Every module that stores or uses an airport id calls it,
+rather than its own query; Charter Rates was the first.
 
 ## How this project is built
 
@@ -1476,6 +1483,16 @@ This project uses shadcn/ui (the `base-nova` style, built on Base UI — `@base-
 - **Check `src/components/ui/` (shadcn primitives) and `src/components/common/` (our reusable wrappers) before writing new markup.** If shadcn has the component (button, input, checkbox, avatar, badge, table, sidebar, dropdown-menu, tooltip, sheet, collapsible, etc.), use it — don't hand-roll a `<button>`/`<input>`/status pill from scratch.
 - **Never import a `ui/*` primitive directly into a page or feature component.** Customize the primitive itself (its `cva` variants in `ui/button.jsx`, `ui/input.jsx`, etc.) so its *default* look already matches Figma, and/or wrap it in a `common/` component for anything with app-specific behavior (`CommonInput`, `CommonOTPInput`, `UserAvatar`, `StatusBadge`). Feature code imports from `common/` or the customized `ui/*`, never a raw unstyled primitive.
 - **Base UI's `Select.Root` needs an `items` prop to resolve a picked value back into its label — passing `value`/`onValueChange` alone is not enough.** Without it, `Select.Value` falls back to rendering the raw stored value (the enum, the id) instead of the option's label, because it resolves labels from `items`, never by inspecting the rendered `SelectItem` children. This bit every `<Select>` in the app at once — both wrapper components (`PickerSelect.jsx`, `CommonSelect.jsx`) are the only two places `<Select>` is rendered directly, and both now pass `items={normalizedOptions}`. If you add a third direct `<Select>` render anywhere, give it `items` too, or it will silently display ids again.
+- **A dropdown over a server list is `RecordPicker`** (`components/common/record-picker/`,
+  owner's design, 8 Oct 2026) — airports, operators, aircraft, clients,
+  brokers: search always visible, 10 a page by default with 10/25/50/100,
+  page numbers, all answered by the server, so there is no cap. It knows no
+  module: pass the module's own hooks (`useList`, and `useOne` to label a
+  saved id), fixed `params` and a `getOption(record) → { value, label,
+  description }`. Each module gets a thin wrapper (`AirportPicker` is the
+  first) and forms use the wrapper. A plain `PickerSelect` / `CommonSelect`
+  is for a fixed set of options (an enum), never for records. Forms move to
+  it as their module is reviewed; the Instant Estimate is the first.
 - **Forms**: use `CommonInput` (`src/components/common/CommonInput.jsx`) for every text/email/password/textarea field — pass `type`. Password show/hide state lives inside `CommonInput`, not in the parent. Use `CommonOTPInput` for any digit-code input.
 - **Icons**: prefer the Figma-exported SVGs under `public/dashboard/icons/` and `public/auth/icons/`. Only reach for `lucide-react` when Figma didn't export the icon you need (e.g. the password-hidden `EyeOff` state, or icons shadcn primitives require internally like sidebar/dropdown chevrons) — and when mixing is unavoidable for a matched pair (e.g. show/hide eye), use the same icon family for both states rather than mixing Figma + lucide within one control.
 - **Images**: always `next/image`, never `<img>`, never the `unoptimized` prop. Local assets under `public/` need no remote-pattern config. Use `fill` + a sized `relative` parent for background/cover photos, explicit `width`/`height` for everything else.

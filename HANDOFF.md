@@ -31,8 +31,9 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 3 | Uploads | ✅ 7 Oct — owner tested |
 | 4 | Settings API | ✅ 8 Oct — owner tested. Left for later: Import/Export (row 31), each module's settings (in its review), reminders firing, document toggles (PDF generator) |
 | 5 | Airports | ✅ 8 Oct — owner signed off; reads open to every signed-in user, writes per person |
-| 6 | **Charter Rates / Instant Estimate** | ⬅ **Next** |
-| 7–35 | Operators, Aircraft, Clients, … | ⬜ in the table's order |
+| 6 | Charter Rates / Instant Estimate | ✅ 8 Oct — owner tested; first form on the shared `AirportPicker` |
+| 7 | **Operators** | ⬅ **Next** |
+| 8–35 | Aircraft, Clients, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261007180000_company_settings` (run `npm run db:deploy` on any database
@@ -65,9 +66,12 @@ that has not had it).
 
 ### What is next
 
-1. **Charter Rates / Instant Estimate (#6).** It resolves airports
-   through `AirportsService.findOne(id)`, which also returns archived
-   airports — its review should refuse an archived origin/destination.
+1. **Operators (#7).** Move to per-person permissions (reads open, writes
+   per person); hide controls; check the screens; give it an
+   `OperatorPicker` on `RecordPicker` and use it where operators are picked
+   in this module; replace `build_reference_folders.py` with a live builder
+   (the old one still writes `06 · Operators` from a dead capture folder);
+   the database was wiped, so the folder must create its own data.
 
 **The owner's rule for every review from now on (8 Oct 2026):** every `GET`
 needs only a session, every write needs the person's own permission, reach
@@ -89,12 +93,34 @@ data a referral agent must not see, ask the owner.
   module's review — Clients, Leads, Quotes, Trips, Itineraries, Flight
   Tracking, Receivables, Operator Payments, Tasks, Email Templates.
 
+### The local database was wiped on 8 Oct 2026 (owner's request)
+
+For clean testing, everything was removed except: the company settings, seven
+accounts (admin@, security@, broker@, assistant@, agent@ on example.com, and
+the owner's own Super Admin and Referral Agent accounts) and the owner's
+profile photo. Airports, operators, clients, trips, quotes, rates, audit log
+and every other upload are gone; the owner re-adds real data while testing.
+A backup was taken first (pg_dump + storage copy in that session's
+scratchpad, not in the repo).
+
+- **Do not run `npm run db:seed`** — it would bring the demo data and the
+  removed accounts back.
+- **Postman needs data now:** folders that read a client, operator or
+  airport, or sign in as `mark@` / `reset-demo@` / `senior@`, fail until
+  each module's review points them at what exists. Expect red runs until then.
+- The Q-code test airports came from a Postman teardown that ran as a
+  background call in the last request; when a folder is run on its own,
+  Newman can stop before that call finishes. Make teardowns their own final
+  request (fix per folder, on its review).
+
 ### Known findings, not yet fixed (each on its module's turn)
 
 - Postman folders **16–28** are missing from the collection JSON (their
   builders exist in `Backend/postman/`). Rebuild each with its module's review.
 - Frontend lint: one pre-existing error, `react-hooks/set-state-in-effect` in
   `TripRequestDialog.jsx` — Trip Requests (#13).
+- Turboprop has a $33/hour rate on file — looks like an old test value; ask the owner.
+- `RecordPicker` / `AirportPicker` (8 Oct): the shared searchable, paged picker. Only the estimate uses it so far; every other airport picker still loads the first 100 — switch each form on its module's review.
 - Airport form upper-cases "State" (fine for NY, wrong for "Ontario") — offered, not decided.
 - An uploaded logo is shown on the dark sidebar and on light pages alike; a
   dark-only logo may lack contrast in the sidebar. A second "logo for dark

@@ -1821,19 +1821,43 @@ inventing the value now would be guessing at a workflow nobody has described.
 
 ---
 
-## 31. Charter Rates / Instant Estimate ✅ *(client adjustment #6)*
+## 31. Charter Rates / Instant Estimate ✅ *(client adjustment #6 — reviewed and signed off 8 Oct 2026)*
 
 **Working now**
 
 - `GET /charter-rates` — every aircraft category, priced or not
-- `PUT /charter-rates/:category` — administrators and senior brokers only
-  (VIEW_FINANCIALS at ALL scope); `null` clears; audited before/after
+- `PUT /charter-rates/:category` — administrators only; `null` clears;
+  audited before/after
 - `POST /charter-rates/estimate` — great-circle distance, flight and billed
   hours, estimated cost per category, round trip, fits-the-party
 - Instant Estimate dialog on the Quotes screen: estimate → suggested price →
   Start a quote with route, party and price filled in
-- Rates tab, editable or read-only by role
+- Rates tab, editable by an administrator, read-only for everyone else
 - Postman `14 · Charter Rates`, restoring the real rate it changed
+
+**Reviewed 8 Oct 2026** (review row 6). Fixed:
+
+- **Permissions** (owner's decision): part of Quotes, not a module of its
+  own. Seeing the rates, the Instant Estimate button and running an estimate
+  need **Quotes · View money** — rates are money, so not one of the open
+  reads; a broker has it by default, an assistant cannot. **Changing a rate
+  is for an administrator** (SUPER_ADMIN / ADMIN by stored role); the old
+  "senior broker" path is gone with the role.
+- **An archived airport is refused by name** ("KTEB has been archived…").
+  `AirportsService.usable(id, label)` is the shared check every later module
+  uses for a picked airport.
+- The estimate re-runs on returning from the Rates tab, so a rate an
+  administrator just saved shows at once (it kept the old result).
+- A failed estimate says why on screen, not only in a toast.
+- "Start a quote" is hidden for someone who cannot create quotes.
+- The estimate's airport list is sorted by code, like every other picker.
+- Postman `14` gains the broker's read-only access, the broker's estimate,
+  and the archived-airport refusal.
+- **From / To use the new shared `RecordPicker`** (via `AirportPicker`):
+  search always visible, 10 a page by default (10/25/50/100), page numbers,
+  server-side — no 100-airport cap. Other forms move to it on their review.
+- The estimate keeps its height while it recalculates (previous figures stay,
+  dimmed) and shows a skeleton for a new route.
 
 **Waiting on a dependency**
 
@@ -1841,6 +1865,7 @@ inventing the value now would be guessing at a workflow nobody has described.
 |---|---|
 | The desk's actual rates | **Data entry** — the table is empty until someone types them in; no code |
 | Positioning legs / overnight fees in the estimate | **The client's pricing formula** — not modelled rather than guessed |
+| More than 100 airports in the other forms' pickers | **`AirportPicker`** (built 8 Oct, used by the estimate) — each form switches to it on its module's review: Clients, Aircraft, Trip Requests, Quotes, Trips, Empty Legs, Leads, the referral portal. |
 
 ---
 
@@ -1998,7 +2023,7 @@ connected) and the PDF generator.
 **The stage:** the owner's module-by-module review (MODULES.md, "Review
 order"). Signed off: Auth & Sessions (6 Oct), Users & Roles (7 Oct), Uploads
 (7 Oct), **Settings (8 Oct)** — Import/Export left for review row 31.
-**Airports (8 Oct)**. Charter Rates is next.
+**Airports (8 Oct)**. **Charter Rates (8 Oct)**. Operators is next.
 
 **Permissions:** role restrictions are on again (7 Oct); Users & Roles,
 Settings and Airports are on per-person permissions (`@RequireAccess`), every other module

@@ -77,7 +77,7 @@ without waiting on the client; #11's agent portal followed the same day, and
 **Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
 on 28 September — everything that hangs off Trips — the **Tasks Board
 (#20)** and **Email Templates (#21)**; the **Dashboard (#24)** and **Document
-Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:** the module-by-module review below — #1–#4 signed off (Settings 8 Oct 2026), #5 Airports signed off 8 Oct; #6 Charter Rates next.
+Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:** the module-by-module review below — #1–#4 signed off (Settings 8 Oct 2026), #5 Airports signed off 8 Oct; #6 Charter Rates signed off 8 Oct; #7 Operators next.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -131,8 +131,8 @@ reviewed yet — the module may still be built and working.
 | 3 | Uploads | — | ✅ 7 Oct — owner tested |
 | 4 | **Settings API** (#26, backend for the built screens) | — (it is the source) | ✅ 8 Oct — owner tested. Left for later: Import and Export (row 31), the settings each module reads (wired in that module's review), reminders firing (needs a scheduler), document toggles (needs the PDF generator) |
 | 5 | Airports | — | ✅ 8 Oct — owner signed off |
-| 6 | Charter Rates / Instant Estimate | — | ⬅ next |
-| 7 | Operators | — | ⬜ |
+| 6 | Charter Rates / Instant Estimate | — | ✅ 8 Oct — owner tested |
+| 7 | Operators | — | ⬅ next |
 | 8 | Aircraft | — | ⬜ |
 | 9 | Clients | Yes — default lead stage, follow-up interval | ⬜ |
 | 10 | Notes / Timeline | — | ⬜ |
