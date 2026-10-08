@@ -183,7 +183,7 @@ audit trail pointing at them.
 
 ---
 
-## 3. Airports ✅
+## 3. Airports ✅ *(reviewed and signed off 8 Oct 2026)*
 
 **Working now**
 
@@ -191,14 +191,48 @@ audit trail pointing at them.
 - Search, country filter, sorting, pagination, stats
 - `GET /airports/countries` for the filter, derived from the rows
 - ICAO uniqueness across live and archived rows
-- Referenced as a real foreign key by Clients, Aircraft and Trip Requests
+- Referenced as a real foreign key by Clients, Aircraft, Trip Requests,
+  Quotes, Trips, Empty Legs and Referrals
+- **FBO** — one optional field on the airport (`assignedFbo`), typed in the
+  Add/Edit form; itineraries default to it and may override it per trip.
+  An em dash when none was entered. Not waiting on any module (owner, 8 Oct
+  2026: it stays a single name).
+- **Trips through each airport** on the detail panel — live, uncancelled
+  trips with a leg departing or arriving there, total and this year; a
+  round trip counts once (read through `TripsService.countThroughAirport`).
+
+**Reviewed 8 Oct 2026** (review row 5). Fixed:
+
+- **Permissions per person.** Every read needs only a session — eight forms
+  pick an airport, including the referral portal's — and every write needs
+  the caller's own Airports · Create / Edit / Archive (the owner's "reads are
+  open" rule, AGENTS.md). Moved off the old `MANAGE_AIRPORTS` matrix entry.
+- **The screen hides what a person cannot do** — Add, Edit, Remove, Restore,
+  the bulk button and the checkbox column — instead of offering them and
+  answering 403.
+- **Latitude, longitude and runway can be changed but not cleared** on edit
+  (required on create; an emptied value was accepted and stored as null).
+- The detail panel loads the airport itself: trip count, runway and
+  coordinates (it showed neither), "IATA —" instead of a blank, theme colours
+  instead of hardcoded hex. "Delete" now says "Remove" — it archives.
+- Stat tiles show a dash, not 0, when the counts fail to load.
+- Mobile cards: no stray "/" without an IATA code, the Restored badge, the
+  runway, and on the Archived tab who removed it and when.
+- The form shows the server's message under every field it can refuse.
+- Removed `components/airports/AirportCardsContainer.jsx` — imported nowhere,
+  and importing a file that does not exist.
+- Postman `05 · Airports` rebuilt live on `builder_common`
+  (`build_airports_folder.py`): 10 requests, 33 captured examples, broker
+  refusals and the agent's open reads.
+- API docs now list the 403 on every `@RequireAccess` route (Users and
+  Settings included), derived like the old ones.
 
 **Waiting on a dependency**
 
 | Feature | Unblocked by |
 |---|---|
-| FBO details per airport | **Document Vault (#22)** / operator data — an em dash, never an invented FBO name. *True only since 26 Sep 2026:* until then the detail sidebar and the mobile airport card both fell back to "Signature Flight Support", and every airport without notes read "Primary departure airport for NYC clients." |
-| Traffic / trips-through counts | **Trips (#11)** ✅ — not built yet |
+| ~~FBO details per airport~~ | Not a dependency — the airport's own optional field (above). |
+| ~~Traffic / trips-through counts~~ | ✅ Trips through here, on the detail panel (8 Oct 2026) |
 
 ---
 
@@ -1403,7 +1437,24 @@ role.
 
 ---
 
-## 26. Settings / Import / Export / Backup 🟡 *(screens 6 Oct, API 7 Oct 2026 — waiting on the owner's click-through)*
+## 26. Settings / Import / Export / Backup — Settings ✅, Import/Export 🟡 *(screens 6 Oct, API 7 Oct, signed off 8 Oct 2026)*
+
+**Reviewed and signed off 8 Oct 2026** (review row 4, owner tested). The
+review built the API, branded every surface from it (portal included), made
+the contact block all or nothing, accepted AVIF logos, and hid Integrations
+and Import.
+
+> **Left for later — on purpose, each with its owner:**
+>
+> - **Import and Export** — review row 31 (tell the owner when we reach it).
+> - **Each module's settings** — wired in that module's review (the table
+>   below and the map in MODULES.md §26): Clients, Leads, Quotes, Trips,
+>   Itineraries, Flight Tracking, Receivables, Operator Payments, Tasks,
+>   Email Templates.
+> - **Reminders actually firing** — needs a scheduler in the API.
+> - **"Logo on documents", "Show broker contact", PDF header** — the PDF
+>   generator (review row 32).
+> - **A separate logo for dark backgrounds** — offered, not requested.
 
 **One set of settings for the whole company** (owner's decision, 7 Oct
 2026), never per user: the `company_settings` table holds exactly one row
@@ -1946,11 +1997,11 @@ connected) and the PDF generator.
 
 **The stage:** the owner's module-by-module review (MODULES.md, "Review
 order"). Signed off: Auth & Sessions (6 Oct), Users & Roles (7 Oct), Uploads
-(7 Oct). **Settings API (#26)** built and pushed 7 Oct, waiting for the
-owner's click-through. **Airports** is next.
+(7 Oct), **Settings (8 Oct)** — Import/Export left for review row 31.
+**Airports (8 Oct)**. Charter Rates is next.
 
-**Permissions:** role restrictions are on again (7 Oct); Users & Roles and
-Settings are on per-person permissions (`@RequireAccess`), every other module
+**Permissions:** role restrictions are on again (7 Oct); Users & Roles,
+Settings and Airports are on per-person permissions (`@RequireAccess`), every other module
 on the old role matrix until its review moves it.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13

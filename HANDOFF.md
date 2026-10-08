@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 7 October 2026.** Update the "Where we are" section in the
+**Last updated: 8 October 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -29,12 +29,12 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 1 | Auth & Sessions | ✅ 6 Oct — owner tested |
 | 2 | Users & Roles | ✅ 7 Oct — owner tested; first module on per-person permissions |
 | 3 | Uploads | ✅ 7 Oct — owner tested |
-| 4 | **Settings API** | 🟡 **Built and pushed 7 Oct — waiting for the owner's click-through and sign-off** |
-| 5 | **Airports** | ⬅ **Next.** Plan agreed, one decision outstanding (below) |
-| 6–35 | Charter Rates, Operators, Aircraft, Clients, … | ⬜ in the table's order |
+| 4 | Settings API | ✅ 8 Oct — owner tested. Left for later: Import/Export (row 31), each module's settings (in its review), reminders firing, document toggles (PDF generator) |
+| 5 | Airports | ✅ 8 Oct — owner signed off; reads open to every signed-in user, writes per person |
+| 6 | **Charter Rates / Instant Estimate** | ⬅ **Next** |
+| 7–35 | Operators, Aircraft, Clients, … | ⬜ in the table's order |
 
-**Git:** branch `roy`, pushed to `origin/roy` through `2c364ef`; the working
-tree is clean apart from this docs refresh. Latest migration:
+**Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261007180000_company_settings` (run `npm run db:deploy` on any database
 that has not had it).
 
@@ -65,25 +65,16 @@ that has not had it).
 
 ### What is next
 
-1. **Owner tests Settings (#4).** On sign-off, mark it ✅ with the date in
-   MODULES.md's review table and in MODULE_FEATURE_STATUS.md.
-2. **Airports (#5).** Agreed plan:
-   - move the API from `@RequirePermissions(MANAGE_AIRPORTS)` to
-     `@RequireAccess(Module.AIRPORTS, VIEW/CREATE/EDIT/ARCHIVE)`;
-   - hide Add / Edit / Remove / Restore / bulk actions / checkboxes unless
-     `canAccess` allows them (today they show for everyone and 403);
-   - **open decision for the owner:** about eight screens use the airport
-     list as a *picker* (Clients, Aircraft, Trip Requests, Trips, Quotes,
-     Empty Legs, Leads, Instant Estimate, the portal's Submit Referral). Under
-     `AIRPORTS · VIEW` anyone without it — the referral agent has no Airports
-     grant in the new catalogue — loses the picker. Recommended: any
-     signed-in user may search airports for a picker; the Airports screen and
-     every write need the permission. **Ask before building.**
-   - fill in per-airport trip counts (were waiting on Trips, which is built);
-   - FBO details stay an em dash (nothing stores them);
-   - Postman folder updated with the new refusals; the owner clicks through.
-   - `Frontend/src/hooks/airports/README.md` still describes the old role
-     table (`SENIOR_BROKER`) — rewrite it in this review.
+1. **Charter Rates / Instant Estimate (#6).** It resolves airports
+   through `AirportsService.findOne(id)`, which also returns archived
+   airports — its review should refuse an archived origin/destination.
+
+**The owner's rule for every review from now on (8 Oct 2026):** every `GET`
+needs only a session, every write needs the person's own permission, reach
+still filters what a broker sees (pickers included), and the server
+re-checks every picked id. Written up in AGENTS.md, "Reads are open to every
+signed-in user". Before applying it to a read with money, passports or desk
+data a referral agent must not see, ask the owner.
 
 ### Promises to keep
 
@@ -104,6 +95,7 @@ that has not had it).
   builders exist in `Backend/postman/`). Rebuild each with its module's review.
 - Frontend lint: one pre-existing error, `react-hooks/set-state-in-effect` in
   `TripRequestDialog.jsx` — Trip Requests (#13).
+- Airport form upper-cases "State" (fine for NY, wrong for "Ontario") — offered, not decided.
 - An uploaded logo is shown on the dark sidebar and on light pages alike; a
   dark-only logo may lack contrast in the sidebar. A second "logo for dark
   backgrounds" field was offered, not built.

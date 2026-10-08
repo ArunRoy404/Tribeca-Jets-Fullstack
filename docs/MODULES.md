@@ -62,7 +62,7 @@ set of broken joins the day the real table arrives.
 | 23 | **Reports** | ✅ Done (4 Oct) — revenue/profit by departure, cash and FET by payment; CSV and Excel export | All financial modules |
 | 24 | **Dashboard** | ✅ Done (28 Sep) — tiles, priorities, activity; lists read the owning modules | Nearly everything — built last |
 | 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
-| 26 | **Settings / Import / Export / Backup** | 🟡 Settings API built 7 Oct (awaiting owner sign-off); Import hidden, Export not connected — see the settings map below | Users, Uploads; every module in the map reads it |
+| 26 | **Settings / Import / Export / Backup** | ✅ Settings done 8 Oct (owner tested); 🟡 Import hidden, Export not connected — see the settings map below | Users, Uploads; every module in the map reads it |
 | 27 | **AI Assistant** | Stub only | All |
 | 28 | **Uploads** | ✅ Done | — (built out of order; see below) |
 | 29 | **Notes / Timeline** | ✅ Done — Clients, Trips, Referrals, Flights | Clients, Users (built out of order; adjustment #5) |
@@ -77,7 +77,7 @@ without waiting on the client; #11's agent portal followed the same day, and
 **Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
 on 28 September — everything that hangs off Trips — the **Tasks Board
 (#20)** and **Email Templates (#21)**; the **Dashboard (#24)** and **Document
-Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:** the module-by-module review below — #1–#3 signed off, #4 Settings waiting for the owner's test, #5 Airports next (7 Oct 2026).
+Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:** the module-by-module review below — #1–#4 signed off (Settings 8 Oct 2026), #5 Airports signed off 8 Oct; #6 Charter Rates next.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -129,9 +129,9 @@ reviewed yet — the module may still be built and working.
 | 1 | Auth & Sessions | Yes — idle timeout, warning, admin 2FA | ✅ 6 Oct — owner tested |
 | 2 | Users & Roles | — | ✅ 7 Oct — owner tested |
 | 3 | Uploads | — | ✅ 7 Oct — owner tested |
-| 4 | **Settings API** (#26, backend for the built screens) | — (it is the source) | 🟡 built and pushed 7 Oct — waiting for the owner's click-through |
-| 5 | Airports | — | ⬅ next — see HANDOFF.md for the plan and the open picker decision |
-| 6 | Charter Rates / Instant Estimate | — | ⬜ |
+| 4 | **Settings API** (#26, backend for the built screens) | — (it is the source) | ✅ 8 Oct — owner tested. Left for later: Import and Export (row 31), the settings each module reads (wired in that module's review), reminders firing (needs a scheduler), document toggles (needs the PDF generator) |
+| 5 | Airports | — | ✅ 8 Oct — owner signed off |
+| 6 | Charter Rates / Instant Estimate | — | ⬅ next |
 | 7 | Operators | — | ⬜ |
 | 8 | Aircraft | — | ⬜ |
 | 9 | Clients | Yes — default lead stage, follow-up interval | ⬜ |
@@ -690,7 +690,7 @@ trips through the one `tallyTrips` in `trips/trips.figures.ts`.
 An external-facing view for clients to see their quotes, trips and documents.
 A separate authentication surface. **No screen exists.**
 
-### 26. Settings / Import / Export / Backup 🟡 *(screens 6 October, API 7 October 2026)*
+### 26. Settings / Import / Export / Backup — Settings ✅, Import/Export 🟡 *(screens 6 October, API 7 October, signed off 8 October 2026)*
 
 **One set of settings for the whole company**, in one row
 (`company_settings`), behind `GET`/`PATCH /settings`; the branding (name,

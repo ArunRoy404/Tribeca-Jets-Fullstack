@@ -122,13 +122,39 @@ permission is a **module** — one per sidebar screen — and an **action** in i
 - **Moving a module over is part of reviewing it:** swap its
   `@RequirePermissions` for `@RequireAccess`, its `scopeFor` for `reachOf`,
   and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
-  Action.Y)`. **Moved so far: Users & Roles.** Uploads needs no move — its
+  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports.** Uploads needs no move — its
   routes carry no permission by design and its rules are identity-based.
   Every other module's API is still on the old matrix, enforced by role.
   When the last one moves, delete the old matrix and the switch.
 - **A new action or module** is a line in the catalogue, a decision per role
   in `access.roles.ts`, and the check on its route — never a route that
   checks something the catalogue does not list.
+
+## Reads are open to every signed-in user; writes need the permission (since 8 Oct 2026)
+
+**The owner's rule, applied to each module when it is reviewed.** Nothing
+is readable without a session except the company branding. Beyond that:
+
+- **Every `GET` needs only a session** — no `@RequireAccess` on it. Lists
+  feed pickers in other modules (an airport, an operator, a client, a
+  broker), and a picker must not vanish because someone lacks the screen.
+- **Every write needs the person's own permission**:
+  `@RequireAccess(Module.X, Action.CREATE / EDIT / ARCHIVE / …)` on the route.
+- **Reach still filters reads.** A broker whose reach is OWN or ASSIGNED
+  sees only their own rows in the list *and* in every picker; open reads
+  never widen what a person reaches.
+- **A write re-checks what was picked, on the server.** An id chosen from a
+  picker is verified to exist, be live, and be within the caller's reach
+  before it is stored — a named 400 otherwise. The picker's filtering is a
+  convenience; the check is the server's.
+- **Opening the module's screen is still `VIEW`** — the sidebar, `proxy.js`
+  and `ModuleGate`. The data is open; the page is not.
+- **Ask the owner before applying it** to a read that carries a field-level
+  permission (`VIEW_MONEY`, `VIEW_SENSITIVE`), or one a referral agent must
+  not see (the staff directory, desk data): the rule was given for picker
+  data and those cases are not decided yet.
+
+Done so far: **Airports** (pinned by `airports.controller.spec.ts`).
 
 ## How this project is built
 
@@ -1684,8 +1710,8 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault, Reports. Not yet: the Clients table, Airports,
-Operators — each on its own turn.
+Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault, Reports, Airports (per-person: `canAccess(Module.AIRPORTS, …)`). Not yet: the
+Clients table, Operators — each on its own turn.
 
 **A control narrower than a permission is gated by scope, not by
 `canWrite`.** A broker may edit a client (`MANAGE_CLIENTS` at `ASSIGNED`) but
