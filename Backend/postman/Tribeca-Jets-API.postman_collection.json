@@ -6633,7 +6633,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e6ac11e8-2386-4206-85f1-7fc980461d63\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\",\n      \"state\": \"IDF\",\n      \"country\": \"France\",\n      \"latitude\": 48.9694,\n      \"longitude\": 2.4414,\n      \"longestRunwayFt\": 9843,\n      \"assignedFbo\": \"Jetex Paris Le Bourget\",\n      \"notes\": \"Premier private aviation airport serving Paris.\",\n      \"createdAt\": \"2026-10-07T05:20:22.120Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.120Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"ec5d4412-7119-4e4e-b242-279aeca1688c\",\n      \"icao\": \"EGLL\",\n      \"iata\": \"LHR\",\n      \"name\": \"London Heathrow Airport\",\n      \"city\": \"London\",\n      \"state\": \"ENG\",\n      \"country\": \"United Kingdom\",\n      \"latitude\": 51.47,\n      \"longitude\": -0.4543,\n      \"longestRunwayFt\": 12799,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"Slot controlled. 24/7 UK Border Force available.\",\n      \"createdAt\": \"2026-10-07T05:20:22.117Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.117Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"39eda73d-afb3-4c36-be74-32ca830db98d\",\n      \"icao\": \"KJFK\",\n      \"iata\": \"JFK\",\n      \"name\": \"John F. Kennedy Intl\",\n      \"city\": \"New York\",\n      \"state\": \"NY\",\n      \"country\": \"USA\",\n      \"latitude\": 40.6413,\n      \"longitude\": -73.7781,\n      \"longestRunwayFt\": 14511,\n      \"assignedFbo\": \"Sheltair Aviation\",\n      \"notes\": \"Slot controlled during afternoon peak hours.\",\n      \"createdAt\": \"2026-10-07T05:20:22.114Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.114Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 10,\n    \"totalPages\": 4,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"aa6aaefa-b9bd-4a20-9da2-ff8540359787\",\n      \"icao\": \"EGGW\",\n      \"iata\": \"LTN\",\n      \"name\": \"London Luton Airport\",\n      \"city\": \"Luton\",\n      \"state\": null,\n      \"country\": \"United Kingdom\",\n      \"latitude\": 51.8747,\n      \"longitude\": -0.3683,\n      \"longestRunwayFt\": 7087,\n      \"assignedFbo\": null,\n      \"notes\": null,\n      \"createdAt\": \"2026-10-08T06:07:35.718Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-08T06:07:35.718Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"66e8196d-99f4-47e7-89fc-841fb3fb1456\",\n      \"icao\": \"KHPN\",\n      \"iata\": \"HPN\",\n      \"name\": \"Westchester County Airport\",\n      \"city\": \"White Plains\",\n      \"state\": \"NY\",\n      \"country\": \"USA\",\n      \"latitude\": 41.067,\n      \"longitude\": -73.7076,\n      \"longestRunwayFt\": 6549,\n      \"assignedFbo\": null,\n      \"notes\": null,\n      \"createdAt\": \"2026-10-08T06:07:35.713Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-08T06:07:35.713Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"bfd42044-9289-44e0-8cad-75765448046a\",\n      \"icao\": \"KVNY\",\n      \"iata\": \"VNY\",\n      \"name\": \"Van Nuys Airport\",\n      \"city\": \"Van Nuys\",\n      \"state\": \"CA\",\n      \"country\": \"USA\",\n      \"latitude\": 34.2098,\n      \"longitude\": -118.4899,\n      \"longestRunwayFt\": 8001,\n      \"assignedFbo\": \"Clay Lacy Aviation\",\n      \"notes\": null,\n      \"createdAt\": \"2026-10-08T06:07:35.707Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-08T06:07:35.707Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 5,\n    \"totalPages\": 2,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "200 \u00b7 A broker (reads need only a session)",
@@ -6660,7 +6660,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e6ac11e8-2386-4206-85f1-7fc980461d63\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\",\n      \"state\": \"IDF\",\n      \"country\": \"France\",\n      \"latitude\": 48.9694,\n      \"longitude\": 2.4414,\n      \"longestRunwayFt\": 9843,\n      \"assignedFbo\": \"Jetex Paris Le Bourget\",\n      \"notes\": \"Premier private aviation airport serving Paris.\",\n      \"createdAt\": \"2026-10-07T05:20:22.120Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.120Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"ec5d4412-7119-4e4e-b242-279aeca1688c\",\n      \"icao\": \"EGLL\",\n      \"iata\": \"LHR\",\n      \"name\": \"London Heathrow Airport\",\n      \"city\": \"London\",\n      \"state\": \"ENG\",\n      \"country\": \"United Kingdom\",\n      \"latitude\": 51.47,\n      \"longitude\": -0.4543,\n      \"longestRunwayFt\": 12799,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"Slot controlled. 24/7 UK Border Force available.\",\n      \"createdAt\": \"2026-10-07T05:20:22.117Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.117Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 2,\n    \"total\": 10,\n    \"totalPages\": 5,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"aa6aaefa-b9bd-4a20-9da2-ff8540359787\",\n      \"icao\": \"EGGW\",\n      \"iata\": \"LTN\",\n      \"name\": \"London Luton Airport\",\n      \"city\": \"Luton\",\n      \"state\": null,\n      \"country\": \"United Kingdom\",\n      \"latitude\": 51.8747,\n      \"longitude\": -0.3683,\n      \"longestRunwayFt\": 7087,\n      \"assignedFbo\": null,\n      \"notes\": null,\n      \"createdAt\": \"2026-10-08T06:07:35.718Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-08T06:07:35.718Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    },\n    {\n      \"id\": \"66e8196d-99f4-47e7-89fc-841fb3fb1456\",\n      \"icao\": \"KHPN\",\n      \"iata\": \"HPN\",\n      \"name\": \"Westchester County Airport\",\n      \"city\": \"White Plains\",\n      \"state\": \"NY\",\n      \"country\": \"USA\",\n      \"latitude\": 41.067,\n      \"longitude\": -73.7076,\n      \"longestRunwayFt\": 6549,\n      \"assignedFbo\": null,\n      \"notes\": null,\n      \"createdAt\": \"2026-10-08T06:07:35.713Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-08T06:07:35.713Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 2,\n    \"total\": 5,\n    \"totalPages\": 3,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "200 \u00b7 The referral agent, searching for the submit form",
@@ -6687,7 +6687,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"6e074a25-ce30-40a1-b613-b0a43203533d\",\n      \"icao\": \"KTEB\",\n      \"iata\": \"TEB\",\n      \"name\": \"Teterboro Airport\",\n      \"city\": \"Teterboro\",\n      \"state\": \"NJ\",\n      \"country\": \"USA\",\n      \"latitude\": 40.8508,\n      \"longitude\": -74.0613,\n      \"longestRunwayFt\": 7000,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": \"Primary departure airport for NYC clients.\",\n      \"createdAt\": \"2026-10-07T05:20:22.093Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-07T05:20:22.093Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"b3c3d110-d5a0-494f-8aa9-7b10ace8585c\",\n      \"icao\": \"KTEB\",\n      \"iata\": \"TEB\",\n      \"name\": \"Teterboro Airport\",\n      \"city\": \"Teterboro\",\n      \"state\": \"NJ\",\n      \"country\": \"USA\",\n      \"latitude\": 40.8501,\n      \"longitude\": -74.0608,\n      \"longestRunwayFt\": 7000,\n      \"assignedFbo\": \"Signature Flight Support\",\n      \"notes\": null,\n      \"createdAt\": \"2026-10-08T06:05:57.921Z\",\n      \"createdById\": \"45545332-3756-4302-ab33-588bebfc961a\",\n      \"updatedAt\": \"2026-10-08T06:05:57.921Z\",\n      \"updatedById\": \"45545332-3756-4302-ab33-588bebfc961a\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "400 \u00b7 Unsortable column",
@@ -6714,7 +6714,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"icao\\\"|\\\"iata\\\"|\\\"name\\\"|\\\"city\\\"|\\\"country\\\"|\\\"longestRunwayFt\\\"\"\n  },\n  \"path\": \"/api/airports?sortBy=elevation\",\n  \"timestamp\": \"2026-10-08T03:38:45.907Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"icao\\\"|\\\"iata\\\"|\\\"name\\\"|\\\"city\\\"|\\\"country\\\"|\\\"longestRunwayFt\\\"\"\n  },\n  \"path\": \"/api/airports?sortBy=elevation\",\n  \"timestamp\": \"2026-10-08T08:54:03.775Z\"\n}"
             },
             {
               "name": "400 \u00b7 Limit above the cap",
@@ -6741,7 +6741,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"limit\": \"Too big: expected number to be <=100\"\n  },\n  \"path\": \"/api/airports?limit=500\",\n  \"timestamp\": \"2026-10-08T03:38:45.909Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"limit\": \"Too big: expected number to be <=100\"\n  },\n  \"path\": \"/api/airports?limit=500\",\n  \"timestamp\": \"2026-10-08T08:54:03.776Z\"\n}"
             },
             {
               "name": "401 \u00b7 Not signed in",
@@ -6768,7 +6768,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.909Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T08:54:03.776Z\"\n}"
             }
           ],
           "event": [
@@ -6831,7 +6831,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 10,\n    \"domestic\": 8,\n    \"international\": 2,\n    \"withAssignedFbo\": 10,\n    \"homeCountry\": \"USA\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 5,\n    \"domestic\": 4,\n    \"international\": 1,\n    \"withAssignedFbo\": 2,\n    \"homeCountry\": \"USA\"\n  }\n}"
             }
           ],
           "event": [
@@ -6890,7 +6890,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    \"France\",\n    \"USA\",\n    \"United Kingdom\"\n  ]\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    \"USA\",\n    \"United Kingdom\"\n  ]\n}"
             }
           ],
           "event": [
@@ -6949,7 +6949,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e6ac11e8-2386-4206-85f1-7fc980461d63\",\n    \"icao\": \"LFPB\",\n    \"iata\": \"LBG\",\n    \"name\": \"Paris Le Bourget\",\n    \"city\": \"Paris\",\n    \"state\": \"IDF\",\n    \"country\": \"France\",\n    \"latitude\": 48.9694,\n    \"longitude\": 2.4414,\n    \"longestRunwayFt\": 9843,\n    \"assignedFbo\": \"Jetex Paris Le Bourget\",\n    \"notes\": \"Premier private aviation airport serving Paris.\",\n    \"createdAt\": \"2026-10-07T05:20:22.120Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-07T05:20:22.120Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"trips\": {\n      \"total\": 0,\n      \"thisYear\": 0\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"aa6aaefa-b9bd-4a20-9da2-ff8540359787\",\n    \"icao\": \"EGGW\",\n    \"iata\": \"LTN\",\n    \"name\": \"London Luton Airport\",\n    \"city\": \"Luton\",\n    \"state\": null,\n    \"country\": \"United Kingdom\",\n    \"latitude\": 51.8747,\n    \"longitude\": -0.3683,\n    \"longestRunwayFt\": 7087,\n    \"assignedFbo\": null,\n    \"notes\": null,\n    \"createdAt\": \"2026-10-08T06:07:35.718Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T06:07:35.718Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"trips\": {\n      \"total\": 0,\n      \"thisYear\": 0\n    }\n  }\n}"
             },
             {
               "name": "200 \u00b7 The referral agent (no trip count)",
@@ -6977,7 +6977,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"e6ac11e8-2386-4206-85f1-7fc980461d63\",\n    \"icao\": \"LFPB\",\n    \"iata\": \"LBG\",\n    \"name\": \"Paris Le Bourget\",\n    \"city\": \"Paris\",\n    \"state\": \"IDF\",\n    \"country\": \"France\",\n    \"latitude\": 48.9694,\n    \"longitude\": 2.4414,\n    \"longestRunwayFt\": 9843,\n    \"assignedFbo\": \"Jetex Paris Le Bourget\",\n    \"notes\": \"Premier private aviation airport serving Paris.\",\n    \"createdAt\": \"2026-10-07T05:20:22.120Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-07T05:20:22.120Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"trips\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"aa6aaefa-b9bd-4a20-9da2-ff8540359787\",\n    \"icao\": \"EGGW\",\n    \"iata\": \"LTN\",\n    \"name\": \"London Luton Airport\",\n    \"city\": \"Luton\",\n    \"state\": null,\n    \"country\": \"United Kingdom\",\n    \"latitude\": 51.8747,\n    \"longitude\": -0.3683,\n    \"longestRunwayFt\": 7087,\n    \"assignedFbo\": null,\n    \"notes\": null,\n    \"createdAt\": \"2026-10-08T06:07:35.718Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T06:07:35.718Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"trips\": null\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not found",
@@ -7005,7 +7005,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Airport not found\",\n  \"path\": \"/api/airports/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-10-08T03:38:45.932Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Airport not found\",\n  \"path\": \"/api/airports/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-10-08T08:54:03.796Z\"\n}"
             }
           ],
           "event": [
@@ -7073,7 +7073,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"icao\": \"QLCZ\",\n  \"iata\": \"BED\",\n  \"name\": \"Laurence G Hanscom Field\",\n  \"city\": \"Bedford\",\n  \"state\": \"MA\",\n  \"country\": \"USA\",\n  \"latitude\": 42.47,\n  \"longitude\": -71.289,\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Signature Flight Support\",\n  \"notes\": \"Boston-area business aviation gateway.\"\n}"
+                  "raw": "{\n  \"icao\": \"QBNX\",\n  \"iata\": \"BED\",\n  \"name\": \"Laurence G Hanscom Field\",\n  \"city\": \"Bedford\",\n  \"state\": \"MA\",\n  \"country\": \"USA\",\n  \"latitude\": 42.47,\n  \"longitude\": -71.289,\n  \"longestRunwayFt\": 7011,\n  \"assignedFbo\": \"Signature Flight Support\",\n  \"notes\": \"Boston-area business aviation gateway.\"\n}"
                 }
               },
               "status": "Created",
@@ -7086,7 +7086,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n    \"icao\": \"QLCZ\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Signature Flight Support\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-10-08T03:38:45.936Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T03:38:45.936Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\",\n    \"icao\": \"QBNX\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Signature Flight Support\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-10-08T08:54:03.799Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T08:54:03.799Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
             },
             {
               "name": "409 \u00b7 ICAO already in use",
@@ -7113,7 +7113,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An airport with ICAO LFPB already exists\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.942Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An airport with ICAO EGGW already exists\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T08:54:03.804Z\"\n}"
             },
             {
               "name": "409 \u00b7 ICAO held by an archived airport",
@@ -7131,7 +7131,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"icao\": \"QLCZ\",\n  \"\\u2026\": \"the same body\"\n}"
+                  "raw": "{\n  \"icao\": \"QBNX\",\n  \"\\u2026\": \"the same body\"\n}"
                 }
               },
               "status": "Conflict",
@@ -7144,7 +7144,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"QLCZ belongs to an archived airport. Restore it from the Archived tab instead of creating a duplicate.\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.960Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"QBNX belongs to an archived airport. Restore it from the Archived tab instead of creating a duplicate.\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T08:54:03.821Z\"\n}"
             },
             {
               "name": "400 \u00b7 Validation failed",
@@ -7175,7 +7175,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"icao\": \"ICAO must be 4 letters or digits, e.g. KTEB\",\n    \"name\": \"Airport name is required\",\n    \"latitude\": \"Latitude is required\",\n    \"longitude\": \"Longitude is required\",\n    \"longestRunwayFt\": \"Longest runway is required\"\n  },\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.944Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"icao\": \"ICAO must be 4 letters or digits, e.g. KTEB\",\n    \"name\": \"Airport name is required\",\n    \"latitude\": \"Latitude is required\",\n    \"longitude\": \"Longitude is required\",\n    \"longestRunwayFt\": \"Longest runway is required\"\n  },\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T08:54:03.806Z\"\n}"
             },
             {
               "name": "403 \u00b7 A broker without Airports \u00b7 Create",
@@ -7202,7 +7202,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Create\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T03:38:45.945Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Create\",\n  \"path\": \"/api/airports\",\n  \"timestamp\": \"2026-10-08T08:54:03.807Z\"\n}"
             }
           ],
           "event": [
@@ -7300,7 +7300,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n    \"icao\": \"QLCZ\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Jet Aviation Bedford\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-10-08T03:38:45.936Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T03:38:45.948Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\",\n    \"icao\": \"QBNX\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Jet Aviation Bedford\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-10-08T08:54:03.799Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T08:54:03.810Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null\n  }\n}"
             },
             {
               "name": "400 \u00b7 Empty patch",
@@ -7332,7 +7332,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n  \"timestamp\": \"2026-10-08T03:38:45.952Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/airports/c24c40bf-8884-4fea-95f4-84060a3f2b9f\",\n  \"timestamp\": \"2026-10-08T08:54:03.813Z\"\n}"
             },
             {
               "name": "400 \u00b7 A required number cleared",
@@ -7364,7 +7364,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"latitude\": \"Latitude is required\"\n  },\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n  \"timestamp\": \"2026-10-08T03:38:45.953Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"latitude\": \"Latitude is required\"\n  },\n  \"path\": \"/api/airports/c24c40bf-8884-4fea-95f4-84060a3f2b9f\",\n  \"timestamp\": \"2026-10-08T08:54:03.814Z\"\n}"
             },
             {
               "name": "403 \u00b7 A broker without Airports \u00b7 Edit",
@@ -7396,7 +7396,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Edit\",\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n  \"timestamp\": \"2026-10-08T03:38:45.954Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Edit\",\n  \"path\": \"/api/airports/c24c40bf-8884-4fea-95f4-84060a3f2b9f\",\n  \"timestamp\": \"2026-10-08T08:54:03.816Z\"\n}"
             }
           ],
           "event": [
@@ -7493,7 +7493,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n  \"timestamp\": \"2026-10-08T03:38:45.955Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/c24c40bf-8884-4fea-95f4-84060a3f2b9f\",\n  \"timestamp\": \"2026-10-08T08:54:03.817Z\"\n}"
             }
           ],
           "event": [
@@ -7564,7 +7564,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\",\n    \"icao\": \"QLCZ\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Jet Aviation Bedford\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-10-08T03:38:45.936Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T03:38:45.963Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-10-08T03:38:45.962Z\",\n    \"restoredById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\",\n    \"icao\": \"QBNX\",\n    \"iata\": \"BED\",\n    \"name\": \"Laurence G Hanscom Field\",\n    \"city\": \"Bedford\",\n    \"state\": \"MA\",\n    \"country\": \"USA\",\n    \"latitude\": 42.47,\n    \"longitude\": -71.289,\n    \"longestRunwayFt\": 7011,\n    \"assignedFbo\": \"Jet Aviation Bedford\",\n    \"notes\": \"Boston-area business aviation gateway.\",\n    \"createdAt\": \"2026-10-08T08:54:03.799Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T08:54:03.825Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-10-08T08:54:03.824Z\",\n    \"restoredById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    }\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not archived",
@@ -7593,7 +7593,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived airport not found\",\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114/restore\",\n  \"timestamp\": \"2026-10-08T03:38:45.967Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived airport not found\",\n  \"path\": \"/api/airports/c24c40bf-8884-4fea-95f4-84060a3f2b9f/restore\",\n  \"timestamp\": \"2026-10-08T08:54:03.829Z\"\n}"
             },
             {
               "name": "403 \u00b7 A broker without Airports \u00b7 Archive",
@@ -7622,7 +7622,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/3edd8d2e-b6d9-45da-86dc-bc54d175c114/restore\",\n  \"timestamp\": \"2026-10-08T03:38:45.961Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/c24c40bf-8884-4fea-95f4-84060a3f2b9f/restore\",\n  \"timestamp\": \"2026-10-08T08:54:03.822Z\"\n}"
             }
           ],
           "event": [
@@ -7691,7 +7691,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
+                  "raw": "{\n  \"ids\": [\n    \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -7723,7 +7723,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
+                  "raw": "{\n  \"ids\": [\n    \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -7736,7 +7736,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\"\n    ]\n  }\n}"
             },
             {
               "name": "400 \u00b7 Nothing selected",
@@ -7768,7 +7768,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-10-08T03:38:45.975Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-10-08T08:54:03.835Z\"\n}"
             },
             {
               "name": "403 \u00b7 A broker without Airports \u00b7 Archive",
@@ -7787,7 +7787,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
+                  "raw": "{\n  \"ids\": [\n    \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\"\n  ]\n}"
                 }
               },
               "status": "Forbidden",
@@ -7800,7 +7800,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-10-08T03:38:45.968Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/bulk-delete\",\n  \"timestamp\": \"2026-10-08T08:54:03.830Z\"\n}"
             }
           ],
           "event": [
@@ -7840,7 +7840,7 @@
                 "bulk-restore"
               ]
             },
-            "description": "Needs **Airports \u00b7 Archive**. The Archived tab's bulk action, the mirror of `09`. Ids that are not archived come back in `skipped`.\n\nThe folder's teardown archives the probe again, so a run leaves nothing live behind.",
+            "description": "Needs **Airports \u00b7 Archive**. The Archived tab's bulk action, the mirror of `09`. Ids that are not archived come back in `skipped`.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"ids\": [\"{{newAirportId}}\"]  // required \u00b7 1-100 UUIDs. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
@@ -7869,7 +7869,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
+                  "raw": "{\n  \"ids\": [\n    \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -7901,7 +7901,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
+                  "raw": "{\n  \"ids\": [\n    \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -7914,7 +7914,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\"\n    ]\n  }\n}"
             },
             {
               "name": "400 \u00b7 Nothing selected",
@@ -7946,7 +7946,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-10-08T03:38:45.983Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-10-08T08:54:03.842Z\"\n}"
             },
             {
               "name": "403 \u00b7 A broker without Airports \u00b7 Archive",
@@ -7965,7 +7965,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": [\n    \"3edd8d2e-b6d9-45da-86dc-bc54d175c114\"\n  ]\n}"
+                  "raw": "{\n  \"ids\": [\n    \"c24c40bf-8884-4fea-95f4-84060a3f2b9f\"\n  ]\n}"
                 }
               },
               "status": "Forbidden",
@@ -7978,7 +7978,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-10-08T03:38:45.976Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Airports \\u00b7 Archive / restore\",\n  \"path\": \"/api/airports/bulk-restore\",\n  \"timestamp\": \"2026-10-08T08:54:03.836Z\"\n}"
             }
           ],
           "event": [
@@ -7987,15 +7987,77 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "// Teardown: there is no hard delete, so the probe ends archived \u2014",
-                  "// in the Archived tab, not among the airports the desk works.",
-                  "const id = pm.collectionVariables.get('newAirportId');",
-                  "if (id) {",
-                  "  pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/airports/' + id, method: 'DELETE',",
-                  "    header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') } }, function () {});",
-                  "  pm.collectionVariables.set('newAirportId', '');",
-                  "}"
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 \u00b7 Teardown \u2014 archive the probe",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/airports/{{newAirportId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "airports",
+                "{{newAirportId}}"
+              ]
+            },
+            "description": "The run is a demonstration: the probe ends archived, in the Archived tab, never live."
+          },
+          "response": [
+            {
+              "name": "204 \u00b7 Archived",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/airports/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "airports",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('archived', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('newAirportId', '');"
                 ]
               }
             }
@@ -8082,15 +8144,154 @@
     },
     {
       "name": "06 \u00b7 Operators",
-      "description": "Charter operators \u2014 the companies that actually fly the aircraft. **Shared master data**, the same rows for every signed-in caller, with no row-level scoping.\n\n### Who may write\n\n| Role | Read | Create / Edit / Remove |\n|---|---|---|\n| SUPER_ADMIN, ADMIN, BROKER | \u2713 | \u2713 |\n| ASSISTANT | \u2713 | 403 |\n\nBrokers may write here but not in `05 \u00b7 Airports`: a broker who sources a new operator adds it themselves, which matches the `Operator Sourcing` permission they already hold at full scope. Assistants hold `MANAGE_OPERATORS` at **READ**.\n\n### Fields the UI shows that nothing can supply yet\n\n`totalTrips`, `totalPaid` and `totalFleet` are aggregates over trips, operator payments and aircraft \u2014 none of which exist. They return **null**, not 0, so the UI can render an honest em dash: a confident \"0 trips\" against an operator the desk has flown twice is a wrong answer. Same reason `fleet`, `tripHistory` and `payments` come back as empty arrays on the detail response.\n\nThis folder runs as the seeded owner.",
+      "description": "Charter operators \u2014 the companies that fly the aircraft. Shared desk data: the same rows for every staff member.\n\n### Who may do what (since 8 Oct 2026)\n\n| | Needs |\n|---|---|\n| List, stats, one operator | **A staff session only** \u2014 aircraft, sourcing, quotes, trips, empty legs and payments all pick an operator |\n| Add | `Operators \u00b7 Create` in the caller's own permissions |\n| Edit | `Operators \u00b7 Edit` |\n| Remove, restore, bulk | `Operators \u00b7 Archive` |\n\n**A referral agent is refused every route** (403): an operator's contacts and terms are desk data.\n\n### Fixed choices (case-sensitive)\n\n| Field | Values |\n|---|---|\n| `status` | ACTIVE \u00b7 PREFERRED \u00b7 INACTIVE \u00b7 SUSPENDED (do not book until further notice) |\n| `safetyRating` | a number 0\u20135, optional \u2014 the desk's own rating, like `reliabilityRating`; blank is not rated |\n| `responseSpeed` | FAST \u00b7 AVERAGE \u00b7 SLOW |\n| `paymentTerms` | PREPAID \u00b7 DUE_ON_RECEIPT \u00b7 NET_7 \u00b7 NET_15 \u00b7 NET_30 |\n\n`totalPaid` is null unless the caller sees every operator bill. Documents are filed through `Document Vault` with `operatorId`.\n\nThis folder runs as the seeded owner; refusals were captured as the assistant, the broker and the referral agent.",
       "item": [
         {
-          "name": "01 \u00b7 List operators",
+          "name": "01 \u00b7 Add operator",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators"
+              ]
+            },
+            "description": "Needs **Operators \u00b7 Create**. Safety and reliability are 0\u20135 numbers; response speed and payment terms are fixed choices \u2014 a typed \"Net 30\" is a 400. The folder works on this probe from here on.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Probe Aviation\",                     // required \u00b7 1-200 chars. Not unique.\n  \"status\": \"PREFERRED\",                                // optional \u00b7 ACTIVE | PREFERRED | INACTIVE | SUSPENDED. Default ACTIVE.\n  \"homeBase\": \"Teterboro, NJ\",                          // required \u00b7 1-120 chars\n  \"website\": \"www.example.com\",                         // optional \u00b7 max 200 chars\n  \"generalEmail\": \"ops@probe.example.com\",              // optional \u00b7 email. The company's dispatch address.\n  \"generalPhone\": \"+1 (201) 555-0100\",                  // optional \u00b7 max 40 chars\n  \"primaryContact\": \"Dana Ruiz\",                        // required \u00b7 1-120 chars. The named account manager.\n  \"contactEmail\": \"dana@probe.example.com\",             // required \u00b7 email\n  \"contactPhone\": \"+1 (201) 555-0184\",                  // optional \u00b7 max 40 chars\n  \"aircraftTypes\": [\"Challenger 350\", \"Global 7500\"],   // optional \u00b7 up to 40 strings of 1-80 chars\n  \"serviceRoutes\": [\"KTEB \u2194 KOPF\"],                     // optional \u00b7 up to 40 strings of 1-80 chars\n  \"reliabilityRating\": 4.6,                             // optional \u00b7 number 0-5, the desk's own rating\n  \"safetyRating\": 4.9,                                  // optional \u00b7 number 0-5, the desk's own safety rating. Blank = not rated.\n  \"responseSpeed\": \"FAST\",                              // optional \u00b7 FAST | AVERAGE | SLOW\n  \"paymentTerms\": \"NET_30\",                             // optional \u00b7 PREPAID | DUE_ON_RECEIPT | NET_7 | NET_15 | NET_30\n  \"cancellationPolicy\": \"30+ days \u2014 10%\\n14-30 days \u2014 25%\\nUnder 72 hours \u2014 non-refundable\", // optional \u00b7 max 5000 chars, pasted verbatim\n  \"sourcingNotes\": \"Probe written by the Postman run; archived at the end.\" // optional \u00b7 max 2000 chars. \"Notes\" on screen.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 \u00b7 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Postman Probe Aviation\",\n  \"status\": \"PREFERRED\",\n  \"homeBase\": \"Teterboro, NJ\",\n  \"website\": \"www.example.com\",\n  \"generalEmail\": \"ops@probe.example.com\",\n  \"generalPhone\": \"+1 (201) 555-0100\",\n  \"primaryContact\": \"Dana Ruiz\",\n  \"contactEmail\": \"dana@probe.example.com\",\n  \"contactPhone\": \"+1 (201) 555-0184\",\n  \"aircraftTypes\": [\n    \"Challenger 350\",\n    \"Global 7500\"\n  ],\n  \"serviceRoutes\": [\n    \"KTEB \\u2194 KOPF\"\n  ],\n  \"reliabilityRating\": 4.6,\n  \"safetyRating\": 4.9,\n  \"responseSpeed\": \"FAST\",\n  \"paymentTerms\": \"NET_30\",\n  \"cancellationPolicy\": \"30+ days \\u2014 10%\\n14-30 days \\u2014 25%\\nUnder 72 hours \\u2014 non-refundable\",\n  \"sourcingNotes\": \"Probe written by the Postman run; archived at the end.\"\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n    \"name\": \"Postman Probe Aviation\",\n    \"status\": \"PREFERRED\",\n    \"homeBase\": \"Teterboro, NJ\",\n    \"website\": \"www.example.com\",\n    \"generalEmail\": \"ops@probe.example.com\",\n    \"generalPhone\": \"+1 (201) 555-0100\",\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"dana@probe.example.com\",\n    \"contactPhone\": \"+1 (201) 555-0184\",\n    \"aircraftTypes\": [\n      \"Challenger 350\",\n      \"Global 7500\"\n    ],\n    \"serviceRoutes\": [\n      \"KTEB \\u2194 KOPF\"\n    ],\n    \"reliabilityRating\": 4.6,\n    \"safetyRating\": 4.9,\n    \"responseSpeed\": \"FAST\",\n    \"cancellationPolicy\": \"30+ days \\u2014 10%\\n14-30 days \\u2014 25%\\nUnder 72 hours \\u2014 non-refundable\",\n    \"paymentTerms\": \"NET_30\",\n    \"sourcingNotes\": \"Probe written by the Postman run; archived at the end.\",\n    \"createdAt\": \"2026-10-08T09:01:46.198Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T09:01:46.198Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": 0,\n    \"totalPaid\": 0\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"\",\n  \"homeBase\": \"X\",\n  \"safetyRating\": 9,\n  \"paymentTerms\": \"Net 30\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"name\": \"Operator name is required\",\n    \"primaryContact\": \"Invalid input: expected string, received undefined\",\n    \"contactEmail\": \"A valid contact email is required\",\n    \"safetyRating\": \"Safety must be between 0 and 5\",\n    \"paymentTerms\": \"Invalid option: expected one of \\\"PREPAID\\\"|\\\"DUE_ON_RECEIPT\\\"|\\\"NET_7\\\"|\\\"NET_15\\\"|\\\"NET_30\\\"\"\n  },\n  \"path\": \"/api/operators\",\n  \"timestamp\": \"2026-10-08T09:01:46.223Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 An assistant (no Operators \u00b7 Create)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Operators \\u00b7 Create\",\n  \"path\": \"/api/operators\",\n  \"timestamp\": \"2026-10-08T09:01:46.225Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('newOperatorId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 List operators",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/operators?page=1&limit=10&search=&sortOrder=desc&status=&sortBy=createdAt&archived=false",
+              "raw": "{{baseUrl}}/operators?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -8101,44 +8302,44 @@
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "Page number, 1-based. Integer \u22651. Default 1. Out of range returns an empty `data` with a truthful `meta`."
+                  "description": "Page number, 1-based. Integer \u22651. Default 1."
                 },
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Rows per page. Integer 1-100. Default 10, matching the rows-per-page dropdown in the UI. >100 or <1 \u2192 400."
+                  "description": "Rows per page. Integer 1-100. Default 10. >100 or <1 \u2192 400."
                 },
                 {
                   "key": "search",
                   "value": "",
                   "disabled": true,
-                  "description": "Case-insensitive substring. Trimmed, max 200 chars."
-                },
-                {
-                  "key": "sortOrder",
-                  "value": "desc",
-                  "description": "Allowed (case-sensitive): asc | desc. Default desc \u2014 tables open newest-first."
+                  "description": "Case-insensitive substring across name, home base, contact name and both emails. Max 200 chars."
                 },
                 {
                   "key": "status",
                   "value": "",
                   "disabled": true,
-                  "description": "Allowed (case-sensitive): ACTIVE | PREFERRED | INACTIVE. Omit for all statuses. Lower-case returns 400 rather than being silently corrected."
+                  "description": "Allowed (case-sensitive): ACTIVE | PREFERRED | INACTIVE | SUSPENDED. Omit for all."
                 },
                 {
                   "key": "sortBy",
                   "value": "createdAt",
-                  "description": "Allowed (case-sensitive): createdAt | updatedAt | name | status | reliabilityRating. Default createdAt, paired with sortOrder desc, so a newly added operator is the first row. A closed list \u2014 anything else returns 400 rather than reaching the database."
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | name | status | reliabilityRating. Default createdAt (newest first). Anything else \u2192 400."
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Allowed (case-sensitive): asc | desc. Default desc."
                 },
                 {
                   "key": "archived",
                   "value": "false",
                   "disabled": true,
-                  "description": "Allowed (case-sensitive): true | false. Default false \u2014 only live rows. `true` returns ONLY archived ones, for the Archived tab."
+                  "description": "Allowed: true | false. Default false (live rows). true returns only archived ones \u2014 the Archived tab."
                 }
               ]
             },
-            "description": "Paginated list. Search covers **name, home base, primary contact and both email addresses** in one term.\n\nSee the Params tab for every filter, its default and its bounds."
+            "description": "Paginated. **Any staff member** \u2014 the pickers read it; a referral agent is refused. `totalTrips` counts uncancelled trips; `totalPaid` is null unless the caller sees every operator bill."
           },
           "response": [
             {
@@ -8147,7 +8348,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/operators",
+                  "raw": "{{baseUrl}}/operators?page=1&limit=2",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -8166,15 +8367,42 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"homeBase\": \"Van Nuys, CA\",\n      \"website\": \"www.claylacy.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"Dana Ruiz\",\n      \"contactEmail\": \"druiz@claylacy.example.com\",\n      \"contactPhone\": \"+1 (800) 423-2904\",\n      \"aircraftTypes\": [\n        \"Citation X\"\n      ],\n      \"serviceRoutes\": [\n        \"KVNY \\u2194 KLAS\"\n      ],\n      \"reliabilityRating\": 4.2,\n      \"safetyRating\": \"IS-BAO Stage 2\",\n      \"responseSpeed\": \"< 45 min\",\n      \"cancellationPolicy\": \"Standard domestic terms.\",\n      \"paymentTerms\": \"Net 30\",\n      \"sourcingNotes\": \"Dormant since the West Coast desk moved to NetJets.\",\n      \"createdAt\": \"2026-09-15T09:44:55.295Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:52:06.284Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    },\n    {\n      \"id\": \"245d1d7b-6cca-4da7-ba2a-fa7964abac91\",\n      \"name\": \"NetJets\",\n      \"status\": \"PREFERRED\",\n      \"homeBase\": \"Columbus, OH\",\n      \"website\": \"www.netjets.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"Jennifer Vance\",\n      \"contactEmail\": \"jvance@netjets.example.com\",\n      \"contactPhone\": \"+1 (877) 356-5825\",\n      \"aircraftTypes\": [\n        \"Citation Latitude\",\n        \"Challenger 650\",\n        \"Global 6000\"\n      ],\n      \"serviceRoutes\": [\n        \"KCMH \\u2194 KTEB\",\n        \"KTEB \\u2194 KPBI\",\n        \"KLAX \\u2194 KSFO\"\n      ],\n      \"reliabilityRating\": 4.9,\n      \"safetyRating\": \"ARG/US Platinum\",\n      \"responseSpeed\": \"< 10 min\",\n      \"cancellationPolicy\": \"NetJets broker agreement terms with 48-hour cancellation grace period.\",\n      \"paymentTerms\": \"Net 30\",\n      \"sourcingNotes\": \"Largest private jet operator globally. Instant guaranteed availability.\",\n      \"createdAt\": \"2026-09-15T09:44:55.292Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.292Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    },\n    {\n      \"id\": \"da27b81e-9266-4b81-acbb-e8a095aa8f48\",\n      \"name\": \"ExecuJet\",\n      \"status\": \"ACTIVE\",\n      \"homeBase\": \"Zurich, CH\",\n      \"website\": \"www.execujet.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"Mark Hughes\",\n      \"contactEmail\": \"mhughes@execujet.example.com\",\n      \"contactPhone\": \"+41 44 804 1616\",\n      \"aircraftTypes\": [\n        \"Gulfstream G550\",\n        \"Falcon 7X\"\n      ],\n      \"serviceRoutes\": [\n        \"LSZH \\u2194 LFMN\",\n        \"LSGG \\u2194 EGLL\"\n      ],\n      \"reliabilityRating\": 4.6,\n      \"safetyRating\": \"IS-BAO Stage 3\",\n      \"responseSpeed\": \"< 30 min\",\n      \"cancellationPolicy\": \"Standard European business aviation contract.\",\n      \"paymentTerms\": \"Due upon receipt\",\n      \"sourcingNotes\": \"Premier European charter operator with heavy jet capabilities.\",\n      \"createdAt\": \"2026-09-15T09:44:55.288Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.288Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    },\n    {\n      \"id\": \"b1d35b41-ca8e-4e41-9cc5-20e57f1ed761\",\n      \"name\": \"VistaJet\",\n      \"status\": \"ACTIVE\",\n      \"homeBase\": \"Luton, UK\",\n      \"website\": \"www.vistajet.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"Sarah Blake\",\n      \"contactEmail\": \"sblake@vistajet.example.com\",\n      \"contactPhone\": \"+44 20 7946 0912\",\n      \"aircraftTypes\": [\n        \"Global 7500\",\n        \"Global 6000\"\n      ],\n      \"serviceRoutes\": [\n        \"EGLL \\u2194 KJFK\",\n        \"EGGW \\u2194 OMDB\",\n        \"LFMN \\u2194 KTEB\"\n      ],\n      \"reliabilityRating\": 4.7,\n      \"safetyRating\": \"Wyvern Wingman\",\n      \"responseSpeed\": \"< 20 min\",\n      \"cancellationPolicy\": \"Standard international charter terms. 10% non-refundable deposit.\",\n      \"paymentTerms\": \"Net 15\",\n      \"sourcingNotes\": \"Excellent global coverage with distinctive silver and red stripe fleet.\",\n      \"createdAt\": \"2026-09-15T09:44:55.284Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.284Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    },\n    {\n      \"id\": \"d96040cc-fa74-4242-9ac5-956fc44a9eff\",\n      \"name\": \"FlexJet\",\n      \"status\": \"PREFERRED\",\n      \"homeBase\": \"Cleveland, OH\",\n      \"website\": \"www.flexjet.com\",\n      \"generalEmail\": null,\n      \"generalPhone\": null,\n      \"primaryContact\": \"James Miller\",\n      \"contactEmail\": \"jmiller@flexjet.example.com\",\n      \"contactPhone\": \"+1 (212) 555-0184\",\n      \"aircraftTypes\": [\n        \"Global 7500\",\n        \"Challenger 350\"\n      ],\n      \"serviceRoutes\": [\n        \"KTEB \\u2194 KMIA\",\n        \"KJFK \\u2194 EGLL\",\n        \"KLAX \\u2194 KLAS\"\n      ],\n      \"reliabilityRating\": 4.8,\n      \"safetyRating\": \"ARG/US Platinum\",\n      \"responseSpeed\": \"< 15 min\",\n      \"cancellationPolicy\": \"Full refund up to 72 hours prior to departure. 50% fee within 48-72h. 100% fee within 24h.\",\n      \"paymentTerms\": \"Net 30\",\n      \"sourcingNotes\": \"Preferred long-range partner with direct dispatch line. High reliability on transcontinental routes.\",\n      \"createdAt\": \"2026-09-15T09:44:55.280Z\",\n      \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"updatedAt\": \"2026-09-15T09:44:55.280Z\",\n      \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"totalTrips\": null,\n      \"totalPaid\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 5,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n      \"name\": \"Postman Probe Aviation\",\n      \"status\": \"PREFERRED\",\n      \"homeBase\": \"Teterboro, NJ\",\n      \"website\": \"www.example.com\",\n      \"generalEmail\": \"ops@probe.example.com\",\n      \"generalPhone\": \"+1 (201) 555-0100\",\n      \"primaryContact\": \"Dana Ruiz\",\n      \"contactEmail\": \"dana@probe.example.com\",\n      \"contactPhone\": \"+1 (201) 555-0184\",\n      \"aircraftTypes\": [\n        \"Challenger 350\",\n        \"Global 7500\"\n      ],\n      \"serviceRoutes\": [\n        \"KTEB \\u2194 KOPF\"\n      ],\n      \"reliabilityRating\": 4.6,\n      \"safetyRating\": 4.9,\n      \"responseSpeed\": \"FAST\",\n      \"cancellationPolicy\": \"30+ days \\u2014 10%\\n14-30 days \\u2014 25%\\nUnder 72 hours \\u2014 non-refundable\",\n      \"paymentTerms\": \"NET_30\",\n      \"sourcingNotes\": \"Probe written by the Postman run; archived at the end.\",\n      \"createdAt\": \"2026-10-08T09:01:46.198Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-08T09:01:46.198Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": 0,\n      \"totalPaid\": 0\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 2,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
-              "name": "400 \u00b7 Enum is case-sensitive",
+              "name": "200 \u00b7 An assistant (reads need only a staff session)",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/operators",
+                  "raw": "{{baseUrl}}/operators?page=1&limit=1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n      \"name\": \"Postman Probe Aviation\",\n      \"status\": \"PREFERRED\",\n      \"homeBase\": \"Teterboro, NJ\",\n      \"website\": \"www.example.com\",\n      \"generalEmail\": \"ops@probe.example.com\",\n      \"generalPhone\": \"+1 (201) 555-0100\",\n      \"primaryContact\": \"Dana Ruiz\",\n      \"contactEmail\": \"dana@probe.example.com\",\n      \"contactPhone\": \"+1 (201) 555-0184\",\n      \"aircraftTypes\": [\n        \"Challenger 350\",\n        \"Global 7500\"\n      ],\n      \"serviceRoutes\": [\n        \"KTEB \\u2194 KOPF\"\n      ],\n      \"reliabilityRating\": 4.6,\n      \"safetyRating\": 4.9,\n      \"responseSpeed\": \"FAST\",\n      \"cancellationPolicy\": \"30+ days \\u2014 10%\\n14-30 days \\u2014 25%\\nUnder 72 hours \\u2014 non-refundable\",\n      \"paymentTerms\": \"NET_30\",\n      \"sourcingNotes\": \"Probe written by the Postman run; archived at the end.\",\n      \"createdAt\": \"2026-10-08T09:01:46.198Z\",\n      \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"updatedAt\": \"2026-10-08T09:01:46.198Z\",\n      \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": 0,\n      \"totalPaid\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 1,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Unsortable column",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators?sortBy=email",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -8193,7 +8421,61 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"status\": \"Invalid option: expected one of \\\"ACTIVE\\\"|\\\"PREFERRED\\\"|\\\"INACTIVE\\\"\"\n  },\n  \"path\": \"/api/operators?status=preferred\",\n  \"timestamp\": \"2026-09-15T09:45:29.208Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"name\\\"|\\\"status\\\"|\\\"reliabilityRating\\\"|\\\"safetyRating\\\"\"\n  },\n  \"path\": \"/api/operators?sortBy=email\",\n  \"timestamp\": \"2026-10-08T09:01:46.248Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Not signed in",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/operators\",\n  \"timestamp\": \"2026-10-08T09:01:46.249Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 A referral agent (desk data)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"This is desk data; the referral portal cannot read it.\",\n  \"path\": \"/api/operators\",\n  \"timestamp\": \"2026-10-08T09:01:46.246Z\"\n}"
             }
           ],
           "event": [
@@ -8202,22 +8484,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// The detail, update and delete requests below need a real id.",
-                  "// Taking it from this list keeps the folder runnable end to end",
-                  "// without anyone pasting a operator id by hand.",
-                  "pm.test('list returned rows', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "    const rows = pm.response.json().data;",
-                  "    pm.expect(rows).to.be.an('array').that.is.not.empty;",
-                  "    pm.collectionVariables.set('operatorId', rows[0].id);",
-                  "});"
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "02 \u00b7 Operator stats",
+          "name": "03 \u00b7 Operator stats",
           "request": {
             "method": "GET",
             "header": [],
@@ -8231,7 +8505,7 @@
                 "stats"
               ]
             },
-            "description": "The four tiles above the table. `totalFleet` is null until the Aircraft module exists \u2014 see this folder's description."
+            "description": "The tiles: total, then one count per status (suspended is its own, not folded into inactive), and `totalFleet` \u2014 every aircraft on file."
           },
           "response": [
             {
@@ -8260,33 +8534,37 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 5,\n    \"active\": 2,\n    \"preferred\": 2,\n    \"inactive\": 1,\n    \"totalFleet\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"total\": 1,\n    \"active\": 0,\n    \"preferred\": 1,\n    \"inactive\": 0,\n    \"suspended\": 0,\n    \"totalFleet\": 0\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
         {
-          "name": "03 \u00b7 Get operator",
+          "name": "04 \u00b7 Get operator",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/operators/:id",
+              "raw": "{{baseUrl}}/operators/{{newOperatorId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "operators",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "{{operatorId}}",
-                  "description": "UUID. Populated by `01 \u00b7 List operators`, so this folder runs end to end unattended."
-                }
+                "{{newOperatorId}}"
               ]
             },
-            "description": "Full record plus the audit trail, and the three empty arrays the detail page's Fleet, Trips and Payments tabs bind to.\n\nThey are empty arrays rather than omitted keys so those tabs render their own empty state instead of crashing on undefined."
+            "description": "One operator with its fleet (through Aircraft), its sourcing scorecard (through Operator Sourcing) and totals. Archived operators open too \u2014 the Archived tab links here."
           },
           "response": [
             {
@@ -8315,7 +8593,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"39238077-3365-47a3-a944-59333419e548\",\n    \"name\": \"Clay Lacy Aviation\",\n    \"status\": \"INACTIVE\",\n    \"homeBase\": \"Van Nuys, CA\",\n    \"website\": \"www.claylacy.com\",\n    \"generalEmail\": null,\n    \"generalPhone\": null,\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"druiz@claylacy.example.com\",\n    \"contactPhone\": \"+1 (800) 423-2904\",\n    \"aircraftTypes\": [\n      \"Citation X\"\n    ],\n    \"serviceRoutes\": [\n      \"KVNY \\u2194 KLAS\"\n    ],\n    \"reliabilityRating\": 4.2,\n    \"safetyRating\": \"IS-BAO Stage 2\",\n    \"responseSpeed\": \"< 45 min\",\n    \"cancellationPolicy\": \"Standard domestic terms.\",\n    \"paymentTerms\": \"Net 30\",\n    \"sourcingNotes\": \"Dormant since the West Coast desk moved to NetJets.\",\n    \"createdAt\": \"2026-09-15T09:44:55.295Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:52:06.284Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"createdBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": null,\n    \"totalPaid\": null,\n    \"fleet\": [],\n    \"tripHistory\": [],\n    \"payments\": []\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n    \"name\": \"Postman Probe Aviation\",\n    \"status\": \"PREFERRED\",\n    \"homeBase\": \"Teterboro, NJ\",\n    \"website\": \"www.example.com\",\n    \"generalEmail\": \"ops@probe.example.com\",\n    \"generalPhone\": \"+1 (201) 555-0100\",\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"dana@probe.example.com\",\n    \"contactPhone\": \"+1 (201) 555-0184\",\n    \"aircraftTypes\": [\n      \"Challenger 350\",\n      \"Global 7500\"\n    ],\n    \"serviceRoutes\": [\n      \"KTEB \\u2194 KOPF\"\n    ],\n    \"reliabilityRating\": 4.6,\n    \"safetyRating\": 4.9,\n    \"responseSpeed\": \"FAST\",\n    \"cancellationPolicy\": \"30+ days \\u2014 10%\\n14-30 days \\u2014 25%\\nUnder 72 hours \\u2014 non-refundable\",\n    \"paymentTerms\": \"NET_30\",\n    \"sourcingNotes\": \"Probe written by the Postman run; archived at the end.\",\n    \"createdAt\": \"2026-10-08T09:01:46.198Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T09:01:46.198Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"totalTrips\": 0,\n    \"totalPaid\": 0,\n    \"fleet\": [],\n    \"fleetSize\": 0,\n    \"scorecard\": {\n      \"quotesRequested\": 0,\n      \"quotesReceived\": 0,\n      \"quotesWon\": 0,\n      \"quotesDeclined\": 0,\n      \"responseRate\": null,\n      \"winRate\": null,\n      \"averageResponseHours\": null,\n      \"lastRequestedAt\": null\n    }\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not found",
@@ -8343,154 +8621,21 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Operator not found\",\n  \"path\": \"/api/operators/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-15T09:45:29.227Z\"\n}"
-            }
-          ]
-        },
-        {
-          "name": "04 \u00b7 Add operator",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-CSRF-Token",
-                "value": "{{csrfToken}}",
-                "description": "Required on every write. Captured automatically after any login or refresh."
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Solairus Aviation\",                                    // required \u00b7 1-200 chars\n\n  \"status\": \"ACTIVE\",                                             // optional \u00b7 default \"ACTIVE\" \u00b7 Allowed (case-sensitive): \"ACTIVE\" | \"PREFERRED\" | \"INACTIVE\"\n\n  \"homeBase\": \"Petaluma, CA\",                                     // optional \u00b7 max 120 chars. Free text city, not an airport code \u2014 several operators list a city with no single airport.\n\n  \"website\": \"www.solairus.com\",                                  // optional \u00b7 max 200 chars\n\n  \"generalEmail\": \"charter@solairus.com\",                         // optional \u00b7 the company switchboard, valid when staff change\n  \"generalPhone\": \"+1 (707) 762-8000\",\n\n  \"primaryContact\": \"Dana Ruiz\",                                  // optional \u00b7 the named account manager and their direct line\n  \"contactEmail\": \"druiz@solairus.com\",\n  \"contactPhone\": \"+1 (707) 762-8011\",\n\n  \"aircraftTypes\": [\"Gulfstream G450\", \"Citation X\"],             // optional \u00b7 arrays of strings, max 40 items, each 1-80 chars. Rendered as chips on the operator card.\n  \"serviceRoutes\": [\"KSFO \\u2194 KTEB\", \"KVNY \\u2194 KLAS\"],\n\n  \"reliabilityRating\": 4.5,                                       // optional \u00b7 number 0-5, one decimal as the card renders it\n\n  \"safetyRating\": \"ARG/US Gold\",                                  // optional \u00b7 max 120 chars. A CERTIFICATION, not a number: \"ARG/US Platinum\", \"Wyvern Wingman\", \"IS-BAO Stage 3\".\n\n  \"responseSpeed\": \"< 25 min\",                                    // optional \u00b7 max 60 chars. Typical quote turnaround, as the desk says it.\n\n  \"paymentTerms\": \"Net 30\",                                       // optional \u00b7 max 120 chars. \"Net 30\", \"Due upon receipt\".\n\n  \"cancellationPolicy\": \"More than 30 days prior: 10%\\n14-30 days: 25%\\n72 hours-14 days: 50%\\nUnder 72 hours: non-refundable\",  // optional \u00b7 max 5000 chars. Pasted verbatim from the operator's own terms, so it is a block of text rather than a phrase \u2014 line breaks are preserved and the profile renders them.\n  \"sourcingNotes\": \"Strong West Coast coverage; quick to quote on short notice.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Operator not found\",\n  \"path\": \"/api/operators/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-10-08T09:01:46.270Z\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/operators",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "operators"
-              ]
-            },
-            "description": "Creates an operator. Requires `Manage Operators` at write scope \u2014 assistants receive 403.\n\nName is deliberately **not** unique: two genuinely different operators can share a trading name, and refusing the second would be wrong. Duplicates are a data-quality question for the desk, not a constraint."
-          },
-          "response": [
             {
-              "name": "201 \u00b7 Created",
+              "name": "403 \u00b7 A referral agent",
               "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Solairus Aviation\",                                    // required \u00b7 1-200 chars\n\n  \"status\": \"ACTIVE\",                                             // optional \u00b7 default \"ACTIVE\" \u00b7 Allowed (case-sensitive): \"ACTIVE\" | \"PREFERRED\" | \"INACTIVE\"\n\n  \"homeBase\": \"Petaluma, CA\",                                     // optional \u00b7 max 120 chars. Free text city, not an airport code \u2014 several operators list a city with no single airport.\n\n  \"website\": \"www.solairus.com\",                                  // optional \u00b7 max 200 chars\n\n  \"generalEmail\": \"charter@solairus.com\",                         // optional \u00b7 the company switchboard, valid when staff change\n  \"generalPhone\": \"+1 (707) 762-8000\",\n\n  \"primaryContact\": \"Dana Ruiz\",                                  // optional \u00b7 the named account manager and their direct line\n  \"contactEmail\": \"druiz@solairus.com\",\n  \"contactPhone\": \"+1 (707) 762-8011\",\n\n  \"aircraftTypes\": [\"Gulfstream G450\", \"Citation X\"],             // optional \u00b7 arrays of strings, max 40 items, each 1-80 chars. Rendered as chips on the operator card.\n  \"serviceRoutes\": [\"KSFO \\u2194 KTEB\", \"KVNY \\u2194 KLAS\"],\n\n  \"reliabilityRating\": 4.5,                                       // optional \u00b7 number 0-5, one decimal as the card renders it\n\n  \"safetyRating\": \"ARG/US Gold\",                                  // optional \u00b7 max 120 chars. A CERTIFICATION, not a number: \"ARG/US Platinum\", \"Wyvern Wingman\", \"IS-BAO Stage 3\".\n\n  \"responseSpeed\": \"< 25 min\",                                    // optional \u00b7 max 60 chars. Typical quote turnaround, as the desk says it.\n\n  \"paymentTerms\": \"Net 30\",                                       // optional \u00b7 max 120 chars. \"Net 30\", \"Due upon receipt\".\n\n  \"cancellationPolicy\": \"More than 30 days prior: 10%\\n14-30 days: 25%\\n72 hours-14 days: 50%\\nUnder 72 hours: non-refundable\",  // optional \u00b7 max 5000 chars. Pasted verbatim from the operator's own terms, so it is a block of text rather than a phrase \u2014 line breaks are preserved and the profile renders them.\n  \"sourcingNotes\": \"Strong West Coast coverage; quick to quote on short notice.\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "method": "GET",
+                "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/operators",
+                  "raw": "{{baseUrl}}/operators/:id",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
-                    "operators"
-                  ]
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"08ae5c03-afc2-4618-9243-2f01a9e6162d\",\n    \"name\": \"Solairus Aviation\",\n    \"status\": \"ACTIVE\",\n    \"homeBase\": \"Petaluma, CA\",\n    \"website\": \"www.solairus.com\",\n    \"generalEmail\": \"charter@solairus.com\",\n    \"generalPhone\": \"+1 (707) 762-8000\",\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"druiz@solairus.com\",\n    \"contactPhone\": \"+1 (707) 762-8011\",\n    \"aircraftTypes\": [\n      \"Gulfstream G450\",\n      \"Citation X\"\n    ],\n    \"serviceRoutes\": [\n      \"KSFO \\u2194 KTEB\",\n      \"KVNY \\u2194 KLAS\"\n    ],\n    \"reliabilityRating\": 4.5,\n    \"safetyRating\": \"ARG/US Gold\",\n    \"responseSpeed\": \"< 25 min\",\n    \"cancellationPolicy\": \"50% fee within 48 hours of departure.\",\n    \"paymentTerms\": \"Net 30\",\n    \"sourcingNotes\": \"Strong West Coast coverage; quick to quote on short notice.\",\n    \"createdAt\": \"2026-09-15T09:45:29.246Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:45:29.246Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"totalTrips\": null,\n    \"totalPaid\": null\n  }\n}"
-            },
-            {
-              "name": "400 \u00b7 Validation failed",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"\",\n  \"status\": \"Active\",\n  \"contactEmail\": \"not-an-email\",\n  \"reliabilityRating\": 9\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/operators",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "operators"
-                  ]
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"name\": \"Operator name is required\",\n    \"status\": \"Invalid option: expected one of \\\"ACTIVE\\\"|\\\"PREFERRED\\\"|\\\"INACTIVE\\\"\",\n    \"contactEmail\": \"Invalid email address\",\n    \"reliabilityRating\": \"Too big: expected number to be <=5\"\n  },\n  \"path\": \"/api/operators\",\n  \"timestamp\": \"2026-09-15T09:45:29.236Z\"\n}"
-            },
-            {
-              "name": "403 \u00b7 Role may read but not write",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Nope Air\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/operators",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "operators"
+                    "operators",
+                    ":id"
                   ]
                 }
               },
@@ -8504,7 +8649,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Operators)\",\n  \"path\": \"/api/operators\",\n  \"timestamp\": \"2026-09-15T09:45:29.218Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"This is desk data; the referral portal cannot read it.\",\n  \"path\": \"/api/operators/76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n  \"timestamp\": \"2026-10-08T09:01:46.271Z\"\n}"
             }
           ],
           "event": [
@@ -8513,19 +8658,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// The update and delete requests below operate on this new operator,",
-                  "// so running the folder never touches seeded reference data.",
-                  "pm.test('created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "    pm.collectionVariables.set('newOperatorId', pm.response.json().data.id);",
-                  "});",
-                  "",
-                  "// Kept separately from the id the list request captures, which later",
-                  "// requests overwrite. The teardown needs to know which row *this run*",
-                  "// created.",
-                  "if (pm.response.code < 400) {",
-                  "    pm.collectionVariables.set('newOperatorId', pm.response.json().data.id);",
-                  "}"
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -8546,54 +8679,33 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  // All fields optional \u00b7 send at least one, or 400.\n  // Every field from Create is accepted; nullable ones accept null to clear.\n  //\n  // Arrays are REPLACED, not merged: the UI edits them as one\n  // comma-separated field, so what the user typed is the complete\n  // list and a merge would make removing a chip impossible.\n\n  \"status\": \"PREFERRED\",    // Allowed (case-sensitive): \"ACTIVE\" | \"PREFERRED\" | \"INACTIVE\"\n\n  \"reliabilityRating\": 4.7  // number 0-5\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/operators/:id",
+              "raw": "{{baseUrl}}/operators/{{newOperatorId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "operators",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "{{newOperatorId}}",
-                  "description": "UUID of the operator to update. Populated by `04 \u00b7 Add operator`, so a folder run never edits a seeded operator."
-                }
+                "{{newOperatorId}}"
               ]
             },
-            "description": "Partial update. Send only what changes; an empty body returns 400.\n\nA status change is written to the audit log with its before and after values."
+            "description": "Needs **Operators \u00b7 Edit**. Send only what changes. Home base, contact name and contact email can be changed but never cleared \u2014 they are required on create.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  // Every field optional; send at least one. null clears an optional field\n  // (paymentTerms, responseSpeed, safetyRating, website, \u2026).\n  // homeBase, primaryContact and contactEmail can be changed, never cleared.\n\n  \"status\": \"SUSPENDED\",\n  \"paymentTerms\": \"NET_15\",\n  \"safetyRating\": 4.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
-              "name": "200 \u00b7 Updated",
+              "name": "200 \u00b7 Suspended, new terms",
               "originalRequest": {
                 "method": "PATCH",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  // All fields optional \u00b7 send at least one, or 400.\n  // Every field from Create is accepted; nullable ones accept null to clear.\n  //\n  // Arrays are REPLACED, not merged: the UI edits them as one\n  // comma-separated field, so what the user typed is the complete\n  // list and a merge would make removing a chip impossible.\n\n  \"status\": \"PREFERRED\",    // Allowed (case-sensitive): \"ACTIVE\" | \"PREFERRED\" | \"INACTIVE\"\n\n  \"reliabilityRating\": 4.7  // number 0-5\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/operators/:id",
                   "host": [
@@ -8603,6 +8715,10 @@
                     "operators",
                     ":id"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"SUSPENDED\",\n  \"paymentTerms\": \"NET_15\",\n  \"safetyRating\": 4.5\n}"
                 }
               },
               "status": "OK",
@@ -8615,7 +8731,114 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"08ae5c03-afc2-4618-9243-2f01a9e6162d\",\n    \"name\": \"Solairus Aviation\",\n    \"status\": \"PREFERRED\",\n    \"homeBase\": \"Petaluma, CA\",\n    \"website\": \"www.solairus.com\",\n    \"generalEmail\": \"charter@solairus.com\",\n    \"generalPhone\": \"+1 (707) 762-8000\",\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"druiz@solairus.com\",\n    \"contactPhone\": \"+1 (707) 762-8011\",\n    \"aircraftTypes\": [\n      \"Gulfstream G450\",\n      \"Citation X\"\n    ],\n    \"serviceRoutes\": [\n      \"KSFO \\u2194 KTEB\",\n      \"KVNY \\u2194 KLAS\"\n    ],\n    \"reliabilityRating\": 4.7,\n    \"safetyRating\": \"ARG/US Gold\",\n    \"responseSpeed\": \"< 25 min\",\n    \"cancellationPolicy\": \"50% fee within 48 hours of departure.\",\n    \"paymentTerms\": \"Net 30\",\n    \"sourcingNotes\": \"Strong West Coast coverage; quick to quote on short notice.\",\n    \"createdAt\": \"2026-09-15T09:45:29.246Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T09:45:29.278Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"totalTrips\": null,\n    \"totalPaid\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n    \"name\": \"Postman Probe Aviation\",\n    \"status\": \"SUSPENDED\",\n    \"homeBase\": \"Teterboro, NJ\",\n    \"website\": \"www.example.com\",\n    \"generalEmail\": \"ops@probe.example.com\",\n    \"generalPhone\": \"+1 (201) 555-0100\",\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"dana@probe.example.com\",\n    \"contactPhone\": \"+1 (201) 555-0184\",\n    \"aircraftTypes\": [\n      \"Challenger 350\",\n      \"Global 7500\"\n    ],\n    \"serviceRoutes\": [\n      \"KTEB \\u2194 KOPF\"\n    ],\n    \"reliabilityRating\": 4.6,\n    \"safetyRating\": 4.5,\n    \"responseSpeed\": \"FAST\",\n    \"cancellationPolicy\": \"30+ days \\u2014 10%\\n14-30 days \\u2014 25%\\nUnder 72 hours \\u2014 non-refundable\",\n    \"paymentTerms\": \"NET_15\",\n    \"sourcingNotes\": \"Probe written by the Postman run; archived at the end.\",\n    \"createdAt\": \"2026-10-08T09:01:46.198Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T09:01:46.275Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": 0,\n    \"totalPaid\": 0\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 A required field cleared",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"homeBase\": null\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"homeBase\": \"Invalid input: expected string, received null\"\n  },\n  \"path\": \"/api/operators/76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n  \"timestamp\": \"2026-10-08T09:01:46.281Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Empty patch",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/operators/76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n  \"timestamp\": \"2026-10-08T09:01:46.283Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 An assistant (no Operators \u00b7 Edit)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"SUSPENDED\",\n  \"paymentTerms\": \"NET_15\",\n  \"safetyRating\": 4.5\n}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Operators \\u00b7 Edit\",\n  \"path\": \"/api/operators/76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n  \"timestamp\": \"2026-10-08T09:01:46.284Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
@@ -8625,29 +8848,26 @@
             "method": "DELETE",
             "header": [
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "X-CSRF-Token",
                 "value": "{{csrfToken}}",
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/operators/:id",
+              "raw": "{{baseUrl}}/operators/{{newOperatorId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "operators",
-                ":id"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "{{newOperatorId}}",
-                  "description": "UUID of the operator to remove \u2014 the one `04 \u00b7 Add operator` just created, so the folder cleans up after itself instead of deleting seeded master data."
-                }
+                "{{newOperatorId}}"
               ]
             },
-            "description": "Soft delete \u2014 `deletedAt` is stamped and the row stays.\n\nTrips, quotes and operator payments will all reference operators, so destroying one would orphan the history of every flight it operated."
+            "description": "Needs **Operators \u00b7 Archive** (administrators by default). Soft: aircraft, trips, quotes and payments that name it keep working."
           },
           "response": [
             {
@@ -8677,6 +8897,45 @@
               ],
               "cookie": [],
               "body": ""
+            },
+            {
+              "name": "403 \u00b7 A broker (no Operators \u00b7 Archive)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Operators \\u00b7 Archive / restore\",\n  \"path\": \"/api/operators/76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n  \"timestamp\": \"2026-10-08T09:01:46.285Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
             }
           ]
         },
@@ -8686,30 +8945,27 @@
             "method": "POST",
             "header": [
               {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
                 "key": "X-CSRF-Token",
                 "value": "{{csrfToken}}",
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/operators/:id/restore",
+              "raw": "{{baseUrl}}/operators/{{newOperatorId}}/restore",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "operators",
-                ":id",
+                "{{newOperatorId}}",
                 "restore"
-              ],
-              "variable": [
-                {
-                  "key": "id",
-                  "value": "{{newOperatorId}}",
-                  "description": "UUID of the archived operator, from `04 \u00b7 Add operator`."
-                }
               ]
             },
-            "description": "Brings an archived operator back exactly as it was. Same contract as `05 \u00b7 Airports / 08` \u2014 see there for why create never restores."
+            "description": "Needs **Operators \u00b7 Archive**. Clears the deletion stamp and nothing else. 200, not 201. Not archived \u2192 404."
           },
           "response": [
             {
@@ -8739,7 +8995,76 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"222665b8-1c91-44c6-811b-05d707b645ff\",\n    \"name\": \"Example Air\",\n    \"status\": \"ACTIVE\",\n    \"homeBase\": \"Example, CA\",\n    \"website\": null,\n    \"generalEmail\": null,\n    \"generalPhone\": null,\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"dana@example.com\",\n    \"contactPhone\": null,\n    \"aircraftTypes\": [],\n    \"serviceRoutes\": [],\n    \"reliabilityRating\": null,\n    \"safetyRating\": null,\n    \"responseSpeed\": null,\n    \"cancellationPolicy\": null,\n    \"paymentTerms\": null,\n    \"sourcingNotes\": null,\n    \"createdAt\": \"2026-09-15T10:43:14.862Z\",\n    \"createdById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"updatedAt\": \"2026-09-15T10:43:14.897Z\",\n    \"updatedById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-15T10:43:14.896Z\",\n    \"restoredById\": \"bcc56427-bb99-46b3-aa44-ccd013ad05f7\",\n    \"totalTrips\": null,\n    \"totalPaid\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\",\n    \"name\": \"Postman Probe Aviation\",\n    \"status\": \"SUSPENDED\",\n    \"homeBase\": \"Teterboro, NJ\",\n    \"website\": \"www.example.com\",\n    \"generalEmail\": \"ops@probe.example.com\",\n    \"generalPhone\": \"+1 (201) 555-0100\",\n    \"primaryContact\": \"Dana Ruiz\",\n    \"contactEmail\": \"dana@probe.example.com\",\n    \"contactPhone\": \"+1 (201) 555-0184\",\n    \"aircraftTypes\": [\n      \"Challenger 350\",\n      \"Global 7500\"\n    ],\n    \"serviceRoutes\": [\n      \"KTEB \\u2194 KOPF\"\n    ],\n    \"reliabilityRating\": 4.6,\n    \"safetyRating\": 4.5,\n    \"responseSpeed\": \"FAST\",\n    \"cancellationPolicy\": \"30+ days \\u2014 10%\\n14-30 days \\u2014 25%\\nUnder 72 hours \\u2014 non-refundable\",\n    \"paymentTerms\": \"NET_15\",\n    \"sourcingNotes\": \"Probe written by the Postman run; archived at the end.\",\n    \"createdAt\": \"2026-10-08T09:01:46.198Z\",\n    \"createdById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"updatedAt\": \"2026-10-08T09:01:46.294Z\",\n    \"updatedById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-10-08T09:01:46.293Z\",\n    \"restoredById\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"0ff457ab-86fd-480d-b9b4-75f401214244\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"totalTrips\": 0,\n    \"totalPaid\": 0\n  }\n}"
+            },
+            {
+              "name": "404 \u00b7 Not archived",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived operator not found\",\n  \"path\": \"/api/operators/76010c29-1e9d-46e6-81aa-2d5ae7ea0e20/restore\",\n  \"timestamp\": \"2026-10-08T09:01:46.298Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 A broker",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Operators \\u00b7 Archive / restore\",\n  \"path\": \"/api/operators/76010c29-1e9d-46e6-81aa-2d5ae7ea0e20/restore\",\n  \"timestamp\": \"2026-10-08T09:01:46.291Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
@@ -8758,15 +9083,6 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/operators/bulk-delete",
               "host": [
@@ -8777,28 +9093,23 @@
                 "bulk-delete"
               ]
             },
-            "description": "Removes every id in one statement, for the table's checkbox column.\n\nPOST rather than DELETE-with-body, and partial success reported rather than failing the batch \u2014 see `05 \u00b7 Airports / 08` for why on both counts."
+            "description": "Needs **Operators \u00b7 Archive**. POST, not DELETE. Partial success is success: ids matching nothing come back in `skipped`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs. Ids that match nothing come back in `skipped`.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
               "name": "200 \u00b7 Removed",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/operators/bulk-delete",
                   "host": [
@@ -8808,6 +9119,10 @@
                     "operators",
                     "bulk-delete"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -8820,27 +9135,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
             },
             {
-              "name": "403 \u00b7 Role may read but not write",
+              "name": "200 \u00b7 Already removed (partial)",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs, at least one. Capped at the page size: the checkboxes select within one page, so a longer list did not come from the UI, and an uncapped IN (...) is a way to lock the table from a single request. Duplicates are collapsed rather than rejected.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/operators/bulk-delete",
                   "host": [
@@ -8850,6 +9151,74 @@
                     "operators",
                     "bulk-delete"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\"\n  ]\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Nothing selected",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    "bulk-delete"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": []\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/operators/bulk-delete\",\n  \"timestamp\": \"2026-10-08T09:01:46.308Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 A broker",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/bulk-delete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    "bulk-delete"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\"\n  ]\n}"
                 }
               },
               "status": "Forbidden",
@@ -8862,7 +9231,18 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Operators)\",\n  \"path\": \"/api/operators/bulk-delete\",\n  \"timestamp\": \"2026-09-15T10:12:40.993Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Operators \\u00b7 Archive / restore\",\n  \"path\": \"/api/operators/bulk-delete\",\n  \"timestamp\": \"2026-10-08T09:01:46.300Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
@@ -8881,15 +9261,6 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/operators/bulk-restore",
               "host": [
@@ -8900,28 +9271,23 @@
                 "bulk-restore"
               ]
             },
-            "description": "Brings every id in the list back in one statement, for the Archived tab's checkbox column. The mirror of the bulk remove above.\n\n**POST, not DELETE**, and **partial success is success** \u2014 the same two rules. Ids that are not archived come back in `skipped` rather than failing the batch, so two people restoring the same selection both succeed.\n\nRestore clears the deletion stamp and touches nothing else, so each row returns exactly as it was.\n\nRequires `Manage Operators`."
+            "description": "Needs **Operators \u00b7 Archive**. The Archived tab's bulk action; ids that are not archived come back in `skipped`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs. Ids that are not archived come back in `skipped`.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
               "name": "200 \u00b7 Restored",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/operators/bulk-restore",
                   "host": [
@@ -8931,6 +9297,10 @@
                     "operators",
                     "bulk-restore"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -8949,21 +9319,7 @@
               "name": "200 \u00b7 Already live (partial)",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/operators/bulk-restore",
                   "host": [
@@ -8973,6 +9329,10 @@
                     "operators",
                     "bulk-restore"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -8985,27 +9345,13 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"245d1d7b-6cca-4da7-ba2a-fa7964abac91\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\"\n    ]\n  }\n}"
             },
             {
-              "name": "400 \u00b7 Nothing selected",
+              "name": "403 \u00b7 A broker",
               "originalRequest": {
                 "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"ids\": []\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
+                "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/operators/bulk-restore",
                   "host": [
@@ -9015,48 +9361,10 @@
                     "operators",
                     "bulk-restore"
                   ]
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/operators/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:27.405Z\"\n}"
-            },
-            {
-              "name": "403 \u00b7 Role may read but not write",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
+                },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": [\"{{newOperatorId}}\"]  // required \u00b7 1-100 UUIDs of archived rows. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/operators/bulk-restore",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "operators",
-                    "bulk-restore"
-                  ]
+                  "raw": "{\n  \"ids\": [\n    \"76010c29-1e9d-46e6-81aa-2d5ae7ea0e20\"\n  ]\n}"
                 }
               },
               "status": "Forbidden",
@@ -9069,7 +9377,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Operators)\",\n  \"path\": \"/api/operators/bulk-restore\",\n  \"timestamp\": \"2026-09-16T02:47:27.416Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Operators \\u00b7 Archive / restore\",\n  \"path\": \"/api/operators/bulk-restore\",\n  \"timestamp\": \"2026-10-08T09:01:46.314Z\"\n}"
             }
           ],
           "event": [
@@ -9078,26 +9386,77 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Teardown. This is the last request in the folder, and the folder ends",
-                  "// by restoring the operator it created \u2014 so every run used to leave",
-                  "// one more live operator behind. Thirty-seven had piled up in",
-                  "// operators before anyone looked.",
-                  "//",
-                  "// There is no hard delete in this system by design, so the run cannot",
-                  "// erase its own row. Archiving it is the best available end state: the",
-                  "// debris sits in the Archived tab instead of among the records the desk",
-                  "// actually works.",
-                  "const id = pm.collectionVariables.get('newOperatorId');",
-                  "if (id) {",
-                  "    pm.sendRequest({",
-                  "        url: pm.collectionVariables.get('baseUrl') + '/operators/' + id,",
-                  "        method: 'DELETE',",
-                  "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
-                  "    }, function (err) {",
-                  "        if (err) { console.warn('teardown could not archive ' + id, err); }",
-                  "    });",
-                  "    pm.collectionVariables.set('newOperatorId', '');",
-                  "}"
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 \u00b7 Teardown \u2014 archive the probe",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/operators/{{newOperatorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "operators",
+                "{{newOperatorId}}"
+              ]
+            },
+            "description": "The run is a demonstration: the probe ends archived, in the Archived tab, never live. A request of its own so it always runs, even when this folder is run alone."
+          },
+          "response": [
+            {
+              "name": "204 \u00b7 Archived",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/operators/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "operators",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('archived', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('newOperatorId', '');"
                 ]
               }
             }

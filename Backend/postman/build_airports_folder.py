@@ -15,7 +15,7 @@ seeded broker — whose default set holds Airports · View only — and the
 open reads from the broker and the referral agent.
 
 Everything the capture creates is archived again at the end, and the Newman
-run archives its own probe in `10`'s teardown: no seeded airport is changed.
+run archives its own probe in `11 · Teardown`: no seeded airport is changed.
 """
 
 from __future__ import annotations
@@ -139,7 +139,7 @@ def capture() -> dict:
         cap['bulk_restore_400'] = owner.request('POST', '/airports/bulk-restore', {'ids': []})
     finally:
         # The run is a demonstration: the probe ends archived, never live.
-        owner.request('DELETE', f"/airports/{probe['id']}")
+        cap['teardown'] = owner.request('DELETE', f"/airports/{probe['id']}")
     return cap
 
 
@@ -302,8 +302,7 @@ def build(cap: dict) -> dict:
             request(
                 '10 · Restore several airports', 'POST', '/airports/bulk-restore',
                 'Needs **Airports · Archive**. The Archived tab\'s bulk action, the mirror of `09`. Ids that '
-                'are not archived come back in `skipped`.\n\nThe folder\'s teardown archives the probe again, '
-                'so a run leaves nothing live behind.',
+                'are not archived come back in `skipped`.',
                 [
                     example('200 · Restored', 'POST', '/airports/bulk-restore', *cap['bulk_restore'], req_body=cap['bulk_ids']),
                     example('200 · Already live (partial)', 'POST', '/airports/bulk-restore', *cap['bulk_restore_partial'],
@@ -313,16 +312,18 @@ def build(cap: dict) -> dict:
                             *cap['bulk_restore_403'], req_body=cap['bulk_ids']),
                 ],
                 body=bulk_raw.replace('Ids that match nothing', 'Ids that are not archived'),
+                events=[status_test(200, '200 OK')],
+            ),
+            # A request of its own, not a script fired as the run ends: run
+            # alone, Newman could stop before such a script's call finished
+            # and leave the probe live (the Q-code airports, 8 Oct 2026).
+            request(
+                '11 · Teardown — archive the probe', 'DELETE', probe_path,
+                'The run is a demonstration: the probe ends archived, in the Archived tab, never live.',
+                [example('204 · Archived', 'DELETE', '/airports/:id', *cap['teardown'])],
                 events=[script('test', [
-                    "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                    "// Teardown: there is no hard delete, so the probe ends archived —",
-                    "// in the Archived tab, not among the airports the desk works.",
-                    "const id = pm.collectionVariables.get('newAirportId');",
-                    "if (id) {",
-                    "  pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/airports/' + id, method: 'DELETE',",
-                    "    header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') } }, function () {});",
-                    "  pm.collectionVariables.set('newAirportId', '');",
-                    "}",
+                    "pm.test('archived', () => pm.response.to.have.status(204));",
+                    "pm.collectionVariables.set('newAirportId', '');",
                 ])],
             ),
         ],

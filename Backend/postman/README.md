@@ -286,10 +286,13 @@ python3 add_restore_requests.py      # patches restore into Clients
 **`05 · Airports` is built by `build_airports_folder.py`** (8 Oct 2026), live
 against a running API, on `builder_common`.
 
-**Do not re-run `build_reference_folders.py`** (now 06 · Operators only). It
-reads its captured responses from a scratchpad directory on the machine that
-first ran it, which no longer exists. It is kept as the record of how the
-folder was made; Operators' review replaces it with a live-capturing builder.
+**`06 · Operators` is built by `build_operators_folder.py`** (8 Oct 2026),
+also live on `builder_common`. The old `build_reference_folders.py`, which
+read captures from another machine, is deleted.
+
+Run the builders against the test API on its **own database copy**,
+`tribeca_postman`, so the dev database the owner tests in collects no
+archived probes (AGENTS.md, Postman).
 
 Every other module folder has its own builder, which captures live against a
 running, seeded API — `build_aircraft_folder.py` (07),
