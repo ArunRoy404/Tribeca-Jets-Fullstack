@@ -53,6 +53,12 @@ export const Action = {
   MANAGE_ACCESS: "MANAGE_ACCESS",
 };
 
+export const Reach = {
+  OWN: "OWN",
+  ASSIGNED: "ASSIGNED",
+  ALL: "ALL",
+};
+
 /** How far a role's actions reach. Fixed by the role, never per person. */
 export const REACH_LABELS = {
   OWN: "Own only",

@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { StaffOnly } from '../../common/decorators/access.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { ClientCreditsService } from './client-credits.service.js';
 import {
@@ -31,14 +32,12 @@ import {
  * from them. He gets the edit he asked for, on an entry, plus an audit trail
  * he did not know to ask for.
  *
- * **No `@RequirePermissions` decorator**, the same deliberate choice the
- * uploads and notes modules record: the reach here is `VIEW_FINANCIALS`
- * *combined with* whether the caller can see the client, and the second half
- * is row-level and belongs in the service. Checking only the first in a guard
- * would read as protection while leaving every client's balance one id away.
- * Authentication is still global.
+ * Decorated with `@StaffOnly()` because client balances are internal desk
+ * financials and an outside partner portal user has no access to client ledgers.
+ * Authentication is global.
  */
 @ApiTags('Client Credits')
+@StaffOnly()
 @Controller('client-credits')
 export class ClientCreditsController {
   constructor(private readonly credits: ClientCreditsService) {}

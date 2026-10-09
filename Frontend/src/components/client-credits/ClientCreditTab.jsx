@@ -17,7 +17,9 @@ import {
   useRestoreCredit,
   useUpdateCredit,
 } from "@/hooks/clientCredits";
+import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
+import { Action, Module } from "@/lib/access";
 import { Permission } from "@/lib/permissions";
 
 const TABS = ["Ledger", "Withdrawn"];
@@ -40,11 +42,15 @@ export default function ClientCreditTab({ client }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const { canWrite } = usePermissions();
+  const { canWrite, canAccess } = usePermissions();
+  const { data: currentUser } = useCurrentUser();
+  const isAssistant = currentUser?.role === "ASSISTANT";
   // Money on account is financial data: an assistant holds VIEW_FINANCIALS at
   // NONE and never sees this tab's figures at all, which is the same line the
   // API draws.
-  const mayWrite = canWrite(Permission.VIEW_FINANCIALS);
+  const mayWrite =
+    !isAssistant &&
+    (canAccess(Module.CLIENTS, Action.EDIT) || canWrite(Permission.VIEW_FINANCIALS));
 
   const archived = tab === "Withdrawn";
   const summary = useCreditSummary(clientId);

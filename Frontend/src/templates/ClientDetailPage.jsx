@@ -24,6 +24,7 @@ import TableStatus from "@/components/table/common/TableStatus";
 import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useClient, useUpdateClient, useRestoreClient } from "@/hooks/clients";
+import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
 import { Permission } from "@/lib/permissions";
@@ -43,12 +44,14 @@ export default function ClientDetailPage({ params }) {
   // NONE, and the tab is *hidden* rather than shown and refused — a tab that
   // only ever renders a 403 reads as a broken app, not as a boundary.
   const { can, canWrite, canAccess } = usePermissions();
+  const { data: currentUser } = useCurrentUser();
+  const isAssistant = currentUser?.role === "ASSISTANT";
   const mayEdit = canAccess(Module.CLIENTS, Action.EDIT);
   const mayArchive = canAccess(Module.CLIENTS, Action.ARCHIVE);
   const mayCreateTrip = canAccess(Module.TRIPS, Action.CREATE);
   const maySend = canWrite(Permission.SEND_EMAILS);
   const [composeOpen, setComposeOpen] = useState(false);
-  const maySeeMoney = can(Permission.VIEW_FINANCIALS);
+  const maySeeMoney = !isAssistant && can(Permission.VIEW_FINANCIALS);
   const maySeeInvoices = can(Permission.VIEW_RECEIVABLES);
   const maySeeDocuments = can(Permission.VIEW_DOCUMENTS);
 

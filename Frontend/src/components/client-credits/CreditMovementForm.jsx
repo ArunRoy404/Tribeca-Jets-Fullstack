@@ -158,7 +158,6 @@ export default function CreditMovementForm({
             onChange={setTripId}
             placeholder={tripOptions.length ? "Select one of this client's trips" : "No trips for this client yet"}
             options={tripOptions}
-            className="h-11 text-[13px]"
           />
         </div>
       )}
