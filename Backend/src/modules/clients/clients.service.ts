@@ -426,13 +426,20 @@ export class ClientsService {
     const settings = await this.settings.read();
     const leadStage =
       input.leadStage ?? settings.defaultLeadStage ?? LeadStage.NEW;
+    const nextFollowUpAt =
+      input.nextFollowUpAt !== undefined
+        ? input.nextFollowUpAt
+        : input.status === ClientStatus.LEAD && settings.followUpIntervalDays
+          ? new Date(Date.now() + settings.followUpIntervalDays * 86_400_000)
+          : null;
 
-    const { preferences, ...fields } = input;
+    const { preferences, nextFollowUpAt: _, ...fields } = input;
 
     const client = await this.prisma.client.create({
       data: {
         ...fields,
         leadStage,
+        nextFollowUpAt,
         assignedBrokerId,
         // Attribution defaults to the creator and never changes afterwards.
         originatingBrokerId: input.originatingBrokerId ?? assignedBrokerId,
@@ -483,7 +490,10 @@ export class ClientsService {
       input.assignedBrokerId !== undefined &&
       input.assignedBrokerId !== current.assignedBrokerId
     ) {
-      if (!canDo(user.access, Module.CLIENTS, Action.ASSIGN)) {
+      if (
+        !canDo(user.access, Module.CLIENTS, Action.ASSIGN) &&
+        !canDo(user.access, Module.LEADS_AGENTS, Action.ASSIGN)
+      ) {
         throw new ForbiddenException(
           'Only administrators can reassign a client',
         );
@@ -567,7 +577,10 @@ export class ClientsService {
    * broker losing a client should reassign it, not erase it from the list.
    */
   private assertMayArchive(user: AuthenticatedUser): void {
-    if (!canDo(user.access, Module.CLIENTS, Action.ARCHIVE)) {
+    if (
+      !canDo(user.access, Module.CLIENTS, Action.ARCHIVE) &&
+      !canDo(user.access, Module.LEADS_AGENTS, Action.ARCHIVE)
+    ) {
       throw new ForbiddenException(
         'Only administrators can remove a client. Reassign it instead.',
       );

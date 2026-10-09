@@ -64,6 +64,7 @@ describe('clients routes (Clients review, 9 Oct 2026)', () => {
       ).toEqual({
         module: Module.CLIENTS,
         action,
+        altModule: Module.LEADS_AGENTS,
       });
     }
   });

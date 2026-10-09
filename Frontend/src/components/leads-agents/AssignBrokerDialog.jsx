@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { UserCheck, X } from "lucide-react";
 import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
 import { useUpdateClient } from "@/hooks/clients";
-import { useUsers } from "@/hooks/users";
-import { personName } from "@/lib/lead";
-import { BROKER_ROLES } from "@/lib/roles";
+import BrokerPicker from "@/components/users/BrokerPicker";
 import {
   Dialog,
   DialogContent,
@@ -15,9 +13,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
-const SELECT_CLASS =
-  "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
 
 /**
  * Reassigns a lead.
@@ -46,12 +41,6 @@ export default function AssignBrokerDialog() {
 
 function AssignForm({ lead, onDone }) {
   const { mutate: updateClient, isPending } = useUpdateClient();
-  const { data: users } = useUsers({ limit: 100 });
-  const brokers = useMemo(
-    () => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)),
-    [users?.data],
-  );
-
   const [brokerId, setBrokerId] = useState(lead?.brokerId ?? "");
 
   const handleSubmit = (e) => {
@@ -74,18 +63,13 @@ function AssignForm({ lead, onDone }) {
       </DialogHeader>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
-        <select
-          value={brokerId}
-          onChange={(e) => setBrokerId(e.target.value)}
-          className={SELECT_CLASS}
-        >
-          <option value="">Unassigned</option>
-          {brokers.map((broker) => (
-            <option key={broker.id} value={broker.id}>
-              {personName(broker)}
-            </option>
-          ))}
-        </select>
+        <div className="w-full">
+          <BrokerPicker
+            value={brokerId}
+            onChange={(val) => setBrokerId(val || "")}
+            placeholder="Unassigned"
+          />
+        </div>
 
         <div className="flex items-center justify-end gap-3 pt-2 w-full border-t border-border">
           <Button

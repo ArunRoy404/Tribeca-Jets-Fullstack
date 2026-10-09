@@ -41,7 +41,13 @@ export class AccessGuard implements CanActivate {
     if (!requirement) return true;
 
     const user = context.switchToHttp().getRequest<Request>().user as AuthenticatedUser | undefined;
-    if (user && canDo(user.access, requirement.module, requirement.action)) return true;
+    if (
+      user &&
+      (canDo(user.access, requirement.module, requirement.action) ||
+        (requirement.altModule && canDo(user.access, requirement.altModule, requirement.action)))
+    ) {
+      return true;
+    }
 
     const module = MODULE_BY_KEY[requirement.module]?.label ?? requirement.module;
     throw new ForbiddenException(

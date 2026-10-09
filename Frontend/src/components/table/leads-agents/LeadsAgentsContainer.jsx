@@ -26,8 +26,11 @@ import { useClients, useRestoreClient } from "@/hooks/clients";
 import { useBrokerPerformance } from "@/hooks/clients";
 import { useTripRequests } from "@/hooks/trip-requests";
 import { useLeadsTableParams } from "@/hooks/leads";
+import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
+import { Action, Module, Reach } from "@/lib/access";
 import { Permission, Scope } from "@/lib/permissions";
+import { isAdministratorRole } from "@/lib/roles";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { OPEN_LEAD_STAGES, toAgentRow, toLeadRow } from "@/lib/lead";
 import { cn } from "@/lib/utils";
@@ -49,13 +52,26 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
   const openConvertLeadModal = useLeadsAgentsStore((s) => s.openConvertLeadModal);
   const openArchiveLeadModal = useLeadsAgentsStore((s) => s.openArchiveLeadModal);
 
-  const { canWrite, scopeFor } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_CLIENTS);
-  // Finer than the permission: a broker edits their own leads, but handing a
-  // lead to someone else, removing it or bringing it back is for a role that
-  // holds the whole book — the same `!== ALL` rule the API enforces. Offering
-  // those to a broker would only ever produce a 403 toast.
-  const mayAdminister = scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL;
+  const { canWrite, canAccess, reachOf } = usePermissions();
+  const { data: currentUser } = useCurrentUser();
+  const mayCreate =
+    canAccess(Module.LEADS_AGENTS, Action.CREATE) ||
+    canAccess(Module.CLIENTS, Action.CREATE) ||
+    canWrite(Permission.MANAGE_CLIENTS);
+  const mayEdit =
+    canAccess(Module.LEADS_AGENTS, Action.EDIT) ||
+    canAccess(Module.CLIENTS, Action.EDIT) ||
+    canWrite(Permission.MANAGE_CLIENTS);
+  const mayAssign =
+    canAccess(Module.LEADS_AGENTS, Action.ASSIGN) ||
+    canAccess(Module.CLIENTS, Action.ASSIGN) ||
+    reachOf(Module.LEADS_AGENTS) === Reach.ALL ||
+    isAdministratorRole(currentUser?.role);
+  const mayArchive =
+    canAccess(Module.LEADS_AGENTS, Action.ARCHIVE) ||
+    canAccess(Module.CLIENTS, Action.ARCHIVE) ||
+    reachOf(Module.LEADS_AGENTS) === Reach.ALL ||
+    isAdministratorRole(currentUser?.role);
 
   // ---- Leads -------------------------------------------------------------
   // A lead is a Client at lead stage, so this is the clients endpoint with
@@ -128,10 +144,9 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
 
   const getLeadActions = (lead) => {
     const view = { label: "View Details", icon: <Eye />, onSelect: () => openLead(lead?.id) };
-    if (!mayWrite) return [view];
 
     if (isArchived) {
-      if (!mayAdminister) return [view];
+      if (!mayArchive) return [view];
       return [
         view,
         {
@@ -142,12 +157,14 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
       ];
     }
 
-    const actions = [
-      view,
-      { label: "Edit Lead", icon: <Edit />, onSelect: () => openEditLeadModal?.(lead) },
-      { label: "Schedule Follow-up", icon: <Calendar />, onSelect: () => openFollowUpModal?.(lead) },
-    ];
-    if (mayAdminister) {
+    const actions = [view];
+    if (mayEdit) {
+      actions.push(
+        { label: "Edit Lead", icon: <Edit />, onSelect: () => openEditLeadModal?.(lead) },
+        { label: "Schedule Follow-up", icon: <Calendar />, onSelect: () => openFollowUpModal?.(lead) },
+      );
+    }
+    if (mayAssign) {
       actions.push({
         label: "Assign Broker",
         icon: <UserCheck />,
@@ -157,7 +174,7 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
 
     // Converting a lead that is already Won or Lost is not a thing anyone
     // means to do, so the action is absent rather than disabled.
-    if (OPEN_LEAD_STAGES.includes(lead?.rawStage)) {
+    if (mayEdit && OPEN_LEAD_STAGES.includes(lead?.rawStage)) {
       actions.push({
         label: "Convert to Client",
         icon: <CheckCircle2 />,
@@ -165,7 +182,7 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
       });
     }
 
-    if (mayAdminister) {
+    if (mayArchive) {
       actions.push("separator", {
         label: "Remove Lead",
         icon: <Trash2 />,
@@ -223,7 +240,7 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
               onAddLead={openAddLeadModal}
               tab={isArchived ? ARCHIVE_TABS.ARCHIVED : ARCHIVE_TABS.LIVE}
               setTab={(tab) => params?.setArchived?.(tab === ARCHIVE_TABS.ARCHIVED)}
-              mayWrite={mayWrite}
+              mayWrite={mayCreate}
             />
 
             {leadsQuery?.isPending || leadsQuery?.error || leadsEmpty ? (

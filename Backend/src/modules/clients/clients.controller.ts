@@ -92,7 +92,7 @@ export class ClientsController {
   }
 
   @Post()
-  @RequireAccess(Module.CLIENTS, Action.CREATE)
+  @RequireAccess(Module.CLIENTS, Action.CREATE, Module.LEADS_AGENTS)
   @ApiOperation({ summary: 'Create a client or travel agent' })
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -102,7 +102,7 @@ export class ClientsController {
   }
 
   @Patch(':id')
-  @RequireAccess(Module.CLIENTS, Action.EDIT)
+  @RequireAccess(Module.CLIENTS, Action.EDIT, Module.LEADS_AGENTS)
   @ApiOperation({ summary: 'Update a client' })
   update(
     @CurrentUser() user: AuthenticatedUser,
@@ -117,7 +117,7 @@ export class ClientsController {
    * bodies on DELETE, and a dropped body removes nothing while answering 200.
    */
   @Post('bulk-delete')
-  @RequireAccess(Module.CLIENTS, Action.ARCHIVE)
+  @RequireAccess(Module.CLIENTS, Action.ARCHIVE, Module.LEADS_AGENTS)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Remove several clients at once (soft)',
@@ -132,7 +132,7 @@ export class ClientsController {
   }
 
   @Post('bulk-restore')
-  @RequireAccess(Module.CLIENTS, Action.ARCHIVE)
+  @RequireAccess(Module.CLIENTS, Action.ARCHIVE, Module.LEADS_AGENTS)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Restore several archived clients at once',
@@ -153,7 +153,7 @@ export class ClientsController {
    */
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireAccess(Module.CLIENTS, Action.ARCHIVE)
+  @RequireAccess(Module.CLIENTS, Action.ARCHIVE, Module.LEADS_AGENTS)
   @ApiOperation({
     summary: 'Restore an archived client',
     description:
@@ -167,7 +167,7 @@ export class ClientsController {
   }
 
   @Delete(':id')
-  @RequireAccess(Module.CLIENTS, Action.ARCHIVE)
+  @RequireAccess(Module.CLIENTS, Action.ARCHIVE, Module.LEADS_AGENTS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Soft-delete a client',

@@ -5,10 +5,11 @@ import { Action, type Module } from '../authorization/access.js';
 export interface AccessRequirement {
   module: Module;
   action: Action;
+  altModule?: Module;
 }
 
 /**
- * Requires the caller to hold `action` in `module` — the per-user
+ * Requires the caller to hold `action` in `module` (or optionally `altModule`) — the per-user
  * permissions (7 Oct 2026). Replaces `@RequirePermissions` module by module
  * as each one is reviewed.
  *
@@ -17,8 +18,15 @@ export interface AccessRequirement {
  *
  *   @RequireAccess(Module.USERS, Action.EDIT)
  */
-export const RequireAccess = (module: Module, action: Action = Action.VIEW) =>
-  SetMetadata(ACCESS_KEY, { module, action } satisfies AccessRequirement);
+export const RequireAccess = (
+  module: Module,
+  action: Action = Action.VIEW,
+  altModule?: Module,
+) =>
+  SetMetadata(
+    ACCESS_KEY,
+    { module, action, altModule } satisfies AccessRequirement,
+  );
 
 /**
  * Staff only: a referral agent (a partner) is refused with 403, whatever

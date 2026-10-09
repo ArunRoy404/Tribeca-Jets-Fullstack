@@ -5,12 +5,12 @@ import { Plus, Edit, X } from "lucide-react";
 import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
 import { useCreateClient, useUpdateClient } from "@/hooks/clients";
 import { useCreateTripRequest } from "@/hooks/trip-requests";
-import { useUsers } from "@/hooks/users";
-import { useAirports } from "@/hooks/airports";
+import { useCurrentUser } from "@/hooks/auth";
+import { useSettings } from "@/hooks/settings";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { optionalNumber, optionalText } from "@/lib/form";
-import { Permission, Scope } from "@/lib/permissions";
-import { BROKER_ROLES } from "@/lib/roles";
+import { Action, Module, Reach } from "@/lib/access";
+import { isAdministratorRole } from "@/lib/roles";
 import {
   FOLLOW_UP_METHODS,
   LEAD_PRIORITIES,
@@ -20,12 +20,14 @@ import {
   formatLeadSource,
   formatLeadStage,
   formatPriority,
-  personName,
 } from "@/lib/lead";
 import {
   FILTERABLE_AIRCRAFT_CATEGORIES,
   formatAircraftCategory,
 } from "@/lib/aircraft";
+import BrokerPicker from "@/components/users/BrokerPicker";
+import AirportPicker from "@/components/airports/AirportPicker";
+import CommonSelect from "@/components/common/CommonSelect";
 import {
   Dialog,
   DialogContent,
@@ -68,9 +70,6 @@ function SectionHeader({ title, hint }) {
   );
 }
 
-const SELECT_CLASS =
-  "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
-
 /**
  * Empty, not pre-filled.
  *
@@ -106,8 +105,19 @@ const EMPTY_FORM = {
 const fieldValue = (value) => (!value || value === "—" ? "" : String(value));
 const dateValue = (value) => (value ? String(value).slice(0, 10) : "");
 
-function initialForm(lead) {
-  if (!lead) return EMPTY_FORM;
+function initialForm(lead, settings) {
+  if (!lead) {
+    const followUpDate = settings?.followUpIntervalDays
+      ? new Date(Date.now() + settings.followUpIntervalDays * 86_400_000)
+          .toISOString()
+          .slice(0, 10)
+      : "";
+    return {
+      ...EMPTY_FORM,
+      leadStage: settings?.defaultLeadStage || "NEW",
+      nextFollowUpAt: followUpDate,
+    };
+  }
   return {
     ...EMPTY_FORM,
     firstName: fieldValue(lead.firstName),
@@ -128,6 +138,7 @@ export default function AddLeadDialog() {
   const open = useLeadsAgentsStore((s) => s.addLeadModalOpen);
   const editingLead = useLeadsAgentsStore((s) => s.editingLead);
   const closeModal = useLeadsAgentsStore((s) => s.closeAddLeadModal);
+  const { data: settings } = useSettings();
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && closeModal()}>
@@ -139,6 +150,7 @@ export default function AddLeadDialog() {
           <LeadForm
             key={editingLead?.id ?? "new"}
             editingLead={editingLead}
+            settings={settings}
             onDone={closeModal}
           />
         )}
@@ -147,7 +159,7 @@ export default function AddLeadDialog() {
   );
 }
 
-function LeadForm({ editingLead, onDone }) {
+function LeadForm({ editingLead, settings, onDone }) {
   const { mutate: createClient, isPending: isCreating } = useCreateClient();
   const { mutate: updateClient, isPending: isUpdating } = useUpdateClient();
   const { mutateAsync: createRequest } = useCreateTripRequest();
@@ -155,24 +167,57 @@ function LeadForm({ editingLead, onDone }) {
   // The person's fields clear on edit (null), the enquiry's are create-only.
   const optional = (value) => optionalText(value, { editing });
 
-  // Choosing the broker is reassigning the lead, which only a role holding
-  // the whole book may do — a broker's new lead is theirs, set by the API.
-  const { scopeFor } = usePermissions();
-  const mayAssignBroker = scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL;
+  // Choosing the broker is reassigning the lead
+  const { canAccess, reachOf } = usePermissions();
+  const { data: currentUser } = useCurrentUser();
+  const mayAssignBroker =
+    canAccess(Module.LEADS_AGENTS, Action.ASSIGN) ||
+    canAccess(Module.CLIENTS, Action.ASSIGN) ||
+    reachOf(Module.LEADS_AGENTS) === Reach.ALL ||
+    isAdministratorRole(currentUser?.role);
 
-  const { data: users } = useUsers({ limit: 100 });
-  const brokers = useMemo(
-    () => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)),
-    [users?.data],
-  );
-  const { data: airports } = useAirports({
-    limit: 100,
-    sortBy: "icao",
-    sortOrder: "asc",
-  });
-
-  const [form, setForm] = useState(() => initialForm(editingLead));
+  const [form, setForm] = useState(() => initialForm(editingLead, settings));
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const leadSourceOptions = useMemo(
+    () => [
+      { value: "", label: "Not recorded" },
+      ...LEAD_SOURCES.map((v) => ({ value: v, label: formatLeadSource(v) })),
+    ],
+    [],
+  );
+
+  const leadStageOptions = useMemo(
+    () => LEAD_STAGES.map((v) => ({ value: v, label: formatLeadStage(v) })),
+    [],
+  );
+
+  const priorityOptions = useMemo(
+    () => LEAD_PRIORITIES.map((v) => ({ value: v, label: formatPriority(v) })),
+    [],
+  );
+
+  const followUpMethodOptions = useMemo(
+    () => [
+      { value: "", label: "Not decided" },
+      ...FOLLOW_UP_METHODS.map((v) => ({
+        value: v,
+        label: formatFollowUpMethod(v),
+      })),
+    ],
+    [],
+  );
+
+  const aircraftOptions = useMemo(
+    () => [
+      { value: "", label: "No preference" },
+      ...FILTERABLE_AIRCRAFT_CATEGORIES.map((v) => ({
+        value: v,
+        label: formatAircraftCategory(v),
+      })),
+    ],
+    [],
+  );
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -310,62 +355,37 @@ function LeadForm({ editingLead, onDone }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 w-full">
           <FieldWrapper label="Source" optional>
-            <select
+            <CommonSelect
               value={form.leadSource}
-              onChange={(e) => set("leadSource", e.target.value)}
-              className={SELECT_CLASS}
-            >
-              <option value="">Not recorded</option>
-              {LEAD_SOURCES.map((value) => (
-                <option key={value} value={value}>
-                  {formatLeadSource(value)}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => set("leadSource", val)}
+              placeholder="Not recorded"
+              options={leadSourceOptions}
+            />
           </FieldWrapper>
 
           <FieldWrapper label="Stage">
-            <select
+            <CommonSelect
               value={form.leadStage}
-              onChange={(e) => set("leadStage", e.target.value)}
-              className={SELECT_CLASS}
-            >
-              {LEAD_STAGES.map((value) => (
-                <option key={value} value={value}>
-                  {formatLeadStage(value)}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => set("leadStage", val)}
+              options={leadStageOptions}
+            />
           </FieldWrapper>
 
           <FieldWrapper label="Priority">
-            <select
+            <CommonSelect
               value={form.priority}
-              onChange={(e) => set("priority", e.target.value)}
-              className={SELECT_CLASS}
-            >
-              {LEAD_PRIORITIES.map((value) => (
-                <option key={value} value={value}>
-                  {formatPriority(value)}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => set("priority", val)}
+              options={priorityOptions}
+            />
           </FieldWrapper>
 
           {mayAssignBroker && (
             <FieldWrapper label="Assigned Broker" optional>
-              <select
+              <BrokerPicker
                 value={form.assignedBrokerId}
-                onChange={(e) => set("assignedBrokerId", e.target.value)}
-                className={SELECT_CLASS}
-              >
-                <option value="">Unassigned</option>
-                {brokers.map((broker) => (
-                  <option key={broker.id} value={broker.id}>
-                    {personName(broker)}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => set("assignedBrokerId", val || "")}
+                placeholder="Unassigned"
+              />
             </FieldWrapper>
           )}
         </div>
@@ -379,18 +399,12 @@ function LeadForm({ editingLead, onDone }) {
             />
           </FieldWrapper>
           <FieldWrapper label="Follow-up Method" optional>
-            <select
+            <CommonSelect
               value={form.followUpMethod}
-              onChange={(e) => set("followUpMethod", e.target.value)}
-              className={SELECT_CLASS}
-            >
-              <option value="">Not decided</option>
-              {FOLLOW_UP_METHODS.map((value) => (
-                <option key={value} value={value}>
-                  {formatFollowUpMethod(value)}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => set("followUpMethod", val)}
+              placeholder="Not decided"
+              options={followUpMethodOptions}
+            />
           </FieldWrapper>
         </div>
 
@@ -414,32 +428,18 @@ function LeadForm({ editingLead, onDone }) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
               <FieldWrapper label="From" optional>
-                <select
+                <AirportPicker
                   value={form.originAirportId}
-                  onChange={(e) => set("originAirportId", e.target.value)}
-                  className={SELECT_CLASS}
-                >
-                  <option value="">Not known</option>
-                  {(airports?.data ?? []).map((airport) => (
-                    <option key={airport.id} value={airport.id}>
-                      {airport.icao} — {airport.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => set("originAirportId", val || "")}
+                  placeholder="Not known"
+                />
               </FieldWrapper>
               <FieldWrapper label="To" optional>
-                <select
+                <AirportPicker
                   value={form.destinationAirportId}
-                  onChange={(e) => set("destinationAirportId", e.target.value)}
-                  className={SELECT_CLASS}
-                >
-                  <option value="">Not known</option>
-                  {(airports?.data ?? []).map((airport) => (
-                    <option key={airport.id} value={airport.id}>
-                      {airport.icao} — {airport.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => set("destinationAirportId", val || "")}
+                  placeholder="Not known"
+                />
               </FieldWrapper>
             </div>
 
@@ -480,18 +480,12 @@ function LeadForm({ editingLead, onDone }) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
               <FieldWrapper label="Aircraft Preference" optional>
-                <select
+                <CommonSelect
                   value={form.aircraftPreference}
-                  onChange={(e) => set("aircraftPreference", e.target.value)}
-                  className={SELECT_CLASS}
-                >
-                  <option value="">No preference</option>
-                  {FILTERABLE_AIRCRAFT_CATEGORIES.map((value) => (
-                    <option key={value} value={value}>
-                      {formatAircraftCategory(value)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => set("aircraftPreference", val)}
+                  placeholder="No preference"
+                  options={aircraftOptions}
+                />
               </FieldWrapper>
               <FieldWrapper label="Requirements" optional>
                 <Input
