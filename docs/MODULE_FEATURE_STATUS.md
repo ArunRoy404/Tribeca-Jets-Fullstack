@@ -531,6 +531,19 @@ agent is one of the desk's own brokers — a User — and staff are invited thro
 Users & Roles, where the permission matrix and suspend rules live. *Travel*
 agents are something else: clients of type `TRAVEL_AGENT`.
 
+**Reviewed 9 Oct 2026** (review row 12):
+- **Unified permission & access model:**
+  - Writes on the clients API now accept `Module.LEADS_AGENTS` in addition to `Module.CLIENTS` via `altModule` support on `@RequireAccess()`.
+  - Service methods (`assertMayAssign`, `assertMayArchive`) respect `LEADS_AGENTS · ASSIGN` and `LEADS_AGENTS · ARCHIVE`.
+  - Frontend (`LeadsAgentsContainer`, `AddLeadDialog`, `LeadDetailPage`, etc.) wired to `canAccess(Module.LEADS_AGENTS, Action.X)`.
+- **Company settings integration (§26):**
+  - Integrated company settings: pre-fills default lead stage (`settings.defaultLeadStage`) and automatically calculates initial follow-up date based on `settings.followUpIntervalDays`.
+  - Server-side defaults `nextFollowUpAt` for new leads from `settings.followUpIntervalDays` when omitted.
+- **Frontend component modernization & design system parity:**
+  - Upgraded `AddLeadDialog`, `AssignBrokerDialog`, and `ScheduleFollowUpDialog` to use shared `BrokerPicker`, `AirportPicker`, and `CommonSelect`.
+  - Form field heights standardized to `h-10 text-[13px] rounded-md px-3 py-2`.
+  - Reassignment picker restricted to active staff brokers.
+
 ---
 
 ## 8. Trip Requests ✅
@@ -1840,6 +1853,15 @@ recorded rather than left for somebody to "tidy up" later.
   the DTOs, and the timeline rendered at 375 / 768 / 1440 with no horizontal
   overflow
 
+**Reviewed 9 Oct 2026** (review row 10):
+- **Polymorphic per-user permissions:** `notes.subjects.ts` links each `NoteSubjectType`
+  to its respective `Module` (`CLIENTS`, `TRIPS`, `REFERRALS`, `FLIGHT_TRACKING`).
+- Capabilities evaluate `canDo(user.access, module, Action.VIEW / Action.EDIT)` and `reachOf`.
+- Assistants hold no financial privileges and cannot write notes on client financial context.
+- Author-only editing rule preserved; administrators hold moderation rights (withdraw/restore).
+- Unit tests added: `notes.access.spec.ts` (7 tests, 100% passing).
+- Frontend: `NotesTimeline.jsx` and `timeline.js` updated to use `SUBJECT_MODULE` with `canAccess` and `canModerate`.
+
 **Waiting on a dependency**
 
 | Feature | Blocked by |
@@ -1897,6 +1919,15 @@ his own request that settles it.
 - 35 live assertions across four real accounts, 20 unit tests on the
   arithmetic and the DTOs, and the tab rendered at 375 / 768 / 1440 with no
   horizontal overflow
+
+**Reviewed 9 Oct 2026** (review row 11):
+- **Access control:** Controller decorated with `@StaffOnly()` (blocks partner/referral agents with 403).
+- Service checks per-person access: `canDo(user.access, Module.CLIENTS, Action.VIEW / Action.EDIT)`.
+- Assistants explicitly forbidden (`user.role === Role.ASSISTANT`) from viewing or writing client credit records.
+- Brokers scoped to their assigned clients via `ClientsService.subjectRef` (foreign broker gets 404).
+- Unit tests added: `client-credits.access.spec.ts` (5 tests, 100% passing).
+- Frontend: `ClientCreditTab.jsx` and `ClientDetailPage.jsx` updated to strictly check assistant role and `canAccess(Module.CLIENTS, Action.EDIT)`.
+- UI: Form inputs and selects in `CreditMovementForm.jsx` standardized to standard height (`h-10 text-[13px] rounded-md px-3 py-2`).
 
 **Waiting on a dependency**
 

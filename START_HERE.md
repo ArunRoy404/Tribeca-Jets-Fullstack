@@ -67,15 +67,13 @@ npm run dev                  # http://localhost:3000
 
 (Adjust `~/Desktop/works/Tribeca-Jets-Handoff` if you put the folder elsewhere.)
 
-**Check it worked:** sign in at http://localhost:3000 as `admin@example.com`
-/ `ChangeMe123!` (or your own account). You should see 5 airports (KTEB,
-KOPF, KVNY, KHPN, EGGW), one operator "test" with its document, your profile
-photo, and your charter rates.
+**Check it worked:** sign in at http://localhost:3000 as `roy.techreion@gmail.com`
+/ `ChangeMe123!` (Super Admin). You should see your live staff dashboard.
 
 ## 4. Start a session
 
 **Claude Code:** open the project folder, then either
-- type `/review-module Aircraft` (the command is in the repo), or
+- type `/review-module Trip Requests` (the command is in the repo), or
 - paste the prompt from **`HANDOFF.md` → Part 3**.
 
 `CLAUDE.md` loads the rules automatically.
@@ -87,7 +85,8 @@ first message — that prompt makes it read everything. A `review-module`
 workflow is in `.agent/workflows/`. Use the strongest model it offers for
 this work.
 
-Either tool should answer with the current state and "next: Aircraft (#8)"
+Either tool should answer with the current state and "next: Trip Requests (#13)"
+(with modules #8–#12 reviewed and ready for owner manual testing)
 before writing any code. If it starts coding straight away, stop it and tell
 it to read the files first.
 

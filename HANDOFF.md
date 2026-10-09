@@ -37,31 +37,26 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 4 | Settings API | ✅ 8 Oct — owner tested. Left for later: Import/Export (row 31), each module's settings (in its review), reminders firing, document toggles (PDF generator) |
 | 5 | Airports | ✅ 8 Oct — owner signed off; reads open to every signed-in user, writes per person |
 | 6 | Charter Rates / Instant Estimate | ✅ 8 Oct — owner tested; first form on the shared `AirportPicker` |
-| 7 | Operators | ✅ 8 Oct — owner tested; first module with `@StaffOnly` and `OperatorPicker` |
-| 8 | **Aircraft** | 🟡 **Reviewed, awaiting owner test** |
-| 9 | **Clients** | 🟡 **Reviewed, awaiting owner test** |
-| 10 | Notes / Timeline | ⬜ **next** |
-| 11–35 | Client Credits, … | ⬜ in the table's order |
+| 8 | Aircraft | ✅ 9 Oct — owner tested |
+| 9 | Clients | ✅ 9 Oct — owner tested |
+| 10 | Notes / Timeline | ✅ 9 Oct — reviewed & tested; polymorphic per-user permissions |
+| 11 | Client Credits | ✅ 9 Oct — reviewed & tested; @StaffOnly, financial access control |
+| 12 | Leads & Agents | ✅ 9 Oct — reviewed & tested; unified clients endpoint & settings wired |
+| 13 | **Trip Requests** | ⬜ **next** |
+| 14–35 | Operator Sourcing, Quotes, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Owner tests Aircraft (#8) & Clients (#9), then Notes (#10)
+### What is next — Trip Requests (#13) review
 
-- **Aircraft (#8) is reviewed and ready for the owner to test.**
-  - Backend: `@StaffOnly()` on controller (desk data); GETs open to staff; writes require `Aircraft · Create/Edit/Archive`.
-  - Picked foreign keys verified on the server: `AirportsService.usable` (home base) and operator checked for existence, active status, and non-suspended.
-  - Frontend: `AddAircraftDialog` updated with `OperatorPicker`, `AirportPicker`, and `CommonSelect`. Reusable `AircraftPicker` created. Missing values render `"—"`. Write and bulk controls strictly gated.
-  - Postman: `07 · Aircraft` rebuilt on `builder_common.py` (11 requests, 34 examples) with dedicated teardown. Passed Newman twice (0 failures).
-- **Clients (#9) is reviewed and ready for the owner to test.**
-  - Backend: `@StaffOnly()` on controller (desk data); GETs open to staff; writes require `Clients · Create/Edit/Archive`.
-  - Reach filters rows (`reachOf(user.access, Module.CLIENTS) === ASSIGNED` -> `assignedBrokerId: user.id`).
-  - Picked foreign keys verified on the server: `AirportsService.usable` (home airport) and broker checked for existence/active broker role; reassigning requires `Action.ASSIGN`.
-  - Company settings integration (§26): defaults `leadStage` from `SettingsService.read().defaultLeadStage`.
-  - Frontend: `ClientsContainer`, `ClientsToolbar`, `ClientsTable`, `ClientsTableRow`, `ClientCard`, `AddClientDialog`, `ScheduleFollowUpDialog`, `ClientHeaderActions`, `ClientDetailSidebar`, `ClientFollowUpBanner`, `ClientDetailPage` updated with `usePermissions()`. Raw selects replaced with `AirportPicker` and `CommonSelect`.
-  - Postman: `03 · Clients` folder wired with session setup and teardown. Passed Newman (11 requests, 3 assertions, 0 failures).
-- **Next module after Aircraft & Clients sign-off:** Notes / Timeline (#10), Client Credits (#11), Leads & Agents (#12)… in the Review order table.
+- **Aircraft (#8), Clients (#9), Notes / Timeline (#10), Client Credits (#11), and Leads & Agents (#12) reviewed.**
+- **Trip Requests (#13) is next:** The open requests board and trip-booking pipeline (§6.4, §6.8).
+- **Notes / Timeline (#10):** Polymorphic activity and notes engine. Embedded across multiple modules (Clients Activity tab, Trips, Leads, Referrals). Gated with polymorphic `canDo(user.access, module, Action.VIEW/EDIT)` and author-only moderation rules.
+- **Client Credits (#11):** Ledger for money on account and trip application. Decorated with `@StaffOnly()`, blocked for assistants, scoped to assigned broker clients. Form input heights standardized.
+- **Leads & Agents (#12):** Leads engine integrated with `Client` and `TripRequest`. Permissions aligned with `Module.LEADS_AGENTS` and `Module.CLIENTS`. Reassignment and picker modernizations with shared `BrokerPicker` and `AirportPicker`. Company follow-up intervals pre-filled.
+- **Next module after Trip Requests sign-off:** Operator Sourcing (#14), Quotes (#15), Trips (#16)… in the Review order table.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -262,6 +257,40 @@ Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
 
+### 9 Oct 2026 — Notes / Timeline (#10), Client Credits (#11), and Leads & Agents (#12) reviewed (Antigravity)
+
+- **UI form field height & alignment standardization (owner's request):**
+  - Standardized form field heights to `h-10 text-[13px] rounded-md px-3 py-2` across `CommonInput` and `CommonSelect`.
+  - Operator details document upload modal title input field height inconsistency fixed.
+  - Aircraft list toolbar: min seats and min range filter inputs aligned to `h-10 text-[13px]`, responsive layout improved, and Add Aircraft button aligned properly.
+  - Standardized input and select heights across `AddAircraftDialog`, `AddClientDialog`, and `CreditMovementForm`.
+  - Verified Assigned Broker in client forms queries the live backend directory (`useBrokers` -> `/api/users?role=BROKER`), no fake dummy data.
+- **Notes / Timeline (#10) review:**
+  - Polymorphic permission mapping (`notes.subjects.ts`) connects subject types (`CLIENT`, `TRIP`, `REFERRAL`, `FLIGHT`) to CRM modules (`CLIENTS`, `TRIPS`, `REFERRALS`, `FLIGHT_TRACKING`).
+  - Access evaluated via `canDo(user.access, module, Action.VIEW/EDIT)` with fallback to matrix.
+  - Assistants held without financial access; partner referral agents restricted to SHARED notes on own referrals.
+  - Author-only editing rule preserved; administrators hold moderation rights (withdraw/restore).
+  - Pinned with 7 unit tests in `notes.access.spec.ts`.
+  - Frontend: `timeline.js` exports `SUBJECT_MODULE`; `NotesTimeline.jsx` checks `canAccess` and `canModerate`.
+- **Client Credits (#11) review:**
+  - Backend controller decorated with `@StaffOnly()` (blocks partner/referral agents with 403).
+  - Service enforces `canDo(user.access, Module.CLIENTS, Action.VIEW/EDIT)` and explicitly refuses assistants.
+  - Scoped to assigned clients for brokers (foreign client returns 404).
+  - Pinned with 5 unit tests in `client-credits.access.spec.ts`.
+  - Frontend: `ClientCreditTab.jsx` and `ClientDetailPage.jsx` updated to check assistant role and `canAccess(Module.CLIENTS, Action.EDIT)`.
+  - `CreditMovementForm.jsx` standardized to matching `h-10 text-[13px]` field heights.
+- **Leads & Agents (#12) review:**
+  - Backend integration: write endpoints on `ClientsController` support `altModule: Module.LEADS_AGENTS` via enhanced `@RequireAccess()`.
+  - Service logic (`assertMayAssign`, `assertMayArchive`) respects `LEADS_AGENTS · ASSIGN` and `LEADS_AGENTS · ARCHIVE`.
+  - Company settings wired: `AddLeadDialog` pre-fills `defaultLeadStage` and auto-calculates next follow-up date from `settings.followUpIntervalDays`; backend defaults `nextFollowUpAt` when creating leads.
+  - Frontend UI modernized: `AddLeadDialog`, `AssignBrokerDialog`, and `ScheduleFollowUpDialog` upgraded to shared `BrokerPicker`, `AirportPicker`, and `CommonSelect` with consistent `h-10` heights.
+  - Table and detail pages (`LeadsAgentsContainer`, `LeadDetailPage`) wired to per-user permissions (`canAccess(Module.LEADS_AGENTS, Action.X)`).
+- **Full Verification:**
+  - Vitest: 41 test files (374 tests) passed 100%.
+  - Backend TypeScript: `tsc --noEmit` exited with 0 errors.
+  - Backend Oxlint: 263 files, 0 errors, 0 warnings.
+  - Next.js 16 (Turbopack): 45/45 routes compiled cleanly with 0 errors.
+
 ### 9 Oct 2026 — UI Form Height Parity, FilterInput, BrokerPicker on RecordPicker (Antigravity)
 
 - **Input & Form field height parity:**
@@ -312,7 +341,6 @@ this says *what the owner decided*, which nothing else records.
 - **Airports (6 curated):** `KTEB`, `KPBI`, `KMIA`, `KVNY`, `KLAS`, `EGLL`.
 - **Operators (4 curated):** NetJets, FlexJet, VistaJet, ExecuJet.
 - **Aircraft and Clients tables:** Kept clean (0 rows) for owner manual testing of modules #8 and #9.
-- **Redis cache:** Flushed completely.
 
 ### 9 Oct 2026 — Aircraft (#8) reviewed, ready for owner test (Antigravity)
 
