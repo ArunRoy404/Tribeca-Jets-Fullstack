@@ -19,8 +19,13 @@ export default function AircraftDetailsView({
   onChangeStatus,
   onArchive,
   onRestore,
-  mayWrite = true,
+  mayEdit = true,
+  mayArchive = true,
+  mayWrite,
 }) {
+  const effectiveMayEdit = mayWrite !== undefined ? mayWrite : mayEdit;
+  const effectiveMayArchive = mayWrite !== undefined ? mayWrite : mayArchive;
+
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "trips", label: "Trip History" },
@@ -43,7 +48,8 @@ export default function AircraftDetailsView({
             onChangeStatus={onChangeStatus}
             onArchive={onArchive}
             onRestore={onRestore}
-            mayWrite={mayWrite}
+            mayEdit={effectiveMayEdit}
+            mayArchive={effectiveMayArchive}
           />
         }
       />

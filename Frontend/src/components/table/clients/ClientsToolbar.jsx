@@ -53,6 +53,8 @@ export default function ClientsToolbar({
   onBulkAction,
   tab,
   setTab,
+  mayCreate = true,
+  mayArchive = true,
 }) {
   const isArchived = tab === ARCHIVE_TABS.ARCHIVED;
 
@@ -61,11 +63,10 @@ export default function ClientsToolbar({
   const commitSearch = useCallback((value) => setSearch?.(value), [setSearch]);
   const [draft, setDraft] = useDebouncedParam(search, commitSearch);
 
-  // From the real staff directory rather than a hardcoded list — every signed
-  // in user may list colleagues precisely so pickers like this one work.
-  const { data: users } = useUsers({ limit: 100 });
+  // From the real staff directory filtered to active brokers.
+  const { data: users } = useUsers({ role: "BROKER", status: "ACTIVE", limit: 100 });
   const brokers = useMemo(
-    () => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)),
+    () => (users?.data ?? []).filter((u) => u?.role === "BROKER"),
     [users?.data],
   );
   const brokerOptions = useMemo(
@@ -115,15 +116,17 @@ export default function ClientsToolbar({
         />
         <div className="flex flex-wrap items-center gap-2">
           {/* The checkbox column is on both tabs, so both get a bulk action —
-              Remove on the live list, Restore on Archived. */}
-          <BulkDeleteButton
-            count={selectedCount}
-            itemLabel="clients"
-            onClick={onBulkAction}
-            action={isArchived ? "restore" : "remove"}
-          />
-          {/* Adding is a live-tab verb only. */}
-          {isArchived ? null : (
+              Remove on the live list, Restore on Archived. Hidden if the caller lacks ARCHIVE. */}
+          {mayArchive && (
+            <BulkDeleteButton
+              count={selectedCount}
+              itemLabel="clients"
+              onClick={onBulkAction}
+              action={isArchived ? "restore" : "remove"}
+            />
+          )}
+          {/* Adding is a live-tab verb only. Hidden if the caller lacks CREATE. */}
+          {isArchived || !mayCreate ? null : (
             <Button
               variant="outline"
               size="sm"

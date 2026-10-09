@@ -45,6 +45,7 @@ export default function ClientsTable({
   error,
   onRetry,
   archived = false,
+  selectable = true,
 }) {
   const columns = archived ? ARCHIVED_COLUMNS : LIVE_COLUMNS;
   const hasRows = Boolean(pageItems?.length);
@@ -54,15 +55,17 @@ export default function ClientsTable({
       <Table className="min-w-[1100px]">
         <TableHeader>
           <TableRow className="bg-black/5 border-border hover:bg-black/5">
-            <TableHead className="w-10 p-[12px]">
-              <Checkbox
-                className="translate-y-0.5"
-                checked={
-                  selected?.size === pageItems?.length && pageItems?.length > 0
-                }
-                onCheckedChange={onSelectAll}
-              />
-            </TableHead>
+            {selectable && (
+              <TableHead className="w-10 p-[12px]">
+                <Checkbox
+                  className="translate-y-0.5"
+                  checked={
+                    selected?.size === pageItems?.length && pageItems?.length > 0
+                  }
+                  onCheckedChange={onSelectAll}
+                />
+              </TableHead>
+            )}
             {columns?.map((col, idx) => (
               <TableHead
                 key={col || idx}
@@ -83,11 +86,12 @@ export default function ClientsTable({
               getRowActions={getRowActions}
               onSelectClient={onSelectClient}
               archived={archived}
+              selectable={selectable}
             />
           ))}
           {!hasRows && (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={columns.length + 1} className="p-0">
+              <TableCell colSpan={columns.length + (selectable ? 1 : 0)} className="p-0">
                 <TableStatus
                   isLoading={isLoading}
                   error={error}

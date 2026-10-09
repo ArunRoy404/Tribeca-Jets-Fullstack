@@ -25,6 +25,7 @@ import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useClient, useUpdateClient, useRestoreClient } from "@/hooks/clients";
 import { usePermissions } from "@/hooks/common/usePermissions";
+import { Action, Module } from "@/lib/access";
 import { Permission } from "@/lib/permissions";
 import { toClientRow } from "@/lib/client";
 
@@ -41,7 +42,10 @@ export default function ClientDetailPage({ params }) {
   // Money on account is financial data. An assistant holds VIEW_FINANCIALS at
   // NONE, and the tab is *hidden* rather than shown and refused — a tab that
   // only ever renders a 403 reads as a broken app, not as a boundary.
-  const { can, canWrite } = usePermissions();
+  const { can, canWrite, canAccess } = usePermissions();
+  const mayEdit = canAccess(Module.CLIENTS, Action.EDIT);
+  const mayArchive = canAccess(Module.CLIENTS, Action.ARCHIVE);
+  const mayCreateTrip = canAccess(Module.TRIPS, Action.CREATE);
   const maySend = canWrite(Permission.SEND_EMAILS);
   const [composeOpen, setComposeOpen] = useState(false);
   const maySeeMoney = can(Permission.VIEW_FINANCIALS);
@@ -60,6 +64,9 @@ export default function ClientDetailPage({ params }) {
     if (!client?.id) return;
     updateClient({ id: client.id, nextFollowUpAt: null, followUpNote: null });
   };
+
+  const handleFollowUp = mayEdit ? () => openFollowUpModal(client?.id || client) : undefined;
+  const handleComplete = mayEdit ? markFollowUpComplete : undefined;
 
   if (isPending || error) {
     return (
@@ -101,12 +108,13 @@ export default function ClientDetailPage({ params }) {
         actions={
           <ClientHeaderActions
             client={client}
-            onEdit={() => openEditModal(client)}
-            onFollowUp={() => openFollowUpModal(client?.id || client)}
-            onArchive={() => openArchiveModal(client)}
-            onRestore={() => restoreClient(client)}
+            onEdit={mayEdit ? () => openEditModal(client) : undefined}
+            onFollowUp={handleFollowUp}
+            onArchive={mayArchive ? () => openArchiveModal(client) : undefined}
+            onRestore={mayArchive ? () => restoreClient(client) : undefined}
             isRestoring={isRestoring}
             onSendEmail={maySend ? () => setComposeOpen(true) : undefined}
+            mayCreateTrip={mayCreateTrip}
           />
         }
       />
@@ -133,7 +141,7 @@ export default function ClientDetailPage({ params }) {
           {/* Left Sidebar Column */}
           <ClientDetailSidebar
             client={client}
-            onEditNotes={() => openEditModal(client)}
+            onEditNotes={mayEdit ? () => openEditModal(client) : undefined}
           />
 
           {/* Right Main Area with Tabbed Content */}
@@ -150,33 +158,33 @@ export default function ClientDetailPage({ params }) {
               {activeTab === "overview" && (
                 <ClientOverviewTab
                   client={client}
-                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
+                  onScheduleFollowUp={handleFollowUp}
                   onSwitchToActivity={() => setActiveTab("activity")}
-                  onMarkComplete={markFollowUpComplete}
+                  onMarkComplete={handleComplete}
                   isCompleting={isCompleting}
                 />
               )}
               {activeTab === "trips" && (
                 <ClientTripsTab
                   client={client}
-                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
-                  onMarkComplete={markFollowUpComplete}
+                  onScheduleFollowUp={handleFollowUp}
+                  onMarkComplete={handleComplete}
                   isCompleting={isCompleting}
                 />
               )}
               {activeTab === "quotes" && (
                 <ClientQuotesTab
                   client={client}
-                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
-                  onMarkComplete={markFollowUpComplete}
+                  onScheduleFollowUp={handleFollowUp}
+                  onMarkComplete={handleComplete}
                   isCompleting={isCompleting}
                 />
               )}
               {activeTab === "payments" && maySeeInvoices && (
                 <ClientPaymentsTab
                   client={client}
-                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
-                  onMarkComplete={markFollowUpComplete}
+                  onScheduleFollowUp={handleFollowUp}
+                  onMarkComplete={handleComplete}
                   isCompleting={isCompleting}
                 />
               )}
@@ -192,8 +200,8 @@ export default function ClientDetailPage({ params }) {
               {activeTab === "activity" && (
                 <ClientActivityTab
                   client={client}
-                  onScheduleFollowUp={() => openFollowUpModal(client?.id || client)}
-                  onMarkComplete={markFollowUpComplete}
+                  onScheduleFollowUp={handleFollowUp}
+                  onMarkComplete={handleComplete}
                   isCompleting={isCompleting}
                 />
               )}

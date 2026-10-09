@@ -38,7 +38,7 @@ export default function CommonSelect({
           // `data-[size=default]:` variant; a plain `h-11` here shares no
           // modifier with that rule, so it never wins the cascade. Matching
           // the same variant is what actually overrides it.
-          "data-[size=default]:h-11 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-foreground outline-none focus:ring-2 focus:ring-purple/50 focus:border-purple cursor-pointer transition-all flex items-center justify-between disabled:cursor-not-allowed disabled:opacity-60",
+          "data-[size=default]:h-10 h-10 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple/50 focus:border-purple cursor-pointer transition-all flex items-center justify-between disabled:cursor-not-allowed disabled:opacity-60",
           className
         )}
       >

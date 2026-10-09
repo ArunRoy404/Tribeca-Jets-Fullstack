@@ -12,11 +12,11 @@ import { Checkbox } from "@/components/ui/checkbox";
  * deciding what to show when a field is missing.
  */
 function Field({ label, value, valueClassName = "text-foreground" }) {
-  if (value === undefined || value === null || value === "") return null;
+  const displayValue = value === undefined || value === null || value === "" ? "—" : value;
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
       <p className="font-montserrat text-[10px] text-muted-foreground whitespace-nowrap">{label}</p>
-      <div className={`font-montserrat font-bold text-[12px] truncate ${valueClassName}`}>{value}</div>
+      <div className={`font-montserrat font-bold text-[12px] truncate ${valueClassName}`}>{displayValue}</div>
     </div>
   );
 }

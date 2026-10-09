@@ -21,11 +21,19 @@ import {
   useRestoreClients,
 } from "@/hooks/clients";
 import { useClientsStore } from "@/store/useClientsStore";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Action, Module } from "@/lib/access";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { toClientRow } from "@/lib/client";
 
 export default function ClientsContainer({ revealDelay = 0 }) {
   const router = useRouter();
+
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.CLIENTS, Action.CREATE);
+  const mayEdit = canAccess(Module.CLIENTS, Action.EDIT);
+  const mayArchive = canAccess(Module.CLIENTS, Action.ARCHIVE);
+  const mayCreateTrip = canAccess(Module.TRIPS, Action.CREATE);
 
   // The URL is the state. Every filter below reads and writes it, so the view
   // survives a reload and the back button steps through it.
@@ -83,37 +91,40 @@ export default function ClientsContainer({ revealDelay = 0 }) {
     router?.push(`/dashboard/clients/${encodeURIComponent(item?.id ?? "")}`);
   };
 
-  const getRowActions = (item) =>
-    isArchived
-      ? [
-          { label: "View Details", icon: <Eye />, onSelect: () => handleOpenDetails(item) },
-          {
-            label: "Restore Client",
-            icon: <RotateCcw />,
-            onSelect: () => restoreClient?.(item),
-          },
-        ]
-      : [
-          { label: "View Details", icon: <Eye />, onSelect: () => handleOpenDetails(item) },
-          {
-            label: "Create Trip",
-            icon: <PlusCircle />,
-            onSelect: () => router?.push("/dashboard/trips/new"),
-          },
-          {
-            label: "Schedule Follow-up",
-            icon: <Calendar />,
-            onSelect: () => openFollowUpModal?.(item),
-          },
-          { label: "Edit Client", icon: <Edit />, onSelect: () => openEditModal?.(item) },
-          "separator",
-          {
-            label: "Archive",
-            icon: <Archive />,
-            variant: "destructive",
-            onSelect: () => openArchiveModal?.(item),
-          },
-        ];
+  const getRowActions = (item) => {
+    const view = { label: "View Details", icon: <Eye />, onSelect: () => handleOpenDetails(item) };
+    if (isArchived) {
+      return [
+        view,
+        mayArchive && {
+          label: "Restore Client",
+          icon: <RotateCcw />,
+          onSelect: () => restoreClient?.(item),
+        },
+      ].filter(Boolean);
+    }
+    return [
+      view,
+      mayCreateTrip && {
+        label: "Create Trip",
+        icon: <PlusCircle />,
+        onSelect: () => router?.push("/dashboard/trips/new"),
+      },
+      mayEdit && {
+        label: "Schedule Follow-up",
+        icon: <Calendar />,
+        onSelect: () => openFollowUpModal?.(item),
+      },
+      mayEdit && { label: "Edit Client", icon: <Edit />, onSelect: () => openEditModal?.(item) },
+      mayArchive && "separator",
+      mayArchive && {
+        label: "Archive",
+        icon: <Archive />,
+        variant: "destructive",
+        onSelect: () => openArchiveModal?.(item),
+      },
+    ].filter(Boolean);
+  };
 
   return (
     <Reveal delay={revealDelay} className="w-full">
@@ -136,6 +147,8 @@ export default function ClientsContainer({ revealDelay = 0 }) {
           onBulkAction={() => setBulkOpen(true)}
           tab={params?.tab}
           setTab={params?.setTab}
+          mayCreate={mayCreate}
+          mayArchive={mayArchive}
         />
 
         <div className="relative w-full lg:hidden p-3">
@@ -150,6 +163,7 @@ export default function ClientsContainer({ revealDelay = 0 }) {
 
         <ClientsTable
           archived={isArchived}
+          selectable={mayArchive}
           pageItems={rows}
           selected={selected}
           onSelectAll={() =>

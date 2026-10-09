@@ -66,7 +66,7 @@ export function CommonTimePicker({
           inside a button broke hydration on every form using this picker. */}
       <PopoverTrigger
         className={cn(
-          "h-11 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-left flex items-center justify-between gap-2 outline-none focus:ring-1 focus:ring-purple cursor-pointer transition-colors hover:border-purple/50",
+          "h-10 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-left flex items-center justify-between gap-2 outline-none focus:ring-1 focus:ring-purple cursor-pointer transition-colors hover:border-purple/50",
           className
         )}
       >

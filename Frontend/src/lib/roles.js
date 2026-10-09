@@ -7,7 +7,7 @@
  * one dialog and not found by the filter on the next screen. Import this;
  * never re-list the roles in a component.
  */
-export const BROKER_ROLES = new Set(["BROKER", "ADMIN"]);
+export const BROKER_ROLES = new Set(["BROKER"]);
 
 /**
  * The outside partner who refers clients (client adjustment #11). Signs in to

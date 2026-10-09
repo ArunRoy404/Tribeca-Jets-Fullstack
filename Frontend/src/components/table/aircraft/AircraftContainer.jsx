@@ -25,7 +25,7 @@ import {
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { toAircraftRow } from "@/lib/aircraft";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 
 export default function AircraftContainer({ revealDelay = 0 }) {
   const router = useRouter();
@@ -55,10 +55,12 @@ export default function AircraftContainer({ revealDelay = 0 }) {
   const { mutate: restoreMany, isPending: isRestoringMany } = useRestoreManyAircraft();
   const { mutate: restoreAircraft } = useRestoreAircraft();
 
-  // Assistants hold MANAGE_AIRCRAFT at READ scope. The API refuses their
-  // writes either way; this stops the UI offering them in the first place.
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_AIRCRAFT);
+  // Controls follow the caller's per-person Aircraft permissions.
+  // The API enforces the same; this hides unavailable controls rather than disabling them.
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.AIRCRAFT, Action.CREATE);
+  const mayEdit = canAccess(Module.AIRCRAFT, Action.EDIT);
+  const mayArchive = canAccess(Module.AIRCRAFT, Action.ARCHIVE);
 
   const isArchived = params?.tab === ARCHIVE_TABS.ARCHIVED;
 
@@ -104,42 +106,35 @@ export default function AircraftContainer({ revealDelay = 0 }) {
       icon: <Eye />,
       onSelect: () => handleOpenDetails(ac?.id),
     };
-    // Everything below View Details is a write, so a read-only role gets the
-    // one action it can actually perform rather than a menu of 403s.
-    if (!mayWrite) return [view];
 
-    return isArchived
-      ? [
-          view,
-          {
-            label: "Restore Aircraft",
-            icon: <RotateCcw />,
-            onSelect: () => restoreAircraft?.(ac),
-          },
-        ]
-      : [
-          view,
-          { label: "Edit Aircraft", icon: <Edit2 />, onSelect: () => openEditModal?.(ac) },
-          // One entry covering all four statuses. It used to be a two-way
-          // Maintenance/Available toggle, which left Inactive and In Service
-          // reachable only through the Edit form — and read "Set Maintenance"
-          // on a tail that had already left the fleet.
-          //
-          // Changing an archived tail's status is not a thing anyone means to
-          // do, so it is absent on that tab rather than disabled.
-          {
-            label: "Change Status",
-            icon: <SlidersHorizontal />,
-            onSelect: () => openStatusModal?.(ac),
-          },
-          "separator",
-          {
-            label: "Remove Aircraft",
-            icon: <Trash2 />,
-            variant: "destructive",
-            onSelect: () => openArchiveModal?.(ac),
-          },
-        ];
+    if (isArchived) {
+      return [
+        view,
+        mayArchive && {
+          label: "Restore Aircraft",
+          icon: <RotateCcw />,
+          onSelect: () => restoreAircraft?.(ac),
+        },
+      ].filter(Boolean);
+    }
+
+    return [
+      view,
+      mayEdit && { label: "Edit Aircraft", icon: <Edit2 />, onSelect: () => openEditModal?.(ac) },
+      // One entry covering all four statuses.
+      mayEdit && {
+        label: "Change Status",
+        icon: <SlidersHorizontal />,
+        onSelect: () => openStatusModal?.(ac),
+      },
+      mayArchive && "separator",
+      mayArchive && {
+        label: "Remove Aircraft",
+        icon: <Trash2 />,
+        variant: "destructive",
+        onSelect: () => openArchiveModal?.(ac),
+      },
+    ].filter(Boolean);
   };
 
   return (
@@ -165,7 +160,8 @@ export default function AircraftContainer({ revealDelay = 0 }) {
           onBulkAction={() => setBulkOpen(true)}
           tab={params?.tab}
           setTab={params?.setTab}
-          mayWrite={mayWrite}
+          mayCreate={mayCreate}
+          mayArchive={mayArchive}
         />
 
         {aircraftQuery?.isPending || aircraftQuery?.error || isEmpty ? (
@@ -195,13 +191,13 @@ export default function AircraftContainer({ revealDelay = 0 }) {
                 getRowActions={getRowActions}
                 onSelectAircraft={handleOpenDetails}
                 archived={isArchived}
-                selectable={mayWrite}
+                selectable={mayArchive}
               />
             </div>
 
             <AircraftTable
               archived={isArchived}
-              selectable={mayWrite}
+              selectable={mayArchive}
               pageAircraft={rows}
               selected={selected}
               onSelectAll={() =>

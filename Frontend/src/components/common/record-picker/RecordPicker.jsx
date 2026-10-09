@@ -53,6 +53,8 @@ export default function RecordPicker({
   itemLabel = "records",
   disabled = false,
   invalid = false,
+  allowClear = false,
+  clearLabel = "None",
   className,
   id,
 }) {
@@ -148,7 +150,7 @@ export default function RecordPicker({
         disabled={disabled}
         aria-invalid={invalid || undefined}
         className={cn(
-          "flex h-13 w-full items-center justify-between gap-2 rounded-sm border border-input bg-white px-4 text-left font-montserrat text-base font-medium outline-none cursor-pointer",
+          "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-white px-3 text-left font-montserrat text-[13px] font-medium outline-none cursor-pointer",
           "focus-visible:ring-1 focus-visible:ring-purple data-popup-open:ring-1 data-popup-open:ring-purple",
           "disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-destructive",
           className,
@@ -186,6 +188,25 @@ export default function RecordPicker({
           role="listbox"
           className={cn("max-h-72 overflow-y-auto p-1 transition-opacity", refreshing && "opacity-60")}
         >
+          {allowClear && !search && page === 1 ? (
+            <button
+              type="button"
+              role="option"
+              aria-selected={!value}
+              onClick={() => choose({ value: "", label: clearLabel })}
+              className={cn(
+                "flex w-full items-start gap-2 rounded-md px-2.5 py-2 text-left cursor-pointer",
+                !value ? "bg-secondary font-medium" : "hover:bg-secondary",
+              )}
+            >
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-montserrat text-[13px] text-muted-foreground">
+                  {clearLabel}
+                </span>
+              </span>
+              {!value ? <Check className="mt-0.5 size-4 shrink-0 text-purple" /> : null}
+            </button>
+          ) : null}
           {loading ? (
             Array.from({ length: Math.min(limit, 6) }, (_, index) => (
               <div key={index} className="flex flex-col gap-1.5 px-2.5 py-2">

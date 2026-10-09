@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 import { Calendar as CalendarIcon, X } from "lucide-react";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useUpdateClient } from "@/hooks/clients";
-import { useUsers } from "@/hooks/users";
+import BrokerPicker from "@/components/users/BrokerPicker";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission, Scope } from "@/lib/permissions";
-import { BROKER_ROLES } from "@/lib/roles";
+import { Action, Module } from "@/lib/access";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import CommonSelect from "@/components/common/CommonSelect";
 import DatePicker from "@/components/common/DatePicker";
 import TimePicker from "@/components/common/TimePicker";
 
@@ -32,17 +32,10 @@ export default function ScheduleFollowUpDialog() {
   const client = useClientsStore((s) => s.followUpTarget);
   const closeModal = useClientsStore((s) => s.closeFollowUpModal);
   const { mutate: updateClient, isPending } = useUpdateClient();
-  // Reassigning is for a role holding the whole book; the picker is not shown
+  // Reassigning is for a role holding CLIENTS · ASSIGN; the picker is not shown
   // to anyone the API would refuse.
-  const { scopeFor } = usePermissions();
-  const mayAssignBroker = scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL;
-
-  // Real colleagues, not a hardcoded list of first names.
-  const { data: users } = useUsers({ limit: 100 });
-  const brokers = useMemo(
-    () => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)),
-    [users?.data],
-  );
+  const { canAccess } = usePermissions();
+  const mayAssignBroker = canAccess(Module.CLIENTS, Action.ASSIGN);
 
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -96,19 +89,13 @@ export default function ScheduleFollowUpDialog() {
 
           {/* Row 3: Assigned Broker */}
           {mayAssignBroker && (
-            <FieldWrapper label="Assigned Broker">
-              <select
+            <FieldWrapper label="Assigned Broker" optional>
+              <BrokerPicker
                 value={broker}
-                onChange={(e) => setBroker(e.target.value)}
-                className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
-              >
-                <option value="">Leave unchanged</option>
-                {brokers.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {`${b.firstName} ${b.lastName}`.trim()}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setBroker(val || "")}
+                placeholder="Leave unchanged"
+                clearLabel="Leave unchanged"
+              />
             </FieldWrapper>
           )}
 

@@ -21,6 +21,7 @@ export default function ClientsTableRow({
   getRowActions,
   onSelectClient,
   archived = false,
+  selectable = true,
 }) {
   const initials =
     item?.name
@@ -29,19 +30,23 @@ export default function ClientsTableRow({
       ?.join("")
       ?.slice(0, 2) ?? "";
 
+  const rowActions = getRowActions?.(item) ?? [];
+
   return (
     <TableRow
       key={item?.id}
       className="border-border cursor-pointer hover:bg-purple/5 transition-colors"
       onClick={() => onSelectClient?.(item)}
     >
-      <TableCell className="p-[12px] text-center" onClick={(e) => e.stopPropagation()}>
-        <Checkbox
-          className="translate-y-0.5"
-          checked={selected}
-          onCheckedChange={() => onToggleRow?.(item?.id)}
-        />
-      </TableCell>
+      {selectable && (
+        <TableCell className="p-[12px] text-center" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            className="translate-y-0.5"
+            checked={selected}
+            onCheckedChange={() => onToggleRow?.(item?.id)}
+          />
+        </TableCell>
+      )}
 
       <TableCell className="p-[12px] text-left">
         <div className="flex items-center gap-2.5">
@@ -131,7 +136,7 @@ export default function ClientsTableRow({
 
       <TableCell className="p-[12px] text-center" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-center">
-          <RowActionsMenu items={getRowActions?.(item)} />
+          {rowActions.length > 0 ? <RowActionsMenu items={rowActions} /> : null}
         </div>
       </TableCell>
     </TableRow>
