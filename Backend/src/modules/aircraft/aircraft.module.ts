@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { AircraftController } from './aircraft.controller.js';
 import { AircraftService } from './aircraft.service.js';
 import { TripsModule } from '../trips/trips.module.js';
+import { AirportsModule } from '../airports/airports.module.js';
 
 @Module({
-  // Trip counts on every tail come from the trips service (#11's second pass).
-  imports: [TripsModule],
+  // Trips for trip counts; Airports to validate picked home base.
+  imports: [TripsModule, AirportsModule],
   controllers: [AircraftController],
   providers: [AircraftService],
   // Exported because quotes, trips, empty legs and flight tracking all resolve

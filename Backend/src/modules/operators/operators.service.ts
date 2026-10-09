@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { AircraftService } from '../aircraft/aircraft.service.js';
@@ -236,6 +236,39 @@ export class OperatorsService {
       contact: row.primaryContact ?? null,
       email: row.contactEmail ?? row.generalEmail ?? null,
       archived: row.deletedAt !== null,
+    };
+  }
+
+  /**
+   * Re-checks an operator picked in another form (AGENTS.md, "A write
+   * re-checks what was picked"): exists, is not archived, and is not suspended.
+   *
+   * The server's half of "a write re-checks what was picked": the picker
+   * offers live operators, but a stale form or direct API call must not assign
+   * an archived or suspended operator.
+   *
+   * Reused across Aircraft, Sourcing, Quotes, Trips, and Empty Legs.
+   */
+  async usable(id: string, label = 'operator'): Promise<{ id: string; name: string; status: OperatorStatus }> {
+    const row = await this.prisma.operator.findFirst({
+      where: { id },
+      select: { id: true, name: true, status: true, deletedAt: true },
+    });
+    if (!row) throw new BadRequestException(`That ${label} does not exist`);
+    if (row.deletedAt) {
+      throw new BadRequestException(
+        `${row.name} has been archived. Restore it on the Operators screen, or pick another ${label}.`,
+      );
+    }
+    if (row.status === OperatorStatus.SUSPENDED) {
+      throw new BadRequestException(
+        `${row.name} is suspended. Restore it to active status before assigning it.`,
+      );
+    }
+    return {
+      id: row.id,
+      name: row.name,
+      status: row.status,
     };
   }
 

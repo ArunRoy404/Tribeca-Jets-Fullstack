@@ -26,12 +26,16 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import { bulkResult, type BulkResult } from '../../common/dto/bulk.dto.js';
+import { actsAs } from '../../common/authorization/permissions.js';
 import {
-  Permission,
-  Scope,
-  actsAs,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+  Action,
+  Module,
+  Reach,
+  canDo,
+  reachOf,
+} from '../../common/authorization/access.js';
+import { AirportsService } from '../airports/airports.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import {
   ClientStatus,
   LeadStage,
@@ -161,6 +165,8 @@ export class ClientsService {
     // Trips (#11)'s second pass: the roster's active-trip counts. One-way —
     // trips never imports this module.
     private readonly trips: TripsService,
+    private readonly airports: AirportsService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -171,10 +177,33 @@ export class ClientsService {
    * pagination counts and totals are correct rather than merely censored.
    */
   private visibilityScope(user: AuthenticatedUser): Prisma.ClientWhereInput {
-    if (actsAs(user.role) === UserRole.BROKER) {
+    const reach = reachOf(user.access, Module.CLIENTS);
+    if (
+      reach === Reach.ASSIGNED ||
+      reach === Reach.OWN ||
+      actsAs(user.role) === UserRole.BROKER
+    ) {
       return { assignedBrokerId: user.id };
     }
     return {};
+  }
+
+  /**
+   * Verified on the server: an assigned broker must exist and be an active
+   * broker or admin.
+   */
+  private async assertBroker(id: string): Promise<void> {
+    const broker = await this.prisma.user.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        role: { in: [UserRole.BROKER, UserRole.ADMIN, UserRole.SUPER_ADMIN] },
+      },
+      select: { id: true, status: true },
+    });
+    if (!broker) {
+      throw new BadRequestException('That broker does not exist');
+    }
   }
 
   async findAll(
@@ -379,27 +408,10 @@ export class ClientsService {
     return { rows, total };
   }
 
-  /**
-   * A home airport must name a live airport row.
-   *
-   * Prisma would raise P2003 on a bad id, which the exception filter turns
-   * into a 400 — but with no field name attached. Checking here means the form
-   * can point at the right input, and it also catches an *archived* airport,
-   * which the foreign key alone would happily accept.
-   */
-  private async assertHomeAirport(id: string | null | undefined): Promise<void> {
-    if (!id) return;
-    const airport = await this.prisma.airport.findFirst({
-      where: { id, deletedAt: null },
-      select: { id: true },
-    });
-    if (!airport) {
-      throw new BadRequestException('That home airport does not exist');
-    }
-  }
-
   async create(user: AuthenticatedUser, input: CreateClientInput) {
-    await this.assertHomeAirport(input.homeAirportId);
+    if (input.homeAirportId) {
+      await this.airports.usable(input.homeAirportId, 'home airport');
+    }
 
     // A broker may only create clients owned by themselves.
     const assignedBrokerId =
@@ -407,11 +419,20 @@ export class ClientsService {
         ? user.id
         : (input.assignedBrokerId ?? null);
 
+    if (assignedBrokerId) {
+      await this.assertBroker(assignedBrokerId);
+    }
+
+    const settings = await this.settings.read();
+    const leadStage =
+      input.leadStage ?? settings.defaultLeadStage ?? LeadStage.NEW;
+
     const { preferences, ...fields } = input;
 
     const client = await this.prisma.client.create({
       data: {
         ...fields,
+        leadStage,
         assignedBrokerId,
         // Attribution defaults to the creator and never changes afterwards.
         originatingBrokerId: input.originatingBrokerId ?? assignedBrokerId,
@@ -446,9 +467,10 @@ export class ClientsService {
     // airport was archived later could not be edited at all.
     if (
       input.homeAirportId !== undefined &&
+      input.homeAirportId !== null &&
       input.homeAirportId !== current.homeAirportId
     ) {
-      await this.assertHomeAirport(input.homeAirportId);
+      await this.airports.usable(input.homeAirportId, 'home airport');
     }
 
     // Reassigning a client is for a role that holds the whole book; a broker
@@ -459,10 +481,16 @@ export class ClientsService {
     // refused every edit a broker made to their own client.
     if (
       input.assignedBrokerId !== undefined &&
-      input.assignedBrokerId !== current.assignedBrokerId &&
-      scopeFor(user.role, Permission.MANAGE_CLIENTS) !== Scope.ALL
+      input.assignedBrokerId !== current.assignedBrokerId
     ) {
-      throw new ForbiddenException('Only administrators can reassign a client');
+      if (!canDo(user.access, Module.CLIENTS, Action.ASSIGN)) {
+        throw new ForbiddenException(
+          'Only administrators can reassign a client',
+        );
+      }
+      if (input.assignedBrokerId !== null) {
+        await this.assertBroker(input.assignedBrokerId);
+      }
     }
 
     // `preferences` is split out of the spread: leaving a structured object in
@@ -539,7 +567,7 @@ export class ClientsService {
    * broker losing a client should reassign it, not erase it from the list.
    */
   private assertMayArchive(user: AuthenticatedUser): void {
-    if (scopeFor(user.role, Permission.MANAGE_CLIENTS) !== Scope.ALL) {
+    if (!canDo(user.access, Module.CLIENTS, Action.ARCHIVE)) {
       throw new ForbiddenException(
         'Only administrators can remove a client. Reassign it instead.',
       );

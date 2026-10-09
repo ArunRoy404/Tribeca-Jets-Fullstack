@@ -68,7 +68,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  @RequireAccess(Module.USERS, Action.VIEW)
+  @RequirePermissions(Permission.VIEW_TEAM)
   @ApiOperation({ summary: 'Get one team member' })
   findOne(
     @CurrentUser() user: AuthenticatedUser,

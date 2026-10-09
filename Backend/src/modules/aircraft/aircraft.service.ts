@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { TripsService } from '../trips/trips.service.js';
+import { AirportsService } from '../airports/airports.service.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -25,7 +26,7 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import { AircraftStatus } from '../../generated/prisma/enums.js';
+import { AircraftStatus, OperatorStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type {
   CreateAircraftInput,
@@ -147,7 +148,36 @@ export class AircraftService {
     // Trips owns its table; the counts come through its service. The second
     // pass Trips (#11) owed this module — see AGENTS.md on build order.
     private readonly trips: TripsService,
+    private readonly airports: AirportsService,
   ) {}
+
+  /**
+   * Re-checks an operator picked in the form (AGENTS.md, "A write re-checks what was picked"):
+   * exists, is not archived, and is not suspended.
+   *
+   * Validated directly against `prisma.operator` to keep the dependency graph
+   * a strict DAG (OperatorsModule -> AircraftModule, never a cycle in ESM).
+   */
+  private async assertOperator(id: string | null | undefined, label = 'operator'): Promise<void> {
+    if (!id) return;
+    const operator = await this.prisma.operator.findFirst({
+      where: { id },
+      select: { id: true, name: true, status: true, deletedAt: true },
+    });
+    if (!operator) {
+      throw new BadRequestException(`That ${label} does not exist`);
+    }
+    if (operator.deletedAt) {
+      throw new BadRequestException(
+        `${operator.name} has been archived. Restore it on the Operators screen, or pick another ${label}.`,
+      );
+    }
+    if (operator.status === OperatorStatus.SUSPENDED) {
+      throw new BadRequestException(
+        `${operator.name} is suspended. Restore it to active status before assigning it.`,
+      );
+    }
+  }
 
   /**
    * Real trip counts for these tails, from one grouped query rather than one
@@ -175,48 +205,6 @@ export class AircraftService {
         row.cabinLengthFt === null ? null : Number(row.cabinLengthFt),
       ...UNAVAILABLE_AGGREGATES,
     };
-  }
-
-  /**
-   * Rejects an operator or airport the caller cannot actually assign.
-   *
-   * The foreign key alone would answer with a bare P2003 and, worse, would
-   * happily accept an *archived* operator: the row still exists, so the
-   * constraint is satisfied while the desk has said that company is out of
-   * service. Checking here gives the form a named 400 instead.
-   */
-  private async assertOperator(id: string | null | undefined): Promise<void> {
-    if (!id) return;
-    const operator = await this.prisma.operator.findUnique({
-      where: { id },
-      select: { id: true, deletedAt: true },
-    });
-    if (!operator) {
-      throw new BadRequestException('That operator does not exist');
-    }
-    // Archived is not the same as missing, and saying so is the difference
-    // between "I mistyped an id" and "someone archived that company".
-    if (operator.deletedAt) {
-      throw new BadRequestException(
-        'That operator has been archived. Restore it, or choose another.',
-      );
-    }
-  }
-
-  private async assertHomeBase(id: string | null | undefined): Promise<void> {
-    if (!id) return;
-    const airport = await this.prisma.airport.findUnique({
-      where: { id },
-      select: { id: true, deletedAt: true },
-    });
-    if (!airport) {
-      throw new BadRequestException('That home base airport does not exist');
-    }
-    if (airport.deletedAt) {
-      throw new BadRequestException(
-        'That home base airport has been archived. Restore it, or choose another.',
-      );
-    }
   }
 
   /**
@@ -398,7 +386,7 @@ export class AircraftService {
   async create(actor: AuthenticatedUser, dto: CreateAircraftInput) {
     await this.assertTailAvailable(dto.tailNumber);
     await this.assertOperator(dto.operatorId);
-    await this.assertHomeBase(dto.homeBaseId);
+    if (dto.homeBaseId) await this.airports.usable(dto.homeBaseId, 'home base');
 
     const aircraft = await this.prisma.aircraft.create({
       data: { ...dto, createdById: actor.id, updatedById: actor.id },
@@ -451,7 +439,7 @@ export class AircraftService {
       await this.assertOperator(dto.operatorId);
     }
     if (dto.homeBaseId !== undefined && dto.homeBaseId !== target.homeBaseId) {
-      await this.assertHomeBase(dto.homeBaseId);
+      if (dto.homeBaseId) await this.airports.usable(dto.homeBaseId, 'home base');
     }
 
     const aircraft = await this.prisma.aircraft.update({

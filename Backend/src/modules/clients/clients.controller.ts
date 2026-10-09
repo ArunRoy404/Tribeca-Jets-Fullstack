@@ -14,10 +14,10 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+  RequireAccess,
+  StaffOnly,
+} from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { ClientsService } from './clients.service.js';
@@ -27,16 +27,26 @@ import {
   UpdateClientDto,
 } from './dto/client.dto.js';
 
+/**
+ * **Reads need only a staff session; every write needs the caller's own
+ * Clients permission** (AGENTS.md, "Reads are open to every signed-in user") —
+ * trip requests, quotes, trips, receivables and documents all pick a client.
+ * Reach (ASSIGNED / ALL) filters the rows.
+ *
+ * `@StaffOnly`: a referral agent never manages or picks CRM clients directly
+ * (their referrals are converted by staff, and CRM desk data is withheld).
+ */
 @ApiTags('Clients')
+@StaffOnly()
 @Controller('clients')
 export class ClientsController {
   constructor(private readonly clients: ClientsService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_CLIENTS)
   @ApiOperation({
     summary: 'List clients and travel agents',
-    description: 'Brokers receive only the clients assigned to them.',
+    description:
+      'Open to any signed-in staff member. Scoped by reach: brokers receive only clients assigned to them.',
   })
   findAll(
     @CurrentUser() user: AuthenticatedUser,
@@ -46,7 +56,6 @@ export class ClientsController {
   }
 
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_CLIENTS)
   @ApiOperation({
     summary: 'Client tiles',
     description:
@@ -64,7 +73,6 @@ export class ClientsController {
    * module's to compute.
    */
   @Get('broker-performance')
-  @RequirePermissions(Permission.VIEW_CLIENTS)
   @ApiOperation({
     summary: 'The Agents roster — brokers with their lead numbers',
     description:
@@ -75,7 +83,6 @@ export class ClientsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_CLIENTS)
   @ApiOperation({ summary: 'Get one client' })
   findOne(
     @CurrentUser() user: AuthenticatedUser,
@@ -85,7 +92,7 @@ export class ClientsController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @RequireAccess(Module.CLIENTS, Action.CREATE)
   @ApiOperation({ summary: 'Create a client or travel agent' })
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -95,7 +102,7 @@ export class ClientsController {
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @RequireAccess(Module.CLIENTS, Action.EDIT)
   @ApiOperation({ summary: 'Update a client' })
   update(
     @CurrentUser() user: AuthenticatedUser,
@@ -110,7 +117,7 @@ export class ClientsController {
    * bodies on DELETE, and a dropped body removes nothing while answering 200.
    */
   @Post('bulk-delete')
-  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @RequireAccess(Module.CLIENTS, Action.ARCHIVE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Remove several clients at once (soft)',
@@ -125,7 +132,7 @@ export class ClientsController {
   }
 
   @Post('bulk-restore')
-  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @RequireAccess(Module.CLIENTS, Action.ARCHIVE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Restore several archived clients at once',
@@ -146,7 +153,7 @@ export class ClientsController {
    */
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @RequireAccess(Module.CLIENTS, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Restore an archived client',
     description:
@@ -160,7 +167,7 @@ export class ClientsController {
   }
 
   @Delete(':id')
-  @RequireWritePermissions(Permission.MANAGE_CLIENTS)
+  @RequireAccess(Module.CLIENTS, Action.ARCHIVE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Soft-delete a client',
@@ -173,3 +180,4 @@ export class ClientsController {
     return this.clients.remove(user, id);
   }
 }
+
