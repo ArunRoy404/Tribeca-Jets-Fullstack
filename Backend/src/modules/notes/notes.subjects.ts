@@ -3,8 +3,16 @@ import {
   Permission,
   Scope,
   canWrite,
+  isAdministrator,
   scopeFor,
 } from '../../common/authorization/permissions.js';
+import {
+  Action,
+  Module,
+  Reach,
+  canDo,
+  reachOf,
+} from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { NoteSubjectType } from '../../generated/prisma/enums.js';
 import { ClientsService } from '../clients/clients.service.js';
@@ -31,9 +39,11 @@ interface SubjectDefinition {
   noun: string;
   /** The `AuditLog.entityType` value for this kind of record. */
   entityType: string;
-  /** Reading the subject's timeline needs this. */
+  /** The per-person permission module governance. */
+  module: Module;
+  /** Reading the subject's timeline needs this (legacy matrix). */
   view: Permission;
-  /** Writing on it needs this, at a scope that is not READ. */
+  /** Writing on it needs this, at a scope that is not READ (legacy matrix). */
   manage: Permission;
 }
 
@@ -41,6 +51,7 @@ const SUBJECTS: Record<NoteSubjectType, SubjectDefinition> = {
   [NoteSubjectType.CLIENT]: {
     noun: 'client',
     entityType: 'Client',
+    module: Module.CLIENTS,
     view: Permission.VIEW_CLIENTS,
     manage: Permission.MANAGE_CLIENTS,
   },
@@ -49,12 +60,14 @@ const SUBJECTS: Record<NoteSubjectType, SubjectDefinition> = {
     // Matches the `entityType` the trips service writes to the audit log, so
     // a trip's timeline merges its status changes with its notes.
     entityType: 'Trip',
+    module: Module.TRIPS,
     view: Permission.VIEW_TRIPS,
     manage: Permission.MANAGE_TRIPS,
   },
   [NoteSubjectType.REFERRAL]: {
     noun: 'referral',
     entityType: 'Referral',
+    module: Module.REFERRALS,
     // A referral agent holds both at OWN; `NotesService` narrows them to
     // reading SHARED notes on their own referrals and writing nothing.
     view: Permission.VIEW_REFERRALS,
@@ -66,6 +79,7 @@ const SUBJECTS: Record<NoteSubjectType, SubjectDefinition> = {
     // service writes when a flight's status is reported, so a flight's
     // updates and its status changes read as one feed.
     entityType: 'TripLeg',
+    module: Module.FLIGHT_TRACKING,
     view: Permission.VIEW_TRIPS,
     manage: Permission.MANAGE_TRIPS,
   },
@@ -122,24 +136,46 @@ export class NoteSubjectsService {
     }
   }
 
-  /** Whether this role may read timelines of this kind at all. */
+  /** Whether this caller may read timelines of this kind at all. */
   mayRead(user: AuthenticatedUser, type: NoteSubjectType): boolean {
+    if (user.access) {
+      if (type === NoteSubjectType.FLIGHT) {
+        return (
+          canDo(user.access, Module.FLIGHT_TRACKING, Action.VIEW) ||
+          canDo(user.access, Module.TRIPS, Action.VIEW)
+        );
+      }
+      return canDo(user.access, subjectDefinition(type).module, Action.VIEW);
+    }
     return scopeFor(user.role, subjectDefinition(type).view) !== Scope.NONE;
   }
 
   /**
-   * Whether this role may write on timelines of this kind at all.
+   * Whether this caller may write on timelines of this kind at all.
    *
-   * Coarse, not row-level — `resolve` handles the row. An assistant holds
-   * MANAGE_CLIENTS at NONE, so they read a client's timeline and cannot add to
-   * it, which is the same line the Clients screen already draws around Edit.
+   * Coarse, not row-level — `resolve` handles the row.
    */
   mayWrite(user: AuthenticatedUser, type: NoteSubjectType): boolean {
+    if (user.access) {
+      if (type === NoteSubjectType.FLIGHT) {
+        return (
+          canDo(user.access, Module.FLIGHT_TRACKING, Action.EDIT) ||
+          canDo(user.access, Module.TRIPS, Action.EDIT)
+        );
+      }
+      return canDo(user.access, subjectDefinition(type).module, Action.EDIT);
+    }
     return canWrite(user.role, subjectDefinition(type).manage);
   }
 
-  /** Whether this role reaches every row of this kind — an administrator. */
+  /** Whether this caller reaches every row of this kind — an administrator. */
   administers(user: AuthenticatedUser, type: NoteSubjectType): boolean {
+    if (user.access) {
+      return (
+        reachOf(user.access, subjectDefinition(type).module) === Reach.ALL ||
+        isAdministrator(user.role)
+      );
+    }
     return scopeFor(user.role, subjectDefinition(type).manage) === Scope.ALL;
   }
 }

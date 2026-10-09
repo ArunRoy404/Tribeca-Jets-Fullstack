@@ -17,7 +17,9 @@ import {
 import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Scope } from "@/lib/permissions";
-import { SUBJECT_PERMISSION } from "@/lib/timeline";
+import { Action, Reach } from "@/lib/access";
+import { isAdministratorRole } from "@/lib/roles";
+import { SUBJECT_MODULE, SUBJECT_PERMISSION } from "@/lib/timeline";
 
 const TABS = ["Timeline", "Notes", "Withdrawn"];
 const PAGE_SIZE = 20;
@@ -46,14 +48,18 @@ export default function NotesTimeline({ subjectType, subjectId }) {
   const [page, setPage] = useState(1);
 
   const { data: currentUser } = useCurrentUser();
-  const { canWrite, scopeFor } = usePermissions();
-  // Which permission governs this record, not a hardcoded MANAGE_CLIENTS —
-  // this component is rendered by the trip detail page too.
+  const { canAccess, reachOf, canWrite, scopeFor } = usePermissions();
+  const subjectModule = SUBJECT_MODULE[subjectType];
   const permission = SUBJECT_PERMISSION[subjectType];
-  const mayWrite = canWrite(permission);
-  // Withdrawing somebody else's note is an administrator's call — the same
-  // line the API draws. Authors always get their own, which the row decides.
-  const canModerate = scopeFor(permission) === Scope.ALL;
+
+  const mayWrite = canAccess && subjectModule
+    ? canAccess(subjectModule, Action.EDIT)
+    : canWrite(permission);
+
+  const canModerate =
+    isAdministratorRole(currentUser?.role) ||
+    (reachOf && subjectModule ? reachOf(subjectModule) === Reach.ALL : false) ||
+    scopeFor(permission) === Scope.ALL;
 
   const isTimeline = tab === "Timeline";
   const archived = tab === "Withdrawn";

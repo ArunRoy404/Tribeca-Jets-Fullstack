@@ -1,5 +1,6 @@
 import { getFullName } from "@/lib/user";
 import { Permission } from "@/lib/permissions";
+import { Module } from "@/lib/access";
 import { formatDocumentCategory } from "@/lib/document";
 
 /**
@@ -12,17 +13,17 @@ import { formatDocumentCategory } from "@/lib/document";
  */
 
 /**
- * Which permission governs writing on each kind of subject.
- *
- * Mirrors `notes.subjects.ts` on the API, which is the enforcement point —
- * this only decides whether to *render* the composer. It exists because
- * `NotesTimeline` takes a `subjectType` and is meant to serve trips as well as
- * clients: a hardcoded `MANAGE_CLIENTS` would offer a trip's composer to
- * somebody the API refuses, and hide it from somebody it allows.
- *
- * A subject missing from this map yields `undefined`, which `canWrite` treats
- * as no permission — so a new subject type fails closed until somebody adds
- * its row here.
+ * Which module governs each kind of subject under per-person permissions.
+ */
+export const SUBJECT_MODULE = {
+  CLIENT: Module.CLIENTS,
+  TRIP: Module.TRIPS,
+  REFERRAL: Module.REFERRALS,
+  FLIGHT: Module.FLIGHT_TRACKING,
+};
+
+/**
+ * Which permission governs writing on each kind of subject (legacy matrix).
  */
 export const SUBJECT_PERMISSION = {
   CLIENT: Permission.MANAGE_CLIENTS,
