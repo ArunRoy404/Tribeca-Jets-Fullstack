@@ -46,8 +46,9 @@ TEARDOWN = [
     '// actually works.',
     "const id = pm.collectionVariables.get('newClientId');",
     'if (id) {',
+    "    const baseUrl = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
     '    pm.sendRequest({',
-    "        url: pm.collectionVariables.get('baseUrl') + '/clients/' + id,",
+    "        url: baseUrl + '/clients/' + id,",
     "        method: 'DELETE',",
     "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
     '    }, function (err) {',
@@ -63,8 +64,11 @@ def script(lines: list[str]) -> dict:
 
 
 def main() -> None:
+    from session_setup import with_session
+
     collection = json.loads(COLLECTION.read_text())
     folder = next(f for f in collection['item'] if f['name'].startswith('03 · Clients'))
+    with_session(folder, 'owner')
     by_name = {r['name']: r for r in folder['item']}
 
     by_name['04 · Create client']['event'] = [script(CAPTURE)]
@@ -75,7 +79,7 @@ def main() -> None:
         collection['variable'].append({'key': 'newClientId', 'value': '', 'type': 'string'})
 
     COLLECTION.write_text(json.dumps(collection, indent=2) + '\n')
-    print('clients folder: capture + teardown wired')
+    print('clients folder: capture + teardown + session wired')
 
 
 if __name__ == '__main__':

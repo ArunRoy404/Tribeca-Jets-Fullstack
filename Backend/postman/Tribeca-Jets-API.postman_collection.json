@@ -4630,8 +4630,9 @@
                   "// actually works.",
                   "const id = pm.collectionVariables.get('newClientId');",
                   "if (id) {",
+                  "    const baseUrl = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
                   "    pm.sendRequest({",
-                  "        url: pm.collectionVariables.get('baseUrl') + '/clients/' + id,",
+                  "        url: baseUrl + '/clients/' + id,",
                   "        method: 'DELETE',",
                   "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
                   "    }, function (err) {",
@@ -4665,8 +4666,9 @@
               "const NEEDED = 'owner';",
               "",
               "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    const baseUrl = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
               "    pm.sendRequest({",
-              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        url: baseUrl + '/auth/login',",
               "        method: 'POST',",
               "        header: { 'Content-Type': 'application/json' },",
               "        body: {",
@@ -4686,7 +4688,7 @@
               "        if (body && body.data && body.data.requiresTwoFactor) {",
               "            const code = body.data.devCode && body.data.devCode.code;",
               "            pm.sendRequest({",
-              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                url: baseUrl + '/auth/two-factor/verify',",
               "                method: 'POST',",
               "                header: { 'Content-Type': 'application/json' },",
               "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
@@ -9543,15 +9545,272 @@
     },
     {
       "name": "07 \u00b7 Aircraft",
-      "description": "The fleet: individual airframes, each belonging to an operator and usually based at an airport.\n\nBoth of those are real foreign keys, which is why Operators and Airports had to ship first \u2014 see AGENTS.md on build order. Quotes, trips, empty legs and flight tracking will all reference this table.\n\nEvery request below is signed in as the seeded SUPER_ADMIN by the folder's pre-request script, except the 403 examples, which were captured as the seeded assistant.",
+      "description": "The fleet: individual airframes, each belonging to an operator and usually based at an airport.\n\nBoth of those are real foreign keys, which is why Operators and Airports had to ship first \u2014 see AGENTS.md on build order. Quotes, trips, empty legs and flight tracking all reference this table.\n\n### Who may do what (reviewed Module 8)\n\n| | Needs |\n|---|---|\n| List, stats, cabin features, one aircraft | **A staff session only** \u2014 pickers and fleet searches across other modules rely on it |\n| Add | `Aircraft \u00b7 Create` in the caller's own permissions |\n| Edit, status change | `Aircraft \u00b7 Edit` |\n| Remove, restore, bulk | `Aircraft \u00b7 Archive` (administrators by default; broker lacks Archive by default) |\n\n**A referral agent is refused every route** (403): the airframe fleet and its home bases are internal desk data.\n\n### Fixed choices (case-sensitive)\n\n| Field | Values |\n|---|---|\n| `category` | TURBOPROP \u00b7 LIGHT_JET \u00b7 MIDSIZE_JET \u00b7 SUPER_MIDSIZE \u00b7 HEAVY_JET \u00b7 ULTRA_LONG_RANGE \u00b7 VIP_AIRLINER |\n| `status` | AVAILABLE \u00b7 IN_SERVICE \u00b7 MAINTENANCE \u00b7 INACTIVE |\n\nThis folder runs as the seeded owner; refusals were captured as the assistant, the broker and the referral agent.",
       "item": [
         {
-          "name": "01 \u00b7 List aircraft",
+          "name": "01 \u00b7 Add aircraft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/aircraft",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "aircraft"
+              ]
+            },
+            "description": "Needs **Aircraft \u00b7 Create**. Tail number, model and category are required. The tail number is upper-cased and unique across live and archived rows. Operator and home base are checked to exist and be active.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tailNumber\": \"{{newAircraftTail}}\",                 // required \u00b7 2-12 chars, letters/digits/hyphens, stored upper-case. Unique across live AND archived rows \u2192 duplicate returns 409.\n  \"model\": \"Falcon 8X\",                                // required \u00b7 1-120 chars. What the desk quotes (\"Gulfstream G550\").\n  \"category\": \"HEAVY_JET\",                             // required \u00b7 TURBOPROP | LIGHT_JET | MIDSIZE_JET | SUPER_MIDSIZE | HEAVY_JET | ULTRA_LONG_RANGE | VIP_AIRLINER. Case-sensitive.\n  \"status\": \"AVAILABLE\",                               // optional \u00b7 AVAILABLE | IN_SERVICE | MAINTENANCE | INACTIVE. Default AVAILABLE. Availability, not airworthiness.\n  \"manufacturer\": \"Dassault Aviation\",                 // optional \u00b7 max 120 chars\n  \"operatorId\": \"{{operatorId}}\",                      // optional \u00b7 uuid of a live operator, or null for \"Unassigned\". An unknown or archived operator returns 400.\n  \"homeBaseId\": \"{{airportId}}\",                       // optional \u00b7 uuid of a live airport. Where the tail sits when it is not flying.\n  \"maxPassengers\": 14,                                 // optional \u00b7 integer 1-200. Seats the broker quotes against, not the certified count.\n  \"rangeNm\": 6450,                                     // optional \u00b7 integer 1-20000 nautical miles.\n  \"yearBuilt\": 2023,                                   // optional \u00b7 integer 1950-2100. Year, not a date.\n  \"maxSpeed\": \"Mach 0.90\",                             // optional \u00b7 max 40 chars\n  \"cruiseSpeed\": \"Mach 0.85\",                          // optional \u00b7 max 40 chars\n  \"serviceCeilingFt\": 51000,                           // optional \u00b7 integer 0-100000\n  \"baggageCapacityCuFt\": 140,                          // optional \u00b7 integer 0-5000\n  \"cabinLengthFt\": 42.7,                               // optional \u00b7 number 0-300, one decimal\n  \"maxTakeoffWeightLb\": 73000,                         // optional \u00b7 integer 0-2000000\n  \"emptyWeightLb\": 41000,                              // optional \u00b7 integer 0-2000000\n  \"fuelCapacityGal\": 4900,                             // optional \u00b7 integer 0-100000\n  \"takeoffDistanceFt\": 5880,                           // optional \u00b7 integer 0-30000\n  \"landingDistanceFt\": 2260,                           // optional \u00b7 integer 0-30000\n  \"amenities\": [\"WiFi\", \"Full Galley\", \"Private Lavatory\"],  // optional \u00b7 up to 30 chips, each 1-60 chars.\n  \"lastInspectionAt\": \"2026-07-15\",                    // optional\n  \"lastAnnualAt\": \"2026-01-20\",                        // optional\n  \"nextInspectionDueAt\": \"2026-11-15\",                 // optional\n  \"notes\": \"Cabin refurbished 2025.\"                   // optional \u00b7 max 2000 chars\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 \u00b7 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tailNumber\": \"T1FC2BDF6\",\n  \"model\": \"Falcon 8X\",\n  \"category\": \"HEAVY_JET\",\n  \"status\": \"AVAILABLE\",\n  \"manufacturer\": \"Dassault Aviation\",\n  \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n  \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n  \"maxPassengers\": 14,\n  \"rangeNm\": 6450,\n  \"yearBuilt\": 2023,\n  \"maxSpeed\": \"Mach 0.90\",\n  \"cruiseSpeed\": \"Mach 0.85\",\n  \"serviceCeilingFt\": 51000,\n  \"baggageCapacityCuFt\": 140,\n  \"cabinLengthFt\": 42.7,\n  \"maxTakeoffWeightLb\": 73000,\n  \"emptyWeightLb\": 41000,\n  \"fuelCapacityGal\": 4900,\n  \"takeoffDistanceFt\": 5880,\n  \"landingDistanceFt\": 2260,\n  \"amenities\": [\n    \"WiFi\",\n    \"Full Galley\",\n    \"Private Lavatory\"\n  ],\n  \"lastInspectionAt\": \"2026-07-15\",\n  \"lastAnnualAt\": \"2026-01-20\",\n  \"nextInspectionDueAt\": \"2026-11-15\",\n  \"notes\": \"Cabin refurbished 2025.\"\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n    \"tailNumber\": \"T1FC2BDF6\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"AVAILABLE\",\n    \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n    \"operator\": {\n      \"id\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n    \"homeBase\": {\n      \"id\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": \"Mach 0.85\",\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"Cabin refurbished 2025.\",\n    \"exteriorImageUrl\": null,\n    \"interiorImageUrl\": null,\n    \"createdAt\": \"2026-10-09T08:23:40.790Z\",\n    \"createdById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n    \"updatedAt\": \"2026-10-09T08:23:40.790Z\",\n    \"updatedById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"avgUtilization\": null\n  }\n}"
+            },
+            {
+              "name": "409 \u00b7 Tail number already in use",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tailNumber\": \"T1FC2BDF6\",\n  \"model\": \"Falcon 8X\",\n  \"category\": \"HEAVY_JET\",\n  \"status\": \"AVAILABLE\",\n  \"manufacturer\": \"Dassault Aviation\",\n  \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n  \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n  \"maxPassengers\": 14,\n  \"rangeNm\": 6450,\n  \"yearBuilt\": 2023,\n  \"maxSpeed\": \"Mach 0.90\",\n  \"cruiseSpeed\": \"Mach 0.85\",\n  \"serviceCeilingFt\": 51000,\n  \"baggageCapacityCuFt\": 140,\n  \"cabinLengthFt\": 42.7,\n  \"maxTakeoffWeightLb\": 73000,\n  \"emptyWeightLb\": 41000,\n  \"fuelCapacityGal\": 4900,\n  \"takeoffDistanceFt\": 5880,\n  \"landingDistanceFt\": 2260,\n  \"amenities\": [\n    \"WiFi\",\n    \"Full Galley\",\n    \"Private Lavatory\"\n  ],\n  \"lastInspectionAt\": \"2026-07-15\",\n  \"lastAnnualAt\": \"2026-01-20\",\n  \"nextInspectionDueAt\": \"2026-11-15\",\n  \"notes\": \"Cabin refurbished 2025.\"\n}"
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An aircraft with tail number T1FC2BDF6 already exists\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-10-09T08:23:42.862Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tailNumber\": \"N 9/9\",\n  \"model\": \"\",\n  \"category\": \"Heavy Jet\",\n  \"rangeNm\": 99999\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"tailNumber\": \"A tail number contains only letters, digits and hyphens\",\n    \"model\": \"Aircraft model is required\",\n    \"category\": \"Choose an aircraft category\",\n    \"rangeNm\": \"Range must be a whole number of nautical miles\"\n  },\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-10-09T08:23:44.903Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Operator does not exist",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tailNumber\": \"N404OP\",\n  \"model\": \"Citation XLS\",\n  \"category\": \"MIDSIZE_JET\",\n  \"operatorId\": \"00000000-0000-4000-8000-000000000000\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That operator does not exist\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-10-09T08:23:46.927Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Photo is not an upload URL",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tailNumber\": \"N404PX\",\n  \"model\": \"Citation XLS\",\n  \"category\": \"MIDSIZE_JET\",\n  \"exteriorImageUrl\": \"https://example.com/xls.jpg\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"exteriorImageUrl\": \"Use the URL the upload returned, like /api/uploads/<id>\"\n  },\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-10-09T08:23:48.969Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 An assistant (no Aircraft \u00b7 Create)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"tailNumber\": \"T1FC2BDF6\",\n  \"model\": \"Falcon 8X\",\n  \"category\": \"HEAVY_JET\",\n  \"status\": \"AVAILABLE\",\n  \"manufacturer\": \"Dassault Aviation\",\n  \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n  \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n  \"maxPassengers\": 14,\n  \"rangeNm\": 6450,\n  \"yearBuilt\": 2023,\n  \"maxSpeed\": \"Mach 0.90\",\n  \"cruiseSpeed\": \"Mach 0.85\",\n  \"serviceCeilingFt\": 51000,\n  \"baggageCapacityCuFt\": 140,\n  \"cabinLengthFt\": 42.7,\n  \"maxTakeoffWeightLb\": 73000,\n  \"emptyWeightLb\": 41000,\n  \"fuelCapacityGal\": 4900,\n  \"takeoffDistanceFt\": 5880,\n  \"landingDistanceFt\": 2260,\n  \"amenities\": [\n    \"WiFi\",\n    \"Full Galley\",\n    \"Private Lavatory\"\n  ],\n  \"lastInspectionAt\": \"2026-07-15\",\n  \"lastAnnualAt\": \"2026-01-20\",\n  \"nextInspectionDueAt\": \"2026-11-15\",\n  \"notes\": \"Cabin refurbished 2025.\"\n}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Aircraft \\u00b7 Create\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-10-09T08:23:51.031Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const tail = 'T' + Date.now().toString(36).toUpperCase().slice(-8);",
+                  "pm.collectionVariables.set('newAircraftTail', tail);",
+                  "const base = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
+                  "pm.sendRequest({ url: base + '/operators?limit=1', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res.code === 200 && res.json().data.length) {",
+                  "        pm.collectionVariables.set('operatorId', res.json().data[0].id);",
+                  "    }",
+                  "});",
+                  "pm.sendRequest({ url: base + '/airports?limit=1', method: 'GET' }, function (err, res) {",
+                  "    if (!err && res.code === 200 && res.json().data.length) {",
+                  "        pm.collectionVariables.set('airportId', res.json().data[0].id);",
+                  "    }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.collectionVariables.set('newAircraftId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 List aircraft",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/aircraft?page=1&limit=10&search=&sortOrder=desc&sortBy=createdAt&status=&category=&operatorId=&homeBaseId=&minPassengers=&minRangeNm=&amenities=&archived=false",
+              "raw": "{{baseUrl}}/aircraft?page=1&limit=10&sortOrder=desc&sortBy=createdAt",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -9567,7 +9826,7 @@
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "Rows per page. Integer 1-100. Default 10, matching the rows-per-page dropdown in the UI. >100 or <1 \u2192 400."
+                  "description": "Rows per page. Integer 1-100. Default 10. >100 or <1 \u2192 400."
                 },
                 {
                   "key": "search",
@@ -9583,13 +9842,13 @@
                 {
                   "key": "sortBy",
                   "value": "createdAt",
-                  "description": "Allowed (case-sensitive): createdAt | updatedAt | tailNumber | model | category | status | maxPassengers | rangeNm | yearBuilt. Default createdAt, paired with sortOrder desc, so a newly added tail is the first row. A closed list \u2014 anything else returns 400 rather than reaching the database."
+                  "description": "Allowed (case-sensitive): createdAt | updatedAt | tailNumber | model | category | status | maxPassengers | rangeNm | yearBuilt. Default createdAt."
                 },
                 {
                   "key": "status",
                   "value": "",
                   "disabled": true,
-                  "description": "Allowed (case-sensitive): AVAILABLE | IN_SERVICE | MAINTENANCE | INACTIVE. Omit for all. Lower-case returns 400 rather than being silently corrected."
+                  "description": "Allowed (case-sensitive): AVAILABLE | IN_SERVICE | MAINTENANCE | INACTIVE. Omit for all."
                 },
                 {
                   "key": "category",
@@ -9601,7 +9860,7 @@
                   "key": "operatorId",
                   "value": "",
                   "disabled": true,
-                  "description": "uuid. Only this operator's fleet \u2014 what the operator detail page's Fleet tab reads."
+                  "description": "uuid. Only this operator's fleet."
                 },
                 {
                   "key": "homeBaseId",
@@ -9613,29 +9872,29 @@
                   "key": "minPassengers",
                   "value": "",
                   "disabled": true,
-                  "description": "The fleet finder (scope \u00a76.8). Integer 1-200. Seats AT LEAST this many \u2014 more seats still answers \"what can carry nine\". A tail with no capacity recorded is excluded, not assumed to fit."
+                  "description": "The fleet finder (scope \u00a76.8). Integer 1-200. Seats AT LEAST this many."
                 },
                 {
                   "key": "minRangeNm",
                   "value": "",
                   "disabled": true,
-                  "description": "Integer 1-20000 nautical miles, AT LEAST. Same rule: an unknown range is excluded rather than guessed."
+                  "description": "Integer 1-20000 nautical miles, AT LEAST."
                 },
                 {
                   "key": "amenities",
                   "value": "",
                   "disabled": true,
-                  "description": "Cabin-preference filtering (scope \u00a76.8). Comma separated (\"WiFi,Full Galley\"), max 400 chars. The aircraft must have ALL of them \u2014 a requested feature is a requirement, so one missing makes it a wrong answer, not a weaker match. Values come from GET /aircraft/amenities and are matched exactly, including case."
+                  "description": "Cabin-preference filtering. Comma separated (\"WiFi,Full Galley\"), max 400 chars. Must match all."
                 },
                 {
                   "key": "archived",
                   "value": "false",
                   "disabled": true,
-                  "description": "Allowed (case-sensitive): true | false. Default false \u2014 only live rows. `true` returns ONLY archived ones, for the Archived tab."
+                  "description": "Allowed: true | false. Default false \u2014 only live rows. `true` returns only archived ones."
                 }
               ]
             },
-            "description": "Paginated list of the fleet. Search covers **tail number, model, manufacturer, the operator's name and the home base's ICAO, name and city** in one term \u2014 \"VistaJet\" and \"Aspen\" both find aircraft, even though neither is a column on this table.\n\n`operator` and `homeBase` come back as objects rather than names, so the table can link to them and cannot show a stale name after a rename.\n\n`totalTrips`, `tripsThisYear` and `avgUtilization` are **null**, not 0: they are aggregates over trips, and that module does not exist yet. Null lets the UI show an em dash instead of claiming a tail has never flown.\n\nSee the Params tab for every filter, its default and its bounds."
+            "description": "Paginated list of the fleet. **Any staff member** \u2014 pickers and search read it; a referral agent is refused. Search covers tail number, model, manufacturer, operator name, and home base ICAO/name/city."
           },
           "response": [
             {
@@ -9644,11 +9903,13 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft?page=1&limit=3",
+                  "raw": "{{baseUrl}}/aircraft?page=1&limit=2",
                   "host": [
                     "{{baseUrl}}"
                   ],
-                  "path": []
+                  "path": [
+                    "aircraft"
+                  ]
                 }
               },
               "status": "OK",
@@ -9661,23 +9922,25 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"4b27a862-4e2c-4727-b07b-35b2cdd37039\",\n      \"tailNumber\": \"TP399228\",\n      \"model\": \"Gulfstream G550\",\n      \"manufacturer\": null,\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": null,\n      \"operator\": null,\n      \"homeBaseId\": null,\n      \"homeBase\": null,\n      \"maxPassengers\": null,\n      \"rangeNm\": null,\n      \"yearBuilt\": null,\n      \"maxSpeed\": null,\n      \"cruiseSpeed\": null,\n      \"serviceCeilingFt\": null,\n      \"baggageCapacityCuFt\": null,\n      \"cabinLengthFt\": null,\n      \"maxTakeoffWeightLb\": null,\n      \"emptyWeightLb\": null,\n      \"fuelCapacityGal\": null,\n      \"takeoffDistanceFt\": null,\n      \"landingDistanceFt\": null,\n      \"amenities\": [],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": null,\n      \"exteriorImageUrl\": \"/api/uploads/dc7b378f-0a3f-414a-86fe-6ddc8e794537\",\n      \"interiorImageUrl\": \"/api/uploads/dc7b378f-0a3f-414a-86fe-6ddc8e794537\",\n      \"createdAt\": \"2026-09-26T05:07:10.148Z\",\n      \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"updatedAt\": \"2026-09-26T05:07:33.907Z\",\n      \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"27ef10ab-d53b-45b6-ac36-9e1561e4c1f6\",\n      \"tailNumber\": \"N750CL\",\n      \"model\": \"Citation X\",\n      \"manufacturer\": \"Textron Aviation\",\n      \"category\": \"SUPER_MIDSIZE\",\n      \"status\": \"INACTIVE\",\n      \"operatorId\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n      \"operator\": {\n        \"id\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n        \"name\": \"Clay Lacy Aviation\",\n        \"status\": \"INACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"1b6a1168-ffc2-4fd8-8d8b-96bd5434c101\",\n      \"homeBase\": {\n        \"id\": \"1b6a1168-ffc2-4fd8-8d8b-96bd5434c101\",\n        \"icao\": \"KVNY\",\n        \"iata\": \"VNY\",\n        \"name\": \"Van Nuys Airport\",\n        \"city\": \"Los Angeles\"\n      },\n      \"maxPassengers\": 8,\n      \"rangeNm\": 3070,\n      \"yearBuilt\": 2012,\n      \"maxSpeed\": \"Mach 0.935\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 82,\n      \"cabinLengthFt\": 25.2,\n      \"maxTakeoffWeightLb\": 36600,\n      \"emptyWeightLb\": 22100,\n      \"fuelCapacityGal\": 1926,\n      \"takeoffDistanceFt\": 5140,\n      \"landingDistanceFt\": 3180,\n      \"amenities\": [\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Withdrawn from charter when the West Coast desk moved to NetJets.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-09-26T04:19:34.208Z\",\n      \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"updatedAt\": \"2026-09-26T04:19:34.208Z\",\n      \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"367f830c-a514-4925-8cbc-969f84c2f1ef\",\n      \"tailNumber\": \"N208CL\",\n      \"model\": \"Pilatus PC-12 NGX\",\n      \"manufacturer\": \"Pilatus Aircraft\",\n      \"category\": \"TURBOPROP\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n      \"operator\": {\n        \"id\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n        \"name\": \"Clay Lacy Aviation\",\n        \"status\": \"INACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"6f8427e1-94ab-4e54-990f-0aeabbd9d8f9\",\n      \"homeBase\": {\n        \"id\": \"6f8427e1-94ab-4e54-990f-0aeabbd9d8f9\",\n        \"icao\": \"KASE\",\n        \"iata\": \"ASE\",\n        \"name\": \"Aspen/Pitkin County\",\n        \"city\": \"Aspen\"\n      },\n      \"maxPassengers\": 8,\n      \"rangeNm\": 1803,\n      \"yearBuilt\": 2021,\n      \"maxSpeed\": \"290 KTAS\",\n      \"cruiseSpeed\": \"270 KTAS\",\n      \"serviceCeilingFt\": 30000,\n      \"baggageCapacityCuFt\": 40,\n      \"cabinLengthFt\": 16.9,\n      \"maxTakeoffWeightLb\": 10450,\n      \"emptyWeightLb\": 6600,\n      \"fuelCapacityGal\": 402,\n      \"takeoffDistanceFt\": 2600,\n      \"landingDistanceFt\": 2170,\n      \"amenities\": [\n        \"Power Outlets\",\n        \"Refreshment Centre\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Short-field capable. The only tail that can work KASE in winter.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-09-26T04:19:34.203Z\",\n      \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"updatedAt\": \"2026-09-26T04:19:34.203Z\",\n      \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 3,\n    \"total\": 8,\n    \"totalPages\": 3,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n      \"tailNumber\": \"T1FC2BDF6\",\n      \"model\": \"Falcon 8X\",\n      \"manufacturer\": \"Dassault Aviation\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n      \"operator\": {\n        \"id\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n        \"name\": \"Clay Lacy Aviation\",\n        \"status\": \"INACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n      \"homeBase\": {\n        \"id\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n        \"icao\": \"LFPB\",\n        \"iata\": \"LBG\",\n        \"name\": \"Paris Le Bourget\",\n        \"city\": \"Paris\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6450,\n      \"yearBuilt\": 2023,\n      \"maxSpeed\": \"Mach 0.90\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 140,\n      \"cabinLengthFt\": 42.7,\n      \"maxTakeoffWeightLb\": 73000,\n      \"emptyWeightLb\": 41000,\n      \"fuelCapacityGal\": 4900,\n      \"takeoffDistanceFt\": 5880,\n      \"landingDistanceFt\": 2260,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"Cabin refurbished 2025.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-10-09T08:23:40.790Z\",\n      \"createdById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n      \"updatedAt\": \"2026-10-09T08:23:40.790Z\",\n      \"updatedById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"avgUtilization\": null,\n      \"totalTrips\": 0,\n      \"tripsThisYear\": 0\n    },\n    {\n      \"id\": \"a3d0ced5-2bd0-4ae6-8b22-a67f78e3934c\",\n      \"tailNumber\": \"N750CL\",\n      \"model\": \"Citation X\",\n      \"manufacturer\": \"Textron Aviation\",\n      \"category\": \"SUPER_MIDSIZE\",\n      \"status\": \"INACTIVE\",\n      \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n      \"operator\": {\n        \"id\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n        \"name\": \"Clay Lacy Aviation\",\n        \"status\": \"INACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"bec200de-f42b-4d7b-a9ad-2c21d1a6fe6a\",\n      \"homeBase\": {\n        \"id\": \"bec200de-f42b-4d7b-a9ad-2c21d1a6fe6a\",\n        \"icao\": \"KVNY\",\n        \"iata\": \"VNY\",\n        \"name\": \"Van Nuys Airport\",\n        \"city\": \"Los Angeles\"\n      },\n      \"maxPassengers\": 8,\n      \"rangeNm\": 3070,\n      \"yearBuilt\": 2012,\n      \"maxSpeed\": \"Mach 0.935\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 82,\n      \"cabinLengthFt\": 25.2,\n      \"maxTakeoffWeightLb\": 36600,\n      \"emptyWeightLb\": 22100,\n      \"fuelCapacityGal\": 1926,\n      \"takeoffDistanceFt\": 5140,\n      \"landingDistanceFt\": 3180,\n      \"amenities\": [\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Withdrawn from charter when the West Coast desk moved to NetJets.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-09-19T14:58:29.742Z\",\n      \"createdById\": \"81a3a148-eae0-40a3-a04c-90df528e8a55\",\n      \"updatedAt\": \"2026-09-19T14:58:29.742Z\",\n      \"updatedById\": \"81a3a148-eae0-40a3-a04c-90df528e8a55\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"avgUtilization\": null,\n      \"totalTrips\": 0,\n      \"tripsThisYear\": 0\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 2,\n    \"total\": 8,\n    \"totalPages\": 4,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
-              "name": "400 \u00b7 Unsortable column",
+              "name": "200 \u00b7 An assistant (reads need only a staff session)",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft?sortBy=notes",
+                  "raw": "{{baseUrl}}/aircraft?page=1&limit=1",
                   "host": [
                     "{{baseUrl}}"
                   ],
-                  "path": []
+                  "path": [
+                    "aircraft"
+                  ]
                 }
               },
-              "status": "Bad Request",
-              "code": 400,
+              "status": "OK",
+              "code": 200,
               "_postman_previewlanguage": "json",
               "header": [
                 {
@@ -9686,32 +9949,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"tailNumber\\\"|\\\"model\\\"|\\\"category\\\"|\\\"status\\\"|\\\"maxPassengers\\\"|\\\"rangeNm\\\"|\\\"yearBuilt\\\"\"\n  },\n  \"path\": \"/api/aircraft?sortBy=notes\",\n  \"timestamp\": \"2026-09-26T05:12:42.660Z\"\n}"
-            },
-            {
-              "name": "400 \u00b7 Enum is case-sensitive",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/aircraft?category=heavy_jet",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": []
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"category\": \"Invalid option: expected one of \\\"TURBOPROP\\\"|\\\"LIGHT_JET\\\"|\\\"MIDSIZE_JET\\\"|\\\"SUPER_MIDSIZE\\\"|\\\"HEAVY_JET\\\"|\\\"ULTRA_LONG_RANGE\\\"|\\\"VIP_AIRLINER\\\"\"\n  },\n  \"path\": \"/api/aircraft?category=heavy_jet\",\n  \"timestamp\": \"2026-09-26T05:12:44.691Z\"\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n      \"tailNumber\": \"T1FC2BDF6\",\n      \"model\": \"Falcon 8X\",\n      \"manufacturer\": \"Dassault Aviation\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n      \"operator\": {\n        \"id\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n        \"name\": \"Clay Lacy Aviation\",\n        \"status\": \"INACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n      \"homeBase\": {\n        \"id\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n        \"icao\": \"LFPB\",\n        \"iata\": \"LBG\",\n        \"name\": \"Paris Le Bourget\",\n        \"city\": \"Paris\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6450,\n      \"yearBuilt\": 2023,\n      \"maxSpeed\": \"Mach 0.90\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 140,\n      \"cabinLengthFt\": 42.7,\n      \"maxTakeoffWeightLb\": 73000,\n      \"emptyWeightLb\": 41000,\n      \"fuelCapacityGal\": 4900,\n      \"takeoffDistanceFt\": 5880,\n      \"landingDistanceFt\": 2260,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"Cabin refurbished 2025.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-10-09T08:23:40.790Z\",\n      \"createdById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n      \"updatedAt\": \"2026-10-09T08:23:40.790Z\",\n      \"updatedById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"avgUtilization\": null,\n      \"totalTrips\": 0,\n      \"tripsThisYear\": 0\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 1,\n    \"total\": 8,\n    \"totalPages\": 8,\n    \"hasNext\": true,\n    \"hasPrevious\": false\n  }\n}"
             },
             {
               "name": "200 \u00b7 Fleet finder",
@@ -9723,7 +9961,9 @@
                   "host": [
                     "{{baseUrl}}"
                   ],
-                  "path": []
+                  "path": [
+                    "aircraft"
+                  ]
                 }
               },
               "status": "OK",
@@ -9736,7 +9976,61 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"9ecb2ab2-7d2a-4ffb-9a2f-cd27ed6c862a\",\n      \"tailNumber\": \"N600VJ\",\n      \"model\": \"Global 6000\",\n      \"manufacturer\": \"Bombardier Aviation\",\n      \"category\": \"ULTRA_LONG_RANGE\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"afc5925e-8b87-4a43-9ecd-df59893d10d6\",\n      \"operator\": {\n        \"id\": \"afc5925e-8b87-4a43-9ecd-df59893d10d6\",\n        \"name\": \"VistaJet\",\n        \"status\": \"ACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"8edc2c86-8d33-4740-af6d-7b9ddfdd0128\",\n      \"homeBase\": {\n        \"id\": \"8edc2c86-8d33-4740-af6d-7b9ddfdd0128\",\n        \"icao\": \"EGLL\",\n        \"iata\": \"LHR\",\n        \"name\": \"London Heathrow Airport\",\n        \"city\": \"London\"\n      },\n      \"maxPassengers\": 13,\n      \"rangeNm\": 6000,\n      \"yearBuilt\": 2018,\n      \"maxSpeed\": \"Mach 0.89\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 195,\n      \"cabinLengthFt\": 43.3,\n      \"maxTakeoffWeightLb\": 99500,\n      \"emptyWeightLb\": 56000,\n      \"fuelCapacityGal\": 6600,\n      \"takeoffDistanceFt\": 6476,\n      \"landingDistanceFt\": 2670,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Lie-flat Seats\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Silver and red stripe livery. Transatlantic workhorse.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-09-26T04:19:34.184Z\",\n      \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"updatedAt\": \"2026-09-26T04:19:34.184Z\",\n      \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"245a1c9d-18a0-406e-8df6-2c300880cc52\",\n      \"tailNumber\": \"N680EX\",\n      \"model\": \"Challenger 350\",\n      \"manufacturer\": \"Bombardier Aviation\",\n      \"category\": \"SUPER_MIDSIZE\",\n      \"status\": \"IN_SERVICE\",\n      \"operatorId\": \"2e729971-9734-46bb-9178-3f9afbd6ae49\",\n      \"operator\": {\n        \"id\": \"2e729971-9734-46bb-9178-3f9afbd6ae49\",\n        \"name\": \"FlexJet\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"1b6a1168-ffc2-4fd8-8d8b-96bd5434c101\",\n      \"homeBase\": {\n        \"id\": \"1b6a1168-ffc2-4fd8-8d8b-96bd5434c101\",\n        \"icao\": \"KVNY\",\n        \"iata\": \"VNY\",\n        \"name\": \"Van Nuys Airport\",\n        \"city\": \"Los Angeles\"\n      },\n      \"maxPassengers\": 9,\n      \"rangeNm\": 3200,\n      \"yearBuilt\": 2020,\n      \"maxSpeed\": \"Mach 0.83\",\n      \"cruiseSpeed\": \"Mach 0.80\",\n      \"serviceCeilingFt\": 45000,\n      \"baggageCapacityCuFt\": 106,\n      \"cabinLengthFt\": 25.2,\n      \"maxTakeoffWeightLb\": 40600,\n      \"emptyWeightLb\": 23200,\n      \"fuelCapacityGal\": 2100,\n      \"takeoffDistanceFt\": 4835,\n      \"landingDistanceFt\": 2364,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Coast-to-coast US capability.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-09-26T04:19:34.174Z\",\n      \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"updatedAt\": \"2026-09-26T04:19:34.174Z\",\n      \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    },\n    {\n      \"id\": \"8f929154-55ea-4776-95f4-dd632f85eb9a\",\n      \"tailNumber\": \"N780EX\",\n      \"model\": \"Gulfstream G550\",\n      \"manufacturer\": \"Gulfstream Aerospace\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"c01666f7-3584-4b25-bcc5-83c689beaa1e\",\n      \"operator\": {\n        \"id\": \"c01666f7-3584-4b25-bcc5-83c689beaa1e\",\n        \"name\": \"ExecuJet\",\n        \"status\": \"ACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"0bcb6d8e-178f-40c0-a0ff-0f276bc20de3\",\n      \"homeBase\": {\n        \"id\": \"0bcb6d8e-178f-40c0-a0ff-0f276bc20de3\",\n        \"icao\": \"KTEB\",\n        \"iata\": \"TEB\",\n        \"name\": \"Teterboro Airport\",\n        \"city\": \"Teterboro\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6750,\n      \"yearBuilt\": 2019,\n      \"maxSpeed\": \"Mach 0.885\",\n      \"cruiseSpeed\": \"Mach 0.80\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 226,\n      \"cabinLengthFt\": 50.1,\n      \"maxTakeoffWeightLb\": 91000,\n      \"emptyWeightLb\": 48300,\n      \"fuelCapacityGal\": 6325,\n      \"takeoffDistanceFt\": 5910,\n      \"landingDistanceFt\": 2770,\n      \"amenities\": [\n        \"WiFi\",\n        \"Satellite Phone\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Lie-flat Seats\",\n        \"Entertainment System\",\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Gogo ATG-5000 WiFi. Premium interior configuration.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-09-26T04:19:34.152Z\",\n      \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"updatedAt\": \"2026-09-26T04:19:34.152Z\",\n      \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"totalTrips\": null,\n      \"tripsThisYear\": null,\n      \"avgUtilization\": null\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 3,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n      \"tailNumber\": \"T1FC2BDF6\",\n      \"model\": \"Falcon 8X\",\n      \"manufacturer\": \"Dassault Aviation\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n      \"operator\": {\n        \"id\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n        \"name\": \"Clay Lacy Aviation\",\n        \"status\": \"INACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n      \"homeBase\": {\n        \"id\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n        \"icao\": \"LFPB\",\n        \"iata\": \"LBG\",\n        \"name\": \"Paris Le Bourget\",\n        \"city\": \"Paris\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6450,\n      \"yearBuilt\": 2023,\n      \"maxSpeed\": \"Mach 0.90\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 140,\n      \"cabinLengthFt\": 42.7,\n      \"maxTakeoffWeightLb\": 73000,\n      \"emptyWeightLb\": 41000,\n      \"fuelCapacityGal\": 4900,\n      \"takeoffDistanceFt\": 5880,\n      \"landingDistanceFt\": 2260,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\"\n      ],\n      \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n      \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n      \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n      \"notes\": \"Cabin refurbished 2025.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-10-09T08:23:40.790Z\",\n      \"createdById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n      \"updatedAt\": \"2026-10-09T08:23:40.790Z\",\n      \"updatedById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"avgUtilization\": null,\n      \"totalTrips\": 0,\n      \"tripsThisYear\": 0\n    },\n    {\n      \"id\": \"f86fafe8-f201-4eef-97be-14dd0d5f309c\",\n      \"tailNumber\": \"N600VJ\",\n      \"model\": \"Global 6000\",\n      \"manufacturer\": \"Bombardier Aviation\",\n      \"category\": \"ULTRA_LONG_RANGE\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"069dddde-1044-4c48-b818-5be3d5dc3b5d\",\n      \"operator\": {\n        \"id\": \"069dddde-1044-4c48-b818-5be3d5dc3b5d\",\n        \"name\": \"VistaJet\",\n        \"status\": \"ACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"b616cd88-b0e9-47e9-bbd7-adbd96d27042\",\n      \"homeBase\": {\n        \"id\": \"b616cd88-b0e9-47e9-bbd7-adbd96d27042\",\n        \"icao\": \"EGLL\",\n        \"iata\": \"LHR\",\n        \"name\": \"London Heathrow Airport\",\n        \"city\": \"London\"\n      },\n      \"maxPassengers\": 13,\n      \"rangeNm\": 6000,\n      \"yearBuilt\": 2018,\n      \"maxSpeed\": \"Mach 0.89\",\n      \"cruiseSpeed\": \"Mach 0.85\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 195,\n      \"cabinLengthFt\": 43.3,\n      \"maxTakeoffWeightLb\": 99500,\n      \"emptyWeightLb\": 56000,\n      \"fuelCapacityGal\": 6600,\n      \"takeoffDistanceFt\": 6476,\n      \"landingDistanceFt\": 2670,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Lie-flat Seats\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Silver and red stripe livery. Transatlantic workhorse.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-09-19T14:58:29.709Z\",\n      \"createdById\": \"81a3a148-eae0-40a3-a04c-90df528e8a55\",\n      \"updatedAt\": \"2026-09-19T14:58:29.709Z\",\n      \"updatedById\": \"81a3a148-eae0-40a3-a04c-90df528e8a55\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"avgUtilization\": null,\n      \"totalTrips\": 0,\n      \"tripsThisYear\": 0\n    },\n    {\n      \"id\": \"55b4fddb-ff35-4f00-ad9b-e6b5e6838bee\",\n      \"tailNumber\": \"N680EX\",\n      \"model\": \"Challenger 350\",\n      \"manufacturer\": \"Bombardier Aviation\",\n      \"category\": \"SUPER_MIDSIZE\",\n      \"status\": \"IN_SERVICE\",\n      \"operatorId\": \"a2a0f5b2-e384-4535-ac06-60ceb4686b7b\",\n      \"operator\": {\n        \"id\": \"a2a0f5b2-e384-4535-ac06-60ceb4686b7b\",\n        \"name\": \"FlexJet\",\n        \"status\": \"PREFERRED\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"bec200de-f42b-4d7b-a9ad-2c21d1a6fe6a\",\n      \"homeBase\": {\n        \"id\": \"bec200de-f42b-4d7b-a9ad-2c21d1a6fe6a\",\n        \"icao\": \"KVNY\",\n        \"iata\": \"VNY\",\n        \"name\": \"Van Nuys Airport\",\n        \"city\": \"Los Angeles\"\n      },\n      \"maxPassengers\": 9,\n      \"rangeNm\": 3200,\n      \"yearBuilt\": 2020,\n      \"maxSpeed\": \"Mach 0.83\",\n      \"cruiseSpeed\": \"Mach 0.80\",\n      \"serviceCeilingFt\": 45000,\n      \"baggageCapacityCuFt\": 106,\n      \"cabinLengthFt\": 25.2,\n      \"maxTakeoffWeightLb\": 40600,\n      \"emptyWeightLb\": 23200,\n      \"fuelCapacityGal\": 2100,\n      \"takeoffDistanceFt\": 4835,\n      \"landingDistanceFt\": 2364,\n      \"amenities\": [\n        \"WiFi\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Coast-to-coast US capability.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-09-19T14:58:29.698Z\",\n      \"createdById\": \"81a3a148-eae0-40a3-a04c-90df528e8a55\",\n      \"updatedAt\": \"2026-09-19T14:58:29.698Z\",\n      \"updatedById\": \"81a3a148-eae0-40a3-a04c-90df528e8a55\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"avgUtilization\": null,\n      \"totalTrips\": 0,\n      \"tripsThisYear\": 0\n    },\n    {\n      \"id\": \"0610382b-a756-4558-bb8b-29d4155d2e70\",\n      \"tailNumber\": \"N780EX\",\n      \"model\": \"Gulfstream G550\",\n      \"manufacturer\": \"Gulfstream Aerospace\",\n      \"category\": \"HEAVY_JET\",\n      \"status\": \"AVAILABLE\",\n      \"operatorId\": \"56405e48-8e8d-4350-a675-bee752d5c546\",\n      \"operator\": {\n        \"id\": \"56405e48-8e8d-4350-a675-bee752d5c546\",\n        \"name\": \"ExecuJet\",\n        \"status\": \"ACTIVE\",\n        \"deletedAt\": null\n      },\n      \"homeBaseId\": \"5338e2b2-abd8-4d8a-b436-f84302b1c63a\",\n      \"homeBase\": {\n        \"id\": \"5338e2b2-abd8-4d8a-b436-f84302b1c63a\",\n        \"icao\": \"KTEB\",\n        \"iata\": \"TEB\",\n        \"name\": \"Teterboro Airport\",\n        \"city\": \"Teterboro\"\n      },\n      \"maxPassengers\": 14,\n      \"rangeNm\": 6750,\n      \"yearBuilt\": 2019,\n      \"maxSpeed\": \"Mach 0.885\",\n      \"cruiseSpeed\": \"Mach 0.80\",\n      \"serviceCeilingFt\": 51000,\n      \"baggageCapacityCuFt\": 226,\n      \"cabinLengthFt\": 50.1,\n      \"maxTakeoffWeightLb\": 91000,\n      \"emptyWeightLb\": 48300,\n      \"fuelCapacityGal\": 6325,\n      \"takeoffDistanceFt\": 5910,\n      \"landingDistanceFt\": 2770,\n      \"amenities\": [\n        \"WiFi\",\n        \"Satellite Phone\",\n        \"Full Galley\",\n        \"Private Lavatory\",\n        \"Lie-flat Seats\",\n        \"Entertainment System\",\n        \"Power Outlets\"\n      ],\n      \"lastInspectionAt\": null,\n      \"lastAnnualAt\": null,\n      \"nextInspectionDueAt\": null,\n      \"notes\": \"Gogo ATG-5000 WiFi. Premium interior configuration.\",\n      \"exteriorImageUrl\": null,\n      \"interiorImageUrl\": null,\n      \"createdAt\": \"2026-09-19T14:58:29.676Z\",\n      \"createdById\": \"81a3a148-eae0-40a3-a04c-90df528e8a55\",\n      \"updatedAt\": \"2026-09-19T14:58:29.676Z\",\n      \"updatedById\": \"81a3a148-eae0-40a3-a04c-90df528e8a55\",\n      \"deletedAt\": null,\n      \"deletedById\": null,\n      \"restoredAt\": null,\n      \"restoredById\": null,\n      \"deletedBy\": null,\n      \"restoredBy\": null,\n      \"avgUtilization\": null,\n      \"totalTrips\": 0,\n      \"tripsThisYear\": 0\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 4,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Unsortable column",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft?sortBy=notes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"sortBy\": \"Invalid option: expected one of \\\"createdAt\\\"|\\\"updatedAt\\\"|\\\"tailNumber\\\"|\\\"model\\\"|\\\"category\\\"|\\\"status\\\"|\\\"maxPassengers\\\"|\\\"rangeNm\\\"|\\\"yearBuilt\\\"\"\n  },\n  \"path\": \"/api/aircraft?sortBy=notes\",\n  \"timestamp\": \"2026-10-09T08:23:59.190Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Enum is case-sensitive",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft?category=heavy_jet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"category\": \"Invalid option: expected one of \\\"TURBOPROP\\\"|\\\"LIGHT_JET\\\"|\\\"MIDSIZE_JET\\\"|\\\"SUPER_MIDSIZE\\\"|\\\"HEAVY_JET\\\"|\\\"ULTRA_LONG_RANGE\\\"|\\\"VIP_AIRLINER\\\"\"\n  },\n  \"path\": \"/api/aircraft?category=heavy_jet\",\n  \"timestamp\": \"2026-10-09T08:24:01.218Z\"\n}"
             },
             {
               "name": "401 \u00b7 Not signed in",
@@ -9763,7 +10057,34 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/aircraft\",\n  \"timestamp\": \"2026-09-16T04:00:00.000Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-10-09T08:24:03.260Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 A referral agent (desk data)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"This is desk data; the referral portal cannot read it.\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-10-09T08:24:05.273Z\"\n}"
             }
           ],
           "event": [
@@ -9772,22 +10093,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// The detail, update and delete requests below need a real id.",
-                  "// Taking it from this list keeps the folder runnable end to end",
-                  "// without anyone pasting an aircraft id by hand.",
-                  "pm.test('list returned rows', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "    const rows = pm.response.json().data;",
-                  "    pm.expect(rows.length).to.be.above(0);",
-                  "    pm.collectionVariables.set('aircraftId', rows[0].id);",
-                  "});"
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "02 \u00b7 Aircraft stats",
+          "name": "03 \u00b7 Aircraft stats",
           "request": {
             "method": "GET",
             "header": [],
@@ -9801,7 +10114,7 @@
                 "stats"
               ]
             },
-            "description": "Counts for the four tiles above the aircraft table. Live rows only \u2014 archived aircraft are excluded from every count."
+            "description": "Counts for the four status tiles above the aircraft table. Live rows only."
           },
           "response": [
             {
@@ -9839,17 +10152,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('stats returned', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "    pm.expect(pm.response.json().data).to.have.property('total');",
-                  "});"
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "03 \u00b7 Cabin features",
+          "name": "04 \u00b7 Cabin features",
           "request": {
             "method": "GET",
             "header": [],
@@ -9863,7 +10173,7 @@
                 "amenities"
               ]
             },
-            "description": "Every cabin feature recorded on a live aircraft, de-duplicated and sorted \u2014 the options for the preference filter.\n\nDerived from the rows rather than a list fixed at design time, so the dropdown can never offer a feature nothing matches or omit one somebody typed yesterday. De-duplicated **case-insensitively**: \"WiFi\" and \"Wifi\" are one preference typed twice, and offering both would split the fleet for no reason.\n\nFeed these values back to `GET /aircraft?amenities=` exactly as returned \u2014 the filter matches case."
+            "description": "Every unique cabin amenity recorded across live aircraft, sorted and deduplicated case-insensitively."
           },
           "response": [
             {
@@ -9894,24 +10204,35 @@
               "cookie": [],
               "body": "{\n  \"success\": true,\n  \"data\": [\n    \"Entertainment System\",\n    \"Full Galley\",\n    \"Ka-band WiFi\",\n    \"Lie-flat Seats\",\n    \"Master Suite\",\n    \"Power Outlets\",\n    \"Private Lavatory\",\n    \"Refreshment Centre\",\n    \"Satellite Phone\",\n    \"WiFi\"\n  ]\n}"
             }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
           ]
         },
         {
-          "name": "04 \u00b7 Get aircraft",
+          "name": "05 \u00b7 Get aircraft",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/aircraft/{{aircraftId}}",
+              "raw": "{{baseUrl}}/aircraft/{{newAircraftId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "aircraft",
-                "{{aircraftId}}"
+                "{{newAircraftId}}"
               ]
             },
-            "description": "One aircraft, with its operator, home base and audit actors resolved.\n\n**Archived rows are returned here, deliberately.** The Archived tab links straight to this page, so filtering them out would list a row and then 404 it. The archive trail comes with the payload, so the page can offer Restore instead of pretending the aircraft is live.\n\n`tripHistory` is an empty array until the Trips module lands."
+            "description": "One aircraft with its operator, home base, audit trail and specs. Archived aircraft open too \u2014 the Archived tab links here."
           },
           "response": [
             {
@@ -9920,13 +10241,13 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft/{{aircraftId}}",
+                  "raw": "{{baseUrl}}/aircraft/:id",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "aircraft",
-                    "{{aircraftId}}"
+                    ":id"
                   ]
                 }
               },
@@ -9940,7 +10261,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"4b27a862-4e2c-4727-b07b-35b2cdd37039\",\n    \"tailNumber\": \"TP399228\",\n    \"model\": \"Gulfstream G550\",\n    \"manufacturer\": null,\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"AVAILABLE\",\n    \"operatorId\": null,\n    \"operator\": null,\n    \"homeBaseId\": null,\n    \"homeBase\": null,\n    \"maxPassengers\": null,\n    \"rangeNm\": null,\n    \"yearBuilt\": null,\n    \"maxSpeed\": null,\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": null,\n    \"baggageCapacityCuFt\": null,\n    \"cabinLengthFt\": null,\n    \"maxTakeoffWeightLb\": null,\n    \"emptyWeightLb\": null,\n    \"fuelCapacityGal\": null,\n    \"takeoffDistanceFt\": null,\n    \"landingDistanceFt\": null,\n    \"amenities\": [],\n    \"lastInspectionAt\": null,\n    \"lastAnnualAt\": null,\n    \"nextInspectionDueAt\": null,\n    \"notes\": null,\n    \"exteriorImageUrl\": \"/api/uploads/dc7b378f-0a3f-414a-86fe-6ddc8e794537\",\n    \"interiorImageUrl\": \"/api/uploads/dc7b378f-0a3f-414a-86fe-6ddc8e794537\",\n    \"createdAt\": \"2026-09-26T05:07:10.148Z\",\n    \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n    \"updatedAt\": \"2026-09-26T05:07:33.907Z\",\n    \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null,\n    \"tripHistory\": []\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n    \"tailNumber\": \"T1FC2BDF6\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"AVAILABLE\",\n    \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n    \"operator\": {\n      \"id\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n    \"homeBase\": {\n      \"id\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": \"Mach 0.85\",\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"Cabin refurbished 2025.\",\n    \"exteriorImageUrl\": null,\n    \"interiorImageUrl\": null,\n    \"createdAt\": \"2026-10-09T08:23:40.790Z\",\n    \"createdById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n    \"updatedAt\": \"2026-10-09T08:23:40.790Z\",\n    \"updatedById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"createdBy\": {\n      \"id\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"updatedBy\": {\n      \"id\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"avgUtilization\": null,\n    \"totalTrips\": 0,\n    \"tripsThisYear\": 0\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not found",
@@ -9948,13 +10269,13 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft/00000000-0000-4000-8000-000000000000",
+                  "raw": "{{baseUrl}}/aircraft/:id",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "aircraft",
-                    "00000000-0000-4000-8000-000000000000"
+                    ":id"
                   ]
                 }
               },
@@ -9968,201 +10289,21 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Aircraft not found\",\n  \"path\": \"/api/aircraft/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-09-26T05:12:54.988Z\"\n}"
-            }
-          ]
-        },
-        {
-          "name": "05 \u00b7 Add aircraft",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-CSRF-Token",
-                "value": "{{csrfToken}}",
-                "description": "Required on every write. Captured automatically after any login or refresh."
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tailNumber\": \"{{newAircraftTail}}\",                 // required \u00b7 2-12 chars, letters/digits/hyphens, stored upper-case. Unique across live AND archived rows \u2192 duplicate returns 409.\n\n  \"model\": \"Falcon 8X\",                                // required \u00b7 1-120 chars. What the desk quotes (\"Gulfstream G550\").\n\n  \"category\": \"HEAVY_JET\",                             // required \u00b7 TURBOPROP | LIGHT_JET | MIDSIZE_JET | SUPER_MIDSIZE | HEAVY_JET | ULTRA_LONG_RANGE | VIP_AIRLINER. Case-sensitive.\n\n  \"status\": \"AVAILABLE\",                               // optional \u00b7 AVAILABLE | IN_SERVICE | MAINTENANCE | INACTIVE. Default AVAILABLE. Availability, not airworthiness.\n\n  \"manufacturer\": \"Dassault Aviation\",                 // optional \u00b7 max 120 chars\n\n  \"operatorId\": \"{{operatorId}}\",                      // optional \u00b7 uuid of a live operator, or null for \"Unassigned\". An unknown or archived operator returns 400, not a bare FK error.\n  \"homeBaseId\": \"{{airportId}}\",                       // optional \u00b7 uuid of a live airport. Where the tail sits when it is not flying.\n\n  \"maxPassengers\": 14,                                 // optional \u00b7 integer 1-200. Seats the broker quotes against, not the certified count.\n  \"rangeNm\": 6450,                                     // optional \u00b7 integer 1-20000 nautical miles.\n  \"yearBuilt\": 2023,                                   // optional \u00b7 integer 1950-2100. Year, not a date.\n\n  \"maxSpeed\": \"Mach 0.90\",                             // optional \u00b7 max 40 chars                                                                                                                                                         // Speeds are free text: jets are quoted in Mach, turboprops in knots, and one numeric column cannot hold both without a second saying which unit it is.\n  \"cruiseSpeed\": \"Mach 0.85\",                          // optional \u00b7 max 40 chars\n\n  \"serviceCeilingFt\": 51000,                           // optional \u00b7 integer 0-100000                                                                                                                                                     // Everything below has one settled unit, so it is numeric. Leave a field out rather than guessing \u2014 an empty string is stored as absent, never as 0.\n  \"baggageCapacityCuFt\": 140,                          // optional \u00b7 integer 0-5000\n  \"cabinLengthFt\": 42.7,                               // optional \u00b7 number 0-300, one decimal\n  \"maxTakeoffWeightLb\": 73000,                         // optional \u00b7 integer 0-2000000\n  \"emptyWeightLb\": 41000,                              // optional \u00b7 integer 0-2000000\n  \"fuelCapacityGal\": 4900,                             // optional \u00b7 integer 0-100000\n  \"takeoffDistanceFt\": 5880,                           // optional \u00b7 integer 0-30000\n  \"landingDistanceFt\": 2260,                           // optional \u00b7 integer 0-30000\n\n  \"amenities\": [\"WiFi\", \"Full Galley\", \"Private Lavatory\"],  // optional \u00b7 up to 30 chips, each 1-60 chars. Replaced wholesale on update, never merged.\n\n  \"lastInspectionAt\": \"2026-07-15\",                    // optional                                                                                                                                                                        // Maintenance dates. YYYY-MM-DD, no time of day. The tab's Completed / Scheduled / Overdue badge is derived from these, never stored.\n  \"lastAnnualAt\": \"2026-01-20\",                        // optional\n  \"nextInspectionDueAt\": \"2026-11-15\",                 // optional\n\n  \"notes\": \"Cabin refurbished 2025.\",                  // optional \u00b7 max 2000 chars\n\n  \"exteriorImageUrl\": \"/api/uploads/00000000-0000-4000-8000-000000000001\", // optional \u00b7 exactly /api/uploads/<uuid>. An absolute or external URL is a 400 \u2014 it would pin a host into the row, or serve an image this API never checked.  // The fleet's photos (client adjustment #3). Upload first with POST /uploads/image (folder 11), then send the relative URL it returned.\n  \"interiorImageUrl\": \"/api/uploads/00000000-0000-4000-8000-000000000002\"  // optional \u00b7 same rule\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Aircraft not found\",\n  \"path\": \"/api/aircraft/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-10-09T08:24:13.446Z\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/aircraft",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "aircraft"
-              ]
-            },
-            "description": "Adds an aircraft. Requires `Manage Aircraft` at write scope \u2014 assistants receive 403; brokers may add, matching how they may add an operator.\n\n**Only tail number, model and category are required.** A tail is usually catalogued from a sourcing call with little more than the model, and demanding a full specification sheet up front only produces invented numbers.\n\n**The tail number is normalised and unique.** It is upper-cased on the way in, so `n780ex` and `N780EX` are the same airframe and cannot both exist. Unlike an airport ICAO, a tail held by an **archived** aircraft is *not* silently revived \u2014 the 409 names the situation and points at `08 \u00b7 Restore aircraft`, because an archived tail is usually a real airframe someone wants back with its history, not a code to recycle.\n\n**`operatorId` and `homeBaseId` are checked, not just constrained.** An unknown id returns a named 400 rather than a bare foreign-key error, and an *archived* operator is refused \u2014 the row still exists, so the database constraint alone would accept it."
-          },
-          "response": [
             {
-              "name": "201 \u00b7 Created",
+              "name": "403 \u00b7 A referral agent (desk data)",
               "originalRequest": {
-                "method": "POST",
+                "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft",
+                  "raw": "{{baseUrl}}/aircraft/:id",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
-                    "aircraft"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"tailNumber\": \"N982ZT\",\n  \"model\": \"Falcon 8X\",\n  \"category\": \"HEAVY_JET\",\n  \"status\": \"AVAILABLE\",\n  \"manufacturer\": \"Dassault Aviation\",\n  \"operatorId\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n  \"homeBaseId\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n  \"maxPassengers\": 14,\n  \"rangeNm\": 6450,\n  \"yearBuilt\": 2023,\n  \"maxSpeed\": \"Mach 0.90\",\n  \"cruiseSpeed\": \"Mach 0.85\",\n  \"serviceCeilingFt\": 51000,\n  \"baggageCapacityCuFt\": 140,\n  \"cabinLengthFt\": 42.7,\n  \"maxTakeoffWeightLb\": 73000,\n  \"emptyWeightLb\": 41000,\n  \"fuelCapacityGal\": 4900,\n  \"takeoffDistanceFt\": 5880,\n  \"landingDistanceFt\": 2260,\n  \"amenities\": [\n    \"WiFi\",\n    \"Full Galley\",\n    \"Private Lavatory\"\n  ],\n  \"lastInspectionAt\": \"2026-07-15\",\n  \"lastAnnualAt\": \"2026-01-20\",\n  \"nextInspectionDueAt\": \"2026-11-15\",\n  \"notes\": \"Cabin refurbished 2025.\",\n  \"exteriorImageUrl\": \"/api/uploads/00000000-0000-4000-8000-000000000001\",\n  \"interiorImageUrl\": \"/api/uploads/00000000-0000-4000-8000-000000000002\"\n}"
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"957b05d1-2b08-4e87-ae98-de7457c1efb0\",\n    \"tailNumber\": \"N982ZT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"AVAILABLE\",\n    \"operatorId\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n    \"operator\": {\n      \"id\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n    \"homeBase\": {\n      \"id\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": \"Mach 0.85\",\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"Cabin refurbished 2025.\",\n    \"exteriorImageUrl\": \"/api/uploads/00000000-0000-4000-8000-000000000001\",\n    \"interiorImageUrl\": \"/api/uploads/00000000-0000-4000-8000-000000000002\",\n    \"createdAt\": \"2026-09-26T05:12:57.041Z\",\n    \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n    \"updatedAt\": \"2026-09-26T05:12:57.041Z\",\n    \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null\n  }\n}"
-            },
-            {
-              "name": "409 \u00b7 Tail number already in use",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/aircraft",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "aircraft"
-                  ]
-                }
-              },
-              "status": "Conflict",
-              "code": 409,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"An aircraft with tail number N982ZT already exists\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-26T05:12:59.086Z\"\n}"
-            },
-            {
-              "name": "400 \u00b7 Validation failed",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/aircraft",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "aircraft"
-                  ]
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"tailNumber\": \"A tail number contains only letters, digits and hyphens\",\n    \"model\": \"Aircraft model is required\",\n    \"category\": \"Choose an aircraft category\",\n    \"rangeNm\": \"Range must be a whole number of nautical miles\"\n  },\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-26T05:13:01.122Z\"\n}"
-            },
-            {
-              "name": "400 \u00b7 Operator does not exist",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/aircraft",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "aircraft"
-                  ]
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That operator does not exist\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-26T05:13:03.155Z\"\n}"
-            },
-            {
-              "name": "400 \u00b7 Photo is not an upload URL",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/aircraft",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "aircraft"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"tailNumber\": \"N404PX\",\n  \"model\": \"Citation XLS\",\n  \"category\": \"MIDSIZE_JET\",\n  \"exteriorImageUrl\": \"https://example.com/xls.jpg\"\n}"
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"exteriorImageUrl\": \"Use the URL the upload returned, like /api/uploads/<id>\"\n  },\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-26T05:13:05.194Z\"\n}"
-            },
-            {
-              "name": "403 \u00b7 Role may read but not write",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/aircraft",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "aircraft"
+                    "aircraft",
+                    ":id"
                   ]
                 }
               },
@@ -10176,50 +10317,16 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Aircraft)\",\n  \"path\": \"/api/aircraft\",\n  \"timestamp\": \"2026-09-26T05:13:07.219Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"This is desk data; the referral portal cannot read it.\",\n  \"path\": \"/api/aircraft/4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n  \"timestamp\": \"2026-10-09T08:24:15.473Z\"\n}"
             }
           ],
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "// A tail this run has not used before. An archived tail number",
-                  "// stays reserved (see the 409 example), so a fixed one would",
-                  "// collide on the second run instead of exercising the endpoint.",
-                  "// Drawn from the clock rather than Math.random: 2,700 random tails",
-                  "// against a growing pile of archived probes collide sooner or later.",
-                  "const tail = 'T' + Date.now().toString(36).toUpperCase().slice(-8);",
-                  "pm.collectionVariables.set('newAircraftTail', tail);",
-                  "",
-                  "// The operator and home base come from live rows, not from folders",
-                  "// 05 and 06 having run first \u2014 a folder must pass on its own.",
-                  "const base = pm.collectionVariables.get('baseUrl');",
-                  "pm.sendRequest({ url: base + '/operators?limit=1', method: 'GET' }, function (err, res) {",
-                  "    if (!err && res.code === 200 && res.json().data.length) {",
-                  "        pm.collectionVariables.set('operatorId', res.json().data[0].id);",
-                  "    }",
-                  "});",
-                  "pm.sendRequest({ url: base + '/airports?limit=1', method: 'GET' }, function (err, res) {",
-                  "    if (!err && res.code === 200 && res.json().data.length) {",
-                  "        pm.collectionVariables.set('airportId', res.json().data[0].id);",
-                  "    }",
-                  "});"
-                ]
-              }
-            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// The update, remove and restore requests below operate on this",
-                  "// new aircraft, so running the folder never touches seeded rows.",
-                  "pm.test('created', function () {",
-                  "    pm.response.to.have.status(201);",
-                  "    pm.collectionVariables.set('newAircraftId', pm.response.json().data.id);",
-                  "});"
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -10240,15 +10347,6 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"MAINTENANCE\",                             // This is also how the Set Maintenance button grounds a tail: an ordinary field change, so it lands in the audit log as one.  // Every field optional \u2014 this is a PATCH, and an empty body returns 400. Send only what changed; anything omitted is left alone.\n\n  \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n\n  \"cruiseSpeed\": null,                                                                                                                                                                // `null` clears a field; omitting it leaves the stored value alone. The two are different instructions and the API treats them that way.\n  \"interiorImageUrl\": null                             // removes the interior photo; the uploaded file itself is kept\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/aircraft/{{newAircraftId}}",
               "host": [
@@ -10259,7 +10357,16 @@
                 "{{newAircraftId}}"
               ]
             },
-            "description": "Partial update \u2014 send only what changed. An empty body returns 400 rather than a no-op 200, so a broken client is visible instead of silent.\n\n**This is also how an aircraft is grounded.** The detail page's Set Maintenance button sends `status`, so putting a tail into maintenance is an ordinary field change and lands in the audit log as one, naming who did it.\n\n`null` clears a field; omitting it leaves the stored value alone. `amenities` is replaced wholesale rather than merged \u2014 the UI edits it as one field, so a merge would make removing a chip impossible.\n\nArchived aircraft return 404: restore first, then edit."
+            "description": "Needs **Aircraft \u00b7 Edit**. Send only what changed. Setting `status` to MAINTENANCE or INACTIVE is also done here.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"MAINTENANCE\",                             // Grounds a tail: an ordinary field change that lands in the audit log.  // Every field optional \u2014 this is a PATCH, and an empty body returns 400. Send only what changed; anything omitted is left alone.\n  \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n  \"cruiseSpeed\": null                                  // `null` clears an optional field\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
@@ -10268,14 +10375,18 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft/{{newAircraftId}}",
+                  "raw": "{{baseUrl}}/aircraft/:id",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "aircraft",
-                    "{{newAircraftId}}"
+                    ":id"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"MAINTENANCE\",\n  \"notes\": \"AOG at KTEB \\u2014 awaiting a hydraulic pump.\",\n  \"cruiseSpeed\": null\n}"
                 }
               },
               "status": "OK",
@@ -10288,7 +10399,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"957b05d1-2b08-4e87-ae98-de7457c1efb0\",\n    \"tailNumber\": \"N982ZT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"MAINTENANCE\",\n    \"operatorId\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n    \"operator\": {\n      \"id\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n    \"homeBase\": {\n      \"id\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n    \"exteriorImageUrl\": \"/api/uploads/00000000-0000-4000-8000-000000000001\",\n    \"interiorImageUrl\": null,\n    \"createdAt\": \"2026-09-26T05:12:57.041Z\",\n    \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n    \"updatedAt\": \"2026-09-26T05:13:09.276Z\",\n    \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n    \"tailNumber\": \"T1FC2BDF6\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"MAINTENANCE\",\n    \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n    \"operator\": {\n      \"id\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n    \"homeBase\": {\n      \"id\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"AOG at KTEB \\u2014 awaiting a hydraulic pump.\",\n    \"exteriorImageUrl\": null,\n    \"interiorImageUrl\": null,\n    \"createdAt\": \"2026-10-09T08:23:40.790Z\",\n    \"createdById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n    \"updatedAt\": \"2026-10-09T08:24:17.516Z\",\n    \"updatedById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": null,\n    \"restoredById\": null,\n    \"deletedBy\": null,\n    \"restoredBy\": null,\n    \"avgUtilization\": null\n  }\n}"
             },
             {
               "name": "400 \u00b7 Empty patch",
@@ -10296,13 +10407,13 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft/{{newAircraftId}}",
+                  "raw": "{{baseUrl}}/aircraft/:id",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "aircraft",
-                    "{{newAircraftId}}"
+                    ":id"
                   ]
                 },
                 "body": {
@@ -10320,7 +10431,50 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/aircraft/957b05d1-2b08-4e87-ae98-de7457c1efb0\",\n  \"timestamp\": \"2026-09-26T05:13:11.340Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Provide at least one field to update\"\n  },\n  \"path\": \"/api/aircraft/4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n  \"timestamp\": \"2026-10-09T08:24:19.560Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 An assistant (no Aircraft \u00b7 Edit)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft",
+                    ":id"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"MAINTENANCE\",\n  \"notes\": \"AOG at KTEB \\u2014 awaiting a hydraulic pump.\",\n  \"cruiseSpeed\": null\n}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Aircraft \\u00b7 Edit\",\n  \"path\": \"/api/aircraft/4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n  \"timestamp\": \"2026-10-09T08:24:21.593Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
@@ -10329,6 +10483,10 @@
           "request": {
             "method": "DELETE",
             "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
               {
                 "key": "X-CSRF-Token",
                 "value": "{{csrfToken}}",
@@ -10345,7 +10503,7 @@
                 "{{newAircraftId}}"
               ]
             },
-            "description": "Archives the aircraft. **There is no hard delete anywhere in this system** \u2014 the row is kept because quotes and trips will reference it, and destroying it would orphan the history of every flight it flew.\n\n**This is not how an aircraft leaves a fleet in normal use.** Set `status` to `INACTIVE` for that, which keeps the tail listed and searchable. Archiving is for a row that should not have been entered at all.\n\nThe tail number stays reserved while archived \u2014 see the 409 on `04 \u00b7 Add aircraft`."
+            "description": "Needs **Aircraft \u00b7 Archive** (administrators by default; broker lacks Archive). Keeps the row and reserves the tail number."
           },
           "response": [
             {
@@ -10354,13 +10512,13 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft/{{newAircraftId}}",
+                  "raw": "{{baseUrl}}/aircraft/:id",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "aircraft",
-                    "{{newAircraftId}}"
+                    ":id"
                   ]
                 }
               },
@@ -10375,6 +10533,45 @@
               ],
               "cookie": [],
               "body": ""
+            },
+            {
+              "name": "403 \u00b7 A broker (no Aircraft \u00b7 Archive)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Aircraft \\u00b7 Archive / restore\",\n  \"path\": \"/api/aircraft/4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n  \"timestamp\": \"2026-10-09T08:24:23.626Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
             }
           ]
         },
@@ -10383,6 +10580,10 @@
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
               {
                 "key": "X-CSRF-Token",
                 "value": "{{csrfToken}}",
@@ -10400,7 +10601,7 @@
                 "restore"
               ]
             },
-            "description": "Brings an archived aircraft back, exactly as it was: clears the deletion stamp, records who restored it, and touches nothing else. Every field returns untouched, including the tail number, which stayed reserved the whole time.\n\nA row that is not archived returns 404 \u2014 restoring a live aircraft is not a no-op, it is a sign the caller has the wrong id."
+            "description": "Needs **Aircraft \u00b7 Archive**. Brings an archived aircraft back exactly as it was. Clears deletedAt."
           },
           "response": [
             {
@@ -10409,13 +10610,13 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft/{{newAircraftId}}/restore",
+                  "raw": "{{baseUrl}}/aircraft/:id/restore",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "aircraft",
-                    "{{newAircraftId}}",
+                    ":id",
                     "restore"
                   ]
                 }
@@ -10430,7 +10631,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"957b05d1-2b08-4e87-ae98-de7457c1efb0\",\n    \"tailNumber\": \"N982ZT\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"MAINTENANCE\",\n    \"operatorId\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n    \"operator\": {\n      \"id\": \"d3291699-8e7b-43de-ac57-5e4901b98242\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n    \"homeBase\": {\n      \"id\": \"e4752216-7581-4753-99fd-2c445f58490a\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"AOG at KTEB \u2014 awaiting a hydraulic pump.\",\n    \"exteriorImageUrl\": \"/api/uploads/00000000-0000-4000-8000-000000000001\",\n    \"interiorImageUrl\": null,\n    \"createdAt\": \"2026-09-26T05:12:57.041Z\",\n    \"createdById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n    \"updatedAt\": \"2026-09-26T05:13:15.477Z\",\n    \"updatedById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-09-26T05:13:15.472Z\",\n    \"restoredById\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"4f365ea9-c76c-4671-9888-e26ee8b10b42\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"totalTrips\": null,\n    \"tripsThisYear\": null,\n    \"avgUtilization\": null\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\",\n    \"tailNumber\": \"T1FC2BDF6\",\n    \"model\": \"Falcon 8X\",\n    \"manufacturer\": \"Dassault Aviation\",\n    \"category\": \"HEAVY_JET\",\n    \"status\": \"MAINTENANCE\",\n    \"operatorId\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n    \"operator\": {\n      \"id\": \"291513bd-e837-4d81-a837-f88d4270e9b9\",\n      \"name\": \"Clay Lacy Aviation\",\n      \"status\": \"INACTIVE\",\n      \"deletedAt\": null\n    },\n    \"homeBaseId\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n    \"homeBase\": {\n      \"id\": \"37f8def3-7eb5-4a24-8221-4cdccaf0bccf\",\n      \"icao\": \"LFPB\",\n      \"iata\": \"LBG\",\n      \"name\": \"Paris Le Bourget\",\n      \"city\": \"Paris\"\n    },\n    \"maxPassengers\": 14,\n    \"rangeNm\": 6450,\n    \"yearBuilt\": 2023,\n    \"maxSpeed\": \"Mach 0.90\",\n    \"cruiseSpeed\": null,\n    \"serviceCeilingFt\": 51000,\n    \"baggageCapacityCuFt\": 140,\n    \"cabinLengthFt\": 42.7,\n    \"maxTakeoffWeightLb\": 73000,\n    \"emptyWeightLb\": 41000,\n    \"fuelCapacityGal\": 4900,\n    \"takeoffDistanceFt\": 5880,\n    \"landingDistanceFt\": 2260,\n    \"amenities\": [\n      \"WiFi\",\n      \"Full Galley\",\n      \"Private Lavatory\"\n    ],\n    \"lastInspectionAt\": \"2026-07-15T00:00:00.000Z\",\n    \"lastAnnualAt\": \"2026-01-20T00:00:00.000Z\",\n    \"nextInspectionDueAt\": \"2026-11-15T00:00:00.000Z\",\n    \"notes\": \"AOG at KTEB \\u2014 awaiting a hydraulic pump.\",\n    \"exteriorImageUrl\": null,\n    \"interiorImageUrl\": null,\n    \"createdAt\": \"2026-10-09T08:23:40.790Z\",\n    \"createdById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n    \"updatedAt\": \"2026-10-09T08:24:29.733Z\",\n    \"updatedById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n    \"deletedAt\": null,\n    \"deletedById\": null,\n    \"restoredAt\": \"2026-10-09T08:24:29.733Z\",\n    \"restoredById\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n    \"deletedBy\": null,\n    \"restoredBy\": {\n      \"id\": \"32226435-ddff-48a8-b83c-61a885f63f3e\",\n      \"firstName\": \"Ari\",\n      \"lastName\": \"Admin\",\n      \"email\": \"admin@example.com\"\n    },\n    \"avgUtilization\": null\n  }\n}"
             },
             {
               "name": "404 \u00b7 Not archived",
@@ -10438,13 +10639,13 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/aircraft/{{newAircraftId}}/restore",
+                  "raw": "{{baseUrl}}/aircraft/:id/restore",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "aircraft",
-                    "{{newAircraftId}}",
+                    ":id",
                     "restore"
                   ]
                 }
@@ -10459,7 +10660,47 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived aircraft not found\",\n  \"path\": \"/api/aircraft/957b05d1-2b08-4e87-ae98-de7457c1efb0/restore\",\n  \"timestamp\": \"2026-09-26T05:13:17.522Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Archived aircraft not found\",\n  \"path\": \"/api/aircraft/4dbe5e78-3eb1-45c4-8a6c-0468784ea601/restore\",\n  \"timestamp\": \"2026-10-09T08:24:31.794Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 A broker (no Aircraft \u00b7 Archive)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft/:id/restore",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft",
+                    ":id",
+                    "restore"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Aircraft \\u00b7 Archive / restore\",\n  \"path\": \"/api/aircraft/4dbe5e78-3eb1-45c4-8a6c-0468784ea601/restore\",\n  \"timestamp\": \"2026-10-09T08:24:27.695Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
@@ -10478,15 +10719,6 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ids\": [\"{{newAircraftId}}\"]   // 1-100 uuids. Ids that match nothing come back in `skipped` rather than failing the batch.\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/aircraft/bulk-delete",
               "host": [
@@ -10497,7 +10729,16 @@
                 "bulk-delete"
               ]
             },
-            "description": "For the table's checkbox column. Soft, like the single case.\n\n**POST, not DELETE-with-body.** Request bodies on DELETE are dropped by proxies and HTTP clients alike, and a dropped body would remove nothing while answering 200.\n\n**Partial success is success.** Ids that match nothing \u2014 already archived, or never existed \u2014 are reported in `skipped`, so two people clearing the same selection both succeed.\n\nRead `affected`. `deleted` is the same number, kept only as an alias for callers written before the rename."
+            "description": "Needs **Aircraft \u00b7 Archive**. POST, not DELETE. Partial success is success: ids matching nothing come back in `skipped`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newAircraftId}}\"]  // required \u00b7 1-100 UUIDs. Ids that match nothing come back in `skipped`.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
@@ -10517,7 +10758,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": [\n    \"{{newAircraftId}}\",\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}"
+                  "raw": "{\n  \"ids\": [\n    \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -10530,7 +10771,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 2,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": [\n      \"00000000-0000-4000-8000-000000000000\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
             },
             {
               "name": "200 \u00b7 Already removed (partial)",
@@ -10546,6 +10787,10 @@
                     "aircraft",
                     "bulk-delete"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -10558,7 +10803,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"957b05d1-2b08-4e87-ae98-de7457c1efb0\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\"\n    ]\n  }\n}"
             },
             {
               "name": "400 \u00b7 Nothing selected",
@@ -10590,10 +10835,10 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/aircraft/bulk-delete\",\n  \"timestamp\": \"2026-09-26T05:13:23.639Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/aircraft/bulk-delete\",\n  \"timestamp\": \"2026-10-09T08:24:39.970Z\"\n}"
             },
             {
-              "name": "403 \u00b7 Role may read but not write",
+              "name": "403 \u00b7 A broker (no Aircraft \u00b7 Archive)",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -10606,6 +10851,10 @@
                     "aircraft",
                     "bulk-delete"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\"\n  ]\n}"
                 }
               },
               "status": "Forbidden",
@@ -10618,7 +10867,18 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Aircraft)\",\n  \"path\": \"/api/aircraft/bulk-delete\",\n  \"timestamp\": \"2026-09-26T05:13:25.669Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Aircraft \\u00b7 Archive / restore\",\n  \"path\": \"/api/aircraft/bulk-delete\",\n  \"timestamp\": \"2026-10-09T08:24:33.825Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
             }
           ]
         },
@@ -10637,15 +10897,6 @@
                 "description": "Required on every write. Captured automatically after any login or refresh."
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"ids\": [\"{{newAircraftId}}\"]   // 1-100 uuids. Ids that are not archived come back in `skipped` rather than failing the batch.\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/aircraft/bulk-restore",
               "host": [
@@ -10656,7 +10907,16 @@
                 "bulk-restore"
               ]
             },
-            "description": "For the Archived tab's checkbox column \u2014 the mirror of `09`, and the reason every bulk delete in this API has one. A table that lets you select archived rows and offers no action on them is a dead checkbox column.\n\nSame rules: POST, partial success, and ids that are already live are `skipped` rather than failing the batch."
+            "description": "Needs **Aircraft \u00b7 Archive**. The Archived tab bulk action. Ids that are already live come back in `skipped`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\"{{newAircraftId}}\"]  // required \u00b7 1-100 UUIDs. Ids that are not archived come back in `skipped`.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [
             {
@@ -10676,7 +10936,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": [\n    \"{{newAircraftId}}\",\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}"
+                  "raw": "{\n  \"ids\": [\n    \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -10689,7 +10949,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 2,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": [\n      \"00000000-0000-4000-8000-000000000000\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 1,\n    \"deleted\": 1,\n    \"skipped\": []\n  }\n}"
             },
             {
               "name": "200 \u00b7 Already live (partial)",
@@ -10705,6 +10965,10 @@
                     "aircraft",
                     "bulk-restore"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\"\n  ]\n}"
                 }
               },
               "status": "OK",
@@ -10717,10 +10981,10 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"957b05d1-2b08-4e87-ae98-de7457c1efb0\"\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requested\": 1,\n    \"affected\": 0,\n    \"deleted\": 0,\n    \"skipped\": [\n      \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\"\n    ]\n  }\n}"
             },
             {
-              "name": "400 \u00b7 Nothing selected",
+              "name": "403 \u00b7 A broker (no Aircraft \u00b7 Archive)",
               "originalRequest": {
                 "method": "POST",
                 "header": [],
@@ -10736,35 +11000,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"ids\": []\n}"
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"ids\": \"Select at least one row\"\n  },\n  \"path\": \"/api/aircraft/bulk-restore\",\n  \"timestamp\": \"2026-09-26T05:13:31.818Z\"\n}"
-            },
-            {
-              "name": "403 \u00b7 Role may read but not write",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/aircraft/bulk-restore",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "aircraft",
-                    "bulk-restore"
-                  ]
+                  "raw": "{\n  \"ids\": [\n    \"4dbe5e78-3eb1-45c4-8a6c-0468784ea601\"\n  ]\n}"
                 }
               },
               "status": "Forbidden",
@@ -10777,7 +11013,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"Your role does not allow this action (Manage Aircraft)\",\n  \"path\": \"/api/aircraft/bulk-restore\",\n  \"timestamp\": \"2026-09-26T05:13:33.850Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Aircraft \\u00b7 Archive / restore\",\n  \"path\": \"/api/aircraft/bulk-restore\",\n  \"timestamp\": \"2026-10-09T08:24:46.102Z\"\n}"
             }
           ],
           "event": [
@@ -10786,29 +11022,78 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Teardown. This is the last request in the folder, and it leaves",
-                  "// the aircraft it created LIVE \u2014 so every run used to add a",
-                  "// permanent Falcon 8X to the working fleet. Ten had piled up",
-                  "// before anyone noticed.",
-                  "//",
-                  "// There is no hard delete in this system by design, so the run",
-                  "// cannot erase its own row. Archiving it is the best available",
-                  "// end state: the debris sits in the Archived tab instead of",
-                  "// among the aircraft a broker actually quotes from.",
-                  "pm.test('restored', function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "const id = pm.collectionVariables.get('newAircraftId');",
-                  "if (id) {",
-                  "    pm.sendRequest({",
-                  "        url: pm.collectionVariables.get('baseUrl') + '/aircraft/' + id,",
-                  "        method: 'DELETE',",
-                  "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
-                  "    }, function (err) {",
-                  "        if (err) { console.warn('teardown could not archive ' + id, err); }",
-                  "    });",
-                  "}"
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 \u00b7 Teardown \u2014 archive the probe",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/aircraft/{{newAircraftId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "aircraft",
+                "{{newAircraftId}}"
+              ]
+            },
+            "description": "The run is a demonstration: the probe ends archived, in the Archived tab, never live. A request of its own so it always runs, even when this folder is run alone."
+          },
+          "response": [
+            {
+              "name": "204 \u00b7 Archived",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/aircraft/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "aircraft",
+                    ":id"
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": ""
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('archived', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('newAircraftId', '');",
+                  "pm.collectionVariables.set('newAircraftTail', '');"
                 ]
               }
             }
@@ -10835,8 +11120,9 @@
               "const NEEDED = 'owner';",
               "",
               "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    const baseUrl = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
               "    pm.sendRequest({",
-              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        url: baseUrl + '/auth/login',",
               "        method: 'POST',",
               "        header: { 'Content-Type': 'application/json' },",
               "        body: {",
@@ -10856,7 +11142,7 @@
               "        if (body && body.data && body.data.requiresTwoFactor) {",
               "            const code = body.data.devCode && body.data.devCode.code;",
               "            pm.sendRequest({",
-              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                url: baseUrl + '/auth/two-factor/verify',",
               "                method: 'POST',",
               "                header: { 'Content-Type': 'application/json' },",
               "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
