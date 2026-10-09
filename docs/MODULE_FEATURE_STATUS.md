@@ -359,10 +359,26 @@ entered into the operator's fleet.
 wired to nothing. ✅ It is now the **Documents** tab — the client's folder in
 **Document Vault (#22)**, shipped 29 Sep 2026.
 
-**Known gap, not a dependency:** the Clients *table* does not read
-`usePermissions()` yet — its row menu, checkbox column and bulk actions render
-for every role, and the API refuses what a broker or assistant cannot do. The
-detail page and dialogs are wired; the table is next time Clients is opened.
+**Reviewed 9 Oct 2026:**
+- **Moved to per-user permissions & open reads:**
+  - `@StaffOnly()` on controller (desk data, referral agents refused 403).
+  - Open staff `GET` reads without `@RequireAccess` for picker compatibility.
+  - Writes require `@RequireAccess(Module.CLIENTS, Action.CREATE / EDIT / ARCHIVE)`.
+  - Reach filters Prisma queries (`reachOf(user.access, Module.CLIENTS)` == ASSIGNED → `assignedBrokerId: user.id`).
+- **Server-side validation of picked foreign keys:**
+  - `homeAirportId` checked with `AirportsService.usable(id, 'home airport')`.
+  - `assignedBrokerId` verified active staff broker/admin; reassigning checks `canDo(user.access, Module.CLIENTS, Action.ASSIGN)`.
+- **Company settings integration (§26):**
+  - Create defaults `leadStage` to `SettingsService.read().defaultLeadStage`.
+- **Frontend upgraded:**
+  - Table, toolbar, rows, cards, dialogs, detail header, follow-up banner, and sidebar use `usePermissions()` and hide (never disable) unauthorized actions.
+  - `AddClientDialog` and `ScheduleFollowUpDialog` upgraded to use shared `AirportPicker` and `BrokerPicker` (on `RecordPicker` with live search, server-side pagination, page size selector, and unassign support).
+  - All form controls unified to `h-10 text-[13px] rounded-md` height and typography parity.
+  - `BROKER_ROLES` scoped strictly to `BROKER` (admins excluded from broker pickers).
+  - Table checkbox and bulk action hidden when caller lacks `ARCHIVE` permission.
+- **Testing & Postman:**
+  - Vitest: 10/10 tests in `clients.access.spec.ts` passing; 362/362 backend tests green; Turbopack frontend build 0 errors.
+  - Postman: `03 · Clients` folder verified green (11/11 requests passed, teardown archives probe client).
 
 **Four bugs fixed here on 2026-09-17**, all of the same family — a field the
 API accepted, stored, and never gave back:
@@ -434,6 +450,35 @@ uploaded from the Add/Edit form — before the tail exists, on a new one — and
 shown in a Photos card on the detail page, with an honest empty slot when
 there is none. The upload does not know it is for an aircraft, which is what
 makes the create form work. See **Uploads (#28)**.
+
+**Reviewed 9 Oct 2026** (review row 8). Fixed:
+
+- **Permissions per person.** Reads need only a staff session (pickers in
+  Quotes, Trips, Sourcing, Flight Tracking, Empty Legs); writes need
+  `Aircraft · Create` / `Edit` / `Archive` in the caller's own permissions
+  (`@RequireAccess`). A referral agent is refused every route (`@StaffOnly`
+  on the controller — fleet is internal desk data).
+- **The screen hides what a person cannot do:** Add Aircraft, Edit, Change Status,
+  Remove, Restore, bulk actions and the checkbox column are hidden based on
+  `canAccess(Module.AIRCRAFT, Action.CREATE/EDIT/ARCHIVE)` (hide, not disable).
+- **Picked ids verified on the server:** Home base verified with
+  `AirportsService.usable(id, 'home base')` (missing or archived returns 400).
+  Operator verified to exist, not be archived, and not be SUSPENDED (400).
+- **Forms & Toolbar UI polished:** `AddAircraftDialog` and `AircraftPicker` use the modern
+  reusable components (`OperatorPicker`, `AirportPicker`, `CommonSelect`). Form input heights
+  standardized to `h-10 text-[13px] rounded-md` matching dropdowns and pickers.
+  `AircraftToolbar` restructured: Add Aircraft sits prominently on the left of Row 1 alongside
+  tabs; `FilterInput` component created for compact `Min seats` and `Min range (nm)` filters
+  matching `SearchInput` and `FilterDropdown` styling.
+  `AircraftPicker` (on `RecordPicker`) created for future modules (Quotes, Trips,
+  Empty Legs, Flight Tracking).
+- **Data honesty:** Empty/null fields in `AircraftCard` and `AircraftTableRow`
+  render `"—"`, never omitted or disappeared cells.
+- **Postman collection:** `07 · Aircraft` rebuilt on `builder_common.py`
+  against port 4100 with 11 requests, 34 live-captured examples, testing staff
+  reads, partner 403, and assistant/broker write/archive refusals. Dedicated
+  teardown request (`11 · Teardown — archive the probe`) keeps test runs clean.
+  Verified with Newman (100% passing, 0 failures, run twice).
 
 ---
 

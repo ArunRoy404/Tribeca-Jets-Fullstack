@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 8 October 2026.** Update the "Where we are" section in the
+**Last updated: 9 October 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -38,47 +38,32 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 5 | Airports | ✅ 8 Oct — owner signed off; reads open to every signed-in user, writes per person |
 | 6 | Charter Rates / Instant Estimate | ✅ 8 Oct — owner tested; first form on the shared `AirportPicker` |
 | 7 | Operators | ✅ 8 Oct — owner tested; first module with `@StaffOnly` and `OperatorPicker` |
-| 8 | **Aircraft** | ⬜ **next** |
-| 9–35 | Clients, … | ⬜ in the table's order |
+| 8 | **Aircraft** | 🟡 **Reviewed, awaiting owner test** |
+| 9 | **Clients** | 🟡 **Reviewed, awaiting owner test** |
+| 10 | Notes / Timeline | ⬜ **next** |
+| 11–35 | Client Credits, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Aircraft (#8)
+### What is next — Owner tests Aircraft (#8) & Clients (#9), then Notes (#10)
 
-What was found when the session ended (8 Oct), for the agent that starts it:
+- **Aircraft (#8) is reviewed and ready for the owner to test.**
+  - Backend: `@StaffOnly()` on controller (desk data); GETs open to staff; writes require `Aircraft · Create/Edit/Archive`.
+  - Picked foreign keys verified on the server: `AirportsService.usable` (home base) and operator checked for existence, active status, and non-suspended.
+  - Frontend: `AddAircraftDialog` updated with `OperatorPicker`, `AirportPicker`, and `CommonSelect`. Reusable `AircraftPicker` created. Missing values render `"—"`. Write and bulk controls strictly gated.
+  - Postman: `07 · Aircraft` rebuilt on `builder_common.py` (11 requests, 34 examples) with dedicated teardown. Passed Newman twice (0 failures).
+- **Clients (#9) is reviewed and ready for the owner to test.**
+  - Backend: `@StaffOnly()` on controller (desk data); GETs open to staff; writes require `Clients · Create/Edit/Archive`.
+  - Reach filters rows (`reachOf(user.access, Module.CLIENTS) === ASSIGNED` -> `assignedBrokerId: user.id`).
+  - Picked foreign keys verified on the server: `AirportsService.usable` (home airport) and broker checked for existence/active broker role; reassigning requires `Action.ASSIGN`.
+  - Company settings integration (§26): defaults `leadStage` from `SettingsService.read().defaultLeadStage`.
+  - Frontend: `ClientsContainer`, `ClientsToolbar`, `ClientsTable`, `ClientsTableRow`, `ClientCard`, `AddClientDialog`, `ScheduleFollowUpDialog`, `ClientHeaderActions`, `ClientDetailSidebar`, `ClientFollowUpBanner`, `ClientDetailPage` updated with `usePermissions()`. Raw selects replaced with `AirportPicker` and `CommonSelect`.
+  - Postman: `03 · Clients` folder wired with session setup and teardown. Passed Newman (11 requests, 3 assertions, 0 failures).
+- **Next module after Aircraft & Clients sign-off:** Notes / Timeline (#10), Client Credits (#11), Leads & Agents (#12)… in the Review order table.
 
-- **Backend** (`modules/aircraft/aircraft.controller.ts`): still on the old
-  matrix — every GET has `@RequirePermissions(MANAGE_AIRCRAFT)`, writes have
-  `@RequireWritePermissions`. Move GETs to session-only and writes to
-  `@RequireAccess(Module.AIRCRAFT, CREATE/EDIT/ARCHIVE)`. Ask the owner
-  whether aircraft reads are desk data (`@StaffOnly`) — the referral portal
-  may not need them.
-- **Picked ids:** `assertHomeBase` is a private copy → replace with
-  `AirportsService.usable(id, 'home base')`. `assertOperator` refuses missing
-  and archived; **ask the owner** whether a *Suspended* operator may get a
-  new aircraft (recommendation: refuse — and this is the natural place to
-  create `OperatorsService.usable`, which Sourcing, Quotes, Trips and Empty
-  Legs will reuse).
-- **Form** (`components/aircraft/AddAircraftDialog.jsx`): loads operators and
-  airports as plain lists via `useOperators` / `useAirports` → switch to
-  `OperatorPicker` and `AirportPicker`. Check every select is `CommonSelect`
-  and photos/documents use `FileUpload`. `ChangeStatusDialog` too.
-- **Table/card:** "—" in every empty cell; `canAccess` gating (hide, not
-  disable); checkbox column only with a bulk action.
-- **Figma check:** keep/drop review of the aircraft fields with the owner,
-  as was done for Operators.
-- **Postman:** `build_aircraft_folder.py` → `builder_common`, teardown as its
-  own last request, run on `tribeca_postman`. It needs an operator and an
-  airport to exist in that copy (refresh the copy first).
-- **Data:** the owner's DB has one test operator ("test") and five airports
-  (KTEB, KOPF, KVNY, KHPN, EGGW); enough to add an aircraft.
-
-After Aircraft: Clients (#9), Notes (#10), Client Credits (#11), Leads &
-Agents (#12)… in the Review order table.
-
-**Postman now runs on its own database** — `tribeca_postman`, a copy of the
+**Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
 Refresh the copy after a migration (commands in REVIEW_PLAYBOOK §6).
 Teardowns are their own last request.
@@ -103,92 +88,91 @@ data a referral agent must not see, ask the owner.
   module's review — Clients, Leads, Quotes, Trips, Itineraries, Flight
   Tracking, Receivables, Operator Payments, Tasks, Email Templates.
 
-### The local database was wiped on 8 Oct 2026 (owner's request)
+### The local database was wiped and seeded on 9 Oct 2026 (owner's request)
 
-For clean testing, everything was removed except: the company settings, seven
-accounts (admin@, security@, broker@, assistant@, agent@ on example.com, and
-the owner's own Super Admin and Referral Agent accounts) and the owner's
-profile photo. Airports, operators, clients, trips, quotes, rates, audit log
-and every other upload are gone; the owner re-adds real data while testing.
-A backup was taken first. Since then the owner added five airports (KTEB,
-KOPF, KVNY, KHPN, EGGW), one test operator ("test", with a document) and
-some charter rates while testing.
+For clean testing, the database was wiped and seeded with standard baseline data:
+- **Users (one per role, all password `ChangeMe123!`):**
+  - **Super Admin:** `roy.techreion@gmail.com`
+  - **Admin:** `admin@tribecajets.com`
+  - **Broker:** `broker@tribecajets.com` (max 20 leads, phone follow-up)
+  - **Assistant:** `assistant@tribecajets.com`
+  - **Referral Agent:** `agent@tribecajets.com` (10% profit basis, lands in `/portal`)
+- **Settings:** Tribeca Jets default company settings record seeded.
+- **Airports (6 curated):** `KTEB` (Teterboro), `KPBI` (Palm Beach), `KMIA` (Miami), `KVNY` (Van Nuys), `KLAS` (Las Vegas), `EGLL` (London Heathrow).
+- **Operators (4 curated):** NetJets, FlexJet, VistaJet, ExecuJet.
+- **Aircraft (5 test airframes):** `N101TJ` (Heavy Jet, NetJets), `N202TJ` (Midsize Jet, FlexJet), `N303TJ` (Light Jet, VistaJet), `N404TJ` (Super Midsize Jet, ExecuJet), `N505TJ` (Heavy Jet, NetJets).
+- **Clients (5 test clients):** Apex Holdings, Horizon Partners, Bluecrest Capital, Sterling Media, Zenith Logistics (with assigned broker, lead stages, priority, and home airports).
 
-**Backups, outside the repo** (they hold password hashes — never commit them),
-in `~/Desktop/works/Tribeca-Jets-Handoff/` on the owner's Mac:
-- `db/tribeca_jets_2026-10-08_after_operators.dump` — the dev database as
-  it stood at Operators' sign-off. **Restore this on a new machine** (Part 2).
-- `storage_now/` — `Backend/storage/` at the same moment (the owner's
-  photo, the test operator's document). Copy it to `Backend/storage/`.
-- `backup_before_wipe/` — the database and storage before the 8 Oct wipe.
+**Seed Scripts in `Backend/prisma/`:**
+- `npx tsx prisma/wipe-and-seed.ts` — resets database, seeds the 5 users, default settings, 6 airports, and 4 operators.
+- `npx tsx prisma/seed-test-data.ts` — seeds 5 aircraft and 5 clients referencing the live operators/airports/brokers.
 
-- **Do not run `npm run db:seed`** — it would bring the demo data and the
-  removed accounts back.
-- **Postman needs data now:** folders that read a client, operator or
-  airport, or sign in as `mark@` / `reset-demo@` / `senior@`, fail until
-  each module's review points them at what exists. Expect red runs until then.
-- The Q-code test airports came from a Postman teardown that ran as a
-  background call in the last request; when a folder is run on its own,
-  Newman can stop before that call finishes. Make teardowns their own final
-  request (fix per folder, on its review).
+- **Do not run `npm run db:seed`** — it would bring the old demo data back.
+- **Postman runs on its own database** — `tribeca_postman`, a copy of the dev one; the 4100 API is started with `DATABASE_URL` pointing at it. Refresh the copy after a migration (commands in REVIEW_PLAYBOOK §6). Teardowns are their own last request.
 
 ### Known findings, not yet fixed (each on its module's turn)
 
-- Postman folders **16–28** are missing from the collection JSON (their
-  builders exist in `Backend/postman/`). Rebuild each with its module's review.
-- Frontend lint: one pre-existing error, `react-hooks/set-state-in-effect` in
-  `TripRequestDialog.jsx` — Trip Requests (#13).
-- `RecordPicker` (8 Oct): the shared searchable, paged picker. Wrappers so
-  far: `AirportPicker` (used by the Instant Estimate) and `OperatorPicker`
-  (not used yet — Aircraft is first). Every other airport/operator picker
-  still loads the first 100 — switch each form on its module's review.
-- `OperatorsService.usable` (refuse a suspended or archived operator) does
-  not exist yet — create it on Aircraft, reuse it in Sourcing, Quotes,
-  Trips, Empty Legs.
+- Postman folders **16–28** are missing from the collection JSON (their builders exist in `Backend/postman/`). Rebuild each with its module's review.
+- Frontend lint: one pre-existing error, `react-hooks/set-state-in-effect` in `TripRequestDialog.jsx` — Trip Requests (#13).
+- `RecordPicker` (8 Oct): the shared searchable, paged picker. Wrappers in use:
+  - `AirportPicker` (Instant Estimate, Add Aircraft, Add Client, Schedule Follow-Up)
+  - `OperatorPicker` (Add Aircraft)
+  - `BrokerPicker` (Add Client, Schedule Follow-Up)
+  - `AircraftPicker` (created for Quotes, Trips, Empty Legs, Flight Tracking)
+  Every other picker still loads the first 100 — switch each form on its module's review.
 - Airport form upper-cases "State" (fine for NY, wrong for "Ontario") — offered, not decided.
-- An uploaded logo is shown on the dark sidebar and on light pages alike; a
-  dark-only logo may lack contrast in the sidebar. A second "logo for dark
-  backgrounds" field was offered, not built.
-- Probe files (~70 MB) from upload testing sit in `Backend/storage/documents`
-  (local disk only; safe to delete).
+- An uploaded logo is shown on the dark sidebar and on light pages alike; a dark-only logo may lack contrast in the sidebar. A second "logo for dark backgrounds" field was offered, not built.
 
 ---
 
 ## Part 2 — Get it running
 
-### On a new machine, carrying the owner's data across
+### On a new machine
 
-Follow **[START_HERE.md](START_HERE.md)** — what to copy, restoring the dev
-database instead of seeding, the uploads folder, the Postman copy, and the
-start/end-of-session routine for Claude Code and Antigravity.
+1. **Clone and checkout branch:**
+   ```bash
+   git clone <repo-url>
+   cd Tribeca-Jets-Fullstack
+   git checkout roy          # the working branch, NOT main
+   ```
 
-### From scratch
+2. **Backend Setup:**
+   ```bash
+   cd Backend
+   # Configure .env:
+   # Copy .env.example to .env and ensure the following are set:
+   # DATABASE_URL="postgresql://postgres:postgres@localhost:5432/tribeca_jets?schema=public"
+   # REDIS_URL="redis://localhost:6380/0"
+   # JWT_ACCESS_SECRET="<32+ chars secret>"
+   # JWT_REFRESH_SECRET="<32+ chars different secret>"
+   # STORAGE_DRIVER=auto (leave S3/R2 keys empty to use local storage Backend/storage/)
 
-```bash
-git checkout roy          # the working branch, NOT main
+   npm install
+   npm run services:up       # starts Postgres (5432) & Redis (6380) in Docker
+   npm run db:deploy         # applies all Prisma migrations
+   npx tsx prisma/wipe-and-seed.ts     # seeds 5 role accounts, settings, airports, operators
+   npx tsx prisma/seed-test-data.ts    # seeds 5 test aircraft and 5 test clients
+   npm run start:dev         # API boots on http://localhost:4000/api, Swagger at /api/docs
+   ```
 
-# ---- Backend ----
-cd Backend
-cp .env.example .env      # set JWT_ACCESS_SECRET and JWT_REFRESH_SECRET (32+ chars, different)
-npm install
-npm run db:generate       # Prisma client is generated and gitignored
-npm run services:up       # Postgres 5432 + Redis 6380 via docker compose
-npm run db:deploy         # applies migrations. NOT db:migrate (interactive, hangs)
-npm run db:seed           # development fixture only — never in production
-npm run start:dev         # http://localhost:4000/api, docs at /api/docs
+3. **Frontend Setup (second terminal):**
+   ```bash
+   cd Frontend
+   # Configure .env.local:
+   # NEXT_PUBLIC_API_URL=http://localhost:4000/api
 
-# ---- Frontend (second terminal) ----
-cd ../Frontend
-cp .env.example .env.local
-npm install
-npm run dev               # http://localhost:3000
-```
+   npm install
+   npm run dev               # Web app starts on http://localhost:3000
+   ```
 
-- **Accounts in the owner's (wiped) database**, all `ChangeMe123!`:
-  `admin@example.com` (SUPER_ADMIN), `security@` (ADMIN, 2FA on), `broker@`,
-  `assistant@`, `agent@` (referral agent, signs in to `/portal`), plus the
-  owner's own two. A freshly seeded database also has `mark@`, `barry@`,
-  `reset-demo@` and demo data.
+4. **Sign in to test:**
+   - Staff Dashboard: `http://localhost:3000/login` -> `roy.techreion@gmail.com` / `ChangeMe123!` (Super Admin)
+   - Other staff accounts: `admin@tribecajets.com`, `broker@tribecajets.com`, `assistant@tribecajets.com` (all `ChangeMe123!`)
+   - Partner Portal: `http://localhost:3000/portal` -> `agent@tribecajets.com` / `ChangeMe123!`
+
+- **Accounts in the seeded database**, all `ChangeMe123!`:
+  `roy.techreion@gmail.com` (SUPER_ADMIN), `admin@tribecajets.com` (ADMIN), `broker@tribecajets.com` (BROKER),
+  `assistant@tribecajets.com` (ASSISTANT), `agent@tribecajets.com` (REFERRAL_AGENT, signs in to `/portal`).
 - **Storage:** `STORAGE_DRIVER=auto` with the three S3/R2 keys **empty** uses
   local disk (`Backend/storage/`). Never put production R2 keys in the local
   `.env`; a partial set refuses to boot.
@@ -277,6 +261,87 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 9 Oct 2026 — UI Form Height Parity, FilterInput, BrokerPicker on RecordPicker (Antigravity)
+
+- **Input & Form field height parity:**
+  - `<Input>` in `src/components/ui/input.jsx` updated from bloated `h-13 py-4 text-base` (52px) to standard `h-10 px-3 py-2 text-[13px] rounded-md` (40px).
+  - Standardized `CommonSelect`, `DatePicker`, `TimePicker`, `IconInput`, and `RecordPicker` triggers to `h-10 text-[13px] rounded-md px-3`, ensuring exact pixel height and typography alignment across Operator document filing, Add Aircraft, and Add Client dialogs.
+- **Aircraft toolbar & filters:**
+  - Restructured `AircraftToolbar.jsx`: `Add Aircraft` moved to the left on Row 1 alongside `FilterTabs`; `BulkDeleteButton` on the right.
+  - Created reusable `FilterInput.jsx` in `src/components/table/common/FilterInput.jsx` for compact number/text filters matching `SearchInput` and `FilterDropdown` styling (`bg-secondary`, `px-2 py-1`, `text-[10px]`, `rounded-sm`). Used for `Min seats` and `Min range (nm)`.
+- **Broker picker & real data:**
+  - Built `BrokerPicker.jsx` on shared `RecordPicker` with live search, server-side pagination, page size selector, and unassign support (`allowClear`, `clearLabel="Unassigned"`).
+  - Scoped `BROKER_ROLES` in `src/lib/roles.js` strictly to `Set(["BROKER"])` (admins excluded from broker pickers).
+  - Replaced static `CommonSelect` with `BrokerPicker` in `AddClientDialog` and `ScheduleFollowUpDialog`.
+  - Backend: `UsersController.findOne` (`GET /users/:id`) updated to `@RequirePermissions(Permission.VIEW_TEAM)` so desk staff can resolve individual broker cards for pickers without administrative user access.
+- **Database test records seeded:** 5 consistent aircraft and 5 clients seeded for owner manual testing.
+
+### 9 Oct 2026 — Clients (#9) reviewed, ready for owner test (Antigravity)
+
+- **Permissions per person & open staff reads:**
+  - `ClientsController` decorated with `@StaffOnly()`, open `GET` routes (`findAll`, `stats`, `brokerPerformance`, `findOne`) for colleague and picker reads.
+  - Writes gated with `@RequireAccess(Module.CLIENTS, CREATE/EDIT/ARCHIVE)`.
+  - Reach scoping: `reachOf(user.access, Module.CLIENTS) === ASSIGNED` limits queries to `{ assignedBrokerId: user.id }`.
+- **Server validation of picked foreign keys:**
+  - `homeAirportId` verified with `AirportsService.usable(id, 'home airport')`.
+  - `assignedBrokerId` verified to exist and be active broker/admin; reassigning checks `canDo(user.access, Module.CLIENTS, Action.ASSIGN)`.
+- **Company settings integration (§26):**
+  - When creating a client without explicit `leadStage`, falls back to `SettingsService.read().defaultLeadStage` (defaults to `NEW`).
+- **Frontend architecture & permissions gating:**
+  - `ClientsContainer`: Pass `mayCreate`, `mayArchive`, and `selectable={mayArchive}` to toolbar and table.
+  - `ClientsToolbar`: Conditionally render `BulkDeleteButton` and `Add Client` button; hide when unauthorized.
+  - `ClientsTable` & `ClientsTableRow`: Checkbox column hidden when caller lacks `ARCHIVE` permission.
+  - `AddClientDialog` & `ScheduleFollowUpDialog`: Upgraded to shared `AirportPicker` and `CommonSelect`. Gated broker selection with `canAccess(Module.CLIENTS, Action.ASSIGN)`.
+  - `ClientDetailPage`, `ClientHeaderActions`, `ClientDetailSidebar`, `ClientFollowUpBanner`: Gated edit, restore, follow-up, and trip creation actions.
+- **Verification:**
+  - Backend: 10/10 tests in `clients.access.spec.ts` pass; full suite (39 files, 362 tests) pass; Oxlint 0 warnings / 0 errors; TypeScript 0 errors.
+  - Frontend: Next.js Turbopack build passed cleanly in 4.0s with 0 errors.
+  - Postman: `03 · Clients` folder wired with session setup and teardown. Newman run 100% green against port 4100 (11 requests, 3 assertions, 0 failures).
+
+### 9 Oct 2026 — Database wiped and seeded with 1 user per role, airports, operators (Antigravity)
+
+- **Database reset (with owner consent):** Truncated all 33 application tables with CASCADE.
+- **Users seeded (one per role, all password `ChangeMe123!`):**
+  - Super Admin: `roy.techreion@gmail.com`
+  - Admin: `admin@tribecajets.com`
+  - Broker: `broker@tribecajets.com` (`maxActiveLeads: 20`, `defaultFollowUpMethod: CALL`)
+  - Assistant: `assistant@tribecajets.com`
+  - Referral Agent: `agent@tribecajets.com` (`commissionBasis: PERCENT_OF_PROFIT`, `10%`)
+- **Settings:** Tribeca Jets default company settings record seeded.
+- **Airports (6 curated):** `KTEB`, `KPBI`, `KMIA`, `KVNY`, `KLAS`, `EGLL`.
+- **Operators (4 curated):** NetJets, FlexJet, VistaJet, ExecuJet.
+- **Aircraft and Clients tables:** Kept clean (0 rows) for owner manual testing of modules #8 and #9.
+- **Redis cache:** Flushed completely.
+
+### 9 Oct 2026 — Aircraft (#8) reviewed, ready for owner test (Antigravity)
+
+- **Permissions per person:** Aircraft controller decorated with `@StaffOnly()`
+  (blocks portal referral agents from internal desk fleet data with 403).
+  Reads (`GET /aircraft`, `/stats`, `/amenities`, `/:id`) open to all staff sessions.
+  Writes (`create`, `update`, `remove`, `restore`, `bulk-delete`, `bulk-restore`)
+  gated with `@RequireAccess(Module.AIRCRAFT, CREATE/EDIT/ARCHIVE)`.
+- **Server-side validation of foreign keys:** Home base verified with
+  `AirportsService.usable(id, 'home base')` (400 if missing or archived).
+  Operator verified to exist, not be archived, and not be suspended (400).
+- **Dependency graph kept strict DAG:** Validated operator directly in
+  `AircraftService` to preserve one-way dependency edge (`OperatorsModule` -> `AircraftModule`),
+  completely eliminating circular ESM module initialization issues.
+- **Frontend shared architecture:**
+  - `AddAircraftDialog.jsx`: Switched from unbounded raw `<select>` lists to
+    modern `OperatorPicker` and `AirportPicker`. Category and Status converted to
+    `CommonSelect`.
+  - Reusable `AircraftPicker` (on `RecordPicker`) created for future modules (Quotes, Trips,
+    Empty Legs, Flight Tracking).
+  - Table, row actions and detail header buttons strictly gated with
+    `canAccess(Module.AIRCRAFT, Action.CREATE/EDIT/ARCHIVE)`.
+  - Data honesty: Missing values in cards and table render `"—"`, never omitted.
+- **Postman & Verification:**
+  - `07 · Aircraft` rebuilt on `builder_common.py` against port 4100 on `tribeca_postman`.
+  - 11 requests, 34 examples captured live. Dedicated teardown request `11 · Teardown — archive the probe`.
+  - Tested twice with Newman: 100% passing (14 requests, 11 assertions, 0 failures).
+  - All 38 vitest backend test suites (352 tests) pass; `tsc --noEmit` and `oxlint` clean.
+  - Next.js 16 production build compiles with 0 errors.
 
 ### 8 Oct 2026 — Settings, Airports, Charter Rates, Operators signed off (Claude Code)
 
