@@ -58,6 +58,7 @@ const CLIENT_LIST_SELECT = {
   phone: true,
   status: true,
   birthday: true,
+  homeAirportId: true,
   /** The related row, so the table can show "KTEB" and link to the airport. */
   homeAirport: { select: { id: true, icao: true, name: true, city: true } },
   priority: true,
@@ -79,6 +80,7 @@ const CLIENT_LIST_SELECT = {
   labels: true,
   createdAt: true,
   updatedAt: true,
+  assignedBrokerId: true,
   assignedBroker: {
     select: { id: true, firstName: true, lastName: true, email: true },
   },

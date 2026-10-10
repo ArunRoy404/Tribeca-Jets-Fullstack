@@ -13,11 +13,8 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { TripRequestsService } from './trip-requests.service.js';
@@ -31,18 +28,18 @@ import {
  * Open trip requests — the enquiry, before it becomes a quote or a trip
  * (scope §6.4).
  *
- * Uses the trips permissions rather than a new pair, because a request *is*
- * the start of a trip: `VIEW_TRIPS` to read, `MANAGE_TRIPS` to write, and
- * `DELETE_TRIPS` (administrators only) to archive. Brokers hold the first two
- * at OWN scope, which the service turns into a row-level filter.
+ * Reads need only a staff session; every write needs the caller's own
+ * Trip Requests permission.
+ *
+ * `@StaffOnly`: a referral agent never accesses internal desk enquiries.
  */
 @ApiTags('Trip Requests')
+@StaffOnly()
 @Controller('trip-requests')
 export class TripRequestsController {
   constructor(private readonly requests: TripRequestsService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'List trip requests',
     description:
@@ -57,7 +54,6 @@ export class TripRequestsController {
 
   /** Before `:id` — Nest matches in order and would read it as an id. */
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Counts and pipeline value for the tiles above the board',
     description:
@@ -68,7 +64,6 @@ export class TripRequestsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Get one trip request',
     description:
@@ -82,7 +77,7 @@ export class TripRequestsController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.TRIP_REQUESTS, Action.CREATE, Module.LEADS_AGENTS)
   @ApiOperation({
     summary: 'File a trip request',
     description:
@@ -96,7 +91,7 @@ export class TripRequestsController {
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.TRIP_REQUESTS, Action.EDIT, Module.LEADS_AGENTS)
   @ApiOperation({
     summary: 'Update a trip request',
     description:
@@ -112,7 +107,7 @@ export class TripRequestsController {
 
   /** Declared before `:id`, and POST because proxies drop DELETE bodies. */
   @Post('bulk-delete')
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.TRIP_REQUESTS, Action.ARCHIVE, Module.LEADS_AGENTS)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Remove several trip requests at once (soft)',
@@ -124,7 +119,7 @@ export class TripRequestsController {
   }
 
   @Post('bulk-restore')
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.TRIP_REQUESTS, Action.ARCHIVE, Module.LEADS_AGENTS)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Restore several archived trip requests at once',
@@ -141,7 +136,7 @@ export class TripRequestsController {
    */
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.TRIP_REQUESTS, Action.ARCHIVE, Module.LEADS_AGENTS)
   @ApiOperation({
     summary: 'Restore an archived trip request',
     description:
@@ -155,7 +150,7 @@ export class TripRequestsController {
   }
 
   @Delete(':id')
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.TRIP_REQUESTS, Action.ARCHIVE, Module.LEADS_AGENTS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Remove a trip request (soft)',

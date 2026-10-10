@@ -40,7 +40,7 @@ describe('charter rates access', () => {
 
 describe('a picked airport', () => {
   const airportsWith = (row: unknown) =>
-    new AirportsService({ airport: { findFirst: async () => row } } as never, {} as never, {} as never);
+    new AirportsService({ airport: { findFirst: async () => row } } as never, {} as never);
 
   it('is refused by name when archived', async () => {
     const service = airportsWith({ id: 'a', icao: 'KTEB', name: 'Teterboro', latitude: 40.85, longitude: -74.06, deletedAt: new Date() });

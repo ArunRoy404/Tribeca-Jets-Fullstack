@@ -22,14 +22,16 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import {
-  Permission,
-  Scope,
-  actsAs,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
-import { TripRequestStatus, UserRole } from '../../generated/prisma/enums.js';
+  Action,
+  Module,
+  Reach,
+  canDo,
+  reachOf,
+} from '../../common/authorization/access.js';
+import { TripRequestStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { OperatorQuotesService } from '../operator-quotes/operator-quotes.service.js';
+import { AirportsService } from '../airports/airports.service.js';
 import type {
   CreateTripRequestInput,
   QueryTripRequestsInput,
@@ -149,6 +151,7 @@ export class TripRequestsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly sourcing: OperatorQuotesService,
+    private readonly airports: AirportsService,
   ) {}
 
   /**
@@ -200,7 +203,8 @@ export class TripRequestsService {
   private visibilityScope(
     user: AuthenticatedUser,
   ): Prisma.TripRequestWhereInput {
-    if (scopeFor(user.role, Permission.VIEW_TRIPS) === Scope.ALL) return {};
+    const reach = reachOf(user.access, Module.TRIP_REQUESTS);
+    if (reach === Reach.ALL) return {};
     return {
       OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }],
     };
@@ -233,19 +237,7 @@ export class TripRequestsService {
     label: string,
   ): Promise<void> {
     if (!id) return;
-    const airport = await this.prisma.airport.findUnique({
-      where: { id },
-      select: { id: true, deletedAt: true },
-    });
-    if (!airport) {
-      throw new BadRequestException(`That ${label} airport does not exist`);
-    }
-    // Archived is not the same as missing, and the fix is different.
-    if (airport.deletedAt) {
-      throw new BadRequestException(
-        `That ${label} airport has been archived. Restore it, or choose another.`,
-      );
-    }
+    await this.airports.usable(id, `${label} airport`);
   }
 
   async findAll(
@@ -366,12 +358,16 @@ export class TripRequestsService {
     await this.assertAirport(dto.originAirportId, 'origin');
     await this.assertAirport(dto.destinationAirportId, 'destination');
 
-    // A broker files enquiries for themselves; only a wider scope may assign
-    // one to someone else.
-    const assignedBrokerId =
-      actsAs(user.role) === UserRole.BROKER
-        ? user.id
-        : (dto.assignedBrokerId ?? null);
+    // An administrator or user with ASSIGN may assign to someone else;
+    // others file enquiries for themselves.
+    const canAssign =
+      canDo(user.access, Module.TRIP_REQUESTS, Action.ASSIGN) ||
+      canDo(user.access, Module.LEADS_AGENTS, Action.ASSIGN) ||
+      reachOf(user.access, Module.TRIP_REQUESTS) === Reach.ALL;
+
+    const assignedBrokerId = canAssign
+      ? (dto.assignedBrokerId ?? null)
+      : user.id;
 
     const request = await this.prisma.tripRequest.create({
       data: {
@@ -427,9 +423,11 @@ export class TripRequestsService {
       dto.assignedBrokerId !== undefined &&
       dto.assignedBrokerId !== target.assignedBrokerId
     ) {
-      // A broker must not hand their own enquiry to someone else or claim
-      // another's — the same rule clients use for reassignment.
-      if (actsAs(user.role) === UserRole.BROKER) {
+      if (
+        !canDo(user.access, Module.TRIP_REQUESTS, Action.ASSIGN) &&
+        !canDo(user.access, Module.LEADS_AGENTS, Action.ASSIGN) &&
+        reachOf(user.access, Module.TRIP_REQUESTS) !== Reach.ALL
+      ) {
         throw new ForbiddenException(
           'Only administrators can reassign a trip request',
         );
@@ -487,7 +485,11 @@ export class TripRequestsService {
    * incentive to build into a sales tool.
    */
   private assertMayArchive(user: AuthenticatedUser): void {
-    if (scopeFor(user.role, Permission.DELETE_TRIPS) !== Scope.ALL) {
+    if (
+      !canDo(user.access, Module.TRIP_REQUESTS, Action.ARCHIVE) &&
+      !canDo(user.access, Module.LEADS_AGENTS, Action.ARCHIVE) &&
+      reachOf(user.access, Module.TRIP_REQUESTS) !== Reach.ALL
+    ) {
       throw new ForbiddenException(
         'Only administrators can remove a trip request. Mark it Lost instead.',
       );

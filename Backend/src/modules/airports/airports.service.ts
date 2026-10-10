@@ -25,9 +25,8 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import type { Prisma } from '../../generated/prisma/client.js';
+import { type Prisma, TripStatus } from '../../generated/prisma/client.js';
 import { isPartner } from '../../common/authorization/permissions.js';
-import { TripsService } from '../trips/trips.service.js';
 import type {
   CreateAirportInput,
   QueryAirportsInput,
@@ -84,7 +83,6 @@ export class AirportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly trips: TripsService,
   ) {}
 
   /**
@@ -148,8 +146,27 @@ export class AirportsService {
     // theirs to see, so the count is absent rather than zero.
     // Without a caller (another module resolving an airport) there is no
     // screen to show it on, so it is not counted.
-    const trips = !user || isPartner(user.role) ? null : await this.trips.countThroughAirport(id);
+    const trips = !user || isPartner(user.role) ? null : await this.countTripsThroughAirport(id);
     return { ...this.serialise(row as AirportRow), trips };
+  }
+
+  private async countTripsThroughAirport(airportId: string) {
+    const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+    const where: Prisma.TripWhereInput = {
+      deletedAt: null,
+      status: { not: TripStatus.CANCELLED },
+      legs: {
+        some: {
+          deletedAt: null,
+          OR: [{ originAirportId: airportId }, { destinationAirportId: airportId }],
+        },
+      },
+    };
+    const [total, thisYear] = await this.prisma.$transaction([
+      this.prisma.trip.count({ where }),
+      this.prisma.trip.count({ where: { ...where, departureDate: { gte: yearStart } } }),
+    ]);
+    return { total, thisYear };
   }
 
   /**
