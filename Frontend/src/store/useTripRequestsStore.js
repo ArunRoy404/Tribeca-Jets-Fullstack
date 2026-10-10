@@ -23,6 +23,11 @@ export const useTripRequestsStore = create((set) => ({
   archiveModalOpen: false,
   archivingRequest: null,
 
+  /** Selected request id for the slide-over detail sheet. */
+  selectedRequestId: null,
+  openDetailSheet: (id) => set({ selectedRequestId: id }),
+  closeDetailSheet: () => set({ selectedRequestId: null }),
+
   openAddModal: () => set({ addModalOpen: true, editingRequest: null }),
   openEditModal: (request) =>
     set({ addModalOpen: true, editingRequest: request }),

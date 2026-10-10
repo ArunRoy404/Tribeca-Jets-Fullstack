@@ -45,8 +45,12 @@ export default function NewSourcingRequestDialog() {
     closeNewRequest();
   };
 
+  const isDateInvalid = Boolean(
+    form.departureDate && form.returnDate && form.returnDate < form.departureDate,
+  );
+
   const handleCreate = () => {
-    if (!form.clientId) return;
+    if (!form.clientId || isDateInvalid) return;
     createRequest(
       { ...toTripRequestPayload(form), status: "OPEN" },
       { onSuccess: handleClose },
@@ -81,7 +85,7 @@ export default function NewSourcingRequestDialog() {
           </Button>
           <Button
             className="gap-2 px-4 cursor-pointer"
-            disabled={isPending || !form.clientId}
+            disabled={isPending || !form.clientId || isDateInvalid}
             onClick={handleCreate}
           >
             <Pencil className="size-4" />

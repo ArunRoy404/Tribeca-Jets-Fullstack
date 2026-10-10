@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Edit2, RotateCcw, Trash2, User, XCircle } from "lucide-react";
+import { Edit2, Eye, RotateCcw, Trash2, User, XCircle } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
 import TablePagination from "@/components/table/common/TablePagination";
@@ -12,6 +12,7 @@ import TripRequestsToolbar from "./TripRequestsToolbar";
 import TripRequestsCardsContainer from "./TripRequestsCardsContainer";
 import TripRequestsTable from "./TripRequestsTable";
 import TripRequestDialog from "@/components/trip-requests/TripRequestDialog";
+import TripRequestDetailSheet from "@/components/trip-requests/TripRequestDetailSheet";
 import ArchiveTripRequestDialog from "@/components/trip-requests/ArchiveTripRequestDialog";
 import { useTripRequestsStore } from "@/store/useTripRequestsStore";
 import {
@@ -25,7 +26,7 @@ import {
 } from "@/hooks/trip-requests";
 import { toTripRequestRow } from "@/lib/lead";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 
 export default function TripRequestsContainer({ revealDelay = 0 }) {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
   const openAddModal = useTripRequestsStore((s) => s.openAddModal);
   const openEditModal = useTripRequestsStore((s) => s.openEditModal);
   const openArchiveModal = useTripRequestsStore((s) => s.openArchiveModal);
+  const openDetailSheet = useTripRequestsStore((s) => s.openDetailSheet);
 
   const rows = useMemo(
     () => (requestsQuery?.data?.data ?? []).map(toTripRequestRow),
@@ -56,17 +58,15 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
   const { mutate: updateRequest } = useUpdateTripRequest();
 
   /**
-   * An enquiry is a stage of a trip, so it borrows the trips permissions
-   * rather than having its own — the same decision the API made.
-   *
-   * The two are genuinely different reaches: a broker files and works their
-   * own requests, but only an administrator archives one. That is why the
-   * checkbox column follows `DELETE_TRIPS` and the Add button follows
-   * `MANAGE_TRIPS`.
+   * Per-person permissions (Module.TRIP_REQUESTS):
+   * CREATE: add new trip request
+   * EDIT: edit request, mark as lost
+   * ARCHIVE: remove/restore request (single or bulk)
    */
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
-  const mayRemove = canWrite(Permission.DELETE_TRIPS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.TRIP_REQUESTS, Action.CREATE);
+  const mayEdit = canAccess(Module.TRIP_REQUESTS, Action.EDIT);
+  const mayArchive = canAccess(Module.TRIP_REQUESTS, Action.ARCHIVE);
 
   const isArchived = params?.tab === REQUEST_TABS.ARCHIVED;
 
@@ -100,32 +100,29 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
       return next;
     });
 
-  /**
-   * Opening a row opens its client.
-   *
-   * There is no trip-request detail page, and inventing one that only repeats
-   * the row would be a screen nobody asked for. The client *is* the context —
-   * their other enquiries, their follow-ups and their history are all there —
-   * so the row links to the record that actually has more to say.
-   */
   const handleOpenClient = (clientId) => {
     if (!clientId) return;
     router?.push(`/dashboard/clients/${clientId}`);
   };
 
   const getRowActions = (request) => {
+    const viewDetails = {
+      label: "View Details",
+      icon: <Eye />,
+      onSelect: () => openDetailSheet?.(request?.id),
+    };
     const viewClient = {
       label: "View Client",
       icon: <User />,
       onSelect: () => handleOpenClient(request?.clientId),
     };
-    // Everything below is a write, so a read-only role gets the one action it
-    // can actually perform rather than a menu of 403s.
-    if (!mayWrite && !mayRemove) return [viewClient];
+
+    if (!mayEdit && !mayArchive) return [viewDetails, viewClient];
 
     if (isArchived) {
-      return mayRemove
+      return mayArchive
         ? [
+            viewDetails,
             viewClient,
             {
               label: "Restore Request",
@@ -133,11 +130,11 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
               onSelect: () => restoreRequest?.(request),
             },
           ]
-        : [viewClient];
+        : [viewDetails, viewClient];
     }
 
-    const actions = [viewClient];
-    if (mayWrite) {
+    const actions = [viewDetails, viewClient];
+    if (mayEdit) {
       actions.push({
         label: "Edit Request",
         icon: <Edit2 />,
@@ -158,7 +155,7 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
         });
       }
     }
-    if (mayRemove) {
+    if (mayArchive) {
       actions.push("separator", {
         label: "Remove Request",
         icon: <Trash2 />,
@@ -220,8 +217,8 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
           onBulkAction={() => setBulkOpen(true)}
           tab={params?.tab}
           setTab={params?.setTab}
-          mayWrite={mayWrite}
-          mayRemove={mayRemove}
+          mayWrite={mayCreate}
+          mayRemove={mayArchive}
         />
 
         {requestsQuery?.isPending || requestsQuery?.error || isEmpty ? (
@@ -241,17 +238,15 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
                 selected={selected}
                 onToggleRow={toggleRow}
                 getRowActions={getRowActions}
-                onSelectRequest={(id) =>
-                  handleOpenClient(rows.find((row) => row?.id === id)?.clientId)
-                }
+                onSelectRequest={(id) => openDetailSheet?.(id)}
                 archived={isArchived}
-                selectable={mayRemove}
+                selectable={mayArchive}
               />
             </div>
 
             <TripRequestsTable
               archived={isArchived}
-              selectable={mayRemove}
+              selectable={mayArchive}
               pageRequests={rows}
               selected={selected}
               onSelectAll={() =>
@@ -263,9 +258,7 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
               }
               onToggleRow={toggleRow}
               getRowActions={getRowActions}
-              onSelectRequest={(id) =>
-                handleOpenClient(rows.find((row) => row?.id === id)?.clientId)
-              }
+              onSelectRequest={(id) => openDetailSheet?.(id)}
             />
           </>
         )}
@@ -306,8 +299,10 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
         />
 
         <TripRequestDialog />
+        <TripRequestDetailSheet />
         <ArchiveTripRequestDialog />
       </CommonCard>
     </Reveal>
   );
 }
+

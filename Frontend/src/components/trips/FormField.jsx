@@ -7,13 +7,16 @@ import { cn } from "@/lib/utils";
  * is announced via `role="alert"`, so a rejected submit is not silent for
  * anyone using a screen reader.
  */
-export default function FormField({ label, children, className, labelClassName, error }) {
+export default function FormField({ label, children, className, labelClassName, optional = false, error }) {
   return (
     <div className={cn("w-full flex flex-col min-w-0", className)}>
       {label && (
-        <p className={cn("mb-1.5 font-montserrat font-medium text-[13px] text-foreground", labelClassName)}>
-          {label}
-        </p>
+        <label className={cn("mb-1.5 font-montserrat font-medium text-[13px] text-foreground flex items-center justify-between", labelClassName)}>
+          <span>{label}</span>
+          {optional && (
+            <span className="text-muted-foreground font-normal text-[11px]">(Optional)</span>
+          )}
+        </label>
       )}
       {children}
       {error && (

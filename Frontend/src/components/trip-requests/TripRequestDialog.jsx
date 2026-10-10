@@ -46,11 +46,14 @@ export default function TripRequestDialog() {
   useEffect(() => {
     if (!open) return;
     if (!editing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(EMPTY_TRIP_REQUEST_FORM);
       return;
     }
     setForm({
       clientId: editing.clientId ?? "",
+      assignedBrokerId:
+        editing.brokerId ?? editing.assignedBrokerId ?? editing.assignedBroker?.id ?? "",
       status: editing.rawStatus ?? "OPEN",
       source: editing.rawSource ?? "",
       aircraftPreference: editing.rawAircraftPreference ?? "",
@@ -72,8 +75,12 @@ export default function TripRequestDialog() {
     close();
   };
 
+  const isDateInvalid = Boolean(
+    form.departureDate && form.returnDate && form.returnDate < form.departureDate,
+  );
+
   const handleSubmit = () => {
-    if (!form.clientId) return;
+    if (!form.clientId || isDateInvalid) return;
 
     if (editing?.id) {
       // `forUpdate` sends a cleared field as null rather than omitting it —
@@ -116,7 +123,7 @@ export default function TripRequestDialog() {
           </Button>
           <Button
             className="gap-2 px-4 cursor-pointer"
-            disabled={isPending || !form.clientId}
+            disabled={isPending || !form.clientId || isDateInvalid}
             onClick={handleSubmit}
           >
             <Pencil className="size-4" />
