@@ -3,7 +3,7 @@
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 
 const OUTLINE =
   "h-9 px-3.5 font-montserrat font-medium text-[12px] gap-1.5 bg-white border-border shadow-xs hover:bg-muted/40";
@@ -20,22 +20,26 @@ const OUTLINE =
  * work, not a button: nothing in this system generates a document yet.
  */
 export default function QuoteHeaderActions({ quote, onEdit, onDuplicate, onRemove }) {
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
-  const mayArchive = canWrite(Permission.DELETE_TRIPS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.QUOTES, Action.CREATE);
+  const mayEdit = canAccess(Module.QUOTES, Action.EDIT);
+  const mayArchive = canAccess(Module.QUOTES, Action.ARCHIVE);
 
-  if (!mayWrite || quote?.isArchived) return null;
+  if (quote?.isArchived) return null;
+  if (!mayCreate && !mayEdit && !mayArchive) return null;
 
   return (
     <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
-      <Button type="button" variant="outline" onClick={onDuplicate} className={OUTLINE}>
-        <Copy className="size-3.5 text-muted-foreground" />
-        <span>Copy to Draft</span>
-      </Button>
+      {mayCreate && (
+        <Button type="button" variant="outline" onClick={onDuplicate} className={OUTLINE}>
+          <Copy className="size-3.5 text-muted-foreground" />
+          <span>Copy to Draft</span>
+        </Button>
+      )}
 
       {/* An answered quote is what the client agreed to; editing it in place
           would rewrite that, so the API refuses it and the button is absent. */}
-      {!quote?.isDecided && (
+      {mayEdit && !quote?.isDecided && (
         <Button type="button" variant="outline" onClick={onEdit} className={OUTLINE}>
           <Pencil className="size-3.5 text-muted-foreground" />
           <span>Edit</span>

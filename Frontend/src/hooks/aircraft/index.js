@@ -4,7 +4,7 @@
  * Components import from `@/hooks/aircraft`, never from the individual files.
  */
 export { useAircraftList } from "./useAircraftList";
-export { useAircraftDetail } from "./useAircraftDetail";
+export { useAircraftDetail, useAircraftDetail as useAircraft } from "./useAircraftDetail";
 export { useAircraftStats } from "./useAircraftStats";
 export { useAircraftAmenities } from "./useAircraftAmenities";
 export { useCreateAircraft } from "./useCreateAircraft";

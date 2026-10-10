@@ -36,7 +36,6 @@ import {
   useSendQuote,
 } from "@/hooks/quotes";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
 import { Action, Module } from "@/lib/access";
 import { toQuoteRow } from "@/lib/quote";
 import { ARCHIVE_TABS } from "@/lib/archive";
@@ -61,12 +60,11 @@ export default function QuotesContainer({ revealDelay = 0 }) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  const { canWrite, canAccess } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
-  const mayArchive = canWrite(Permission.DELETE_TRIPS);
-  // The estimate is an operator cost — margin information — so it goes with
-  // Quotes · View money, exactly as the API gates it (Charter Rates review,
-  // 8 Oct 2026). The rest of this screen moves over in Quotes' own review.
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.QUOTES, Action.CREATE);
+  const mayEdit = canAccess(Module.QUOTES, Action.EDIT);
+  const maySend = canAccess(Module.QUOTES, Action.SEND);
+  const mayArchive = canAccess(Module.QUOTES, Action.ARCHIVE);
   const mayEstimate = canAccess(Module.QUOTES, Action.VIEW_MONEY);
 
   const [selected, setSelected] = useState(() => new Set());
@@ -138,11 +136,9 @@ export default function QuotesContainer({ revealDelay = 0 }) {
         : [view];
     }
 
-    if (!mayWrite) return [view];
-
     const actions = [view];
 
-    if (quote?.rawStatus === "DRAFT") {
+    if (maySend && quote?.rawStatus === "DRAFT") {
       actions.push({
         // Marks it only — emailing it is "Email to Client" on the quote page (#21).
         label: "Mark as Sent",
@@ -151,39 +147,46 @@ export default function QuotesContainer({ revealDelay = 0 }) {
       });
     }
 
-    actions.push({
-      label: "Edit Quote",
-      icon: <Edit />,
-      onSelect: () => openAddQuoteModal?.(quote),
-    });
-    actions.push({
-      label: "Copy to New Draft",
-      icon: <Copy />,
-      onSelect: () => duplicate?.(quote?.id),
-    });
+    if (mayEdit) {
+      actions.push({
+        label: "Edit Quote",
+        icon: <Edit />,
+        onSelect: () => openAddQuoteModal?.(quote),
+      });
+    }
 
-    if (quote?.isDecided) {
+    if (mayCreate) {
       actions.push({
-        label: "Undo Decision",
-        icon: <RotateCcw />,
-        onSelect: () => reopen?.(quote?.id),
+        label: "Copy to New Draft",
+        icon: <Copy />,
+        onSelect: () => duplicate?.(quote?.id),
       });
-    } else if (quote?.rawStatus !== "DRAFT") {
-      actions.push({
-        label: "Client Accepted",
-        icon: <Check className="text-success" />,
-        onSelect: () => decide?.({ action: "approve", id: quote?.id }),
-      });
-      actions.push({
-        label: "Client Declined",
-        icon: <XCircle className="text-destructive" />,
-        onSelect: () => decide?.({ action: "reject", id: quote?.id }),
-      });
-      actions.push({
-        label: "Mark Expired",
-        icon: <Clock className="text-warning" />,
-        onSelect: () => decide?.({ action: "expire", id: quote?.id }),
-      });
+    }
+
+    if (mayEdit) {
+      if (quote?.isDecided) {
+        actions.push({
+          label: "Undo Decision",
+          icon: <RotateCcw />,
+          onSelect: () => reopen?.(quote?.id),
+        });
+      } else if (quote?.rawStatus !== "DRAFT") {
+        actions.push({
+          label: "Client Accepted",
+          icon: <Check className="text-success" />,
+          onSelect: () => decide?.({ action: "approve", id: quote?.id }),
+        });
+        actions.push({
+          label: "Client Declined",
+          icon: <XCircle className="text-destructive" />,
+          onSelect: () => decide?.({ action: "reject", id: quote?.id }),
+        });
+        actions.push({
+          label: "Mark Expired",
+          icon: <Clock className="text-warning" />,
+          onSelect: () => decide?.({ action: "expire", id: quote?.id }),
+        });
+      }
     }
 
     // Archiving is an administrator's call — a broker quietly removing the
@@ -222,7 +225,7 @@ export default function QuotesContainer({ revealDelay = 0 }) {
           onEstimate={mayEstimate ? () => openEstimateModal?.() : undefined}
           selectedCount={selected.size}
           onBulkAction={() => setBulkOpen(true)}
-          mayWrite={mayWrite}
+          mayWrite={mayCreate}
           mayArchive={mayArchive}
         />
 
@@ -300,7 +303,7 @@ export default function QuotesContainer({ revealDelay = 0 }) {
         />
 
         <AddQuoteDialog />
-        {mayEstimate && <InstantEstimateDialog mayStartQuote={mayWrite} />}
+        {mayEstimate && <InstantEstimateDialog mayStartQuote={mayCreate} />}
         <DeleteQuoteDialog />
       </CommonCard>
     </Reveal>

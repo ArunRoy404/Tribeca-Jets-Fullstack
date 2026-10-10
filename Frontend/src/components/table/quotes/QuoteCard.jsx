@@ -6,12 +6,11 @@ import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import { cn } from "@/lib/utils";
 
 function Field({ label, value, valueClassName }) {
-  if (value === undefined || value === null) return null;
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
       <p className="font-montserrat text-[10px] text-muted-foreground whitespace-nowrap">{label}</p>
       <p className={cn("font-montserrat font-medium text-[12px] text-foreground truncate", valueClassName)}>
-        {value}
+        {value || "—"}
       </p>
     </div>
   );

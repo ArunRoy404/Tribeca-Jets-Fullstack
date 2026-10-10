@@ -15,7 +15,7 @@ import {
 } from "@/hooks/quotes";
 import { useBookQuote } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import { emailWillReachRecipient } from "@/lib/email";
 
@@ -48,10 +48,12 @@ export default function QuoteStatusActionsCard({ quote }) {
   const { mutate: book, isPending: isBooking } = useBookQuote();
   const router = useRouter();
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
-  const mayArchive = canWrite(Permission.DELETE_TRIPS);
-  const maySend = canWrite(Permission.SEND_EMAILS);
+  const { canAccess } = usePermissions();
+  const maySendQuote = canAccess(Module.QUOTES, Action.SEND);
+  const mayEditQuote = canAccess(Module.QUOTES, Action.EDIT);
+  const mayArchive = canAccess(Module.QUOTES, Action.ARCHIVE);
+  const maySendEmail = canAccess(Module.EMAIL_TEMPLATES, Action.SEND);
+  const canBook = canAccess(Module.TRIPS, Action.CREATE);
   const [composeOpen, setComposeOpen] = useState(false);
 
   if (!quote) return null;
@@ -84,7 +86,8 @@ export default function QuoteStatusActionsCard({ quote }) {
     );
   }
 
-  if (!mayWrite) {
+  const mayAct = maySendQuote || mayEditQuote || canBook;
+  if (!mayAct) {
     return (
       <DetailCard title="Status Actions">
         <p className="font-montserrat text-[13px] text-muted-foreground">
@@ -99,22 +102,24 @@ export default function QuoteStatusActionsCard({ quote }) {
       <div className="flex flex-col gap-3 w-full">
         {quote.rawStatus === "DRAFT" && (
           <>
-            {maySend && (
+            {maySendEmail && (
               <Button type="button" disabled={busy} onClick={() => setComposeOpen(true)} className={cn(BUTTON, "shadow-button")}>
                 <Mail className="size-4" />
                 <span>Email to Client</span>
               </Button>
             )}
-            <Button
-              type="button"
-              variant={maySend ? "outline" : "default"}
-              disabled={busy}
-              onClick={() => send({ id: quote.id })}
-              className={cn(BUTTON, maySend ? "border-border" : "shadow-button")}
-            >
-              <Send className="size-4" />
-              <span>Mark as Sent</span>
-            </Button>
+            {maySendQuote && (
+              <Button
+                type="button"
+                variant={maySendEmail ? "outline" : "default"}
+                disabled={busy}
+                onClick={() => send({ id: quote.id })}
+                className={cn(BUTTON, maySendEmail ? "border-border" : "shadow-button")}
+              >
+                <Send className="size-4" />
+                <span>Mark as Sent</span>
+              </Button>
+            )}
             {/* Said plainly rather than implied by a paper-plane icon: a
                 broker who believes a quote was emailed will not chase it. */}
             <p className="font-montserrat text-[11px] text-muted-foreground text-center">
@@ -125,40 +130,44 @@ export default function QuoteStatusActionsCard({ quote }) {
 
         {quote.isOpen && quote.rawStatus !== "DRAFT" && (
           <>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={() => decide({ action: "approve", id: quote.id })}
-              className={cn(BUTTON, "border-success/40 text-success bg-success/5 hover:bg-success/15 hover:text-success")}
-            >
-              <Check className="size-4 text-success" />
-              <span>Client Accepted</span>
-            </Button>
+            {mayEditQuote && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => decide({ action: "approve", id: quote.id })}
+                  className={cn(BUTTON, "border-success/40 text-success bg-success/5 hover:bg-success/15 hover:text-success")}
+                >
+                  <Check className="size-4 text-success" />
+                  <span>Client Accepted</span>
+                </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={() => decide({ action: "reject", id: quote.id })}
-              className={cn(BUTTON, "border-destructive/40 text-destructive bg-destructive/5 hover:bg-destructive/15 hover:text-destructive")}
-            >
-              <XCircle className="size-4 text-destructive" />
-              <span>Client Declined</span>
-            </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => decide({ action: "reject", id: quote.id })}
+                  className={cn(BUTTON, "border-destructive/40 text-destructive bg-destructive/5 hover:bg-destructive/15 hover:text-destructive")}
+                >
+                  <XCircle className="size-4 text-destructive" />
+                  <span>Client Declined</span>
+                </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={() => decide({ action: "expire", id: quote.id })}
-              className={cn(BUTTON, "border-warning/40 text-warning bg-warning/5 hover:bg-warning/15 hover:text-warning")}
-            >
-              <Clock className="size-4 text-warning" />
-              <span>Mark Expired</span>
-            </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => decide({ action: "expire", id: quote.id })}
+                  className={cn(BUTTON, "border-warning/40 text-warning bg-warning/5 hover:bg-warning/15 hover:text-warning")}
+                >
+                  <Clock className="size-4 text-warning" />
+                  <span>Mark Expired</span>
+                </Button>
+              </>
+            )}
 
-            {maySend && (
+            {maySendEmail && (
               <Button
                 type="button"
                 variant="outline"
@@ -170,16 +179,18 @@ export default function QuoteStatusActionsCard({ quote }) {
                 <span>Email Again</span>
               </Button>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={() => send({ id: quote.id })}
-              className={cn(BUTTON, "border-border")}
-            >
-              <Send className="size-4 text-muted-foreground" />
-              <span>Mark Sent Again</span>
-            </Button>
+            {maySendQuote && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => send({ id: quote.id })}
+                className={cn(BUTTON, "border-border")}
+              >
+                <Send className="size-4 text-muted-foreground" />
+                <span>Mark Sent Again</span>
+              </Button>
+            )}
           </>
         )}
 
@@ -192,7 +203,7 @@ export default function QuoteStatusActionsCard({ quote }) {
             <span>Booked as {quote.trip.reference}</span>
           </Link>
         ) : (
-          quote.rawStatus === "APPROVED" && (
+          quote.rawStatus === "APPROVED" && canBook && (
             <Button
               type="button"
               disabled={busy}
@@ -205,7 +216,7 @@ export default function QuoteStatusActionsCard({ quote }) {
           )
         )}
 
-        {!quote.isOpen && !quote.trip && (
+        {!quote.isOpen && !quote.trip && mayEditQuote && (
           <>
             {/* Every decision is reversible, so a mis-click on Accepted is not
                 a permanent record of a sale that never happened. */}
@@ -226,7 +237,7 @@ export default function QuoteStatusActionsCard({ quote }) {
         )}
       </div>
 
-      {maySend && (
+      {maySendEmail && (
         <ComposeEmailDialog
           open={composeOpen}
           onOpenChange={setComposeOpen}
