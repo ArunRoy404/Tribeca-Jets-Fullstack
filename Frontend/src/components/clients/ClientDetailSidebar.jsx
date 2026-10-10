@@ -29,7 +29,7 @@ export default function ClientDetailSidebar({ client, onEditNotes }) {
       {/* Contact Card */}
       <DetailCard title="Contact">
         <div className="flex flex-col gap-3">
-          <DetailField label="Email" value={email} valueClassName="font-semibold text-purple truncate" />
+          <DetailField label="Email" value={email} valueClassName="font-semibold text-purple break-all" />
           <DetailField label="Phone" value={phone} valueClassName="font-semibold" />
           <DetailField label="Company" value={company} valueClassName="font-semibold" />
           <DetailField label="Client Type" value={type} valueClassName="font-semibold" />

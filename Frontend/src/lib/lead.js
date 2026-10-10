@@ -40,12 +40,22 @@ const PRIORITY_LABELS = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
 const SOURCE_LABELS = {
   DIRECT: "Direct",
   TRAVEL_AGENT: "Travel Agent",
-  FACEBOOK_GROUP_1: "Facebook Group 1",
-  FACEBOOK_GROUP_2: "Facebook Group 2",
+  FACEBOOK_GROUP_1: "Facebook Group",
+  FACEBOOK_GROUP_2: "Facebook Group",
   REFERRAL: "Referral",
   WEBSITE: "Website",
   OTHER: "Other",
 };
+
+/** Form choices: single Facebook Group entry (Item 5). */
+export const LEAD_FORM_SOURCES = [
+  "DIRECT",
+  "TRAVEL_AGENT",
+  "FACEBOOK_GROUP_1",
+  "REFERRAL",
+  "WEBSITE",
+  "OTHER",
+];
 
 const METHOD_LABELS = {
   CALL: "Call",
@@ -216,7 +226,8 @@ export function toLeadRow(client, latestRequest = null) {
     priority: formatPriority(client?.priority),
     rawPriority: client?.priority ?? null,
 
-    brokerId: client?.assignedBrokerId ?? null,
+    brokerId: client?.assignedBrokerId ?? client?.assignedBroker?.id ?? null,
+    assignedBrokerId: client?.assignedBrokerId ?? client?.assignedBroker?.id ?? null,
     brokerName: client?.assignedBroker
       ? personName(client.assignedBroker)
       : "Unassigned",

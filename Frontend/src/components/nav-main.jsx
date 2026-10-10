@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/sidebar";
 import { CRM_HOME, CRM_SECTIONS } from "@/components/dashboard/nav/crmNav";
 import { usePermissions } from "@/hooks/common/usePermissions";
+import { Reach } from "@/lib/access";
 
 /**
  * The sidebar's links: a home entry, then collapsible sections.
@@ -34,10 +35,26 @@ import { usePermissions } from "@/hooks/common/usePermissions";
  */
 export function NavMain({ home = CRM_HOME, sections = CRM_SECTIONS }) {
   const pathname = usePathname();
-  const { canAccess } = usePermissions();
+  const { canAccess, reachOf } = usePermissions();
   const visible = (item) => !item?.module || canAccess(item.module);
+
+  const getItemLabel = (item) => {
+    if (!item?.module) return item.label;
+    const reach = reachOf(item.module);
+    if ((reach === Reach.OWN || reach === Reach.ASSIGNED) && !item.label.startsWith("My ")) {
+      return `My ${item.label}`;
+    }
+    return item.label;
+  };
+
   const shownSections = sections
-    .map((section) => ({ ...section, items: section.items.filter(visible) }))
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(visible).map((item) => ({
+        ...item,
+        label: getItemLabel(item),
+      })),
+    }))
     .filter((section) => section.items.length);
   const isDashboardActive = pathname === home.href;
   const { isMobile, state, setOpenMobile } = useSidebar();

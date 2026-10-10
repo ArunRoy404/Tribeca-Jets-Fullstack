@@ -41,7 +41,9 @@ export default function AssignBrokerDialog() {
 
 function AssignForm({ lead, onDone }) {
   const { mutate: updateClient, isPending } = useUpdateClient();
-  const [brokerId, setBrokerId] = useState(lead?.brokerId ?? "");
+  const [brokerId, setBrokerId] = useState(
+    lead?.brokerId ?? lead?.assignedBrokerId ?? lead?.assignedBroker?.id ?? "",
+  );
 
   const handleSubmit = (e) => {
     e.preventDefault();

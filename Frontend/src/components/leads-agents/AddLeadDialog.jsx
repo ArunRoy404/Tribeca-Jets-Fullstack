@@ -13,6 +13,7 @@ import { Action, Module, Reach } from "@/lib/access";
 import { isAdministratorRole } from "@/lib/roles";
 import {
   FOLLOW_UP_METHODS,
+  LEAD_FORM_SOURCES,
   LEAD_PRIORITIES,
   LEAD_SOURCES,
   LEAD_STAGES,
@@ -128,7 +129,8 @@ function initialForm(lead, settings) {
     leadSource: lead.rawSource || "",
     leadStage: lead.rawStage || "NEW",
     priority: lead.rawPriority || "MEDIUM",
-    assignedBrokerId: lead.brokerId ?? "",
+    assignedBrokerId:
+      lead.brokerId ?? lead.assignedBrokerId ?? lead.assignedBroker?.id ?? "",
     nextFollowUpAt: dateValue(lead.rawNextFollowUpAt),
     followUpMethod: lead.rawFollowUpMethod || "",
   };
@@ -182,7 +184,7 @@ function LeadForm({ editingLead, settings, onDone }) {
   const leadSourceOptions = useMemo(
     () => [
       { value: "", label: "Not recorded" },
-      ...LEAD_SOURCES.map((v) => ({ value: v, label: formatLeadSource(v) })),
+      ...LEAD_FORM_SOURCES.map((v) => ({ value: v, label: formatLeadSource(v) })),
     ],
     [],
   );
