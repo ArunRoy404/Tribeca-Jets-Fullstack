@@ -45,17 +45,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 13 | Trip Requests | ✅ 10 Oct — owner tested & signed off |
 | 14 | Operator Sourcing | ✅ 10 Oct — owner tested & signed off |
 | 15 | Quotes | ✅ 10 Oct — owner tested & signed off |
-| 16 | **Trips** | 🟡 **next in queue** |
-| 17–35 | Itineraries, Schedule, … | ⬜ in the table's order |
+| 16 | **Trips** | ✅ 10 Oct — owner tested & signed off |
+| 17 | **Itineraries** | 🟡 **next in queue** |
+| 18–35 | Schedule, Flight Tracking, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Trips (#16) review
+### What is next — Itineraries (#17) review
 
-- **Operator Sourcing (#14) & Quotes (#15) signed off:** Both modules tested, reviewed, and signed off by the owner. Sourcing has full quote lifecycle, Figma alignment, and permission enforcement. Quotes has `@StaffOnly()`, open reads for staff, per-user write permissions, `VIEW_MONEY` margin controls, airport validation, client auto-assignment (broker and home base prefill), linked trip prefill, and clear required/optional field validation.
-- **Next module in queue:** **Trips (#16)** — the operational booking following an accepted quote. Flight tracking, legs, manifests, crew, and trip statuses.
+- **Trips (#16) reviewed and seeded:** Controller decorated with `@StaffOnly()`, open reads for staff, writes guarded via `@RequireAccess(Module.TRIPS)`. Margins and operator costs strictly gated behind `VIEW_MONEY`. Airport foreign keys validated with `AirportsService.usable()`. CompanySettings FET defaults integrated. Create/Edit forms upgraded with `ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`, and client auto-assignment. Entire database wiped (preserving 16 user accounts) and consistent test data (< 10 per module) seeded.
+- **Next module in queue:** **Itineraries (#17)** — passenger documents, operator itinerary attachments, FBO handling, and client delivery. Private attachment voucher routing to be resolved.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -431,4 +432,30 @@ this says *what the owner decided*, which nothing else records.
   - `f57a9a9`: `feat(operator-sourcing): review, per-person access, Figma form alignment, and quote response lifecycle`
   - `738b927`: `feat(quotes): review, per-person access, airport validation, shared pickers, client auto-fill, and linked enquiry prefill`
   - `027c27f`: `docs: mark Operator Sourcing and Quotes reviewed and signed off; queue Trips`
-- **Next in Queue:** Module #16: Trips (the operational booking following an accepted quote: manifests, legs, crew, statuses).
+
+### 10 Oct 2026 — Trips (#16) reviewed, adjusted & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `TripsController` decorated with `@StaffOnly()`, open reads for staff on `GET /trips`, `/trips/stats`, and `/trips/:id`. Referral agent / partner access is refused with 403 by stored identity.
+  - Write routes guarded with `@RequireAccess(Module.TRIPS, Action.CREATE | EDIT | ARCHIVE)`.
+  - Reassignment guarded by `isAdministrator(user.role)` or `TRIPS · ASSIGN`. Soft delete and restore check `TRIPS · ARCHIVE`.
+  - Financial data (`operatorCost`, `grossProfit`, `marginPercentage`) omitted when caller lacks `canDo(user.access, Module.TRIPS, Action.VIEW_MONEY)`.
+  - Injected `AirportsService` and validated leg departure and destination airports with `AirportsService.usable(id, 'airport')` (named 400s if missing or archived).
+  - Injected `SettingsService` and pulled default FET toggle (`applyFetByDefault`) and FET rate (`defaultFetPercent / 100`) from `CompanySettings`.
+  - Created unit test suite `trips.access.spec.ts` verifying staff reads, partner refusal, and write action gating. All 45 vitest test suites (386 tests) pass 100%. `tsc --noEmit` and `oxlint` 0 errors.
+- **Frontend Upgrades & Design System Alignment:**
+  - Upgraded Create/Edit form cards (`CreateClientTripCard`, `CreateRouteScheduleCard`, `CreateAircraftOperatorCard`) with shared searchable pickers: `ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`, and `CommonSelect`.
+  - Client auto-assignment: Selecting a client automatically pre-fills assigned broker, Leg 1 departure airport if unset, and displays client's `Lead Source` badge.
+  - Aircraft/Operator linked filtering: Selecting an aircraft auto-links its operator; selecting an operator filters aircraft by operator.
+  - Passengers stepper sync: Synchronized `passengerCount` with manifest rows using `[-] count [+]` stepper and `Add Passenger` button; Passenger 1 collects Full Name, DOB, and Passport, while companion passengers (2+) collect name with quick remove `[X]`.
+  - Staged file attachments: Integrated shared `FileUpload` component (dropzone) into `CreateNotesDocsCard` for staged document attachments (up to 25 MB), automatically filed to the new trip's Document Vault upon creation via `documentsService.create`.
+  - Preserved clean 5-stage lifecycle stepper (`Draft` → `Booked` → `Confirmed` → `In Flight` → `Completed`) backed by `Trip.status` and operational checklist for milestones.
+  - Financial card margins and costs gated behind `canAccess(Module.TRIPS, Action.VIEW_MONEY)`.
+  - Action bar respects `TRIPS · ASSIGN` for broker reassignment.
+  - Table rows render honest em dashes `" — "` on missing or empty data cells.
+  - Turbopack production build (`npm run build`) compiles with 0 errors.
+- **Database Wipe & Consistent Seeding:**
+  - Wiped all business tables in reverse foreign key dependency order, preserving all 16 user accounts with passwords set to `ChangeMe123!`.
+  - Seeded linked test records (< 10 per module): 6 airports, 4 charter rates, 4 operators, 5 fleet aircraft, 3 clients, 2 trip requests, 3 operator quotes, 2 client quotes, 3 trips (CONFIRMED from accepted quote, DRAFT round-trip, COMPLETED one-way), and 5 email templates.
+- **Next in Queue:** Module #17: Itineraries (passenger documents, FBO handling, operator itinerary attachments).
+

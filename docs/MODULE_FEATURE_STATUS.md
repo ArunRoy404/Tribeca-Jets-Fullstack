@@ -835,6 +835,36 @@ owed, paid and balance) — the board's "Op Pmt" column and the trip page's
 operator bills, where a bill is recorded and paid. Absent for a role without
 `VIEW_OPERATOR_PAYMENTS`.
 
+**Reviewed 10 Oct 2026** (review row 16). Fixed & verified:
+
+- **Permissions per person:** Controller decorated with `@StaffOnly()` (refuses referral agent/partner accounts with 403).
+  - Open staff reads: `GET /trips`, `/trips/stats`, `/trips/:id` open to all staff sessions without requiring write permissions.
+  - Financial gating: `operatorCost`, `grossProfit`, `marginPercentage` strictly omitted for callers lacking `canDo(user.access, Module.TRIPS, Action.VIEW_MONEY)`.
+  - Scoped reach: `reachOf(user.access, Module.TRIPS)` enforces broker-level filtering (`OWN` / `ASSIGNED`).
+  - Writes guarded with `@RequireAccess`:
+    - `Action.CREATE`: create trip, book from quote
+    - `Action.EDIT`: update trip, status transitions, leg updates, flight tracking reports
+    - `Action.ARCHIVE`: soft delete, restore, bulk remove, bulk restore
+  - Reassignment: Gated by `isAdministrator(user.role)` or `TRIPS · ASSIGN`.
+- **Airport validation with `AirportsService.usable`:**
+  - Trips module imports `AirportsModule`; all leg departure and arrival airports are checked with `AirportsService.usable(id, 'airport')` returning named 400s if non-existent or archived.
+- **Settings integration:**
+  - `create()` pulls default FET percent and toggle from `CompanySettings` (`settings.applyFetByDefault`, `settings.defaultFetPercent / 100`).
+- **Frontend form upgrades & UI consistency:**
+  - Replaced legacy `useTripFormOptions` and raw `PickerSelect` with shared searchable pickers (`ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`, `CommonSelect`).
+  - **Client auto-assignment & home base prefill**: Selecting a client in `ClientPicker` automatically defaults `Broker` to `client.assignedBrokerId` and Leg 1 departure to `client.homeAirportId` (if empty).
+  - **Aircraft / Operator linking**: Selecting an aircraft automatically defaults its operator; selecting an operator narrows aircraft choices.
+  - **Passenger count & manifest synchronization**: Synchronized `passengerCount` with manifest rows using `[-] count [+]` stepper and `Add Passenger` button; Passenger 1 collects Full Name, DOB, and Passport, while companion passengers (2+) collect name with quick remove `[X]`.
+  - **Staged file attachments**: Integrated shared `FileUpload` component (dropzone) into `CreateNotesDocsCard` for staged document attachments (up to 25 MB), automatically filed to the new trip's Document Vault upon creation via `documentsService.create`.
+  - Preserved clean 5-stage lifecycle stepper (`Draft` → `Booked` → `Confirmed` → `In Flight` → `Completed`) backed by `Trip.status` and operational checklist for milestones.
+  - Financial card margins and costs gated behind `canAccess(Module.TRIPS, Action.VIEW_MONEY)`.
+  - Action bar respects `TRIPS · ASSIGN` for reassignment.
+  - Table rows render honest em dashes `" — "` on missing or empty data cells.
+- **Unit test suite:**
+  - Created `trips.access.spec.ts` testing open staff reads, referral agent refusals (403), and permissions on write endpoints. All 45 vitest test suites (386 tests) pass 100%.
+- **Database reset & test seeding:**
+  - Wiped all business tables (preserving the 16 user accounts with `ChangeMe123!`), and seeded consistent linked test records (< 10 per module): 6 airports, 4 charter rates, 4 operators, 5 aircraft, 3 clients, 2 trip requests, 3 operator quotes, 2 quotes, 3 trips (CONFIRMED from accepted quote, DRAFT round-trip, COMPLETED one-way), and 5 email templates.
+
 ---
 
 ## 12. Itineraries ✅ *(28 Sep 2026)*

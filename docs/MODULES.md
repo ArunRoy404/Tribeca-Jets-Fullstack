@@ -141,8 +141,8 @@ reviewed yet — the module may still be built and working.
 | 13 | Trip Requests | — | ✅ 10 Oct — owner tested |
 | 14 | Operator Sourcing | — | ✅ 10 Oct — owner tested & signed off |
 | 15 | Quotes | Yes — markup, validity, FET, terms, document identity | ✅ 10 Oct — owner tested & signed off |
-| 16 | Trips | Yes — apply FET by default | ⬜ (next in review) |
-| 17 | Itineraries | Yes — document identity and toggles | ⬜ |
+| 16 | Trips | Yes — apply FET by default | ✅ 10 Oct — owner tested & signed off |
+| 17 | Itineraries | Yes — document identity and toggles | ⬜ (next in review) |
 | 18 | Schedule | — | ⬜ |
 | 19 | Flight Tracking | Yes — flight alerts to brokers | ⬜ |
 | 20 | Empty Legs | — | ⬜ |
