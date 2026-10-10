@@ -135,11 +135,11 @@ reviewed yet — the module may still be built and working.
 | 7 | Operators | — | ✅ 8 Oct — owner tested |
 | 8 | Aircraft | — | ✅ 9 Oct — owner tested |
 | 9 | Clients | Yes — default lead stage, follow-up interval | ✅ 9 Oct — owner tested |
-| 10 | Notes / Timeline | — | ✅ 9 Oct — reviewed, polymorphic per-user permissions |
-| 11 | Client Credits | — | ✅ 9 Oct — reviewed, @StaffOnly, financial access control |
-| 12 | Leads & Agents | Yes — default lead stage, follow-up interval | ✅ 9 Oct — reviewed, unified clients endpoint & settings wired |
-| 13 | Trip Requests | — | ⬜ **next** |
-| 14 | Operator Sourcing | — | ⬜ |
+| 10 | Notes / Timeline | — | ✅ 10 Oct — owner tested |
+| 11 | Client Credits | — | ✅ 10 Oct — owner tested |
+| 12 | Leads & Agents | Yes — default lead stage, follow-up interval | ✅ 10 Oct — owner tested |
+| 13 | Trip Requests | — | ✅ 10 Oct — owner tested |
+| 14 | Operator Sourcing | — | ⬜ **next** |
 | 15 | Quotes | Yes — markup, validity, FET, terms, document identity | ⬜ |
 | 16 | Trips | Yes — apply FET by default | ⬜ |
 | 17 | Itineraries | Yes — document identity and toggles | ⬜ |

@@ -560,11 +560,13 @@ agents are something else: clients of type `TRAVEL_AGENT`.
 - Return-before-departure rejected on the field, not in a banner
 - Editable after its client is archived — the client is re-checked only when
   it changes (a 400 on every save until 26 Sep 2026)
-- Uses the **trips** permissions (`VIEW_TRIPS` / `MANAGE_TRIPS` /
-  `DELETE_TRIPS`), because a request is the start of a trip
+- Uses **per-user permissions** (`@StaffOnly()`, `@RequireAccess(Module.TRIP_REQUESTS, Action.CREATE / EDIT / ARCHIVE)`, plus `Module.LEADS_AGENTS`), moving off legacy role matrix (10 Oct 2026)
+- Airport foreign keys validated via shared `AirportsService.usable(id, label)`
 - **A page of its own** at `/dashboard/trip-requests` (client request #8/#10a)
   — Active / All Requests / Archived tabs, stats tiles, search, five filters,
   a mobile card view below `lg`, bulk archive and restore
+- **Slide-over detail sheet** (`TripRequestDetailSheet`) on row click, keeping the table context with route strip, flight specs, client overview, quick client profile link, "Source in Operators", edit, and status controls
+- **Shared pickers**: `ClientPicker` (reusable server-paged RecordPicker), `AirportPicker`, `BrokerPicker`, and `CommonSelect` in `TripRequestForm`
 - **Mark as Lost** as the row action, ahead of Remove: a lost enquiry leaves
   the Active tab and stays in the log, which is what makes it findable when an
   empty leg matches it later

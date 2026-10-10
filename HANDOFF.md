@@ -39,24 +39,22 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 6 | Charter Rates / Instant Estimate | ✅ 8 Oct — owner tested; first form on the shared `AirportPicker` |
 | 8 | Aircraft | ✅ 9 Oct — owner tested |
 | 9 | Clients | ✅ 9 Oct — owner tested |
-| 10 | Notes / Timeline | ✅ 9 Oct — reviewed & tested; polymorphic per-user permissions |
-| 11 | Client Credits | ✅ 9 Oct — reviewed & tested; @StaffOnly, financial access control |
-| 12 | Leads & Agents | ✅ 9 Oct — reviewed & tested; unified clients endpoint & settings wired |
-| 13 | **Trip Requests** | ⬜ **next** |
-| 14–35 | Operator Sourcing, Quotes, … | ⬜ in the table's order |
+| 10 | Notes / Timeline | ✅ 10 Oct — owner tested |
+| 11 | Client Credits | ✅ 10 Oct — owner tested |
+| 12 | Leads & Agents | ✅ 10 Oct — owner tested |
+| 13 | Trip Requests | ✅ 10 Oct — owner tested & signed off |
+| 14 | **Operator Sourcing** | ⬜ **next** |
+| 15–35 | Quotes, Trips, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Trip Requests (#13) review
+### What is next — Operator Sourcing (#14) review
 
-- **Aircraft (#8), Clients (#9), Notes / Timeline (#10), Client Credits (#11), and Leads & Agents (#12) reviewed.**
-- **Trip Requests (#13) is next:** The open requests board and trip-booking pipeline (§6.4, §6.8).
-- **Notes / Timeline (#10):** Polymorphic activity and notes engine. Embedded across multiple modules (Clients Activity tab, Trips, Leads, Referrals). Gated with polymorphic `canDo(user.access, module, Action.VIEW/EDIT)` and author-only moderation rules.
-- **Client Credits (#11):** Ledger for money on account and trip application. Decorated with `@StaffOnly()`, blocked for assistants, scoped to assigned broker clients. Form input heights standardized.
-- **Leads & Agents (#12):** Leads engine integrated with `Client` and `TripRequest`. Permissions aligned with `Module.LEADS_AGENTS` and `Module.CLIENTS`. Reassignment and picker modernizations with shared `BrokerPicker` and `AirportPicker`. Company follow-up intervals pre-filled.
-- **Next module after Trip Requests sign-off:** Operator Sourcing (#14), Quotes (#15), Trips (#16)… in the Review order table.
+- **Trip Requests (#13) completed:** Open requests board and enquiry pipeline (§6.4, §6.8). Slide-over detail drawer, shared `ClientPicker` / `AirportPicker` / `BrokerPicker`, bi-directional date constraints, per-user `@RequireAccess` permissions, and `AirportsService.usable()` checks.
+- **Operator Sourcing (#14) is next:** The operator dispatch and quote collection board (§6.9).
+- Next module after Operator Sourcing: Quotes (#15), Trips (#16)… in the Review order table.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -342,6 +340,17 @@ this says *what the owner decided*, which nothing else records.
 - **Operators (4 curated):** NetJets, FlexJet, VistaJet, ExecuJet.
 - **Aircraft and Clients tables:** Kept clean (0 rows) for owner manual testing of modules #8 and #9.
 
+### 10 Oct 2026 — Testing feedback & UI adjustments across Notes, Credits, Leads & Layout (Antigravity)
+
+- **Sidebar Navigation ("My" prefix by reach):** `nav-main.jsx` checks `reachOf(item.module)`. Roles with `OWN` or `ASSIGNED` reach (Brokers, Assistants) see `"My "` prefixed on scoped modules (e.g. "My Clients", "My Leads & Agents", "My Trips"). Roles with `ALL` reach (Super Admin, Admin) see clean un-prefixed names.
+- **Sidebar collapse state persist:** Created `useSidebarStore.js` with `zustand/middleware` `persist` targeting `tj_sidebar_state` in `localStorage`. Integrated with `SidebarProvider` in `sidebar.jsx` so collapsed/expanded state persists across page reloads.
+- **Leads stat cards:** Removed duplicated stage badge in `LeadDetailStats.jsx` (preventing double "Contacted" pills) and added `unoptimized` on `CommonCard.jsx` background images to prevent broken icon fallbacks.
+- **Broker Assignment & Pre-assigned display:** `clients.service.ts` updated to select `assignedBrokerId: true` and `homeAirportId: true`. `toLeadRow` in `lead.js` now maps `brokerId` and `assignedBrokerId`. `AssignBrokerDialog.jsx` and `AddLeadDialog.jsx` fall back gracefully across `brokerId`, `assignedBrokerId`, and `assignedBroker.id`.
+- **Lead form sources:** Replaced multiple Facebook Group choices with a single `"Facebook Group"` (`FACEBOOK_GROUP_1`) in `LEAD_FORM_SOURCES`.
+- **Responsive email overflow:** Added `w-full max-w-full break-all` to `DetailField.jsx`, `ClientDetailSidebar.jsx`, and `LeadContactCard.jsx`.
+- **Notes & Withdrawn timeline rendering bugfix:** Fixed `TimelineEntry.jsx` where `/api/notes` records (which have no `kind` property) previously evaluated `isNote = false`, hiding the note body and author. Identified that `isNote = entry?.kind !== 'EVENT'`, correctly rendering note author avatar, formatted text, and moderation buttons.
+- **Verified with `npm run build` on Backend and `npm run lint` on Frontend.**
+
 ### 9 Oct 2026 — Aircraft (#8) reviewed, ready for owner test (Antigravity)
 
 - **Permissions per person:** Aircraft controller decorated with `@StaffOnly()`
@@ -397,3 +406,13 @@ this says *what the owner decided*, which nothing else records.
 - **Postman** runs on its own database copy; teardowns are their own last
   request.
 - Commits up to `b26e996`, pushed to `origin/roy`.
+
+### 10 Oct 2026 — Trip Requests reviewed and adjusted (Antigravity)
+
+- **Option 1 UX (Slide-Over Detail Drawer):** Approved UX pattern implemented for `/dashboard/trip-requests`. Clicking an enquiry row opens `TripRequestDetailSheet` (keeping the user's table context, search, and page state intact) with route strip banner, client & broker overview, flight specs, trip summary, catering/special requirements, internal desk notes, direct "Source in Operators" button, and quick "Client Profile →" link. Row action menu updated with both "View Details" and "View Client".
+- **Per-user permissions (Module.TRIP_REQUESTS):** Controller decorated with `@StaffOnly()`, open reads for staff pickers, `@RequireAccess(Module.TRIP_REQUESTS, Action.CREATE / EDIT / ARCHIVE)` (and `Module.LEADS_AGENTS`). Service enforces reach-based visibility (brokers see their assigned enquiries plus unassigned pool). Administrator-only reassignment and archive checks preserved.
+- **Airport validation:** Replaced private queries with shared `AirportsService.usable(id, label)` for both origin and destination airport foreign keys.
+- **ESM dependency cycle resolved:** Removed circular `TripsService` injection in `AirportsService` and `TripsModule` from `AirportsModule`. Airports detail calculates traffic count via Prisma directly, keeping low-level airport reference data strictly independent of high-level transaction modules.
+- **Shared pickers:** Created `Frontend/src/components/clients/ClientPicker.jsx` (`RecordPicker` over `useClients`/`useClient` with live server search and pagination). Upgraded `TripRequestForm.jsx` to use `ClientPicker`, `AirportPicker`, `BrokerPicker`, and `CommonSelect`.
+- **Postman:** Rebuilt folder `08 · Trip Requests` against the live running API: 9 requests, 23 examples captured and verified with `rewrite_body_comments.py`.
+- **Verification:** All 42 Vitest test suites (377 tests) pass; Next.js 16 build compiles with 0 errors. Backend dev server and frontend dev server running cleanly.
