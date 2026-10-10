@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 10 October 2026.** Update the "Where we are" section in the
+**Last updated: 11 October 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -55,7 +55,7 @@ that has not had it).
 
 ### What is next — Itineraries (#17) review
 
-- **Trips (#16) reviewed and seeded:** Controller decorated with `@StaffOnly()`, open reads for staff, writes guarded via `@RequireAccess(Module.TRIPS)`. Margins and operator costs strictly gated behind `VIEW_MONEY`. Airport foreign keys validated with `AirportsService.usable()`. CompanySettings FET defaults integrated. Create/Edit forms upgraded with `ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`, and client auto-assignment. Entire database wiped (preserving 16 user accounts) and consistent test data (< 10 per module) seeded.
+- **Trips (#16) signed off and pushed:** Controller decorated with `@StaffOnly()`, open reads for staff, writes guarded via `@RequireAccess(Module.TRIPS)`. Margins and operator costs strictly gated behind `VIEW_MONEY`. Airport foreign keys validated with `AirportsService.usable()`. CompanySettings FET defaults integrated. Create/Edit forms upgraded with `ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`, and client auto-assignment with Lead Source badge. Manifest count stepper synchronized with companion slots; staged file uploads automatically filed to the Document Vault. Entire database wiped (preserving 16 user accounts) and consistent test data (< 10 per module) seeded.
 - **Next module in queue:** **Itineraries (#17)** — passenger documents, operator itinerary attachments, FBO handling, and client delivery. Private attachment voucher routing to be resolved.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
@@ -457,5 +457,9 @@ this says *what the owner decided*, which nothing else records.
 - **Database Wipe & Consistent Seeding:**
   - Wiped all business tables in reverse foreign key dependency order, preserving all 16 user accounts with passwords set to `ChangeMe123!`.
   - Seeded linked test records (< 10 per module): 6 airports, 4 charter rates, 4 operators, 5 fleet aircraft, 3 clients, 2 trip requests, 3 operator quotes, 2 client quotes, 3 trips (CONFIRMED from accepted quote, DRAFT round-trip, COMPLETED one-way), and 5 email templates.
+- **Git:** Work committed in three batches split by concern and pushed to `origin/roy`:
+  - `f2cfeb4`: `feat(trips): per-person access, staff-only reads, financial gating, airport and settings validation, and access spec`
+  - `4a24cd4`: `feat(trips): shared pickers, passenger stepper sync, client lead source badge, staged attachments, and permission gating`
+  - `60ea1e6`: `docs: mark Trips (#16) reviewed, adjusted, tested and signed off`
 - **Next in Queue:** Module #17: Itineraries (passenger documents, FBO handling, operator itinerary attachments).
 
