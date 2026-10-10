@@ -619,6 +619,30 @@ rows, the way a leads table would have split one client.
 - An operator quote stays editable after its aircraft is archived — the
   aircraft is re-checked only when it changes (fixed 26 Sep 2026)
 
+**Reviewed and signed off 10 Oct 2026** (review row 14). Fixed & verified:
+
+- **Permissions per person:** Controller marked `@StaffOnly()` (protects desk data from referral agents).
+  Reads (`findAll`, `stats`, `findOne`) open to any signed-in staff session.
+  Writes require caller's own permissions via `@RequireAccess`:
+  - `Action.CREATE`: Ask operators to quote
+  - `Action.EDIT`: Record quote responses, approve, reject, decline, reopen
+  - `Action.ARCHIVE`: Soft delete, restore, bulk delete, bulk restore
+- **Reach checking:** Broker reach scoped to assigned enquiries via `reachOf(user.access, Module.OPERATOR_SOURCING)`.
+- **Reusable `OperatorPicker` & `RecordPicker`:**
+  - Extended shared `RecordPicker` to support `option.disabled` (disabled state, cursor-not-allowed, opacity, non-interactive).
+  - Extended shared `OperatorPicker` with `disabledIds` prop so operators already asked for an enquiry are visible but disabled with description "Already asked for this enquiry".
+- **Dedicated Figma modal:** Rebuilt `NewSourcingRequestDialog.jsx` matching Figma Image 1 with clean 8-field layout, `Linked trip` selector auto-populating from an open trip request, and required core fields (Client, Route from, Route to, Departure).
+- **Recorded quote response dialog:**
+  - Built dedicated `RecordResponseDialog.jsx` wiring `useRecordQuoteResponse` with `Quoted Price ($) *` strictly required, `AircraftPicker` scoped to operator, custom model/tail, terms, and notes.
+- **Quote action lifecycle in UI:**
+  - Quotes in `AWAITING_RESPONSE` provide "Record response" and "Decline" buttons.
+  - Awaiting cards display informative placeholders ("Awaiting operator pricing", "Suggested: [Aircraft]", "Pending") instead of blank `—` lines.
+  - Status badge tones: `Awaiting Response` (amber), `Received` (cyan), `Declined` (red).
+  - Quotes in `RECEIVED` provide "Approve", "Reject", and edit response buttons.
+  - Quotes with settled decisions provide "Undo decision" (`reopen`).
+  - Added user confirmation via `ConfirmDialog` before approving, rejecting, or recording operator declines.
+- **Access test suite:** Created `operator-quotes.access.spec.ts` testing open staff reads, referral agent refusals, and write access rules. All passing.
+
 **Waiting on a dependency**
 
 | Feature | Unblocked by |
@@ -708,6 +732,33 @@ client see on the 9th?" — is `QuoteVersion`.
   (`MANAGE_TRIPS` + `VIEW_FINANCIALS`); one click fills the base price
 - **Photo library** on the aircraft photo field, with the chosen tail's own
   fleet photos offered first (27 Sep 2026, client adjustment #3)
+
+**Reviewed 10 Oct 2026** (review row 15). Fixed & verified:
+
+- **Permissions per person:** Controller marked `@StaffOnly()` (blocks partner / referral agent roles from desk quotes).
+  - Open staff reads: `GET /quotes`, `/quotes/stats`, `/quotes/:id`, `/quotes/:id/versions` open to any signed-in staff session.
+  - Financials / margins: Gated behind `canDo(user.access, Module.QUOTES, Action.VIEW_MONEY)` — `operatorCost`, `grossProfit`, `marginPercentage` omitted from quotes and versions when absent. `POST /quotes/suggested-price` requires `VIEW_MONEY`.
+  - Scoped reach: `reachOf(user.access, Module.QUOTES)` scopes broker queries to assigned/own quotes.
+  - Writes guarded via `@RequireAccess`:
+    - `Action.CREATE`: create quote, `price-preview`, duplicate to draft
+    - `Action.EDIT`: update quote, approve, reject, expire, reopen
+    - `Action.SEND`: mark quote sent
+    - `Action.ARCHIVE`: soft delete, restore, bulk remove, bulk restore
+- **Airport validation with `AirportsService.usable`:**
+  - Quotes module imports `AirportsModule`; `assertLinks` validates departure and arrival airports through `AirportsService.usable()` returning named 400s if non-existent or archived.
+- **Frontend Refactoring & Consistency:**
+  - `AddQuoteDialog.jsx`: Replaced raw `PickerSelect` and massive unpaginated list hooks with shared searchable pickers (`ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`), loading single-record detail hooks for preview only.
+  - **Client auto-assignment & home base prefill**: Selecting a client in `ClientPicker` automatically defaults `Broker` to `client.assignedBrokerId` and `Route from` to `client.homeAirportId` (if empty).
+  - **Linked enquiry pre-fill**: Added `Linked enquiry` dropdown powered by `useTripRequests` that pre-fills client, broker, route from/to, dates, party size, and requirements, setting `tripRequestId` for full end-to-end relational continuity.
+  - **Unambiguous required vs optional fields**: Anchored core flight fields as strictly required (`Client *`, `Route from *`, `Route to *`, `Departure *`, `Base price ($) *`) with inline field validation, and clearly tagged all secondary fields with `(Optional)`.
+  - Added bidirectional date constraints on `DatePicker`: departure date has `max={form.returnDate}`, return date has `min={form.departureDate}`.
+  - Gated operator cost input, suggested price picker, and preview margins behind `canAccess(Module.QUOTES, Action.VIEW_MONEY)`.
+  - Added `useAircraft` alias in `hooks/aircraft` pointing to `useAircraftDetail`.
+  - `QuoteCard.jsx`: Updated `Field` helper to render `—` (honest blank) instead of omitting grid cells for missing values.
+  - Fixed syntax error and cleaned up action buttons in `QuoteStatusActionsCard.jsx`.
+  - Fixed `mayCreate` reference in `QuotesContainer.jsx` for `InstantEstimateDialog`.
+- **Unit test coverage:**
+  - Added `quotes.access.spec.ts` testing open staff reads, referral agent refusals (403), and permissions on write endpoints. All passing.
 
 **Waiting on a dependency**
 

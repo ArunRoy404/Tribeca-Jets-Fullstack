@@ -139,9 +139,9 @@ reviewed yet — the module may still be built and working.
 | 11 | Client Credits | — | ✅ 10 Oct — owner tested |
 | 12 | Leads & Agents | Yes — default lead stage, follow-up interval | ✅ 10 Oct — owner tested |
 | 13 | Trip Requests | — | ✅ 10 Oct — owner tested |
-| 14 | Operator Sourcing | — | ⬜ **next** |
-| 15 | Quotes | Yes — markup, validity, FET, terms, document identity | ⬜ |
-| 16 | Trips | Yes — apply FET by default | ⬜ |
+| 14 | Operator Sourcing | — | ✅ 10 Oct — owner tested & signed off |
+| 15 | Quotes | Yes — markup, validity, FET, terms, document identity | ✅ 10 Oct — owner tested & signed off |
+| 16 | Trips | Yes — apply FET by default | ⬜ (next in review) |
 | 17 | Itineraries | Yes — document identity and toggles | ⬜ |
 | 18 | Schedule | — | ⬜ |
 | 19 | Flight Tracking | Yes — flight alerts to brokers | ⬜ |
