@@ -7,17 +7,14 @@ import CreatePassengersCard from "@/components/trips/createForm/CreatePassengers
 import CreateFinancialsCard from "@/components/trips/createForm/CreateFinancialsCard";
 import CreateNotesDocsCard from "@/components/trips/createForm/CreateNotesDocsCard";
 import CreateFormActionBar from "@/components/trips/createForm/CreateFormActionBar";
-import { useTripFormOptions } from "@/components/trips/createForm/useTripFormOptions";
 
 /** The trip form — create and edit alike; the store knows which. */
 export default function CreateTripForm() {
-  const options = useTripFormOptions();
-
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 w-full">
-      <CreateClientTripCard options={options} />
-      <CreateRouteScheduleCard options={options} />
-      <CreateAircraftOperatorCard options={options} />
+      <CreateClientTripCard />
+      <CreateRouteScheduleCard />
+      <CreateAircraftOperatorCard />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <CreatePassengersCard />

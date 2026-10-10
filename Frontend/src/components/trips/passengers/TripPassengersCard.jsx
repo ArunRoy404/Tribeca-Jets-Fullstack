@@ -15,16 +15,23 @@ export default function TripPassengersCard({ trip }) {
         <p className="font-montserrat text-[12px] text-muted-foreground">No named passengers yet.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {passengers.map((p) => (
-            <div key={p.id} className="flex flex-col gap-0.5">
-              <p className="font-montserrat font-semibold text-[13px] text-foreground">{p.fullName}</p>
-              <p className="font-montserrat text-[11px] text-muted-foreground">
-                {p.dateOfBirth ? `Born ${formatDate(p.dateOfBirth)}` : "Date of birth not on file"}
-                {" · "}
-                {p.passportNumber ? `Passport ${p.passportNumber}` : "No passport on file"}
-              </p>
-            </div>
-          ))}
+          {passengers.map((p) => {
+            const hasDetails = Boolean(p.dateOfBirth || p.passportNumber);
+            return (
+              <div key={p.id} className="flex flex-col gap-0.5">
+                <p className="font-montserrat font-semibold text-[13px] text-foreground">{p.fullName}</p>
+                {hasDetails ? (
+                  <p className="font-montserrat text-[11px] text-muted-foreground">
+                    {p.dateOfBirth ? `Born ${formatDate(p.dateOfBirth)}` : "DOB not on file"}
+                    {" · "}
+                    {p.passportNumber ? `Passport ${p.passportNumber}` : "No passport on file"}
+                  </p>
+                ) : (
+                  <p className="font-montserrat text-[11px] text-muted-foreground">Companion</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </DetailCard>

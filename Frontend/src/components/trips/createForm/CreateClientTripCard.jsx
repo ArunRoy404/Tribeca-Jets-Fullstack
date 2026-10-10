@@ -3,35 +3,94 @@
 import DetailCard from "@/components/trips/DetailCard";
 import FormField from "@/components/trips/FormField";
 import TripTypeToggle from "@/components/trips/TripTypeToggle";
-import PickerSelect from "@/components/trips/PickerSelect";
+import ClientPicker from "@/components/clients/ClientPicker";
+import BrokerPicker from "@/components/users/BrokerPicker";
+import CommonSelect from "@/components/common/CommonSelect";
 import { useCreateTripStore } from "@/store/useCreateTripStore";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission, Scope } from "@/lib/permissions";
+import { useCurrentUser } from "@/hooks/auth";
+import { useClient } from "@/hooks/clients";
+import { Action, Module, Reach } from "@/lib/access";
+import { isAdministratorRole } from "@/lib/roles";
 import { formatTripStatus } from "@/lib/trip";
+import { formatLeadSource } from "@/lib/lead";
 
 /** A trip is created in one of these; the rest of its life is the lifecycle actions. */
-const CREATE_STATUSES = ["DRAFT", "BOOKED", "CONFIRMED"].map((value) => ({ value, label: formatTripStatus(value) }));
+const CREATE_STATUSES = ["DRAFT", "BOOKED", "CONFIRMED"].map((value) => ({
+  value,
+  label: formatTripStatus(value),
+}));
 
-export default function CreateClientTripCard({ options }) {
-  const { clientId, assignedBrokerId, type, status, editingId, setField, setType } = useCreateTripStore();
-  const { scopeFor } = usePermissions();
-  // Assigning a trip to someone else is an administrator's call — the same
-  // line the API draws. Hidden, not disabled, and never sent by a broker.
-  const mayAssign = scopeFor(Permission.MANAGE_TRIPS) === Scope.ALL;
+export default function CreateClientTripCard() {
+  const {
+    clientId,
+    assignedBrokerId,
+    type,
+    status,
+    editingId,
+    legs,
+    setField,
+    setType,
+    updateLeg,
+  } = useCreateTripStore();
+
+  const { canAccess, reachOf } = usePermissions();
+  const { data: currentUser } = useCurrentUser();
+  const { data: client } = useClient(clientId);
+
+  // Assigning a trip to someone else needs TRIPS · ASSIGN, ALL reach, or Super Admin/Admin.
+  const mayAssign =
+    canAccess(Module.TRIPS, Action.ASSIGN) ||
+    reachOf(Module.TRIPS) === Reach.ALL ||
+    isAdministratorRole(currentUser?.role);
+
+  const handleClientChange = (val, rawClient) => {
+    setField?.("clientId", val || "");
+    if (rawClient) {
+      if (rawClient.assignedBrokerId && mayAssign) {
+        setField?.("assignedBrokerId", rawClient.assignedBrokerId);
+      }
+      if (rawClient.homeAirportId && !legs?.[0]?.originAirportId) {
+        updateLeg?.(0, "originAirportId", rawClient.homeAirportId);
+      }
+    }
+  };
 
   return (
-    <DetailCard title="Client & Trip" description="Who is flying, who owns it, and the shape of the trip.">
+    <DetailCard
+      title="Client & Trip"
+      description="Who is flying, who owns it, and the shape of the trip."
+    >
       <FormField label="Client">
-        <PickerSelect value={clientId} onChange={(v) => setField?.("clientId", v)} options={options?.clients} placeholder="Select client..." />
+        <ClientPicker
+          value={clientId}
+          onChange={handleClientChange}
+          placeholder="Select client..."
+        />
+        {client && (
+          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground font-montserrat">
+            <span>Lead Source:</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-secondary text-foreground">
+              {formatLeadSource(client.leadSource) || "Direct"}
+            </span>
+            {client.companyName && (
+              <>
+                <span>·</span>
+                <span>{client.companyName}</span>
+              </>
+            )}
+          </div>
+        )}
       </FormField>
 
       {mayAssign && (
         <FormField label="Assigned Broker (Optional)">
-          <PickerSelect
+          <BrokerPicker
             value={assignedBrokerId}
-            onChange={(v) => setField?.("assignedBrokerId", v)}
-            options={options?.brokers}
+            onChange={(v) => setField?.("assignedBrokerId", v || "")}
             placeholder="You, unless you choose someone"
+            allowClear
+            clearLabel="None (Unassigned)"
           />
         </FormField>
       )}
@@ -40,14 +99,17 @@ export default function CreateClientTripCard({ options }) {
         <FormField label="Trip Type" className="flex-[2] min-w-0">
           <TripTypeToggle value={type} onChange={(v) => setType?.(v)} />
         </FormField>
-        {/* A new trip picks where it starts; after that its status moves only
-            through the lifecycle actions on the trip page. */}
         {!editingId && (
           <FormField label="Status" className="w-full sm:w-40 shrink-0">
-            <PickerSelect value={status} onChange={(v) => setField?.("status", v)} options={CREATE_STATUSES} />
+            <CommonSelect
+              value={status}
+              onChange={(v) => setField?.("status", v)}
+              options={CREATE_STATUSES}
+            />
           </FormField>
         )}
       </div>
     </DetailCard>
   );
 }
+

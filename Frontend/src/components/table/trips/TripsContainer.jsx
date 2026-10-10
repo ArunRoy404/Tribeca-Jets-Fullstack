@@ -19,7 +19,7 @@ import {
   useTripsTableParams,
 } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { moveVerb, toTripRow } from "@/lib/trip";
 import { ARCHIVE_TABS } from "@/lib/archive";
 
@@ -34,9 +34,10 @@ export default function TripsContainer({ revealDelay = 0 }) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
-  const mayArchive = canWrite(Permission.DELETE_TRIPS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.TRIPS, Action.CREATE);
+  const mayEdit = canAccess(Module.TRIPS, Action.EDIT);
+  const mayArchive = canAccess(Module.TRIPS, Action.ARCHIVE);
 
   const [selected, setSelected] = useState(() => new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -81,21 +82,22 @@ export default function TripsContainer({ revealDelay = 0 }) {
         ? [view, { label: "Restore Trip", icon: <RotateCcw />, onSelect: () => restoreTrips?.(trip?.id) }]
         : [view];
     }
-    if (!mayWrite) return [view];
 
     const actions = [view];
-    if (trip?.editable) {
+    if (trip?.editable && mayEdit) {
       actions.push({ label: "Edit Trip", icon: <Edit />, onSelect: () => router?.push(`/dashboard/trips/${trip?.id}/edit`) });
     }
-    for (const status of trip?.nextStatuses ?? []) {
-      const cancel = status === "CANCELLED";
-      actions.push({
-        label: moveVerb(status, trip?.rawStatus),
-        icon: cancel ? <XCircle className="text-destructive" /> : <ArrowRight />,
-        variant: cancel ? "destructive" : undefined,
-        // label uses the trip's current status so a step back reads "Back to …"
-        onSelect: () => changeStatus?.({ id: trip?.id, status }),
-      });
+    if (mayEdit) {
+      for (const status of trip?.nextStatuses ?? []) {
+        const cancel = status === "CANCELLED";
+        actions.push({
+          label: moveVerb(status, trip?.rawStatus),
+          icon: cancel ? <XCircle className="text-destructive" /> : <ArrowRight />,
+          variant: cancel ? "destructive" : undefined,
+          // label uses the trip's current status so a step back reads "Back to …"
+          onSelect: () => changeStatus?.({ id: trip?.id, status }),
+        });
+      }
     }
     if (mayArchive) {
       actions.push("separator");
@@ -127,7 +129,7 @@ export default function TripsContainer({ revealDelay = 0 }) {
           setTab={params.setTab}
           selectedCount={selected.size}
           onBulkAction={() => setBulkOpen(true)}
-          mayWrite={mayWrite}
+          mayCreate={mayCreate}
           mayArchive={mayArchive}
         />
 

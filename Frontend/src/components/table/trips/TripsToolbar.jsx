@@ -54,7 +54,7 @@ export default function TripsToolbar({
   setTab,
   selectedCount = 0,
   onBulkAction,
-  mayWrite = false,
+  mayCreate = false,
   mayArchive = false,
 }) {
   const isArchived = tab === ARCHIVE_TABS.ARCHIVED;
@@ -122,7 +122,7 @@ export default function TripsToolbar({
               action={isArchived ? "restore" : "remove"}
             />
           )}
-          {mayWrite && !isArchived && (
+          {mayCreate && !isArchived && (
             <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" render={<Link href="/dashboard/trips/new" />}>
               <Plus className="size-3.5" />
               New Trip

@@ -13,7 +13,7 @@ import { useCommissions } from "@/hooks/commissions";
 import { useReceivables } from "@/hooks/receivables";
 import { useOperatorPayables } from "@/hooks/operator-payments";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toCommissionRow } from "@/lib/commission";
 import { toReceivableRow } from "@/lib/receivable";
 import { toPayableRow } from "@/lib/operatorPayment";
@@ -56,20 +56,21 @@ function Line({ children }) {
  * Payments (#17) the same way. Commissions are listed the same way — not
  * summed here, because a total of estimates and settled figures is a number
  * nobody agreed. Operator cost, profit and margin are dashes for a role
- * without VIEW_FINANCIALS; the billing is a dash for a role that may not read
+ * without VIEW_MONEY; the billing is a dash for a role that may not read
  * receivables.
  */
 export default function TripFinancialCard({ trip }) {
   const f = trip?.financial ?? {};
   const billing = trip?.clientBilling ?? {};
-  const { can, canWrite } = usePermissions();
+  const { canAccess } = usePermissions();
 
-  const mayViewCommissions = can(Permission.VIEW_COMMISSIONS);
+  const mayViewMoney = canAccess(Module.TRIPS, Action.VIEW_MONEY);
+  const mayViewCommissions = canAccess(Module.COMMISSIONS, Action.VIEW);
   const { data } = useCommissions({ tripId: trip?.id, limit: 20 }, { enabled: Boolean(trip?.id) && mayViewCommissions });
   const commissions = (data?.data ?? []).map(toCommissionRow);
 
-  const mayViewReceivables = can(Permission.VIEW_RECEIVABLES);
-  const mayInvoice = canWrite(Permission.MANAGE_RECEIVABLES) && !trip?.isArchived;
+  const mayViewReceivables = canAccess(Module.RECEIVABLES, Action.VIEW);
+  const mayInvoice = canAccess(Module.RECEIVABLES, Action.CREATE) && !trip?.isArchived;
   const { data: invoiceData } = useReceivables(
     { tripId: trip?.id, limit: 20 },
     { enabled: Boolean(trip?.id) && mayViewReceivables },
@@ -79,8 +80,8 @@ export default function TripFinancialCard({ trip }) {
   const openPaymentModal = useReceivablesStore((s) => s.openPaymentModal);
 
   const opBilling = trip?.operatorBilling ?? {};
-  const mayViewBills = can(Permission.VIEW_OPERATOR_PAYMENTS);
-  const mayRecordBills = canWrite(Permission.MANAGE_OPERATOR_PAYMENTS) && !trip?.isArchived;
+  const mayViewBills = canAccess(Module.OPERATOR_PAYMENTS, Action.VIEW);
+  const mayRecordBills = canAccess(Module.OPERATOR_PAYMENTS, Action.CREATE) && !trip?.isArchived;
   const { data: billData } = useOperatorPayables(
     { tripId: trip?.id, limit: 20 },
     { enabled: Boolean(trip?.id) && mayViewBills },
@@ -95,9 +96,9 @@ export default function TripFinancialCard({ trip }) {
         <StatBox label="Client Total" value={f.total} />
         <StatBox label="Client Paid" value={billing.paid ?? "—"} tone="success" />
         <StatBox label="Client Balance" value={billing.balance ?? "—"} tone={billing.rawState === "OVERDUE" ? "destructive" : "foreground"} />
-        <StatBox label="Operator Cost" value={f.operatorCost} />
-        <StatBox label="Gross Profit" value={f.grossProfit} tone="success" highlight />
-        <StatBox label="Margin" value={f.margin} />
+        <StatBox label="Operator Cost" value={mayViewMoney ? f.operatorCost : "—"} />
+        <StatBox label="Gross Profit" value={mayViewMoney ? f.grossProfit : "—"} tone="success" highlight={mayViewMoney} />
+        <StatBox label="Margin" value={mayViewMoney ? f.margin : "—"} />
         <StatBox label="FET" value={f.fet} />
         <StatBox label="Commissions" value={mayViewCommissions && data ? String(data.meta?.total ?? 0) : "—"} />
       </div>
