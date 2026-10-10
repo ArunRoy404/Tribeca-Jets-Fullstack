@@ -27,10 +27,12 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import {
-  Permission,
-  Scope,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+  Action,
+  Module,
+  Reach,
+} from '../../common/authorization/access.catalogue.js';
+import { canDo, reachOf } from '../../common/authorization/access.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
 import { FlightStatus, InvoiceStatus, TripStatus, TripType } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
@@ -38,6 +40,8 @@ import { tallyTrips, tripFigures } from './trips.figures.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
+import { AirportsService } from '../airports/airports.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { TripPaymentState, todayUtc, tripPayment } from '../receivables/receivables.amounts.js';
 import { tripOperatorPayment } from '../operator-payments/operator-payments.amounts.js';
 import {
@@ -337,6 +341,8 @@ export class TripsService {
     private readonly audit: AuditService,
     private readonly quotes: QuotesService,
     private readonly requests: TripRequestsService,
+    private readonly airports: AirportsService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ---- Scope ------------------------------------------------------------
@@ -347,35 +353,39 @@ export class TripsService {
    * a booking that arrived before anyone owned it must not disappear.
    */
   private visibilityScope(user: AuthenticatedUser): Prisma.TripWhereInput {
-    if (scopeFor(user.role, Permission.VIEW_TRIPS) === Scope.ALL) return {};
+    const reach = reachOf(user.access, Module.TRIPS);
+    if (reach === Reach.ALL) return {};
     return { OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }] };
   }
 
   private seesFinancials(user: AuthenticatedUser): boolean {
-    return scopeFor(user.role, Permission.VIEW_FINANCIALS) !== Scope.NONE;
+    return canDo(user.access, Module.TRIPS, Action.VIEW_MONEY);
   }
 
   /** Whether the caller may read what the trip's operators billed and were paid. */
   private seesOperatorPayments(user: AuthenticatedUser): boolean {
-    return scopeFor(user.role, Permission.VIEW_OPERATOR_PAYMENTS) !== Scope.NONE;
+    return canDo(user.access, Module.OPERATOR_PAYMENTS, Action.VIEW);
   }
 
   /** Whether the caller may read what the client has been billed and paid. */
   private seesReceivables(user: AuthenticatedUser): boolean {
-    return scopeFor(user.role, Permission.VIEW_RECEIVABLES) !== Scope.NONE;
+    return canDo(user.access, Module.RECEIVABLES, Action.VIEW);
   }
 
-  /** Reassigning a trip is an administrator's call, like a client's. */
+  /** Reassigning a trip is an administrator's call, or requires TRIPS ASSIGN. */
   private assertMayReassign(user: AuthenticatedUser): void {
-    if (scopeFor(user.role, Permission.MANAGE_TRIPS) !== Scope.ALL) {
+    if (
+      !isAdministrator(user.role) &&
+      !canDo(user.access, Module.TRIPS, Action.ASSIGN)
+    ) {
       throw new ForbiddenException(
-        'Only an administrator or senior broker can reassign a trip.',
+        'Only an administrator can reassign a trip.',
       );
     }
   }
 
   private assertMayArchive(user: AuthenticatedUser): void {
-    if (scopeFor(user.role, Permission.DELETE_TRIPS) !== Scope.ALL) {
+    if (!canDo(user.access, Module.TRIPS, Action.ARCHIVE)) {
       throw new ForbiddenException(
         'Only an administrator can archive a trip. Cancel it instead.',
       );
@@ -496,25 +506,15 @@ export class TripsService {
     }
   }
 
-  /** Every airport the legs name must be a live row — checked once, together. */
+  /** Every airport the legs name must be a live row — verified via shared AirportsService.usable. */
   private async assertAirports(legs: LegInput[], previous?: Set<string>): Promise<void> {
     const ids = [...new Set(legs.flatMap((leg) => [leg.originAirportId, leg.destinationAirportId]))]
       // An airport already on this trip is not re-checked: archiving it later
       // must not lock the trip (AGENTS.md, "validate a foreign key only when it
       // is actually changing").
       .filter((id) => !previous?.has(id));
-    if (ids.length === 0) return;
-    const rows = await this.prisma.airport.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, icao: true, deletedAt: true },
-    });
-    const found = new Map(rows.map((row) => [row.id, row]));
     for (const id of ids) {
-      const row = found.get(id);
-      if (!row) throw new BadRequestException('One of the legs names an airport that does not exist');
-      if (row.deletedAt) {
-        throw new BadRequestException(`${row.icao} has been archived. Restore it, or choose another airport.`);
-      }
+      await this.airports.usable(id, 'airport');
     }
   }
 
@@ -776,6 +776,8 @@ export class TripsService {
       this.assertAirports(dto.legs),
     ]);
 
+    const settings = await this.settings.read();
+
     const trip = await this.prisma.$transaction(async (tx) => {
       const created = await tx.trip.create({
         data: {
@@ -792,8 +794,8 @@ export class TripsService {
           passengerCount: dto.passengerCount ?? null,
           departureDate: dto.legs[0]?.departureDate ?? null,
           basePrice: dto.basePrice ?? null,
-          fetEnabled: dto.fetEnabled,
-          ...(dto.fetRate !== undefined ? { fetRate: dto.fetRate } : {}),
+          fetEnabled: dto.fetEnabled !== undefined ? dto.fetEnabled : settings.applyFetByDefault,
+          fetRate: dto.fetRate !== undefined ? dto.fetRate : settings.defaultFetPercent / 100,
           operatorCost: dto.operatorCost ?? null,
           lineItems: (dto.lineItems ?? []) as Prisma.InputJsonValue,
           internalNotes: dto.internalNotes ?? null,

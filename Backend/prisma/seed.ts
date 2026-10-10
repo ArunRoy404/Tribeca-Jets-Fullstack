@@ -11,13 +11,14 @@ import {
   ResponseSpeed,
   AircraftCategory,
   AircraftStatus,
-  ClientPriority,
   FollowUpMethod,
   TripRequestStatus,
   UserRole,
   UserStatus,
   OperatorQuoteStatus,
   QuoteStatus,
+  TripStatus,
+  TripType,
   EmailTemplateCategory,
 } from '../src/generated/prisma/enums.js';
 import argon2 from 'argon2';
@@ -29,14 +30,11 @@ import {
 } from '../src/common/authorization/access.js';
 
 /**
- * Idempotent development seed. Safe to run repeatedly — every write is an
- * upsert keyed on a natural unique field.
+ * Tribeca Jets Command Center — Development Seed & Reset
  *
- * "Idempotent" here means *restores a known state*, not *leaves whatever is
- * there*. Every seeded account has its password reset on each run, because a
- * test that rotates a password would otherwise strand that account with a
- * credential nobody knows and no way to recover it short of editing the
- * database by hand. This has already happened twice.
+ * Preserves the 5 core user accounts (and directory members).
+ * Wipes business data in reverse dependency order.
+ * Seeds linked, consistent, production-grade test data (< 10 per module).
  */
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env['DATABASE_URL'] }),
@@ -51,6 +49,35 @@ const hash = (password: string) =>
   });
 
 async function main(): Promise<void> {
+  console.log('--- Cleaning database (preserving users) ---');
+
+  // 1. Wipe business tables in reverse foreign key order
+  await prisma.document.deleteMany({});
+  await prisma.task.deleteMany({});
+  await prisma.emailMessage.deleteMany({});
+  await prisma.itinerary.deleteMany({});
+  await prisma.clientCredit.deleteMany({});
+  await prisma.referral.deleteMany({});
+  await prisma.commission.deleteMany({});
+  await prisma.invoicePayment.deleteMany({});
+  await prisma.invoice.deleteMany({});
+  await prisma.operatorPayablePayment.deleteMany({});
+  await prisma.operatorPayable.deleteMany({});
+  await prisma.tripPassenger.deleteMany({});
+  await prisma.tripLeg.deleteMany({});
+  await prisma.trip.deleteMany({});
+  await prisma.quoteVersion.deleteMany({});
+  await prisma.quote.deleteMany({});
+  await prisma.operatorQuote.deleteMany({});
+  await prisma.tripRequest.deleteMany({});
+  await prisma.aircraft.deleteMany({});
+  await prisma.operator.deleteMany({});
+  await prisma.charterRate.deleteMany({});
+  await prisma.client.deleteMany({});
+  await prisma.airport.deleteMany({});
+  await prisma.emailTemplate.deleteMany({});
+
+  console.log('--- Upserting standard users ---');
   const password = await hash('ChangeMe123!');
 
   const admin = await prisma.user.upsert({
@@ -77,9 +104,6 @@ async function main(): Promise<void> {
     },
   });
 
-  // Dedicated target for password-reset testing, so exercising that flow (from
-  // the Postman collection or by hand) never disturbs the accounts the sign-in
-  // and scoping tests depend on. Its password is force-reset on every seed run.
   await prisma.user.upsert({
     where: { email: 'reset-demo@example.com' },
     update: { passwordHash: password, status: UserStatus.ACTIVE, deletedAt: null },
@@ -92,8 +116,6 @@ async function main(): Promise<void> {
     },
   });
 
-  // Two-factor is off for the accounts above so the common path stays quick to
-  // test; this one exercises the challenge flow.
   await prisma.user.upsert({
     where: { email: 'security@example.com' },
     update: {
@@ -112,18 +134,11 @@ async function main(): Promise<void> {
     },
   });
 
-  /**
-   * One account per remaining role, so the Users directory has something to
-   * page, filter and sort against, and so the permission matrix can be
-   * exercised end to end rather than only reasoned about.
-   */
   const directory = [
     {
       email: 'senior@example.com',
       firstName: 'Sasha',
       lastName: 'Senior',
-      // SENIOR_BROKER was withdrawn on 7 Oct 2026. The account stays, as a
-      // broker, because the Postman folders sign in with it.
       role: UserRole.BROKER,
       status: UserStatus.ACTIVE,
     },
@@ -153,8 +168,6 @@ async function main(): Promise<void> {
       firstName: 'Tom',
       lastName: 'Walsh',
       role: UserRole.BROKER,
-      // A suspended account, so the status filter has a non-empty result and
-      // sign-in refusal for revoked staff is testable.
       status: UserStatus.SUSPENDED,
     },
     {
@@ -162,13 +175,9 @@ async function main(): Promise<void> {
       firstName: 'Nina',
       lastName: 'Newhire',
       role: UserRole.BROKER,
-      // Never signed in: exercises the INVITED branch of the directory.
       status: UserStatus.INVITED,
     },
     {
-      // A referral partner (#11): signs in to the portal at /portal, and is
-      // what Postman's `18 · Referrals` submits as. Standing terms of 10% of
-      // profit, so a linked trip raises a commission with a value.
       email: 'agent@example.com',
       firstName: 'Riley',
       lastName: 'Partner',
@@ -179,12 +188,6 @@ async function main(): Promise<void> {
     },
   ];
 
-  /**
-   * Per-person permissions (7 Oct 2026). Everyone stores their role's
-   * defaults, except two brokers adjusted by hand, so the Edit form and the
-   * sidebar show a real difference between people in the same role:
-   * Barry has more than a broker starts with, Mark has less.
-   */
   const brokerDefaults = defaultGrants(UserRole.BROKER);
   const adjusted: Record<string, AccessGrants> = {
     'barry@example.com': {
@@ -221,42 +224,34 @@ async function main(): Promise<void> {
     });
   }
 
-  // Two clients on different brokers, so row-level scoping is observable:
-  // signing in as the broker must return exactly one of these.
-  const clients = [
-    {
-      firstName: 'Marcus',
-      lastName: 'Chen',
-      email: 'marcus.chen@example.com',
-      type: ClientType.DIRECT,
-      leadStage: LeadStage.WON,
-      leadSource: LeadSource.REFERRAL,
-      homeAirportIcao: 'KTEB',
-      assignedBrokerId: broker.id,
-      originatingBrokerId: broker.id,
-      preferences: { pets: true, noRedEye: true, preferredFbo: 'Signature' },
-      labels: ['VIP'],
-    },
-    {
-      firstName: 'Dana',
-      lastName: 'Whitfield',
-      companyName: 'Whitfield Travel Group',
-      email: 'dana@whitfieldtravel.example.com',
-      type: ClientType.TRAVEL_AGENT,
-      leadStage: LeadStage.QUOTED,
-      leadSource: LeadSource.FACEBOOK_GROUP_1,
-      homeAirportIcao: 'KOPF',
-      assignedBrokerId: admin.id,
-      originatingBrokerId: admin.id,
-      preferences: { catering: 'Kosher on request' },
-      labels: ['Agency'],
-    },
-  ];
+  await prisma.user.update({
+    where: { id: broker.id },
+    data: { maxActiveLeads: 15, defaultFollowUpMethod: FollowUpMethod.CALL },
+  });
 
-  // Reference data: the ten airports and four operators the frontend's mock
-  // data used, so the tables have realistic rows to page, filter and sort.
-  // Upserted on their natural keys, so re-running the seed neither duplicates
-  // them nor overwrites edits made through the API.
+  console.log('--- Upserting company settings ---');
+  await prisma.companySettings.upsert({
+    where: { id: 1 },
+    update: {
+      companyName: 'Tribeca Jets',
+      defaultFetPercent: 7.5,
+      applyFetByDefault: true,
+      defaultMarkupPercent: 15,
+      quoteValidityHours: 24,
+      requireAdminTwoFactor: false,
+    },
+    create: {
+      id: 1,
+      companyName: 'Tribeca Jets',
+      defaultFetPercent: 7.5,
+      applyFetByDefault: true,
+      defaultMarkupPercent: 15,
+      quoteValidityHours: 24,
+      requireAdminTwoFactor: false,
+    },
+  });
+
+  console.log('--- Seeding reference airports (6 rows) ---');
   const airports = [
     { icao: 'KTEB', iata: 'TEB', name: 'Teterboro Airport', city: 'Teterboro', state: 'NJ', country: 'USA', latitude: 40.8508, longitude: -74.0613, longestRunwayFt: 7000, assignedFbo: 'Signature Flight Support', notes: 'Primary departure airport for NYC clients.' },
     { icao: 'KPBI', iata: 'PBI', name: 'Palm Beach International', city: 'West Palm Beach', state: 'FL', country: 'USA', latitude: 26.6832, longitude: -80.0956, longestRunwayFt: 10008, assignedFbo: 'Atlantic Aviation', notes: 'Key winter hub for South Florida private aviation traffic.' },
@@ -264,95 +259,54 @@ async function main(): Promise<void> {
     { icao: 'KLAS', iata: 'LAS', name: 'Harry Reid International', city: 'Las Vegas', state: 'NV', country: 'USA', latitude: 36.084, longitude: -115.1537, longestRunwayFt: 14515, assignedFbo: 'Signature Flight Support', notes: 'High traffic during major conventions and events.' },
     { icao: 'KVNY', iata: 'VNY', name: 'Van Nuys Airport', city: 'Los Angeles', state: 'CA', country: 'USA', latitude: 34.2098, longitude: -118.4899, longestRunwayFt: 8001, assignedFbo: 'Castle & Cooke Aviation', notes: "World's busiest dedicated general aviation airport." },
     { icao: 'KASE', iata: 'ASE', name: 'Aspen/Pitkin County', city: 'Aspen', state: 'CO', country: 'USA', latitude: 39.2232, longitude: -106.8688, longestRunwayFt: 8006, assignedFbo: 'Atlantic Aviation', notes: 'High altitude mountain airport with strict curfew.' },
-    { icao: 'KLAX', iata: 'LAX', name: 'Los Angeles International', city: 'Los Angeles', state: 'CA', country: 'USA', latitude: 33.9416, longitude: -118.4085, longestRunwayFt: 12091, assignedFbo: 'Atlantic Aviation', notes: 'Major West Coast international gateway.' },
-    { icao: 'KJFK', iata: 'JFK', name: 'John F. Kennedy Intl', city: 'New York', state: 'NY', country: 'USA', latitude: 40.6413, longitude: -73.7781, longestRunwayFt: 14511, assignedFbo: 'Sheltair Aviation', notes: 'Slot controlled during afternoon peak hours.' },
-    { icao: 'EGLL', iata: 'LHR', name: 'London Heathrow Airport', city: 'London', state: 'ENG', country: 'United Kingdom', latitude: 51.47, longitude: -0.4543, longestRunwayFt: 12799, assignedFbo: 'Signature Flight Support', notes: 'Slot controlled. 24/7 UK Border Force available.' },
-    { icao: 'LFPB', iata: 'LBG', name: 'Paris Le Bourget', city: 'Paris', state: 'IDF', country: 'France', latitude: 48.9694, longitude: 2.4414, longestRunwayFt: 9843, assignedFbo: 'Jetex Paris Le Bourget', notes: 'Premier private aviation airport serving Paris.' },
   ];
 
   for (const airport of airports) {
-    await prisma.airport.upsert({
-      where: { icao: airport.icao },
-      update: {},
-      create: { ...airport, createdById: admin.id, updatedById: admin.id },
+    await prisma.airport.create({
+      data: { ...airport, createdById: admin.id, updatedById: admin.id },
     });
   }
 
-  // Clients are inserted after airports on purpose: `homeAirportId` is a real
-  // foreign key now, so the row it points at has to exist first.
-  for (const { homeAirportIcao, ...client } of clients) {
-    const existing = await prisma.client.findFirst({
-      where: { email: client.email },
-      select: { id: true },
-    });
-    if (existing) continue;
+  console.log('--- Seeding charter rates (4 rows) ---');
+  const rates = [
+    { category: AircraftCategory.LIGHT_JET, hourlyRate: 3200, averageSpeedKnots: 420, typicalSeats: 6, minimumHours: 2.0, notes: 'Ideal for light domestic hops under 2 hours.' },
+    { category: AircraftCategory.MIDSIZE_JET, hourlyRate: 4500, averageSpeedKnots: 450, typicalSeats: 8, minimumHours: 2.0, notes: 'Coast to midwest range.' },
+    { category: AircraftCategory.SUPER_MIDSIZE, hourlyRate: 5800, averageSpeedKnots: 470, typicalSeats: 9, minimumHours: 2.0, notes: 'Coast-to-coast nonstop capability.' },
+    { category: AircraftCategory.HEAVY_JET, hourlyRate: 7900, averageSpeedKnots: 490, typicalSeats: 14, minimumHours: 2.5, notes: 'Transcontinental & transoceanic luxury cabins.' },
+  ];
 
-    const homeAirport = homeAirportIcao
-      ? await prisma.airport.findUnique({
-          where: { icao: homeAirportIcao },
-          select: { id: true },
-        })
-      : null;
-
-    await prisma.client.create({
-      data: { ...client, homeAirportId: homeAirport?.id ?? null },
+  for (const rate of rates) {
+    await prisma.charterRate.create({
+      data: { ...rate, createdById: admin.id, updatedById: admin.id },
     });
   }
 
+  console.log('--- Seeding operators (4 rows) ---');
   const operators = [
-    { name: 'FlexJet', status: OperatorStatus.PREFERRED, homeBase: 'Cleveland, OH', website: 'www.flexjet.com', primaryContact: 'James Miller', contactEmail: 'jmiller@flexjet.example.com', contactPhone: '+1 (212) 555-0184', aircraftTypes: ['Global 7500', 'Challenger 350'], serviceRoutes: ['KTEB ↔ KMIA', 'KJFK ↔ EGLL', 'KLAX ↔ KLAS'], reliabilityRating: 4.8, safetyRating: 4.9, responseSpeed: ResponseSpeed.FAST, paymentTerms: PaymentTerms.NET_30, cancellationPolicy: 'Full refund up to 72 hours prior to departure. 50% fee within 48-72h. 100% fee within 24h.', sourcingNotes: 'Preferred long-range partner with direct dispatch line. High reliability on transcontinental routes.' },
-    { name: 'VistaJet', status: OperatorStatus.ACTIVE, homeBase: 'Luton, UK', website: 'www.vistajet.com', primaryContact: 'Sarah Blake', contactEmail: 'sblake@vistajet.example.com', contactPhone: '+44 20 7946 0912', aircraftTypes: ['Global 7500', 'Global 6000'], serviceRoutes: ['EGLL ↔ KJFK', 'EGGW ↔ OMDB', 'LFMN ↔ KTEB'], reliabilityRating: 4.7, safetyRating: 4.8, responseSpeed: ResponseSpeed.FAST, paymentTerms: PaymentTerms.NET_15, cancellationPolicy: 'Standard international charter terms. 10% non-refundable deposit.', sourcingNotes: 'Excellent global coverage with distinctive silver and red stripe fleet.' },
+    { name: 'FlexJet', status: OperatorStatus.PREFERRED, homeBase: 'Cleveland, OH', website: 'www.flexjet.com', primaryContact: 'James Miller', contactEmail: 'jmiller@flexjet.example.com', contactPhone: '+1 (212) 555-0184', aircraftTypes: ['Global 7500', 'Challenger 350'], serviceRoutes: ['KTEB ↔ KMIA', 'KJFK ↔ EGLL', 'KLAX ↔ KLAS'], reliabilityRating: 4.8, safetyRating: 4.9, responseSpeed: ResponseSpeed.FAST, paymentTerms: PaymentTerms.NET_30, cancellationPolicy: 'Full refund up to 72 hours prior to departure. 50% fee within 48-72h. 100% fee within 24h.', sourcingNotes: 'Preferred long-range partner with direct dispatch line.' },
+    { name: 'VistaJet', status: OperatorStatus.ACTIVE, homeBase: 'Luton, UK', website: 'www.vistajet.com', primaryContact: 'Sarah Blake', contactEmail: 'sblake@vistajet.example.com', contactPhone: '+44 20 7946 0912', aircraftTypes: ['Global 7500', 'Global 6000'], serviceRoutes: ['EGLL ↔ KJFK', 'LFMN ↔ KTEB'], reliabilityRating: 4.7, safetyRating: 4.8, responseSpeed: ResponseSpeed.FAST, paymentTerms: PaymentTerms.NET_15, cancellationPolicy: 'Standard international charter terms. 10% non-refundable deposit.', sourcingNotes: 'Excellent global coverage with distinctive silver and red stripe fleet.' },
     { name: 'ExecuJet', status: OperatorStatus.ACTIVE, homeBase: 'Zurich, CH', website: 'www.execujet.com', primaryContact: 'Mark Hughes', contactEmail: 'mhughes@execujet.example.com', contactPhone: '+41 44 804 1616', aircraftTypes: ['Gulfstream G550', 'Falcon 7X'], serviceRoutes: ['LSZH ↔ LFMN', 'LSGG ↔ EGLL'], reliabilityRating: 4.6, safetyRating: 4.7, responseSpeed: ResponseSpeed.FAST, paymentTerms: PaymentTerms.DUE_ON_RECEIPT, cancellationPolicy: 'Standard European business aviation contract.', sourcingNotes: 'Premier European charter operator with heavy jet capabilities.' },
     { name: 'NetJets', status: OperatorStatus.PREFERRED, homeBase: 'Columbus, OH', website: 'www.netjets.com', primaryContact: 'Jennifer Vance', contactEmail: 'jvance@netjets.example.com', contactPhone: '+1 (877) 356-5825', aircraftTypes: ['Citation Latitude', 'Challenger 650', 'Global 6000'], serviceRoutes: ['KCMH ↔ KTEB', 'KTEB ↔ KPBI', 'KLAX ↔ KSFO'], reliabilityRating: 4.9, safetyRating: 4.9, responseSpeed: ResponseSpeed.FAST, paymentTerms: PaymentTerms.NET_30, cancellationPolicy: 'NetJets broker agreement terms with 48-hour cancellation grace period.', sourcingNotes: 'Largest private jet operator globally. Instant guaranteed availability.' },
-    // One INACTIVE row so the status filter has something to exclude.
-    { name: 'Clay Lacy Aviation', status: OperatorStatus.INACTIVE, homeBase: 'Van Nuys, CA', website: 'www.claylacy.com', primaryContact: 'Dana Ruiz', contactEmail: 'druiz@claylacy.example.com', contactPhone: '+1 (800) 423-2904', aircraftTypes: ['Citation X'], serviceRoutes: ['KVNY ↔ KLAS'], reliabilityRating: 4.2, safetyRating: 4.5, responseSpeed: ResponseSpeed.AVERAGE, paymentTerms: PaymentTerms.NET_30, cancellationPolicy: 'Standard domestic terms.', sourcingNotes: 'Dormant since the West Coast desk moved to NetJets.' },
   ];
 
   for (const operator of operators) {
-    const existing = await prisma.operator.findFirst({
-      where: { name: operator.name },
-      select: { id: true },
+    await prisma.operator.create({
+      data: { ...operator, createdById: admin.id, updatedById: admin.id },
     });
-    if (!existing) {
-      await prisma.operator.create({
-        data: { ...operator, createdById: admin.id, updatedById: admin.id },
-      });
-    }
   }
 
-  // Aircraft come last: `operatorId` and `homeBaseId` are real foreign keys,
-  // so both rows they point at have to exist first. Each tail below is a real
-  // airframe on a real operator's certificate, and every specification is that
-  // type's published figure — a seeded number is still a number someone will
-  // read off the screen and quote against.
+  console.log('--- Seeding fleet aircraft (5 rows) ---');
   const aircraft = [
-    { tailNumber: 'N780EX', model: 'Gulfstream G550', manufacturer: 'Gulfstream Aerospace', category: AircraftCategory.HEAVY_JET, status: AircraftStatus.AVAILABLE, operatorName: 'ExecuJet', homeBaseIcao: 'KTEB', maxPassengers: 14, rangeNm: 6750, yearBuilt: 2019, maxSpeed: 'Mach 0.885', cruiseSpeed: 'Mach 0.80', serviceCeilingFt: 51000, baggageCapacityCuFt: 226, cabinLengthFt: 50.1, maxTakeoffWeightLb: 91000, emptyWeightLb: 48300, fuelCapacityGal: 6325, takeoffDistanceFt: 5910, landingDistanceFt: 2770, amenities: ['WiFi', 'Satellite Phone', 'Full Galley', 'Private Lavatory', 'Lie-flat Seats', 'Entertainment System', 'Power Outlets'], notes: 'Gogo ATG-5000 WiFi. Premium interior configuration.' },
-    { tailNumber: 'N785EX', model: 'Global 7500', manufacturer: 'Bombardier Aviation', category: AircraftCategory.ULTRA_LONG_RANGE, status: AircraftStatus.AVAILABLE, operatorName: 'FlexJet', homeBaseIcao: 'KTEB', maxPassengers: 14, rangeNm: 7700, yearBuilt: 2021, maxSpeed: 'Mach 0.925', cruiseSpeed: 'Mach 0.85', serviceCeilingFt: 51000, baggageCapacityCuFt: 195, cabinLengthFt: 54.4, maxTakeoffWeightLb: 114850, emptyWeightLb: 63000, fuelCapacityGal: 7500, takeoffDistanceFt: 5800, landingDistanceFt: 2520, amenities: ['Ka-band WiFi', 'Satellite Phone', 'Full Galley', 'Private Lavatory', 'Master Suite', 'Power Outlets'], notes: 'Four living zones. Flagship ultra-long-range tail.' },
-    { tailNumber: 'N680EX', model: 'Challenger 350', manufacturer: 'Bombardier Aviation', category: AircraftCategory.SUPER_MIDSIZE, status: AircraftStatus.IN_SERVICE, operatorName: 'FlexJet', homeBaseIcao: 'KVNY', maxPassengers: 9, rangeNm: 3200, yearBuilt: 2020, maxSpeed: 'Mach 0.83', cruiseSpeed: 'Mach 0.80', serviceCeilingFt: 45000, baggageCapacityCuFt: 106, cabinLengthFt: 25.2, maxTakeoffWeightLb: 40600, emptyWeightLb: 23200, fuelCapacityGal: 2100, takeoffDistanceFt: 4835, landingDistanceFt: 2364, amenities: ['WiFi', 'Full Galley', 'Private Lavatory', 'Power Outlets'], notes: 'Coast-to-coast US capability.' },
-    { tailNumber: 'N600VJ', model: 'Global 6000', manufacturer: 'Bombardier Aviation', category: AircraftCategory.ULTRA_LONG_RANGE, status: AircraftStatus.AVAILABLE, operatorName: 'VistaJet', homeBaseIcao: 'EGLL', maxPassengers: 13, rangeNm: 6000, yearBuilt: 2018, maxSpeed: 'Mach 0.89', cruiseSpeed: 'Mach 0.85', serviceCeilingFt: 51000, baggageCapacityCuFt: 195, cabinLengthFt: 43.3, maxTakeoffWeightLb: 99500, emptyWeightLb: 56000, fuelCapacityGal: 6600, takeoffDistanceFt: 6476, landingDistanceFt: 2670, amenities: ['WiFi', 'Full Galley', 'Private Lavatory', 'Lie-flat Seats'], notes: 'Silver and red stripe livery. Transatlantic workhorse.' },
-    { tailNumber: 'N421NJ', model: 'Citation Latitude', manufacturer: 'Textron Aviation', category: AircraftCategory.MIDSIZE_JET, status: AircraftStatus.MAINTENANCE, operatorName: 'NetJets', homeBaseIcao: 'KPBI', maxPassengers: 9, rangeNm: 2700, yearBuilt: 2022, maxSpeed: 'Mach 0.80', cruiseSpeed: 'Mach 0.72', serviceCeilingFt: 45000, baggageCapacityCuFt: 100, cabinLengthFt: 21.9, maxTakeoffWeightLb: 30800, emptyWeightLb: 18800, fuelCapacityGal: 1600, takeoffDistanceFt: 3580, landingDistanceFt: 2480, amenities: ['WiFi', 'Refreshment Centre', 'Private Lavatory', 'Power Outlets'], notes: 'Flat-floor cabin. Popular for short Florida hops.' },
-    // One TURBOPROP and one INACTIVE tail, so the category and status filters
-    // both have something to exclude.
-    { tailNumber: 'N208CL', model: 'Pilatus PC-12 NGX', manufacturer: 'Pilatus Aircraft', category: AircraftCategory.TURBOPROP, status: AircraftStatus.AVAILABLE, operatorName: 'Clay Lacy Aviation', homeBaseIcao: 'KASE', maxPassengers: 8, rangeNm: 1803, yearBuilt: 2021, maxSpeed: '290 KTAS', cruiseSpeed: '270 KTAS', serviceCeilingFt: 30000, baggageCapacityCuFt: 40, cabinLengthFt: 16.9, maxTakeoffWeightLb: 10450, emptyWeightLb: 6600, fuelCapacityGal: 402, takeoffDistanceFt: 2600, landingDistanceFt: 2170, amenities: ['Power Outlets', 'Refreshment Centre'], notes: 'Short-field capable. The only tail that can work KASE in winter.' },
-    { tailNumber: 'N750CL', model: 'Citation X', manufacturer: 'Textron Aviation', category: AircraftCategory.SUPER_MIDSIZE, status: AircraftStatus.INACTIVE, operatorName: 'Clay Lacy Aviation', homeBaseIcao: 'KVNY', maxPassengers: 8, rangeNm: 3070, yearBuilt: 2012, maxSpeed: 'Mach 0.935', cruiseSpeed: 'Mach 0.85', serviceCeilingFt: 51000, baggageCapacityCuFt: 82, cabinLengthFt: 25.2, maxTakeoffWeightLb: 36600, emptyWeightLb: 22100, fuelCapacityGal: 1926, takeoffDistanceFt: 5140, landingDistanceFt: 3180, amenities: ['Power Outlets'], notes: 'Withdrawn from charter when the West Coast desk moved to NetJets.' },
+    { tailNumber: 'N780EX', model: 'Gulfstream G550', manufacturer: 'Gulfstream Aerospace', category: AircraftCategory.HEAVY_JET, status: AircraftStatus.AVAILABLE, operatorName: 'ExecuJet', homeBaseIcao: 'KTEB', maxPassengers: 14, rangeNm: 6750, yearBuilt: 2019, maxSpeed: 'Mach 0.885', cruiseSpeed: 'Mach 0.80', serviceCeilingFt: 51000, baggageCapacityCuFt: 226, cabinLengthFt: 50.1, maxTakeoffWeightLb: 91000, emptyWeightLb: 48300, fuelCapacityGal: 6325, takeoffDistanceFt: 5910, landingDistanceFt: 2770, amenities: ['WiFi', 'Satellite Phone', 'Full Galley', 'Private Lavatory', 'Lie-flat Seats'], notes: 'Gogo ATG-5000 WiFi. Premium interior configuration.' },
+    { tailNumber: 'N785EX', model: 'Global 7500', manufacturer: 'Bombardier Aviation', category: AircraftCategory.ULTRA_LONG_RANGE, status: AircraftStatus.AVAILABLE, operatorName: 'FlexJet', homeBaseIcao: 'KTEB', maxPassengers: 14, rangeNm: 7700, yearBuilt: 2021, maxSpeed: 'Mach 0.925', cruiseSpeed: 'Mach 0.85', serviceCeilingFt: 51000, baggageCapacityCuFt: 195, cabinLengthFt: 54.4, maxTakeoffWeightLb: 114850, emptyWeightLb: 63000, fuelCapacityGal: 7500, takeoffDistanceFt: 5800, landingDistanceFt: 2520, amenities: ['Ka-band WiFi', 'Satellite Phone', 'Full Galley', 'Private Lavatory', 'Master Suite'], notes: 'Four living zones. Flagship ultra-long-range tail.' },
+    { tailNumber: 'N680EX', model: 'Challenger 350', manufacturer: 'Bombardier Aviation', category: AircraftCategory.SUPER_MIDSIZE, status: AircraftStatus.IN_SERVICE, operatorName: 'FlexJet', homeBaseIcao: 'KVNY', maxPassengers: 9, rangeNm: 3200, yearBuilt: 2020, maxSpeed: 'Mach 0.83', cruiseSpeed: 'Mach 0.80', serviceCeilingFt: 45000, baggageCapacityCuFt: 106, cabinLengthFt: 25.2, maxTakeoffWeightLb: 40600, emptyWeightLb: 23200, fuelCapacityGal: 2100, takeoffDistanceFt: 4835, landingDistanceFt: 2364, amenities: ['WiFi', 'Full Galley', 'Private Lavatory'], notes: 'Coast-to-coast US capability.' },
+    { tailNumber: 'N600VJ', model: 'Global 6000', manufacturer: 'Bombardier Aviation', category: AircraftCategory.ULTRA_LONG_RANGE, status: AircraftStatus.AVAILABLE, operatorName: 'VistaJet', homeBaseIcao: 'KMIA', maxPassengers: 13, rangeNm: 6000, yearBuilt: 2018, maxSpeed: 'Mach 0.89', cruiseSpeed: 'Mach 0.85', serviceCeilingFt: 51000, baggageCapacityCuFt: 195, cabinLengthFt: 43.3, maxTakeoffWeightLb: 99500, emptyWeightLb: 56000, fuelCapacityGal: 6600, takeoffDistanceFt: 6476, landingDistanceFt: 2670, amenities: ['WiFi', 'Full Galley', 'Private Lavatory', 'Lie-flat Seats'], notes: 'Silver and red stripe livery. Transatlantic workhorse.' },
+    { tailNumber: 'N421NJ', model: 'Citation Latitude', manufacturer: 'Textron Aviation', category: AircraftCategory.MIDSIZE_JET, status: AircraftStatus.AVAILABLE, operatorName: 'NetJets', homeBaseIcao: 'KPBI', maxPassengers: 9, rangeNm: 2700, yearBuilt: 2022, maxSpeed: 'Mach 0.80', cruiseSpeed: 'Mach 0.72', serviceCeilingFt: 45000, baggageCapacityCuFt: 100, cabinLengthFt: 21.9, maxTakeoffWeightLb: 30800, emptyWeightLb: 18800, fuelCapacityGal: 1600, takeoffDistanceFt: 3580, landingDistanceFt: 2480, amenities: ['WiFi', 'Refreshment Centre', 'Private Lavatory'], notes: 'Flat-floor cabin. Popular for short Florida hops.' },
   ];
 
   for (const { operatorName, homeBaseIcao, ...tail } of aircraft) {
-    const existing = await prisma.aircraft.findUnique({
-      where: { tailNumber: tail.tailNumber },
-      select: { id: true },
-    });
-    if (existing) continue;
-
-    const operator = await prisma.operator.findFirst({
-      where: { name: operatorName },
-      select: { id: true },
-    });
-    const homeBase = await prisma.airport.findUnique({
-      where: { icao: homeBaseIcao },
-      select: { id: true },
-    });
-
+    const operator = await prisma.operator.findFirst({ where: { name: operatorName } });
+    const homeBase = await prisma.airport.findUnique({ where: { icao: homeBaseIcao } });
     await prisma.aircraft.create({
       data: {
         ...tail,
@@ -364,282 +318,401 @@ async function main(): Promise<void> {
     });
   }
 
-  // Trip requests come last: `clientId` and both airport ids are real foreign
-  // keys, so every row they point at has to exist first.
-  //
-  // These are enquiries against seeded clients — the second half of the Add
-  // Lead form, which files a person and what they asked for as two records.
+  console.log('--- Seeding clients (3 rows) ---');
+  const clients = [
+    {
+      firstName: 'Marcus',
+      lastName: 'Chen',
+      email: 'marcus.chen@example.com',
+      phone: '+1 (212) 555-0142',
+      type: ClientType.DIRECT,
+      leadStage: LeadStage.WON,
+      leadSource: LeadSource.REFERRAL,
+      homeAirportIcao: 'KTEB',
+      assignedBrokerId: broker.id,
+      originatingBrokerId: broker.id,
+      preferences: { pets: true, noRedEye: true, preferredFbo: 'Signature' },
+      labels: ['VIP', 'Repeat Client'],
+    },
+    {
+      firstName: 'Dana',
+      lastName: 'Whitfield',
+      companyName: 'Whitfield Travel Group',
+      email: 'dana@whitfieldtravel.example.com',
+      phone: '+1 (305) 555-0199',
+      type: ClientType.TRAVEL_AGENT,
+      leadStage: LeadStage.QUOTED,
+      leadSource: LeadSource.DIRECT,
+      homeAirportIcao: 'KPBI',
+      assignedBrokerId: admin.id,
+      originatingBrokerId: admin.id,
+      preferences: { catering: 'Kosher on request' },
+      labels: ['Agency', 'High Volume'],
+    },
+    {
+      firstName: 'Harrison',
+      lastName: 'Vance',
+      companyName: 'Vance Capital',
+      email: 'hvance@vancecap.example.com',
+      phone: '+1 (702) 555-0188',
+      type: ClientType.DIRECT,
+      leadStage: LeadStage.QUALIFIED,
+      leadSource: LeadSource.WEBSITE,
+      homeAirportIcao: 'KLAS',
+      assignedBrokerId: broker.id,
+      originatingBrokerId: broker.id,
+      preferences: { cabinService: 'Flight attendant required' },
+      labels: ['Corporate'],
+    },
+  ];
+
+  for (const { homeAirportIcao, ...client } of clients) {
+    const homeAirport = await prisma.airport.findUnique({ where: { icao: homeAirportIcao } });
+    await prisma.client.create({
+      data: { ...client, homeAirportId: homeAirport?.id ?? null },
+    });
+  }
+
+  console.log('--- Seeding trip requests (2 rows) ---');
   const day = (offset: number) => {
     const date = new Date();
     date.setDate(date.getDate() + offset);
     return date.toISOString().slice(0, 10);
   };
 
-  const requests = [
-    { clientEmail: 'marcus.chen@example.com', originIcao: 'KTEB', destinationIcao: 'KMIA', departure: day(14), returnDate: day(17), passengers: 4, aircraftPreference: AircraftCategory.HEAVY_JET, estimatedValue: '28000.00', status: TripRequestStatus.QUOTED, source: LeadSource.DIRECT, summary: 'NYC → Miami, business charter', requirements: 'Catering and ground transport at both ends.' },
-    { clientEmail: 'marcus.chen@example.com', originIcao: 'KMIA', destinationIcao: 'KASE', departure: day(46), returnDate: null, passengers: 6, aircraftPreference: AircraftCategory.SUPER_MIDSIZE, estimatedValue: '41500.00', status: TripRequestStatus.OPEN, source: LeadSource.REFERRAL, summary: 'Miami → Aspen, ski week', requirements: 'Ski equipment, six sets.' },
-  ];
+  const chenClient = await prisma.client.findFirstOrThrow({ where: { email: 'marcus.chen@example.com' } });
+  const whitfieldClient = await prisma.client.findFirstOrThrow({ where: { email: 'dana@whitfieldtravel.example.com' } });
 
-  for (const { clientEmail, originIcao, destinationIcao, departure, returnDate, ...fields } of requests) {
-    const client = await prisma.client.findFirst({
-      where: { email: clientEmail },
-      select: { id: true, assignedBrokerId: true },
-    });
-    if (!client) continue;
+  const teb = await prisma.airport.findUniqueOrThrow({ where: { icao: 'KTEB' } });
+  const mia = await prisma.airport.findUniqueOrThrow({ where: { icao: 'KMIA' } });
+  const ase = await prisma.airport.findUniqueOrThrow({ where: { icao: 'KASE' } });
+  const pbi = await prisma.airport.findUniqueOrThrow({ where: { icao: 'KPBI' } });
 
-    const existing = await prisma.tripRequest.findFirst({
-      where: { clientId: client.id, summary: fields.summary },
-      select: { id: true },
-    });
-    if (existing) continue;
-
-    const [origin, destination] = await Promise.all([
-      prisma.airport.findUnique({ where: { icao: originIcao }, select: { id: true } }),
-      prisma.airport.findUnique({ where: { icao: destinationIcao }, select: { id: true } }),
-    ]);
-
-    await prisma.tripRequest.create({
-      data: {
-        ...fields,
-        clientId: client.id,
-        assignedBrokerId: client.assignedBrokerId,
-        originAirportId: origin?.id ?? null,
-        destinationAirportId: destination?.id ?? null,
-        departureDate: new Date(`${departure}T00:00:00.000Z`),
-        returnDate: returnDate ? new Date(`${returnDate}T00:00:00.000Z`) : null,
-        createdById: admin.id,
-        updatedById: admin.id,
-      },
-    });
-  }
-
-  // Operator sourcing: what came back on the first enquiry.
-  //
-  // Three operators asked, two answered, one still out — so the board has a
-  // row in each of its states to show, and the derived counts ("3 contacted,
-  // 2 responded") have something real to count. The unanswered one is
-  // deliberate: an enquiry where every operator has replied never exercises
-  // AWAITING_RESPONSE, which is the state the desk actually chases.
-  // `deletedAt: null` matters: testing archives requests, and an archived one
-  // still matches on summary. Without it the seed hangs its quotes off a
-  // removed enquiry — which is exactly what happened, and it is invisible
-  // until a board shows two quotes whose request is not in any list.
-  const sourcedRequest = await prisma.tripRequest.findFirst({
-    where: { summary: 'NYC → Miami, business charter', deletedAt: null },
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
+  const req1 = await prisma.tripRequest.create({
+    data: {
+      clientId: chenClient.id,
+      assignedBrokerId: broker.id,
+      originAirportId: teb.id,
+      destinationAirportId: mia.id,
+      departureDate: new Date(`${day(14)}T00:00:00.000Z`),
+      returnDate: null,
+      passengers: 4,
+      aircraftPreference: AircraftCategory.HEAVY_JET,
+      estimatedValue: '35000.00',
+      status: TripRequestStatus.QUOTED,
+      source: LeadSource.REFERRAL,
+      summary: 'NYC → Miami, executive travel',
+      requirements: 'Catering and ground transport at both ends.',
+      createdById: broker.id,
+      updatedById: broker.id,
+    },
   });
 
-  if (sourcedRequest) {
-    const hoursAgo = (hours: number) =>
-      new Date(Date.now() - hours * 3_600_000);
+  const req2 = await prisma.tripRequest.create({
+    data: {
+      clientId: chenClient.id,
+      assignedBrokerId: broker.id,
+      originAirportId: mia.id,
+      destinationAirportId: ase.id,
+      departureDate: new Date(`${day(30)}T00:00:00.000Z`),
+      returnDate: new Date(`${day(37)}T00:00:00.000Z`),
+      passengers: 6,
+      aircraftPreference: AircraftCategory.SUPER_MIDSIZE,
+      estimatedValue: '52000.00',
+      status: TripRequestStatus.OPEN,
+      source: LeadSource.DIRECT,
+      summary: 'Miami ↔ Aspen, winter retreat',
+      requirements: 'Ski gear storage, in-flight WiFi.',
+      createdById: broker.id,
+      updatedById: broker.id,
+    },
+  });
 
-    const quotes = [
-      { operatorName: 'FlexJet', tail: 'N780EX', price: '27400.00', status: OperatorQuoteStatus.RECEIVED, requestedAt: hoursAgo(28), respondedAt: hoursAgo(26), amenities: ['WiFi', 'Full Galley'], terms: 'Net 30. 50% fee within 48 hours of departure.' },
-      { operatorName: 'VistaJet', tail: null, price: '31250.00', status: OperatorQuoteStatus.RECEIVED, requestedAt: hoursAgo(28), respondedAt: hoursAgo(21), amenities: ['WiFi', 'Flight Attendant'], terms: 'Net 15. 10% non-refundable deposit.' },
-      // A seeded operator. This used to name Solairus Aviation, which only
-      // exists where the Postman Operators folder has been run — so on a fresh
-      // database the loop below skipped it and the AWAITING_RESPONSE row this
-      // comment block promises was never written.
-      { operatorName: 'ExecuJet', tail: null, price: null, status: OperatorQuoteStatus.AWAITING_RESPONSE, requestedAt: hoursAgo(28), respondedAt: null, amenities: [], terms: null },
-    ];
+  console.log('--- Seeding operator sourcing quotes (3 rows) ---');
+  const flexjet = await prisma.operator.findFirstOrThrow({ where: { name: 'FlexJet' } });
+  const vistajet = await prisma.operator.findFirstOrThrow({ where: { name: 'VistaJet' } });
+  const execujet = await prisma.operator.findFirstOrThrow({ where: { name: 'ExecuJet' } });
+  const netjets = await prisma.operator.findFirstOrThrow({ where: { name: 'NetJets' } });
 
-    for (const quote of quotes) {
-      const operator = await prisma.operator.findFirst({
-        where: { name: quote.operatorName, deletedAt: null },
-        select: { id: true },
-      });
-      if (!operator) continue;
+  const tailFlex = await prisma.aircraft.findUniqueOrThrow({ where: { tailNumber: 'N785EX' } });
+  const tailExec = await prisma.aircraft.findUniqueOrThrow({ where: { tailNumber: 'N780EX' } });
+  const tailNet = await prisma.aircraft.findUniqueOrThrow({ where: { tailNumber: 'N421NJ' } });
 
-      // Re-runnable: the live-only uniqueness means a second seed would
-      // otherwise collide on the same request/operator pair.
-      const existing = await prisma.operatorQuote.findFirst({
-        where: {
-          tripRequestId: sourcedRequest.id,
-          operatorId: operator.id,
-          deletedAt: null,
+  const opQuote1 = await prisma.operatorQuote.create({
+    data: {
+      tripRequestId: req1.id,
+      operatorId: flexjet.id,
+      aircraftId: tailFlex.id,
+      suggestedAircraft: 'Global 7500, flagship ultra-long range',
+      price: '27400.00',
+      status: OperatorQuoteStatus.RECEIVED,
+      amenities: ['Ka-band WiFi', 'Full Galley', 'Master Suite'],
+      terms: 'Net 30. 50% cancellation fee within 48h of departure.',
+      requestedAt: new Date(Date.now() - 36 * 3_600_000),
+      respondedAt: new Date(Date.now() - 30 * 3_600_000),
+      createdById: broker.id,
+      updatedById: broker.id,
+    },
+  });
+
+  await prisma.operatorQuote.create({
+    data: {
+      tripRequestId: req1.id,
+      operatorId: vistajet.id,
+      aircraftId: null,
+      suggestedAircraft: 'Global 6000, heavy jet',
+      price: '31250.00',
+      status: OperatorQuoteStatus.RECEIVED,
+      amenities: ['WiFi', 'Flight Attendant'],
+      terms: 'Net 15. 10% non-refundable deposit.',
+      requestedAt: new Date(Date.now() - 36 * 3_600_000),
+      respondedAt: new Date(Date.now() - 25 * 3_600_000),
+      createdById: broker.id,
+      updatedById: broker.id,
+    },
+  });
+
+  await prisma.operatorQuote.create({
+    data: {
+      tripRequestId: req1.id,
+      operatorId: execujet.id,
+      aircraftId: null,
+      suggestedAircraft: 'Gulfstream G550',
+      price: null,
+      status: OperatorQuoteStatus.AWAITING_RESPONSE,
+      amenities: [],
+      requestedAt: new Date(Date.now() - 36 * 3_600_000),
+      createdById: broker.id,
+      updatedById: broker.id,
+    },
+  });
+
+  console.log('--- Seeding client quotes (2 rows) ---');
+  const quote1 = await prisma.quote.create({
+    data: {
+      clientId: chenClient.id,
+      tripRequestId: req1.id,
+      operatorQuoteId: opQuote1.id,
+      assignedBrokerId: broker.id,
+      operatorId: flexjet.id,
+      aircraftId: tailFlex.id,
+      originAirportId: teb.id,
+      destinationAirportId: mia.id,
+      departureDate: req1.departureDate,
+      passengers: 4,
+      basePrice: 33428.00,
+      fetEnabled: true,
+      fetRate: 0.075,
+      operatorCost: 27400.00,
+      depositAmount: 8357.00,
+      status: QuoteStatus.SENT,
+      version: 1,
+      sentAt: new Date(Date.now() - 24 * 3_600_000),
+      validUntil: new Date(`${day(10)}T00:00:00.000Z`),
+      terms: '50% upon contract signing, balance 72 hours prior to departure.',
+      internalNotes: 'Client indicated strong preference for Global 7500 tail N785EX.',
+      createdById: broker.id,
+      updatedById: broker.id,
+      versions: {
+        create: {
+          version: 1,
+          basePrice: 33428.00,
+          fetEnabled: true,
+          fetRate: 0.075,
+          operatorCost: 27400.00,
+          fetAmount: 2507.10,
+          extrasTotal: 0,
+          totalPrice: 35935.10,
+          grossProfit: 6028.00,
+          note: 'Sent to Marcus Chen',
+          createdById: broker.id,
         },
-        select: { id: true },
-      });
-      if (existing) continue;
-
-      // Only link a tail we actually hold, and only on its own operator's
-      // certificate — the service enforces that, and the seed must not write
-      // a row the API would have refused.
-      const aircraft = quote.tail
-        ? await prisma.aircraft.findFirst({
-            where: {
-              tailNumber: quote.tail,
-              operatorId: operator.id,
-              deletedAt: null,
-            },
-            select: { id: true },
-          })
-        : null;
-
-      await prisma.operatorQuote.create({
-        data: {
-          tripRequestId: sourcedRequest.id,
-          operatorId: operator.id,
-          aircraftId: aircraft?.id ?? null,
-          suggestedAircraft: 'Heavy jet, four passengers, NYC to Miami',
-          price: quote.price,
-          amenities: quote.amenities,
-          terms: quote.terms,
-          status: quote.status,
-          requestedAt: quote.requestedAt,
-          respondedAt: quote.respondedAt,
-          createdById: admin.id,
-          updatedById: admin.id,
-        },
-      });
-    }
-  }
-
-  // Client quotes: one sent and waiting, one draft.
-  //
-  // The sent one is built on the cheapest operator quote above, which is the
-  // whole point of the link — the margin on it traces back to a real number an
-  // operator gave us rather than to a figure someone retyped. The draft gives
-  // the board a row that has never been near a client, so the "send it first"
-  // rule has something to refuse.
-  if (sourcedRequest) {
-    const winning = await prisma.operatorQuote.findFirst({
-      where: {
-        tripRequestId: sourcedRequest.id,
-        status: OperatorQuoteStatus.RECEIVED,
-        deletedAt: null,
       },
-      orderBy: { price: 'asc' },
-      select: { id: true, price: true, operatorId: true, aircraftId: true },
-    });
+    },
+  });
 
-    const request = await prisma.tripRequest.findUnique({
-      where: { id: sourcedRequest.id },
-      select: {
-        clientId: true,
-        assignedBrokerId: true,
-        originAirportId: true,
-        destinationAirportId: true,
-        departureDate: true,
-        returnDate: true,
-        passengers: true,
+  // Quote 2: ACCEPTED quote ready to be booked as a trip
+  const quote2 = await prisma.quote.create({
+    data: {
+      clientId: chenClient.id,
+      tripRequestId: req1.id,
+      operatorQuoteId: opQuote1.id,
+      assignedBrokerId: broker.id,
+      operatorId: flexjet.id,
+      aircraftId: tailFlex.id,
+      originAirportId: teb.id,
+      destinationAirportId: mia.id,
+      departureDate: req1.departureDate,
+      passengers: 4,
+      basePrice: 33428.00,
+      fetEnabled: true,
+      fetRate: 0.075,
+      operatorCost: 27400.00,
+      depositAmount: 8357.00,
+      status: QuoteStatus.APPROVED,
+      version: 1,
+      sentAt: new Date(Date.now() - 48 * 3_600_000),
+      decidedAt: new Date(Date.now() - 12 * 3_600_000),
+      validUntil: new Date(`${day(10)}T00:00:00.000Z`),
+      terms: '50% upon contract signing, balance 72 hours prior to departure.',
+      decisionNote: 'Client accepted offer via phone call with broker.',
+      createdById: broker.id,
+      updatedById: broker.id,
+      versions: {
+        create: {
+          version: 1,
+          basePrice: 33428.00,
+          fetEnabled: true,
+          fetRate: 0.075,
+          operatorCost: 27400.00,
+          fetAmount: 2507.10,
+          extrasTotal: 0,
+          totalPrice: 35935.10,
+          grossProfit: 6028.00,
+          note: 'Signed and accepted',
+          createdById: broker.id,
+        },
       },
-    });
+    },
+  });
 
-    const already = await prisma.quote.count({
-      where: { tripRequestId: sourcedRequest.id, deletedAt: null },
-    });
-
-    if (winning && request && already === 0) {
-      const operatorCost = Number(winning.price);
-      // A round 22% over cost, before tax — a plausible desk markup, and
-      // written as a stated multiple rather than a magic total so the figure
-      // is reproducible rather than invented.
-      const basePrice = Math.round(operatorCost * 1.22 * 100) / 100;
-
-      const inTenDays = new Date();
-      inTenDays.setUTCDate(inTenDays.getUTCDate() + 10);
-      inTenDays.setUTCHours(0, 0, 0, 0);
-
-      const sent = await prisma.quote.create({
-        data: {
-          clientId: request.clientId,
-          tripRequestId: sourcedRequest.id,
-          operatorQuoteId: winning.id,
-          assignedBrokerId: request.assignedBrokerId ?? broker.id,
-          operatorId: winning.operatorId,
-          aircraftId: winning.aircraftId,
-          originAirportId: request.originAirportId,
-          destinationAirportId: request.destinationAirportId,
-          departureDate: request.departureDate,
-          returnDate: request.returnDate,
-          passengers: request.passengers,
-          basePrice,
-          fetEnabled: true,
-          operatorCost,
-          depositAmount: Math.round(basePrice * 0.25 * 100) / 100,
-          lineItems: [
-            { label: 'Catering (premium)', amount: null, included: true },
-            { label: 'Ground transportation', amount: 850, included: false },
-          ],
-          status: QuoteStatus.SENT,
-          version: 1,
-          sentAt: new Date(Date.now() - 20 * 3_600_000),
-          validUntil: inTenDays,
-          terms: '50% on acceptance, balance 72 hours before departure.',
-          createdById: admin.id,
-          updatedById: admin.id,
-        },
-        select: { id: true, basePrice: true, fetRate: true },
-      });
-
-      const fetAmount =
-        Math.round(Number(sent.basePrice) * Number(sent.fetRate) * 100) / 100;
-      await prisma.quoteVersion.create({
-        data: {
-          quoteId: sent.id,
-          version: 1,
-          basePrice,
-          fetEnabled: true,
-          fetRate: sent.fetRate,
-          operatorCost,
-          lineItems: [
-            { label: 'Catering (premium)', amount: null, included: true },
-            { label: 'Ground transportation', amount: 850, included: false },
-          ],
-          fetAmount,
-          extrasTotal: 850,
-          totalPrice: Math.round((basePrice + fetAmount + 850) * 100) / 100,
-          grossProfit:
-            Math.round((basePrice + fetAmount + 850 - operatorCost) * 100) / 100,
-          note: 'Initial quote',
-          createdById: admin.id,
-        },
-      });
-
-      await prisma.quote.create({
-        data: {
-          clientId: request.clientId,
-          tripRequestId: sourcedRequest.id,
-          assignedBrokerId: broker.id,
-          originAirportId: request.originAirportId,
-          destinationAirportId: request.destinationAirportId,
-          departureDate: request.departureDate,
-          passengers: request.passengers,
-          basePrice: 38900,
-          fetEnabled: true,
-          lineItems: [],
-          status: QuoteStatus.DRAFT,
-          version: 1,
-          internalNotes: 'Alternative on a super-midsize — cheaper, one stop.',
-          createdById: admin.id,
-          updatedById: admin.id,
-          versions: {
-            create: {
-              version: 1,
-              basePrice: 38900,
-              fetEnabled: true,
-              fetRate: 0.075,
-              operatorCost: null,
-              lineItems: [],
-              fetAmount: 2917.5,
-              extrasTotal: 0,
-              totalPrice: 41817.5,
-              grossProfit: null,
-              note: 'Initial quote',
-              createdById: admin.id,
-            },
+  console.log('--- Seeding trips (3 rows) ---');
+  // Trip 1: CONFIRMED trip born from Quote 2
+  await prisma.trip.create({
+    data: {
+      clientId: chenClient.id,
+      assignedBrokerId: broker.id,
+      tripRequestId: req1.id,
+      quoteId: quote2.id,
+      operatorId: flexjet.id,
+      aircraftId: tailFlex.id,
+      type: TripType.ONE_WAY,
+      status: TripStatus.CONFIRMED,
+      operatorConfirmedAt: new Date(Date.now() - 6 * 3_600_000),
+      passengerCount: 4,
+      departureDate: req1.departureDate,
+      basePrice: 33428.00,
+      fetEnabled: true,
+      fetRate: 0.075,
+      operatorCost: 27400.00,
+      clientNotes: 'Catering: sushi platter and champagne on board. Ground car in Miami.',
+      internalNotes: 'VIP client. Confirmed with FlexJet dispatch.',
+      createdById: broker.id,
+      updatedById: broker.id,
+      legs: {
+        create: [
+          {
+            sequence: 1,
+            originAirportId: teb.id,
+            destinationAirportId: mia.id,
+            departureDate: req1.departureDate,
+            departureTime: '09:30',
           },
-        },
-      });
-    }
-  }
+        ],
+      },
+      passengers: {
+        create: [
+          { sequence: 1, fullName: 'Marcus Chen', passportNumber: 'P98765432' },
+          { sequence: 2, fullName: 'Sarah Chen', passportNumber: 'P98765433' },
+          { sequence: 3, fullName: 'David Miller' },
+          { sequence: 4, fullName: 'Lisa Wang' },
+        ],
+      },
+    },
+  });
 
-  // Starter email templates (#21). Created only when no live template of the
-  // same name exists, so re-seeding never overwrites what the desk rewrote.
-  // Every fact comes from a merge field; none of them promises anything the
-  // system does not do — no payment link, no attachment.
+  // Trip 2: DRAFT round-trip direct booking
+  const trip2Departure = new Date(`${day(30)}T00:00:00.000Z`);
+  const trip2Return = new Date(`${day(37)}T00:00:00.000Z`);
+  await prisma.trip.create({
+    data: {
+      clientId: chenClient.id,
+      assignedBrokerId: broker.id,
+      tripRequestId: req2.id,
+      operatorId: execujet.id,
+      aircraftId: tailExec.id,
+      type: TripType.ROUND_TRIP,
+      status: TripStatus.DRAFT,
+      passengerCount: 4,
+      departureDate: trip2Departure,
+      basePrice: 48500.00,
+      fetEnabled: true,
+      fetRate: 0.075,
+      operatorCost: 38200.00,
+      clientNotes: 'Ski luggage space required for 4 sets of skis.',
+      internalNotes: 'Pending confirmation of mountain airport slots at KASE.',
+      createdById: broker.id,
+      updatedById: broker.id,
+      legs: {
+        create: [
+          {
+            sequence: 1,
+            originAirportId: mia.id,
+            destinationAirportId: ase.id,
+            departureDate: trip2Departure,
+            departureTime: '10:00',
+          },
+          {
+            sequence: 2,
+            originAirportId: ase.id,
+            destinationAirportId: mia.id,
+            departureDate: trip2Return,
+            departureTime: '14:00',
+          },
+        ],
+      },
+      passengers: {
+        create: [
+          { sequence: 1, fullName: 'Marcus Chen' },
+          { sequence: 2, fullName: 'Sarah Chen' },
+          { sequence: 3, fullName: 'Leo Chen' },
+          { sequence: 4, fullName: 'Maya Chen' },
+        ],
+      },
+    },
+  });
+
+  // Trip 3: COMPLETED one-way flight from 10 days ago
+  const trip3Departure = new Date(Date.now() - 10 * 86_400_000);
+  await prisma.trip.create({
+    data: {
+      clientId: whitfieldClient.id,
+      assignedBrokerId: admin.id,
+      operatorId: netjets.id,
+      aircraftId: tailNet.id,
+      type: TripType.ONE_WAY,
+      status: TripStatus.COMPLETED,
+      operatorConfirmedAt: new Date(Date.now() - 12 * 86_400_000),
+      passengerCount: 2,
+      departureDate: trip3Departure,
+      basePrice: 19500.00,
+      fetEnabled: true,
+      fetRate: 0.075,
+      operatorCost: 15200.00,
+      internalNotes: 'Flight completed smoothly without delays.',
+      createdById: admin.id,
+      updatedById: admin.id,
+      legs: {
+        create: [
+          {
+            sequence: 1,
+            originAirportId: pbi.id,
+            destinationAirportId: teb.id,
+            departureDate: trip3Departure,
+            departureTime: '15:00',
+          },
+        ],
+      },
+      passengers: {
+        create: [
+          { sequence: 1, fullName: 'Dana Whitfield' },
+          { sequence: 2, fullName: 'Robert Whitfield' },
+        ],
+      },
+    },
+  });
+
+  console.log('--- Seeding starter email templates (5 rows) ---');
   const starterTemplates = [
     {
       name: 'Quote Follow-up — Standard',
@@ -736,43 +809,61 @@ async function main(): Promise<void> {
       ].join('\n'),
     },
   ];
+
   for (const template of starterTemplates) {
-    const existing = await prisma.emailTemplate.findFirst({
-      where: { name: template.name, deletedAt: null },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true },
+    await prisma.emailTemplate.create({
+      data: { ...template, createdById: admin.id, updatedById: admin.id },
     });
-    if (!existing) {
-      await prisma.emailTemplate.create({ data: { ...template, createdById: admin.id, updatedById: admin.id } });
-    }
   }
 
-  // Lead-desk settings on the seeded brokers, so the Agents roster has a cap
-  // to measure workload against rather than inventing one.
-  await prisma.user.update({
-    where: { id: broker.id },
-    data: { maxActiveLeads: 15, defaultFollowUpMethod: FollowUpMethod.CALL },
-  });
-
-  console.log('Seed complete.');
-  console.log('  admin@example.com  / ChangeMe123!  (SUPER_ADMIN)');
-  console.log('  broker@example.com / ChangeMe123!  (BROKER)');
-  console.log('  security@example.com / ChangeMe123!  (ADMIN, 2FA on)');
-  console.log('  reset-demo@example.com / ChangeMe123!  (BROKER, password-reset target)');
-  console.log('  senior@example.com / ChangeMe123!  (BROKER)');
-  console.log('  assistant@example.com / ChangeMe123!  (ASSISTANT)');
-  console.log('  + barry (BROKER, extra permissions), mark (BROKER, fewer permissions), tom (SUSPENDED), newhire (INVITED)');
-  console.log('  agent@example.com / ChangeMe123!  (REFERRAL_AGENT — the partner portal, 10% of profit)');
-  // Counted, not typed: a hardcoded "3 operator quotes" went on printing 3
-  // while a skipped row meant only 2 were ever written.
-  const [operatorQuoteCount, quoteCount, templateCount] = await Promise.all([
+  // Summary counts
+  const [
+    userCount,
+    airportCount,
+    rateCount,
+    operatorCount,
+    aircraftCount,
+    clientCount,
+    reqCount,
+    opQuoteCount,
+    quoteCount,
+    tripCount,
+    templateCount,
+  ] = await Promise.all([
+    prisma.user.count({ where: { deletedAt: null } }),
+    prisma.airport.count({ where: { deletedAt: null } }),
+    prisma.charterRate.count(),
+    prisma.operator.count({ where: { deletedAt: null } }),
+    prisma.aircraft.count({ where: { deletedAt: null } }),
+    prisma.client.count({ where: { deletedAt: null } }),
+    prisma.tripRequest.count({ where: { deletedAt: null } }),
     prisma.operatorQuote.count({ where: { deletedAt: null } }),
     prisma.quote.count({ where: { deletedAt: null } }),
+    prisma.trip.count({ where: { deletedAt: null } }),
     prisma.emailTemplate.count({ where: { deletedAt: null } }),
   ]);
-  console.log(
-    `  ${airports.length} airports, ${operators.length} operators, ${aircraft.length} aircraft, ${requests.length} trip requests, ${operatorQuoteCount} live operator quotes, ${quoteCount} live client quotes, ${templateCount} live email templates`,
-  );
+
+  console.log('\n================ SEED & RESET COMPLETE ================');
+  console.log(`Users (active/preserved):   ${userCount}`);
+  console.log(`Airports:                   ${airportCount}`);
+  console.log(`Charter Rates:              ${rateCount}`);
+  console.log(`Operators:                  ${operatorCount}`);
+  console.log(`Aircraft:                   ${aircraftCount}`);
+  console.log(`Clients:                    ${clientCount}`);
+  console.log(`Trip Requests:              ${reqCount}`);
+  console.log(`Operator Quotes:            ${opQuoteCount}`);
+  console.log(`Client Quotes:              ${quoteCount}`);
+  console.log(`Trips:                      ${tripCount}`);
+  console.log(`Email Templates:            ${templateCount}`);
+  console.log('========================================================\n');
+  console.log('Accounts:');
+  console.log('  admin@example.com      / ChangeMe123! (SUPER_ADMIN)');
+  console.log('  security@example.com   / ChangeMe123! (ADMIN, 2FA enabled)');
+  console.log('  broker@example.com     / ChangeMe123! (BROKER)');
+  console.log('  assistant@example.com  / ChangeMe123! (ASSISTANT)');
+  console.log('  agent@example.com      / ChangeMe123! (REFERRAL_AGENT)');
+  console.log('  barry@example.com      / ChangeMe123! (BROKER + ARCHIVE/REPORTS)');
+  console.log('  mark@example.com       / ChangeMe123! (BROKER - VIEW_MONEY)');
 }
 
 main()
