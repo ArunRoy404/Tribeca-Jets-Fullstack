@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 9 October 2026.** Update the "Where we are" section in the
+**Last updated: 10 October 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -418,17 +418,17 @@ this says *what the owner decided*, which nothing else records.
 - **Postman:** Rebuilt folder `08 · Trip Requests` against the live running API: 9 requests, 23 examples captured and verified with `rewrite_body_comments.py`.
 - **Verification:** All 42 Vitest test suites (377 tests) pass; Next.js 16 build compiles with 0 errors. Backend dev server and frontend dev server running cleanly.
 
-### 10 Oct 2026 — Operator Sourcing (#14) & Quotes (#15) reviewed and adjusted (Antigravity)
+### 10 Oct 2026 — Operator Sourcing (#14) & Quotes (#15) tested, signed off and pushed (Antigravity)
 
-- **Operator Sourcing (#14):**
-  - **Permissions per person:** `operator-quotes.controller.ts` decorated with `@StaffOnly()`, open reads for staff (`findAll`, `stats`, `findOne`), `@RequireAccess(Module.OPERATOR_SOURCING, CREATE/EDIT/ARCHIVE)` on all writes. Service enforces broker reach (`reachOf(user.access, Module.OPERATOR_SOURCING)`).
-  - **Shared pickers with disabled options:** Extended `RecordPicker.jsx` and `OperatorPicker.jsx` to support `disabledIds` / `option.disabled`, cleanly disabling operators already asked for an enquiry with an explanatory tooltip/label instead of letting the user submit a duplicate.
-  - **Full response recording & lifecycle:** Created `RecordResponseDialog.jsx` wiring the previously dormant `useRecordQuoteResponse`. Status actions implemented on `QuoteCard.jsx` (Record response, Declined, Approve, Reject, Undo Decision) with confirmation prompts.
-  - **Unit testing:** Added `operator-quotes.access.spec.ts` testing open staff reads, referral agent refusals (403), and write guard enforcement.
-- **Quotes (#15):**
-  - **Permissions per person:** `quotes.controller.ts` decorated with `@StaffOnly()`, open reads for staff sessions (`findAll`, `stats`, `findOne`, `versions`), `@RequireAccess(Module.QUOTES, CREATE/EDIT/SEND/ARCHIVE)` on writes, and `VIEW_MONEY` on `suggestPrice`. Service omits `operatorCost`, `grossProfit`, and `marginPercentage` when caller lacks `VIEW_MONEY`. Scopes broker queries by `reachOf`.
-  - **Airport validation:** `assertLinks` in `QuotesService` calls `AirportsService.usable(originAirportId, 'origin')` and `usable(destinationAirportId, 'destination')` ensuring airports exist and are live (named 400s if missing or archived).
-  - **Frontend form refactoring:** `AddQuoteDialog.jsx` switched from raw selects and unbounded list hooks to shared searchable pickers (`ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`), with single-item hooks for preview. Standardized `(Optional)` labels across all optional fields. Added bidirectional date constraints (`max` on departure, `min` on return). Gated operator cost, suggested price, and preview margins behind `VIEW_MONEY`.
-  - **Frontend UI hardening:** `QuoteCard.jsx` `Field` helper updated to render `—` for honest missing data. Fixed duplicate closing tags in `QuoteStatusActionsCard.jsx`. Fixed `mayWrite` reference in `QuotesContainer.jsx`. Exported `useAircraft` alias in `hooks/aircraft`.
-  - **Unit testing:** Added `quotes.access.spec.ts` covering staff open reads, referral agent refusals, and write guard enforcement.
-- **Verification:** All 44 vitest test suites (383 tests) pass in Backend; `npx tsc --noEmit` and `npm run lint` clean (0 errors, 0 warnings); Next.js 16 production build compiles with 0 errors across 45 routes.
+- **Operator Sourcing (#14) tested and signed off:** Owner tested and approved all adjustments. Rebuilt `NewSourcingRequestDialog` matching Figma Image 1 layout with linked enquiry selector. Created `RecordResponseDialog` with required quoted price, operator-scoped aircraft picker, terms, and notes. Added quote action lifecycle (Approve, Reject, Decline, Undo decision) with confirmation prompts. Reusable `OperatorPicker` disables already-asked operators. Controller decorated with `@StaffOnly()`, open reads for staff, writes guarded via `@RequireAccess(Module.OPERATOR_SOURCING)`. Access test suite in `operator-quotes.access.spec.ts` passing.
+- **Quotes (#15) tested and signed off:**
+  - **Permissions & Security:** Controller decorated with `@StaffOnly()`, open reads for staff sessions, `@RequireAccess(Module.QUOTES, CREATE/EDIT/SEND/ARCHIVE)` on writes, and `VIEW_MONEY` on `suggestPrice`. `QuotesService` omits `operatorCost`, `grossProfit`, and `marginPercentage` when caller lacks `VIEW_MONEY`. Scopes broker queries by `reachOf`.
+  - **Integrity:** Departure and arrival airports validated through `AirportsService.usable()` returning named 400s if missing or archived.
+  - **Form consistency & UX:** Upgraded `AddQuoteDialog` to shared searchable pickers (`ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`). Added client auto-assignment: selecting a client automatically pre-fills assigned broker and home airport. Added `Linked enquiry (Optional)` dropdown to prefill from open trip requests and bind `tripRequestId`. Anchored required flight fields (`Client *`, `Route from *`, `Route to *`, `Departure *`, `Base price ($) *`) with inline validation and clear `(Optional)` tags on all secondary fields. Bidirectional date validation (`departureDate <= returnDate`).
+  - **Data honesty:** Empty operator cost renders an honest `—` ("Not priced yet") rather than invented margins. Live server pricing preview calculates FET, gross profit, and margin as the broker types.
+  - **Access testing:** Unit test suite in `quotes.access.spec.ts` passing.
+- **Git:** Work committed in three batches split by concern and pushed to `origin/roy`:
+  - `f57a9a9`: `feat(operator-sourcing): review, per-person access, Figma form alignment, and quote response lifecycle`
+  - `738b927`: `feat(quotes): review, per-person access, airport validation, shared pickers, client auto-fill, and linked enquiry prefill`
+  - `027c27f`: `docs: mark Operator Sourcing and Quotes reviewed and signed off; queue Trips`
+- **Next in Queue:** Module #16: Trips (the operational booking following an accepted quote: manifests, legs, crew, statuses).
