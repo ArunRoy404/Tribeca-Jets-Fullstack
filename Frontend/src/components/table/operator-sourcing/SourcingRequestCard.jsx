@@ -6,11 +6,11 @@ import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import { Checkbox } from "@/components/ui/checkbox";
 
 function Field({ label, value, valueClassName = "text-foreground" }) {
-  if (value === undefined || value === null || value === "") return null;
+  const display = value === undefined || value === null || value === "" ? "—" : value;
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
       <p className="font-montserrat text-[10px] text-muted-foreground whitespace-nowrap">{label}</p>
-      <p className={`font-montserrat font-bold text-[12px] truncate ${valueClassName}`}>{value}</p>
+      <p className={`font-montserrat font-bold text-[12px] truncate ${valueClassName}`}>{display}</p>
     </div>
   );
 }

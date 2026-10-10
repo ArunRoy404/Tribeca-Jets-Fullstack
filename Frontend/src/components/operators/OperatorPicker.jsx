@@ -1,20 +1,12 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
 import RecordPicker from "@/components/common/record-picker/RecordPicker";
 import { useOperator, useOperators } from "@/hooks/operators";
 import { formatOperatorStatus } from "@/lib/operator";
 
 /** Alphabetical; live operators only (the API's default). */
 const PARAMS = { sortBy: "name", sortOrder: "asc" };
-
-/** `FlexJet`, with home base and status beneath — a suspended one says so. */
-function operatorOption(operator) {
-  return {
-    value: operator?.id,
-    label: operator?.name,
-    description: [operator?.homeBase, formatOperatorStatus(operator?.status)].filter(Boolean).join(" · "),
-  };
-}
 
 /**
  * The operator picker every form uses — `RecordPicker` over the operators
@@ -26,8 +18,40 @@ function operatorOption(operator) {
  * `params` narrows the list for a form that must not offer some operators —
  * a booking form passing `{ status: "PREFERRED" }`, say. The server still
  * checks whatever is picked.
+ *
+ * `disabledIds` marks specific operators as unselectable (e.g. operators already
+ * asked for an enquiry).
  */
-export default function OperatorPicker({ value, onChange, params, placeholder = "Select an operator", ...props }) {
+export default function OperatorPicker({
+  value,
+  onChange,
+  params,
+  disabledIds,
+  placeholder = "Select an operator",
+  ...props
+}) {
+  const disabledSet = useMemo(
+    () => (disabledIds?.length ? new Set(disabledIds) : null),
+    [disabledIds],
+  );
+
+  const getOption = useCallback(
+    (operator) => {
+      const isDisabled = Boolean(disabledSet?.has(operator?.id));
+      return {
+        value: operator?.id,
+        label: operator?.name,
+        disabled: isDisabled,
+        description: isDisabled
+          ? "Already asked for this enquiry"
+          : [operator?.homeBase, formatOperatorStatus(operator?.status)]
+              .filter(Boolean)
+              .join(" · "),
+      };
+    },
+    [disabledSet],
+  );
+
   return (
     <RecordPicker
       value={value}
@@ -35,7 +59,7 @@ export default function OperatorPicker({ value, onChange, params, placeholder = 
       useList={useOperators}
       useOne={useOperator}
       params={params ? { ...PARAMS, ...params } : PARAMS}
-      getOption={operatorOption}
+      getOption={getOption}
       placeholder={placeholder}
       searchPlaceholder="Search name, base or contact…"
       itemLabel="operators"

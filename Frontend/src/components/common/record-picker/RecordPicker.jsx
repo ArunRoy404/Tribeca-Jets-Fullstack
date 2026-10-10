@@ -228,19 +228,25 @@ export default function RecordPicker({
           ) : (
             options.map((option, index) => {
               const isSelected = option.value === value;
+              const isDisabled = Boolean(option.disabled);
               return (
                 <button
                   key={option.value}
                   id={`${listId}-${index}`}
                   type="button"
                   role="option"
+                  disabled={isDisabled}
                   aria-selected={isSelected}
+                  aria-disabled={isDisabled}
                   data-index={index}
-                  onMouseEnter={() => setActive(index)}
-                  onClick={() => choose(option)}
+                  onMouseEnter={() => !isDisabled && setActive(index)}
+                  onClick={() => !isDisabled && choose(option)}
                   className={cn(
-                    "flex w-full items-start gap-2 rounded-md px-2.5 py-2 text-left cursor-pointer",
-                    index === active && "bg-secondary",
+                    "flex w-full items-start gap-2 rounded-md px-2.5 py-2 text-left",
+                    isDisabled
+                      ? "opacity-40 cursor-not-allowed hover:bg-transparent"
+                      : "cursor-pointer",
+                    index === active && !isDisabled && "bg-secondary",
                   )}
                 >
                   <span className="flex min-w-0 flex-1 flex-col">
