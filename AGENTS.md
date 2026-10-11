@@ -128,7 +128,7 @@ permission is a **module** — one per sidebar screen — and an **action** in i
 - **Moving a module over is part of reviewing it:** swap its
   `@RequirePermissions` for `@RequireAccess`, its `scopeFor` for `reachOf`,
   and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
-  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators.** Uploads needs no move — its
+  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators, Aircraft, Clients, Notes, Client Credits, Leads & Agents, Trip Requests, Operator Sourcing, Quotes, Trips, Itineraries.** Uploads needs no move — its
   routes carry no permission by design and its rules are identity-based.
   Every other module's API is still on the old matrix, enforced by role.
   When the last one moves, delete the old matrix and the switch.
@@ -161,7 +161,7 @@ is readable without a session except the company branding. Beyond that:
   data and those cases are not decided yet.
 
 Done so far: **Airports** (pinned by `airports.controller.spec.ts`) and
-**Operators** — with `@StaffOnly()`: an open read over desk data a partner
+**Operators**, **Aircraft**, **Clients**, **Leads & Agents**, **Trip Requests**, **Operator Sourcing**, **Quotes**, **Trips**, **Itineraries** — with `@StaffOnly()`: an open read over desk data a partner
 never needs refuses the referral agent (403) by stored role, in
 `AccessGuard`. Put it on the controller for the whole module.
 **Charter Rates** is the first "money" case, decided by the owner: its reads

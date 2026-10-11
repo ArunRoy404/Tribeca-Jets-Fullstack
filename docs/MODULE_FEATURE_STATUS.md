@@ -854,7 +854,7 @@ operator bills, where a bill is recorded and paid. Absent for a role without
   - Replaced legacy `useTripFormOptions` and raw `PickerSelect` with shared searchable pickers (`ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`, `CommonSelect`).
   - **Client auto-assignment & home base prefill**: Selecting a client in `ClientPicker` automatically defaults `Broker` to `client.assignedBrokerId` and Leg 1 departure to `client.homeAirportId` (if empty).
   - **Aircraft / Operator linking**: Selecting an aircraft automatically defaults its operator; selecting an operator narrows aircraft choices.
-  - **Passenger count & manifest synchronization**: Synchronized `passengerCount` with manifest rows using `[-] count [+]` stepper and `Add Passenger` button; Passenger 1 collects Full Name, DOB, and Passport, while companion passengers (2+) collect name with quick remove `[X]`.
+  - **Passenger count & manifest synchronization**: Synchronized `passengerCount` with manifest rows using `[-] count [+]` stepper and `Add Passenger` button; all passengers (lead and companion slots 2+) collect Full Name, optional Date of Birth, and Passport number with responsive layout and companion remove `[X]`.
   - **Staged file attachments**: Integrated shared `FileUpload` component (dropzone) into `CreateNotesDocsCard` for staged document attachments (up to 25 MB), automatically filed to the new trip's Document Vault upon creation via `documentsService.create`.
   - Preserved clean 5-stage lifecycle stepper (`Draft` → `Booked` → `Confirmed` → `In Flight` → `Completed`) backed by `Trip.status` and operational checklist for milestones.
   - Financial card margins and costs gated behind `canAccess(Module.TRIPS, Action.VIEW_MONEY)`.
@@ -867,7 +867,7 @@ operator bills, where a bill is recorded and paid. Absent for a role without
 
 ---
 
-## 12. Itineraries ✅ *(28 Sep 2026)*
+## 12. Itineraries ✅ *(28 Sep 2026, reviewed and signed off 11 Oct 2026)*
 
 **A thin document over its trip, deliberately.** The passenger-facing document
 for a trip: tail, times, passengers and passport numbers, catering, ground
@@ -936,6 +936,28 @@ trip it claimed to be linked to, which is exactly that bug.
   system. "Send to Client" is real (see `sentAt` above) rather than the old
   `alert()` stub
 
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Permissions per person:** Controller decorated with `@StaffOnly()` (refuses referral agent/partner accounts with 403).
+    - Open staff reads: `GET /itineraries`, `/itineraries/stats`, `GET /itineraries/:id` open to all staff sessions without requiring write permissions.
+    - Scoped reach: `reachOf(user.access, Module.ITINERARIES)` enforces broker reach (`OWN` / `ASSIGNED` via underlying trip's assigned broker or creator).
+    - Writes guarded with `@RequireAccess`:
+      - `Action.CREATE`: create itinerary (`POST /itineraries`)
+      - `Action.EDIT`: update itinerary (`PATCH /itineraries/:id`), confirm (`POST /itineraries/:id/confirm`)
+      - `Action.SEND`: mark sent to client (`POST /itineraries/:id/send`)
+      - `Action.ARCHIVE`: soft delete (`DELETE /itineraries/:id`), restore (`POST /itineraries/:id/restore`), bulk remove (`POST /itineraries/bulk-delete`), bulk restore (`POST /itineraries/bulk-restore`)
+    - Added `Action.ARCHIVE` to `Module.ITINERARIES` in `access.catalogue.ts` and role grants (`access.roles.ts`).
+  - **Private operator attachment vouching:**
+    - Solved the private attachment 404 issue: Added endpoint `GET /api/itineraries/:id/operator-attachment` which verifies the caller's reach to the itinerary and streams the file securely using `UploadsService.openVouched()`.
+    - Integrated in `ItineraryPreview` with target `_blank`.
+  - **TripPicker standardization:**
+    - Created shared `TripPicker` component wrapping `RecordPicker` and `useTrips`, replacing raw selects in `BuildItineraryDialog`.
+    - Upgraded time selection to use shared `CommonTimePicker`.
+  - **Frontend UI & action gating:**
+    - Upgraded `ItinerariesContainer`, `ItinerariesToolbar`, `ItineraryDetailSheet`, and `SendItineraryDialog` to use `usePermissions().canAccess(Module.ITINERARIES, Action.X)`.
+    - Bulk selection checkboxes gated behind `mayArchive`.
+  - **Unit test suite:**
+    - Created `itineraries.access.spec.ts` testing open staff reads, referral agent refusals (403), and permissions on write endpoints. All 46 test suites (389 tests) pass 100%.
+
 **Second pass on Trips (#11), same day.** Three cards on the trip detail page
 had been shipped ahead of this module with an honest "awaiting the operator
 itinerary" placeholder, named in their own code comments as waiting on #12:
@@ -955,14 +977,7 @@ of these cards makes a second request.
 | Print-ready / PDF output | **A PDF generator** — nothing in this system produces a document; the vault (#22) stores files, it does not make them |
 | ~~Emailing the itinerary to the client~~ | ✅ Shipped with **Email Templates (#21)** — "Email It" in the Send dialog; no PDF is attached, because none is generated |
 | Extracting flight data from the operator's own itinerary file | **Not modelled anywhere in this system** — the file attaches for reference; typed fields are typed by a person |
-| The operator itinerary file opening for anyone but its uploader and admins | **The Itineraries review (#17)** — it is uploaded PRIVATE, so since role restrictions came back on (7 Oct 2026) another broker gets a 404. Serve it through the itinerary (`openVouched` after the itinerary's own scope check), as the vault and referrals do |
-
-**Not done:** Postman `22 · Itineraries` — the builder (`build_itineraries_folder.py`)
-is written, syntax-checked, and **not run** (no live server in this
-environment); newman has not been run against it. Written by the owner's
-instruction without live browser testing; backend `tsc`, oxlint and vitest
-(185 tests, 18 files) are clean, frontend eslint reports nothing in the files
-changed, and `npm run build` passes.
+| ~~The operator itinerary file opening for anyone but its uploader and admins~~ | ✅ Resolved in **Itineraries review (#17)** via `GET /itineraries/:id/operator-attachment` and `UploadsService.openVouched()` |
 
 ---
 

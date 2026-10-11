@@ -46,17 +46,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 14 | Operator Sourcing | ✅ 10 Oct — owner tested & signed off |
 | 15 | Quotes | ✅ 10 Oct — owner tested & signed off |
 | 16 | **Trips** | ✅ 10 Oct — owner tested & signed off |
-| 17 | **Itineraries** | 🟡 **next in queue** |
-| 18–35 | Schedule, Flight Tracking, … | ⬜ in the table's order |
+| 17 | **Itineraries** | ✅ 11 Oct — owner tested & signed off |
+| 18 | **Schedule** | 🟡 **next in queue** |
+| 19–35 | Flight Tracking, Empty Legs, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Itineraries (#17) review
+### What is next — Schedule (#18) review
 
-- **Trips (#16) signed off and pushed:** Controller decorated with `@StaffOnly()`, open reads for staff, writes guarded via `@RequireAccess(Module.TRIPS)`. Margins and operator costs strictly gated behind `VIEW_MONEY`. Airport foreign keys validated with `AirportsService.usable()`. CompanySettings FET defaults integrated. Create/Edit forms upgraded with `ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`, and client auto-assignment with Lead Source badge. Manifest count stepper synchronized with companion slots; staged file uploads automatically filed to the Document Vault. Entire database wiped (preserving 16 user accounts) and consistent test data (< 10 per module) seeded.
-- **Next module in queue:** **Itineraries (#17)** — passenger documents, operator itinerary attachments, FBO handling, and client delivery. Private attachment voucher routing to be resolved.
+- **Itineraries (#17) tested, signed off and pushed:** Controller decorated with `@StaffOnly()`, open reads for staff, writes guarded via `@RequireAccess(Module.ITINERARIES)`. Added `ARCHIVE` to catalogue and roles. Private operator itinerary attachment voucher streaming endpoint (`GET /api/itineraries/:id/operator-attachment`) implemented and wired into `ItineraryPreview`. `TripPicker` component created and integrated into `BuildItineraryDialog` alongside `CommonTimePicker`. Passenger manifest updated so all companion passengers collect full name, optional DOB, and passport number. Unit test suite `itineraries.access.spec.ts` passing (100% across all 46 test suites, 389 tests).
+- **Next module in queue:** **Schedule (#18)** — calendar view of active bookings, crew and aircraft scheduling timelines, and slot tracking.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -468,5 +469,24 @@ this says *what the owner decided*, which nothing else records.
 - **Agent Detail Page — Associated Trips:** Wired `AgentAssociatedTrips.jsx` and `AgentDetailPage.jsx` to query `useTrips({ assignedBrokerId: agentId, limit: 10, sortBy: "departureDate", sortOrder: "desc" })`, mapped via `toTripRow`. Renders clickable trips with route, departure, status badge, and honest empty state.
 - **Client Detail Page — Recent Trip Card:** Wired `ClientOverviewTab.jsx` to query `useTrips({ clientId: client?.id, limit: 1, sortBy: "departureDate", sortOrder: "desc" })`, mapped via `toTripRow`. Renders route, departure, aircraft, reference badge, status badge, and clickable navigation to `/dashboard/trips/[tripId]`.
 - **Verification:** Frontend production build (`npm run build`) compiled cleanly in 13.1s (0 errors across 45 routes). Backend Vitest suite (386 / 386 tests across 45 suites) passed 100% with 0 regressions.
+
+### 11 Oct 2026 — Itineraries (#17) reviewed, adjusted & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - Decorated `ItinerariesController` with `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /itineraries`, `/itineraries/stats`, `GET /itineraries/:id` open to all staff sessions without requiring write permissions.
+  - Granular write gating via `@RequireAccess`: `Action.CREATE` (POST), `Action.EDIT` (PATCH, POST :id/confirm), `Action.SEND` (POST :id/send), `Action.ARCHIVE` (DELETE, restore, bulk-delete, bulk-restore).
+  - Catalogue & Roles updated: Added `Action.ARCHIVE` to `Module.ITINERARIES` in `access.catalogue.ts`, `BROKER_GRANTS`, and `ASSISTANT_GRANTS` (`access.roles.ts`).
+  - Private operator attachment voucher streaming: Added endpoint `GET /api/itineraries/:id/operator-attachment` resolving cross-broker 404s using `UploadsService.openVouched()` after verifying caller reach.
+  - Created unit test suite `itineraries.access.spec.ts` verifying staff reads, partner refusal, and write action gating. All 46 Vitest suites (389 tests) pass 100%. `tsc --noEmit` and `oxlint` 0 errors.
+- **Frontend Upgrades & Design System Alignment:**
+  - Created shared `TripPicker` component wrapping `RecordPicker` and `useTrips`, replacing raw selects in `BuildItineraryDialog`.
+  - Upgraded time selection in `BuildItineraryDialog` to use shared `CommonTimePicker`.
+  - Migrated permission checks in `ItinerariesContainer`, `ItinerariesToolbar`, `ItineraryDetailSheet`, and `SendItineraryDialog` from legacy `canWrite` to `canAccess(Module.ITINERARIES, Action.X)`.
+  - Bulk selection checkboxes gated behind `mayArchive`.
+  - Wired `operatorItineraryUrl` link in `ItineraryPreview` to the vouched endpoint `/api/itineraries/${item.id}/operator-attachment` with `target="_blank"`.
+  - Next.js production build (`npm run build`) compiles with 0 errors across 45 routes in Turbopack.
+- **Next Step:** Manual verification by owner as Super Admin, Admin, Broker, Assistant, and Referral Agent; commit upon instruction; then proceed to Schedule (#18).
+
 
 
