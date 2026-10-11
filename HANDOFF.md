@@ -56,8 +56,9 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 24 | **Referrals / Referral Agent** | ✅ 11 Oct — owner tested & signed off |
 | 25 | **Transactions** | ✅ 11 Oct — owner tested & signed off |
 | 26 | **Tasks Board & notification bell** | ✅ 11 Oct — owner tested & signed off |
-| 27 | **Email Templates & sending** | ⬜ **next in review queue** |
-| 28–35 | Document Vault, Reports, … | ⬜ in the table's order |
+| 27 | **Email Templates & sending** | ✅ 11 Oct — owner tested & signed off |
+| 28 | **Document Vault** | ⬜ **next in review queue** |
+| 29–35 | Reports, Dashboard, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
@@ -680,6 +681,27 @@ this says *what the owner decided*, which nothing else records.
   - Notification Bell (`NotificationPopover.jsx`) upgraded: migrated to `canAccess(Module.TASKS, Action.VIEW)`, controlled popover open state, loading/empty states, urgency badges, and direct task/board routing.
   - Oxlint clean (0 errors/warnings). Turbopack production build (`npm run build`) compiled in 4.2s with 0 errors across 45 routes.
 - **Owner Test & Sign-off:** Owner tested and signed off on Tasks Board & notification bell (#26). All changes committed and pushed to `origin/roy`. Next in queue: Email Templates & sending (#27).
+
+### 11 Oct 2026 — Email Templates & sending (#27) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `EmailTemplatesController` & `EmailsController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring outside partner / referral agent accounts (`403 Forbidden`).
+  - Open staff reads: `GET /email-templates`, `GET /email-templates/stats`, `GET /email-templates/fields`, `GET /email-templates/:id`, `GET /emails`, `GET /emails/:id`, and `POST /emails/preview` open to all authenticated staff sessions.
+  - Granular per-person write gating:
+    - `POST /email-templates`: `@RequireAccess(Module.EMAIL_TEMPLATES, Action.CREATE)`
+    - `PATCH /email-templates/:id`: `@RequireAccess(Module.EMAIL_TEMPLATES, Action.EDIT)`
+    - `DELETE /email-templates/:id`, `POST /email-templates/bulk-delete`, `POST /email-templates/:id/restore`, `POST /email-templates/bulk-restore`: `@RequireAccess(Module.EMAIL_TEMPLATES, Action.ARCHIVE)`
+    - `POST /emails`: `@RequireAccess(Module.EMAIL_TEMPLATES, Action.SEND)`
+  - Bugfix: Corrected `assertMayRead` in `EmailsService.context` when emailing quotes (was asserting `Permission.VIEW_TRIPS`; now asserts `canDo(user.access, Module.QUOTES, Action.VIEW)`).
+  - Scoping: `EmailsService.scopeWhere` evaluates `isAdministrator(user.role)` vs own/assigned scoping (`createdById` or client/trip visible).
+  - Test suite: Created `email-templates.access.spec.ts` (10 tests) verifying `@StaffOnly()`, open staff reads, and granular write actions. All 56 Vitest suites (455 tests) pass 100%. `nest build` clean with 0 errors.
+- **Frontend Architecture & Reusable Component Upgrades:**
+  - `EmailTemplatesPage.jsx` tile for "Sent this month" guarded by `canAccess(Module.EMAIL_TEMPLATES, Action.SEND)`.
+  - `EmailTemplatesContainer.jsx` & `EmailTemplatesToolbar.jsx` rewired to granular `mayCreate`, `mayEdit`, `mayArchive`, and `maySend`.
+  - `EmailTemplateDetailSheet.jsx` gates actions using granular `mayEdit`, `mayArchive`, and `maySend`.
+  - `ComposeEmailDialog.jsx` upgraded: replaced unpaginated `limit: 100` dropdown queries with shared server-paginated `ClientPicker`, `OperatorPicker`, and `TripPicker`, with live search, server pagination, and optional trip clearing.
+  - Oxlint clean (0 warnings / 0 errors across 13 files). Turbopack production build (`npm run build`) compiled successfully in 5.7s with 0 errors across 45 routes.
+- **Owner Test & Sign-off:** Owner tested and signed off on Email Templates & sending (#27). All changes committed and pushed to `origin/roy`. Next in queue: Document Vault (#28).
 
 
 

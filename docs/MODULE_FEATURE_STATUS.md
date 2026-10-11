@@ -1422,7 +1422,25 @@ anywhere in the system.
 
 ---
 
-## 21. Email Templates ✅ *(28 Sep 2026)*
+## 21. Email Templates ✅ *(28 Sep 2026; reviewed 11 Oct 2026)*
+
+**Reviewed 11 Oct 2026 (Module #27 in queue):**
+- **Permissions migrated to per-person access (`Module.EMAIL_TEMPLATES`):**
+  - Controllers decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, refusing partner/referral agent accounts with 403.
+  - Open reads for staff sessions on `findAll`, `stats`, `fields`, `findOne` in `EmailTemplatesController`, and on `findAll`, `findOne`, `preview` in `EmailsController`.
+  - Write operations guarded with granular per-person permissions:
+    - `POST /email-templates`: `CREATE`
+    - `PATCH /email-templates/:id`: `EDIT`
+    - `DELETE /email-templates/:id`, `bulk-delete`, `restore`, `bulk-restore`: `ARCHIVE`
+    - `POST /emails`: `SEND`
+  - Fixed `assertMayRead` bug in `EmailsService.context`: quote read verification now asserts `Module.QUOTES` instead of trips.
+  - `EmailsService.scopeWhere` evaluates administrator status vs own/assigned scoping (created by caller, or client visible, or trip visible).
+  - Pinned by `email-templates.access.spec.ts` (10 tests) and `email.merge.spec.ts` (14 tests).
+- **Frontend upgraded:**
+  - `EmailTemplatesPage.jsx` tile for "Sent this month" guarded by `canAccess(Module.EMAIL_TEMPLATES, Action.SEND)`.
+  - `EmailTemplatesContainer.jsx` and `EmailTemplatesToolbar.jsx` rewired to granular `mayCreate`, `mayEdit`, `mayArchive`, and `maySend`.
+  - `EmailTemplateDetailSheet.jsx` gates actions using granular `mayEdit`, `mayArchive`, and `maySend`.
+  - `ComposeEmailDialog.jsx` upgraded from unpaginated `limit: 100` queries to shared server-paginated `ClientPicker`, `OperatorPicker`, and `TripPicker`, with live search and optional trip clearing.
 
 **Working now**
 
