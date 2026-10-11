@@ -10,8 +10,8 @@ import { useCreateTripStore } from "@/store/useCreateTripStore";
 
 /**
  * Passenger count and manifest. The count stepper directly controls manifest
- * capacity. Passenger 1 collects full details (DOB, Passport) while companion
- * passengers (2+) collect full name, matching the Figma workflow.
+ * capacity. All passengers collect full name, optional Date of Birth, and
+ * Passport number.
  */
 export default function CreatePassengersCard() {
   const {
@@ -63,65 +63,60 @@ export default function CreatePassengersCard() {
           {passengers.map((p, index) => {
             const isLead = index === 0;
 
-            if (isLead) {
-              return (
-                <div
-                  key={p?.id ?? `p-${index}`}
-                  className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-md border border-border p-2.5 sm:border-0 sm:p-0"
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="flex items-center justify-center size-6 rounded-full bg-secondary font-montserrat font-semibold text-[11px] text-foreground shrink-0">
-                      1
-                    </span>
-                    <Input
-                      className="h-10 flex-1 min-w-0 rounded-md text-[13px]"
-                      placeholder="Passenger 1 full name"
-                      value={p?.fullName || ""}
-                      onChange={(e) => updatePassenger?.(0, "fullName", e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-                    <div className="sm:w-36">
-                      <DatePicker
-                        className="h-10 text-[13px] rounded-md"
-                        value={p?.dateOfBirth}
-                        onChange={(v) => updatePassenger?.(0, "dateOfBirth", v)}
-                        placeholder="Date of Birth"
-                      />
-                    </div>
-                    <Input
-                      className="h-10 sm:w-32 rounded-md text-[13px]"
-                      placeholder="Passport..."
-                      value={p?.passportNumber || ""}
-                      onChange={(e) => updatePassenger?.(0, "passportNumber", e.target.value)}
-                    />
-                  </div>
-                </div>
-              );
-            }
-
             return (
               <div
                 key={p?.id ?? `p-${index}`}
-                className="flex items-center gap-2"
+                className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-md border border-border p-2.5 sm:border-0 sm:p-0"
               >
-                <span className="flex items-center justify-center size-6 rounded-full bg-secondary font-montserrat font-semibold text-[11px] text-foreground shrink-0">
-                  {index + 1}
-                </span>
-                <Input
-                  className="h-10 flex-1 min-w-0 rounded-md text-[13px]"
-                  placeholder={`Passenger ${index + 1} full name`}
-                  value={p?.fullName || ""}
-                  onChange={(e) => updatePassenger?.(index, "fullName", e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => removePassenger?.(index)}
-                  aria-label={`Remove passenger ${index + 1}`}
-                  className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors"
-                >
-                  <X className="size-4" />
-                </button>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="flex items-center justify-center size-6 rounded-full bg-secondary font-montserrat font-semibold text-[11px] text-foreground shrink-0">
+                    {index + 1}
+                  </span>
+                  <Input
+                    className="h-10 flex-1 min-w-0 rounded-md text-[13px]"
+                    placeholder={`Passenger ${index + 1} full name`}
+                    value={p?.fullName || ""}
+                    onChange={(e) => updatePassenger?.(index, "fullName", e.target.value)}
+                  />
+                  {!isLead && (
+                    <button
+                      type="button"
+                      onClick={() => removePassenger?.(index)}
+                      aria-label={`Remove passenger ${index + 1}`}
+                      className="flex sm:hidden items-center justify-center size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors shrink-0"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                  <div className="sm:w-36">
+                    <DatePicker
+                      className="h-10 text-[13px] rounded-md"
+                      value={p?.dateOfBirth}
+                      onChange={(v) => updatePassenger?.(index, "dateOfBirth", v)}
+                      placeholder="Date of Birth"
+                    />
+                  </div>
+                  <Input
+                    className="h-10 sm:w-32 rounded-md text-[13px]"
+                    placeholder="Passport..."
+                    value={p?.passportNumber || ""}
+                    onChange={(e) => updatePassenger?.(index, "passportNumber", e.target.value)}
+                  />
+                  {!isLead ? (
+                    <button
+                      type="button"
+                      onClick={() => removePassenger?.(index)}
+                      aria-label={`Remove passenger ${index + 1}`}
+                      className="hidden sm:flex items-center justify-center size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors shrink-0"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  ) : (
+                    <div className="hidden sm:block size-8 shrink-0" />
+                  )}
+                </div>
               </div>
             );
           })}

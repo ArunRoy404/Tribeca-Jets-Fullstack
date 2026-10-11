@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, X, Clock } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import { useItinerariesStore } from "@/store/useItinerariesStore";
 import { useCreateItinerary, useUpdateItinerary } from "@/hooks/itineraries";
-import { useTrips, useTrip } from "@/hooks/trips";
-import { toTripRow, formatTripStatus } from "@/lib/trip";
+import { useTrip } from "@/hooks/trips";
+import { formatTripStatus } from "@/lib/trip";
 import { displayName } from "@/lib/client";
 import { formatCalendarDate } from "@/lib/date";
 import { formatTime24 } from "@/lib/time";
@@ -13,7 +13,8 @@ import { optionalText } from "@/lib/form";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import CommonInput from "@/components/common/CommonInput";
-import CommonSelect from "@/components/common/CommonSelect";
+import { CommonTimePicker } from "@/components/common/TimePicker";
+import TripPicker from "@/components/trips/TripPicker";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import TribecaLetterhead from "@/components/common/TribecaLetterhead";
 import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
@@ -33,20 +34,15 @@ function FieldWrapper({ label, children }) {
   );
 }
 
-/** No `CommonTimePicker` exists yet — this is the first field that needs one,
- * so it stays local rather than becoming a shared component nobody else uses. */
 function TimeField({ label, value, onChange }) {
   return (
     <FieldWrapper label={label}>
-      <div className="relative">
-        <input
-          type="time"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-11 w-full rounded-md border border-input bg-background pl-3 pr-9 font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple"
-        />
-        <Clock className="size-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-      </div>
+      <CommonTimePicker
+        value={value}
+        onChange={onChange}
+        placeholder="Choose arrival time"
+        className="h-11"
+      />
     </FieldWrapper>
   );
 }
@@ -176,10 +172,7 @@ function ItineraryForm({ itinerary, onDone }) {
   const [form, setForm] = useState(() => initialForm(itinerary));
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  // Trips to build from, for the picker — only while creating. The full
-  // detail (legs, passengers) is fetched separately once one is chosen; the
-  // list rows do not carry it.
-  const { data: tripsPage } = useTrips({ limit: 100 }, { enabled: !isEditing });
+  // Trip detail (legs, passengers) is fetched once a trip is chosen for live preview.
   const { data: selectedTrip } = useTrip(form.linkedTripId, { enabled: Boolean(form.linkedTripId) && !isEditing });
 
   const previewItem = useMemo(
@@ -257,16 +250,11 @@ function ItineraryForm({ itinerary, onDone }) {
               </p>
             </div>
           ) : (
-            <FieldWrapper label="Choose Saved Trip">
-              <CommonSelect
+            <FieldWrapper label="Choose Saved Trip *">
+              <TripPicker
                 value={form.linkedTripId}
                 onChange={set("linkedTripId")}
-                placeholder="Select a trip"
-                options={(tripsPage?.data ?? []).map((t) => {
-                  const row = toTripRow(t);
-                  return { value: t.id, label: `${row.reference} - ${row.client} (${row.route})` };
-                })}
-                className="h-11 text-[13px]"
+                placeholder="Search and select a trip"
               />
               <p className="font-montserrat text-[11px] text-muted-foreground">
                 Aircraft, operator, tail, route and the passenger manifest come from the trip and cannot be typed here.

@@ -21,7 +21,7 @@ import {
   useRestoreItinerary,
 } from "@/hooks/itineraries";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 import { toItineraryRow } from "@/lib/itinerary";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { useItinerariesStore } from "@/store/useItinerariesStore";
@@ -36,8 +36,11 @@ export default function ItinerariesContainer({ revealDelay = 0 }) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.ITINERARIES, Action.CREATE);
+  const mayEdit = canAccess(Module.ITINERARIES, Action.EDIT);
+  const maySend = canAccess(Module.ITINERARIES, Action.SEND);
+  const mayArchive = canAccess(Module.ITINERARIES, Action.ARCHIVE);
 
   const openBuildModal = useItinerariesStore((s) => s.openBuildModal);
   const openEditModal = useItinerariesStore((s) => s.openEditModal);
@@ -78,27 +81,30 @@ export default function ItinerariesContainer({ revealDelay = 0 }) {
     const view = { label: "View Details", icon: <Eye />, onSelect: () => openDetails(item?.id) };
 
     if (isArchived) {
-      return mayWrite
+      return mayArchive
         ? [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreItineraries?.(item?.id) }]
         : [view];
     }
-    if (!mayWrite) return [view];
 
-    const actions = [
-      view,
-      { label: "Send to Client", icon: <Send />, onSelect: () => openSendModal?.(item?.id) },
-    ];
-    if (!item?.confirmed) {
-      actions.push({ label: "Confirm Itinerary", icon: <CheckCircle />, onSelect: () => confirmItinerary?.(item?.id) });
+    const actions = [view];
+    if (maySend) {
+      actions.push({ label: "Send to Client", icon: <Send />, onSelect: () => openSendModal?.(item?.id) });
     }
-    actions.push({ label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(item?.raw) });
-    actions.push("separator");
-    actions.push({
-      label: "Archive",
-      icon: <Trash2 />,
-      variant: "destructive",
-      onSelect: () => removeItineraries?.(item?.id),
-    });
+    if (mayEdit) {
+      if (!item?.confirmed) {
+        actions.push({ label: "Confirm Itinerary", icon: <CheckCircle />, onSelect: () => confirmItinerary?.(item?.id) });
+      }
+      actions.push({ label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(item?.raw) });
+    }
+    if (mayArchive) {
+      actions.push("separator");
+      actions.push({
+        label: "Archive",
+        icon: <Trash2 />,
+        variant: "destructive",
+        onSelect: () => removeItineraries?.(item?.id),
+      });
+    }
     return actions;
   };
 
@@ -117,7 +123,8 @@ export default function ItinerariesContainer({ revealDelay = 0 }) {
           selectedCount={selected.size}
           onBulkAction={() => setBulkOpen(true)}
           onBuildItinerary={openBuildModal}
-          mayWrite={mayWrite}
+          mayCreate={mayCreate}
+          mayArchive={mayArchive}
         />
 
         {isPending || error || isEmpty ? (
@@ -144,7 +151,7 @@ export default function ItinerariesContainer({ revealDelay = 0 }) {
                 onSelectItinerary={openDetails}
                 selected={selected}
                 onToggleRow={toggleRow}
-                selectable={mayWrite}
+                selectable={mayArchive}
                 archived={isArchived}
               />
             </div>
@@ -158,7 +165,7 @@ export default function ItinerariesContainer({ revealDelay = 0 }) {
               onSelectAll={() =>
                 setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((row) => row?.id))))
               }
-              selectable={mayWrite}
+              selectable={mayArchive}
               archived={isArchived}
             />
 

@@ -5,7 +5,7 @@ import { Check, Mail, Send, X } from "lucide-react";
 import { useItinerariesStore } from "@/store/useItinerariesStore";
 import { useItinerary, useSendItinerary } from "@/hooks/itineraries";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 import { toItineraryRow } from "@/lib/itinerary";
 import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -31,8 +31,8 @@ export default function SendItineraryDialog() {
   const { data: item } = useItinerary(open ? sendTargetId : null);
   const row = item ? toItineraryRow(item) : null;
   const { mutate: markSent, isPending } = useSendItinerary();
-  const { canWrite } = usePermissions();
-  const maySend = canWrite(Permission.SEND_EMAILS) && Boolean(row?.clientId);
+  const { canAccess } = usePermissions();
+  const maySend = canAccess(Module.EMAIL_TEMPLATES, Action.SEND) && Boolean(row?.clientId);
 
   const handleMark = () => markSent(sendTargetId, { onSuccess: () => closeModal() });
   const openCompose = () => {

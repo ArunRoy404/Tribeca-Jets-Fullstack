@@ -5,7 +5,7 @@ import { CheckCircle, Edit, RotateCcw, Send, Trash2 } from "lucide-react";
 import { useItinerary, useConfirmItinerary, useRemoveItinerary, useRestoreItinerary } from "@/hooks/itineraries";
 import { useItinerariesStore } from "@/store/useItinerariesStore";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 import { toItineraryRow } from "@/lib/itinerary";
 import DetailSheet from "@/components/common/DetailSheet";
 import ItineraryPreview from "@/components/itineraries/ItineraryPreview";
@@ -24,8 +24,10 @@ export default function ItineraryDetailSheet({ itineraryId, onClose }) {
   const openEditModal = useItinerariesStore((s) => s.openEditModal);
   const openSendModal = useItinerariesStore((s) => s.openSendModal);
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
+  const { canAccess } = usePermissions();
+  const mayEdit = canAccess(Module.ITINERARIES, Action.EDIT);
+  const maySend = canAccess(Module.ITINERARIES, Action.SEND);
+  const mayArchive = canAccess(Module.ITINERARIES, Action.ARCHIVE);
 
   const { mutate: confirmItinerary, isPending: confirming } = useConfirmItinerary();
   const { mutate: removeItinerary, isPending: archiving } = useRemoveItinerary();
@@ -55,7 +57,7 @@ export default function ItineraryDetailSheet({ itineraryId, onClose }) {
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-2.5 pt-4 border-t border-border w-full mt-auto">
-            {mayWrite && !isArchived && (
+            {maySend && !isArchived && (
               <Button
                 variant="outline"
                 className="w-full h-10 text-[13px] gap-2 font-medium"
@@ -66,7 +68,7 @@ export default function ItineraryDetailSheet({ itineraryId, onClose }) {
               </Button>
             )}
 
-            {mayWrite && !isArchived && !row.confirmed && (
+            {mayEdit && !isArchived && !row.confirmed && (
               <Button
                 variant="outline"
                 className="w-full h-10 text-[13px] gap-2 font-medium"
@@ -78,7 +80,7 @@ export default function ItineraryDetailSheet({ itineraryId, onClose }) {
               </Button>
             )}
 
-            {mayWrite && !isArchived && (
+            {mayEdit && !isArchived && (
               <Button
                 variant="outline"
                 className="w-full h-10 text-[13px] gap-2 font-medium"
@@ -89,7 +91,7 @@ export default function ItineraryDetailSheet({ itineraryId, onClose }) {
               </Button>
             )}
 
-            {mayWrite && !isArchived && (
+            {mayArchive && !isArchived && (
               <Button
                 variant="outline"
                 className="w-full h-10 text-[13px] gap-2 font-medium text-destructive hover:text-destructive"
@@ -101,7 +103,7 @@ export default function ItineraryDetailSheet({ itineraryId, onClose }) {
               </Button>
             )}
 
-            {mayWrite && isArchived && (
+            {mayArchive && isArchived && (
               <Button
                 variant="outline"
                 className="w-full h-10 text-[13px] gap-2 font-medium"
