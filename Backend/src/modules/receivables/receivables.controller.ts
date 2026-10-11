@@ -10,14 +10,13 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { ReceivablesService } from './receivables.service.js';
@@ -31,20 +30,23 @@ import {
 } from './dto/receivable.dto.js';
 
 /**
- * Receivables (#16) — client invoices on a trip and the payments against them.
+ * Receivables (#16, reviewed #21) — client invoices on a trip and the payments against them.
  *
- * VIEW_RECEIVABLES reads and MANAGE_RECEIVABLES writes, each at the trip's
- * scope: every invoice for an administrator or senior broker, the invoices on
- * a broker's own (and unassigned) trips for a broker. Archiving an invoice and
- * withdrawing or restoring a payment are ALL-only, enforced in the service.
+ * Internal desk inventory: open reads for staff sessions, referral agents
+ * refused (403 StaffOnly). Writes gated per person by RECEIVABLES permissions:
+ * Action.CREATE for raising and editing invoices, Action.PAY for recording and
+ * updating payments, Action.ARCHIVE for voiding/restoring invoices and payments.
+ * Reads are scoped by reachOf(user.access, Module.RECEIVABLES) and
+ * TripsService.visibleWhere.
  */
 @ApiTags('Receivables')
+@UseGuards(AccessGuard)
+@StaffOnly()
 @Controller('receivables')
 export class ReceivablesController {
   constructor(private readonly receivables: ReceivablesService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_RECEIVABLES)
   @ApiOperation({
     summary: 'List invoices',
     description:
@@ -56,7 +58,6 @@ export class ReceivablesController {
 
   /** Before `:id` — Nest matches in order. */
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_RECEIVABLES)
   @ApiOperation({
     summary: 'Receivables totals',
     description:
@@ -67,7 +68,6 @@ export class ReceivablesController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_RECEIVABLES)
   @ApiOperation({
     summary: 'Get one invoice, with its payments',
     description: 'Archived invoices included. Outside the caller\'s scope: 404, never 403. `withdrawnPayments` lists payments taken off the record, with who withdrew them.',
@@ -77,7 +77,7 @@ export class ReceivablesController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.CREATE)
   @ApiOperation({
     summary: 'Raise an invoice on a trip',
     description:
@@ -89,7 +89,7 @@ export class ReceivablesController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Archive several invoices',
     description: 'Administrators and senior brokers only. Invoices with live payments, and ids that match nothing, come back in `skipped`.',
@@ -100,14 +100,14 @@ export class ReceivablesController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore several archived invoices', description: 'Administrators and senior brokers only.' })
   restoreMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.receivables.restoreMany(user, body.ids);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.CREATE)
   @ApiOperation({
     summary: 'Edit an invoice, send it or cancel it',
     description:
@@ -123,7 +123,7 @@ export class ReceivablesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Archive an invoice',
     description: 'Administrators and senior brokers only, and only with no live payments. Nothing is deleted; restore brings it back.',
@@ -134,7 +134,7 @@ export class ReceivablesController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore an archived invoice', description: 'Clears the archive stamp and nothing else.' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.receivables.restore(user, id);
@@ -143,7 +143,7 @@ export class ReceivablesController {
   // ---- Payments -----------------------------------------------------------
 
   @Post(':id/payments')
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.PAY)
   @ApiOperation({
     summary: 'Record a payment against an invoice',
     description:
@@ -158,7 +158,7 @@ export class ReceivablesController {
   }
 
   @Patch(':id/payments/:paymentId')
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.PAY)
   @ApiOperation({
     summary: 'Correct a recorded payment',
     description: 'A new amount is checked against the invoice without this payment in it. Returns the invoice.',
@@ -174,7 +174,7 @@ export class ReceivablesController {
 
   @Delete(':id/payments/:paymentId')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Withdraw a payment',
     description: 'Administrators and senior brokers only. The payment stays on the record under `withdrawnPayments`. Returns the invoice.',
@@ -189,7 +189,7 @@ export class ReceivablesController {
 
   @Post(':id/payments/:paymentId/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_RECEIVABLES)
+  @RequireAccess(Module.RECEIVABLES, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Restore a withdrawn payment',
     description: 'Administrators and senior brokers only. Re-checked against the invoice as it is now: refused if it would overpay it, or if the invoice is no longer SENT.',
