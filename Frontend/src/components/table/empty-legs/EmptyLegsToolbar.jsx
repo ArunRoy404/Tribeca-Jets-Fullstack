@@ -29,9 +29,13 @@ export default function EmptyLegsToolbar({
   selectedCount = 0,
   onBulkAction,
   onAddEmptyLeg,
-  mayWrite = false,
+  mayCreate = false,
+  mayArchive = false,
+  mayWrite,
 }) {
   const isArchived = tab === ARCHIVE_TABS.ARCHIVED;
+  const canCreate = mayCreate || Boolean(mayWrite);
+  const canArchive = mayArchive || Boolean(mayWrite);
   const [draft, setDraft] = useDebouncedParam(search, setSearch);
   const statusFilter = useEnumFilter(EMPTY_LEG_STATUSES, formatEmptyLegStatus, ALL_STATUS);
 
@@ -61,7 +65,7 @@ export default function EmptyLegsToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {mayWrite && (
+          {canArchive && (
             <BulkDeleteButton
               count={selectedCount}
               itemLabel="empty legs"
@@ -69,7 +73,7 @@ export default function EmptyLegsToolbar({
               action={isArchived ? "restore" : "remove"}
             />
           )}
-          {mayWrite && !isArchived && (
+          {canCreate && !isArchived && (
             <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" onClick={() => onAddEmptyLeg?.()}>
               <Plus className="size-3.5" />
               <span>Add Empty Leg</span>
