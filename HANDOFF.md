@@ -463,3 +463,10 @@ this says *what the owner decided*, which nothing else records.
   - `60ea1e6`: `docs: mark Trips (#16) reviewed, adjusted, tested and signed off`
 - **Next in Queue:** Module #17: Itineraries (passenger documents, FBO handling, operator itinerary attachments).
 
+### 11 Oct 2026 — Cross-module wiring completed (Trips #16 second pass) (Antigravity)
+
+- **Agent Detail Page — Associated Trips:** Wired `AgentAssociatedTrips.jsx` and `AgentDetailPage.jsx` to query `useTrips({ assignedBrokerId: agentId, limit: 10, sortBy: "departureDate", sortOrder: "desc" })`, mapped via `toTripRow`. Renders clickable trips with route, departure, status badge, and honest empty state.
+- **Client Detail Page — Recent Trip Card:** Wired `ClientOverviewTab.jsx` to query `useTrips({ clientId: client?.id, limit: 1, sortBy: "departureDate", sortOrder: "desc" })`, mapped via `toTripRow`. Renders route, departure, aircraft, reference badge, status badge, and clickable navigation to `/dashboard/trips/[tripId]`.
+- **Verification:** Frontend production build (`npm run build`) compiled cleanly in 13.1s (0 errors across 45 routes). Backend Vitest suite (386 / 386 tests across 45 suites) passed 100% with 0 regressions.
+
+
