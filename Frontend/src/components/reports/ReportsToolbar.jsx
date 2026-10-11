@@ -5,7 +5,7 @@ import { Download, ChevronDown } from "lucide-react";
 import { useReportsStore } from "@/store/useReportsStore";
 import { useReportsParams } from "@/hooks/reports";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 import { REPORT_PERIODS, REPORT_PERIOD_LABELS, rangeLabel, reportRangeOptions } from "@/lib/reports";
 import FilterTabs from "@/components/table/common/FilterTabs";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,8 @@ const PERIOD_BY_LABEL = Object.fromEntries(REPORT_PERIODS.map((period) => [REPOR
 export default function ReportsToolbar() {
   const { period, range, setPeriod, setRange } = useReportsParams();
   const openExportModal = useReportsStore((s) => s.openExportModal);
-  const { can } = usePermissions();
+  const { canAccess } = usePermissions();
+  const mayExport = canAccess(Module.REPORTS, Action.EXPORT);
   const rangeOptions = useMemo(() => reportRangeOptions(), []);
 
   return (
@@ -54,7 +55,7 @@ export default function ReportsToolbar() {
         </Popover>
       </div>
 
-      {can(Permission.EXPORT_DATA) && (
+      {mayExport && (
         <div className="flex items-center gap-3 sm:gap-4">
           <Button variant="outline" className="h-[35px] px-4 gap-2 text-[13px] sm:text-[14px]" onClick={() => openExportModal("CSV")}>
             <Download className="size-4" />

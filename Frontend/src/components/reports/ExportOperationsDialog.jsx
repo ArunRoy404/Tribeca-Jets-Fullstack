@@ -5,6 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { useReportsStore } from "@/store/useReportsStore";
 import { useReportSummary, useReportsParams } from "@/hooks/reports";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Module, Action } from "@/lib/access";
 import { EXPORT_FORMATS, EXPORT_FORMAT_LABELS } from "@/lib/reports";
 import { reportExportUrl } from "@/services/reports.service";
 import { cn } from "@/lib/utils";
@@ -30,11 +32,14 @@ export default function ExportOperationsDialog() {
   const exportFormat = useReportsStore((s) => s.exportFormat);
   const setExportFormat = useReportsStore((s) => s.setExportFormat);
   const { window } = useReportsParams();
+  const { canAccess } = usePermissions();
+  const mayExport = canAccess(Module.REPORTS, Action.EXPORT);
   const { data: summary } = useReportSummary(window);
   const counts = summary?.operations;
 
   // A real download the browser follows, so the session cookie goes with it.
   const download = () => {
+    if (!mayExport) return;
     const link = document.createElement("a");
     link.href = reportExportUrl({ ...(exportScope === "current" ? window : {}), format: exportFormat });
     link.rel = "noopener";
@@ -43,6 +48,8 @@ export default function ExportOperationsDialog() {
     link.remove();
     close();
   };
+
+  if (!mayExport && !open) return null;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && close()}>
@@ -127,7 +134,7 @@ export default function ExportOperationsDialog() {
             <X className="size-4" />
             Cancel
           </Button>
-          <Button className="h-9 px-4 gap-2 text-[14px]" onClick={download}>
+          <Button className="h-9 px-4 gap-2 text-[14px]" onClick={download} disabled={!mayExport}>
             <Download className="size-4" />
             Export
           </Button>
