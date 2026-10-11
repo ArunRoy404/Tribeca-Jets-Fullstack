@@ -6,7 +6,7 @@ import NewEmailTemplateDialog from "@/components/email-templates/NewEmailTemplat
 import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { useEmailTemplateStats, useEmailTemplatesTableParams } from "@/hooks/email-templates";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toISODate } from "@/lib/date";
 import { useEmailTemplatesStore } from "@/store/useEmailTemplatesStore";
 
@@ -19,7 +19,7 @@ const DASH = "—";
  */
 export default function EmailTemplatesPage() {
   const params = useEmailTemplatesTableParams();
-  const { can } = usePermissions();
+  const { canAccess } = usePermissions();
   const { data: stats } = useEmailTemplateStats({ on: toISODate(new Date()) });
   const composeOpen = useEmailTemplatesStore((s) => s.composeOpen);
   const composeTemplateId = useEmailTemplatesStore((s) => s.composeTemplateId);
@@ -29,7 +29,7 @@ export default function EmailTemplatesPage() {
     { label: "TOTAL TEMPLATES", value: stats?.total ?? DASH, tone: "foreground" },
     { label: "ACTIVE", value: stats?.active ?? DASH, tone: "success" },
     { label: "CATEGORIES IN USE", value: stats?.categoriesInUse ?? DASH, tone: "purple" },
-    ...(can(Permission.SEND_EMAILS)
+    ...(canAccess(Module.EMAIL_TEMPLATES, Action.SEND)
       ? [{ label: "SENT THIS MONTH", value: stats?.sentThisMonth ?? DASH, tone: "foreground" }]
       : []),
   ];

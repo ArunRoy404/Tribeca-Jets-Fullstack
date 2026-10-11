@@ -8,12 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import FormField from "@/components/trips/FormField";
 import PickerSelect from "@/components/trips/PickerSelect";
+import ClientPicker from "@/components/clients/ClientPicker";
+import OperatorPicker from "@/components/operators/OperatorPicker";
+import TripPicker from "@/components/trips/TripPicker";
 import { useEmailTemplates, usePreviewEmail, useSendEmail } from "@/hooks/email-templates";
-import { useClients } from "@/hooks/clients";
-import { useOperators } from "@/hooks/operators";
-import { useTrips } from "@/hooks/trips";
-import { displayName } from "@/lib/client";
-import { formatTripReference } from "@/lib/trip";
 import { emailContext, formatEmailCategory } from "@/lib/email";
 
 const FIELD_CLASS = "h-13 px-4 rounded-sm text-base font-medium";
@@ -42,7 +40,7 @@ function ComposeForm({ context = {}, category, templateId: initialTemplateId, ti
   const [kind, setKind] = useState("client");
   const [pickedClientId, setPickedClientId] = useState("");
   const [pickedOperatorId, setPickedOperatorId] = useState("");
-  const [pickedTripId, setPickedTripId] = useState(NONE);
+  const [pickedTripId, setPickedTripId] = useState("");
   /** What the broker picked; null until they pick, when the screen's default stands. */
   const [chosenTemplateId, setTemplateId] = useState(initialTemplateId ?? null);
   const [subject, setSubject] = useState("");
@@ -57,23 +55,17 @@ function ComposeForm({ context = {}, category, templateId: initialTemplateId, ti
   const templatesReady = Boolean(templates);
   const templateId =
     chosenTemplateId ?? (category ? (templates?.data ?? []).find((t) => t.category === category)?.id : null) ?? NONE;
-  const { data: clients } = useClients({ limit: 100 }, { enabled: !fixedRecipient });
-  const { data: operators } = useOperators({ limit: 100 }, { enabled: !fixedRecipient });
 
   const clientId = fixedRecipient ? context.clientId : kind === "client" ? pickedClientId : "";
   const operatorId = fixedRecipient ? context.operatorId : kind === "operator" ? pickedOperatorId : "";
   const tripsFilter = clientId ? { clientId } : operatorId ? { operatorId } : null;
-  const { data: trips } = useTrips(
-    { ...tripsFilter, limit: 100, sortBy: "departureDate", sortOrder: "desc" },
-    { enabled: !fixedRecipient && Boolean(tripsFilter) },
-  );
 
   const request = useMemo(
     () =>
       emailContext({
         clientId,
         operatorId,
-        tripId: fixedRecipient ? context.tripId : pickedTripId !== NONE ? pickedTripId : undefined,
+        tripId: fixedRecipient ? context.tripId : (pickedTripId || undefined),
         quoteId: context.quoteId,
         invoiceId: context.invoiceId,
         templateId: templateId && templateId !== NONE ? templateId : undefined,
@@ -154,7 +146,7 @@ function ComposeForm({ context = {}, category, templateId: initialTemplateId, ti
               value={kind}
               onChange={(value) => {
                 setKind(value);
-                setPickedTripId(NONE);
+                setPickedTripId("");
               }}
               options={KIND_OPTIONS}
               className={FIELD_CLASS}
@@ -162,24 +154,22 @@ function ComposeForm({ context = {}, category, templateId: initialTemplateId, ti
           </FormField>
           <FormField label={kind === "client" ? "Client" : "Operator"} labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
             {kind === "client" ? (
-              <PickerSelect
+              <ClientPicker
                 value={pickedClientId}
                 onChange={(value) => {
                   setPickedClientId(value);
-                  setPickedTripId(NONE);
+                  setPickedTripId("");
                 }}
-                options={(clients?.data ?? []).map((c) => ({ value: c.id, label: displayName(c) }))}
                 placeholder="Select a client"
                 className={FIELD_CLASS}
               />
             ) : (
-              <PickerSelect
+              <OperatorPicker
                 value={pickedOperatorId}
                 onChange={(value) => {
                   setPickedOperatorId(value);
-                  setPickedTripId(NONE);
+                  setPickedTripId("");
                 }}
-                options={(operators?.data ?? []).map((o) => ({ value: o.id, label: o.name }))}
                 placeholder="Select an operator"
                 className={FIELD_CLASS}
               />
@@ -200,14 +190,14 @@ function ComposeForm({ context = {}, category, templateId: initialTemplateId, ti
         </FormField>
         {!fixedRecipient && (
           <FormField label="About a trip (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
-            <PickerSelect
+            <TripPicker
               value={pickedTripId}
               onChange={setPickedTripId}
-              options={[
-                { value: NONE, label: "No trip" },
-                ...(trips?.data ?? []).map((t) => ({ value: t.id, label: formatTripReference(t.reference) })),
-              ]}
-              placeholder={tripsFilter ? "Select a trip" : "Pick the recipient first"}
+              params={tripsFilter ?? {}}
+              disabled={!tripsFilter}
+              allowClear
+              clearLabel="No trip"
+              placeholder={tripsFilter ? "Select a trip (Optional)" : "Pick the recipient first"}
               className={FIELD_CLASS}
             />
           </FormField>

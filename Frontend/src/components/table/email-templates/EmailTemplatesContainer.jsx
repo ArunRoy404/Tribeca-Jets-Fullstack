@@ -22,7 +22,7 @@ import {
   useUpdateEmailTemplate,
 } from "@/hooks/email-templates";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { EMAIL_TABS, toEmailTemplate, toSentEmail } from "@/lib/email";
 import { useEmailTemplatesStore } from "@/store/useEmailTemplatesStore";
 
@@ -33,11 +33,14 @@ import { useEmailTemplatesStore } from "@/store/useEmailTemplatesStore";
  * senior brokers change the library.
  */
 export default function EmailTemplatesContainer({ params, revealDelay = 0 }) {
-  const { can, canWrite } = usePermissions();
-  const mayManage = canWrite(Permission.MANAGE_EMAIL_TEMPLATES);
-  const maySend = canWrite(Permission.SEND_EMAILS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.EMAIL_TEMPLATES, Action.CREATE);
+  const mayEdit = canAccess(Module.EMAIL_TEMPLATES, Action.EDIT);
+  const mayArchive = canAccess(Module.EMAIL_TEMPLATES, Action.ARCHIVE);
+  const maySend = canAccess(Module.EMAIL_TEMPLATES, Action.SEND);
+  const mayManage = mayEdit || mayArchive;
   const isArchived = params.tab === EMAIL_TABS.ARCHIVED;
-  const isSent = params.tab === EMAIL_TABS.SENT && can(Permission.SEND_EMAILS);
+  const isSent = params.tab === EMAIL_TABS.SENT && maySend;
 
   const templatesQuery = useEmailTemplates(params.queryParams, { enabled: !isSent });
   const sentQuery = useSentEmails(params.sentParams, { enabled: isSent });
@@ -83,19 +86,21 @@ export default function EmailTemplatesContainer({ params, revealDelay = 0 }) {
   const getRowActions = (t) => {
     const view = { label: "View Details", icon: <Eye />, onSelect: () => params.setTemplate(t?.id) };
     if (isArchived) {
-      return mayManage
+      return mayArchive
         ? [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreTemplates(t?.id) }]
         : [view];
     }
     const actions = [view];
     if (maySend && t?.active) actions.push({ label: "Use / Send", icon: <Mail />, onSelect: () => openCompose(t?.id) });
-    if (mayManage) {
+    if (mayEdit) {
       actions.push({ label: "Edit Template", icon: <Edit2 />, onSelect: () => openEditTemplate(t?.id) });
       actions.push({
         label: t?.active ? "Switch Off" : "Switch On",
         icon: <Power />,
         onSelect: () => updateTemplate({ id: t?.id, active: !t?.active }),
       });
+    }
+    if (mayArchive) {
       actions.push("separator");
       actions.push({ label: "Archive", icon: <Trash2 />, variant: "destructive", onSelect: () => removeTemplates(t?.id) });
     }
@@ -111,7 +116,7 @@ export default function EmailTemplatesContainer({ params, revealDelay = 0 }) {
       ? "Archived templates appear here and can be restored."
       : params.hasFilters
         ? "Try clearing a filter."
-        : mayManage
+        : mayCreate
           ? "Add a template and it will appear here."
           : "No templates have been added yet.";
 
@@ -124,9 +129,11 @@ export default function EmailTemplatesContainer({ params, revealDelay = 0 }) {
           onBulkAction={() => setBulkOpen(true)}
           onSendEmail={() => openCompose(null)}
           onNewTemplate={openNewTemplate}
+          mayCreate={mayCreate}
           mayManage={mayManage}
+          mayArchive={mayArchive}
           maySend={maySend}
-          showSentTab={can(Permission.SEND_EMAILS)}
+          showSentTab={maySend}
         />
 
         {isPending || error || isEmpty ? (
@@ -151,7 +158,7 @@ export default function EmailTemplatesContainer({ params, revealDelay = 0 }) {
               onToggleRow={toggleRow}
               getRowActions={getRowActions}
               onSelectTemplate={params.setTemplate}
-              selectable={mayManage}
+              selectable={mayArchive}
               archived={isArchived}
             />
             <EmailTemplatesTable
@@ -163,7 +170,7 @@ export default function EmailTemplatesContainer({ params, revealDelay = 0 }) {
               }
               onSelectTemplate={params.setTemplate}
               getRowActions={getRowActions}
-              selectable={mayManage}
+              selectable={mayArchive}
               archived={isArchived}
             />
           </>
