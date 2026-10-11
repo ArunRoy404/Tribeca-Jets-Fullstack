@@ -143,8 +143,8 @@ reviewed yet — the module may still be built and working.
 | 15 | Quotes | Yes — markup, validity, FET, terms, document identity | ✅ 10 Oct — owner tested & signed off |
 | 16 | Trips | Yes — apply FET by default | ✅ 10 Oct — owner tested & signed off |
 | 17 | Itineraries | Yes — document identity and toggles | ✅ 11 Oct — owner tested & signed off |
-| 18 | Schedule | — | ⬜ (next in review) |
-| 19 | Flight Tracking | Yes — flight alerts to brokers | ⬜ |
+| 18 | Schedule | — | ✅ 11 Oct — owner tested & signed off |
+| 19 | Flight Tracking | Yes — flight alerts to brokers | 🟡 (next in review) |
 | 20 | Empty Legs | — | ⬜ |
 | 21 | Receivables | Yes — payment reminders | ⬜ |
 | 22 | Operator Payments | Yes — payment reminders | ⬜ |

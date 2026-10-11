@@ -47,17 +47,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 15 | Quotes | ✅ 10 Oct — owner tested & signed off |
 | 16 | **Trips** | ✅ 10 Oct — owner tested & signed off |
 | 17 | **Itineraries** | ✅ 11 Oct — owner tested & signed off |
-| 18 | **Schedule** | 🟡 **next in queue** |
-| 19–35 | Flight Tracking, Empty Legs, … | ⬜ in the table's order |
+| 18 | **Schedule** | ✅ 11 Oct — owner tested & signed off |
+| 19 | **Flight Tracking** | 🟡 **next in queue** |
+| 20–35 | Empty Legs, Receivables, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Schedule (#18) review
+### What is next — Flight Tracking (#19) review
 
-- **Itineraries (#17) tested, signed off and pushed:** Controller decorated with `@StaffOnly()`, open reads for staff, writes guarded via `@RequireAccess(Module.ITINERARIES)`. Added `ARCHIVE` to catalogue and roles. Private operator itinerary attachment voucher streaming endpoint (`GET /api/itineraries/:id/operator-attachment`) implemented and wired into `ItineraryPreview`. `TripPicker` component created and integrated into `BuildItineraryDialog` alongside `CommonTimePicker`. Passenger manifest updated so all companion passengers collect full name, optional DOB, and passport number. Unit test suite `itineraries.access.spec.ts` passing (100% across all 46 test suites, 389 tests).
-- **Next module in queue:** **Schedule (#18)** — calendar view of active bookings, crew and aircraft scheduling timelines, and slot tracking.
+- **Schedule (#18) tested, signed off and pushed:** Controller decorated with `@StaffOnly()`, open reads for staff, writes guarded. Schedule is a pure read-only calendar view over `TripLeg` rows, scoped through `TripsService` via `reachOf(user.access, Module.TRIPS)`. Receivables visibility gated via `canDo(user.access, Module.RECEIVABLES, Action.VIEW)`. Unit test suite `schedule.access.spec.ts` passing (100% across all 47 test suites, 393 tests).
+- **Next module in queue:** **Flight Tracking (#19)** — real-time tracking, live flight positions, delay/departure alerts to brokers.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -488,5 +489,17 @@ this says *what the owner decided*, which nothing else records.
   - Next.js production build (`npm run build`) compiles with 0 errors across 45 routes in Turbopack.
 - **Next Step:** Manual verification by owner as Super Admin, Admin, Broker, Assistant, and Referral Agent; commit upon instruction; then proceed to Schedule (#18).
 
+### 11 Oct 2026 — Schedule (#18) reviewed, verified & signed off (Antigravity)
 
-
+- **Backend Architecture & Per-Person Access:**
+  - Decorated `ScheduleController` with `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /schedule`, `GET /schedule/stats`, `GET /schedule/calendar` open to all staff sessions without requiring write permissions.
+  - Reach scoping: `TripsService` scopes legs, calendar counts, and stats via `reachOf(user.access, Module.TRIPS)` so brokers see only their assigned trips' legs and unassigned legs.
+  - Financials/Receivables: Updated `ScheduleService` to read `canDo(user.access, Module.RECEIVABLES, Action.VIEW)` for payment status visibility on calendar legs.
+  - Unit test suite: Created `schedule.access.spec.ts` verifying `@StaffOnly()` 403 refusal on referral agents and open staff reads. All 47 Vitest test suites (393 tests) pass 100%. `tsc --noEmit` and `oxlint` 0 errors.
+- **Frontend Architecture & Verification:**
+  - Verified `Frontend/src/components/schedule/` components (`ScheduleGrid`, `ScheduleEvents`, `ScheduleStats`, `useScheduleEvents`, `useScheduleStats`) consume live API without mock fallbacks.
+  - Filter state synchronized through URL params via `useScheduleParams`.
+  - Honest status tags and em dash fallbacks maintained across day, week, month, and year calendar grids.
+  - Turbopack production build (`npm run build`) compiles with 0 errors across all 45 routes.
+- **Git & Next Step:** Committed in batches and pushed to `origin/roy`. Proceeding to Flight Tracking (#19).

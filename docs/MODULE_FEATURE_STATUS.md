@@ -1009,6 +1009,12 @@ of these cards makes a second request.
   refreshes the calendar
 - Postman builder `build_schedule_folder.py` → `23 · Schedule` (5 requests),
   **written, not run**
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Permissions per person:** Decorated `ScheduleController` with `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /schedule`, `GET /schedule/stats`, `GET /schedule/calendar` open to all staff sessions without requiring write permissions.
+  - Reach scoping: `TripsService` scopes legs, calendar counts, and stats via `reachOf(user.access, Module.TRIPS)` so brokers see only their assigned trips' legs and unassigned legs.
+  - Financials/Receivables: Updated `ScheduleService` to read `canDo(user.access, Module.RECEIVABLES, Action.VIEW)` for payment status visibility on calendar legs.
+  - Unit test suite: Created `schedule.access.spec.ts` verifying `@StaffOnly()` 403 refusal on referral agents and open staff reads. All 47 Vitest test suites (393 tests) pass 100%.
 
 **Deviations from the old screen, stated:**
 
