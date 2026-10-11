@@ -129,7 +129,7 @@ export const MODULES: ModuleDefinition[] = [
     requires: [Module.TRIPS],
     actionLabels: { EDIT: 'Update flight status' },
   },
-  { module: Module.ITINERARIES, label: 'Itineraries', section: 'Operations', actions: [VIEW, CREATE, EDIT, SEND], requires: [Module.TRIPS] },
+  { module: Module.ITINERARIES, label: 'Itineraries', section: 'Operations', actions: [VIEW, CREATE, EDIT, SEND, ARCHIVE], requires: [Module.TRIPS] },
   {
     module: Module.EMPTY_LEGS,
     label: 'Empty Legs',

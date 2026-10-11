@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -10,39 +11,44 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+  RequireAccess,
+  StaffOnly,
+} from '../../common/decorators/access.decorator.js';
+import { Module, Action } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
+import { contentDisposition } from '../uploads/uploads.rules.js';
 import { ItinerariesService } from './itineraries.service.js';
-import { CreateItineraryDto, QueryItinerariesDto, UpdateItineraryDto } from './dto/itinerary.dto.js';
+import {
+  CreateItineraryDto,
+  QueryItinerariesDto,
+  UpdateItineraryDto,
+} from './dto/itinerary.dto.js';
 
 /**
  * Itineraries (#12) — the passenger-facing document for a trip (scope §11).
  *
- * Carries no permission of its own: it uses VIEW_TRIPS / MANAGE_TRIPS, the
- * same rule Trip Requests already applies — a document is part of the trip it
- * is for, not a separate capability. Archiving and restoring stay at
- * MANAGE_TRIPS too, narrower than a trip's own DELETE_TRIPS: this is a
- * document a broker built, not the financial record of the booking itself.
+ * Moved to per-person permissions (Module.ITINERARIES). Open reads for staff
+ * sessions; writes guarded via @RequireAccess.
  */
 @ApiTags('Itineraries')
+@StaffOnly()
 @Controller('itineraries')
 export class ItinerariesController {
   constructor(private readonly itineraries: ItinerariesService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'List itineraries',
     description:
-      'Scoped exactly like the trips they belong to — a broker sees the documents on their own and unassigned trips. Aircraft, operator, tail, route and the passenger manifest are read from the trip on every request, never stored here. Search matches the trip\'s reference ("TJ-1048" or "1048"), client, tail and operator.',
+      'Scoped by the caller\'s reach on Itineraries. Open to all signed-in staff. Aircraft, operator, tail, route and the passenger manifest are read from the trip on every request, never stored here. Search matches the trip\'s reference ("TJ-1048" or "1048"), client, tail and operator.',
   })
   findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: QueryItinerariesDto) {
     return this.itineraries.findAll(user, query);
@@ -50,7 +56,6 @@ export class ItinerariesController {
 
   /** Before `:id` — Nest matches in order. */
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Board tiles',
     description: 'Total documents, confirmed, and the pending remainder, within the caller\'s scope.',
@@ -60,7 +65,6 @@ export class ItinerariesController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Get one itinerary',
     description: 'Archived documents load too. Outside the caller\'s scope: 404, never 403.',
@@ -69,8 +73,28 @@ export class ItinerariesController {
     return this.itineraries.findOne(user, id);
   }
 
+  @Get(':id/operator-attachment')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @ApiOperation({
+    summary: 'Open the operator itinerary file',
+    description:
+      'The file is uploaded PRIVATE; whoever may read the itinerary may open it here via vouched access.',
+  })
+  @ApiResponse({ status: 200, description: 'The file.' })
+  async operatorAttachment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const file = await this.itineraries.openOperatorAttachment(user, id);
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Content-Length', String(file.size));
+    response.setHeader('Content-Disposition', contentDisposition(file));
+    return new StreamableFile(file.stream);
+  }
+
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.ITINERARIES, Action.CREATE)
   @ApiOperation({
     summary: 'Build a document for a trip',
     description:
@@ -82,7 +106,7 @@ export class ItinerariesController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.ITINERARIES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive several itineraries', description: 'Ids that match nothing come back in `skipped`.' })
   removeMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.itineraries.removeMany(user, body.ids);
@@ -90,14 +114,14 @@ export class ItinerariesController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.ITINERARIES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore several archived itineraries' })
   restoreMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.itineraries.restoreMany(user, body.ids);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.ITINERARIES, Action.EDIT)
   @ApiOperation({
     summary: 'Edit a document',
     description:
@@ -113,7 +137,7 @@ export class ItinerariesController {
 
   @Post(':id/confirm')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.ITINERARIES, Action.EDIT)
   @ApiOperation({ summary: 'Confirm the document', description: 'Idempotent — confirming an already-confirmed document is a no-op.' })
   confirm(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.itineraries.confirm(user, id);
@@ -121,7 +145,7 @@ export class ItinerariesController {
 
   @Post(':id/send')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.ITINERARIES, Action.SEND)
   @ApiOperation({
     summary: 'Mark the document sent to the client',
     description: 'Stamps who sent it and when. This route sends no email — emailing it is `POST /emails` with the `tripId` (Email Templates, #21) — so it records the act, not the email.',
@@ -132,7 +156,7 @@ export class ItinerariesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.ITINERARIES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive a document', description: 'Nothing is deleted; restore brings it back.' })
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.itineraries.remove(user, id);
@@ -140,9 +164,10 @@ export class ItinerariesController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.ITINERARIES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore an archived document', description: 'Clears the archive stamp and nothing else.' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.itineraries.restore(user, id);
   }
 }
+
