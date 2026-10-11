@@ -11,7 +11,7 @@ import DocumentFormDialog from "@/components/documents/DocumentFormDialog";
 import { useDocumentRowActions } from "@/components/documents/useDocumentRowActions";
 import { useDocuments } from "@/hooks/documents";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 import { toDocumentRow } from "@/lib/document";
 
 const OWNER_FIELD = { CLIENT: "clientId", TRIP: "tripId", OPERATOR: "operatorId" };
@@ -28,23 +28,24 @@ const OWNER_FIELD = { CLIENT: "clientId", TRIP: "tripId", OPERATOR: "operatorId"
  * when the panel sits inside a card that already says "Documents".
  */
 export default function DocumentsPanel({ owner, readOnly = false, compact = false, hideTitle = false }) {
-  const { can } = usePermissions();
+  const { canAccess } = usePermissions();
   const [archived, setArchived] = useState(false);
   const [dialog, setDialog] = useState({ open: false, document: null });
+  const canView = canAccess(Module.DOCUMENTS, Action.VIEW);
   const { data, isPending, error, refetch } = useDocuments(
     { [OWNER_FIELD[owner?.type]]: owner?.id, archived: archived || undefined, limit: 50 },
-    { enabled: Boolean(owner?.id) && can(Permission.VIEW_DOCUMENTS) },
+    { enabled: Boolean(owner?.id) && canView },
   );
   const rows = useMemo(() => (data?.data ?? []).map(toDocumentRow), [data?.data]);
   const total = data?.meta?.total ?? 0;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  const { getRowActions, mayManage } = useDocumentRowActions({
+  const { getRowActions, mayCreate } = useDocumentRowActions({
     onEdit: (row) => setDialog({ open: true, document: row }),
     showOwner: false,
   });
 
-  if (!can(Permission.VIEW_DOCUMENTS)) return null;
+  if (!canView) return null;
 
   return (
     <div className="flex flex-col gap-3 w-full">
@@ -61,7 +62,7 @@ export default function DocumentsPanel({ owner, readOnly = false, compact = fals
           <Button variant="ghost" size="sm" onClick={() => setArchived((prev) => !prev)}>
             {archived ? "Show current" : "Show archived"}
           </Button>
-          {mayManage && !readOnly && !archived && (
+          {mayCreate && !readOnly && !archived && (
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDialog({ open: true, document: null })}>
               <Plus className="size-3.5" />
               File a Document
@@ -79,7 +80,7 @@ export default function DocumentsPanel({ owner, readOnly = false, compact = fals
           emptyHint={
             archived
               ? "Archived documents appear here and can be restored."
-              : mayManage && !readOnly
+              : mayCreate && !readOnly
                 ? "Charter agreements, passports, wire confirmations and certificates filed here stay with this record."
                 : ""
           }

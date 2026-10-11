@@ -1,22 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import CommonInput from "@/components/common/CommonInput";
 import CommonSelect from "@/components/common/CommonSelect";
 import { CommonDatePicker } from "@/components/common/DatePicker";
 import FileUpload from "@/components/common/FileUpload";
+import ClientPicker from "@/components/clients/ClientPicker";
+import TripPicker from "@/components/trips/TripPicker";
+import OperatorPicker from "@/components/operators/OperatorPicker";
 import { useCreateDocument, useUpdateDocument } from "@/hooks/documents";
-import { useClients } from "@/hooks/clients";
-import { useTrips } from "@/hooks/trips";
-import { useOperators } from "@/hooks/operators";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 import { optionalText } from "@/lib/form";
 import { toDateInput } from "@/lib/date";
-import { displayName } from "@/lib/client";
-import { formatTripReference } from "@/lib/trip";
 import {
   DOCUMENT_CATEGORIES,
   DOCUMENT_OWNERS,
@@ -28,26 +26,10 @@ import {
 const OWNER_FIELD = { CLIENT: "clientId", TRIP: "tripId", OPERATOR: "operatorId" };
 
 /**
- * The folder picker, only when the form was opened from the vault rather
- * than from a client, trip or operator page. Each list is the owning
- * module's own, in the caller's scope.
+ * The folder picker, using shared server-paginated pickers (ClientPicker,
+ * TripPicker, OperatorPicker) over the real directory in the caller's scope.
  */
-function OwnerPicker({ ownerType, ownerId, onTypeChange, onIdChange }) {
-  const { data: clients } = useClients({ limit: 100, sortBy: "lastName", sortOrder: "asc" }, { enabled: ownerType === "CLIENT" });
-  const { data: trips } = useTrips({ limit: 100 }, { enabled: ownerType === "TRIP" });
-  const { data: operators } = useOperators({ limit: 100, sortBy: "name", sortOrder: "asc" }, { enabled: ownerType === "OPERATOR" });
-
-  const options = useMemo(() => {
-    if (ownerType === "CLIENT") return (clients?.data ?? []).map((c) => ({ value: c?.id, label: displayName(c) }));
-    if (ownerType === "TRIP")
-      return (trips?.data ?? []).map((t) => ({
-        value: t?.id,
-        label: `${formatTripReference(t?.reference)}${t?.client ? ` · ${displayName(t.client)}` : ""}`,
-      }));
-    if (ownerType === "OPERATOR") return (operators?.data ?? []).map((o) => ({ value: o?.id, label: o?.name }));
-    return [];
-  }, [ownerType, clients?.data, trips?.data, operators?.data]);
-
+function OwnerPicker({ ownerType, ownerId, onTypeChange, onIdChange, error }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div className="flex w-full flex-col gap-2">
@@ -63,12 +45,35 @@ function OwnerPicker({ ownerType, ownerId, onTypeChange, onIdChange }) {
         <span className="font-montserrat text-base font-medium text-foreground">
           {ownerType ? formatDocumentOwner(ownerType) : "Record"}
         </span>
-        <CommonSelect
-          value={ownerId}
-          onChange={onIdChange}
-          options={options}
-          placeholder={ownerType ? `Choose the ${formatDocumentOwner(ownerType).toLowerCase()}` : "Choose a folder first"}
-        />
+        {ownerType === "CLIENT" ? (
+          <ClientPicker
+            value={ownerId}
+            onChange={onIdChange}
+            placeholder="Select a client..."
+            error={error}
+          />
+        ) : ownerType === "TRIP" ? (
+          <TripPicker
+            value={ownerId}
+            onChange={onIdChange}
+            placeholder="Select a trip..."
+            error={error}
+          />
+        ) : ownerType === "OPERATOR" ? (
+          <OperatorPicker
+            value={ownerId}
+            onChange={onIdChange}
+            placeholder="Select an operator..."
+            error={error}
+          />
+        ) : (
+          <CommonSelect
+            disabled
+            value=""
+            placeholder="Choose a folder first"
+            options={[]}
+          />
+        )}
       </div>
     </div>
   );
@@ -83,8 +88,8 @@ function OwnerPicker({ ownerType, ownerId, onTypeChange, onIdChange }) {
  */
 function DocumentForm({ document, owner, onClose }) {
   const editing = Boolean(document);
-  const { can } = usePermissions();
-  const maySensitive = can(Permission.VIEW_SENSITIVE_DOCUMENTS);
+  const { canAccess } = usePermissions();
+  const maySensitive = canAccess(Module.DOCUMENTS, Action.VIEW_SENSITIVE);
   const { mutate: create, isPending: creating } = useCreateDocument();
   const { mutate: update, isPending: updating } = useUpdateDocument();
   const [errors, setErrors] = useState({});
