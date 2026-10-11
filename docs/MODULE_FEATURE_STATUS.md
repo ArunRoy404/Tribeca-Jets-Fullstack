@@ -1407,6 +1407,10 @@ anywhere in the system.
   - Interactive feedback: `<DragOverlay>` renders floating card with rotation, scale, elevation shadow and grabbing cursor; active drop columns highlight with borders and backdrop accent; source card ghosts with dashed border. Dropping on a new column instantly updates status via `useUpdateTask`.
   - Form overhaul: Created `AssigneePicker.jsx` over active staff. Replaced 100-limit `useTaskFormOptions` in `AddTaskDialog.jsx` with shared server-paginated `AssigneePicker`, `ClientPicker`, `TripPicker` (scoped to client), and `DatePicker`.
   - Gated toolbar "Add Task" with `canAccess(Module.TASKS, Action.CREATE)` and detail sheet with `canAccess(Module.TASKS, Action.EDIT | Action.ARCHIVE)`.
+- **Notification Bell upgrade**:
+  - `NotificationPopover.jsx` migrated from legacy role matrix (`can(Permission.VIEW_TASKS)`) to per-person access: `canAccess(Module.TASKS, Action.VIEW)`.
+  - Controlled open/close popover state ensures seamless drawer transitions when clicking any task item.
+  - Added dedicated empty and loading states, urgency indicators (`OVERDUE` in red vs `DUE_TODAY` in amber), and quick links to personal queue and full board.
 
 **Waiting on a dependency**
 

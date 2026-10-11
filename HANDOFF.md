@@ -55,17 +55,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 23 | **Commissions** | ✅ 11 Oct — owner tested & signed off |
 | 24 | **Referrals / Referral Agent** | ✅ 11 Oct — owner tested & signed off |
 | 25 | **Transactions** | ✅ 11 Oct — owner tested & signed off |
-| 26 | **Tasks Board & notification bell** | ⏳ Tasks Board ✅ 11 Oct (DnD); notification bell next |
-| 27–35 | Email Templates, Document Vault, … | ⬜ in the table's order |
+| 26 | **Tasks Board & notification bell** | ✅ 11 Oct — owner tested & signed off |
+| 27 | **Email Templates & sending** | ⬜ **next in review queue** |
+| 28–35 | Document Vault, Reports, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Notification bell (#26 part 2) & Email Templates (#27)
+### What is next — Email Templates & sending (#27)
 
-- **Tasks Board (#26 part 1) reviewed & signed off:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.TASKS, Action.CREATE | EDIT | ARCHIVE)`), open staff reads, server-paginated `AssigneePicker`, `ClientPicker`, `TripPicker`, and smooth Drag-and-Drop Kanban interaction with `@dnd-kit/core`.
-- **Next in queue:** **Notification bell** adjustment (in-app alerts / tasks attention feed), followed by **Email Templates & sending (#27)**.
+- **Tasks Board & Notification Bell (#26) reviewed & signed off:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.TASKS, Action.CREATE | EDIT | ARCHIVE)`), open staff reads, server-paginated pickers, smooth Drag-and-Drop Kanban interaction with `@dnd-kit/core`, and upgraded `NotificationPopover` with per-person access, controlled open state, and empty/attention urgency badges.
+- **Next module in queue:** **Email Templates & sending (#27)** (`/dashboard/email-templates`).
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -676,8 +677,9 @@ this says *what the owner decided*, which nothing else records.
   - Interactive feedback: `<DragOverlay>` renders floating card with rotation (`rotate-2`), zoom (`scale-[1.03]`), shadow-2xl, and grabbing cursor. Columns show hover drop feedback (`ring-2 ring-purple/50 border-purple/70 bg-purple/[0.04]`), and the source card ghosts with dashed border. Dropping on another column moves status via `useUpdateTask`.
   - Reusable pickers: Built `AssigneePicker.jsx` over active staff. Overhauled `AddTaskDialog.jsx` by replacing 100-limit `useTaskFormOptions` with shared server-paginated `AssigneePicker`, `ClientPicker`, `TripPicker` (scoped to client), and `DatePicker`.
   - Gated toolbar "Add Task" with `canAccess(Module.TASKS, Action.CREATE)` and detail sheet actions with `canAccess(Module.TASKS, Action.EDIT | Action.ARCHIVE)`.
-  - Oxlint clean (0 errors/warnings). Turbopack production build (`npm run build`) compiled in 6.3s with 0 errors across 45 routes.
-- **Next Step:** Ready for Notification bell adjustment (part of #26), followed by Email Templates & sending (#27).
+  - Notification Bell (`NotificationPopover.jsx`) upgraded: migrated to `canAccess(Module.TASKS, Action.VIEW)`, controlled popover open state, loading/empty states, urgency badges, and direct task/board routing.
+  - Oxlint clean (0 errors/warnings). Turbopack production build (`npm run build`) compiled in 4.2s with 0 errors across 45 routes.
+- **Owner Test & Sign-off:** Owner tested and signed off on Tasks Board & notification bell (#26). All changes committed and pushed to `origin/roy`. Next in queue: Email Templates & sending (#27).
 
 
 
