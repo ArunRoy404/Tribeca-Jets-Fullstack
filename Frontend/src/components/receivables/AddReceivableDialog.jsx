@@ -202,7 +202,11 @@ function InvoiceForm({ invoice, draft, onDone }) {
           </FormField>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+        <div
+          className={`grid grid-cols-1 ${
+            form.status === "SENT" ? "sm:grid-cols-3" : "sm:grid-cols-2"
+          } gap-4 w-full`}
+        >
           <FormField label="Status" error={errors.status}>
             <CommonSelect value={form.status} onChange={set("status")} options={statusOptions(editing)} />
           </FormField>

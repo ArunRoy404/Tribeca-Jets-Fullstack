@@ -52,7 +52,7 @@ export default function ClientDetailPage({ params }) {
   const maySend = canWrite(Permission.SEND_EMAILS);
   const [composeOpen, setComposeOpen] = useState(false);
   const maySeeMoney = !isAssistant && can(Permission.VIEW_FINANCIALS);
-  const maySeeInvoices = can(Permission.VIEW_RECEIVABLES);
+  const maySeeInvoices = canAccess(Module.RECEIVABLES, Action.VIEW);
   const maySeeDocuments = can(Permission.VIEW_DOCUMENTS);
 
   const { data, isPending, error, refetch } = useClient(rawId);

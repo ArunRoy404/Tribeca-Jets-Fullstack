@@ -2,7 +2,7 @@ import StatCard from "@/components/common/StatCard";
 import { useTrips } from "@/hooks/trips";
 import { useReceivableStats } from "@/hooks/receivables";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { formatMoney } from "@/lib/money";
 
 /**
@@ -27,8 +27,8 @@ export default function ClientStatsRow({ client }) {
   );
   const totalTrips = allTrips?.meta ? String(allTrips.meta.total) : "—";
   const tripsOnRecord = completedTrips?.meta ? `${completedTrips.meta.total} completed` : "—";
-  const { can } = usePermissions();
-  const maySeeInvoices = can(Permission.VIEW_RECEIVABLES);
+  const { canAccess } = usePermissions();
+  const maySeeInvoices = canAccess(Module.RECEIVABLES, Action.VIEW);
   const { data: billing } = useReceivableStats(
     { clientId: client?.id },
     { enabled: Boolean(client?.id) && maySeeInvoices },
