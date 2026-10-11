@@ -1,28 +1,31 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { FlightTrackingService } from './flight-tracking.service.js';
 import { FlightStatsDto, QueryFlightsDto, UpdateFlightDto } from './dto/flight-tracking.dto.js';
 
 /**
- * Flight Tracking (#14) — manual. VIEW_TRIPS to read and MANAGE_TRIPS to
- * report, at the trip scope: a flight is part of its trip, exactly as an
- * itinerary is. A flight's written updates are notes on subject FLIGHT
- * (`/notes?subjectType=FLIGHT&subjectId=<legId>`), not a route here.
+ * Flight Tracking (#14 in scope, #19 in review queue) — manual flight status.
+ *
+ * Open reads for staff sessions, scoped by reachOf(user.access, Module.TRIPS):
+ * a broker sees the flights of their own trips and the unassigned ones, exactly as
+ * on the trips board.
+ *
+ * Writes (reporting on a flight) require @RequireAccess(Module.FLIGHT_TRACKING, Action.EDIT).
+ * Staff-only: referral agents are refused (403).
  */
 @ApiTags('Flight Tracking')
 @Controller('flight-tracking')
+@UseGuards(AccessGuard)
+@StaffOnly()
 export class FlightTrackingController {
   constructor(private readonly flights: FlightTrackingService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Flights and their reported state',
     description:
@@ -33,7 +36,6 @@ export class FlightTrackingController {
   }
 
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Board tiles',
     description:
@@ -44,14 +46,13 @@ export class FlightTrackingController {
   }
 
   @Get(':legId')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({ summary: 'One flight', description: 'Archived legs and trips load too — a timeline links here.' })
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('legId', ParseUUIDPipe) legId: string) {
     return this.flights.findOne(user, legId);
   }
 
   @Patch(':legId')
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.FLIGHT_TRACKING, Action.EDIT)
   @ApiOperation({
     summary: 'Report on a flight',
     description:

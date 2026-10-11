@@ -20,12 +20,11 @@ const STATUS_OPTIONS = FLIGHT_STATUSES.map((value) => ({ value, label: formatFli
  * Parents remount this with a `key` per flight and report, so the draft
  * always starts from what is stored.
  */
-export default function FlightReportForm({ flight }) {
+export default function FlightReportForm({ flight, onSuccess }) {
   const { mutate, isPending } = useUpdateFlight();
   const [form, setForm] = useState({
     flightStatus: flight?.flightStatusRaw ?? "",
     estimatedArrival: flight?.estimatedArrival ?? "",
-    trackingUrl: flight?.trackingUrl ?? "",
     note: "",
   });
   const set = (key) => (value) => setForm((current) => ({ ...current, [key]: value?.target ? value.target.value : value }));
@@ -33,15 +32,20 @@ export default function FlightReportForm({ flight }) {
   const payload = {};
   if (form.flightStatus && form.flightStatus !== (flight?.flightStatusRaw ?? "")) payload.flightStatus = form.flightStatus;
   if (form.estimatedArrival !== (flight?.estimatedArrival ?? "")) payload.estimatedArrival = form.estimatedArrival || null;
-  const link = form.trackingUrl.trim();
-  if (link !== (flight?.trackingUrl ?? "")) payload.trackingUrl = link || null;
   if (form.note.trim()) payload.note = form.note.trim();
   const changed = Object.keys(payload).length > 0;
 
   const submit = (event) => {
     event.preventDefault();
     if (!changed) return;
-    mutate({ id: flight?.id, ...payload });
+    mutate(
+      { id: flight?.id, ...payload },
+      {
+        onSuccess: () => {
+          onSuccess?.();
+        },
+      }
+    );
   };
 
   return (
@@ -60,13 +64,6 @@ export default function FlightReportForm({ flight }) {
           <TimePicker value={form.estimatedArrival} onChange={set("estimatedArrival")} placeholder="Local at destination" />
         </FormField>
       </div>
-      <CommonInput
-        name="trackingUrl"
-        label="Tracking link (Optional)"
-        placeholder="https://flightaware.com/live/flight/N780EX"
-        value={form.trackingUrl}
-        onChange={set("trackingUrl")}
-      />
       <CommonInput
         type="textarea"
         name="note"

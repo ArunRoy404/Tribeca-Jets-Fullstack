@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ExternalLink } from "lucide-react";
 import DetailSheet from "@/components/common/DetailSheet";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/common/StatusBadge";
@@ -12,23 +11,22 @@ import NotesTimeline from "@/components/notes/NotesTimeline";
 import FlightReportForm from "@/components/flight-tracking/FlightReportForm";
 import { useFlight } from "@/hooks/flight-tracking";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toFlightRow } from "@/lib/flight";
 import { timelineExactTime, timelineTime } from "@/lib/timeline";
 
 /**
  * One flight: its trip's facts, the state the desk last reported, the report
- * form for a role that may manage trips, and its updates — the shared notes
+ * form for a role that may edit flight tracking, and its updates — the shared notes
  * timeline on subject FLIGHT, which replays every report from the audit log
- * beside the notes written about it. The old "Live Status" percentage is gone:
- * nothing records where a flight is.
+ * beside the notes written about it.
  */
 export default function FlightTrackingDetailSheet({ flightId, onClose }) {
   const router = useRouter();
-  const { canWrite } = usePermissions();
+  const { canAccess } = usePermissions();
   const { data } = useFlight(flightId);
   const flight = data ? toFlightRow(data) : null;
-  const mayReport = canWrite(Permission.MANAGE_TRIPS) && flight?.reportable;
+  const mayReport = canAccess(Module.FLIGHT_TRACKING, Action.EDIT) && flight?.reportable;
 
   return (
     <DetailSheet
@@ -79,17 +77,6 @@ export default function FlightTrackingDetailSheet({ flightId, onClose }) {
                 </div>
               </div>
             </div>
-            {flight?.trackingUrl && (
-              <a
-                href={flight.trackingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 pt-2 font-montserrat font-medium text-[12px] text-purple hover:underline"
-              >
-                <ExternalLink className="size-3.5" />
-                Open tracking page
-              </a>
-            )}
           </SectionCard>
 
           {mayReport && (

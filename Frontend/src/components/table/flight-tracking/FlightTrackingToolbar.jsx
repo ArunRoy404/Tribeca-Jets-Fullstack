@@ -46,6 +46,7 @@ export default function FlightTrackingToolbar({ params }) {
         />
         <PageSizeSelect value={params?.limit} onChange={params?.setLimit} />
       </div>
+
       {params?.hasFilters && (
         <Button variant="outline" size="sm" onClick={params?.clearFilters} className="px-3 sm:px-4 gap-2 ml-auto">
           <RotateCcw className="size-3.5" />
