@@ -10,14 +10,13 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { EmptyLegsService } from './empty-legs.service.js';
@@ -30,17 +29,17 @@ import {
 /**
  * Empty Legs (scope §6.13) — and client adjustment #10b's matching.
  *
- * Gated by OPERATOR_SOURCING: an empty leg is an operator's offer, worked by
- * the same desk that sources aircraft, and an assistant who may read the
- * sourcing board may read this one too (READ), without editing it.
+ * Internal desk inventory: open reads for staff sessions, referral agents
+ * refused (403 StaffOnly). Writes gated per person by EMPTY_LEGS permissions.
  */
 @ApiTags('Empty Legs')
+@UseGuards(AccessGuard)
+@StaffOnly()
 @Controller('empty-legs')
 export class EmptyLegsController {
   constructor(private readonly legs: EmptyLegsService) {}
 
   @Get()
-  @RequirePermissions(Permission.OPERATOR_SOURCING)
   @ApiOperation({
     summary: 'List empty legs',
     description:
@@ -52,7 +51,6 @@ export class EmptyLegsController {
 
   /** Before `:id` — Nest matches in order. */
   @Get('stats')
-  @RequirePermissions(Permission.OPERATOR_SOURCING)
   @ApiOperation({
     summary: 'Empty-leg board tiles',
     description:
@@ -63,7 +61,6 @@ export class EmptyLegsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.OPERATOR_SOURCING)
   @ApiOperation({
     summary: 'Get one empty leg, with its matches',
     description:
@@ -74,7 +71,7 @@ export class EmptyLegsController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.OPERATOR_SOURCING)
+  @RequireAccess(Module.EMPTY_LEGS, Action.CREATE)
   @ApiOperation({
     summary: 'Add an empty leg',
     description: 'Both airports must be live and different. `expiresAt` is when the operator\'s offer lapses.',
@@ -85,7 +82,7 @@ export class EmptyLegsController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.OPERATOR_SOURCING)
+  @RequireAccess(Module.EMPTY_LEGS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive several empty legs', description: 'Ids that match nothing come back in `skipped`.' })
   removeMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.legs.removeMany(user, body.ids);
@@ -93,14 +90,14 @@ export class EmptyLegsController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.OPERATOR_SOURCING)
+  @RequireAccess(Module.EMPTY_LEGS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore several archived empty legs' })
   restoreMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.legs.restoreMany(user, body.ids);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.OPERATOR_SOURCING)
+  @RequireAccess(Module.EMPTY_LEGS, Action.EDIT)
   @ApiOperation({
     summary: 'Edit an empty leg, or change its status',
     description: 'Only links that change are re-validated. Setting `status` is how Match, Book and Expire are recorded.',
@@ -115,7 +112,7 @@ export class EmptyLegsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.OPERATOR_SOURCING)
+  @RequireAccess(Module.EMPTY_LEGS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive an empty leg', description: 'Nothing is deleted; restore brings it back.' })
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.legs.remove(user, id);
@@ -123,7 +120,7 @@ export class EmptyLegsController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.OPERATOR_SOURCING)
+  @RequireAccess(Module.EMPTY_LEGS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore an archived empty leg', description: 'Clears the archive stamp and nothing else.' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.legs.restore(user, id);
