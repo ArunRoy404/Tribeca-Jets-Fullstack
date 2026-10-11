@@ -11,7 +11,8 @@ import { MailService } from '../../core/mail/mail.service.js';
 import { paginate, type AuthenticatedUser, type Paginated } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import { equalsAny, orderByField, searchAcross } from '../../common/database/filters.js';
-import { Permission, Scope, can, scopeFor } from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
+import { Action, Module, canDo } from '../../common/authorization/access.js';
 import { EmailMessageStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { ClientsService } from '../clients/clients.service.js';
@@ -118,7 +119,7 @@ export class EmailsService {
 
   /** Emails I sent, or about a client or a trip I may see. ALL sees the lot. */
   private scopeWhere(user: AuthenticatedUser): Prisma.EmailMessageWhereInput {
-    if (scopeFor(user.role, Permission.SEND_EMAILS) === Scope.ALL) return {};
+    if (isAdministrator(user.role)) return {};
     return {
       OR: [
         { createdById: user.id },
@@ -137,9 +138,9 @@ export class EmailsService {
 
   // ---- Resolving what an email is about ----------------------------------
 
-  /** A capability the email needs, beyond SEND_EMAILS: reading what it quotes. */
-  private assertMayRead(user: AuthenticatedUser, permission: Permission, what: string): void {
-    if (!can(user.role, permission)) {
+  /** A capability the email needs, beyond SEND: reading what it quotes. */
+  private assertMayRead(user: AuthenticatedUser, module: Module, what: string): void {
+    if (!canDo(user.access, module, Action.VIEW)) {
       throw new ForbiddenException(`Your role cannot read ${what}, so it cannot email about one.`);
     }
   }
@@ -174,13 +175,13 @@ export class EmailsService {
     let recipient: Recipient;
 
     if (input.clientId) {
-      this.assertMayRead(user, Permission.VIEW_CLIENTS, 'clients');
+      this.assertMayRead(user, Module.CLIENTS, 'clients');
       const client = await this.resolve('client', () => this.clients.emailRecipient(user, input.clientId!));
       recipient = { kind: 'client', id: client.id, name: client.name, email: client.email };
       values.client_name = client.name;
       values.client_first_name = client.firstName;
     } else {
-      this.assertMayRead(user, Permission.MANAGE_OPERATORS, 'operators');
+      this.assertMayRead(user, Module.OPERATORS, 'operators');
       const operator = await this.resolve('operator', () => this.operators.emailRecipient(input.operatorId!));
       recipient = { kind: 'operator', id: operator.id, name: operator.name, email: operator.email };
       values.operator_name = operator.name;
@@ -188,7 +189,7 @@ export class EmailsService {
     }
 
     if (input.tripId) {
-      this.assertMayRead(user, Permission.VIEW_TRIPS, 'trips');
+      this.assertMayRead(user, Module.TRIPS, 'trips');
       const trip = await this.resolve('trip', () => this.trips.findOne(user, input.tripId!));
       const owner = recipient.kind === 'client' ? trip.clientId : trip.operatorId;
       if (owner !== recipient.id) this.notTheirs('trip', recipient);
@@ -207,7 +208,7 @@ export class EmailsService {
 
     if (input.quoteId) {
       if (recipient.kind !== 'client') throw new BadRequestException('A quote is sent to its client, not an operator');
-      this.assertMayRead(user, Permission.VIEW_TRIPS, 'quotes');
+      this.assertMayRead(user, Module.QUOTES, 'quotes');
       const quote = await this.resolve('quote', () => this.quotes.findOne(user, input.quoteId!));
       if (quote.clientId !== recipient.id) this.notTheirs('quote', recipient);
       values.quote_id = `Q-${quote.reference}`;
@@ -230,7 +231,7 @@ export class EmailsService {
 
     if (input.invoiceId) {
       if (recipient.kind !== 'client') throw new BadRequestException('An invoice is sent to its client, not an operator');
-      this.assertMayRead(user, Permission.VIEW_RECEIVABLES, 'invoices');
+      this.assertMayRead(user, Module.RECEIVABLES, 'invoices');
       const invoice = await this.resolve('invoice', () => this.receivables.findOne(user, input.invoiceId!));
       if (invoice.clientId !== recipient.id) this.notTheirs('invoice', recipient);
       values.invoice_id = invoice.number;

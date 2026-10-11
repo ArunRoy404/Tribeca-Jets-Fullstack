@@ -1,29 +1,28 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { EmailsService } from './emails.service.js';
 import { PreviewEmailDto, QueryEmailsDto, SendEmailDto } from './dto/email.dto.js';
 
 /**
  * Emailing a client or an operator, and the log of what was sent (#21).
- * SEND_EMAILS: ALL for administrators and senior brokers, OWN (about a
- * client or trip I may see) for brokers and assistants. Each record an email
- * names is also checked against its own read permission — an assistant who
- * cannot open invoices cannot email one.
+ * Open reads for staff (scoped by administrator vs own/assigned).
+ * Preview requires a session (open for staff).
+ * Sending an email requires EMAIL_TEMPLATES · SEND.
+ * Each record an email names is also checked against its own read permission.
  */
 @ApiTags('Emails')
+@UseGuards(AccessGuard)
+@StaffOnly()
 @Controller('emails')
 export class EmailsController {
   constructor(private readonly emails: EmailsService) {}
 
   @Get()
-  @RequirePermissions(Permission.SEND_EMAILS)
   @ApiOperation({
     summary: 'The sent log',
     description:
@@ -34,7 +33,6 @@ export class EmailsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.SEND_EMAILS)
   @ApiOperation({ summary: 'One sent email', description: 'Exactly as it went out, merge fields filled.' })
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.emails.findOne(user, id);
@@ -42,7 +40,6 @@ export class EmailsController {
 
   @Post('preview')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.SEND_EMAILS)
   @ApiOperation({
     summary: 'Fill a template for a recipient',
     description:
@@ -53,7 +50,7 @@ export class EmailsController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.SEND_EMAILS)
+  @RequireAccess(Module.EMAIL_TEMPLATES, Action.SEND)
   @ApiOperation({
     summary: 'Send an email',
     description:

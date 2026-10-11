@@ -10,14 +10,13 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { EmailTemplatesService } from './email-templates.service.js';
@@ -30,17 +29,17 @@ import {
 } from './dto/email-template.dto.js';
 
 /**
- * Email Templates (#21) — the library. MANAGE_EMAIL_TEMPLATES at READ is
- * enough to read and use it (every staff role); changing it needs ALL
- * (administrators and senior brokers).
+ * Email Templates (#21) — the library. Open reads for staff;
+ * changing or archiving templates requires CREATE / EDIT / ARCHIVE.
  */
 @ApiTags('Email Templates')
+@UseGuards(AccessGuard)
+@StaffOnly()
 @Controller('email-templates')
 export class EmailTemplatesController {
   constructor(private readonly templates: EmailTemplatesService) {}
 
   @Get()
-  @RequirePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
   @ApiOperation({
     summary: 'List templates',
     description: '`category` and `active` filter; `search` matches the name, subject and body. `archived=true` lists the archived half.',
@@ -50,7 +49,6 @@ export class EmailTemplatesController {
   }
 
   @Get('stats')
-  @RequirePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
   @ApiOperation({
     summary: 'The tiles above the library',
     description:
@@ -61,7 +59,6 @@ export class EmailTemplatesController {
   }
 
   @Get('fields')
-  @RequirePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
   @ApiOperation({
     summary: 'The merge fields a template may use',
     description:
@@ -72,14 +69,13 @@ export class EmailTemplatesController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
   @ApiOperation({ summary: 'One template', description: 'Archived templates load too.' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.templates.findOne(id);
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
+  @RequireAccess(Module.EMAIL_TEMPLATES, Action.CREATE)
   @ApiOperation({
     summary: 'Add a template',
     description: 'A merge field that is not in the catalogue is refused with a 400 naming it.',
@@ -90,7 +86,7 @@ export class EmailTemplatesController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
+  @RequireAccess(Module.EMAIL_TEMPLATES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive several templates', description: 'Ids that match nothing come back in `skipped`.' })
   removeMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.templates.removeMany(user, body.ids);
@@ -98,14 +94,14 @@ export class EmailTemplatesController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
+  @RequireAccess(Module.EMAIL_TEMPLATES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore several archived templates' })
   restoreMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.templates.restoreMany(user, body.ids);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
+  @RequireAccess(Module.EMAIL_TEMPLATES, Action.EDIT)
   @ApiOperation({
     summary: 'Edit a template, or switch it on or off',
     description: 'Only the fields sent change. Emails already sent from it are snapshots and do not change.',
@@ -120,7 +116,7 @@ export class EmailTemplatesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
+  @RequireAccess(Module.EMAIL_TEMPLATES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive a template', description: 'Nothing is deleted — restore brings it back.' })
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.templates.remove(user, id);
@@ -128,7 +124,7 @@ export class EmailTemplatesController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_EMAIL_TEMPLATES)
+  @RequireAccess(Module.EMAIL_TEMPLATES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore an archived template' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.templates.restore(user, id);
