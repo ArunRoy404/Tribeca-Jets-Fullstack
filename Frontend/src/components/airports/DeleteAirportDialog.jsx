@@ -56,14 +56,15 @@ export default function DeleteAirportDialog() {
             Cancel
           </Button>
 
+          {/* "Remove", not "Delete": the airport is archived and can be restored. */}
           <Button
             type="button"
-            className="bg-[#252832] hover:bg-[#252832]/90 text-white gap-1.5 px-5 h-10 font-medium text-[13px]"
+            className="gap-1.5 px-5 h-10 font-medium text-[13px]"
             onClick={handleDelete}
             disabled={isPending}
           >
             <Trash2 className="size-4" />
-            Delete
+            {isPending ? "Removing…" : "Remove"}
           </Button>
         </div>
       </DialogContent>

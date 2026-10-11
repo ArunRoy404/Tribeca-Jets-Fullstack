@@ -13,11 +13,8 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess } from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { AirportsService } from './airports.service.js';
@@ -28,11 +25,16 @@ import {
 } from './dto/airport.dto.js';
 
 /**
- * Reads use `@RequirePermissions`, writes use `@RequireWritePermissions`.
+ * **Reads need only a session; every write needs its Airports permission**
+ * (owner's rule, 8 Oct 2026 — AGENTS.md, "Reads are open to every signed-in
+ * user").
  *
- * The difference matters here: brokers and assistants hold MANAGE_AIRPORTS at
- * READ scope, which is a grant for the four GETs and a refusal for everything
- * below them. `@RequirePermissions` alone on a POST would let them through.
+ * The four GETs carry no permission on purpose: about eight forms pick an
+ * airport — clients, aircraft, trip requests, trips, quotes, empty legs,
+ * leads, the instant estimate and the referral portal — and an airport is
+ * reference data with no owner. Whether someone may open the *Airports
+ * screen* is the frontend's `AIRPORTS · VIEW`; whether they may change a row
+ * is checked here, per person, on every write.
  */
 @ApiTags('Airports')
 @Controller('airports')
@@ -40,7 +42,6 @@ export class AirportsController {
   constructor(private readonly airports: AirportsService) {}
 
   @Get()
-  @RequirePermissions(Permission.MANAGE_AIRPORTS)
   @ApiOperation({
     summary: 'List airports',
     description:
@@ -56,14 +57,12 @@ export class AirportsController {
    * and arrive as `findOne('stats')`.
    */
   @Get('stats')
-  @RequirePermissions(Permission.MANAGE_AIRPORTS)
   @ApiOperation({ summary: 'Counts for the tiles above the airports table' })
   stats() {
     return this.airports.stats();
   }
 
   @Get('countries')
-  @RequirePermissions(Permission.MANAGE_AIRPORTS)
   @ApiOperation({
     summary: 'Distinct countries, for the filter dropdown',
     description:
@@ -74,14 +73,20 @@ export class AirportsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.MANAGE_AIRPORTS)
-  @ApiOperation({ summary: 'Get one airport' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.airports.findOne(id);
+  @ApiOperation({
+    summary: 'Get one airport',
+    description:
+      'Archived airports included, so the Archived tab can open them. `trips` counts live, uncancelled trips with a leg departing from or arriving here (`total`, and `thisYear` by departure date); it is `null` for a referral agent.',
+  })
+  findOne(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.airports.findOne(id, user);
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_AIRPORTS)
+  @RequireAccess(Module.AIRPORTS, Action.CREATE)
   @ApiOperation({ summary: 'Add an airport' })
   create(
     @CurrentUser() user: AuthenticatedUser,
@@ -91,7 +96,7 @@ export class AirportsController {
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_AIRPORTS)
+  @RequireAccess(Module.AIRPORTS, Action.EDIT)
   @ApiOperation({ summary: 'Update an airport' })
   update(
     @CurrentUser() user: AuthenticatedUser,
@@ -111,7 +116,7 @@ export class AirportsController {
    * would turn "remove these three" into "remove nothing" with a 200.
    */
   @Post('bulk-delete')
-  @RequireWritePermissions(Permission.MANAGE_AIRPORTS)
+  @RequireAccess(Module.AIRPORTS, Action.ARCHIVE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Remove several airports at once (soft)',
@@ -129,7 +134,7 @@ export class AirportsController {
    * Also declared before `:id`, and POST for the same reason as bulk-delete.
    */
   @Post('bulk-restore')
-  @RequireWritePermissions(Permission.MANAGE_AIRPORTS)
+  @RequireAccess(Module.AIRPORTS, Action.ARCHIVE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Restore several archived airports at once',
@@ -150,11 +155,11 @@ export class AirportsController {
    */
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_AIRPORTS)
+  @RequireAccess(Module.AIRPORTS, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Restore an archived airport',
     description:
-      'Clears the deletion stamp and nothing else, so every field comes back untouched. Requires the same write permission as removing it. A row that is not archived returns 404.',
+      'Clears the deletion stamp and nothing else, so every field comes back untouched. Requires Airports · Archive, the same as removing it. A row that is not archived returns 404.',
   })
   restore(
     @CurrentUser() user: AuthenticatedUser,
@@ -164,7 +169,7 @@ export class AirportsController {
   }
 
   @Delete(':id')
-  @RequireWritePermissions(Permission.MANAGE_AIRPORTS)
+  @RequireAccess(Module.AIRPORTS, Action.ARCHIVE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Remove an airport (soft)',

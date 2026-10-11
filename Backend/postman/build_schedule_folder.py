@@ -219,9 +219,9 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
 
 
 def main() -> None:
-    owner = Session('admin@tribecajets.com')
-    broker = Session('broker@tribecajets.com')
-    agent = Session('agent@tribecajets.com')
+    owner = Session('admin@example.com')
+    broker = Session('broker@example.com')
+    agent = Session('agent@example.com')
     anonymous = Session(None)
 
     collection = json.loads(COLLECTION.read_text(encoding='utf-8'))

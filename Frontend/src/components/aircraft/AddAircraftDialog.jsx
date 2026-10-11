@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Plus, Edit, X } from "lucide-react";
 import { useAircraftStore } from "@/store/useAircraftStore";
 import { useCreateAircraft, useUpdateAircraft } from "@/hooks/aircraft";
-import { useOperators } from "@/hooks/operators";
-import { useAirports } from "@/hooks/airports";
+import OperatorPicker from "@/components/operators/OperatorPicker";
+import AirportPicker from "@/components/airports/AirportPicker";
+import CommonSelect from "@/components/common/CommonSelect";
 import {
   FILTERABLE_AIRCRAFT_CATEGORIES,
   FILTERABLE_AIRCRAFT_STATUSES,
@@ -25,7 +26,7 @@ import DatePicker from "@/components/common/DatePicker";
 import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
 import { optionalNumber, optionalText } from "@/lib/form";
 
-function FieldWrapper({ label, children, optional }) {
+function FieldWrapper({ label, children, optional, error }) {
   return (
     <div className="flex flex-col gap-1.5 w-full min-w-0">
       {label && (
@@ -37,6 +38,9 @@ function FieldWrapper({ label, children, optional }) {
         </label>
       )}
       {children}
+      {error && (
+        <p className="font-montserrat text-[11px] text-destructive">{error}</p>
+      )}
     </div>
   );
 }
@@ -49,17 +53,12 @@ function SectionHeader({ title }) {
   );
 }
 
-const SELECT_CLASS =
-  "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
+const SELECT_CLASS = "data-[size=default]:h-10";
 
 /**
  * Empty, not pre-filled.
  *
- * Every specification starts blank on purpose. The previous version of this
- * form defaulted the capacity to 8, the year to 2020 and derived the
- * manufacturer from whether the model contained the word "Gulfstream" — so
- * every aircraft added carried numbers nobody had entered, and a Falcon was
- * recorded as a Bombardier. Category and status are the exceptions: they are
+ * Every specification starts blank on purpose. Category and status are
  * closed lists where the first option is a real choice, not a guess.
  */
 const EMPTY_FORM = {
@@ -185,60 +184,28 @@ function AircraftForm({ editingAircraft, onDone }) {
   const { mutate: updateAircraft, isPending: isUpdating } = useUpdateAircraft();
   const editing = Boolean(editingAircraft);
 
-  // Real reference data for both pickers — no hardcoded operator list.
-  const { data: operators } = useOperators({
-    limit: 100,
-    sortBy: "name",
-    sortOrder: "asc",
-  });
-  const { data: airports } = useAirports({
-    limit: 100,
-    sortBy: "icao",
-    sortOrder: "asc",
-  });
-
   const [form, setForm] = useState(() => initialForm(editingAircraft));
+  const [categoryError, setCategoryError] = useState("");
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  /**
-   * Keeps the currently-assigned row in its picker even after it is archived.
-   *
-   * Both lists fetch live rows only, so editing an aircraft whose operator or
-   * home base had since been archived showed an empty select — and saving it
-   * either silently unassigned the link or failed with "that operator does not
-   * exist" about the one it already had. The stored row is appended, labelled,
-   * so the form shows the truth and leaving it alone is a real choice.
-   */
-  const withCurrent = (rows, currentId, label) => {
-    const list = rows ?? [];
-    if (!currentId || list.some((row) => row.id === currentId)) return list;
-    return [...list, { id: currentId, __archived: true, ...label }];
-  };
+  const categoryOptions = FILTERABLE_AIRCRAFT_CATEGORIES.map((value) => ({
+    value,
+    label: formatAircraftCategory(value),
+  }));
 
-  const operatorOptions = useMemo(
-    () =>
-      withCurrent(operators?.data, form.operatorId, {
-        name: editingAircraft?.operator,
-      }),
-    [operators?.data, form.operatorId, editingAircraft?.operator],
-  );
-
-  const airportOptions = useMemo(
-    () =>
-      withCurrent(airports?.data, form.homeBaseId, {
-        icao: editingAircraft?.homeBaseIcao,
-        name: editingAircraft?.homeBase,
-      }),
-    [
-      airports?.data,
-      form.homeBaseId,
-      editingAircraft?.homeBaseIcao,
-      editingAircraft?.homeBase,
-    ],
-  );
+  const statusOptions = FILTERABLE_AIRCRAFT_STATUSES.map((value) => ({
+    value,
+    label: formatAircraftStatus(value),
+  }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!form.category) {
+      setCategoryError("Please choose an aircraft category");
+      return;
+    }
+    setCategoryError("");
 
     const amenities = form.amenitiesInput
       .split(",")
@@ -255,7 +222,7 @@ function AircraftForm({ editingAircraft, onDone }) {
       status: form.status,
       manufacturer: optionalText(form.manufacturer, { editing }),
 
-      // "" is the Unassigned / None option, and null is how the API is told so.
+      // "" is Unassigned / None, and null is how the API clears the foreign key.
       operatorId: form.operatorId || null,
       homeBaseId: form.homeBaseId || null,
 
@@ -333,34 +300,26 @@ function AircraftForm({ editingAircraft, onDone }) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-          <FieldWrapper label="Category">
-            <select
+          <FieldWrapper label="Category" error={categoryError}>
+            <CommonSelect
               value={form.category}
-              onChange={(e) => set("category", e.target.value)}
+              onChange={(value) => {
+                set("category", value);
+                if (value) setCategoryError("");
+              }}
+              options={categoryOptions}
+              placeholder="Choose a category"
               className={SELECT_CLASS}
-              required
-            >
-              <option value="">Choose a category</option>
-              {FILTERABLE_AIRCRAFT_CATEGORIES.map((value) => (
-                <option key={value} value={value}>
-                  {formatAircraftCategory(value)}
-                </option>
-              ))}
-            </select>
+            />
           </FieldWrapper>
 
           <FieldWrapper label="Status">
-            <select
+            <CommonSelect
               value={form.status}
-              onChange={(e) => set("status", e.target.value)}
+              onChange={(value) => set("status", value)}
+              options={statusOptions}
               className={SELECT_CLASS}
-            >
-              {FILTERABLE_AIRCRAFT_STATUSES.map((value) => (
-                <option key={value} value={value}>
-                  {formatAircraftStatus(value)}
-                </option>
-              ))}
-            </select>
+            />
           </FieldWrapper>
 
           {/* Blank rather than guessed from the model name. */}
@@ -376,37 +335,22 @@ function AircraftForm({ editingAircraft, onDone }) {
         <SectionHeader title="Assignment" />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-          {/* A real operator from the directory, not a name typed into a box. */}
+          {/* Shared RecordPicker wrapper: live search, server paged */}
           <FieldWrapper label="Operator" optional>
-            <select
+            <OperatorPicker
               value={form.operatorId}
-              onChange={(e) => set("operatorId", e.target.value)}
-              className={SELECT_CLASS}
-            >
-              <option value="">Unassigned</option>
-              {operatorOptions.map((operator) => (
-                <option key={operator.id} value={operator.id}>
-                  {operator.name}
-                  {operator.__archived ? " (archived)" : ""}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => set("operatorId", value || "")}
+              placeholder="Unassigned"
+            />
           </FieldWrapper>
 
+          {/* Shared RecordPicker wrapper: live search, server paged */}
           <FieldWrapper label="Home Base" optional>
-            <select
+            <AirportPicker
               value={form.homeBaseId}
-              onChange={(e) => set("homeBaseId", e.target.value)}
-              className={SELECT_CLASS}
-            >
-              <option value="">None</option>
-              {airportOptions.map((airport) => (
-                <option key={airport.id} value={airport.id}>
-                  {airport.icao} — {airport.name}
-                  {airport.__archived ? " (archived)" : ""}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => set("homeBaseId", value || "")}
+              placeholder="None"
+            />
           </FieldWrapper>
         </div>
 
@@ -450,7 +394,7 @@ function AircraftForm({ editingAircraft, onDone }) {
               knots — a number alone would be shown under the wrong unit. */}
           <FieldWrapper label="Max Speed" optional>
             <Input
-              placeholder="Mach 0.885 or 310 KTAS"
+              placeholder="Mach 0.885"
               value={form.maxSpeed}
               onChange={(e) => set("maxSpeed", e.target.value)}
             />
@@ -458,29 +402,29 @@ function AircraftForm({ editingAircraft, onDone }) {
 
           <FieldWrapper label="Cruise Speed" optional>
             <Input
-              placeholder="Mach 0.80 or 270 KTAS"
+              placeholder="Mach 0.85"
               value={form.cruiseSpeed}
               onChange={(e) => set("cruiseSpeed", e.target.value)}
             />
           </FieldWrapper>
         </div>
 
-        <SectionHeader title="Specifications" />
-
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
           <FieldWrapper label="Service Ceiling (ft)" optional>
             <Input
               type="number"
+              min="0"
               placeholder="51000"
               value={form.serviceCeilingFt}
               onChange={(e) => set("serviceCeilingFt", e.target.value)}
             />
           </FieldWrapper>
 
-          <FieldWrapper label="Baggage (cu ft)" optional>
+          <FieldWrapper label="Baggage Capacity (cu ft)" optional>
             <Input
               type="number"
-              placeholder="226"
+              min="0"
+              placeholder="195"
               value={form.baggageCapacityCuFt}
               onChange={(e) => set("baggageCapacityCuFt", e.target.value)}
             />
@@ -490,15 +434,19 @@ function AircraftForm({ editingAircraft, onDone }) {
             <Input
               type="number"
               step="0.1"
+              min="0"
               placeholder="50.1"
               value={form.cabinLengthFt}
               onChange={(e) => set("cabinLengthFt", e.target.value)}
             />
           </FieldWrapper>
+        </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <FieldWrapper label="Max Takeoff Weight (lb)" optional>
             <Input
               type="number"
+              min="0"
               placeholder="91000"
               value={form.maxTakeoffWeightLb}
               onChange={(e) => set("maxTakeoffWeightLb", e.target.value)}
@@ -508,16 +456,20 @@ function AircraftForm({ editingAircraft, onDone }) {
           <FieldWrapper label="Empty Weight (lb)" optional>
             <Input
               type="number"
+              min="0"
               placeholder="48300"
               value={form.emptyWeightLb}
               onChange={(e) => set("emptyWeightLb", e.target.value)}
             />
           </FieldWrapper>
+        </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
           <FieldWrapper label="Fuel Capacity (gal)" optional>
             <Input
               type="number"
-              placeholder="6325"
+              min="0"
+              placeholder="6018"
               value={form.fuelCapacityGal}
               onChange={(e) => set("fuelCapacityGal", e.target.value)}
             />
@@ -526,6 +478,7 @@ function AircraftForm({ editingAircraft, onDone }) {
           <FieldWrapper label="Takeoff Distance (ft)" optional>
             <Input
               type="number"
+              min="0"
               placeholder="5910"
               value={form.takeoffDistanceFt}
               onChange={(e) => set("takeoffDistanceFt", e.target.value)}
@@ -535,6 +488,7 @@ function AircraftForm({ editingAircraft, onDone }) {
           <FieldWrapper label="Landing Distance (ft)" optional>
             <Input
               type="number"
+              min="0"
               placeholder="2770"
               value={form.landingDistanceFt}
               onChange={(e) => set("landingDistanceFt", e.target.value)}
@@ -542,7 +496,7 @@ function AircraftForm({ editingAircraft, onDone }) {
           </FieldWrapper>
         </div>
 
-        <FieldWrapper label="Amenities" optional>
+        <FieldWrapper label="Cabin Amenities" optional>
           <Input
             placeholder="WiFi, Full Galley, Lie-flat Seats"
             value={form.amenitiesInput}

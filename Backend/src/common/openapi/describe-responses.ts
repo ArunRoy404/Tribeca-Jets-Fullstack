@@ -8,10 +8,13 @@ import {
 import { RequestMethod } from '@nestjs/common';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import {
+  ACCESS_KEY,
   IS_PUBLIC_KEY,
   PERMISSIONS_KEY,
+  STAFF_ONLY_KEY,
 } from '../constants/auth.constants.js';
 import type { PermissionRequirement } from '../decorators/permissions.decorator.js';
+import type { AccessRequirement } from '../decorators/access.decorator.js';
 import { SHARED_SCHEMAS } from './schemas.js';
 
 const METHOD_NAMES: Record<number, string> = {
@@ -25,6 +28,10 @@ const METHOD_NAMES: Record<number, string> = {
 type RouteFacts = {
   isPublic: boolean;
   permissions: string[];
+  /** `@RequireAccess` — the per-person permission, as `MODULE · ACTION`. */
+  access?: string;
+  /** `@StaffOnly`, on the route or its controller. */
+  staffOnly?: boolean;
   /**
    * The status an explicit `@HttpCode` sets, if any.
    *
@@ -92,12 +99,19 @@ function collectRouteFacts(app: INestApplication): Map<string, RouteFacts> {
         handler,
       );
 
+      const access = reflector.get<AccessRequirement | undefined>(
+        ACCESS_KEY,
+        handler,
+      );
+
       facts.set(
         `${METHOD_NAMES[verb]} ${joinPath(controllerPath, routePath)}`,
         {
           isPublic:
             reflector.get<boolean | undefined>(IS_PUBLIC_KEY, handler) === true,
           permissions: requirement?.permissions ?? [],
+          access: access ? `${access.module} · ${access.action}` : undefined,
+          staffOnly: reflector.getAllAndOverride<boolean>(STAFF_ONLY_KEY, [handler, metatype]) === true,
           httpCode: Reflect.getMetadata(HTTP_CODE_METADATA, handler) as
             | number
             | undefined,
@@ -121,8 +135,8 @@ function collectRouteFacts(app: INestApplication): Map<string, RouteFacts> {
  * - **400** — whenever the route accepts a body or a query parameter.
  * - **401** — every route the global `JwtAuthGuard` protects, which is all of
  *   them except `@Public()` ones.
- * - **403** — every route carrying `@RequirePermissions`, named so the reader
- *   can see *which* permission.
+ * - **403** — every route carrying `@RequirePermissions` or `@RequireAccess`,
+ *   named so the reader can see *which* permission.
  * - **404** — every route with a path parameter. This API returns 404 rather
  *   than 403 for a record outside the caller's scope, because a 403 confirms
  *   the row exists and turns any id into an oracle; the description says so.
@@ -249,6 +263,16 @@ export function describeResponses(
       if (route.permissions.length > 0 && !op.responses['403']) {
         op.responses['403'] = errorResponse(
           `Your role does not hold ${route.permissions.join(' and ')}. A 403 means the action is unavailable to the role at all — a record you merely cannot see returns 404 instead.`,
+        );
+      }
+
+      if ((route.access || route.staffOnly) && !op.responses['403']) {
+        const reasons = [
+          route.access && `you do not hold ${route.access} in your own permissions (Users & Roles › Permissions)`,
+          route.staffOnly && 'you are a referral agent — this is desk data',
+        ].filter(Boolean);
+        op.responses['403'] = errorResponse(
+          `Refused when ${reasons.join(', or ')}. A record you merely cannot see returns 404 instead.`,
         );
       }
 

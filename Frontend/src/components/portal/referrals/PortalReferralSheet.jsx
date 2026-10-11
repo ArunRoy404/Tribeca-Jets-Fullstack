@@ -13,6 +13,7 @@ import { REFERRAL_LADDER, formatReferralStatus, toReferralRow } from "@/lib/refe
 import { formatTimestamp } from "@/lib/archive";
 import { personName } from "@/lib/lead";
 import { uploadUrl } from "@/services/uploads.service";
+import { useBranding } from "@/hooks/settings";
 
 const LADDER_LABELS = REFERRAL_LADDER.map(formatReferralStatus);
 
@@ -144,9 +145,14 @@ function ReferralDetail({ referral }) {
 function AgentUpdates({ referralId }) {
   const { data, isPending, error, refetch } = useNotes("REFERRAL", referralId, { limit: 50 });
   const updates = data?.data ?? [];
+  const { data: branding } = useBranding();
+  const companyName = branding?.companyName;
 
   return (
-    <SectionCard title="Updates from Tribeca" titleClassName="text-foreground">
+    <SectionCard
+      title={companyName ? `Updates from ${companyName}` : "Updates"}
+      titleClassName="text-foreground"
+    >
       {isPending || error || updates.length === 0 ? (
         <TableStatus
           isLoading={isPending}
@@ -164,7 +170,7 @@ function AgentUpdates({ referralId }) {
               <div className="flex flex-col gap-1 min-w-0">
                 <p className="font-montserrat text-[13px] text-foreground whitespace-pre-line break-words">{note.body}</p>
                 <p className="font-montserrat text-[11px] text-muted-foreground">
-                  {note.createdBy ? personName(note.createdBy) : "Tribeca Jets"} · {formatTimestamp(note.createdAt)}
+                  {note.createdBy ? personName(note.createdBy) : (companyName ?? "—")} · {formatTimestamp(note.createdAt)}
                 </p>
               </div>
             </li>

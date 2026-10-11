@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { InvoiceStatus } from '../../generated/prisma/enums.js';
 import {
+  collectedTally,
   InvoiceState,
   TripPaymentState,
   invoiceFigures,
@@ -179,5 +180,27 @@ describe('tripPayment', () => {
 describe('todayUtc', () => {
   it('is midnight UTC on the current UTC day', () => {
     expect(todayUtc(new Date('2026-09-28T23:59:59.000Z')).toISOString()).toBe('2026-09-28T00:00:00.000Z');
+  });
+});
+
+describe('collectedTally', () => {
+  const invoice = { amount: '10000.00', fetAmount: '750.00' };
+
+  it('gives each payment its invoice\'s share of FET', () => {
+    // Half of a $10,750 invoice carries half its $750 FET.
+    expect(collectedTally([{ amount: '5375.00', invoice }])).toEqual({ cash: 5375, fet: 375, paymentCount: 1 });
+  });
+
+  it('sums cash and FET in cents across payments and invoices', () => {
+    const tally = collectedTally([
+      { amount: '5375.00', invoice },
+      { amount: '5375.00', invoice },
+      { amount: '2000.00', invoice: { amount: '2000.00', fetAmount: '0' } },
+    ]);
+    expect(tally).toEqual({ cash: 12750, fet: 750, paymentCount: 3 });
+  });
+
+  it('collects no FET on an invoice that charged none', () => {
+    expect(collectedTally([{ amount: '100.00', invoice: { amount: '100.00', fetAmount: '0.00' } }]).fet).toBe(0);
   });
 });

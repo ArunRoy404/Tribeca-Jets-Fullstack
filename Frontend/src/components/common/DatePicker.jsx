@@ -60,10 +60,14 @@ export function CommonDatePicker({
   value,
   onChange,
   placeholder = "Choose Date",
+  minDate,
+  maxDate,
   className,
   iconClassName,
+  size = "default",
 }) {
   const [open, setOpen] = useState(false);
+  const isSm = size === "sm";
 
   const selected = useMemo(() => parseIsoDate(value), [value]);
 
@@ -77,6 +81,14 @@ export function CommonDatePicker({
    */
   const [view, setView] = useState(() => {
     if (selected) return { year: selected.year, month: selected.month };
+    if (minDate) {
+      const parsedMin = parseIsoDate(minDate);
+      if (parsedMin) return { year: parsedMin.year, month: parsedMin.month };
+    }
+    if (maxDate) {
+      const parsedMax = parseIsoDate(maxDate);
+      if (parsedMax) return { year: parsedMax.year, month: parsedMax.month };
+    }
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
   });
@@ -101,7 +113,12 @@ export function CommonDatePicker({
   // a literal "Today (Aug 12)" that set 12 August 2026 whatever the date was —
   // an invented value wearing the label of a real one.
   const today = new Date();
+  const todayIso = toIsoDate(today.getFullYear(), today.getMonth(), today.getDate());
   const todayLabel = `Today (${today.getDate()} ${MONTH_NAMES[today.getMonth()].slice(0, 3)})`;
+  const isTodayDisabled = Boolean(
+    (minDate && todayIso < minDate) ||
+    (maxDate && todayIso > maxDate)
+  );
 
   const label = formatDisplay(value);
 
@@ -112,19 +129,53 @@ export function CommonDatePicker({
         setOpen(next);
         // Re-open on whatever is selected now, so closing and reopening does
         // not strand the calendar wherever it was last browsed to.
-        if (next && selected) setView({ year: selected.year, month: selected.month });
+        if (next) {
+          if (selected) {
+            setView({ year: selected.year, month: selected.month });
+          } else {
+            const parsedMax = maxDate ? parseIsoDate(maxDate) : null;
+            const parsedMin = minDate ? parseIsoDate(minDate) : null;
+            if (
+              parsedMin &&
+              (view.year < parsedMin.year ||
+                (view.year === parsedMin.year && view.month < parsedMin.month))
+            ) {
+              setView({ year: parsedMin.year, month: parsedMin.month });
+            } else if (
+              parsedMax &&
+              (view.year > parsedMax.year ||
+                (view.year === parsedMax.year && view.month > parsedMax.month))
+            ) {
+              setView({ year: parsedMax.year, month: parsedMax.month });
+            }
+          }
+        }
       }}
     >
       <PopoverTrigger
         className={cn(
-          "h-11 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-left flex items-center justify-between gap-2 outline-none focus:ring-1 focus:ring-purple cursor-pointer transition-colors hover:border-purple/50",
+          isSm
+            ? "bg-secondary border border-border flex gap-1.5 h-full items-center px-2 py-1 rounded-sm shrink-0 cursor-pointer outline-none transition-colors hover:border-purple/40"
+            : "h-10 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-left flex items-center justify-between gap-2 outline-none focus:ring-1 focus:ring-purple cursor-pointer transition-colors hover:border-purple/50",
           className
         )}
       >
-        <span className={cn(label ? "text-foreground font-medium" : "text-muted-foreground")}>
+        <span
+          className={cn(
+            isSm
+              ? "font-montserrat font-medium text-[10px] whitespace-nowrap"
+              : "font-montserrat",
+            label ? "text-foreground font-medium" : "text-muted-foreground"
+          )}
+        >
           {label || placeholder}
         </span>
-        <CalendarIcon className={cn("size-4 text-muted-foreground shrink-0", iconClassName)} />
+        <CalendarIcon
+          className={cn(
+            isSm ? "size-3.5 text-foreground shrink-0" : "size-4 text-muted-foreground shrink-0",
+            iconClassName
+          )}
+        />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-3 bg-white border border-border shadow-lg rounded-lg">
         {/* Month / Year Nav */}
@@ -156,6 +207,11 @@ export function CommonDatePicker({
           ))}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
+            const dayIso = toIsoDate(view.year, view.month, day);
+            const isDisabled =
+              (minDate && dayIso < minDate) ||
+              (maxDate && dayIso > maxDate);
+
             // An exact comparison. It used to be `value.includes("Aug 1")`,
             // so choosing the 1st highlighted the 1st, 10th and every teens
             // date in the month at once.
@@ -168,12 +224,15 @@ export function CommonDatePicker({
               <button
                 key={day}
                 type="button"
-                onClick={() => commit(view.year, view.month, day)}
+                disabled={isDisabled}
+                onClick={() => !isDisabled && commit(view.year, view.month, day)}
                 className={cn(
-                  "h-8 w-8 rounded-md font-montserrat text-[12px] flex items-center justify-center transition-colors cursor-pointer mx-auto",
-                  isSelected
-                    ? "bg-purple text-white font-bold"
-                    : "hover:bg-purple/10 text-foreground font-medium"
+                  "h-8 w-8 rounded-md font-montserrat text-[12px] flex items-center justify-center transition-colors mx-auto",
+                  isDisabled
+                    ? "opacity-25 cursor-not-allowed text-muted-foreground"
+                    : isSelected
+                    ? "bg-purple text-white font-bold cursor-pointer"
+                    : "hover:bg-purple/10 text-foreground font-medium cursor-pointer"
                 )}
               >
                 {day}
@@ -186,8 +245,14 @@ export function CommonDatePicker({
         <div className="pt-2 mt-2 border-t border-border/50 flex justify-between items-center">
           <button
             type="button"
-            onClick={() => commit(today.getFullYear(), today.getMonth(), today.getDate())}
-            className="font-montserrat text-[11px] text-purple font-semibold hover:underline cursor-pointer"
+            disabled={isTodayDisabled}
+            onClick={() => !isTodayDisabled && commit(today.getFullYear(), today.getMonth(), today.getDate())}
+            className={cn(
+              "font-montserrat text-[11px] font-semibold transition-colors",
+              isTodayDisabled
+                ? "text-muted-foreground/40 cursor-not-allowed"
+                : "text-purple hover:underline cursor-pointer"
+            )}
           >
             {todayLabel}
           </button>

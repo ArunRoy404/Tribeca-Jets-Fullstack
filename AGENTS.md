@@ -17,7 +17,13 @@ live, and one place to look for it.
 It is in three parts: what applies **everywhere**, then **backend**, then
 **frontend**. Read part one whatever you are touching.
 
-Alongside it, in `docs/`:
+Alongside it: `HANDOFF.md` at the root (where the project is, what is next,
+the session log — read it first), and in `docs/`:
+
+- `REVIEW_PLAYBOOK.md` — the module-review procedure, the shared components a
+  reviewed module must use, how the owner works, and the local environment.
+  For every AI tool; `GEMINI.md`, `.agent/` and `.claude/commands/` point to
+  it and to this file.
 
 - `Tribeca_Jets_Command_Center_Team_Scope.docx` — the signed scope. The
   baseline, and not always right: §13 specifies MongoDB for a database that is
@@ -38,6 +44,136 @@ Alongside it, in `docs/`:
 This is absolute. Not when a batch "feels done", not when tests pass, not when the user approves the *code*. Approval of work is not approval to commit. When the user does ask, commit in batches split by concern, and stop at the push if credentials are missing rather than trying to work around them.
 
 Leaving finished work uncommitted in the tree is the correct resting state. Say what is uncommitted and why; do not fix it by committing.
+
+## Role restrictions are on again (since 7 Oct 2026)
+
+From 4 to 7 Oct 2026 the owner had every user act as SUPER_ADMIN while the
+CRM was finished. **That is over: the old role matrix is enforced again,**
+on both sides, while modules move to per-user permissions one review at a
+time.
+
+- **The switch still exists, and is `true`:** `ROLE_RESTRICTIONS_ENABLED`
+  in `Backend/src/common/authorization/permissions.ts` and in
+  `Frontend/src/lib/permissions.js`. It governs only the old matrix, and
+  goes away with it. Do not turn it off to get past a 403 — fix the module.
+- **Authority goes through `actsAs(role)`** (the matrix, `scopeFor`, the
+  broker-only lines in Clients and Trip Requests, the owner-account guard),
+  so the switch can still govern it.
+- **Identity never does.** Who is an administrator (`isAdministrator`) and
+  who is a partner (`isPartner`) read the stored role directly, like "the
+  agent on a commission must be an agent" and "you cannot change your own
+  role". A rule that keeps desk files from an outsider, or decides who sees
+  every stored file, must not be switchable. While the switch was off,
+  uploads asked the *matrix* who was an administrator, so every broker and
+  assistant could open every private file — that is why.
+- **Until a module is reviewed, its routes follow the old matrix** and its
+  sidebar entry follows the person's own set. Where the two disagree (a
+  broker whose set drops Receivables still passes the matrix's OWN scope),
+  the module's review moves it to `@RequireAccess` and settles it.
+- **Tests that assert a refusal run.** The `it.skipIf(!ROLE_RESTRICTIONS_ENABLED)`
+  guards stay valid for the old-matrix tests; a rule moved to identity drops
+  its guard, as the uploads tests did.
+
+## Permissions are per person, module by module (since 7 Oct 2026)
+
+**The owner's design, replacing the role matrix one module at a time.** A
+permission is a **module** — one per sidebar screen — and an **action** in it
+(`VIEW`, `CREATE`, `EDIT`, `ARCHIVE`, `ASSIGN`, `SEND`, `PAY`, `EXPORT`,
+`VIEW_MONEY`, `VIEW_SENSITIVE`, `MANAGE_ACCESS`).
+
+- **Catalogue:** `Backend/src/common/authorization/access.catalogue.ts` —
+  each module's actions and the modules it `requires`. **Roles:**
+  `access.roles.ts` — per role and module, the **reach** (OWN / ASSIGNED /
+  ALL), the **defaults** and the **optional** extras. Anything else is
+  **locked**: the role can never hold it. **Rules:** `access.ts`.
+- **Roles are Super Admin, Admin, Broker, Assistant** (the signed scope, §4)
+  **and Referral Agent** (client adjustment #11). `SENIOR_BROKER` was
+  withdrawn on 7 Oct 2026; its accounts became brokers.
+- **Each user stores their own set**, `users.permissions` =
+  `{ MODULE: [ACTION] }`, seeded from the role's defaults at invitation and
+  adjusted for that one person. Changing the role defaults later does not
+  touch existing people. A null column reads as the role's defaults.
+- **Reach is the role's, never per person.** "A broker sees only their own"
+  is not a checkbox.
+- **The server refuses** a locked module or action, granting what the grantor
+  does not hold (the owner excepted — role defaults are checked too, so
+  inviting an admin is not a way round it), editing your own set, and editing
+  the owner's. It adds VIEW to any ticked module and VIEW on what a ticked
+  module requires. A role change without a set resets to the new role's
+  defaults. Changing role or permissions needs `USERS · MANAGE_ACCESS`.
+- **Every request loads the set** with the user (`JwtStrategy` →
+  `user.access`), so a change applies on the next click. `/auth/me` returns it
+  as `permissions: { MODULE: { reach, actions } }`; the old matrix moved to
+  `matrix`.
+- **Backend:** a moved route carries `@RequireAccess(Module.X, Action.Y)`
+  (`AccessGuard`); a service reads `canDo(user.access, …)` and
+  `reachOf(user.access, …)`. **Frontend:** `usePermissions().canAccess(module,
+  action)` / `reachOf(module)`; names in `src/lib/access.js`.
+- **Which area a person uses is their real role, never a permission and
+  never the temporary switch:** a Referral Agent works in `/portal`, staff
+  in `/dashboard`. `homeFor` / `AreaGate` read the role, and `tj_modules`
+  starts with `PORTAL` for a partner so `proxy.js` routes them before render.
+- **The sidebar and pages follow the set already, for every module:** each
+  item in `components/dashboard/nav/crmNav.js` names its module, `NavMain`
+  hides what the person cannot view, and two layers refuse a page:
+  - **`proxy.js`, before render**, from the `tj_modules` cookie — the
+    modules the person may view, `DASHBOARD.TRIPS…`, written by the API on
+    sign-in, every refresh and every `/auth/me`, cleared on sign-out. A
+    refused page goes to `/dashboard/no-access?module=…`; `/dashboard`
+    without the Dashboard goes to the first page they may open. It is a
+    routing hint, not a credential — editing it only shows pages whose API
+    calls are still refused — and a session without it is let through.
+  - **`ModuleGate`, live**, from `/auth/me` — for a permission removed since
+    the cookie was written.
+- **Moving a module over is part of reviewing it:** swap its
+  `@RequirePermissions` for `@RequireAccess`, its `scopeFor` for `reachOf`,
+  and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
+  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators, Aircraft, Clients, Notes, Client Credits, Leads & Agents, Trip Requests, Operator Sourcing, Quotes, Trips, Itineraries, Schedule, Flight Tracking, Empty Legs, Receivables, Operator Payments, Commissions, Referrals, Transactions.** Uploads needs no move — its
+  routes carry no permission by design and its rules are identity-based.
+  Every other module's API is still on the old matrix, enforced by role.
+  When the last one moves, delete the old matrix and the switch.
+- **A new action or module** is a line in the catalogue, a decision per role
+  in `access.roles.ts`, and the check on its route — never a route that
+  checks something the catalogue does not list.
+
+## Reads are open to every signed-in user; writes need the permission (since 8 Oct 2026)
+
+**The owner's rule, applied to each module when it is reviewed.** Nothing
+is readable without a session except the company branding. Beyond that:
+
+- **Every `GET` needs only a session** — no `@RequireAccess` on it. Lists
+  feed pickers in other modules (an airport, an operator, a client, a
+  broker), and a picker must not vanish because someone lacks the screen.
+- **Every write needs the person's own permission**:
+  `@RequireAccess(Module.X, Action.CREATE / EDIT / ARCHIVE / …)` on the route.
+- **Reach still filters reads.** A broker whose reach is OWN or ASSIGNED
+  sees only their own rows in the list *and* in every picker; open reads
+  never widen what a person reaches.
+- **A write re-checks what was picked, on the server.** An id chosen from a
+  picker is verified to exist, be live, and be within the caller's reach
+  before it is stored — a named 400 otherwise. The picker's filtering is a
+  convenience; the check is the server's.
+- **Opening the module's screen is still `VIEW`** — the sidebar, `proxy.js`
+  and `ModuleGate`. The data is open; the page is not.
+- **Ask the owner before applying it** to a read that carries a field-level
+  permission (`VIEW_MONEY`, `VIEW_SENSITIVE`), or one a referral agent must
+  not see (the staff directory, desk data): the rule was given for picker
+  data and those cases are not decided yet.
+
+Done so far: **Airports** (pinned by `airports.controller.spec.ts`) and
+**Operators**, **Aircraft**, **Clients**, **Leads & Agents**, **Trip Requests**, **Operator Sourcing**, **Quotes**, **Trips**, **Itineraries**, **Schedule**, **Flight Tracking**, **Empty Legs**, **Receivables**, **Operator Payments** — with `@StaffOnly()`: an open read over desk data a partner
+never needs refuses the referral agent (403) by stored role, in
+`AccessGuard`. Put it on the controller for the whole module.
+**Transactions** has `@StaffOnly()` and `@RequireAccess(Module.TRANSACTIONS, Action.VIEW)`: a read-only desk money ledger (pinned by `transactions.access.spec.ts`).
+**Commissions** has open reads and per-person writes (`CREATE`, `PAY`, `ARCHIVE`), but does **not** carry `@StaffOnly()`: a partner referral agent reads their own commissions via the portal (`/portal/commissions`).
+**Referrals** has open reads and per-person writes (`CREATE`, `EDIT`, `ARCHIVE`), and does **not** carry `@StaffOnly()`: partner referral agents submit referrals (`/portal/submit`), read their own submissions (`/portal/referrals`), and read portal resources (`/portal/resources`).
+**Charter Rates** is the first "money" case, decided by the owner: its reads
+need Quotes · View money, and changing a rate is administrators only.
+
+**A picked airport is checked with `AirportsService.usable(id, label)`** —
+live, or a 400 naming the field ("does not exist", or "KTEB has been
+archived"). Every module that stores or uses an airport id calls it,
+rather than its own query; Charter Rates was the first.
 
 ## How this project is built
 
@@ -165,9 +301,12 @@ kind of thing that gets someone hurt.
 
 Two corollaries:
 
-- **Render a field as what it is.** `safetyRating` is a certification string
-  ("ARG/US Platinum") and `responseSpeed` is free text ("< 15 min"); only
-  `reliabilityRating` is a 0-5 number. A star row is for scores.
+- **Render a field as what it is.** A star row is for scores and nothing
+  else. On operators, `reliabilityRating` and `safetyRating` are the desk's
+  own 0–5 ratings (safety became a number by the owner's decision, 8 Oct
+  2026, as the Figma form) — so they get stars, **but only when someone
+  entered one**: blank is "Not rated", never a default, never derived.
+  `responseSpeed` is a word (Fast / Average / Slow), never stars.
 - **A placeholder attribute is fine** — it is a format hint, greyed, and never
   submitted. A `value` or a default is not.
 
@@ -274,6 +413,21 @@ Tracking (#14), which read the same trip facts a third and fourth time.
 - **The label check reads the status wherever it sits in the name.** The
   Uploads examples are named `Success (200 · …)`; an audit that only looked at
   the start of the name skipped them, and one of them was a 403 label on a 200.
+- **Capture and run against a second API with `MAIL_DRIVER=log` and its own
+  Redis database** (`REDIS_URL=redis://localhost:6380/1`), never the one
+  with a mail server: inviting and two-factor send email, and the 2FA
+  examples read the code a log-driver API returns. The separate Redis
+  database matters as much as the driver — the mail queue lives there, and
+  on a shared one the everyday API's worker picks up the run's emails. Builders on
+  `builder_common` take `POSTMAN_BASE` (e.g. `http://localhost:4100/api`);
+  Newman takes `--env-var baseUrl=…`. Run Newman from `Backend/`, where the
+  fixture paths resolve.
+- **…and on its own database** (since 8 Oct 2026): a copy of the dev
+  database, `tribeca_postman` (`pg_dump tribeca_jets | pg_restore` into it,
+  then start the 4100 API with `DATABASE_URL` pointing there). The owner
+  tests in the dev database, and every run leaves archived probes in its
+  Archived tabs; on the copy they bother nobody. Refresh the copy after a
+  migration.
 - **A local Newman run needs `RATE_LIMIT_MULTIPLIER=20`** in `Backend/.env`.
   A full run signs in more often than the login limit allows, so at `1` it
   fails with 429s that look like real failures. Never raise the limits
@@ -286,6 +440,12 @@ Tracking (#14), which read the same trip facts a third and fourth time.
   the probe is the correct end state: the debris sits in the Archived tab
   rather than among the records a broker works. `build_aircraft_folder.py` and
   `build_trip_requests_folder.py` are the pattern.
+- **The teardown is its own last request, never a `pm.sendRequest` in the
+  last test script.** Run alone, Newman can finish before such a call
+  completes, and the probe stays live — ten "Q…" test airports sat in the
+  airport picker that way (8 Oct 2026). `05 · Airports` and `06 · Operators`
+  end with a `Teardown — archive the probe` request; move each older folder
+  over on its review.
 - **A folder must pass on its own, not only inside a full run.** Requests
   reference collection variables — `{{clientId}}`, `{{operatorId}}` — that
   earlier folders happen to set, so a folder run alone sends empty strings and
@@ -318,6 +478,79 @@ it** and move those lines from "waiting" to "working". That second edit is the
 same second pass the build-order rule already requires — this file is where it
 becomes visible, so a stale entry here means a dependant screen is still
 rendering an em dash it no longer needs to.
+
+**A feature removed or hidden is never dropped — it is logged.** Taking a
+control off a screen rather than faking it (the "Download PDF" buttons, with
+no PDF generator behind them) is correct, but it must land in that module's
+"Waiting on a dependency" table in `MODULE_FEATURE_STATUS.md` in the same pass,
+naming what was removed and what would bring it back. A feature that vanishes
+from the screen *and* the record is a feature nobody builds.
+
+## A setting is read by the module it governs
+
+The Settings screens (#26) hold values that other modules use — default
+markup, FET, quote validity and terms, lead stage, follow-up interval, the
+idle timeout, company identity, reminder timing. **A setting does nothing
+until the module it governs reads it**, so the work of a setting is spread
+across the modules, not done once in Settings.
+
+The map is in `docs/MODULES.md` → §26, "Which module reads which setting":
+each setting, the module that reads it, and the value hardcoded today.
+
+**Every time a module is built, reviewed or fixed:**
+
+1. **Check the map for that module's rows.** If any exist, wiring them is
+   part of the module, not a later task.
+2. **Read the value from the settings** — on the backend inject the global
+   `SettingsService` and `await settings.read()` when deciding (`current()`
+   only inside a synchronous rule, like the idle limit); on the frontend
+   use `useSettings()`, or `useBranding()` for anything public — and delete
+   the hardcoded copy in the same pass (`0.075` in the quotes service, the
+   letterhead's literal address). Two sources for one number drift, exactly
+   as a second copy of the permission matrix would — which is why the
+   `AUTH_IDLE_TIMEOUT_MINUTES` env var was deleted when Auth started
+   reading the setting.
+3. **A default seeds a new record; it never rewrites an old one.** Changing
+   the default FET changes the next quote, not the quotes already sent — the
+   same rule as a commission copying the agent's terms at creation.
+4. **The server reads the setting when it decides.** A form may prefill from
+   it, but the API applies it on create when the field is absent, so a
+   caller that omits a field gets the setting, not a stale constant.
+5. **The Settings API exists** (7 Oct 2026): `GET`/`PATCH /settings`, one
+   row for the whole company (`company_settings`, held to `id = 1`). A new
+   setting is a column, a field in `settings.dto.ts` and `settings.view.ts`,
+   a line in the frontend's `SETTINGS_FIELDS`, and its row in the map.
+6. **Mark the row ✅** in the map and move its line to "working" in
+   `MODULE_FEATURE_STATUS.md`, in the same pass.
+
+**The branding is public, and only the branding.** `GET
+/settings/branding` and `/settings/branding/logo` need no session — the
+sign-in page and every sidebar read them — so `brandingView` returns the
+name, the logo's public address, contact details only while the company
+shows them, and the document switches. Nothing else ever goes in it, and
+the logo route serves only the one upload the settings name.
+
+**The company's name and logo are never hardcoded.** The logo is
+`BrandLogo` (with `fallbackSrc` for a screen drawn with its own built-in
+mark); the letterhead is `TribecaLetterhead`, whose contact block is **all or
+nothing** — name, website, email, phone and address while "Show company
+contact block" is on, none of them while it is off (owner's rule); "<Company> Command Center" is
+`useProductName()`; tab titles come from the root layout's template; emails
+take `brand` from `MailService`. A new screen or email uses these.
+
+**The settings row is not soft-deletable**, like users: it is one row that
+is never created or removed by anyone, so it carries the four audit columns
+and no archive trail. Every change is in the audit log instead.
+
+Two rules on adding settings:
+
+- **Never add a setting nothing reads.** A new control on the Settings
+  screen arrives with its row in the map, naming its reader. A toggle with no
+  reader is a fake control.
+- **Never make a system rule a setting.** Soft delete, the audit trail,
+  notes timelines, import preview and history preservation are how this
+  system works. A switch that turns one off is a way to lose data — which is
+  why the Figma file's toggles for them were removed (6 Oct 2026).
 
 ## Communication
 
@@ -450,7 +683,9 @@ written once and never edited, so an `updatedBy` would have nothing to say:
 - `RefreshToken`, `VerificationCode` — session machinery, owned by the user
   row they hang off, rotated or consumed rather than edited.
 - `EmailMessage` (#21) — an email as it was sent; `createdById` is the
-  sender. It has no archive trail either: an email cannot be unsent.
+  sender. It has no archive trail either: an email cannot be unsent. Its
+  content is never edited; only the mail worker moves `status` on from
+  QUEUED, which is the system reporting delivery, not a person's edit.
 
 A sixth exception needs a line here, with its reason, in the same pass.
 
@@ -458,24 +693,30 @@ A sixth exception needs a line here, with its reason, in the same pass.
 
 `UserStatus` has three values but only two are settable by a person:
 
-- **`INVITED`** is where an account is born, and it leaves exactly once — on its
-  own, when the invitee sets a password through the reset flow. That act *is*
-  accepting the invitation, and `completePasswordReset` flips the row to
-  `ACTIVE` in the same transaction. Nothing else may write it: the update DTO's
-  enum excludes it, and the service refuses any status change on a row that is
-  still `INVITED`. Suspending a pending invitation would strand it for good —
-  only an `INVITED` row can be promoted by a reset, so a suspended one could
-  never move again.
+- **`INVITED`** is where an account is born, and it leaves exactly once — on
+  its own. Since 6 Oct 2026 (owner's decision) **the invitation carries the
+  first password**: the administrator sets it on the invite form, the
+  invitation email delivers it, and **the first successful sign-in with it
+  flips the row to `ACTIVE`** (`validateCredentials`, audited as
+  `user.invitation_accepted` with `via: first_sign_in`). A password reset
+  completed by an invitee still promotes it too. Nothing else may write
+  `INVITED`: the update DTO's enum excludes it, and the service refuses any
+  status change on a row that is still `INVITED`.
 
-  **Known gap:** with account removal withdrawn there is now no way to withdraw
-  a mistaken invitation at all. The row stays `INVITED` and keeps its email
-  address reserved. Withdrawing one needs its own deliberate operation; do not
-  solve it by loosening the status guard.
+  The trade-off was chosen knowingly: the inviter knows the first password
+  and it sits in an inbox, so the email tells the invitee to change it from
+  My Account.
+
+  **A mistaken invitation is withdrawn, not suspended** (7 Oct 2026):
+  `DELETE /users/:id/invitation` deletes the row permanently and frees the
+  address — see "Nothing is ever permanently deleted" for the limits. Do
+  not solve it by loosening the status guard.
 - **`ACTIVE` / `SUSPENDED`** are an administrator's call, made through
   `PATCH /users/:id` by a `MANAGE_USERS` holder, and nothing else.
 
-**A password reset must never be a route around a suspension.** The promotion
-above is narrow by design — it fires only when the current status is `INVITED`.
+**Neither a password reset nor a sign-in is a route around a suspension.**
+Both promotions above are narrow by design — they fire only when the current
+status is `INVITED`, and sign-in refuses `SUSPENDED` before it gets there.
 A suspended user who completes a reset stays suspended, including when the code
 was issued before the suspension landed. Any future flow that sets a password
 inherits this rule.
@@ -485,8 +726,9 @@ for a pending invitation and offers only Active/Suspended otherwise.
 
 ## Nothing is ever permanently deleted
 
-There is **no hard delete anywhere in this system, and no endpoint that offers
-one.** Removing a record archives it; it can always be brought back. Every
+There is **no hard delete anywhere in this system, with one exception: a
+pending invitation** (below). Removing a record archives it; it can always be
+brought back. Every
 soft-deletable model therefore carries six columns, not one:
 
 ```prisma
@@ -549,8 +791,17 @@ any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
   `bulkResult`, same partial-success rule — `POST /<resource>/bulk-restore`.
   Read `affected` rather than `deleted`, which is kept only as an alias for the
   existing delete callers.
-- **Users are not soft-deletable at all.** The Users module has no `DELETE`
-  and no `restore`, its query DTO has no `archived` param, and the `users` table
+- **Withdrawing a pending invitation is the one permanent delete**
+  (owner's decision, 7 Oct 2026): `DELETE /users/:id/invitation`, only while
+  the account is still `INVITED` — the invitee never signed in, so there is
+  no history to lose, and the address is freed for a correct invitation.
+  It is refused (409, naming them) while anything is attached — clients,
+  trips, quotes, tasks, referrals, commissions, documents in their folder —
+  because most of those links would silently clear on delete and the folder
+  would be deleted with the row. The audit log keeps `user.invitation_withdrawn`.
+  Never widen this to an account that has signed in; suspend it.
+- **Users are not soft-deletable at all.** The Users module has no archive
+  `DELETE` and no `restore`, its query DTO has no `archived` param, and the `users` table
   carries no archive trail — suspending an account is the way out, which is a
   status change through `PATCH /users/:id`. `users.deletedAt` survives as a
   database-level kill switch (auth refuses a stamped row a session) and hides
@@ -580,8 +831,8 @@ line still printed "3 operator quotes" because the number was a literal. So:
 look up by a natural key the seed writes, and **count** what it wrote rather
 than printing a figure.
 
-**The seed never runs in production.** It is a development fixture: seven
-accounts sharing the public password `ChangeMe123!`, plus invented clients and
+**The seed never runs in production.** It is a development fixture: eleven
+accounts on `example.com` sharing the public password `ChangeMe123!`, plus invented clients and
 enquiries. Production's first account comes from `npm run
 db:bootstrap-admin` (`prisma/bootstrap-admin.ts`), which creates one
 SUPER_ADMIN and refuses an email that already exists rather than resetting it.
@@ -590,9 +841,10 @@ Production runs on Dokploy on the Hostinger VPS — one domain, Traefik routing
 
 ## The permission matrix ships with the session
 
-`GET /auth/me` returns `permissions` — the caller's row of the matrix, as
-`{ PERMISSION: Scope }` — so the frontend can stop offering actions the guard
-will refuse. A role seeing Edit and Remove on every row and collecting a 403
+`GET /auth/me` returns `matrix` — the caller's row of the old matrix, as
+`{ PERMISSION: Scope }` — and `permissions`, their own per-user set (see
+"Permissions are per person"), so the frontend can stop offering actions the
+guard will refuse. A role seeing Edit and Remove on every row and collecting a 403
 toast reads as a broken app rather than a permission boundary.
 
 **This is not an enforcement point and never can be.** It travels to a browser,
@@ -736,20 +988,40 @@ API's own origin, with the session cookie attached.
 *that*. The sender's header settles exactly one question: whether text is
 `text/plain` or `text/csv`, which are the same bytes and differ only in intent.
 
-Three formats stay off every allowlist, for reasons that are not about
-convenience:
+**A document may be any file** (owner's decision, 6 Oct 2026). The
+*recognised* document types — PDF, DOCX, XLSX, text, CSV — keep their own
+type; anything else (a scanned photo, legacy `.doc`/`.xls`, an archive, SVG,
+HTML) is stored as `application/octet-stream`, decided by
+`storedContentType` in `uploads.rules.ts`. That is what makes accepting it
+safe for *us*: an opaque file is always an attachment with `nosniff`, so it
+is saved to disk and never rendered on the API's origin. It does not make
+the file safe to open — a macro workbook is the reader's machine's risk, as
+any email attachment is.
 
-- **SVG** is a document that executes script. Serving one from the API's origin
-  is stored XSS wearing an image's clothes.
-- **Archives** carry their contents past whatever checked the outer file.
-- **Legacy `.doc`/`.xls`** are both OLE2 and byte-identical at the header, so
-  nothing can tell them apart without trusting the sender — which is the thing
-  sniffing exists to avoid. They are also the macro-bearing formats, and Word
-  and Excel have written the modern equivalents by default since 2007.
+**Images stay strict**, because images are served `inline`: only sniffed
+JPEG, PNG, WebP, GIF and AVIF (since 7 Oct 2026). SVG is never an image — it executes script — and
+legacy OLE2 and archives are never *recognised* as their own type, because
+nothing can tell them apart without trusting the sender.
 
 Then serve defensively too: `X-Content-Type-Options: nosniff` on every
 response, and `Content-Disposition: inline` **only** for images. Everything else
 downloads.
+
+**The filename is a label, cleaned once** by `cleanFilename`
+(`common/files/filename.ts`): multer decodes it as latin1 (so it is re-read
+as UTF-8), a client may send a path, and the column is 255 characters. Never
+store `originalname` raw.
+
+**Three size limits are one number.** `maxBytes` in `uploads.rules.ts`
+(15 MB image, 25 MB document), `UPLOAD_LIMITS` in `FileUpload.jsx`, and
+`proxyClientMaxBodySize` in `next.config.mjs` — Next buffers a request
+through its server only up to that size and cuts the rest, so a limit raised
+on the API alone fails every larger file with a 500. Change all three.
+
+**Storage is configured completely or not at all.** With `STORAGE_DRIVER=auto`
+a partial S3/R2 set refuses to start; it used to fall back to local disk,
+which on a container is lost on the next deploy. The bucket stays private —
+every file is served through `GET /uploads/:id` and its read rule.
 
 ## Who may read a file is two columns, never a category
 
@@ -774,6 +1046,19 @@ It is also what makes a personal folder a **query rather than a second table**:
 the client's "folder for each broker" is `GET /uploads?ownerUserId=<id>`. So
 removing a document and removing the file are one act, with no join row to keep
 in step.
+
+**"An administrator" is SUPER_ADMIN or ADMIN by stored role**
+(`isAdministrator`), never the matrix switch and never a per-person
+permission. Both read every file, private or not.
+
+**Removing or restoring is narrower than reading** (`mayManage`): the
+uploader or an administrator. Reading is wide — anyone signed in opens a
+PUBLIC photo — and removing a file makes it stop serving on every record
+that stores its URL, so "may read" as the rule let any broker take the
+aircraft photos and brochures off the system. The person a document is
+filed about may read it, not remove it. A caller who cannot read the file
+gets 404; one who can read but not manage gets **403**, since the file is
+already visible to them.
 
 Three rules follow:
 
@@ -956,7 +1241,8 @@ closes a leak that the permission matrix alone would not:
   `/users/roles` and `/users/:id`. Those routes used to need only a session,
   which was fine while every session was staff.
 - **A partner's upload is forced `PRIVATE` with no owner**, and a partner's
-  `GET /uploads` lists only their own files. An agent must never be able to
+  `GET /uploads` lists only their own files. `isPartner` reads the stored
+  role, so this holds whatever the matrix switch says. An agent must never be able to
   publish into the photo library or file something into a broker's folder.
 - **Referral attachments are streamed through the referral, not the upload.**
   `GET /referrals/:id/attachments/:uploadId` resolves the referral in scope
@@ -1075,6 +1361,21 @@ overdue, the overpayment check), `common/database/document-number.ts`
 `PaymentLedger` and `toPaymentRow`. Receivables and Operator Payments both
 use them; a third money module adds only what is its own.
 
+**Which date a money figure counts by is fixed, and every report uses it.**
+Revenue, profit, margin and trip counts go by the day a trip **departs**;
+cash and FET collected by the day a **payment** arrived; outstanding AR/AP
+as of today (decided 4 Oct 2026, `reports/reports.window.ts`). A figure
+counted by booking date is sales activity, not revenue — name it so. And
+trip money is summed by **`tallyTrips` in `trips/trips.figures.ts`** and
+nowhere else: the Dashboard and Reports both call it, which is why they
+cannot disagree about the same trips.
+
+**Every file export goes through `common/export/tabular.ts`** — CSV or
+XLSX from a module's columns and rows. It leaves an unknown figure blank,
+keeps money as numbers in Excel, and prefixes text a spreadsheet would run
+as a formula (`=`, `+`, `-`, `@`) with an apostrophe. A second writer would
+be the copy that forgets that last part.
+
 **A view over several modules reads each through its owner.** Transactions
 stores nothing: each owner builds its rows in the shared `Movement` shape
 (`common/money/movements.ts`) under its own scope, and the ledger merges pages
@@ -1096,6 +1397,18 @@ never builds its own dialog, its own preview or its own merge.
   put a figure in an email its sender could not have opened. A field that
   cannot be filled **stays as its token and is named**; it is never blanked
   and never guessed, and nothing is sent while one remains.
+- **Every email goes out through the mail queue, never inside a request**
+  (6 Oct 2026). `MailService` adds a job to the BullMQ queue `mail`
+  (`core/mail/mail.queue.ts`, on the app's Redis) and returns; the worker in
+  `mail.processor.ts` sends it, retrying five times with backoff and stopping
+  at once on a 5xx refusal. An invitation, a reset code or a composed email
+  answers in milliseconds. Never call the mail driver from a request handler.
+- A composed email is written as **QUEUED** first; the worker moves it to
+  SENT, LOGGED or FAILED and only then writes the `email.sent` /
+  `email.failed` timeline entries. The response carries `willDeliver` (a
+  mail server is configured), and the compose form marks a quote or
+  itinerary sent when the email is SENT, or QUEUED with `willDeliver` —
+  never when it will only be LOGGED.
 - **`SENT` means a mail server accepted it.** Without one configured the
   email is recorded as `LOGGED` — printed to the server log, delivered to
   nobody — and every screen and toast says "not delivered". A refusal is
@@ -1103,10 +1416,20 @@ never builds its own dialog, its own preview or its own merge.
   mail server did not take.
 - **Marking a record sent is a separate act from emailing it.** A quote's
   or an itinerary's "Mark as Sent" delivers nothing and says so; the compose
-  form marks it sent only when the email's status is `SENT`.
+  form marks it sent only for an email that will reach someone (above).
+- **Every email is built in one shell, `core/mail/mail.layout.ts`.** Account
+  emails call `renderEmail` (eyebrow, heading, code or button, notice);
+  a composed message is wrapped by `renderMessage` inside `MailService.deliver`.
+  Both always send a plain-text part too. No email builds its own HTML, and
+  every value from a person is escaped there. The brand is a text wordmark
+  until the logo setting exists; then pass `logoUrl` — an absolute,
+  publicly reachable URL, because an inbox cannot send our session cookie.
 - **A Postman run never emails a real person.** `26 · Email Templates`
   writes a probe client on `example.com`, which never delivers, and emails
-  only that.
+  only that. **Every seeded account and contact is on `example.com`** (or a
+  `*.example.com` subdomain for operators) since 7 Oct 2026 — the seed used
+  `@tribecajets.com` and real operators' domains, which a configured mail
+  server would have reached.
 
 ## Read every generated migration before it ships
 
@@ -1187,6 +1510,16 @@ This project uses shadcn/ui (the `base-nova` style, built on Base UI — `@base-
 - **Check `src/components/ui/` (shadcn primitives) and `src/components/common/` (our reusable wrappers) before writing new markup.** If shadcn has the component (button, input, checkbox, avatar, badge, table, sidebar, dropdown-menu, tooltip, sheet, collapsible, etc.), use it — don't hand-roll a `<button>`/`<input>`/status pill from scratch.
 - **Never import a `ui/*` primitive directly into a page or feature component.** Customize the primitive itself (its `cva` variants in `ui/button.jsx`, `ui/input.jsx`, etc.) so its *default* look already matches Figma, and/or wrap it in a `common/` component for anything with app-specific behavior (`CommonInput`, `CommonOTPInput`, `UserAvatar`, `StatusBadge`). Feature code imports from `common/` or the customized `ui/*`, never a raw unstyled primitive.
 - **Base UI's `Select.Root` needs an `items` prop to resolve a picked value back into its label — passing `value`/`onValueChange` alone is not enough.** Without it, `Select.Value` falls back to rendering the raw stored value (the enum, the id) instead of the option's label, because it resolves labels from `items`, never by inspecting the rendered `SelectItem` children. This bit every `<Select>` in the app at once — both wrapper components (`PickerSelect.jsx`, `CommonSelect.jsx`) are the only two places `<Select>` is rendered directly, and both now pass `items={normalizedOptions}`. If you add a third direct `<Select>` render anywhere, give it `items` too, or it will silently display ids again.
+- **A dropdown over a server list is `RecordPicker`** (`components/common/record-picker/`,
+  owner's design, 8 Oct 2026) — airports, operators, aircraft, clients,
+  brokers: search always visible, 10 a page by default with 10/25/50/100,
+  page numbers, all answered by the server, so there is no cap. It knows no
+  module: pass the module's own hooks (`useList`, and `useOne` to label a
+  saved id), fixed `params` and a `getOption(record) → { value, label,
+  description }`. Each module gets a thin wrapper (`AirportPicker` is the
+  first) and forms use the wrapper. A plain `PickerSelect` / `CommonSelect`
+  is for a fixed set of options (an enum), never for records. Forms move to
+  it as their module is reviewed; the Instant Estimate is the first.
 - **Forms**: use `CommonInput` (`src/components/common/CommonInput.jsx`) for every text/email/password/textarea field — pass `type`. Password show/hide state lives inside `CommonInput`, not in the parent. Use `CommonOTPInput` for any digit-code input.
 - **Icons**: prefer the Figma-exported SVGs under `public/dashboard/icons/` and `public/auth/icons/`. Only reach for `lucide-react` when Figma didn't export the icon you need (e.g. the password-hidden `EyeOff` state, or icons shadcn primitives require internally like sidebar/dropdown chevrons) — and when mixing is unavoidable for a matched pair (e.g. show/hide eye), use the same icon family for both states rather than mixing Figma + lucide within one control.
 - **Images**: always `next/image`, never `<img>`, never the `unoptimized` prop. Local assets under `public/` need no remote-pattern config. Use `fill` + a sized `relative` parent for background/cover photos, explicit `width`/`height` for everything else.
@@ -1194,6 +1527,12 @@ This project uses shadcn/ui (the `base-nova` style, built on Base UI — `@base-
 - **Every uploaded or gallery image is previewable, through one component.** Wrap it in `<ImagePreview>` (`src/components/common/image-preview/`) rather than a bare `<Image>` — hover shows an expand icon, click opens a full-screen zoom/pan lightbox, and passing the whole set an image belongs to (not just the one image) gets prev/next navigation for free. `FileUpload`'s upload bricks and `ItineraryPreview`'s aircraft gallery are the pattern to follow. This is the same "one reusable component, not one per screen" rule as everything else in this file — do not hand-roll a second hover-to-zoom treatment.
 - **A photo field that feeds a document offers the photo library.** Pass `library` to `FileUpload` (and `suggested` when the form knows which photos are relevant, as the quote form does with the chosen aircraft's). The library is every `PUBLIC` image already on the server — client adjustment #3's "stock image database" — so the desk picks a photo again rather than uploading it twice. Never build a second picker.
 - **Layouts, not wrappers**: if a visual shell wraps every page in a route group (the auth hero-split panel, the dashboard sidebar), it belongs in that group's `layout.js` — never re-imported and wrapped around each page's JSX by hand. `src/app/(auth)/layout.js` and `src/app/dashboard/layout.js` are the examples to follow.
+- **Never `window.confirm` / `alert`.** A question goes in
+  `components/common/ConfirmDialog.jsx`; a form that can lose work uses
+  `useUnsavedChangesGuard` (links and Cancel ask in that dialog; only tab
+  close and reload get the browser's prompt, which browsers insist on). A
+  refusal about the rows a dialog lists shows inside it (`BulkDeleteDialog`'s
+  `error`), not as a toast behind it.
 - **Reuse, don't duplicate.** Before adding a new status-color map, badge variant, or avatar treatment, check `src/components/common/StatusBadge.jsx` / `UserAvatar.jsx` first — these exist specifically because 4+ components used to hand-roll their own copies.
 
 ## Never duplicate code — extract a reusable component
@@ -1389,10 +1728,12 @@ copy is the bug this section exists to prevent.
 
 ## Do not offer an action the caller's role cannot perform
 
-`usePermissions()` (`src/hooks/common/usePermissions.js`) reads the matrix row
-the API ships with `/auth/me`. Use `canWrite(Permission.X)` to decide whether
-to render a write control — Add, Edit, Remove, Restore, bulk actions and the
-checkbox column that feeds them.
+`usePermissions()` (`src/hooks/common/usePermissions.js`) reads what the API
+ships with `/auth/me`. In a module moved to per-user permissions, use
+`canAccess(Module.X, Action.Y)`; in one still on the old matrix,
+`canWrite(Permission.X)`. Either decides whether to render a write control —
+Add, Edit, Remove, Restore, bulk actions and the checkbox column that feeds
+them.
 
 - **Hide, do not disable.** A greyed-out button invites a click and explains
   nothing. An assistant should see the record and the View action, not four
@@ -1413,8 +1754,8 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault. Not yet: the Clients table, Airports,
-Operators — each on its own turn.
+Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault, Reports, Airports and Operators (per-person: `canAccess(Module.X, …)`). Not
+yet: the Clients table — on its own turn.
 
 **A control narrower than a permission is gated by scope, not by
 `canWrite`.** A broker may edit a client (`MANAGE_CLIENTS` at `ASSIGNED`) but
@@ -1471,15 +1812,57 @@ requirements:
 - **Warn before acting.** Signing out silently loses whatever was on screen.
 
 **And the server has to refuse the refresh**, or the whole thing is a UI
-convention that anyone can switch off in a browser. The signal is the age of
-the refresh-token row: a rotation only happens once the access token has
-expired, so a session in continuous use presents a row at most one access-token
-lifetime old, while an abandoned one keeps ageing. Approximate, and always in
-the user's favour.
+convention that anyone can switch off in a browser. The signal is the
+session's **`lastActiveAt`**, moved only by real activity: the browser sends
+`POST /auth/activity` on real input — at most every two minutes, claimed
+through a shared `localStorage` stamp so one tab pings for all — and at once
+on "Stay signed in". The limit is the idle timeout plus five minutes of slack
+for that throttle; a renewal copies `lastActiveAt` forward, because renewing
+a token is not a person doing anything.
+
+It used to be the refresh token's *age*, which only resets when a request
+happens to find the access token expired. Someone reading, or typing a long
+form without saving, kept the browser's timer alive ("Stay signed in" reset
+only the browser) while the server's clock ran out, and the next reload
+landed on sign-in (fixed 7 Oct 2026). **Any new "I'm still here" path must
+reach the server.**
 
 **The limit ships from `/auth/me`, never from the frontend's own env** — the
 same reason the permission matrix does. Two copies of one number drift, and
 they drift silently.
+
+## A session is one device, and only theft ends them all
+
+Every sign-in is its own `RefreshToken` chain — one per browser — renewed
+independently and carrying `sessionStartedAt` forward on each rotation. What
+ends what is fixed (6 Oct 2026):
+
+- **One device:** signing out, its idle timeout, its own expiry, and being
+  revoked from the sessions list. **An idle refusal revokes only the row it
+  refused.** It used to revoke every session the user had, so a phone left
+  on a desk signed the owner out of the laptop they were working on.
+- **Two tabs renewing at once is not theft.** They share one cookie jar, so
+  the second arrives with the token the first just replaced. A token rotated
+  within the last 30 seconds whose replacement is still live is answered
+  with the session and no new cookies (`ROTATION_GRACE_MS`); outside that
+  window a replay still ends every session.
+- **Every device:** a reused refresh token (theft), a password reset, an
+  administrator suspending the account (the per-request user check), and a
+  signed-in password change — which keeps the device that made it.
+
+`GET /auth/sessions` lists only sessions that could still refresh — not
+revoked, not expired, not idle past the limit — because a closed browser
+holds a token nobody revoked and must not read as signed in. There is **no
+location column**: it would need a paid IP-lookup service. Two-factor carries
+the sign-in's "Remember me" on the verification code (`rememberMe`), or a
+two-factor account always got the short session.
+
+The signed-in user's own account — profile, photo (`users.avatarUrl`, an
+upload URL), password, two-factor, devices — is `/auth/*` and the
+`/dashboard/account` page, with no permission decorator: every route acts
+only on the caller's own row. A password or two-factor change re-checks the
+current password and answers a wrong one with **400, not 401** — a 401 would
+send the browser into a pointless refresh-and-retry.
 
 ## Required fields must agree with the API
 

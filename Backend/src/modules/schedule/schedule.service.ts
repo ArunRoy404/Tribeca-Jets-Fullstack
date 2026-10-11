@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { paginate, type AuthenticatedUser, type Paginated } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
-import { Permission, Scope, scopeFor } from '../../common/authorization/permissions.js';
+import { Action, canDo, Module } from '../../common/authorization/access.js';
 import { todayUtc } from '../../common/money/settlement.js';
 import { TripsService, type ScheduleFilter } from '../trips/trips.service.js';
 import { serialiseLeg } from '../trips/trips.legs.js';
@@ -33,7 +33,7 @@ export class ScheduleService {
       query.to,
       toPrismaPagination(query),
     );
-    const receivables = scopeFor(user.role, Permission.VIEW_RECEIVABLES) !== Scope.NONE;
+    const receivables = canDo(user.access, Module.RECEIVABLES, Action.VIEW);
     return paginate(
       rows.map((row) => serialiseLeg(row, receivables)),
       total,

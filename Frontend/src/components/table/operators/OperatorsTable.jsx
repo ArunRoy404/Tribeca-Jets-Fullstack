@@ -40,6 +40,7 @@ export default function OperatorsTable({
   getRowActions,
   onSelectOperator,
   archived = false,
+  selectable = true,
 }) {
   const columns = archived ? ARCHIVED_COLUMNS : LIVE_COLUMNS;
   return (
@@ -47,12 +48,14 @@ export default function OperatorsTable({
       <Table className="min-w-[1100px]">
         <TableHeader>
           <TableRow className="bg-black/10 border-border hover:bg-black/10">
-            <TableHead className="w-10 p-[10px]">
-              <Checkbox
-                checked={selected?.size === pageOperators?.length && pageOperators?.length > 0}
-                onCheckedChange={onSelectAll}
-              />
-            </TableHead>
+            {selectable ? (
+              <TableHead className="w-10 p-[10px]">
+                <Checkbox
+                  checked={selected?.size === pageOperators?.length && pageOperators?.length > 0}
+                  onCheckedChange={onSelectAll}
+                />
+              </TableHead>
+            ) : null}
             {columns?.map((col) => (
               <TableHead key={col} className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center whitespace-nowrap h-auto">
                 {col}
@@ -70,11 +73,12 @@ export default function OperatorsTable({
               getRowActions={getRowActions}
               onSelectOperator={onSelectOperator}
               archived={archived}
+              selectable={selectable}
             />
           ))}
           {pageOperators?.length === 0 && (
             <TableRow>
-              <TableCell colSpan={columns?.length + 1} className="p-6 text-center font-montserrat text-[12px] text-muted-foreground">
+              <TableCell colSpan={columns?.length + (selectable ? 1 : 0)} className="p-6 text-center font-montserrat text-[12px] text-muted-foreground">
                 No operators match the current filters.
               </TableCell>
             </TableRow>

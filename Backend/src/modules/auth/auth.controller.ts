@@ -1,12 +1,20 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
+  Query,
   Req,
   Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -19,11 +27,20 @@ import {
   TWO_FACTOR_COOKIE,
 } from '../../common/constants/auth.constants.js';
 import { StorageService } from '../../core/storage/storage.service.js';
-import { AppConfigService } from '../../config/config.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { permissionsFor } from '../../common/authorization/permissions.js';
 import { AuthService } from './auth.service.js';
 import { TokenService, type SessionContext } from './token.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import {
+  ChangePasswordDto,
+  SessionsQueryDto,
+  SetTwoFactorDto,
+  UpdateProfileDto,
+} from './dto/account.dto.js';
+import { describeUserAgent } from './user-agent.js';
+import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
+import { paginate } from '../../common/types/api.types.js';
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
@@ -50,7 +67,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly tokens: TokenService,
     private readonly storage: StorageService,
-    private readonly config: AppConfigService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   private contextOf(req: Request): SessionContext {
@@ -87,8 +104,8 @@ export class AuthController {
     const context = this.contextOf(req);
     const user = await this.auth.validateCredentials(dto, context);
 
-    if (user.twoFactorEnabled) {
-      const challenge = await this.auth.startTwoFactorChallenge(user, context);
+    if (user.twoFactorRequired) {
+      const challenge = await this.auth.startTwoFactorChallenge(user, context, dto.rememberMe);
       this.tokens.setChallenge(
         res,
         'twoFactor',
@@ -109,7 +126,7 @@ export class AuthController {
 
     return {
       requiresTwoFactor: false,
-      user: await this.auth.getProfile(user.id),
+      user: await this.session(await this.auth.getProfile(user.id)),
     };
   }
 
@@ -129,10 +146,10 @@ export class AuthController {
     const context = this.contextOf(req);
     const challengeToken = req.cookies?.[TWO_FACTOR_COOKIE] as string | undefined;
 
-    const user = await this.auth.verifyTwoFactor(challengeToken, dto.code, context);
-    await this.tokens.startSession(res, user, context);
+    const { user, rememberMe } = await this.auth.verifyTwoFactor(challengeToken, dto.code, context);
+    await this.tokens.startSession(res, user, context, rememberMe);
 
-    return { user: await this.auth.getProfile(user.id) };
+    return { user: await this.session(await this.auth.getProfile(user.id)) };
   }
 
   @Public()
@@ -183,7 +200,32 @@ export class AuthController {
       presented,
       this.contextOf(req),
     );
-    return this.auth.getProfile(user.id);
+    return this.session(await this.auth.getProfile(user.id));
+  }
+
+  /**
+   * The browser's activity ping: a person clicked or typed on this device.
+   * Throttled there to one every couple of minutes, shared across tabs.
+   *
+   * Public like refresh, because the refresh cookie — scoped to `/api/auth`
+   * — is what names the session, and an expired access token must not stop
+   * a person who is actively working from being counted as active.
+   */
+  @Public()
+  @RateLimit({ limit: 120, windowSeconds: 900 })
+  @Post('activity')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Record activity on this device',
+    description:
+      "Moves this session's last-active time to now, so the server's idle limit follows what the person does rather than when a token happened to be renewed. 401 when the session is gone, expired or already idle past the limit. No body.",
+  })
+  async activity(@Req() req: Request) {
+    const presented = req.cookies?.[REFRESH_TOKEN_COOKIE] as string | undefined;
+    if (!(await this.tokens.touchSession(presented))) {
+      throw new UnauthorizedException('This session has ended. Please sign in again.');
+    }
+    return { active: true };
   }
 
   @Public()
@@ -202,15 +244,50 @@ export class AuthController {
   @ApiOperation({
     summary: 'Current user',
     description:
-      'How the frontend learns who is signed in — the session token is httpOnly and unreadable by JavaScript. Carries `permissions`, the caller\'s row of the permission matrix, so the UI can hide actions their role cannot perform.',
+      'How the frontend learns who is signed in — the session token is httpOnly and unreadable by JavaScript. Carries `permissions` — the caller\'s own module permissions with their reach — so the UI can hide modules and actions they do not have, and `matrix`, the old role matrix for modules not yet moved over.',
   })
-  async me(@CurrentUser('id') userId: string) {
+  async me(@CurrentUser('id') userId: string, @Res({ passthrough: true }) res: Response) {
     const profile = await this.auth.getProfile(userId);
+    // Keeps the proxy's routing hint in step with permissions an
+    // administrator changed since this session began.
+    this.tokens.writeModulesCookie(res, profile.access, profile.role);
+    return this.session(profile);
+  }
+
+  /**
+   * The idle policy the browser follows, from the company's Settings
+   * (Security & Session) — never the frontend's own copy.
+   */
+  private sessionPolicy() {
+    const settings = this.settingsService.current();
     return {
-      ...profile,
-      avatarUrl: await this.storage.signedUrlOrNull(profile.avatarKey),
+      idleTimeoutMinutes: settings.idleTimeoutMinutes,
+      idleWarningMinutes: settings.idleWarningMinutes,
+      showIdleWarning: settings.showIdleWarning,
+    };
+  }
+
+  /**
+   * The `/auth/me` shape, built in one place so every My Account write can
+   * answer with exactly what the session query caches.
+   */
+  private async session(profile: Awaited<ReturnType<AuthService['getProfile']>>) {
+    const { avatarKey, access, ...rest } = profile;
+    return {
+      ...rest,
+      // An upload URL from My Account; the legacy storage key only as a
+      // fallback for a photo set before that existed.
+      avatarUrl: profile.avatarUrl ?? (await this.storage.signedUrlOrNull(avatarKey)),
       /**
-       * The caller's row of the permission matrix, as `{ PERMISSION: Scope }`.
+       * This person's own permissions (7 Oct 2026), as
+       * `{ MODULE: { reach, actions } }`. A module that is absent has no
+       * access: the sidebar hides it and the browser cannot open it. Same
+       * caveat as below — it renders buttons; the API enforces.
+       */
+      permissions: access,
+      /**
+       * The old role matrix, as `{ PERMISSION: Scope }`, for the modules not
+       * yet moved to the per-user permissions. Goes when the last one moves.
        *
        * Sent so the UI can stop offering actions the guard will refuse — an
        * assistant seeing Edit and Remove on every aircraft, then getting a 403
@@ -222,7 +299,7 @@ export class AuthController {
        * frontend re-derive it from `role` is the whole point — a second copy
        * of the matrix in JavaScript would drift the first time a scope changed.
        */
-      permissions: permissionsFor(profile.role),
+      matrix: permissionsFor(profile.role),
       /**
        * Session policy the browser has to honour, shipped from here for the
        * same reason the permission matrix is: a copy of the number in the
@@ -234,10 +311,120 @@ export class AuthController {
        * refuses a refresh for a session that has demonstrably been idle past
        * it, so the two agree without either trusting the other.
        */
-      session: {
-        idleTimeoutMinutes: this.config.auth.idleTimeoutMinutes,
-      },
+      session: this.sessionPolicy(),
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // My Account — no permission decorator: every route acts only on the
+  // caller's own row, which the session already identifies.
+  // ---------------------------------------------------------------------------
+
+  @Patch('me')
+  @ApiOperation({
+    summary: 'Update your own profile',
+    description:
+      'First name, last name, phone and photo (an upload URL from POST /uploads/image, or null). ' +
+      'Email, role and status are not accepted here. Answers with the same shape as GET /auth/me.',
+  })
+  async updateMe(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateProfileDto,
+    @Req() req: Request,
+  ) {
+    return this.session(await this.auth.updateProfile(userId, dto, this.contextOf(req)));
+  }
+
+  @RateLimit({ limit: 5, windowSeconds: 900 })
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Change your password',
+    description:
+      'Needs the current password. Signs out every other session; this one stays signed in.',
+  })
+  async changePassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+  ) {
+    const keep = await this.tokens.currentSessionId(userId, this.refreshCookie(req));
+    const result = await this.auth.changePassword(userId, dto, keep, this.contextOf(req));
+    return { message: 'Your password has been changed.', ...result };
+  }
+
+  @RateLimit({ limit: 5, windowSeconds: 900 })
+  @Patch('two-factor')
+  @ApiOperation({
+    summary: 'Turn your own two-factor on or off',
+    description: 'Needs the current password either way. Answers with the GET /auth/me shape.',
+  })
+  async setTwoFactor(
+    @CurrentUser('id') userId: string,
+    @Body() dto: SetTwoFactorDto,
+    @Req() req: Request,
+  ) {
+    return this.session(await this.auth.setTwoFactor(userId, dto, this.contextOf(req)));
+  }
+
+  @Get('sessions')
+  @ApiOperation({
+    summary: 'Your signed-in devices',
+    description:
+      'One row per live session — not revoked, not expired, not idle past the limit — most ' +
+      'recently active first. `current` marks the device making this request.',
+  })
+  async sessions(
+    @CurrentUser('id') userId: string,
+    @Query() query: SessionsQueryDto,
+    @Req() req: Request,
+  ) {
+    const { skip, take } = toPrismaPagination(query);
+    const [{ rows, total }, currentId] = await Promise.all([
+      this.tokens.listSessions(userId, skip, take),
+      this.tokens.currentSessionId(userId, this.refreshCookie(req)),
+    ]);
+    const items = rows.map((row) => ({
+      id: row.id,
+      device: describeUserAgent(row.userAgent),
+      ipAddress: row.ipAddress,
+      signedInAt: row.sessionStartedAt,
+      lastActiveAt: row.lastActiveAt,
+      current: row.id === currentId,
+    }));
+    return paginate(items, total, query.page, query.limit);
+  }
+
+  @Post('sessions/revoke-others')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sign out every other device' })
+  async revokeOtherSessions(@CurrentUser('id') userId: string, @Req() req: Request) {
+    const keep = await this.tokens.currentSessionId(userId, this.refreshCookie(req));
+    return { signedOutSessions: await this.tokens.revokeOtherSessions(userId, keep) };
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Sign out one device',
+    description:
+      '404 for an id that is not one of your live sessions. Not for this device — use logout.',
+  })
+  async revokeSession(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    if (id === (await this.tokens.currentSessionId(userId, this.refreshCookie(req)))) {
+      throw new BadRequestException('That is this device. Use Sign out instead.');
+    }
+    if (!(await this.tokens.revokeOwnSession(userId, id))) {
+      throw new NotFoundException('That session does not exist');
+    }
+  }
+
+  private refreshCookie(req: Request): string | undefined {
+    return req.cookies?.[REFRESH_TOKEN_COOKIE] as string | undefined;
   }
 
   // ---------------------------------------------------------------------------

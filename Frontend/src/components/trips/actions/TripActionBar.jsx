@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { useChangeTripStatus } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { isStepBack, moveVerb } from "@/lib/trip";
 
 /**
@@ -18,12 +18,12 @@ import { isStepBack, moveVerb } from "@/lib/trip";
  * is sent from the Email Templates screen, which can address one.
  */
 export default function TripActionBar({ trip }) {
-  const { canWrite } = usePermissions();
+  const { canAccess } = usePermissions();
   const { mutate: move, isPending } = useChangeTripStatus();
   const [composeOpen, setComposeOpen] = useState(false);
 
-  const mayMove = canWrite(Permission.MANAGE_TRIPS);
-  const maySend = canWrite(Permission.SEND_EMAILS) && Boolean(trip?.clientId);
+  const mayMove = canAccess(Module.TRIPS, Action.EDIT);
+  const maySend = canAccess(Module.EMAIL_TEMPLATES, Action.SEND) && Boolean(trip?.clientId);
   if (trip?.isArchived || (!mayMove && !maySend)) return null;
   const moves = mayMove ? (trip?.nextStatuses ?? []) : [];
 

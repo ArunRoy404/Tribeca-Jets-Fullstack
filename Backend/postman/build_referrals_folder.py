@@ -4,7 +4,7 @@ Builds `18 · Referrals` (client adjustment #11) — the referral agent's side
 and the desk's, plus the portal's Resources — capturing every example from a
 live API.
 
-    npm run db:seed          # the seeded referral agent, agent@tribecajets.com
+    npm run db:seed          # the seeded referral agent, agent@example.com
     npm run start:dev
     python3 postman/build_referrals_folder.py
     cd postman && python3 rewrite_body_comments.py
@@ -24,7 +24,7 @@ from builder_common import (
 from collection_order import place_folder
 
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
-AGENT_EMAIL = 'agent@tribecajets.com'
+AGENT_EMAIL = 'agent@example.com'
 DOCUMENT = FIXTURES / 'sample-document.pdf'
 STATUSES = 'SUBMITTED | CONTACTED | QUOTING | BOOKED | COMPLETED | LOST | CANCELLED'
 CATEGORIES = 'TURBOPROP | LIGHT_JET | MIDSIZE_JET | SUPER_MIDSIZE | HEAVY_JET | ULTRA_LONG_RANGE | VIP_AIRLINER'
@@ -564,15 +564,15 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
             'Client adjustment #11 — the referral partner portal and the desk\'s side of it. A referral agent '
             'submits and reads their own referrals; the desk converts, works and books them; linking the booked '
             'trip raises the agent\'s commission.\n\nRequests marked "(as the agent)" sign in as the seeded '
-            '`agent@tribecajets.com` for that request; the next request signs the owner back in. Runs alone and '
+            '`agent@example.com` for that request; the next request signs the owner back in. Runs alone and '
             'archives everything it created.'),
         'item': items,
     }
 
 
 def main() -> None:
-    owner = Session('admin@tribecajets.com')
-    broker = Session('broker@tribecajets.com')
+    owner = Session('admin@example.com')
+    broker = Session('broker@example.com')
     agent = Session(AGENT_EMAIL)
     anonymous = Session(None)
 

@@ -17,11 +17,11 @@ only because it happened to carry its own login.
 # A value used by both a request body and a script gets a variable; a value
 # used once stays a literal, where it is easier to read than an indirection.
 ACCOUNTS = {
-    "owner": ("admin@tribecajets.com", "the seeded SUPER_ADMIN", "ownerEmail"),
-    "admin": ("security@tribecajets.com", "an ADMIN (two-factor enabled)", None),
-    "senior": ("senior@tribecajets.com", "a SENIOR_BROKER", None),
-    "broker": ("broker@tribecajets.com", "a BROKER — no Manage Users", None),
-    "assistant": ("assistant@tribecajets.com", "an ASSISTANT", None),
+    "owner": ("admin@example.com", "the seeded SUPER_ADMIN", "ownerEmail"),
+    "admin": ("security@example.com", "an ADMIN (two-factor enabled)", None),
+    "senior": ("senior@example.com", "a second BROKER (Senior Broker was withdrawn)", None),
+    "broker": ("broker@example.com", "a BROKER — no Users & Roles", None),
+    "assistant": ("assistant@example.com", "an ASSISTANT", None),
 }
 
 PASSWORD = "ChangeMe123!"
@@ -54,8 +54,9 @@ def session_script(account: str) -> dict:
                 f"const NEEDED = '{account}';",
                 "",
                 "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+                "    const baseUrl = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
                 "    pm.sendRequest({",
-                "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+                "        url: baseUrl + '/auth/login',",
                 "        method: 'POST',",
                 "        header: { 'Content-Type': 'application/json' },",
                 "        body: {",
@@ -75,7 +76,7 @@ def session_script(account: str) -> dict:
                 "        if (body && body.data && body.data.requiresTwoFactor) {",
                 "            const code = body.data.devCode && body.data.devCode.code;",
                 "            pm.sendRequest({",
-                "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+                "                url: baseUrl + '/auth/two-factor/verify',",
                 "                method: 'POST',",
                 "                header: { 'Content-Type': 'application/json' },",
                 "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",

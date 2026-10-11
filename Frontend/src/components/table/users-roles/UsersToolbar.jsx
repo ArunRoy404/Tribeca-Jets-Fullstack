@@ -30,8 +30,8 @@ const ALL_STATUS = "All Status";
 /**
  * The dropdowns show words; the URL and the API carry enum constants. The
  * translation happens here at the edge so nothing downstream has to know
- * about display labels — and so `SENIOR_BROKER` never leaks into the UI or
- * `"Senior Broker"` into a request.
+ * about display labels — and so `REFERRAL_AGENT` never leaks into the UI or
+ * `"Referral Agent"` into a request.
  */
 export default function UsersToolbar({
   activeTab,
@@ -79,7 +79,8 @@ export default function UsersToolbar({
           value={TAB_LABELS[activeTab] ?? TAB_LABELS[USERS_TABS.MEMBERS]}
           onValueChange={(label) => setActiveTab?.(TAB_IDS[label] ?? USERS_TABS.MEMBERS)}
         />
-        {!isRolesTab && (
+        {/* Absent without Users & Roles · Invite — the container passes no handler. */}
+        {!isRolesTab && onInviteUser && (
           <Button
             variant="outline"
             size="sm"

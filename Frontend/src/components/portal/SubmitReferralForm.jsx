@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
+import AirportPicker from "@/components/airports/AirportPicker";
 import CommonCard from "@/components/common/CommonCard";
 import CommonInput from "@/components/common/CommonInput";
 import CommonSelect from "@/components/common/CommonSelect";
@@ -12,7 +13,6 @@ import SectionHeader from "@/components/common/SectionHeader";
 import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
 import FormField from "@/components/trips/FormField";
 import { Button } from "@/components/ui/button";
-import { useAirports } from "@/hooks/airports";
 import { useCurrentUser } from "@/hooks/auth";
 import { useSubmitReferral } from "@/hooks/referrals";
 import { FILTERABLE_AIRCRAFT_CATEGORIES, formatAircraftCategory } from "@/lib/aircraft";
@@ -66,12 +66,6 @@ export default function SubmitReferralForm() {
   const [errors, setErrors] = useState({});
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
   const setText = (field) => (event) => set(field)(event.target.value);
-
-  const { data: airports } = useAirports({ limit: 100, sortBy: "icao", sortOrder: "asc" });
-  const airportOptions = useMemo(
-    () => (airports?.data ?? []).map((a) => ({ value: a.id, label: `${a.icao} · ${a.city ?? a.name}` })),
-    [airports?.data],
-  );
 
   const { mutate: submit, isPending } = useSubmitReferral();
 
@@ -155,13 +149,16 @@ export default function SubmitReferralForm() {
           <legend className="mb-3 font-montserrat font-bold text-[15px] text-foreground">Trip (Optional)</legend>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Departure airport" error={errors.originAirportId}>
-              <CommonSelect value={form.originAirportId} onChange={set("originAirportId")} options={airportOptions} placeholder="Choose airport" />
+              <AirportPicker
+                value={form.originAirportId}
+                onChange={(val) => set("originAirportId")(val || "")}
+                placeholder="Choose airport"
+              />
             </FormField>
             <FormField label="Arrival airport" error={errors.destinationAirportId}>
-              <CommonSelect
+              <AirportPicker
                 value={form.destinationAirportId}
-                onChange={set("destinationAirportId")}
-                options={airportOptions}
+                onChange={(val) => set("destinationAirportId")(val || "")}
                 placeholder="Choose airport"
               />
             </FormField>

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AirportsModule } from '../airports/airports.module.js';
 import { ClientsModule } from '../clients/clients.module.js';
 import { TripRequestsModule } from '../trip-requests/trip-requests.module.js';
 import { TripsModule } from '../trips/trips.module.js';
@@ -15,7 +16,7 @@ import { ReferralResourcesService } from './referral-resources.service.js';
  * nothing that imports it.
  */
 @Module({
-  imports: [ClientsModule, TripRequestsModule, TripsModule, CommissionsModule, UploadsModule],
+  imports: [AirportsModule, ClientsModule, TripRequestsModule, TripsModule, CommissionsModule, UploadsModule],
   controllers: [ReferralsController, ReferralResourcesController],
   providers: [ReferralsService, ReferralResourcesService],
   exports: [ReferralsService],

@@ -1,12 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useCreateTask, useTask, useUpdateTask } from "@/hooks/tasks";
-import { useUsers } from "@/hooks/users";
-import { useClients } from "@/hooks/clients";
-import { useTrips } from "@/hooks/trips";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,59 +12,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import FormField from "@/components/trips/FormField";
 import PickerSelect from "@/components/trips/PickerSelect";
 import DatePicker from "@/components/common/DatePicker";
+import AssigneePicker from "@/components/users/AssigneePicker";
+import ClientPicker from "@/components/clients/ClientPicker";
+import TripPicker from "@/components/trips/TripPicker";
 import { optionalText } from "@/lib/form";
 import { TASK_COLUMNS, TASK_PRIORITIES, formatTaskPriority, toTask } from "@/lib/task";
-import { displayName } from "@/lib/client";
-import { personName } from "@/lib/lead";
-import { formatTripReference } from "@/lib/trip";
 import { cn } from "@/lib/utils";
 
 const FIELD_CLASS = "h-13 px-4 rounded-sm text-base font-medium";
 const LABEL_CLASS = "text-[16px] text-foreground mb-2";
-const NONE = "__none__";
 
 const STATUS_OPTIONS = TASK_COLUMNS.map((column) => ({ value: column.key, label: column.label }));
 const PRIORITY_OPTIONS = TASK_PRIORITIES.map((value) => ({ value, label: formatTaskPriority(value) }));
 
-/** A picked id, or — for "none" — nothing on create and null (clear) on edit. */
-const pickedId = (value, editing) => (value && value !== NONE ? value : editing ? null : undefined);
-
-/**
- * The pickers, from the API. Anyone on staff can be given a task — a
- * suspended account and the referral agent cannot, and are left off, the same
- * rule the API applies. Client and trip are real records, never a typed name.
- */
-function useTaskFormOptions() {
-  const { data: users } = useUsers({ limit: 100 });
-  const { data: clients } = useClients({ limit: 100 });
-  const { data: trips } = useTrips({ limit: 100, sortBy: "departureDate", sortOrder: "desc" });
-  return useMemo(
-    () => ({
-      assignees: [
-        { value: NONE, label: "Unassigned" },
-        ...(users?.data ?? [])
-          .filter((u) => u?.role !== "REFERRAL_AGENT" && u?.status !== "SUSPENDED")
-          .map((u) => ({ value: u.id, label: personName(u) })),
-      ],
-      clients: [
-        { value: NONE, label: "No client" },
-        ...(clients?.data ?? []).map((c) => ({ value: c.id, label: displayName(c) })),
-      ],
-      trips: [
-        { value: NONE, label: "No trip" },
-        ...(trips?.data ?? []).map((t) => ({
-          value: t.id,
-          label: [formatTripReference(t.reference), t.client ? displayName(t.client) : null].filter(Boolean).join(" · "),
-        })),
-      ],
-    }),
-    [users?.data, clients?.data, trips?.data],
-  );
-}
+/** A picked id, or — for empty — undefined on create and null (clear) on edit. */
+const pickedId = (value, editing) => (value ? value : editing ? null : undefined);
 
 function TaskForm({ task, defaultStatus, onClose }) {
   const editing = Boolean(task);
-  const options = useTaskFormOptions();
   const { mutate: createTask, isPending: creating } = useCreateTask();
   const { mutate: updateTask, isPending: updating } = useUpdateTask();
   const [errors, setErrors] = useState({});
@@ -76,10 +38,10 @@ function TaskForm({ task, defaultStatus, onClose }) {
     description: task?.description ?? "",
     status: task?.status ?? defaultStatus,
     priority: task?.priority ?? "MEDIUM",
-    assigneeId: task?.assigneeId || NONE,
+    assigneeId: task?.assigneeId || null,
     dueDate: task?.dueDate ?? "",
-    clientId: task?.clientId || NONE,
-    tripId: task?.tripId || NONE,
+    clientId: task?.clientId || null,
+    tripId: task?.tripId || null,
     checklist: task?.checklist ?? [],
     notes: task?.notes ?? "",
   }));
@@ -150,7 +112,7 @@ function TaskForm({ task, defaultStatus, onClose }) {
 
       <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
         <FormField label="Assign To (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0" error={errors.assigneeId}>
-          <PickerSelect value={form.assigneeId} onChange={setField("assigneeId")} options={options.assignees} placeholder="Select" className={FIELD_CLASS} />
+          <AssigneePicker value={form.assigneeId} onChange={setField("assigneeId")} placeholder="Select staff member" />
         </FormField>
         <FormField label="Due date (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0" error={errors.dueDate}>
           <DatePicker className={FIELD_CLASS} value={form.dueDate} onChange={setField("dueDate")} placeholder="Choose Date" />
@@ -159,10 +121,25 @@ function TaskForm({ task, defaultStatus, onClose }) {
 
       <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
         <FormField label="Client (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0" error={errors.clientId}>
-          <PickerSelect value={form.clientId} onChange={setField("clientId")} options={options.clients} placeholder="Select" className={FIELD_CLASS} />
+          <ClientPicker
+            value={form.clientId}
+            onChange={(val) => {
+              setForm((prev) => ({
+                ...prev,
+                clientId: val,
+                tripId: prev.clientId !== val ? null : prev.tripId,
+              }));
+            }}
+            placeholder="Select client"
+          />
         </FormField>
         <FormField label="Trip (Optional)" labelClassName={LABEL_CLASS} className="flex-1 min-w-0" error={errors.tripId}>
-          <PickerSelect value={form.tripId} onChange={setField("tripId")} options={options.trips} placeholder="Select" className={FIELD_CLASS} />
+          <TripPicker
+            value={form.tripId}
+            onChange={setField("tripId")}
+            params={form.clientId ? { clientId: form.clientId } : undefined}
+            placeholder="Select trip"
+          />
         </FormField>
       </div>
 

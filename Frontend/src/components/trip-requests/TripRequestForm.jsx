@@ -1,27 +1,37 @@
 "use client";
 
 import { useMemo } from "react";
-import { useClients } from "@/hooks/clients";
-import { useAirports } from "@/hooks/airports";
+import ClientPicker from "@/components/clients/ClientPicker";
+import AirportPicker from "@/components/airports/AirportPicker";
+import BrokerPicker from "@/components/users/BrokerPicker";
+import CommonSelect from "@/components/common/CommonSelect";
 import {
   FILTERABLE_AIRCRAFT_CATEGORIES,
   formatAircraftCategory,
 } from "@/lib/aircraft";
-import { LEAD_SOURCES, REQUEST_STATUSES, formatLeadSource, formatRequestStatus } from "@/lib/lead";
-import { displayName } from "@/lib/client";
+import {
+  LEAD_FORM_SOURCES,
+  REQUEST_STATUSES,
+  formatLeadSource,
+  formatRequestStatus,
+} from "@/lib/lead";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import FormField from "@/components/trips/FormField";
-import PickerSelect from "@/components/trips/PickerSelect";
 import DatePicker from "@/components/common/DatePicker";
 import { optionalNumber, optionalText } from "@/lib/form";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { useCurrentUser } from "@/hooks/auth";
+import { Action, Module, Reach } from "@/lib/access";
+import { isAdministratorRole } from "@/lib/roles";
 
-const FIELD_CLASS = "h-13 px-4 rounded-sm text-base font-medium";
-const LABEL_CLASS = "text-[16px] text-foreground mb-2";
+const FIELD_CLASS = "h-11 px-3.5 rounded-md text-sm font-medium";
+const LABEL_CLASS = "text-[13px] font-semibold text-foreground mb-1.5";
 
 /** The shape both callers start from, so neither has to remember the field list. */
 export const EMPTY_TRIP_REQUEST_FORM = {
   clientId: "",
+  assignedBrokerId: "",
   status: "OPEN",
   source: "",
   aircraftPreference: "",
@@ -40,19 +50,8 @@ export const EMPTY_TRIP_REQUEST_FORM = {
 /**
  * The fields of an enquiry, shared by every screen that files one.
  *
- * Extracted the moment a second caller needed them: the Trip Requests page and
- * the Operator Sourcing board are both writing a `TripRequest`, and two copies
- * of a twelve-field form drift the first time the API gains a column — which,
- * in a project whose schema is deliberately built module by module, it will.
- *
- * Callers own the state and the submit; this owns the fields, the option lists
- * and the layout. `sections` lets a caller show only the part it means:
- * sourcing does not ask for a status, and the enquiry log does not lead with a
- * quote deadline.
- *
- * **Nothing here defaults a value onto the wire.** Every box starts empty and
- * an untouched field is omitted from the payload, because a form that
- * pre-fills a budget files requests carrying a number nobody agreed.
+ * Uses shared pickers: ClientPicker, AirportPicker, BrokerPicker, and CommonSelect.
+ * Paged and searched server-side.
  */
 export default function TripRequestForm({
   form,
@@ -64,31 +63,25 @@ export default function TripRequestForm({
   showReturnDate = true,
   showNotes = true,
 }) {
-  // Real records, not a list of names — the payload carries ids, so nothing
-  // has to be looked back up by its display text.
-  const { data: clients } = useClients({ limit: 100 }, { enabled });
-  const { data: airports } = useAirports({ limit: 100 }, { enabled });
+  const { canAccess, reachOf } = usePermissions();
+  const { data: currentUser } = useCurrentUser();
+  const mayAssignBroker =
+    canAccess(Module.TRIP_REQUESTS, Action.ASSIGN) ||
+    canAccess(Module.LEADS_AGENTS, Action.ASSIGN) ||
+    reachOf(Module.TRIP_REQUESTS) === Reach.ALL ||
+    isAdministratorRole(currentUser?.role);
 
-  const clientOptions = useMemo(
-    () => (clients?.data ?? []).map((c) => ({ value: c.id, label: displayName(c) })),
-    [clients?.data],
-  );
-  const airportOptions = useMemo(
-    () =>
-      (airports?.data ?? []).map((a) => ({
-        value: a.id,
-        label: `${a.icao} · ${a.city ?? a.name}`,
-      })),
-    [airports?.data],
-  );
   const categoryOptions = useMemo(
-    () =>
-      FILTERABLE_AIRCRAFT_CATEGORIES.map((value) => ({
+    () => [
+      { value: "", label: "No preference" },
+      ...FILTERABLE_AIRCRAFT_CATEGORIES.map((value) => ({
         value,
         label: formatAircraftCategory(value),
       })),
+    ],
     [],
   );
+
   const statusOptions = useMemo(
     () =>
       REQUEST_STATUSES.map((value) => ({
@@ -97,108 +90,194 @@ export default function TripRequestForm({
       })),
     [],
   );
+
   const sourceOptions = useMemo(
-    () => LEAD_SOURCES.map((value) => ({ value, label: formatLeadSource(value) })),
+    () => [
+      { value: "", label: "Not recorded" },
+      ...LEAD_FORM_SOURCES.map((value) => ({
+        value,
+        label: formatLeadSource(value),
+      })),
+    ],
     [],
   );
 
+  const handleClientChange = (clientId, rawClient) => {
+    setField?.("clientId")(clientId || "");
+    if (rawClient) {
+      if (rawClient.assignedBrokerId && mayAssignBroker) {
+        setField?.("assignedBrokerId")(rawClient.assignedBrokerId);
+      }
+      if (rawClient.leadSource && !form?.source && showSource) {
+        setField?.("source")(rawClient.leadSource);
+      }
+      if (rawClient.homeAirportId && !form?.originAirportId) {
+        setField?.("originAirportId")(rawClient.homeAirportId);
+      }
+    }
+  };
+
+  const handleDepartureDateChange = (val) => {
+    setField?.("departureDate")(val);
+    if (val && form?.returnDate && form.returnDate < val) {
+      setField?.("returnDate")(val);
+    }
+  };
+
+  const isDateInvalid = Boolean(
+    form?.departureDate && form?.returnDate && form.departureDate > form.returnDate,
+  );
+
   return (
-    <>
-      <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
-        <FormField label="Client" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
-          <PickerSelect
+    <div className="flex flex-col gap-4 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start w-full">
+        <FormField label="Client *" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+          <ClientPicker
             value={form?.clientId}
-            onChange={setField?.("clientId")}
-            options={clientOptions}
+            onChange={handleClientChange}
             placeholder="Select client"
-            className={FIELD_CLASS}
           />
         </FormField>
-        <FormField label="Aircraft needed" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
-          <PickerSelect
-            value={form?.aircraftPreference}
-            onChange={setField?.("aircraftPreference")}
-            options={categoryOptions}
-            placeholder="No preference"
-            className={FIELD_CLASS}
-          />
-        </FormField>
+
+        {mayAssignBroker ? (
+          <FormField label="Assigned Broker" optional labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+            <BrokerPicker
+              value={form?.assignedBrokerId}
+              onChange={(val) => setField?.("assignedBrokerId")(val || "")}
+              placeholder="Unassigned"
+            />
+          </FormField>
+        ) : (
+          <FormField label="Aircraft needed" optional labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+            <CommonSelect
+              value={form?.aircraftPreference}
+              onChange={setField?.("aircraftPreference")}
+              options={categoryOptions}
+              placeholder="No preference"
+            />
+          </FormField>
+        )}
       </div>
 
-      {showStatus || showSource ? (
-        <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
+      {mayAssignBroker ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start w-full">
+          <FormField label="Aircraft needed" optional labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+            <CommonSelect
+              value={form?.aircraftPreference}
+              onChange={setField?.("aircraftPreference")}
+              options={categoryOptions}
+              placeholder="No preference"
+            />
+          </FormField>
           {showStatus ? (
             <FormField label="Status" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
-              <PickerSelect
+              <CommonSelect
                 value={form?.status}
                 onChange={setField?.("status")}
                 options={statusOptions}
                 placeholder="Open"
-                className={FIELD_CLASS}
-              />
-            </FormField>
-          ) : null}
-          {showSource ? (
-            <FormField
-              label="How it came in"
-              labelClassName={LABEL_CLASS}
-              className="flex-1 min-w-0"
-            >
-              <PickerSelect
-                value={form?.source}
-                onChange={setField?.("source")}
-                options={sourceOptions}
-                placeholder="Select source"
-                className={FIELD_CLASS}
               />
             </FormField>
           ) : null}
         </div>
       ) : null}
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
-        <FormField label="Route from" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
-          <PickerSelect
+      {(!mayAssignBroker && (showStatus || showSource)) ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start w-full">
+          {showStatus ? (
+            <FormField label="Status" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+              <CommonSelect
+                value={form?.status}
+                onChange={setField?.("status")}
+                options={statusOptions}
+                placeholder="Open"
+              />
+            </FormField>
+          ) : null}
+          {showSource ? (
+            <FormField
+              label="How it came in"
+              optional
+              labelClassName={LABEL_CLASS}
+              className="flex-1 min-w-0"
+            >
+              <CommonSelect
+                value={form?.source}
+                onChange={setField?.("source")}
+                options={sourceOptions}
+                placeholder="Select source"
+              />
+            </FormField>
+          ) : null}
+        </div>
+      ) : mayAssignBroker && showSource ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start w-full">
+          <FormField
+            label="How it came in"
+            optional
+            labelClassName={LABEL_CLASS}
+            className="flex-1 min-w-0"
+          >
+            <CommonSelect
+              value={form?.source}
+              onChange={setField?.("source")}
+              options={sourceOptions}
+              placeholder="Select source"
+            />
+          </FormField>
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start w-full">
+        <FormField label="Route from (Origin)" optional labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+          <AirportPicker
             value={form?.originAirportId}
-            onChange={setField?.("originAirportId")}
-            options={airportOptions}
+            onChange={(val) => setField?.("originAirportId")(val || "")}
             placeholder="Select departure airport"
-            className={FIELD_CLASS}
           />
         </FormField>
-        <FormField label="Route to" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
-          <PickerSelect
+        <FormField label="Route to (Destination)" optional labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+          <AirportPicker
             value={form?.destinationAirportId}
-            onChange={setField?.("destinationAirportId")}
-            options={airportOptions}
+            onChange={(val) => setField?.("destinationAirportId")(val || "")}
             placeholder="Select arrival airport"
-            className={FIELD_CLASS}
           />
         </FormField>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
-        <FormField label="Departure" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start w-full">
+        <FormField
+          label="Departure Date"
+          labelClassName={LABEL_CLASS}
+          className="flex-1 min-w-0"
+          error={isDateInvalid ? "Departure date cannot be after return date" : undefined}
+        >
           <DatePicker
-            className={FIELD_CLASS}
             value={form?.departureDate}
-            onChange={setField?.("departureDate")}
+            onChange={handleDepartureDateChange}
+            maxDate={form?.returnDate || undefined}
             placeholder="Choose Date"
           />
         </FormField>
-        {/* A present return date is what makes it a round trip — there is no
-            separate flag, because two fields that can disagree will. */}
+
         {showReturnDate ? (
-          <FormField label="Return" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+          <FormField
+            label="Return Date"
+            optional
+            labelClassName={LABEL_CLASS}
+            className="flex-1 min-w-0"
+            error={isDateInvalid ? "Return date must be on or after departure date" : undefined}
+          >
             <DatePicker
-              className={FIELD_CLASS}
               value={form?.returnDate}
               onChange={setField?.("returnDate")}
+              minDate={form?.departureDate || undefined}
               placeholder="One way"
             />
           </FormField>
         ) : null}
-        <FormField label="Passengers" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+
+        <FormField label="Passengers" optional labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
           <Input
             className={FIELD_CLASS}
             type="number"
@@ -211,8 +290,8 @@ export default function TripRequestForm({
         </FormField>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
-        <FormField label="Budget" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start w-full">
+        <FormField label="Estimated Budget ($)" optional labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
           <Input
             className={FIELD_CLASS}
             type="number"
@@ -223,10 +302,10 @@ export default function TripRequestForm({
             onChange={(e) => setField?.("estimatedValue")(e.target.value)}
           />
         </FormField>
+
         {showQuoteDeadline ? (
-          <FormField label="Quote deadline" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
+          <FormField label="Quote Deadline" optional labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
             <DatePicker
-              className={FIELD_CLASS}
               value={form?.quoteDeadline}
               onChange={setField?.("quoteDeadline")}
               placeholder="Choose Date"
@@ -235,7 +314,7 @@ export default function TripRequestForm({
         ) : null}
       </div>
 
-      <FormField label="Summary" labelClassName={LABEL_CLASS}>
+      <FormField label="Summary" optional labelClassName={LABEL_CLASS}>
         <Input
           className={FIELD_CLASS}
           placeholder="e.g. NYC → Miami, business charter"
@@ -244,44 +323,31 @@ export default function TripRequestForm({
         />
       </FormField>
 
-      <FormField label="Notes / requirements" labelClassName={LABEL_CLASS}>
+      <FormField label="Notes / Requirements" optional labelClassName={LABEL_CLASS}>
         <Textarea
-          className="rounded-sm text-base font-medium min-h-31"
+          className="rounded-md text-sm font-medium min-h-24"
           placeholder="Catering, ground transport, special requests…"
           value={form?.requirements ?? ""}
           onChange={(e) => setField?.("requirements")(e.target.value)}
         />
       </FormField>
 
-      {/* Deliberately labelled as internal. It is the one field on this form a
-          client must never be read, so the label says so rather than relying on
-          whoever fills it in to remember. */}
       {showNotes ? (
-        <FormField label="Internal notes (never shown to the client)" labelClassName={LABEL_CLASS}>
+        <FormField label="Internal Notes (never shown to client)" optional labelClassName={LABEL_CLASS}>
           <Textarea
-            className="rounded-sm text-base font-medium min-h-24"
+            className="rounded-md text-sm font-medium min-h-20"
             placeholder="What the desk needs to remember about this enquiry…"
             value={form?.internalNotes ?? ""}
             onChange={(e) => setField?.("internalNotes")(e.target.value)}
           />
         </FormField>
       ) : null}
-    </>
+    </div>
   );
 }
 
 /**
  * Turns the form's strings into the API's payload.
- *
- * Shared with the same intent as the fields above: both callers have to make
- * the same three decisions — blank stays absent, a number box that was left
- * empty is not zero, and a cleared date on an edit is `null` rather than `""`.
- * `Number("")` is 0, which is how a budget nobody agreed reaches the pipeline
- * total.
- *
- * `forUpdate` is the difference between the two verbs. On create, an untouched
- * field is simply omitted; on update it has to be sent as `null` to clear what
- * is stored, because an omitted field means "leave it alone".
  */
 export function toTripRequestPayload(form, { forUpdate = false } = {}) {
   const blank = forUpdate ? null : undefined;
@@ -290,6 +356,7 @@ export function toTripRequestPayload(form, { forUpdate = false } = {}) {
 
   return {
     clientId: form?.clientId || undefined,
+    assignedBrokerId: form?.assignedBrokerId ? form.assignedBrokerId : blank,
     status: form?.status || undefined,
     source: form?.source || blank,
     aircraftPreference: form?.aircraftPreference || blank,

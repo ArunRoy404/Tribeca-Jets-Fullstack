@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
 import TablePagination from "@/components/table/common/TablePagination";
@@ -9,6 +8,7 @@ import TableStatus from "@/components/table/common/TableStatus";
 import TransactionsToolbar from "./TransactionsToolbar";
 import TransactionsCardsContainer from "./TransactionsCardsContainer";
 import TransactionsTable from "./TransactionsTable";
+import TransactionDetailSheet from "@/components/transactions/TransactionDetailSheet";
 import { useTransactions, useTransactionsTableParams } from "@/hooks/transactions";
 import { toTransactionRow } from "@/lib/transaction";
 
@@ -18,19 +18,19 @@ import { toTransactionRow } from "@/lib/transaction";
  * moved. The URL is the state and the server pages — merging the three
  * sources is the API's job, never the browser's.
  *
- * A row opens the bill it settles on that bill's own page, which is where a
- * movement is corrected or withdrawn. The old screen's Record Payment, Edit
- * and Delete wrote to dummy rows and are gone.
+ * Clicking a row opens a slide-over detail sheet with transaction facts and
+ * a redirect CTA to the origin bill/invoice/commission in its respective module.
  */
 export default function TransactionsContainer({ revealDelay = 0 }) {
-  const router = useRouter();
   const params = useTransactionsTableParams();
   const { data, isPending, error, refetch } = useTransactions(params.queryParams);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const rows = useMemo(() => (data?.data ?? []).map(toTransactionRow), [data?.data]);
   const meta = data?.meta;
   const isEmpty = !isPending && !error && rows.length === 0;
-  const open = (href) => router.push(href);
+  const open = (item) => setSelectedItem(item);
+  const close = () => setSelectedItem(null);
 
   return (
     <Reveal delay={revealDelay} className="w-full">
@@ -87,6 +87,8 @@ export default function TransactionsContainer({ revealDelay = 0 }) {
           </>
         )}
       </CommonCard>
+      <TransactionDetailSheet item={selectedItem} onClose={close} />
     </Reveal>
   );
 }
+

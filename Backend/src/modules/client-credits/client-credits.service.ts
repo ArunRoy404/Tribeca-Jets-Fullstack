@@ -25,7 +25,8 @@ import {
   can,
   canWrite,
 } from '../../common/authorization/permissions.js';
-import { CreditEntryType } from '../../generated/prisma/enums.js';
+import { Action, Module, canDo } from '../../common/authorization/access.js';
+import { CreditEntryType, UserRole } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { ClientsService } from '../clients/clients.service.js';
 import { TripsService } from '../trips/trips.service.js';
@@ -128,7 +129,18 @@ export class ClientCreditsService {
    * permission whose row would be identical is a row nobody maintains.
    */
   private async client(user: AuthenticatedUser, clientId: string) {
-    if (!can(user.role, Permission.VIEW_FINANCIALS)) {
+    if (user.access) {
+      if (!canDo(user.access, Module.CLIENTS, Action.VIEW)) {
+        throw new ForbiddenException(
+          'Your permissions do not allow viewing clients',
+        );
+      }
+      if (user.role === UserRole.ASSISTANT) {
+        throw new ForbiddenException(
+          'Your role cannot see what a client has on account',
+        );
+      }
+    } else if (!can(user.role, Permission.VIEW_FINANCIALS)) {
       throw new ForbiddenException(
         'Your role cannot see what a client has on account',
       );
@@ -137,10 +149,16 @@ export class ClientCreditsService {
   }
 
   private assertMayWrite(user: AuthenticatedUser): void {
-    // `canWrite` rather than `can`, so that if VIEW_FINANCIALS is ever given a
-    // READ scope for some role, that role becomes read-only here without this
-    // file changing.
-    if (!canWrite(user.role, Permission.VIEW_FINANCIALS)) {
+    if (user.access) {
+      if (
+        !canDo(user.access, Module.CLIENTS, Action.EDIT) ||
+        user.role === UserRole.ASSISTANT
+      ) {
+        throw new ForbiddenException(
+          "Your role cannot change a client's money on account",
+        );
+      }
+    } else if (!canWrite(user.role, Permission.VIEW_FINANCIALS)) {
       throw new ForbiddenException(
         "Your role cannot change a client's money on account",
       );

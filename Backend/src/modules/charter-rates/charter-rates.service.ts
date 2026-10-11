@@ -2,15 +2,10 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
-import {
-  Permission,
-  Scope,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
 import { paginate } from '../../common/types/api.types.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { AircraftCategory } from '../../generated/prisma/enums.js';
@@ -50,14 +45,13 @@ const toNumber = (value: Prisma.Decimal | number | null) =>
 
 /**
  * The desk's charter rates and the instant estimate built on them — client
- * adjustment #6.
+ * adjustment #6. Part of Quotes: it has no screen or permission of its own.
  *
- * Reading needs `VIEW_FINANCIALS` (the route checks it): a rate per flight
- * hour is what the desk expects to *pay*, which is margin information an
- * assistant never sees. Changing a rate needs that permission at `ALL` scope —
- * a company-wide number is not one broker's to set — enforced here with
- * `scopeFor(...) !== Scope.ALL`, the pattern AGENTS.md prescribes for a rule
- * finer than a permission.
+ * **Reading the rates and running an estimate need Quotes · View money**
+ * (the routes check it): a rate per flight hour is what the desk expects to
+ * *pay*, which is margin information. **Changing a rate is for an
+ * administrator** (SUPER_ADMIN or ADMIN by stored role — owner's decision,
+ * 8 Oct 2026): it is one company-wide number every estimate is built on.
  */
 @Injectable()
 export class CharterRatesService {
@@ -83,10 +77,8 @@ export class CharterRatesService {
   }
 
   async set(user: AuthenticatedUser, category: AircraftCategory, dto: SetCharterRateInput) {
-    if (scopeFor(user.role, Permission.VIEW_FINANCIALS) !== Scope.ALL) {
-      throw new ForbiddenException(
-        'Charter rates are company-wide; only an administrator or senior broker can change them.',
-      );
+    if (!isAdministrator(user.role)) {
+      throw new ForbiddenException('Charter rates are company-wide; only an administrator can change them.');
     }
 
     const before = await this.prisma.charterRate.findUnique({
@@ -128,9 +120,10 @@ export class CharterRatesService {
    * category's seats is unknown, for the same reason.
    */
   async estimate(input: EstimateInput) {
+    // Live airports only — an archived one is refused by name.
     const [origin, destination] = await Promise.all([
-      this.airport(input.originAirportId, 'origin'),
-      this.airport(input.destinationAirportId, 'destination'),
+      this.airports.usable(input.originAirportId, 'origin'),
+      this.airports.usable(input.destinationAirportId, 'destination'),
     ]);
 
     if (
@@ -183,23 +176,6 @@ export class CharterRatesService {
       passengers: input.passengers ?? null,
       options,
     };
-  }
-
-  private async airport(id: string, which: 'origin' | 'destination') {
-    try {
-      return (await this.airports.findOne(id)) as {
-        id: string;
-        icao: string;
-        name: string;
-        latitude: number | null;
-        longitude: number | null;
-      };
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw new BadRequestException(`That ${which} airport does not exist`);
-      }
-      throw error;
-    }
   }
 
   private figures(row: RateRow) {

@@ -10,6 +10,14 @@ model User {
 
   role UserRole @default(BROKER)
 
+  /// This person's own permissions (owner's design, 7 Oct 2026): the actions
+  /// ticked per module, `{ "QUOTES": ["VIEW", "SEND"] }`. Seeded from the
+  /// role's defaults at invitation and adjusted per person; how far each
+  /// action reaches is the role's, never stored here. Null on accounts made
+  /// before then, which read as their role's defaults. See
+  /// src/common/authorization/access.ts.
+  permissions Json?
+
   /// Lead-desk settings, shown on the Agents roster.
   ///
   /// `maxActiveLeads` is what the workload indicator is measured against —
@@ -32,6 +40,9 @@ model User {
   /// Storage key (not a URL) — resolved by StorageService at read time so the
   /// same record works on both the S3 and local drivers.
   avatarKey String?
+  /// The profile photo as an upload URL (`/api/uploads/<id>`), set from the
+  /// My Account page. Supersedes `avatarKey`, which nothing writes any more.
+  avatarUrl String?
 
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
@@ -52,23 +63,25 @@ model User {
 
   /// Reference data this user entered or last touched. Audit back-references
   /// only — airports and operators are shared and belong to nobody.
-  createdAirports       Airport[]       @relation("AirportCreatedBy")
-  updatedAirports       Airport[]       @relation("AirportUpdatedBy")
-  createdOperators      Operator[]      @relation("OperatorCreatedBy")
-  updatedOperators      Operator[]      @relation("OperatorUpdatedBy")
-  createdAircraft       Aircraft[]      @relation("AircraftCreatedBy")
-  updatedAircraft       Aircraft[]      @relation("AircraftUpdatedBy")
-  createdTripRequests   TripRequest[]   @relation("TripRequestCreatedBy")
-  updatedTripRequests   TripRequest[]   @relation("TripRequestUpdatedBy")
-  assignedTripRequests  TripRequest[]   @relation("TripRequestAssignedBroker")
-  createdOperatorQuotes OperatorQuote[] @relation("OperatorQuoteCreatedBy")
-  updatedOperatorQuotes OperatorQuote[] @relation("OperatorQuoteUpdatedBy")
-  createdQuotes         Quote[]         @relation("QuoteCreatedBy")
-  updatedQuotes         Quote[]         @relation("QuoteUpdatedBy")
-  assignedQuotes        Quote[]         @relation("QuoteAssignedBroker")
-  createdQuoteVersions  QuoteVersion[]  @relation("QuoteVersionCreatedBy")
-  createdUploads        Upload[]        @relation("UploadCreatedBy")
-  updatedUploads        Upload[]        @relation("UploadUpdatedBy")
+  createdAirports       Airport[]         @relation("AirportCreatedBy")
+  updatedAirports       Airport[]         @relation("AirportUpdatedBy")
+  createdOperators      Operator[]        @relation("OperatorCreatedBy")
+  updatedOperators      Operator[]        @relation("OperatorUpdatedBy")
+  createdAircraft       Aircraft[]        @relation("AircraftCreatedBy")
+  updatedAircraft       Aircraft[]        @relation("AircraftUpdatedBy")
+  createdTripRequests   TripRequest[]     @relation("TripRequestCreatedBy")
+  updatedTripRequests   TripRequest[]     @relation("TripRequestUpdatedBy")
+  assignedTripRequests  TripRequest[]     @relation("TripRequestAssignedBroker")
+  createdOperatorQuotes OperatorQuote[]   @relation("OperatorQuoteCreatedBy")
+  updatedOperatorQuotes OperatorQuote[]   @relation("OperatorQuoteUpdatedBy")
+  createdQuotes         Quote[]           @relation("QuoteCreatedBy")
+  updatedQuotes         Quote[]           @relation("QuoteUpdatedBy")
+  assignedQuotes        Quote[]           @relation("QuoteAssignedBroker")
+  createdQuoteVersions  QuoteVersion[]    @relation("QuoteVersionCreatedBy")
+  createdUploads        Upload[]          @relation("UploadCreatedBy")
+  updatedUploads        Upload[]          @relation("UploadUpdatedBy")
+  createdSettings       CompanySettings[] @relation("CompanySettingsCreatedBy")
+  updatedSettings       CompanySettings[] @relation("CompanySettingsUpdatedBy")
 
   /// Timeline entries this person wrote. `createdBy` *is* the author here —
   /// see the comment on `Note`, which explains why there is no second column.
@@ -239,13 +252,13 @@ model User {
 /// the seeded owner account, which cannot be demoted or deleted so the system
 /// can never be locked out of its own administration.
 ///
-/// Capabilities are NOT derived from this ordering. They come from the matrix
-/// in src/common/authorization/permissions.ts, which is the single source of
-/// truth and mirrors the Roles & Permissions tab.
+/// Capabilities are NOT derived from this ordering. Each role's defaults,
+/// locks and reach are in src/common/authorization/access.roles.ts; each
+/// person's own permissions are `User.permissions`. SENIOR_BROKER was
+/// withdrawn on 7 Oct 2026 — it is not in the signed scope (§4).
 enum UserRole {
   SUPER_ADMIN
   ADMIN
-  SENIOR_BROKER
   BROKER
   ASSISTANT
   /// An outside partner who refers clients (client adjustment #11). Sees
@@ -282,6 +295,19 @@ model RefreshToken {
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
+
+  /// When the sign-in this token descends from happened. Copied forward on
+  /// every rotation, so "Signed in" on the sessions list survives the token
+  /// being replaced every few minutes; `createdAt` is the last renewal.
+  sessionStartedAt DateTime @default(now())
+
+  /// When a person last did something on this device — a click or a key,
+  /// reported by the browser's throttled `POST /auth/activity`, or a sign-in.
+  /// The server's idle limit reads this, not `createdAt`: a token is renewed
+  /// only when a request finds the access token expired, so its age said
+  /// nothing about someone reading or typing without saving (7 Oct 2026).
+  /// Copied forward on every rotation, which is not activity.
+  lastActiveAt DateTime @default(now())
 
   @@index([userId, revokedAt])
   @@index([expiresAt])

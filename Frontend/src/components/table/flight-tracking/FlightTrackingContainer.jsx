@@ -20,6 +20,7 @@ import { toISODate } from "@/lib/date";
  */
 export default function FlightTrackingContainer({ params, revealDelay = 0 }) {
   const router = useRouter();
+
   // The browser's own day decides what "today" and "upcoming" mean.
   const request = { ...params?.queryParams, on: toISODate(new Date()) };
   const { data, isPending, error, refetch } = useFlights(request);

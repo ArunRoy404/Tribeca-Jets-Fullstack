@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useCreateTripStore } from "@/store/useCreateTripStore";
 import { useQuotePricePreview } from "@/hooks/quotes";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { optionalNumber } from "@/lib/form";
 import { formatMoney } from "@/lib/money";
 
@@ -25,8 +25,8 @@ import { formatMoney } from "@/lib/money";
  */
 export default function CreateFinancialsCard() {
   const { basePrice, operatorCost, fetEnabled, setField } = useCreateTripStore();
-  const { canWrite } = usePermissions();
-  const seesFinancials = canWrite(Permission.VIEW_FINANCIALS);
+  const { canAccess } = usePermissions();
+  const seesFinancials = canAccess(Module.TRIPS, Action.VIEW_MONEY);
 
   const { mutate: preview } = useQuotePricePreview();
   const [priced, setPriced] = useState(null);

@@ -2,7 +2,8 @@
 
 import DetailCard from "@/components/trips/DetailCard";
 import FormField from "@/components/trips/FormField";
-import PickerSelect from "@/components/trips/PickerSelect";
+import OperatorPicker from "@/components/operators/OperatorPicker";
+import AircraftPicker from "@/components/aircraft/AircraftPicker";
 import { Input } from "@/components/ui/input";
 import { useCreateTripStore } from "@/store/useCreateTripStore";
 import { cn } from "@/lib/utils";
@@ -12,22 +13,41 @@ import { cn } from "@/lib/utils";
  * in free text instead — the same split quotes make — and the text box steps
  * aside once a fleet aircraft is chosen, since the two would contradict.
  */
-export default function CreateAircraftOperatorCard({ options }) {
+export default function CreateAircraftOperatorCard() {
   const { operatorId, aircraftId, aircraftDescription, operatorConfirmed, setField } = useCreateTripStore();
 
-  // The operator's own tails first, when one is chosen.
-  const aircraftOptions = operatorId
-    ? [...(options?.aircraft ?? [])].sort((a, b) => (b.operatorId === operatorId) - (a.operatorId === operatorId))
-    : options?.aircraft;
+  const handleOperatorChange = (val) => {
+    setField?.("operatorId", val || "");
+  };
+
+  const handleAircraftChange = (val, rawAircraft) => {
+    setField?.("aircraftId", val || "");
+    if (rawAircraft?.operatorId && !operatorId) {
+      setField?.("operatorId", rawAircraft.operatorId);
+    }
+  };
 
   return (
     <DetailCard title="Aircraft & Operator" description="Assign the operator and aircraft for this trip.">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField label="Operator (Optional)">
-          <PickerSelect value={operatorId} onChange={(v) => setField?.("operatorId", v)} options={options?.operators} placeholder="Select operator..." />
+          <OperatorPicker
+            value={operatorId}
+            onChange={handleOperatorChange}
+            placeholder="Select operator..."
+            allowClear
+            clearLabel="None (Unassigned)"
+          />
         </FormField>
         <FormField label="Fleet Aircraft (Optional)">
-          <PickerSelect value={aircraftId} onChange={(v) => setField?.("aircraftId", v)} options={aircraftOptions} placeholder="Select a tail..." />
+          <AircraftPicker
+            value={aircraftId}
+            onChange={handleAircraftChange}
+            params={operatorId ? { operatorId } : undefined}
+            placeholder="Select a tail..."
+            allowClear
+            clearLabel="None (Described below)"
+          />
         </FormField>
         {!aircraftId && (
           <FormField label="Or describe it (Optional)">
@@ -67,3 +87,4 @@ export default function CreateAircraftOperatorCard({ options }) {
     </DetailCard>
   );
 }
+

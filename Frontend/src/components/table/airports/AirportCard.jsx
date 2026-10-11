@@ -2,10 +2,13 @@
 
 import { MapPin, Building2 } from "lucide-react";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
+import RestoredBadge from "@/components/common/RestoredBadge";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export default function AirportCard({
   airport,
+  archived = false,
+  selectable = true,
   selected = false,
   onToggleSelect,
   actions,
@@ -20,26 +23,25 @@ export default function AirportCard({
     >
       <div className="flex items-center justify-between gap-2 w-full">
         <div className="flex items-center gap-2 min-w-0" onClick={(e) => e.stopPropagation()}>
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-montserrat font-bold text-[14px] text-purple truncate">
-              {airport?.icao}
-            </span>
-            <span className="text-[12px] font-bold text-foreground">
-              / {airport?.iata}
-            </span>
-          </div>
+          {selectable ? <Checkbox checked={selected} onCheckedChange={onToggleSelect} /> : null}
+          {/* "KTEB / TEB", or the ICAO alone — many airports have no IATA. */}
+          <span className="font-montserrat font-bold text-[14px] text-purple truncate">
+            {airport?.codes}
+          </span>
         </div>
-        {actions && (
+        {actions?.length ? (
           <div onClick={(e) => e.stopPropagation()}>
             <RowActionsMenu items={actions} />
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-0.5 w-full">
-        <span className="font-montserrat font-bold text-[13px] text-foreground">
+        <span className="inline-flex flex-wrap items-center gap-2 font-montserrat font-bold text-[13px] text-foreground">
           {airport?.name}
+          {airport?.isRestored ? (
+            <RestoredBadge at={airport?.restoredAtLabel} by={airport?.restoredByName} />
+          ) : null}
         </span>
         <div className="flex items-center gap-1 text-muted-foreground font-montserrat text-[12px]">
           <MapPin className="size-3.5 shrink-0 text-muted-foreground" />
@@ -49,13 +51,29 @@ export default function AirportCard({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 w-full pt-2 border-t border-border/40 font-montserrat text-[12px]">
-        <span className="text-muted-foreground">Assigned FBO</span>
-        <div className="flex items-center gap-1.5 font-bold text-purple">
-          <Building2 className="size-3.5" />
-          <span>{airport?.assignedFbo}</span>
+      {/* The same swap the table makes: on Archived, who removed it and when. */}
+      {archived ? (
+        <div className="flex items-center justify-between gap-2 w-full pt-2 border-t border-border/40 font-montserrat text-[12px]">
+          <span className="text-muted-foreground">Removed</span>
+          <span className="font-semibold text-foreground text-right">
+            {airport?.deletedAtLabel} · {airport?.deletedByName}
+          </span>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-1.5 w-full pt-2 border-t border-border/40 font-montserrat text-[12px]">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Longest Runway</span>
+            <span className="font-semibold text-foreground">{airport?.runwayLabel}</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">Assigned FBO</span>
+            <div className="flex items-center gap-1.5 font-bold text-purple min-w-0">
+              <Building2 className="size-3.5 shrink-0" />
+              <span className="truncate">{airport?.assignedFbo}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

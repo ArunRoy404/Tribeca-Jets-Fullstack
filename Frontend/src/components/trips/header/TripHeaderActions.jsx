@@ -5,7 +5,7 @@ import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRemoveTrip, useRestoreTrip } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 
 /**
  * Edit and archive. Hidden, not disabled, for a role that cannot — and Edit
@@ -14,9 +14,9 @@ import { Permission } from "@/lib/permissions";
  */
 export default function TripHeaderActions({ trip }) {
   const router = useRouter();
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
-  const mayArchive = canWrite(Permission.DELETE_TRIPS);
+  const { canAccess } = usePermissions();
+  const mayEdit = canAccess(Module.TRIPS, Action.EDIT);
+  const mayArchive = canAccess(Module.TRIPS, Action.ARCHIVE);
   const { mutate: remove, isPending: removing } = useRemoveTrip();
   const { mutate: restore, isPending: restoring } = useRestoreTrip();
 
@@ -31,7 +31,7 @@ export default function TripHeaderActions({ trip }) {
 
   return (
     <div className="flex items-center gap-2">
-      {mayWrite && trip?.editable && (
+      {mayEdit && trip?.editable && (
         <Button variant="outline" className="gap-2 px-4" onClick={() => router.push(`/dashboard/trips/${trip?.id}/edit`)}>
           <Pencil className="size-3.5" />
           Edit

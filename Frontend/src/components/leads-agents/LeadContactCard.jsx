@@ -33,7 +33,7 @@ export default function LeadContactCard({ lead }) {
         </div>
         <div className="flex items-center justify-between py-2">
           <span className="text-muted-foreground">Email</span>
-          <span className="font-bold text-foreground truncate max-w-[170px] sm:max-w-none">
+          <span className="font-bold text-foreground break-all max-w-[200px] sm:max-w-none">
             {email}
           </span>
         </div>

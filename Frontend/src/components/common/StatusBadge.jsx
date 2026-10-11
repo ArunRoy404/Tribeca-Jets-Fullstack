@@ -13,6 +13,7 @@ const STATUS_TONES = {
   "Partially Paid": "infoStrong",
   Booked: "info",
   Quoted: "purple",
+  Viewed: "purple",
   Sourcing: "cyan",
   // Trip requests. "Open" is an enquiry nobody has started working;
   // "Converted" is one that became a trip, which is the win.
@@ -35,6 +36,10 @@ const STATUS_TONES = {
   Approved: "success",
   Rejected: "destructive",
   "Vendor Pending": "pending",
+  // Operator Sourcing quotes
+  "Awaiting Response": "pending",
+  Received: "cyan",
+  Declined: "destructive",
   // Team members (users & roles)
   Invited: "pending",
   Suspended: "destructive",
@@ -70,7 +75,8 @@ const STATUS_TONES = {
   General: "neutral",
   "Travel Agent": "infoStrong",
   "Client Update": "info",
-  // The sent log (#21): delivered, recorded but delivered to nobody, refused
+  // The sent log (#21): on the queue, delivered, recorded but delivered to nobody, refused
+  Sending: "pending",
   Sent: "success",
   "Not delivered": "warning",
   Failed: "destructive",

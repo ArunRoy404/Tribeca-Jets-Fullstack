@@ -7,7 +7,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { toastApiError, toastSuccess } from "@/lib/toast";
 import { formatAircraftCategory } from "@/lib/aircraft";
 
-/** Saves one category's rates. The API refuses anyone without company-wide financial scope. */
+/** Saves one category's rates. The API refuses anyone but an administrator. */
 export function useSetCharterRate() {
   return useMutation({
     mutationFn: charterRatesService.set,

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarClock, X } from "lucide-react";
 import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
 import { useUpdateClient } from "@/hooks/clients";
 import { FOLLOW_UP_METHODS, formatFollowUpMethod } from "@/lib/lead";
+import CommonSelect from "@/components/common/CommonSelect";
 import {
   Dialog,
   DialogContent,
@@ -14,9 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/common/DatePicker";
-
-const SELECT_CLASS =
-  "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
 
 /** A lead is a client, so the follow-up is stored on the client record. */
 export default function ScheduleFollowUpDialog() {
@@ -58,6 +56,17 @@ function FollowUpForm({ lead, onDone }) {
     );
   };
 
+  const methodOptions = useMemo(
+    () => [
+      { value: "", label: "Not decided" },
+      ...FOLLOW_UP_METHODS.map((value) => ({
+        value,
+        label: formatFollowUpMethod(value),
+      })),
+    ],
+    [],
+  );
+
   return (
     <>
       <DialogHeader className="flex flex-col items-start gap-1 pb-2 border-b border-border">
@@ -78,18 +87,12 @@ function FollowUpForm({ lead, onDone }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="font-montserrat text-[12px] font-medium text-foreground">Method</label>
-            <select
+            <CommonSelect
               value={method}
-              onChange={(e) => setMethod(e.target.value)}
-              className={SELECT_CLASS}
-            >
-              <option value="">Not decided</option>
-              {FOLLOW_UP_METHODS.map((value) => (
-                <option key={value} value={value}>
-                  {formatFollowUpMethod(value)}
-                </option>
-              ))}
-            </select>
+              onChange={setMethod}
+              placeholder="Not decided"
+              options={methodOptions}
+            />
           </div>
         </div>
 

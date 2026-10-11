@@ -12,12 +12,15 @@ export default function AirportsTableRow({
   getRowActions,
   onSelectAirport,
   archived = false,
+  selectable = true,
 }) {
   return (
     <TableRow key={apt?.id} className="border-border cursor-pointer" onClick={() => onSelectAirport?.(apt)}>
-      <TableCell className="p-[10px]" onClick={(e) => e.stopPropagation()}>
-        <Checkbox checked={selected} onCheckedChange={() => onToggleRow?.(apt?.id)} />
-      </TableCell>
+      {selectable ? (
+        <TableCell className="p-[10px]" onClick={(e) => e.stopPropagation()}>
+          <Checkbox checked={selected} onCheckedChange={() => onToggleRow?.(apt?.id)} />
+        </TableCell>
+      ) : null}
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-purple text-left whitespace-nowrap">
         {apt?.codes}
       </TableCell>

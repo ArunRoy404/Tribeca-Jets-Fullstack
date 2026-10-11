@@ -28,6 +28,7 @@ import { fromCents, toCents } from '../../common/money/cents.js';
 import { EmptyLegStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
+import { AirportsService } from '../airports/airports.service.js';
 import {
   OPEN_STATUSES,
   effectiveStatus,
@@ -101,6 +102,7 @@ export class EmptyLegsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly requests: TripRequestsService,
+    private readonly airports: AirportsService,
   ) {}
 
   // ---- Shaping ----------------------------------------------------------
@@ -135,14 +137,6 @@ export class EmptyLegsService {
   }
 
   // ---- Link checks ------------------------------------------------------
-
-  private async assertAirport(id: string, label: string): Promise<void> {
-    const row = await this.prisma.airport.findUnique({ where: { id }, select: { deletedAt: true, icao: true } });
-    if (!row) throw new BadRequestException(`That ${label} airport does not exist`);
-    if (row.deletedAt) {
-      throw new BadRequestException(`${row.icao} has been archived. Restore it, or choose another airport.`);
-    }
-  }
 
   private async assertOperator(id: string | null | undefined): Promise<void> {
     if (!id) return;
@@ -277,8 +271,8 @@ export class EmptyLegsService {
 
   async create(user: AuthenticatedUser, dto: CreateEmptyLegInput) {
     await Promise.all([
-      this.assertAirport(dto.originAirportId, 'departure'),
-      this.assertAirport(dto.destinationAirportId, 'arrival'),
+      this.airports.usable(dto.originAirportId, 'departure'),
+      this.airports.usable(dto.destinationAirportId, 'arrival'),
       this.assertOperator(dto.operatorId),
       this.assertAircraft(dto.aircraftId),
     ]);
@@ -327,10 +321,10 @@ export class EmptyLegsService {
 
     // Only links that actually change are checked — AGENTS.md.
     if (dto.originAirportId && dto.originAirportId !== current.originAirportId) {
-      await this.assertAirport(dto.originAirportId, 'departure');
+      await this.airports.usable(dto.originAirportId, 'departure');
     }
     if (dto.destinationAirportId && dto.destinationAirportId !== current.destinationAirportId) {
-      await this.assertAirport(dto.destinationAirportId, 'arrival');
+      await this.airports.usable(dto.destinationAirportId, 'arrival');
     }
     if (dto.operatorId !== undefined && dto.operatorId !== current.operatorId) await this.assertOperator(dto.operatorId);
     if (dto.aircraftId !== undefined && dto.aircraftId !== current.aircraftId) await this.assertAircraft(dto.aircraftId);

@@ -12,6 +12,7 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { StorageService } from '../../core/storage/storage.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { sniffContentType } from '../../common/files/file-signature.js';
+import { cleanFilename } from '../../common/files/filename.js';
 import {
   ARCHIVE_ACTOR_SELECT,
   ARCHIVE_SELECT,
@@ -26,10 +27,11 @@ import { paginate, type AuthenticatedUser } from '../../common/types/api.types.j
 import { UploadKind, UploadVisibility } from '../../generated/prisma/enums.js';
 import {
   administersUsers,
+  mayManage,
   mayRead,
   visibilityWhere,
 } from './uploads.access.js';
-import { formatBytes, ruleFor } from './uploads.rules.js';
+import { formatBytes, ruleFor, storedContentType } from './uploads.rules.js';
 import type { ListUploadsQuery } from './dto/upload-query.dto.js';
 
 /** The multipart part multer hands us, narrowed to what is actually read. */
@@ -172,15 +174,15 @@ export class UploadsService {
    */
   private resolveContentType(file: IncomingFile, kind: UploadKind): string {
     const rule = ruleFor(kind);
-    const sniffed = sniffContentType(file.buffer, file.mimetype);
+    const stored = storedContentType(rule, sniffContentType(file.buffer, file.mimetype));
 
-    if (!sniffed || !rule.accept.includes(sniffed)) {
+    if (!stored) {
       throw new UnsupportedMediaTypeException(
         `This endpoint accepts ${rule.label}. Allowed types: ${rule.accept.join(', ')}.`,
       );
     }
 
-    return sniffed;
+    return stored;
   }
 
   /**
@@ -239,6 +241,9 @@ export class UploadsService {
     }
 
     const contentType = this.resolveContentType(file, kind);
+    // Decoded from multer's latin1, path and control characters dropped, and
+    // shortened to the column — see `cleanFilename`.
+    const filename = cleanFilename(file.originalname);
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
 
     // A referral agent (#11) uploads attachments for the desk and nothing
@@ -309,7 +314,7 @@ export class UploadsService {
         // given, so storing the header here would hand a browser the
         // attacker's choice of content type.
         contentType,
-        filename: file.originalname,
+        filename,
       });
     }
 
@@ -319,7 +324,7 @@ export class UploadsService {
       data: {
         storageKey: key,
         driver: this.storage.driverName,
-        filename: file.originalname,
+        filename,
         contentType,
         kind,
         size: file.size,
@@ -423,6 +428,26 @@ export class UploadsService {
       filename: row.filename,
       size: row.size,
     };
+  }
+
+  /**
+   * Checks that `id` is a live image the caller may read, before another
+   * module stores it — the company logo (#26) is the first caller.
+   *
+   * A 400 naming the field rather than a 404: the caller is filling in a
+   * form, and "that is not an image you can use" is what they need to fix.
+   */
+  async assertUsableImage(actor: AuthenticatedUser, id: string, field: string): Promise<void> {
+    const row = await this.prisma.upload.findFirst({
+      where: { id, deletedAt: null },
+      select: { kind: true, visibility: true, ownerUserId: true, uploadedById: true },
+    });
+    if (!row || !mayRead(actor, row)) {
+      throw new BadRequestException({ [field]: 'That image does not exist or has been removed.' });
+    }
+    if (row.kind !== UploadKind.IMAGE) {
+      throw new BadRequestException({ [field]: 'Upload an image (JPEG, PNG, WebP, GIF or AVIF).' });
+    }
   }
 
   /**
@@ -538,6 +563,7 @@ export class UploadsService {
     if (!row || !mayRead(actor, row)) {
       throw new NotFoundException('That file does not exist.');
     }
+    this.assertMayManage(actor, row);
 
     await this.prisma.upload.update({
       where: { id },
@@ -572,6 +598,7 @@ export class UploadsService {
     if (!row || !mayRead(actor, row)) {
       throw new NotFoundException('That file does not exist.');
     }
+    this.assertMayManage(actor, row);
     if (!row.deletedAt) {
       throw new BadRequestException('That file has not been removed.');
     }
@@ -591,5 +618,17 @@ export class UploadsService {
     });
 
     return this.shape(restored, false);
+  }
+
+  /** Removing and restoring: the uploader or an administrator (`mayManage`). */
+  private assertMayManage(
+    actor: AuthenticatedUser,
+    row: Parameters<typeof mayManage>[1],
+  ): void {
+    if (!mayManage(actor, row)) {
+      throw new ForbiddenException(
+        'Only the person who uploaded this file or an administrator can remove or restore it.',
+      );
+    }
   }
 }

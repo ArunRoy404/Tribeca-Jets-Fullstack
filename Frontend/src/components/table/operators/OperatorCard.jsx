@@ -15,7 +15,7 @@ function Field({ label, value, valueClassName = "text-foreground" }) {
   );
 }
 
-export default function OperatorCard({ operator, selected, onToggleSelect, actions, onClick }) {
+export default function OperatorCard({ operator, selectable = true, selected, onToggleSelect, actions, onClick }) {
   return (
     <div
       onClick={onClick}
@@ -25,14 +25,16 @@ export default function OperatorCard({ operator, selected, onToggleSelect, actio
     >
       <div className="flex items-center justify-between gap-2 w-full">
         <div className="flex items-center gap-2 min-w-0">
-          <span onClick={(e) => e.stopPropagation()}>
-            <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
-          </span>
+          {selectable ? (
+            <span onClick={(e) => e.stopPropagation()}>
+              <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
+            </span>
+          ) : null}
           <p className="font-montserrat font-semibold text-[13px] text-purple truncate">{operator?.name}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {operator?.status && <StatusBadge status={operator?.status} bordered />}
-          {actions && <RowActionsMenu items={actions} />}
+          {actions?.length ? <RowActionsMenu items={actions} /> : null}
         </div>
       </div>
 
@@ -46,23 +48,33 @@ export default function OperatorCard({ operator, selected, onToggleSelect, actio
         <Field
           label="Reliability"
           value={
-            <span className="inline-flex items-center gap-1">
-              <Star className="size-3 text-amber-500 fill-amber-500" />
-              {operator?.reliability}
-            </span>
+            // A star only beside a real rating — never beside "—".
+            operator?.rawReliability !== null && operator?.rawReliability !== undefined ? (
+              <span className="inline-flex items-center gap-1">
+                <Star className="size-3 text-amber-500 fill-amber-500" />
+                {operator?.reliability}
+              </span>
+            ) : (
+              "Not rated"
+            )
           }
         />
       </div>
 
-      <div className="flex flex-wrap gap-1 w-full pt-1">
-        {operator?.aircraftTypes?.map((t) => (
-          <span
-            key={t}
-            className="text-[10px] font-montserrat font-semibold bg-secondary border border-border px-1.5 py-0.5 rounded-full"
-          >
-            {t}
-          </span>
-        ))}
+      <div className="flex flex-wrap items-center gap-1 w-full pt-1">
+        <span className="font-montserrat text-[10px] text-muted-foreground mr-1">Aircraft Types</span>
+        {operator?.aircraftTypes?.length ? (
+          operator?.aircraftTypes?.map((t) => (
+            <span
+              key={t}
+              className="text-[10px] font-montserrat font-semibold bg-secondary border border-border px-1.5 py-0.5 rounded-full"
+            >
+              {t}
+            </span>
+          ))
+        ) : (
+          <span className="font-montserrat font-bold text-[12px] text-muted-foreground">—</span>
+        )}
       </div>
 
       <div className="flex items-end justify-between gap-3 w-full pt-2 border-t border-border">

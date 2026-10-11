@@ -1,0 +1,57 @@
+Update - 3 oct. (created but not send)
+
+Hello there,
+
+Quick update on recent development progress since our last update. The main news: the Command Center is now live on its own secure address.
+
+
+The Command Center is live:
+ - Address: https://tribecajetscommandcenter.com
+   - Secure (HTTPS) with an automatically renewed certificate, on a dedicated server for Tribeca Jets
+
+ - Your account is ready: ari@tribecajets.com, with full administrator access
+   - To set your password: open the address above, click "Forgot password", enter ari@tribecajets.com, then enter the 6-digit code that arrives by email and choose your password
+   - Only you will know your password
+
+ - Your team
+   - Once signed in, invite each person from Users & Roles and choose their role
+   - They receive an invitation email and set their own password
+
+ - Starting fresh
+   - The live system starts empty, with no test data
+   - Your team adds its own airports, operators, aircraft and email templates, and everything from then on is your real business data
+
+ - Daily backups
+   - The database is backed up automatically every day and kept for 30 days, stored separately from the server
+   - The whole server is also backed up weekly
+
+ - Private file storage
+   - Uploaded photos and documents (including passports and IDs) are kept in private cloud storage
+   - They are never publicly accessible, and each file is only shown to people allowed to see it
+
+ - Email is working
+   - Sign-in codes, password resets, invitations and the emails your team sends from the CRM are delivered from no-reply@tribecajetscommandcenter.com
+   - To have emails come from your own @tribecajets.com address instead, there is a short one-time setup on your side; we will send separate step-by-step instructions
+
+
+New module connected:
+
+ - Document Vault
+   - One place for every document, each filed on a client, a trip or an operator
+   - Categories: Passport, ID, Charter Agreement, Wire Confirmation, Invoice, Itinerary, Insurance Certificate, Operator Certificate, Catering Request and Other
+   - A document can carry an expiry date, and shows as Valid, Expiring Soon (within 90 days) or Expired
+   - Documents expiring within 30 days, or already expired, now appear in Today's Priorities on the Dashboard
+   - Passports and IDs are restricted: administrators and senior brokers see them; a broker sees them only on their own clients and trips; assistants never see them, as they are hidden from every list, not just locked
+   - Each client, lead, trip and operator page has a Documents tab showing its folder
+   - Filing or archiving a document is recorded on that client's, trip's or operator's timeline
+   - Archived documents can always be restored; nothing is permanently deleted
+   - Files attached to trips earlier have moved into the vault automatically
+
+
+Adjustments completed:
+
+ - Itinerary preview: the live preview now shows the aircraft photos, your logo and each airport's default FBO as you build it
+ - Quote preview: when editing a quote, the preview now prices it at that quote's own FET rate, so the figures match the saved quote
+
+
+Best Regards.

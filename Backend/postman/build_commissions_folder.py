@@ -3,7 +3,7 @@
 Builds `17 · Commissions` (#18, for client adjustment #11), capturing every
 example from a live API.
 
-    npm run db:seed          # the seeded referral agent, agent@tribecajets.com
+    npm run db:seed          # the seeded referral agent, agent@example.com
     npm run start:dev
     python3 postman/build_commissions_folder.py
     cd postman && python3 rewrite_body_comments.py
@@ -22,7 +22,7 @@ from builder_common import (
 from collection_order import place_folder
 
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
-AGENT_EMAIL = 'agent@tribecajets.com'
+AGENT_EMAIL = 'agent@example.com'
 STATUSES = 'PENDING | EARNED | PAID | CANCELLED'
 BASES = 'PERCENT_OF_PROFIT | FLAT_FEE | CUSTOM'
 RECIPIENTS = 'REFERRAL_AGENT | CLIENT | MANUAL'
@@ -350,8 +350,8 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
 
 
 def main() -> None:
-    owner = Session('admin@tribecajets.com')
-    broker = Session('broker@tribecajets.com')
+    owner = Session('admin@example.com')
+    broker = Session('broker@example.com')
     agent = Session(AGENT_EMAIL)
     anonymous = Session(None)
 

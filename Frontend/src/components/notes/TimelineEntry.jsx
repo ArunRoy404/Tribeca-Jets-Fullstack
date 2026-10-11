@@ -34,8 +34,11 @@ export default function TimelineEntry({
 }) {
   const [editing, setEditing] = useState(false);
 
-  const isNote = entry?.kind === "NOTE";
-  const author = isNote ? entry?.createdBy : entry?.actor;
+  const isEvent = entry?.kind === "EVENT";
+  const isNote = !isEvent;
+  const author = isNote
+    ? entry?.createdBy || entry?.actor
+    : entry?.actor || entry?.createdBy;
   const withdrawn = Boolean(entry?.deletedAt);
 
   // The API refuses an edit from anyone but the author, administrators

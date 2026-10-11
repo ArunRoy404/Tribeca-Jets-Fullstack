@@ -24,7 +24,7 @@ from collection_order import place_folder
 
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 CATEGORIES = 'QUOTE_FOLLOW_UP | TRIP_CONFIRMATION | CLIENT_UPDATE | EMPTY_LEG | PAYMENT | TRAVEL_AGENT | GENERAL'
-STATUSES = 'SENT | LOGGED | FAILED'
+STATUSES = 'QUEUED | SENT | LOGGED | FAILED'
 PROBE_EMAIL = 'postman-email-probe@example.com'
 
 CREATE_BODY = """{
@@ -294,12 +294,14 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
                 'body': {'mode': 'raw', 'raw': SEND_BODY, 'options': {'raw': {'language': 'json'}}},
                 'url': url('/emails'),
                 'description': (
-                    'From the desk\'s mail server, your address as Reply-To. Recorded with `status` SENT, LOGGED (no '
-                    'mail server configured — delivered to nobody) or FAILED (a 502). Appears on the client\'s '
-                    'timeline. The probe client is on example.com, which never delivers.'),
+                    'Answers at once: the email is recorded as `status` QUEUED and a background worker sends it '
+                    'from the desk\'s mail server, your address as Reply-To, then moves it to SENT, LOGGED (no mail '
+                    'server configured — delivered to nobody) or FAILED, and puts it on the client\'s timeline. '
+                    '`willDeliver` says whether a mail server is configured. A 502 only if it could not be queued. '
+                    'The probe client is on example.com, which never delivers.'),
             },
             'response': [
-                example('201 · Sent (LOGGED without a mail server)', 'POST', '/emails', *cap['send'],
+                example('201 · Queued for sending', 'POST', '/emails', *cap['send'],
                         req_body={'templateId': template_id, 'clientId': client_id,
                                   'subject': template['subject'], 'body': update['body']}),
                 example('400 · A merge field is not on file', 'POST', '/emails', *cap['send_400'], req_body=missing),
@@ -416,9 +418,9 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
 
 
 def main() -> None:
-    owner = Session('admin@tribecajets.com')
-    broker = Session('broker@tribecajets.com')
-    agent = Session('agent@tribecajets.com')
+    owner = Session('admin@example.com')
+    broker = Session('broker@example.com')
+    agent = Session('agent@example.com')
     anonymous = Session(None)
 
     collection = json.loads(COLLECTION.read_text(encoding='utf-8'))

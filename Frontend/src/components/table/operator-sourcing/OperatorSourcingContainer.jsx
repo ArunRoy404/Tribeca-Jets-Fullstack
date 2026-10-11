@@ -8,7 +8,7 @@ import TableStatus from "@/components/table/common/TableStatus";
 import { useOperatorSourcingStore } from "@/store/useOperatorSourcingStore";
 import { useSourcingTableParams, useTripRequests } from "@/hooks/trip-requests";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 import { toSourcingRow } from "@/lib/sourcing";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import OperatorSourcingToolbar from "./OperatorSourcingToolbar";
@@ -24,8 +24,9 @@ import OperatorSourcingTable from "./OperatorSourcingTable";
  */
 export default function OperatorSourcingContainer({ revealDelay = 0 }) {
   const params = useSourcingTableParams();
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_TRIPS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.OPERATOR_SOURCING, Action.CREATE);
+  const mayArchive = canAccess(Module.OPERATOR_SOURCING, Action.ARCHIVE);
 
   const selectRequest = useOperatorSourcingStore((s) => s.selectRequest);
   const openNewRequest = useOperatorSourcingStore((s) => s.openNewRequest);
@@ -50,7 +51,7 @@ export default function OperatorSourcingContainer({ revealDelay = 0 }) {
     if (archived) {
       return [
         { label: "View Request", icon: <Eye />, onSelect: () => selectRequest?.(row?.id) },
-        ...(mayWrite
+        ...(mayArchive
           ? [{ label: "Restore", icon: <RotateCcw />, onSelect: () => selectRequest?.(row?.id) }]
           : []),
       ];
@@ -58,7 +59,7 @@ export default function OperatorSourcingContainer({ revealDelay = 0 }) {
     return [
       { label: "View Request", icon: <Eye />, onSelect: () => selectRequest?.(row?.id) },
       { label: "View Quotes", icon: <FileText />, onSelect: () => selectRequest?.(row?.id) },
-      ...(mayWrite
+      ...(mayCreate
         ? [{ label: "Ask an Operator", icon: <Send />, onSelect: () => openQuoteRequest?.(row?.id) }]
         : []),
     ];
@@ -84,7 +85,7 @@ export default function OperatorSourcingContainer({ revealDelay = 0 }) {
           tab={params.tab}
           setTab={params.setTab}
           onNewRequest={openNewRequest}
-          mayWrite={mayWrite}
+          mayWrite={mayCreate}
         />
 
         {isPending || error || rows.length === 0 ? (

@@ -378,8 +378,8 @@ def build(owner: Session, assistant: Session, anonymous: Session):
 
 
 def main() -> None:
-    owner = Session('admin@tribecajets.com')
-    assistant = Session('assistant@tribecajets.com')
+    owner = Session('admin@example.com')
+    assistant = Session('assistant@example.com')
     anonymous = Session(None)
 
     collection = json.loads(COLLECTION.read_text(encoding='utf-8'))

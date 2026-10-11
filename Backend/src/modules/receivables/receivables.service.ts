@@ -26,10 +26,12 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import {
-  Permission,
-  Scope,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+  Action,
+  Module,
+  Reach,
+  canDo,
+  reachOf,
+} from '../../common/authorization/access.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
 import { InvoiceStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -45,6 +47,7 @@ import {
 } from '../../common/money/movements.js';
 import {
   InvoiceState,
+  collectedTally,
   invoiceFigures,
   invoiceNumber,
   paidCents,
@@ -175,18 +178,17 @@ export class ReceivablesService {
   // ---- Scope ------------------------------------------------------------
 
   private scope(user: AuthenticatedUser): Prisma.InvoiceWhereInput {
-    if (scopeFor(user.role, Permission.VIEW_RECEIVABLES) === Scope.ALL) return {};
+    if (reachOf(user.access, Module.RECEIVABLES) === Reach.ALL) return {};
     return { trip: this.trips.visibleWhere(user) };
   }
 
   /**
    * Archiving an invoice and withdrawing a payment take money off the books,
-   * so they are an administrator's or senior broker's call — finer than the
-   * permission, the same split clients make.
+   * so they are governed by RECEIVABLES · ARCHIVE ("Void invoices / payments").
    */
   private assertMayArchive(user: AuthenticatedUser, what: string): void {
-    if (scopeFor(user.role, Permission.MANAGE_RECEIVABLES) !== Scope.ALL) {
-      throw new ForbiddenException(`Only an administrator or senior broker can ${what}.`);
+    if (!canDo(user.access, Module.RECEIVABLES, Action.ARCHIVE)) {
+      throw new ForbiddenException(`Only an administrator can ${what}.`);
     }
   }
 
@@ -362,6 +364,26 @@ export class ReceivablesService {
       select: FIGURES_SELECT,
     });
     return tally(rows);
+  }
+
+  // ---- For Reports (#23) --------------------------------------------------
+
+  /**
+   * Money received in `[from, to)` by the day it arrived: live payments on
+   * live invoices the caller may see, with the FET inside them
+   * (`collectedTally`). Cancelled invoices included — a payment that came in
+   * is money that came in, whatever later happened to the bill.
+   */
+  async collectedBetween(user: AuthenticatedUser, from: Date, to: Date) {
+    const payments = await this.prisma.invoicePayment.findMany({
+      where: {
+        deletedAt: null,
+        paidAt: { gte: from, lt: to },
+        invoice: { deletedAt: null, ...this.scope(user) },
+      },
+      select: { amount: true, invoice: { select: { amount: true, fetAmount: true } } },
+    });
+    return collectedTally(payments);
   }
 
   // ---- For the Transactions ledger (#19) ---------------------------------

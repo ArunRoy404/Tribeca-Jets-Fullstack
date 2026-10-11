@@ -50,17 +50,6 @@ export const envSchema = z
       .string()
       .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
     JWT_ACCESS_TTL: z.string().default('10m'),
-    /**
-     * How long a session may sit untouched before it has to be signed in again
-     * (client request #4: "automatically logout within 10 minutes if it's not
-     * being touched").
-     *
-     * The browser holds the precise timer — only it can see whether anyone is
-     * actually there. This is the server's backstop: a refresh is refused once
-     * the session has demonstrably been idle longer than this, so disabling
-     * the timer in the browser does not buy an eternal session.
-     */
-    AUTH_IDLE_TIMEOUT_MINUTES: z.coerce.number().int().min(1).max(1440).default(10),
     JWT_REFRESH_TTL: z.string().default('7d'),
     /** Refresh lifetime when the user ticks "Remember me" on sign-in. */
     JWT_REFRESH_TTL_REMEMBERED: z.string().default('30d'),
@@ -172,13 +161,33 @@ export const envSchema = z
 
     // Fail loudly rather than silently writing client passports to local disk
     // because one of four S3 variables was fat-fingered.
+    const s3Keys = ['S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;
     if (env.STORAGE_DRIVER === 's3') {
-      for (const key of ['S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const) {
+      for (const key of s3Keys) {
         if (!env[key]) {
           ctx.addIssue({
             code: 'custom',
             path: [key],
             message: `${key} is required when STORAGE_DRIVER=s3`,
+          });
+        }
+      }
+    }
+
+    // `auto` picks S3 (R2) only with a complete set, and local disk with none.
+    // A partial set is neither: it is an R2 deployment with a typo, and
+    // falling back would write every upload to a container disk that the
+    // next redeploy throws away — silently, until someone opens a file.
+    if (env.STORAGE_DRIVER === 'auto') {
+      const present = s3Keys.filter((key) => Boolean(env[key]));
+      if (present.length > 0 && present.length < s3Keys.length) {
+        for (const key of s3Keys.filter((k) => !env[k])) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message:
+              `${key} is missing while ${present.join(', ')} ${present.length === 1 ? 'is' : 'are'} set. ` +
+              'Complete the S3/R2 settings, or remove them all to store files on local disk.',
           });
         }
       }

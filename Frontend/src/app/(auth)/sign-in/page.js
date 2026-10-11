@@ -13,11 +13,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useLogin } from "@/hooks/auth";
+import { useProductName } from "@/hooks/settings";
 
 function SignInForm() {
   // The hook owns everything that happens after submit — where to navigate,
   // what to toast, whether a second factor is required.
   const { mutate: login, isPending, error } = useLogin();
+  const productName = useProductName();
   const [rememberMe, setRememberMe] = useState(false);
 
   /**
@@ -49,7 +51,7 @@ function SignInForm() {
       <StaggerContainer className="contents">
         <AuthCardHeader
           title="Sign in"
-          description="Access the Tribeca Jets Command Center"
+          description={`Access the ${productName}`}
           subtitleTone="slate"
         />
 

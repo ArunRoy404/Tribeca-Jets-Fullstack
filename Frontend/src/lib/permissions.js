@@ -52,6 +52,18 @@ export const Scope = {
   ALL: "ALL",
 };
 
+/**
+ * Whether the old role matrix is enforced, on both sides. On since 7 Oct 2026.
+ *
+ * It was off from 4 to 7 Oct 2026, when every user acted as SUPER_ADMIN. The
+ * API's `ROLE_RESTRICTIONS_ENABLED` holds the same value: with it on,
+ * `usePermissions()`'s `can` / `canWrite` / `scopeFor` read the `matrix` the
+ * API ships, so a control the server would refuse is not offered. It governs
+ * only the modules not yet moved to per-user permissions; it goes away with
+ * the old matrix.
+ */
+export const ROLE_RESTRICTIONS_ENABLED = true;
+
 /** Whether this scope permits the action at all. */
 export function can(scope) {
   return Boolean(scope) && scope !== Scope.NONE;

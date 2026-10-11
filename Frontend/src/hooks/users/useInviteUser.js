@@ -9,11 +9,11 @@ import { toastApiError, toastInfo, toastSuccess } from "@/lib/toast";
 /**
  * Invites a team member.
  *
- * Call with `{ email, firstName, lastName, phone?, role? }`.
+ * Call with `{ email, password, firstName, lastName, phone?, role,
+ * permissions? }`.
  *
- * The API creates the account in `INVITED` status with no usable password —
- * the invitee sets their own through the reset flow — so there is no
- * credential here to show or copy.
+ * The API creates the account in `INVITED` status with the password the
+ * inviter set, emailed with the invitation; the first sign-in activates it.
  */
 export function useInviteUser() {
   return useMutation({
@@ -28,7 +28,7 @@ export function useInviteUser() {
         .join(" ");
       toastSuccess(
         `${name || data?.user?.email} was invited`,
-        "They will appear as Invited until they set a password.",
+        "They show as Invited until their first sign-in.",
       );
 
       // Without SMTP no mail was sent, and the invitee would wait forever for

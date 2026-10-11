@@ -1,3 +1,4 @@
+import { uploadUrl } from "@/services/uploads.service";
 
 /**
  * Display helpers for the authenticated user.
@@ -10,7 +11,6 @@
 const ROLE_LABELS = {
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
-  SENIOR_BROKER: "Senior Broker",
   BROKER: "Broker",
   ASSISTANT: "Assistant",
   REFERRAL_AGENT: "Referral Agent",
@@ -31,7 +31,6 @@ const STATUS_LABELS = {
  */
 export const ASSIGNABLE_ROLES = [
   "ADMIN",
-  "SENIOR_BROKER",
   "BROKER",
   "ASSISTANT",
   "REFERRAL_AGENT",
@@ -47,7 +46,7 @@ export const FILTERABLE_STATUSES = ["ACTIVE", "INVITED", "SUSPENDED"];
  * Statuses an administrator can actually set.
  *
  * `INVITED` is filterable but not settable: an account leaves that state on its
- * own, when the invitee sets a password through "Forgot password?". Offering it
+ * own, the first time the invitee signs in. Offering it
  * as a choice would produce a 400, and pushing a live account back to pending is
  * not a state anything could undo. Mirrors `manageableStatusSchema` on the API.
  */
@@ -113,6 +112,11 @@ export function toTeamMember(user) {
     commissionPercentage: user?.commissionPercentage ?? null,
     commissionAmount: user?.commissionAmount ?? null,
 
+    // Their own permissions, `{ MODULE: { reach, actions } }` — present only
+    // for a caller who may open Users & Roles. Null, never `{}`, when absent:
+    // an empty map would read as "no access to anything".
+    permissions: user?.permissions ?? null,
+
     activeLeads: "—",
     activeTrips: user?.activeTrips ?? "—",
     conversionRate: "—",
@@ -142,7 +146,8 @@ export function toDisplayUser(user, { isLoading = false } = {}) {
     // not collapse to an empty row on load.
     name: isLoading ? "Loading…" : getFullName(user),
     role: formatUserRole(user?.role),
-    avatarUrl: user?.avatarUrl ?? null,
+    // An upload URL is relative; this is where it becomes loadable.
+    avatarUrl: uploadUrl(user?.avatarUrl),
   };
 }
 

@@ -29,11 +29,15 @@ export default function ItinerariesToolbar({
   selectedCount = 0,
   onBulkAction,
   onBuildItinerary,
+  mayCreate,
+  mayArchive,
   mayWrite = false,
 }) {
   const isArchived = tab === ARCHIVE_TABS.ARCHIVED;
   const [draft, setDraft] = useDebouncedParam(search, setSearch);
   const statusFilter = useEnumFilter(ITINERARY_STATUSES, formatItineraryStatus, ALL_STATUS);
+  const canCreate = mayCreate ?? mayWrite;
+  const canArchive = mayArchive ?? mayWrite;
 
   return (
     <div className="relative flex flex-col gap-3 p-4 w-full bg-sidebar border-b border-border">
@@ -61,7 +65,7 @@ export default function ItinerariesToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {mayWrite && (
+          {canArchive && (
             <BulkDeleteButton
               count={selectedCount}
               itemLabel="itineraries"
@@ -69,7 +73,7 @@ export default function ItinerariesToolbar({
               action={isArchived ? "restore" : "remove"}
             />
           )}
-          {mayWrite && !isArchived && (
+          {canCreate && !isArchived && (
             <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" onClick={() => onBuildItinerary?.()}>
               <Plus className="size-3.5" />
               <span>Build Itinerary</span>

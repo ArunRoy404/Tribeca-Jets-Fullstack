@@ -13,11 +13,8 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { AircraftService } from './aircraft.service.js';
@@ -28,17 +25,21 @@ import {
 } from './dto/aircraft.dto.js';
 
 /**
- * Assistants hold MANAGE_AIRCRAFT at READ scope, so the GETs below are open to
- * them and every write is not — which is what `@RequireWritePermissions`
- * enforces and `@RequirePermissions` would not.
+ * **Reads need only a staff session; every write needs the caller's own
+ * Aircraft permission** (AGENTS.md, "Reads are open to every signed-in
+ * user") — sourcing, quotes, trips and empty legs all pick an aircraft.
+ *
+ * `@StaffOnly`: a referral agent never picks an aircraft, and fleet
+ * specifications, maintenance dates and utilization are desk data, so the
+ * partner is refused as with operators.
  */
 @ApiTags('Aircraft')
+@StaffOnly()
 @Controller('aircraft')
 export class AircraftController {
   constructor(private readonly aircraft: AircraftService) {}
 
   @Get()
-  @RequirePermissions(Permission.MANAGE_AIRCRAFT)
   @ApiOperation({
     summary: 'List aircraft',
     description:
@@ -50,7 +51,6 @@ export class AircraftController {
 
   /** Before `:id` — Nest matches in order and would otherwise read it as an id. */
   @Get('stats')
-  @RequirePermissions(Permission.MANAGE_AIRCRAFT)
   @ApiOperation({ summary: 'Counts for the tiles above the aircraft table' })
   stats() {
     return this.aircraft.stats();
@@ -58,7 +58,6 @@ export class AircraftController {
 
   /** Also before `:id`, for the same reason. */
   @Get('amenities')
-  @RequirePermissions(Permission.MANAGE_AIRCRAFT)
   @ApiOperation({
     summary: 'Distinct cabin features, for the preference filter',
     description:
@@ -69,7 +68,6 @@ export class AircraftController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.MANAGE_AIRCRAFT)
   @ApiOperation({
     summary: 'Get one aircraft',
     description:
@@ -80,7 +78,7 @@ export class AircraftController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_AIRCRAFT)
+  @RequireAccess(Module.AIRCRAFT, Action.CREATE)
   @ApiOperation({
     summary: 'Add an aircraft',
     description:
@@ -94,7 +92,7 @@ export class AircraftController {
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_AIRCRAFT)
+  @RequireAccess(Module.AIRCRAFT, Action.EDIT)
   @ApiOperation({
     summary: 'Update an aircraft',
     description:
@@ -118,7 +116,7 @@ export class AircraftController {
    * would turn "remove these three" into "remove nothing" with a 200.
    */
   @Post('bulk-delete')
-  @RequireWritePermissions(Permission.MANAGE_AIRCRAFT)
+  @RequireAccess(Module.AIRCRAFT, Action.ARCHIVE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Remove several aircraft at once (soft)',
@@ -133,7 +131,7 @@ export class AircraftController {
    * Also declared before `:id`, and POST for the same reason as bulk-delete.
    */
   @Post('bulk-restore')
-  @RequireWritePermissions(Permission.MANAGE_AIRCRAFT)
+  @RequireAccess(Module.AIRCRAFT, Action.ARCHIVE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Restore several archived aircraft at once',
@@ -151,7 +149,7 @@ export class AircraftController {
    */
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_AIRCRAFT)
+  @RequireAccess(Module.AIRCRAFT, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Restore an archived aircraft',
     description:
@@ -165,7 +163,7 @@ export class AircraftController {
   }
 
   @Delete(':id')
-  @RequireWritePermissions(Permission.MANAGE_AIRCRAFT)
+  @RequireAccess(Module.AIRCRAFT, Action.ARCHIVE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Remove an aircraft (soft)',

@@ -27,8 +27,10 @@ const initialState = {
   aircraftDescription: "",
   operatorConfirmed: false,
 
-  passengerCount: "",
-  passengers: [],
+  passengerCount: "1",
+  passengers: [blankPassenger()],
+
+  attachments: [],
 
   basePrice: "",
   operatorCost: "",
@@ -71,16 +73,67 @@ export const useCreateTripStore = create((set) => ({
   addLeg: () => set((state) => ({ legs: [...state.legs, blankLeg()] })),
   removeLeg: (index) => set((state) => ({ legs: state.legs.filter((_, i) => i !== index) })),
 
-  addPassenger: () => set((state) => ({ passengers: [...state.passengers, blankPassenger()] })),
-  removePassenger: (index) => set((state) => ({ passengers: state.passengers.filter((_, i) => i !== index) })),
+  setPassengerCount: (count) =>
+    set((state) => {
+      const next = Math.max(1, Math.min(200, count));
+      const current = state.passengers.length;
+      let nextPassengers = [...state.passengers];
+      if (next > current) {
+        for (let i = current; i < next; i++) {
+          nextPassengers.push(blankPassenger());
+        }
+      } else if (next < current) {
+        nextPassengers = nextPassengers.slice(0, next);
+      }
+      return { passengerCount: String(next), passengers: nextPassengers };
+    }),
+
+  addPassenger: () =>
+    set((state) => {
+      const nextCount = state.passengers.length + 1;
+      return {
+        passengerCount: String(nextCount),
+        passengers: [...state.passengers, blankPassenger()],
+      };
+    }),
+
+  removePassenger: (index) =>
+    set((state) => {
+      if (state.passengers.length <= 1) return state;
+      const nextPassengers = state.passengers.filter((_, i) => i !== index);
+      return {
+        passengerCount: String(nextPassengers.length),
+        passengers: nextPassengers,
+      };
+    }),
+
   updatePassenger: (index, field, value) =>
     set((state) => ({
       passengers: state.passengers.map((p, i) => (i === index ? { ...p, [field]: value } : p)),
     })),
 
+  addAttachment: (file) =>
+    set((state) => ({ attachments: [...state.attachments, file] })),
+  removeAttachment: (index) =>
+    set((state) => ({
+      attachments: state.attachments.filter((_, i) => i !== index),
+    })),
+
   /** Opens the form on a saved trip — raw API record, ids kept for the diff. */
-  loadTrip: (trip) =>
-    set({
+  loadTrip: (trip) => {
+    const rawPassengers = (trip?.passengers ?? []).map((p) => ({
+      id: p?.id,
+      fullName: str(p?.fullName),
+      dateOfBirth: p?.dateOfBirth ? String(p.dateOfBirth).slice(0, 10) : "",
+      passportNumber: str(p?.passportNumber),
+    }));
+    const totalCount = Math.max(1, Number(trip?.passengerCount) || rawPassengers.length || 1);
+    const passengers = [...rawPassengers];
+    while (passengers.length < totalCount) {
+      passengers.push(blankPassenger());
+    }
+
+    return set({
       ...initialState,
       editingId: trip?.id ?? null,
       clientId: str(trip?.clientId),
@@ -98,19 +151,23 @@ export const useCreateTripStore = create((set) => ({
       aircraftId: str(trip?.aircraftId),
       aircraftDescription: str(trip?.aircraftDescription),
       operatorConfirmed: Boolean(trip?.operatorConfirmed),
-      passengerCount: str(trip?.passengerCount),
-      passengers: (trip?.passengers ?? []).map((p) => ({
-        id: p?.id,
-        fullName: str(p?.fullName),
-        dateOfBirth: p?.dateOfBirth ? String(p.dateOfBirth).slice(0, 10) : "",
-        passportNumber: str(p?.passportNumber),
-      })),
+      passengerCount: String(totalCount),
+      passengers,
+      attachments: [],
       basePrice: str(trip?.basePrice),
       operatorCost: trip?.operatorCost === undefined ? "" : str(trip?.operatorCost),
       fetEnabled: trip?.fetEnabled ?? true,
       internalNotes: str(trip?.internalNotes),
       clientNotes: str(trip?.clientNotes),
-    }),
+    });
+  },
 
-  reset: () => set({ ...initialState, legs: [blankLeg()], passengers: [] }),
+  reset: () =>
+    set({
+      ...initialState,
+      legs: [blankLeg()],
+      passengerCount: "1",
+      passengers: [blankPassenger()],
+      attachments: [],
+    }),
 }));

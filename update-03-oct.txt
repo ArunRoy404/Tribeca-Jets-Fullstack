@@ -1,0 +1,26 @@
+Hello Ari,
+I hope you and your family are doing well. 
+
+I am giving you a quick update regarding the deployment of the platform. 
+We have done the following tasks:
+ - We have completed the setup of your Hostinger hosting.
+ - We have completed the setup for your documents and file storage in cloudflare r2 storage
+ - We have completed the setup for your domain in the netlify. 
+ - We have configured the panel in Hostinger to manage all of your projects in central setup.
+ - We have deployed the backend system
+ - We have deployed the website in the domain https://tribecajetscommandcenter.com
+
+
+The login credentials for the platform:
+https://docs.google.com/document/d/1aeA8CLRoHiwZ5Szo6EX1xAP1tqeLbB_8eSqSyePR8Bw/edit?usp=drive_link
+
+The list of all services credentials:
+https://docs.google.com/document/d/1QLUdxfYcpriMAbFuU2jGdV5ReZkIAnzYWM0DGT69Smw/edit?usp=drive_link
+
+
+
+Note: We are currently using free email services using resend with limitation to keep the platform working. Below we are providing an instruction for you to provide us the necessary information we need in order to fully implement the email system properly. 
+
+
+
+Best regards.

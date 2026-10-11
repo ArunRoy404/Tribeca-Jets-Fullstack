@@ -21,20 +21,14 @@ import {
 } from "@/hooks/referrals";
 import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { useClients } from "@/hooks/clients";
-import { useTrips } from "@/hooks/trips";
-import { useUsers } from "@/hooks/users";
-import { Permission, Scope } from "@/lib/permissions";
+import { Action, Module, Reach } from "@/lib/access";
+import BrokerPicker from "@/components/users/BrokerPicker";
+import ClientPicker from "@/components/clients/ClientPicker";
+import TripPicker from "@/components/trips/TripPicker";
 import { REFERRAL_STATUSES, formatReferralStatus, toReferralRow } from "@/lib/referral";
-import { displayName } from "@/lib/client";
-import { personName } from "@/lib/lead";
-import { BROKER_ROLES } from "@/lib/roles";
-import { formatTripReference, formatTripRoute } from "@/lib/trip";
 import { referralAttachmentUrl } from "@/services/referrals.service";
 import { uploadUrl } from "@/services/uploads.service";
 
-const NEW_CLIENT = "__new__";
-const UNASSIGNED = "__none__";
 const STATUS_OPTIONS = REFERRAL_STATUSES.map((value) => ({ value, label: formatReferralStatus(value) }));
 
 /**
@@ -63,39 +57,18 @@ export default function ReferralDetailSheet() {
 
 function ReferralDetail({ referral }) {
   const { data: me } = useCurrentUser();
-  const { canWrite, scopeFor } = usePermissions();
-  const mayWork = canWrite(Permission.MANAGE_REFERRALS) && !referral.isArchived;
-  const administers = scopeFor(Permission.MANAGE_REFERRALS) === Scope.ALL;
+  const { canAccess, reachOf } = usePermissions();
+  const mayWork = canAccess(Module.REFERRALS, Action.EDIT) && !referral.isArchived;
+  const mayArchive = canAccess(Module.REFERRALS, Action.ARCHIVE);
+  const administers = reachOf(Module.REFERRALS) === Reach.ALL;
 
   const { mutate: update, isPending: saving } = useUpdateReferral();
   const { mutate: convert, isPending: converting } = useConvertReferral();
   const { mutate: restore } = useRestoreReferral();
 
-  const [clientChoice, setClientChoice] = useState(NEW_CLIENT);
+  const [linkExisting, setLinkExisting] = useState(false);
+  const [existingClientId, setExistingClientId] = useState("");
   const [tripChoice, setTripChoice] = useState("");
-
-  const { data: clients } = useClients({ limit: 100 }, { enabled: mayWork && !referral.converted });
-  const { data: users } = useUsers({ limit: 100 }, { enabled: mayWork && administers });
-  const { data: trips } = useTrips(
-    { clientId: referral.client?.id, limit: 50, sortBy: "departureDate", sortOrder: "desc" },
-    { enabled: mayWork && Boolean(referral.client?.id) },
-  );
-
-  const clientOptions = useMemo(
-    () => [
-      { value: NEW_CLIENT, label: `Create a new client: ${referral.clientName}` },
-      ...(clients?.data ?? []).map((c) => ({ value: c.id, label: displayName(c) })),
-    ],
-    [clients?.data, referral.clientName],
-  );
-  const brokerOptions = [
-    { value: UNASSIGNED, label: "Unassigned" },
-    ...(users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)).map((u) => ({ value: u.id, label: personName(u) })),
-  ];
-  const tripOptions = (trips?.data ?? []).map((t) => ({
-    value: t.id,
-    label: `${formatTripReference(t.reference)} · ${formatTripRoute(t)}`,
-  }));
 
   return (
     <>
@@ -184,12 +157,11 @@ function ReferralDetail({ referral }) {
           </FormField>
           <FormField label="Broker">
             {mayWork && administers ? (
-              <CommonSelect
-                value={referral.assignedBrokerId ?? UNASSIGNED}
-                onChange={(value) =>
-                  update({ id: referral.id, assignedBrokerId: value === UNASSIGNED ? null : value })
+              <BrokerPicker
+                value={referral.assignedBrokerId}
+                onChange={(brokerId) =>
+                  update({ id: referral.id, assignedBrokerId: brokerId || null })
                 }
-                options={brokerOptions}
               />
             ) : mayWork && !referral.assignedBrokerId ? (
               <Button variant="outline" size="sm" disabled={saving} className="gap-2 w-fit" onClick={() => update({ id: referral.id, assignedBrokerId: me?.id })}>
@@ -223,15 +195,40 @@ function ReferralDetail({ referral }) {
           </div>
         ) : (
           mayWork && (
-            <div className="flex flex-col gap-2 w-full">
-              <FormField label="Convert into a client and a trip request">
-                <CommonSelect value={clientChoice} onChange={setClientChoice} options={clientOptions} />
-              </FormField>
+            <div className="flex flex-col gap-3 w-full">
+              <div className="flex items-center justify-between">
+                <span className="font-montserrat text-[13px] font-semibold text-foreground">
+                  Convert into a client and a trip request
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLinkExisting(!linkExisting);
+                    setExistingClientId("");
+                  }}
+                  className="font-montserrat text-[12px] text-purple hover:underline"
+                >
+                  {linkExisting ? "Create new client instead" : "Link existing client instead"}
+                </button>
+              </div>
+              {linkExisting ? (
+                <FormField label="Choose existing client">
+                  <ClientPicker
+                    value={existingClientId}
+                    onChange={setExistingClientId}
+                    placeholder="Search and select client…"
+                  />
+                </FormField>
+              ) : (
+                <p className="font-montserrat text-[12px] text-muted-foreground">
+                  Will create a new client for <span className="font-semibold text-foreground">{referral.clientName}</span> (lead source Referral).
+                </p>
+              )}
               <Button
-                disabled={converting}
+                disabled={converting || (linkExisting && !existingClientId)}
                 className="gap-2 w-fit"
                 onClick={() =>
-                  convert({ id: referral.id, ...(clientChoice !== NEW_CLIENT ? { clientId: clientChoice } : {}) })
+                  convert({ id: referral.id, ...(linkExisting && existingClientId ? { clientId: existingClientId } : {}) })
                 }
               >
                 <ArrowRightLeft className="size-4" />
@@ -258,11 +255,11 @@ function ReferralDetail({ referral }) {
           referral.converted && (
             <div className="flex flex-col gap-2 w-full">
               <FormField label="The trip it booked">
-                <CommonSelect
+                <TripPicker
                   value={tripChoice}
                   onChange={setTripChoice}
-                  options={tripOptions}
-                  placeholder={tripOptions.length ? "Choose the client's trip" : "This client has no trips yet"}
+                  params={{ clientId: referral.client?.id }}
+                  placeholder="Choose the client's trip"
                 />
               </FormField>
               <p className="font-montserrat text-[11px] text-muted-foreground">
@@ -281,7 +278,7 @@ function ReferralDetail({ referral }) {
           )
         )}
 
-        {referral.isArchived && administers && (
+        {referral.isArchived && mayArchive && (
           <Button variant="outline" className="gap-2 w-fit" onClick={() => restore(referral.id)}>
             <RotateCcw className="size-4" />
             Restore referral

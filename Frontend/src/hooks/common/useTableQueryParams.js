@@ -291,7 +291,7 @@ export function searchField(maxLength = 200) {
 /**
  * A dropdown filter over a fixed set, where empty means "all".
  *
- * `allowed` is the wire vocabulary (`SENIOR_BROKER`), not display labels — the
+ * `allowed` is the wire vocabulary (`REFERRAL_AGENT`), not display labels — the
  * URL carries what the API carries, and the label mapping happens at render.
  */
 export function filterField(allowed) {

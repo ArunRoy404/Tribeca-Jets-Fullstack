@@ -184,6 +184,44 @@ export default function ItineraryPreview({ item }) {
           </div>
         </div>
       </SectionCard>
+
+      {/* Operator Itinerary Reference Section */}
+      {(item.operatorItineraryUrl || item.operatorItineraryText) && (
+        <SectionCard title="Operator Itinerary">
+          <div className="flex flex-col gap-3 text-[13px] font-montserrat w-full">
+            {item.operatorItineraryUrl && (
+              <div className="flex items-center justify-between p-3 bg-secondary/40 rounded-lg border border-border/50">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="size-4 text-purple shrink-0" />
+                  <span className="font-medium text-foreground truncate">Operator Document Attached</span>
+                </div>
+                <a
+                  href={item.id ? `/api/itineraries/${item.id}/operator-attachment` : uploadUrl(item.operatorItineraryUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1 text-[12px] font-semibold text-purple bg-purple/10 hover:bg-purple/20 rounded border border-purple/30 transition-colors"
+                >
+                  View Attachment
+                </a>
+              </div>
+            )}
+            {item.operatorItineraryText && (
+              <div className="p-3 bg-secondary/20 rounded-md border border-border/40 text-[12px] text-foreground/90 whitespace-pre-wrap leading-relaxed">
+                {item.operatorItineraryText}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Internal Notes Section */}
+      {item.notes && (
+        <SectionCard title="Internal Notes">
+          <p className="font-montserrat text-[12px] text-foreground/90 whitespace-pre-wrap leading-relaxed">
+            {item.notes}
+          </p>
+        </SectionCard>
+      )}
     </>
   );
 }

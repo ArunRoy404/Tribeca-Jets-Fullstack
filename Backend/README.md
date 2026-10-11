@@ -29,10 +29,11 @@ Seeded logins (development only — change before any real deployment):
 
 | Email | Password | Role |
 |---|---|---|
-| admin@tribecajets.com | ChangeMe123! | SUPER_ADMIN |
-| broker@tribecajets.com | ChangeMe123! | BROKER |
-| security@tribecajets.com | ChangeMe123! | ADMIN, two-factor **on** |
-| reset-demo@tribecajets.com | ChangeMe123! | BROKER, password-reset target |
+| admin@example.com | ChangeMe123! | SUPER_ADMIN |
+| broker@example.com | ChangeMe123! | BROKER |
+| security@example.com | ChangeMe123! | ADMIN, two-factor **on** |
+| reset-demo@example.com | ChangeMe123! | BROKER, password-reset target |
+| agent@example.com | ChangeMe123! | REFERRAL_AGENT — signs in to `/portal` |
 
 > Redis is mapped to **6380**, not 6379, because another project on this
 > machine already holds 6379.

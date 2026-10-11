@@ -1,34 +1,23 @@
 "use client";
 
-import { useReportsStore } from "@/store/useReportsStore";
-import DarkPanel from "@/components/common/DarkPanel";
-import ReportTable from "./ReportTable";
+import { useMemo } from "react";
+import { useReportBrokers, useReportsParams } from "@/hooks/reports";
+import { toBrokerRows } from "@/lib/reports";
+import RankingPanel from "./RankingPanel";
 
 const columns = [
   { key: "broker", label: "Broker", align: "left" },
-  {
-    key: "revenue",
-    label: "Revenue",
-    align: "right",
-    cellClassName: () => "text-success",
-    render: (row) => `$${row.revenue.toLocaleString()}`,
-  },
-  {
-    key: "profit",
-    label: "Profit",
-    align: "right",
-    cellClassName: () => "text-purple",
-    render: (row) => `$${row.profit.toLocaleString()}`,
-  },
+  { key: "revenue", label: "Revenue", align: "right", cellClassName: () => "text-success" },
+  { key: "profit", label: "Profit", align: "right", cellClassName: () => "text-purple" },
   { key: "trips", label: "Trips", align: "right" },
   { key: "margin", label: "Margin", align: "right" },
 ];
 
 export default function BrokerPerformancePanel() {
-  const data = useReportsStore((s) => s.brokerPerformance);
+  const { window } = useReportsParams();
+  const query = useReportBrokers(window);
+  const rows = useMemo(() => toBrokerRows(query.data?.data), [query.data]);
   return (
-    <DarkPanel title="Broker Performance">
-      <ReportTable columns={columns} rows={data} rowKey={(row, i) => `${row.broker}-${i}`} />
-    </DarkPanel>
+    <RankingPanel title="Broker Performance" query={query} rows={rows} columns={columns} emptyMessage="No trips in this period." />
   );
 }

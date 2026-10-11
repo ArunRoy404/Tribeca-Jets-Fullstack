@@ -16,7 +16,7 @@ import {
   useSaveReferralResource,
 } from "@/hooks/referrals";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission, Scope } from "@/lib/permissions";
+import { Action, Module, Reach } from "@/lib/access";
 import { formatTimestamp } from "@/lib/archive";
 import { uploadUrl } from "@/services/uploads.service";
 
@@ -26,11 +26,11 @@ const TABS = ["On the portal", "Archived"];
  * The portal's Resources library (#11) — the brochure, the aircraft category
  * guide, the programme terms, marketing material, contact details. The file
  * is uploaded PUBLIC so every referral agent can open it; the row is what
- * lists it on the portal. Curating is for administrators and senior brokers.
+ * lists it on the portal. Curating is for administrators.
  */
 export default function ReferralResourcesCard() {
-  const { scopeFor } = usePermissions();
-  const curator = scopeFor(Permission.MANAGE_REFERRALS) === Scope.ALL;
+  const { reachOf, canAccess } = usePermissions();
+  const curator = reachOf(Module.REFERRALS) === Reach.ALL && canAccess(Module.REFERRALS, Action.CREATE);
   const [tab, setTab] = useState(TABS[0]);
   const archived = tab === TABS[1];
 

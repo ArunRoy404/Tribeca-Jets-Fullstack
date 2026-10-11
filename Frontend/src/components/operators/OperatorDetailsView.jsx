@@ -13,6 +13,7 @@ import OperatorPaymentsTab from "@/components/operators/tabs/OperatorPaymentsTab
 import DocumentsPanel from "@/components/documents/DocumentsPanel";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 
 export default function OperatorDetailsView({
   operator,
@@ -24,8 +25,8 @@ export default function OperatorDetailsView({
 }) {
   // The operator's bills and what was sent them (Operator Payments, #17) —
   // hidden, not refused, for a role that may not read them.
-  const { can } = usePermissions();
-  const maySeePayments = can(Permission.VIEW_OPERATOR_PAYMENTS);
+  const { can, canAccess } = usePermissions();
+  const maySeePayments = canAccess(Module.OPERATOR_PAYMENTS, Action.VIEW);
   const maySeeDocuments = can(Permission.VIEW_DOCUMENTS);
   const tabs = [
     { id: "overview", label: "Overview" },

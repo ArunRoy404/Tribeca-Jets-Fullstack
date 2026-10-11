@@ -49,6 +49,21 @@ const SIGNATURES: readonly Signature[] = [
   { contentType: 'image/webp', offset: 8, bytes: ascii('WEBP') },
 ];
 
+/**
+ * AVIF is an ISO-BMFF file: a four-byte box size, then `ftyp`, then a brand.
+ * The brand is `avif` (still) or `avis` (sequence) — or a generic one such as
+ * `mif1` with `avif` among the compatible brands that follow, which is why
+ * the first 64 bytes are searched rather than one offset. HEIC uses the same
+ * container with `heic` brands and is deliberately not matched: browsers
+ * cannot display it, so it is a document, not an image.
+ */
+function isAvif(buffer: Buffer): boolean {
+  if (!startsWith(buffer, 4, ascii('ftyp'))) return false;
+  const boxSize = buffer.readUInt32BE(0);
+  const brands = buffer.subarray(8, Math.min(buffer.length, Math.max(16, Math.min(boxSize, 64))));
+  return brands.includes('avif') || brands.includes('avis');
+}
+
 /** ZIP local file header. DOCX and XLSX are both zip archives. */
 const ZIP_HEADER = [0x50, 0x4b, 0x03, 0x04];
 
@@ -127,6 +142,8 @@ export function sniffContentType(
       return signature.contentType;
     }
   }
+
+  if (buffer.length >= 16 && isAvif(buffer)) return 'image/avif';
 
   if (startsWith(buffer, 0, ZIP_HEADER)) return classifyZip(buffer);
 

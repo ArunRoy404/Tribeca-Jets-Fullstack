@@ -6,9 +6,12 @@ import {
   Calendar,
   ExternalLink,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/common/StatusBadge";
 import DetailCard from "@/components/common/DetailCard";
 import ClientFollowUpBanner from "@/components/clients/ClientFollowUpBanner";
+import { useTrips } from "@/hooks/trips";
+import { toTripRow } from "@/lib/trip";
 
 export default function ClientOverviewTab({
   client,
@@ -17,6 +20,13 @@ export default function ClientOverviewTab({
   onMarkComplete,
   isCompleting,
 }) {
+  const router = useRouter();
+  const { data: latestTripData } = useTrips(
+    { clientId: client?.id, limit: 1, sortBy: "departureDate", sortOrder: "desc" },
+    { enabled: Boolean(client?.id) },
+  );
+  const recentTrip = latestTripData?.data?.[0] ? toTripRow(latestTripData.data[0]) : null;
+
   if (!client) return null;
 
   const routes = client.preferences?.preferredRoutes ?? [];
@@ -71,29 +81,41 @@ export default function ClientOverviewTab({
 
       {/* Recent Trip & Next Follow-up Sub-cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-        {/*
-          TODO [API Integration - Trips Module]:
-          Query the client's latest trip (e.g. GET /api/trips?clientId={client.id}&limit=1&sort=-departureTime).
-          When Trips API lands:
-          - route: `${trip.fromCode} → ${trip.toCode}`
-          - departure & aircraft: `${formatDate(trip.departureTime)} • ${trip.aircraft?.name}`
-          - id: `#${trip.id}`
-          - status: trip.status
-          Until then, render an honest empty placeholder ("No trips on file").
-        */}
-        <div className="p-4 bg-secondary/30 border border-border rounded-lg flex flex-col gap-2 justify-between">
+        <div
+          className={`p-4 bg-secondary/30 border border-border rounded-lg flex flex-col gap-2 justify-between ${
+            recentTrip ? "cursor-pointer hover:bg-secondary/50 transition-colors" : ""
+          }`}
+          onClick={recentTrip ? () => router.push(`/dashboard/trips/${recentTrip.id}`) : undefined}
+        >
           <div className="flex items-start justify-between">
-            <div className="flex flex-col gap-0.5">
-              <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">
-                Recent Trip
-              </span>
-              <h4 className="font-montserrat font-bold text-[14px] text-foreground">
-                No trips on file
+            <div className="flex flex-col gap-0.5 min-w-0 pr-2">
+              <div className="flex items-center gap-2">
+                <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">
+                  Recent Trip
+                </span>
+                {recentTrip && (
+                  <span className="font-montserrat font-semibold text-[11px] text-purple">
+                    {recentTrip.reference || recentTrip.id}
+                  </span>
+                )}
+              </div>
+              <h4 className="font-montserrat font-bold text-[14px] text-foreground truncate">
+                {recentTrip ? recentTrip.route : "No trips on file"}
               </h4>
-              <p className="font-montserrat text-[11px] text-muted-foreground">
-                No trip records associated with this client.
+              <p className="font-montserrat text-[11px] text-muted-foreground truncate">
+                {recentTrip
+                  ? [
+                      recentTrip.departure !== "—" ? recentTrip.departure : null,
+                      recentTrip.aircraft !== "—" ? recentTrip.aircraft : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" • ") || "Trip scheduled"
+                  : "No trip records associated with this client."}
               </p>
             </div>
+            {recentTrip && (
+              <StatusBadge status={recentTrip.status} bordered />
+            )}
           </div>
         </div>
 

@@ -14,7 +14,7 @@ import {
   useUpdateEmailTemplate,
 } from "@/hooks/email-templates";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toEmailTemplate } from "@/lib/email";
 import { useEmailTemplatesStore } from "@/store/useEmailTemplatesStore";
 
@@ -27,9 +27,10 @@ import { useEmailTemplatesStore } from "@/store/useEmailTemplatesStore";
 export default function EmailTemplateDetailSheet({ templateId, onClose }) {
   const { data } = useEmailTemplate(templateId);
   const { data: fields } = useMergeFields();
-  const { canWrite } = usePermissions();
-  const mayManage = canWrite(Permission.MANAGE_EMAIL_TEMPLATES);
-  const maySend = canWrite(Permission.SEND_EMAILS);
+  const { canAccess } = usePermissions();
+  const mayEdit = canAccess(Module.EMAIL_TEMPLATES, Action.EDIT);
+  const mayArchive = canAccess(Module.EMAIL_TEMPLATES, Action.ARCHIVE);
+  const maySend = canAccess(Module.EMAIL_TEMPLATES, Action.SEND);
   const openEditTemplate = useEmailTemplatesStore((s) => s.openEditTemplate);
   const openCompose = useEmailTemplatesStore((s) => s.openCompose);
   const { mutate: update } = useUpdateEmailTemplate();
@@ -129,7 +130,7 @@ export default function EmailTemplateDetailSheet({ templateId, onClose }) {
 
           <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-secondary w-full mt-auto">
             {template.isArchived ? (
-              mayManage && (
+              mayArchive && (
                 <Button className="flex-1 px-4 gap-2 h-10 font-medium text-[13px]" onClick={() => restore(template.id)} disabled={restoring}>
                   <RotateCcw className="size-3.5" />
                   Restore
@@ -137,7 +138,7 @@ export default function EmailTemplateDetailSheet({ templateId, onClose }) {
               )
             ) : (
               <>
-                {mayManage && (
+                {mayEdit && (
                   <Button className="flex-1 px-4 gap-2 h-10 font-medium text-[13px]" onClick={() => openEditTemplate(template.id)}>
                     <Edit2 className="size-3.5" />
                     Edit Template
@@ -156,7 +157,7 @@ export default function EmailTemplateDetailSheet({ templateId, onClose }) {
                     Use Template
                   </Button>
                 )}
-                {mayManage && (
+                {mayEdit && (
                   <Button
                     variant="outline"
                     className="px-4 gap-2 h-10 font-medium text-[13px]"
@@ -166,7 +167,7 @@ export default function EmailTemplateDetailSheet({ templateId, onClose }) {
                     {template.active ? "Switch Off" : "Switch On"}
                   </Button>
                 )}
-                {mayManage && (
+                {mayArchive && (
                   <Button
                     variant="outline"
                     className="px-4 gap-2 h-10 font-medium text-[13px] border-destructive text-destructive hover:bg-destructive/10"

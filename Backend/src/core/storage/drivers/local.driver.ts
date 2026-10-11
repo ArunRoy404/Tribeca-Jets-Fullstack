@@ -61,7 +61,11 @@ export class LocalStorageDriver implements StorageDriver {
   async get(key: string): Promise<Readable> {
     const path = this.resolveKey(key);
     if (!(await this.exists(key))) {
-      throw new NotFoundException(`File not found: ${key}`);
+      // The key is a storage path, kept out of the response: the client hears
+      // what any other missing file says. The log keeps it for whoever has to
+      // find out why a row's bytes are gone.
+      this.logger.warn(`Object missing from local storage: ${key}`);
+      throw new NotFoundException('That file does not exist.');
     }
     return createReadStream(path);
   }

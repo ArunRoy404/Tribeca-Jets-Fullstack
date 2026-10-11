@@ -3,41 +3,50 @@
 Shared reference data: every signed-in user reads the same rows. There is no
 row-level scoping — unlike a client, nobody owns an airport.
 
-## Who can write
+## Who can do what (since 8 Oct 2026)
 
-| Role | Read | Create / Edit / Remove |
-|---|---|---|
-| SUPER_ADMIN, ADMIN, SENIOR_BROKER | yes | yes |
-| BROKER, ASSISTANT | yes | **403** |
+**Every read needs only a session** — the list, the stats, the country
+options and one airport. About eight forms pick an airport (clients,
+aircraft, trip requests, trips, quotes, empty legs, leads, the instant
+estimate, the referral portal), and an airport has no owner.
 
-Brokers and assistants hold `MANAGE_AIRPORTS` at `READ` scope. They must read
-the table — a broker cannot build a trip without picking an airport — but an
-airport is an objective fact, and a wrong runway length silently makes a trip
-unbookable.
+**Every write needs the person's own Airports permission** (Users & Roles ›
+Permissions), checked by the API on each route:
 
-The UI does not hide the Add button by role yet; the API refuses and
-`toastApiError` surfaces the message. Gating the button belongs with the
-permission-aware UI work, not here.
+| Action | Permission |
+|---|---|
+| Add | `AIRPORTS · CREATE` |
+| Edit | `AIRPORTS · EDIT` |
+| Remove, restore, bulk remove/restore | `AIRPORTS · ARCHIVE` |
+
+Opening the Airports screen is `AIRPORTS · VIEW` (the sidebar and the page
+gate). The screen hides what the person cannot do — Add, Edit, Remove,
+Restore, the bulk button and the checkbox column — through
+`usePermissions().canAccess`; the API refuses the same with a 403.
 
 ## Hooks
 
 | Hook | Endpoint |
 |---|---|
 | `useAirports(params)` | `GET /airports` — paginated |
-| `useAirport(id)` | `GET /airports/:id` |
+| `useAirport(id)` | `GET /airports/:id` — with `trips: { total, thisYear }` (null for a referral agent) |
 | `useAirportStats()` | `GET /airports/stats` |
 | `useAirportCountries()` | `GET /airports/countries` — the filter's options |
 | `useCreateAirport()` | `POST /airports` |
 | `useUpdateAirport()` | `PATCH /airports/:id` |
 | `useRemoveAirport()` | `DELETE /airports/:id` — soft |
 | `useRemoveAirports(ids)` | `POST /airports/bulk-delete` — soft, several at once |
+| `useRestoreAirport()` | `POST /airports/:id/restore` |
+| `useRestoreAirports(ids)` | `POST /airports/bulk-restore` |
 | `useAirportsTableParams()` | URL state: page, limit, search, country, sort |
 
 ## Things worth knowing
 
-- **Adding a removed ICAO restores that airport.** Soft delete keeps the code
-  occupied, so a plain 409 would strand the caller — they see no KBED in the
-  list and cannot create one either. The revived row keeps its audit history.
+- **Adding a removed ICAO is refused, pointing at the Archived tab.** The
+  code stays taken while the airport is archived; restoring it brings back
+  every field, which re-creating from the form would overwrite.
+- **Latitude, longitude and runway can be changed but not cleared** — they
+  are required when an airport is added, so an edit refuses an empty value.
 - **The country filter's options come from the data.** The UI used to hardcode
   five countries, so a sixth airport was unfilterable.
 - **`assignedFbo` renders as an em dash when absent.** The table used to fall

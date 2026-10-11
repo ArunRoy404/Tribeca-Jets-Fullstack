@@ -1,9 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { ArrowRight } from "lucide-react";
-import { useReportsStore } from "@/store/useReportsStore";
-import DarkPanel from "@/components/common/DarkPanel";
-import ReportTable from "./ReportTable";
+import { useReportRoutes, useReportsParams } from "@/hooks/reports";
+import { toRouteRows } from "@/lib/reports";
+import RankingPanel from "./RankingPanel";
 
 const columns = [
   {
@@ -12,27 +13,19 @@ const columns = [
     align: "left",
     render: (row) => (
       <span className="inline-flex items-center gap-1.5 font-semibold text-[12px] text-ink">
-        {row.from}
+        {row?.from}
         <ArrowRight className="size-3.5 text-muted-foreground" />
-        {row.to}
+        {row?.to}
       </span>
     ),
   },
   { key: "trips", label: "Trips", align: "right" },
-  {
-    key: "revenue",
-    label: "Revenue",
-    align: "right",
-    cellClassName: () => "text-success",
-    render: (row) => `$${row.revenue.toLocaleString()}`,
-  },
+  { key: "revenue", label: "Revenue", align: "right", cellClassName: () => "text-success" },
 ];
 
 export default function TopRoutesPanel() {
-  const data = useReportsStore((s) => s.topRoutes);
-  return (
-    <DarkPanel title="Top Routes">
-      <ReportTable columns={columns} rows={data} rowKey={(row, i) => `${row.from}-${row.to}-${i}`} />
-    </DarkPanel>
-  );
+  const { window } = useReportsParams();
+  const query = useReportRoutes(window);
+  const rows = useMemo(() => toRouteRows(query.data?.data), [query.data]);
+  return <RankingPanel title="Top Routes" query={query} rows={rows} columns={columns} emptyMessage="No trips in this period." />;
 }

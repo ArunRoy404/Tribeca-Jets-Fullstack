@@ -27,7 +27,10 @@ import {
 } from '../../common/database/archive.js';
 import { ItineraryStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { Module, Reach } from '../../common/authorization/access.catalogue.js';
+import { reachOf } from '../../common/authorization/access.js';
 import { TripsService } from '../trips/trips.service.js';
+import { UploadsService } from '../uploads/uploads.service.js';
 import type {
   CreateItineraryInput,
   QueryItinerariesInput,
@@ -142,12 +145,19 @@ export class ItinerariesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly trips: TripsService,
+    private readonly uploads: UploadsService,
   ) {}
 
   // ---- Scope --------------------------------------------------------------
 
   private visibilityScope(user: AuthenticatedUser): Prisma.ItineraryWhereInput {
-    return { trip: this.trips.visibleWhere(user) };
+    const reach = reachOf(user.access, Module.ITINERARIES);
+    if (reach === Reach.ALL) return {};
+    return {
+      trip: {
+        OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }],
+      },
+    };
   }
 
   /** An archived trip's document is read-only — the same split Notes makes
@@ -466,4 +476,22 @@ export class ItinerariesService {
     }
     return bulkResult(ids, targets.map((row) => row.id));
   }
+
+  /**
+   * An operator itinerary attachment's bytes, vouched for whoever may read the
+   * itinerary. The file is uploaded PRIVATE, so this route streams it on
+   * someone else's behalf — see `UploadsService.openVouched`.
+   */
+  async openOperatorAttachment(user: AuthenticatedUser, id: string) {
+    const row = await this.prisma.itinerary.findFirst({
+      where: { id, ...this.visibilityScope(user) },
+      select: { operatorItineraryUrl: true },
+    });
+    if (!row || !row.operatorItineraryUrl) {
+      throw new NotFoundException('That itinerary has no operator attachment.');
+    }
+    const uploadId = row.operatorItineraryUrl.split('/').pop() ?? '';
+    return this.uploads.openVouched(uploadId);
+  }
 }
+

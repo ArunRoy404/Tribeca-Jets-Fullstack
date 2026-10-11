@@ -5,14 +5,44 @@ import type { CookieOptions, Response } from 'express';
 import {
   ACCESS_TOKEN_COOKIE,
   CSRF_COOKIE,
+  MODULES_COOKIE,
   PASSWORD_RESET_COOKIE,
   REFRESH_COOKIE_PATH,
   REFRESH_TOKEN_COOKIE,
   TWO_FACTOR_COOKIE,
 } from '../../common/constants/auth.constants.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { AppConfigService } from '../../config/config.service.js';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
+import { resolveAccess, type AccessMap } from '../../common/authorization/access.js';
+import { UserRole } from '../../generated/prisma/enums.js';
+
+/**
+ * How long a just-rotated refresh token is still honoured. Two tabs share one
+ * cookie jar: when both find the access token expired at the same moment,
+ * the first renews and the second arrives with the token the first just
+ * replaced. Inside this window that is a race, not theft — the second gets
+ * the session back without new cookies (the browser already holds the
+ * newer ones), instead of every session being revoked.
+ */
+const ROTATION_GRACE_MS = 30_000;
+
+/**
+ * Slack on the idle limit for the browser's activity ping, which is
+ * throttled to every couple of minutes. Always in the user's favour: the
+ * browser's own timer is the precise one.
+ */
+const ACTIVITY_SLACK_MS = 5 * 60_000;
+
+/** First entry of `tj_modules` for a partner: their area is the portal. */
+const PORTAL_MARKER = 'PORTAL';
+
+/**
+ * The real role, never `actsAs`: which half of the app a person uses is not
+ * a permission, so the temporary everyone-is-owner switch does not move it.
+ */
+const isPartner = (role: UserRole) => role === UserRole.REFERRAL_AGENT;
 import type { JwtPayload } from './strategies/jwt.strategy.js';
 
 export interface SessionContext {
@@ -43,6 +73,7 @@ export class TokenService {
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
     private readonly config: AppConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   private hash(token: string): string {
@@ -87,7 +118,7 @@ export class TokenService {
     userId: string,
     context: SessionContext,
     rememberMe: boolean,
-    replacesTokenId?: string,
+    replaces?: { id: string; sessionStartedAt: Date; lastActiveAt: Date },
   ): Promise<string> {
     const token = randomBytes(48).toString('base64url');
     const expiresAt = new Date(Date.now() + this.refreshTtlMs(rememberMe));
@@ -99,13 +130,19 @@ export class TokenService {
         expiresAt,
         ipAddress: context.ipAddress ?? null,
         userAgent: context.userAgent ?? null,
+        // A rotation continues the same sign-in, so it inherits its start —
+        // and its last activity: renewing a token is not a person doing
+        // anything.
+        ...(replaces
+          ? { sessionStartedAt: replaces.sessionStartedAt, lastActiveAt: replaces.lastActiveAt }
+          : {}),
       },
       select: { id: true },
     });
 
-    if (replacesTokenId) {
+    if (replaces) {
       await this.prisma.refreshToken.update({
-        where: { id: replacesTokenId },
+        where: { id: replaces.id },
         data: { revokedAt: new Date(), replacedByTokenId: created.id },
       });
     }
@@ -126,6 +163,7 @@ export class TokenService {
     ]);
 
     this.writeCookies(res, accessToken, refreshToken, rememberMe);
+    await this.writeModulesFor(res, user.id);
     // The sign-in flow is over; drop any challenge cookie still hanging around.
     this.clearChallenge(res, 'twoFactor');
   }
@@ -135,7 +173,9 @@ export class TokenService {
    *
    * If a token that was already revoked is presented, it has been replayed —
    * which means it leaked. Every session for that user is killed rather than
-   * just rejecting the one request.
+   * just rejecting the one request. The one exception is a token rotated
+   * within the last `ROTATION_GRACE_MS` whose replacement is still live: two
+   * tabs renewing at once, answered without new cookies.
    */
   async rotateSession(
     res: Response,
@@ -157,6 +197,13 @@ export class TokenService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    if (stored.revokedAt && (await this.isConcurrentRenewal(stored))) {
+      if (!stored.user || stored.user.deletedAt || stored.user.status !== 'ACTIVE') {
+        throw new UnauthorizedException('Account is no longer active');
+      }
+      return { id: stored.user.id, email: stored.user.email, role: stored.user.role };
+    }
+
     if (stored.revokedAt) {
       this.logger.warn(
         `Refresh token reuse detected for user ${stored.userId}; revoking all sessions`,
@@ -170,11 +217,14 @@ export class TokenService {
       throw new UnauthorizedException('Session expired. Please sign in again.');
     }
 
-    if (this.hasBeenIdle(stored.createdAt)) {
+    if (this.hasBeenIdle(stored.lastActiveAt)) {
       this.logger.warn(
         `Refusing a refresh for user ${stored.userId}: session idle past the limit`,
       );
-      await this.revokeAllForUser(stored.userId);
+      // Only this device's session. Idleness is a fact about one browser —
+      // a phone left on a desk must not sign out the laptop in use. (Reuse,
+      // above, revokes everything: that one is a theft signal.)
+      await this.revokeSession(stored.id);
       this.clearCookies(res);
       throw new UnauthorizedException(
         'Signed out after a period of inactivity. Please sign in again.',
@@ -199,11 +249,78 @@ export class TokenService {
 
     const [accessToken, refreshToken] = await Promise.all([
       this.issueAccessToken(user),
-      this.issueRefreshToken(user.id, context, rememberMe, stored.id),
+      this.issueRefreshToken(user.id, context, rememberMe, {
+        id: stored.id,
+        sessionStartedAt: stored.sessionStartedAt,
+        lastActiveAt: stored.lastActiveAt,
+      }),
     ]);
 
     this.writeCookies(res, accessToken, refreshToken, rememberMe);
+    await this.writeModulesFor(res, user.id);
     return user;
+  }
+
+  /**
+   * A revoked token that was *rotated* (not signed out or ended) within the
+   * grace window, whose replacement is still live — the losing side of two
+   * tabs renewing at once.
+   */
+  private async isConcurrentRenewal(stored: {
+    revokedAt: Date | null;
+    replacedByTokenId: string | null;
+  }): Promise<boolean> {
+    if (!stored.revokedAt || !stored.replacedByTokenId) return false;
+    if (Date.now() - stored.revokedAt.getTime() > ROTATION_GRACE_MS) return false;
+    const replacement = await this.prisma.refreshToken.findUnique({
+      where: { id: stored.replacedByTokenId },
+      select: { revokedAt: true, expiresAt: true },
+    });
+    return Boolean(replacement && !replacement.revokedAt && replacement.expiresAt.getTime() > Date.now());
+  }
+
+  /**
+   * Records that a person is using this device — the browser's throttled
+   * activity ping. Only a live session is touched; false means there is none
+   * (signed out, expired, or already idle past the limit), which the caller
+   * answers with a 401 so the browser ends the session it thought it had.
+   */
+  async touchSession(presentedToken: string | undefined): Promise<boolean> {
+    if (!presentedToken) return false;
+    const { count } = await this.prisma.refreshToken.updateMany({
+      where: {
+        tokenHash: this.hash(presentedToken),
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+        lastActiveAt: { gt: new Date(Date.now() - this.idleLimitMs()) },
+      },
+      data: { lastActiveAt: new Date() },
+    });
+    return count > 0;
+  }
+
+  /**
+   * The routing hint `proxy.js` reads: the modules this person may view.
+   * Rewritten on sign-in, on every refresh and on every `/auth/me`, so a
+   * change an administrator makes reaches the proxy within one of those.
+   */
+  writeModulesCookie(res: Response, access: AccessMap, role: UserRole): void {
+    // A partner works in the portal, never the CRM; the marker lets the proxy
+    // send them there before a CRM page renders.
+    const entries = [...(isPartner(role) ? [PORTAL_MARKER] : []), ...Object.keys(access)];
+    res.cookie(MODULES_COOKIE, entries.join('.'), {
+      ...this.baseCookieOptions(),
+      path: '/',
+      maxAge: this.refreshTtlMs(true),
+    });
+  }
+
+  private async writeModulesFor(res: Response, userId: string): Promise<void> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, permissions: true },
+    });
+    if (row) this.writeModulesCookie(res, resolveAccess(row.role, row.permissions), row.role);
   }
 
   /**
@@ -226,12 +343,17 @@ export class TokenService {
    * request, which is a write per request to save a few minutes at the tail of
    * an already-expired session.
    */
-  private hasBeenIdle(issuedAt: Date): boolean {
-    const limit =
-      parseDuration(this.config.auth.accessTtl) +
-      this.config.auth.idleTimeoutMinutes * 60_000;
-    return Date.now() - issuedAt.getTime() > limit;
+  /** The idle limit the server holds a session to — see ACTIVITY_SLACK_MS. */
+  private idleLimitMs(): number {
+    // The company's Security & Session setting, read when deciding.
+    return this.settings.current().idleTimeoutMinutes * 60_000 + ACTIVITY_SLACK_MS;
   }
+
+  /** Whether nobody has used this device for longer than the idle limit. */
+  private hasBeenIdle(lastActiveAt: Date): boolean {
+    return Date.now() - lastActiveAt.getTime() > this.idleLimitMs();
+  }
+
 
   async endSession(res: Response, presentedToken?: string): Promise<void> {
     if (presentedToken) {
@@ -241,6 +363,82 @@ export class TokenService {
       });
     }
     this.clearCookies(res);
+  }
+
+  private async revokeSession(id: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  /**
+   * The `where` for a session that can still be used: not revoked, not
+   * expired, and renewed recently enough that the idle rule would still let
+   * it refresh. A browser closed an hour ago holds a token nobody revoked,
+   * but it is not signed in any more and must not be listed as if it were.
+   */
+  private liveSessionWhere(userId: string) {
+    return {
+      userId,
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+      lastActiveAt: { gt: new Date(Date.now() - this.idleLimitMs()) },
+    };
+  }
+
+  /** The row behind the refresh cookie this request carried, if it is live. */
+  async currentSessionId(userId: string, presentedToken?: string): Promise<string | null> {
+    if (!presentedToken) return null;
+    const row = await this.prisma.refreshToken.findFirst({
+      where: { ...this.liveSessionWhere(userId), tokenHash: this.hash(presentedToken) },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  }
+
+  /** One page of the user's signed-in devices, most recently active first. */
+  async listSessions(userId: string, skip: number, take: number) {
+    const where = this.liveSessionWhere(userId);
+    const [rows, total] = await Promise.all([
+      this.prisma.refreshToken.findMany({
+        where,
+        orderBy: [{ lastActiveAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+        select: {
+          id: true,
+          userAgent: true,
+          ipAddress: true,
+          sessionStartedAt: true,
+          lastActiveAt: true,
+        },
+      }),
+      this.prisma.refreshToken.count({ where }),
+    ]);
+    return { rows, total };
+  }
+
+  /**
+   * Ends one of the user's own sessions. False when the id is not one of
+   * their live sessions, which the caller answers with a 404 — a session id
+   * belonging to someone else is not confirmed to exist.
+   */
+  async revokeOwnSession(userId: string, id: string): Promise<boolean> {
+    const { count } = await this.prisma.refreshToken.updateMany({
+      where: { ...this.liveSessionWhere(userId), id },
+      data: { revokedAt: new Date() },
+    });
+    return count > 0;
+  }
+
+  /** Every session but the one making the request. Returns how many ended. */
+  async revokeOtherSessions(userId: string, keepId: string | null): Promise<number> {
+    const { count } = await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null, ...(keepId ? { id: { not: keepId } } : {}) },
+      data: { revokedAt: new Date() },
+    });
+    return count;
   }
 
   async revokeAllForUser(userId: string): Promise<void> {
@@ -310,6 +508,7 @@ export class TokenService {
     res.clearCookie(ACCESS_TOKEN_COOKIE, { ...base, path: '/' });
     res.clearCookie(REFRESH_TOKEN_COOKIE, { ...base, path: REFRESH_COOKIE_PATH });
     res.clearCookie(CSRF_COOKIE, { ...base, httpOnly: false, path: '/' });
+    res.clearCookie(MODULES_COOKIE, { ...base, path: '/' });
   }
 }
 

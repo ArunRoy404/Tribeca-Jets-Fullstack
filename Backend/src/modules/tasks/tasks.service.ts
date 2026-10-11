@@ -18,7 +18,9 @@ import {
 } from '../../common/database/archive.js';
 import { referenceFromSearch } from '../../common/database/document-number.js';
 import { todayUtc } from '../../common/money/settlement.js';
-import { Permission, Scope, isPartner, scopeFor } from '../../common/authorization/permissions.js';
+import { isPartner } from '../../common/authorization/permissions.js';
+import { canDo, reachOf } from '../../common/authorization/access.js';
+import { Action, Module, Reach } from '../../common/authorization/access.catalogue.js';
 import { TaskPriority, TaskStatus, UserStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { ClientsService } from '../clients/clients.service.js';
@@ -86,13 +88,13 @@ export class TasksService {
 
   // ---- Scope ------------------------------------------------------------
 
-  private scopeWhere(user: AuthenticatedUser, permission: Permission): Prisma.TaskWhereInput {
-    if (scopeFor(user.role, permission) === Scope.ALL) return {};
+  private scopeWhere(user: AuthenticatedUser): Prisma.TaskWhereInput {
+    if (reachOf(user.access, Module.TASKS) === Reach.ALL) return {};
     return { OR: [{ assigneeId: user.id }, { createdById: user.id }] };
   }
 
   private visibilityScope(user: AuthenticatedUser): Prisma.TaskWhereInput {
-    return this.scopeWhere(user, Permission.VIEW_TASKS);
+    return this.scopeWhere(user);
   }
 
   // ---- Shaping ----------------------------------------------------------
@@ -246,7 +248,7 @@ export class TasksService {
   /** A live task the caller may work on, or 404 — including one they may only read. */
   private async findLive(user: AuthenticatedUser, id: string) {
     const row = await this.prisma.task.findFirst({
-      where: { id, deletedAt: null, ...this.scopeWhere(user, Permission.MANAGE_TASKS) },
+      where: { id, deletedAt: null, ...this.scopeWhere(user) },
       select: {
         id: true,
         reference: true,
@@ -265,6 +267,12 @@ export class TasksService {
   // ---- Writes -----------------------------------------------------------
 
   async create(user: AuthenticatedUser, dto: CreateTaskInput) {
+    if (dto.assigneeId && dto.assigneeId !== user.id) {
+      if (!canDo(user.access, Module.TASKS, Action.ASSIGN)) {
+        throw new ForbiddenException('You do not have permission to assign tasks to other staff members');
+      }
+    }
+
     await Promise.all([
       this.assertAssignee(dto.assigneeId),
       this.assertLink(user, 'client', dto.clientId),
@@ -302,6 +310,17 @@ export class TasksService {
 
   async update(user: AuthenticatedUser, id: string, dto: UpdateTaskInput) {
     const current = await this.findLive(user, id);
+
+    if (
+      dto.assigneeId !== undefined &&
+      dto.assigneeId !== current.assigneeId &&
+      dto.assigneeId !== null &&
+      dto.assigneeId !== user.id
+    ) {
+      if (!canDo(user.access, Module.TASKS, Action.ASSIGN)) {
+        throw new ForbiddenException('You do not have permission to assign tasks to other staff members');
+      }
+    }
 
     // Validate a link only when it is actually changing (AGENTS.md): a task
     // whose client was archived later must still be editable.
@@ -355,7 +374,7 @@ export class TasksService {
    * says so; taking it off the board is its author's call.
    */
   private assertMayArchive(user: AuthenticatedUser, createdById: string | null): void {
-    if (scopeFor(user.role, Permission.MANAGE_TASKS) === Scope.ALL) return;
+    if (reachOf(user.access, Module.TASKS) === Reach.ALL) return;
     if (createdById !== user.id) {
       throw new ForbiddenException('Only whoever wrote this task, or an administrator, can archive it.');
     }
@@ -376,7 +395,7 @@ export class TasksService {
 
   async restore(user: AuthenticatedUser, id: string) {
     const row = await this.prisma.task.findFirst({
-      where: { id, deletedAt: { not: null }, ...this.scopeWhere(user, Permission.MANAGE_TASKS) },
+      where: { id, deletedAt: { not: null }, ...this.scopeWhere(user) },
       select: { id: true, reference: true, title: true, createdById: true },
     });
     if (!row) throw new NotFoundException('Archived task not found');

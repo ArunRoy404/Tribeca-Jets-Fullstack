@@ -73,31 +73,33 @@ export default function ClientFollowUpBanner({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 px-3 text-[12px] gap-1.5 font-medium flex-1 sm:flex-none cursor-pointer"
-          onClick={onScheduleFollowUp}
-        >
-          <Calendar className="size-3.5" />
-          {scheduled ? "Reschedule" : "Schedule Follow-up"}
-        </Button>
-        {/* Nothing to complete when nothing is scheduled, so the button is not
-            offered rather than offered and inert. */}
-        {scheduled && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isCompleting}
-            className="h-9 px-3 text-[12px] gap-1.5 font-medium flex-1 sm:flex-none cursor-pointer"
-            onClick={onMarkComplete}
-          >
-            <Check className="size-3.5" />
-            Mark Complete
-          </Button>
-        )}
-      </div>
+      {(onScheduleFollowUp || (scheduled && onMarkComplete)) && (
+        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+          {onScheduleFollowUp && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 px-3 text-[12px] gap-1.5 font-medium flex-1 sm:flex-none cursor-pointer"
+              onClick={onScheduleFollowUp}
+            >
+              <Calendar className="size-3.5" />
+              {scheduled ? "Reschedule" : "Schedule Follow-up"}
+            </Button>
+          )}
+          {scheduled && onMarkComplete && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isCompleting}
+              className="h-9 px-3 text-[12px] gap-1.5 font-medium flex-1 sm:flex-none cursor-pointer"
+              onClick={onMarkComplete}
+            >
+              <Check className="size-3.5" />
+              Mark Complete
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

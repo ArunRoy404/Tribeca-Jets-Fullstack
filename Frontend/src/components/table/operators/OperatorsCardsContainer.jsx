@@ -4,6 +4,7 @@ import OperatorCard from "./OperatorCard";
 
 export default function OperatorsCardsContainer({
   operators,
+  selectable = true,
   selected,
   onToggleRow,
   getRowActions,
@@ -15,6 +16,7 @@ export default function OperatorsCardsContainer({
         <OperatorCard
           key={op?.id}
           operator={op}
+          selectable={selectable}
           selected={selected?.has?.(op?.id)}
           onToggleSelect={() => onToggleRow?.(op?.id)}
           actions={getRowActions?.(op)}

@@ -1,13 +1,19 @@
-import Image from "next/image";
+"use client";
 
-export default function AssistantHeader({ title = "Tribeca Jets Assistant", context = "Dashboard", onClose }) {
+import Image from "next/image";
+import { useBranding } from "@/hooks/settings";
+
+export default function AssistantHeader({ title, context = "Dashboard", onClose }) {
+  // Named after the company in Settings unless a caller names it.
+  const { data: branding } = useBranding();
+  const heading = title ?? (branding?.companyName ? `${branding.companyName} Assistant` : "Assistant");
   return (
     <div className="bg-sidebar flex gap-4 items-center p-4 w-full">
       <div className="relative overflow-hidden rounded-full shrink-0 size-12">
         <Image src="/dashboard/icons/assistant-avatar.svg" alt="" fill className="object-cover" />
       </div>
       <div className="flex flex-1 flex-col gap-1 min-w-0">
-        <p className="font-montserrat font-bold text-[16px] text-white whitespace-nowrap">{title}</p>
+        <p className="font-montserrat font-bold text-[16px] text-white whitespace-nowrap">{heading}</p>
         <p className="font-montserrat font-medium text-[12px] text-border">Context: {context}</p>
       </div>
       <button

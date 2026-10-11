@@ -14,10 +14,10 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+  RequireAccess,
+  StaffOnly,
+} from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { QuotesService } from './quotes.service.js';
@@ -40,12 +40,10 @@ import {
  * does not become the other automatically, because the markup is the desk's
  * decision.
  *
- * Uses the trips permissions, like trip requests and sourcing — a quote is a
- * stage of a trip, not a capability a role is granted on its own. `VIEW_TRIPS`
- * to read, `MANAGE_TRIPS` to write, `DELETE_TRIPS` (administrators only) to
- * archive. The **margin** carries a second gate: `VIEW_FINANCIALS`, which an
- * assistant does not hold, so the cost and profit figures are simply absent
- * from their responses rather than zeroed.
+ * Uses per-user permissions (Module.QUOTES):
+ * - Reads: open to any signed-in staff session (@StaffOnly on controller blocks partners/referral agents).
+ * - Margin & costs: gated behind VIEW_MONEY (financials omitted when absent).
+ * - Writes: @RequireAccess(Module.QUOTES, Action.CREATE / EDIT / SEND / ARCHIVE).
  *
  * Every state change has its own endpoint rather than riding on PATCH. Sending
  * stamps the date the client's decision window runs from, and approving has to
@@ -53,12 +51,12 @@ import {
  * would walk straight past both.
  */
 @ApiTags('Quotes')
+@StaffOnly()
 @Controller('quotes')
 export class QuotesController {
   constructor(private readonly quotes: QuotesService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'List client quotes',
     description:
@@ -73,18 +71,16 @@ export class QuotesController {
 
   /** Before `:id` — Nest matches in order and would read it as an id. */
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Quote tiles',
     description:
-      'Counts per status, the total value of live quotes and the average margin, all counted from the quotes in the caller’s scope. `averageMargin` is null for a caller without VIEW_FINANCIALS, and null — not zero — when nothing has an operator cost recorded yet.',
+      'Counts per status, the total value of live quotes and the average margin, all counted from the quotes in the caller’s scope. `averageMargin` is null for a caller without VIEW_MONEY, and null — not zero — when nothing has an operator cost recorded yet.',
   })
   stats(@CurrentUser() user: AuthenticatedUser) {
     return this.quotes.stats(user);
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'One quote',
     description:
@@ -98,7 +94,6 @@ export class QuotesController {
   }
 
   @Get(':id/versions')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Version history',
     description:
@@ -112,7 +107,7 @@ export class QuotesController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.CREATE)
   @ApiOperation({
     summary: 'Write a quote',
     description:
@@ -127,11 +122,11 @@ export class QuotesController {
 
   @Post('price-preview')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.CREATE)
   @ApiOperation({
     summary: 'Preview the pricing for an offer being composed',
     description:
-      'A dry run of the same pricing engine a saved quote uses — FET amount, extras total, total price and (for a caller with VIEW_FINANCIALS) gross profit and margin. Nothing here is persisted; the create/edit form calls this as a broker types, so the live preview never re-derives the arithmetic itself.',
+      'A dry run of the same pricing engine a saved quote uses — FET amount, extras total, total price and (for a caller with VIEW_MONEY) gross profit and margin. Nothing here is persisted; the create/edit form calls this as a broker types, so the live preview never re-derives the arithmetic itself.',
   })
   pricePreview(
     @CurrentUser() user: AuthenticatedUser,
@@ -142,18 +137,18 @@ export class QuotesController {
 
   @Post('suggested-price')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS, Permission.VIEW_FINANCIALS)
+  @RequireAccess(Module.QUOTES, Action.VIEW_MONEY)
   @ApiOperation({
     summary: 'Suggest a client price at each markup over the operator cost',
     description:
-      'Client adjustment #6: the base price at each markup rate (0.15 = 15%) over `operatorCost`, and what each totals with FET and extras through the same pricing engine a saved quote uses. Nothing is persisted — the broker picks one and it becomes the base price they submit. Needs VIEW_FINANCIALS, because a markup over cost is the margin.',
+      'Client adjustment #6: the base price at each markup rate (0.15 = 15%) over `operatorCost`, and what each totals with FET and extras through the same pricing engine a saved quote uses. Nothing is persisted — the broker picks one and it becomes the base price they submit. Needs VIEW_MONEY, because a markup over cost is the margin.',
   })
   suggestPrice(@Body() body: SuggestPriceDto) {
     return this.quotes.suggestPrice(body);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.EDIT)
   @ApiOperation({
     summary: 'Edit a quote',
     description:
@@ -169,7 +164,7 @@ export class QuotesController {
 
   @Post(':id/send')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.SEND)
   @ApiOperation({
     summary: 'Send it to the client',
     description:
@@ -185,7 +180,7 @@ export class QuotesController {
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.EDIT)
   @ApiOperation({
     summary: 'The client accepted',
     description:
@@ -201,7 +196,7 @@ export class QuotesController {
 
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.EDIT)
   @ApiOperation({
     summary: 'The client declined',
     description:
@@ -217,7 +212,7 @@ export class QuotesController {
 
   @Post(':id/expire')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.EDIT)
   @ApiOperation({
     summary: 'Let the offer lapse',
     description:
@@ -233,7 +228,7 @@ export class QuotesController {
 
   @Post(':id/reopen')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.EDIT)
   @ApiOperation({
     summary: 'Undo a decision',
     description:
@@ -247,7 +242,7 @@ export class QuotesController {
   }
 
   @Post(':id/duplicate')
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.CREATE)
   @ApiOperation({
     summary: 'Copy into a new draft',
     description:
@@ -262,7 +257,7 @@ export class QuotesController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.DELETE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Archive several quotes',
     description:
@@ -277,7 +272,7 @@ export class QuotesController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.DELETE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore several quotes' })
   restoreMany(
     @CurrentUser() user: AuthenticatedUser,
@@ -288,7 +283,7 @@ export class QuotesController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.DELETE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Restore one quote',
     description:
@@ -302,12 +297,12 @@ export class QuotesController {
   }
 
   @Delete(':id')
-  @RequireWritePermissions(Permission.DELETE_TRIPS)
+  @RequireAccess(Module.QUOTES, Action.ARCHIVE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Archive a quote',
     description:
-      'Soft delete — nothing in this system is destroyed. Administrators only: a quote the client turned down is evidence, and a broker quietly removing their rejections improves their own conversion rate.',
+      'Soft delete — nothing in this system is destroyed. Users with ARCHIVE access only: a quote the client turned down is evidence, and a broker quietly removing their rejections improves their own conversion rate.',
   })
   remove(
     @CurrentUser() user: AuthenticatedUser,

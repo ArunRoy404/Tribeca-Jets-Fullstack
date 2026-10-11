@@ -28,20 +28,28 @@ const SCHEMA = {
 export function useTransactionsTableParams() {
   const { values, setValues, reset, queryParams, setters, goToPage } = useTableQueryParams(SCHEMA);
 
+  const isRangeInvalid = Boolean(values.from && values.to && values.from > values.to);
+
+  // When from > to, do not submit the broken range to the API (which would reject with 400).
+  const effectiveQueryParams = isRangeInvalid
+    ? Object.fromEntries(Object.entries(queryParams).filter(([k]) => k !== "from" && k !== "to"))
+    : queryParams;
+
   // The same filters narrow the totals, so the tiles describe the rows below them.
   const statsParams = {
     ...(values.search ? { search: values.search } : {}),
     ...(values.kind ? { kind: values.kind } : {}),
     ...(values.direction ? { direction: values.direction } : {}),
-    ...(values.from ? { from: values.from } : {}),
-    ...(values.to ? { to: values.to } : {}),
+    ...(!isRangeInvalid && values.from ? { from: values.from } : {}),
+    ...(!isRangeInvalid && values.to ? { to: values.to } : {}),
   };
 
   return {
     ...values,
     ...setters,
-    queryParams,
+    queryParams: effectiveQueryParams,
     statsParams,
+    isRangeInvalid,
     goToPage,
     setValues,
     hasFilters: Boolean(values.search || values.kind || values.direction || values.from || values.to),

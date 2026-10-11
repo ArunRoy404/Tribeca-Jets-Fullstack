@@ -8,11 +8,12 @@ import {
   useUpdateQuote,
   useQuotePricePreview,
 } from "@/hooks/quotes";
-import { useClients } from "@/hooks/clients";
-import { useAirports } from "@/hooks/airports";
-import { useOperators } from "@/hooks/operators";
-import { useAircraftList } from "@/hooks/aircraft";
-import { useUsers } from "@/hooks/users";
+import { useTripRequests } from "@/hooks/trip-requests";
+import { useClient } from "@/hooks/clients";
+import { useAirport } from "@/hooks/airports";
+import { useOperator } from "@/hooks/operators";
+import { useAircraft } from "@/hooks/aircraft";
+import { useUser } from "@/hooks/users";
 import { displayName } from "@/lib/client";
 import {
   formatMoney,
@@ -26,9 +27,8 @@ import {
   formatQuoteStatus,
   toLineItemRow,
 } from "@/lib/quote";
-import { BROKER_ROLES } from "@/lib/roles";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import FormField from "@/components/trips/FormField";
-import PickerSelect from "@/components/trips/PickerSelect";
+import CommonSelect from "@/components/common/CommonSelect";
+import ClientPicker from "@/components/clients/ClientPicker";
+import BrokerPicker from "@/components/users/BrokerPicker";
+import AirportPicker from "@/components/airports/AirportPicker";
+import OperatorPicker from "@/components/operators/OperatorPicker";
+import AircraftPicker from "@/components/aircraft/AircraftPicker";
 import DatePicker from "@/components/common/DatePicker";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import TribecaLetterhead from "@/components/common/TribecaLetterhead";
@@ -95,6 +100,7 @@ const TABS = [
 
 const EMPTY_FORM = {
   clientId: "",
+  tripRequestId: "",
   assignedBrokerId: "",
   operatorId: "",
   originAirportId: "",
@@ -132,53 +138,126 @@ export default function AddQuoteDialog() {
   const { mutate: updateQuote, isPending: isUpdating } = useUpdateQuote();
   const isPending = isCreating || isUpdating;
 
-  const { canWrite } = usePermissions();
-  const seesFinancials = canWrite(Permission.VIEW_FINANCIALS);
+  const { canAccess } = usePermissions();
+  const seesFinancials = canAccess(Module.QUOTES, Action.VIEW_MONEY);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
-  const setField = (field) => (value) =>
+  const setField = (field) => (value) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
 
-  const { data: clients } = useClients({ limit: 100 }, { enabled: open });
-  const { data: airports } = useAirports({ limit: 100 }, { enabled: open });
-  const { data: operators } = useOperators({ limit: 100 }, { enabled: open });
-  const { data: aircraftList } = useAircraftList({ limit: 100 }, { enabled: open });
-  const { data: users } = useUsers({ limit: 100 }, { enabled: open });
-
-  const brokers = useMemo(
-    () => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)),
-    [users?.data],
+  // Load open requests to allow quick linking and pre-filling
+  const { data: openRequestsData } = useTripRequests(
+    { openOnly: true, limit: 100 },
+    { enabled: Boolean(open && !editing) },
   );
 
-  const clientOptions = useMemo(
-    () => (clients?.data ?? []).map((c) => ({ value: c.id, label: displayName(c) })),
-    [clients?.data],
-  );
-  const airportOptions = useMemo(
-    () =>
-      (airports?.data ?? []).map((a) => ({
-        value: a.id,
-        label: `${a.icao} · ${a.city ?? a.name}`,
+  const linkedTripOptions = useMemo(() => {
+    const list = openRequestsData?.data ?? [];
+    return [
+      { value: "", label: "Standalone quote (No linked enquiry)" },
+      ...list.map((r) => ({
+        value: r.id,
+        label: `TR-${r.reference} · ${r.client?.companyName || personName(r.client) || "Client"} · ${r.originAirport?.icao || "—"} → ${r.destinationAirport?.icao || "—"}`,
       })),
-    [airports?.data],
-  );
-  const operatorOptions = useMemo(
-    () => (operators?.data ?? []).map((o) => ({ value: o.id, label: o.name })),
-    [operators?.data],
-  );
-  const aircraftOptions = useMemo(
-    () =>
-      (aircraftList?.data ?? []).map((a) => ({
-        value: a.id,
-        label: [a.model, a.tailNumber].filter(Boolean).join(" · ") || "Aircraft",
-      })),
-    [aircraftList?.data],
-  );
-  const brokerOptions = useMemo(
-    () => brokers.map((b) => ({ value: b.id, label: personName(b) })),
-    [brokers],
-  );
+    ];
+  }, [openRequestsData?.data]);
+
+  const handleLinkedTripChange = (tripId) => {
+    setField("tripRequestId")(tripId);
+    if (!tripId) return;
+    const found = openRequestsData?.data?.find((r) => r.id === tripId);
+    if (!found) return;
+
+    setForm((prev) => ({
+      ...prev,
+      tripRequestId: tripId,
+      clientId: found.clientId || prev.clientId,
+      assignedBrokerId: found.assignedBrokerId || prev.assignedBrokerId,
+      originAirportId: found.originAirportId || prev.originAirportId,
+      destinationAirportId: found.destinationAirportId || prev.destinationAirportId,
+      departureDate: found.departureDate ? found.departureDate.slice(0, 10) : prev.departureDate,
+      returnDate: found.returnDate ? found.returnDate.slice(0, 10) : prev.returnDate,
+      passengers: found.passengers != null ? String(found.passengers) : prev.passengers,
+      terms: found.requirements || prev.terms,
+      internalNotes: found.internalNotes || prev.internalNotes,
+    }));
+
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (found.clientId) delete next.clientId;
+      if (found.originAirportId) delete next.originAirportId;
+      if (found.destinationAirportId) delete next.destinationAirportId;
+      if (found.departureDate) delete next.departureDate;
+      return next;
+    });
+  };
+
+  const handleClientChange = (clientId, rawClient) => {
+    setField("clientId")(clientId || "");
+    if (rawClient) {
+      setForm((prev) => ({
+        ...prev,
+        clientId: clientId || "",
+        ...(!prev.assignedBrokerId || !editing
+          ? rawClient.assignedBrokerId
+            ? { assignedBrokerId: rawClient.assignedBrokerId }
+            : {}
+          : {}),
+        ...(!prev.originAirportId || !editing
+          ? rawClient.homeAirportId
+            ? { originAirportId: rawClient.homeAirportId }
+            : {}
+          : {}),
+      }));
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next.clientId;
+        if (rawClient.homeAirportId) delete next.originAirportId;
+        return next;
+      });
+    }
+  };
+
+  const { data: selectedClient } = useClient(form.clientId, {
+    enabled: Boolean(open && form.clientId),
+  });
+
+  // When selected client details resolve via network, sync broker and home airport during render if still empty
+  const [syncedClientId, setSyncedClientId] = useState(null);
+  if (!editing && form.clientId && selectedClient && syncedClientId !== form.clientId) {
+    setSyncedClientId(form.clientId);
+    const updates = {};
+    if (!form.assignedBrokerId && selectedClient.assignedBrokerId) {
+      updates.assignedBrokerId = selectedClient.assignedBrokerId;
+    }
+    if (!form.originAirportId && selectedClient.homeAirportId) {
+      updates.originAirportId = selectedClient.homeAirportId;
+    }
+    if (Object.keys(updates).length) {
+      setForm((prev) => ({ ...prev, ...updates }));
+    }
+  }
+
+  const { data: selectedBroker } = useUser(form.assignedBrokerId, {
+    enabled: Boolean(open && form.assignedBrokerId),
+  });
+  const { data: selectedOriginAirport } = useAirport(form.originAirportId, {
+    enabled: Boolean(open && form.originAirportId),
+  });
+  const { data: selectedDestinationAirport } = useAirport(form.destinationAirportId, {
+    enabled: Boolean(open && form.destinationAirportId),
+  });
+  const { data: selectedOperator } = useOperator(form.operatorId, {
+    enabled: Boolean(open && form.operatorId),
+  });
+  const { data: selectedAircraft } = useAircraft(form.aircraftId, {
+    enabled: Boolean(open && form.aircraftId),
+  });
 
   /**
    * Prefills from the record being edited and from nothing else. A field the
@@ -204,6 +283,7 @@ export default function AddQuoteDialog() {
           { ...EMPTY_FORM, ...(draft ?? {}) }
         : {
             clientId: editing.clientId ?? "",
+            tripRequestId: editing.tripRequestId ?? "",
             assignedBrokerId: editing.brokerId ?? "",
             operatorId: editing.operatorId ?? "",
             originAirportId: editing.originAirportId ?? "",
@@ -306,12 +386,6 @@ export default function AddQuoteDialog() {
   // ---- The live preview document ---------------------------------------------
   // Shaped like `lib/quote.js`'s `toQuoteRow()` so the reused cards below read
   // it exactly as they read a saved quote — see the module doc comment.
-  const selectedClient = (clients?.data ?? []).find((c) => c.id === form.clientId);
-  const selectedBroker = brokers.find((b) => b.id === form.assignedBrokerId);
-  const selectedOperator = (operators?.data ?? []).find((o) => o.id === form.operatorId);
-  const selectedOriginAirport = (airports?.data ?? []).find((a) => a.id === form.originAirportId);
-  const selectedDestinationAirport = (airports?.data ?? []).find((a) => a.id === form.destinationAirportId);
-  const selectedAircraft = (aircraftList?.data ?? []).find((a) => a.id === form.aircraftId);
   // The picked tail's own fleet photos, offered first in the photo library —
   // the photo a broker wants on a quote is usually the one already on file
   // for that aircraft.
@@ -397,8 +471,14 @@ export default function AddQuoteDialog() {
 
     const errors = {};
     if (!form.clientId) errors.clientId = "Choose who this quote is for";
+    if (!form.originAirportId) errors.originAirportId = "Departure airport is required";
+    if (!form.destinationAirportId) errors.destinationAirportId = "Arrival airport is required";
+    if (!form.departureDate) errors.departureDate = "Departure date is required";
     if (String(form.basePrice).trim() === "") {
       errors.basePrice = "The base price is required";
+    }
+    if (form.departureDate && form.returnDate && form.returnDate < form.departureDate) {
+      errors.returnDate = "Return date cannot be before departure date";
     }
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
@@ -409,6 +489,7 @@ export default function AddQuoteDialog() {
     const clear = { editing: Boolean(editing) };
     const payload = {
       clientId: form.clientId,
+      tripRequestId: form.tripRequestId || null,
       assignedBrokerId: form.assignedBrokerId || null,
       operatorId: form.operatorId || null,
       originAirportId: form.originAirportId || null,
@@ -475,71 +556,73 @@ export default function AddQuoteDialog() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <FormField label="Client" labelClassName={LABEL_CLASS} error={fieldErrors.clientId}>
-                <PickerSelect
-                  value={form.clientId}
-                  onChange={setField("clientId")}
-                  options={clientOptions}
-                  placeholder="Select client"
-                  className={FIELD_CLASS}
+            {!editing && (
+              <FormField label="Linked enquiry" optional labelClassName={LABEL_CLASS}>
+                <CommonSelect
+                  value={form.tripRequestId}
+                  onChange={handleLinkedTripChange}
+                  options={linkedTripOptions}
+                  placeholder="Select an open trip enquiry to pre-fill (or create standalone)"
+                  className={cn(FIELD_CLASS, "w-full")}
                 />
               </FormField>
-              <FormField label="Broker (Optional)" labelClassName={LABEL_CLASS}>
-                <PickerSelect
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+              <FormField label="Client *" labelClassName={LABEL_CLASS} error={fieldErrors.clientId}>
+                <ClientPicker
+                  value={form.clientId}
+                  onChange={handleClientChange}
+                  placeholder="Select client"
+                />
+              </FormField>
+              <FormField label="Broker" optional labelClassName={LABEL_CLASS}>
+                <BrokerPicker
                   value={form.assignedBrokerId}
                   onChange={setField("assignedBrokerId")}
-                  options={brokerOptions}
                   placeholder="Select broker"
-                  className={FIELD_CLASS}
                 />
               </FormField>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <FormField label="Route from (Optional)" labelClassName={LABEL_CLASS}>
-                <PickerSelect
+              <FormField label="Route from *" labelClassName={LABEL_CLASS} error={fieldErrors.originAirportId}>
+                <AirportPicker
                   value={form.originAirportId}
                   onChange={setField("originAirportId")}
-                  options={airportOptions}
                   placeholder="Select departure airport"
-                  className={FIELD_CLASS}
                 />
               </FormField>
-              <FormField label="Route to (Optional)" labelClassName={LABEL_CLASS}>
-                <PickerSelect
+              <FormField label="Route to *" labelClassName={LABEL_CLASS} error={fieldErrors.destinationAirportId}>
+                <AirportPicker
                   value={form.destinationAirportId}
                   onChange={setField("destinationAirportId")}
-                  options={airportOptions}
                   placeholder="Select arrival airport"
-                  className={FIELD_CLASS}
                 />
               </FormField>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <FormField label="Operator (Optional)" labelClassName={LABEL_CLASS}>
-                <PickerSelect
+              <FormField label="Operator" optional labelClassName={LABEL_CLASS}>
+                <OperatorPicker
                   value={form.operatorId}
                   onChange={setField("operatorId")}
-                  options={operatorOptions}
                   placeholder="Select operator"
-                  className={FIELD_CLASS}
                 />
               </FormField>
-              <FormField label="Aircraft (Optional)" labelClassName={LABEL_CLASS}>
-                <PickerSelect
+              <FormField label="Aircraft" optional labelClassName={LABEL_CLASS}>
+                <AircraftPicker
                   value={form.aircraftId}
                   onChange={setField("aircraftId")}
-                  options={aircraftOptions}
+                  params={form.operatorId ? { operatorId: form.operatorId } : undefined}
                   placeholder="Select from the fleet"
-                  className={FIELD_CLASS}
                 />
               </FormField>
             </div>
 
             <FormField
-              label="Or describe the aircraft (Optional)"
+              label="Or describe the aircraft"
+              optional
               labelClassName={LABEL_CLASS}
             >
               <Input
@@ -551,7 +634,7 @@ export default function AddQuoteDialog() {
               />
             </FormField>
 
-            <FormField label="Aircraft Photo (Optional)" labelClassName={LABEL_CLASS}>
+            <FormField label="Aircraft Photo" optional labelClassName={LABEL_CLASS}>
               <FileUpload
                 variant="dropzone"
                 kind="image"
@@ -568,23 +651,25 @@ export default function AddQuoteDialog() {
             </FormField>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-              <FormField label="Departure (Optional)" labelClassName={LABEL_CLASS}>
+              <FormField label="Departure *" labelClassName={LABEL_CLASS} error={fieldErrors.departureDate}>
                 <DatePicker
                   className={FIELD_CLASS}
                   value={form.departureDate}
                   onChange={setField("departureDate")}
                   placeholder="Choose Date"
+                  max={form.returnDate || undefined}
                 />
               </FormField>
-              <FormField label="Return (Optional)" labelClassName={LABEL_CLASS}>
+              <FormField label="Return" optional labelClassName={LABEL_CLASS} error={fieldErrors.returnDate}>
                 <DatePicker
                   className={FIELD_CLASS}
                   value={form.returnDate}
                   onChange={setField("returnDate")}
                   placeholder="Choose Date"
+                  min={form.departureDate || undefined}
                 />
               </FormField>
-              <FormField label="Passengers (Optional)" labelClassName={LABEL_CLASS}>
+              <FormField label="Passengers" optional labelClassName={LABEL_CLASS}>
                 <Input
                   className={FIELD_CLASS}
                   type="number"
@@ -598,7 +683,7 @@ export default function AddQuoteDialog() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
               <FormField
-                label="Base price ($)"
+                label="Base price ($) *"
                 labelClassName={LABEL_CLASS}
                 error={fieldErrors.basePrice}
               >
@@ -611,7 +696,7 @@ export default function AddQuoteDialog() {
                   onChange={(e) => setField("basePrice")(e.target.value)}
                 />
               </FormField>
-              <FormField label="Valid until / expiry (Optional)" labelClassName={LABEL_CLASS}>
+              <FormField label="Valid until / expiry" optional labelClassName={LABEL_CLASS}>
                 <DatePicker
                   className={FIELD_CLASS}
                   value={form.validUntil}
@@ -638,12 +723,12 @@ export default function AddQuoteDialog() {
             </div>
 
             {/* The cost side is a financial field. A role without
-                VIEW_FINANCIALS never sees the margin on a quote, so offering
+                VIEW_MONEY never sees the margin on a quote, so offering
                 them the box that sets it would be offering a control whose
                 result they cannot read. */}
             {seesFinancials && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-                <FormField label="Operator cost ($) (Optional)" labelClassName={LABEL_CLASS}>
+                <FormField label="Operator cost ($)" optional labelClassName={LABEL_CLASS}>
                   <Input
                     className={FIELD_CLASS}
                     type="number"
@@ -653,7 +738,7 @@ export default function AddQuoteDialog() {
                     onChange={(e) => setField("operatorCost")(e.target.value)}
                   />
                 </FormField>
-                <FormField label="Deposit ($) (Optional)" labelClassName={LABEL_CLASS}>
+                <FormField label="Deposit ($)" optional labelClassName={LABEL_CLASS}>
                   <Input
                     className={FIELD_CLASS}
                     type="number"
@@ -702,7 +787,7 @@ export default function AddQuoteDialog() {
             <div className="flex flex-col gap-2.5 w-full">
               <div className="flex items-center justify-between">
                 <span className="font-montserrat font-bold text-[13px] text-foreground">
-                  Extras (Optional)
+                  Extras <span className="text-muted-foreground font-normal text-[11px]">(Optional)</span>
                 </span>
                 <button
                   type="button"
@@ -763,7 +848,7 @@ export default function AddQuoteDialog() {
               )}
             </div>
 
-            <FormField label="Terms (Optional)" labelClassName={LABEL_CLASS}>
+            <FormField label="Terms" optional labelClassName={LABEL_CLASS}>
               <Textarea
                 placeholder="Printed on the quote the client sees."
                 value={form.terms}
@@ -772,7 +857,7 @@ export default function AddQuoteDialog() {
               />
             </FormField>
 
-            <FormField label="Internal notes (Optional)" labelClassName={LABEL_CLASS}>
+            <FormField label="Internal notes" optional labelClassName={LABEL_CLASS}>
               <Textarea
                 placeholder="Never shown to the client."
                 value={form.internalNotes}
@@ -782,7 +867,7 @@ export default function AddQuoteDialog() {
             </FormField>
 
             {editing && (
-              <FormField label="What changed (Optional)" labelClassName={LABEL_CLASS}>
+              <FormField label="What changed" optional labelClassName={LABEL_CLASS}>
                 <Input
                   className={FIELD_CLASS}
                   placeholder="e.g. Added the return leg"

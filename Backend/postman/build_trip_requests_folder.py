@@ -148,9 +148,6 @@ UPDATE_BODY = """{
 def build(owner, broker, assistant):
     client_id = owner.request('GET', '/clients?limit=1')[1]['data'][0]['id']
     airport_id = owner.request('GET', '/airports?limit=1')[1]['data'][0]['id']
-    seeded = owner.request('GET', '/trip-requests?limit=1')[1]['data'][0]
-    missing = '00000000-0000-4000-8000-000000000000'
-
     payload = {
         'clientId': client_id, 'source': 'REFERRAL', 'status': 'OPEN',
         'originAirportId': airport_id, 'destinationAirportId': None,
@@ -161,6 +158,14 @@ def build(owner, broker, assistant):
         'requirements': 'Catering and ground transport.',
         'internalNotes': 'Referred by Hope Sterling.',
     }
+
+    requests_res = owner.request('GET', '/trip-requests?limit=1')[1].get('data', [])
+    if not requests_res:
+        _, created_res = owner.request('POST', '/trip-requests', payload)
+        seeded = created_res['data']
+    else:
+        seeded = requests_res[0]
+    missing = '00000000-0000-4000-8000-000000000000'
 
     cap = {}
     cap['list'] = owner.request('GET', '/trip-requests?page=1&limit=3')
@@ -506,9 +511,9 @@ def build(owner, broker, assistant):
 
 
 def main():
-    owner = Session('admin@tribecajets.com')
-    broker = Session('broker@tribecajets.com')
-    assistant = Session('assistant@tribecajets.com')
+    owner = Session('admin@example.com')
+    broker = Session('broker@example.com')
+    assistant = Session('assistant@example.com')
 
     collection = json.loads(COLLECTION.read_text())
     operators = next(f for f in collection['item'] if f['name'].startswith('06'))

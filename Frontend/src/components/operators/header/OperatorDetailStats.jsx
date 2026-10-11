@@ -15,8 +15,10 @@ export default function OperatorDetailStats({ operator }) {
   if (!operator) return null;
 
   const reliability = operator.reliability && operator.reliability !== "—" ? operator.reliability : null;
-  const safety = operator.safety && operator.safety !== "—" ? operator.safety : "—";
-  const responseSpeed = operator.responseSpeed && operator.responseSpeed !== "—" ? operator.responseSpeed : "—";
+  // The desk's 0–5 rating, like reliability; "—" when not rated.
+  const safety = operator.rawSafety !== null && operator.rawSafety !== undefined ? operator.safety : null;
+  const responseSpeed = operator.rawResponseSpeed ? operator.responseSpeed : "—";
+  const SPEED_TONE = { FAST: "success", AVERAGE: "foreground", SLOW: "destructive" };
   const totalTrips = operator.totalTrips && operator.totalTrips !== "—" ? String(operator.totalTrips) : "—";
   const totalPaid = operator.totalPaid && operator.totalPaid !== "—" ? operator.totalPaid : "—";
 
@@ -40,15 +42,23 @@ export default function OperatorDetailStats({ operator }) {
       {/* 2. Safety */}
       <StatCard
         title="SAFETY"
-        value={safety}
-        valueTone={safety !== "—" ? "success" : "foreground"}
+        value={
+          safety ? (
+            <span className="flex items-center gap-1.5 text-foreground">
+              <span className="text-amber-500">★</span>
+              <span>{safety}</span>
+            </span>
+          ) : (
+            "—"
+          )
+        }
       />
 
       {/* 3. Response Speed */}
       <StatCard
         title="RESPONSE SPEED"
         value={responseSpeed}
-        valueTone={responseSpeed !== "—" ? "destructive" : "foreground"}
+        valueTone={SPEED_TONE[operator.rawResponseSpeed] ?? "foreground"}
       />
 
       {/* 4. Total Trips */}

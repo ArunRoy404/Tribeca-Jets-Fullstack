@@ -23,6 +23,15 @@ const storageDriverProvider: Provider = {
         : new LocalStorageDriver(config);
 
     logger.log(`Storage driver resolved: ${driver.name}`);
+    // Legitimate on a VPS with a persistent volume, fatal on a container whose
+    // disk is replaced on every deploy — so said loudly at boot, where whoever
+    // deploys will see it, rather than discovered when a file 404s.
+    if (driver.name === 'local' && config.isProduction) {
+      logger.warn(
+        `Production is storing uploads on local disk (${config.storage.localPath}). ` +
+          'This is only safe on a persistent volume; set the S3_* variables to use Cloudflare R2.',
+      );
+    }
     return driver;
   },
 };

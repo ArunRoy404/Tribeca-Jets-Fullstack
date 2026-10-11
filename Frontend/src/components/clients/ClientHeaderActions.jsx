@@ -20,6 +20,7 @@ export default function ClientHeaderActions({
   isRestoring = false,
   /** Optional (#21): shown only when given — the page passes it to a role that may send. */
   onSendEmail,
+  mayCreateTrip = true,
 }) {
   const router = useRouter();
 
@@ -27,6 +28,7 @@ export default function ClientHeaderActions({
   // to do with one is bring it back. Offering Edit, Create Trip and Archive on
   // a removed record is offering three actions the API refuses.
   if (client?.isArchived) {
+    if (!onRestore) return null;
     return (
       <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 w-full sm:w-auto">
         <Button
@@ -42,54 +44,68 @@ export default function ClientHeaderActions({
     );
   }
 
+  const hasMenuActions = Boolean(onSendEmail || onFollowUp || onEdit || onArchive);
+
   return (
     <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 w-full sm:w-auto">
-      <Button
-        variant="outline"
-        className="h-9 sm:h-10 text-[12px] sm:text-[13px] gap-2 font-medium flex-1 sm:flex-none cursor-pointer"
-        onClick={onEdit}
-      >
-        <Edit className="size-3.5 sm:size-4" />
-        Edit Client
-      </Button>
+      {onEdit && (
+        <Button
+          variant="outline"
+          className="h-9 sm:h-10 text-[12px] sm:text-[13px] gap-2 font-medium flex-1 sm:flex-none cursor-pointer"
+          onClick={onEdit}
+        >
+          <Edit className="size-3.5 sm:size-4" />
+          Edit Client
+        </Button>
+      )}
 
-      <Button
-        className="bg-[#252832] hover:bg-[#252832]/90 text-white h-9 sm:h-10 text-[12px] sm:text-[13px] gap-2 font-medium flex-1 sm:flex-none cursor-pointer"
-        onClick={() => router.push("/dashboard/trips/new")}
-      >
-        <Plus className="size-3.5 sm:size-4" />
-        Create Trip
-      </Button>
+      {mayCreateTrip && (
+        <Button
+          className="bg-[#252832] hover:bg-[#252832]/90 text-white h-9 sm:h-10 text-[12px] sm:text-[13px] gap-2 font-medium flex-1 sm:flex-none cursor-pointer"
+          onClick={() => router.push("/dashboard/trips/new")}
+        >
+          <Plus className="size-3.5 sm:size-4" />
+          Create Trip
+        </Button>
+      )}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="h-9 sm:h-10 px-3 shrink-0 gap-1.5 cursor-pointer">
-            <MoreHorizontal className="size-4" />
-            <span className="sr-only sm:not-sr-only text-[12px] sm:text-[13px]">More</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48 font-montserrat text-[12px]">
-          {onSendEmail && (
-            <DropdownMenuItem onClick={onSendEmail} className="gap-2 cursor-pointer">
-              <Mail className="size-3.5" />
-              Send Email
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={onFollowUp} className="gap-2 cursor-pointer">
-            <Calendar className="size-3.5" />
-            Schedule Follow-up
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onEdit} className="gap-2 cursor-pointer">
-            <Edit className="size-3.5" />
-            Edit Profile
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onArchive} className="gap-2 text-destructive focus:text-destructive cursor-pointer">
-            <Archive className="size-3.5" />
-            Archive Client
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {hasMenuActions && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="h-9 sm:h-10 px-3 shrink-0 gap-1.5 cursor-pointer">
+              <MoreHorizontal className="size-4" />
+              <span className="sr-only sm:not-sr-only text-[12px] sm:text-[13px]">More</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 font-montserrat text-[12px]">
+            {onSendEmail && (
+              <DropdownMenuItem onClick={onSendEmail} className="gap-2 cursor-pointer">
+                <Mail className="size-3.5" />
+                Send Email
+              </DropdownMenuItem>
+            )}
+            {onFollowUp && (
+              <DropdownMenuItem onClick={onFollowUp} className="gap-2 cursor-pointer">
+                <Calendar className="size-3.5" />
+                Schedule Follow-up
+              </DropdownMenuItem>
+            )}
+            {onEdit && (
+              <DropdownMenuItem onClick={onEdit} className="gap-2 cursor-pointer">
+                <Edit className="size-3.5" />
+                Edit Profile
+              </DropdownMenuItem>
+            )}
+            {onArchive && (onSendEmail || onFollowUp || onEdit) && <DropdownMenuSeparator />}
+            {onArchive && (
+              <DropdownMenuItem onClick={onArchive} className="gap-2 text-destructive focus:text-destructive cursor-pointer">
+                <Archive className="size-3.5" />
+                Archive Client
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }

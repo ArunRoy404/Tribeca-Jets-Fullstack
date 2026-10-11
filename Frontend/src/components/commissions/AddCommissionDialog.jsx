@@ -9,10 +9,12 @@ import CommonSelect from "@/components/common/CommonSelect";
 import DatePicker from "@/components/common/DatePicker";
 import FormField from "@/components/trips/FormField";
 import FilterTabs from "@/components/table/common/FilterTabs";
+import TripPicker from "@/components/trips/TripPicker";
+import ClientPicker from "@/components/clients/ClientPicker";
+import BrokerPicker from "@/components/users/BrokerPicker";
+import ReferralAgentPicker from "@/components/users/ReferralAgentPicker";
 import { useCreateCommission, useUpdateCommission } from "@/hooks/commissions";
-import { useTrips } from "@/hooks/trips";
-import { useUsers } from "@/hooks/users";
-import { useClients } from "@/hooks/clients";
+import { useUser } from "@/hooks/users";
 import {
   COMMISSION_BASES,
   COMMISSION_METHODS,
@@ -22,10 +24,6 @@ import {
   formatCommissionStatus,
   formatStructure,
 } from "@/lib/commission";
-import { displayName } from "@/lib/client";
-import { personName } from "@/lib/lead";
-import { BROKER_ROLES, REFERRAL_AGENT } from "@/lib/roles";
-import { formatTripReference, formatTripRoute } from "@/lib/trip";
 import { optionalNumber, optionalText } from "@/lib/form";
 import { toDateInput } from "@/lib/date";
 import { useCommissionsStore } from "@/store/useCommissionsStore";
@@ -63,10 +61,8 @@ function initialForm(commission, draft) {
  * Raise or edit a commission on a trip — to a referral agent, a CRM client
  * (a travel agent), or anyone else by name.
  *
- * The estimate is never typed or shown as a working here: it is computed by
- * the API from the trip's own profit, and the detail sheet reads it back.
- * What the desk decides is the structure, and, once settled, the final
- * figure.
+ * Uses shared pickers (TripPicker, ReferralAgentPicker, ClientPicker, BrokerPicker)
+ * powered by RecordPicker to handle 1,000+ records via server pagination and search.
  */
 export default function AddCommissionDialog() {
   const open = useCommissionsStore((s) => s.addModalOpen);
@@ -89,37 +85,17 @@ function CommissionForm({ commission, draft, onDone }) {
   const [errors, setErrors] = useState({});
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const { data: trips } = useTrips({ limit: 100, sortBy: "departureDate", sortOrder: "desc" });
-  const { data: users } = useUsers({ limit: 100 });
-  const { data: clients } = useClients({ limit: 100 });
-
-  const tripOptions = useMemo(
-    () =>
-      (trips?.data ?? []).map((t) => ({
-        value: t.id,
-        label: `${formatTripReference(t.reference)} · ${t.client ? displayName(t.client) : "—"} · ${formatTripRoute(t)}`,
-      })),
-    [trips?.data],
-  );
-  const agents = useMemo(() => (users?.data ?? []).filter((u) => u?.role === REFERRAL_AGENT), [users?.data]);
-  const agentOptions = agents.map((u) => ({ value: u.id, label: personName(u) }));
-  const brokerOptions = [
-    { value: NONE, label: "The trip's broker" },
-    ...(users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)).map((u) => ({ value: u.id, label: personName(u) })),
-  ];
-  const clientOptions = (clients?.data ?? []).map((c) => ({ value: c.id, label: displayName(c) }));
-
-  // The agent's standing terms, when this caller may read them (the API
-  // sends them to whoever manages users). Otherwise the option still works —
-  // the API copies whatever is on file.
-  const agent = agents.find((u) => u.id === form.recipientUserId);
+  // When a referral agent is picked, fetch their standing commission structure
+  const { data: agent } = useUser(form.recipientType === "REFERRAL_AGENT" && form.recipientUserId ? form.recipientUserId : null);
   const agentTerms = agent?.commissionBasis ? formatStructure(agent) : null;
-  const basisOptions = [
+
+  const basisOptions = useMemo(() => [
     ...(form.recipientType === "REFERRAL_AGENT"
       ? [{ value: AGENT_DEFAULT, label: agentTerms ? `Agent's standard (${agentTerms})` : "Agent's standard structure" }]
       : []),
     ...options(COMMISSION_BASES, formatCommissionBasis),
-  ];
+  ], [form.recipientType, agentTerms]);
+
   const basis = form.recipientType !== "REFERRAL_AGENT" && form.basis === AGENT_DEFAULT ? "" : form.basis;
 
   const { mutate: create, isPending: creating } = useCreateCommission();
@@ -148,7 +124,7 @@ function CommissionForm({ commission, draft, onDone }) {
       ...(form.recipientType === "MANUAL"
         ? { recipientName: form.recipientName.trim(), recipientCompany: optionalText(form.recipientCompany, clear) }
         : {}),
-      ...(form.brokerId && form.brokerId !== NONE ? { brokerId: form.brokerId } : {}),
+      ...(form.brokerId ? { brokerId: form.brokerId } : editing ? { brokerId: null } : {}),
       ...(useAgentTerms
         ? {}
         : {
@@ -179,30 +155,47 @@ function CommissionForm({ commission, draft, onDone }) {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
         <FormField label="Trip" error={errors.tripId}>
-          <CommonSelect value={form.tripId} onChange={set("tripId")} options={tripOptions} placeholder="Choose the trip" />
+          <TripPicker
+            value={form.tripId}
+            onChange={set("tripId")}
+            invalid={Boolean(errors.tripId)}
+            placeholder="Choose the trip"
+          />
         </FormField>
 
         <FormField label="Paid to" error={errors.recipientType}>
           <FilterTabs
             options={Object.values(RECIPIENTS)}
             value={RECIPIENTS[form.recipientType]}
-            onValueChange={(label) => set("recipientType")(RECIPIENT_BY_LABEL[label] ?? "REFERRAL_AGENT")}
+            onValueChange={(label) => {
+              const type = RECIPIENT_BY_LABEL[label] ?? "REFERRAL_AGENT";
+              setForm((prev) => ({
+                ...prev,
+                recipientType: type,
+                basis: type === "REFERRAL_AGENT" ? AGENT_DEFAULT : prev.basis === AGENT_DEFAULT ? "FLAT_FEE" : prev.basis,
+              }));
+            }}
           />
         </FormField>
 
         {form.recipientType === "REFERRAL_AGENT" && (
           <FormField label="Referral agent" error={errors.recipientUserId}>
-            <CommonSelect
+            <ReferralAgentPicker
               value={form.recipientUserId}
               onChange={set("recipientUserId")}
-              options={agentOptions}
-              placeholder={agentOptions.length ? "Choose the agent" : "No referral agents yet"}
+              invalid={Boolean(errors.recipientUserId)}
+              placeholder="Choose the referral agent"
             />
           </FormField>
         )}
         {form.recipientType === "CLIENT" && (
           <FormField label="Client" error={errors.recipientClientId}>
-            <CommonSelect value={form.recipientClientId} onChange={set("recipientClientId")} options={clientOptions} placeholder="Choose the client" />
+            <ClientPicker
+              value={form.recipientClientId}
+              onChange={set("recipientClientId")}
+              invalid={Boolean(errors.recipientClientId)}
+              placeholder="Choose the client"
+            />
           </FormField>
         )}
         {form.recipientType === "MANUAL" && (
@@ -240,7 +233,13 @@ function CommissionForm({ commission, draft, onDone }) {
             <CommonSelect value={form.status} onChange={set("status")} options={options(COMMISSION_STATUSES, formatCommissionStatus)} />
           </FormField>
           <FormField label="Broker (Optional)" error={errors.brokerId}>
-            <CommonSelect value={form.brokerId || NONE} onChange={set("brokerId")} options={brokerOptions} />
+            <BrokerPicker
+              value={form.brokerId}
+              onChange={(id) => set("brokerId")(id || "")}
+              allowClear
+              clearLabel="The trip's broker"
+              placeholder="The trip's broker"
+            />
           </FormField>
         </div>
 

@@ -21,7 +21,7 @@ import {
   useUpdateReceivable,
 } from "@/hooks/receivables";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission, Scope } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toReceivableRow } from "@/lib/receivable";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { useReceivablesStore } from "@/store/useReceivablesStore";
@@ -31,13 +31,11 @@ import { useReceivablesStore } from "@/store/useReceivablesStore";
  * and every figure on a row — total, paid, balance, status — is computed by
  * the API from the invoice and its payments.
  *
- * Two levels of write, both hidden rather than disabled: raising, editing and
- * recording payments is MANAGE_RECEIVABLES (a broker on their own trips);
- * archiving an invoice is an administrator's or senior broker's call, so the
- * checkbox column and the Archive action appear only at ALL scope. "Send
- * Reminder" emails the client through the shared compose form (Email
- * Templates, #21), opening on a payment template with the invoice's number,
- * total, balance and due date filled by the API — for a role that may send.
+ * Writes are gated per-person via RECEIVABLES permissions:
+ * - Action.CREATE: raising, editing invoices, marking draft sent
+ * - Action.PAY: recording payments
+ * - Action.ARCHIVE: voiding/restoring invoices
+ * - EMAIL_TEMPLATES · SEND: sending payment reminder emails
  */
 export default function ReceivablesContainer({ revealDelay = 0 }) {
   const params = useReceivablesTableParams();
@@ -48,11 +46,12 @@ export default function ReceivablesContainer({ revealDelay = 0 }) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  const { canWrite, scopeFor } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_RECEIVABLES);
-  const maySend = canWrite(Permission.SEND_EMAILS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.RECEIVABLES, Action.CREATE);
+  const mayPay = canAccess(Module.RECEIVABLES, Action.PAY);
+  const mayArchive = canAccess(Module.RECEIVABLES, Action.ARCHIVE);
+  const maySend = canAccess(Module.EMAIL_TEMPLATES, Action.SEND);
   const [reminderFor, setReminderFor] = useState(null);
-  const mayArchive = scopeFor(Permission.MANAGE_RECEIVABLES) === Scope.ALL;
 
   const openAddModal = useReceivablesStore((s) => s.openAddModal);
   const openEditModal = useReceivablesStore((s) => s.openEditModal);
@@ -95,17 +94,20 @@ export default function ReceivablesContainer({ revealDelay = 0 }) {
         ? [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreInvoices?.(row?.id) }]
         : [view];
     }
-    if (!mayWrite) return [view];
 
     const actions = [view];
-    if (row?.rawStatus === "SENT" && row?.hasBalance) {
+    if (mayPay && row?.rawStatus === "SENT" && row?.hasBalance) {
       actions.push({ label: "Record Payment", icon: <DollarSign />, onSelect: () => openPaymentModal?.(row?.raw) });
-      if (maySend) actions.push({ label: "Send Reminder", icon: <Mail />, onSelect: () => setReminderFor(row) });
     }
-    if (row?.rawStatus === "DRAFT") {
+    if (maySend && row?.rawStatus === "SENT" && row?.hasBalance) {
+      actions.push({ label: "Send Reminder", icon: <Mail />, onSelect: () => setReminderFor(row) });
+    }
+    if (mayCreate && row?.rawStatus === "DRAFT") {
       actions.push({ label: "Mark Sent", icon: <Send />, onSelect: () => updateInvoice?.({ id: row?.id, status: "SENT" }) });
     }
-    actions.push({ label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(row?.raw) });
+    if (mayCreate) {
+      actions.push({ label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(row?.raw) });
+    }
     // An invoice with money against it cannot be archived; the menu does not
     // offer what the API would refuse.
     if (mayArchive && row?.paymentCount === 0) {
@@ -130,7 +132,7 @@ export default function ReceivablesContainer({ revealDelay = 0 }) {
           selectedCount={selected.size}
           onBulkAction={() => setBulkOpen(true)}
           onAddReceivable={() => openAddModal()}
-          mayWrite={mayWrite}
+          mayWrite={mayCreate}
           mayArchive={mayArchive}
         />
 

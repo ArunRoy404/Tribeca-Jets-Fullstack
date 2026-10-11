@@ -41,7 +41,7 @@ export default function ClientCard({ item, actions, onClick }) {
         </div>
         <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
           {item?.status && <StatusBadge status={item?.status} bordered />}
-          {actions && <RowActionsMenu items={actions} />}
+          {actions && actions.length > 0 && <RowActionsMenu items={actions} />}
         </div>
       </div>
 

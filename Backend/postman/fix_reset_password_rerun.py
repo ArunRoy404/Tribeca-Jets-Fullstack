@@ -18,7 +18,7 @@ ten characters with a lowercase letter, an uppercase letter and a digit — and 
 is written back to the `newPassword` collection variable so the body, which
 sends it twice, still sends one value.
 
-The account is `reset-demo@tribecajets.com`, which exists for this flow and is
+The account is `reset-demo@example.com`, which exists for this flow and is
 not used to sign in anywhere else, so its drifting password breaks nothing.
 """
 

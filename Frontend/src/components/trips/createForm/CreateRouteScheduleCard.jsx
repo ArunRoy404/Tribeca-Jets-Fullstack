@@ -3,22 +3,30 @@
 import { Plus, Trash2 } from "lucide-react";
 import DetailCard from "@/components/trips/DetailCard";
 import FormField from "@/components/trips/FormField";
-import PickerSelect from "@/components/trips/PickerSelect";
+import AirportPicker from "@/components/airports/AirportPicker";
 import DatePicker from "@/components/common/DatePicker";
 import TimePicker from "@/components/common/TimePicker";
 import { Button } from "@/components/ui/button";
 import { useCreateTripStore } from "@/store/useCreateTripStore";
 
-function LegFields({ leg, index, options, route = true, onChange }) {
+function LegFields({ leg, index, route = true, onChange }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {route && (
         <>
           <FormField label="Departure Airport">
-            <PickerSelect value={leg?.originAirportId} onChange={(v) => onChange(index, "originAirportId", v)} options={options?.airports} placeholder="Select airport..." />
+            <AirportPicker
+              value={leg?.originAirportId}
+              onChange={(v) => onChange(index, "originAirportId", v || "")}
+              placeholder="Select departure airport..."
+            />
           </FormField>
           <FormField label="Arrival Airport">
-            <PickerSelect value={leg?.destinationAirportId} onChange={(v) => onChange(index, "destinationAirportId", v)} options={options?.airports} placeholder="Select airport..." />
+            <AirportPicker
+              value={leg?.destinationAirportId}
+              onChange={(v) => onChange(index, "destinationAirportId", v || "")}
+              placeholder="Select arrival airport..."
+            />
           </FormField>
         </>
       )}
@@ -37,18 +45,18 @@ function LegFields({ leg, index, options, route = true, onChange }) {
  * return is the outbound reversed, so it asks only when. Multi-leg lists every
  * leg. Times are local at the departure airport — how a charter is quoted.
  */
-export default function CreateRouteScheduleCard({ options }) {
+export default function CreateRouteScheduleCard() {
   const { type, legs, updateLeg, addLeg, removeLeg } = useCreateTripStore();
 
   return (
     <DetailCard title="Route & Schedule" description="Departure, arrival and timing. Times are local at the departure airport.">
       {type !== "MULTI_LEG" ? (
         <div className="flex flex-col gap-4">
-          <LegFields leg={legs?.[0]} index={0} options={options} onChange={updateLeg} />
+          <LegFields leg={legs?.[0]} index={0} onChange={updateLeg} />
           {type === "ROUND_TRIP" && (
             <div className="flex flex-col gap-2 pt-2 border-t border-border">
               <p className="font-montserrat font-semibold text-[13px] text-foreground">Return — the same route in reverse</p>
-              <LegFields leg={legs?.[1]} index={1} options={options} route={false} onChange={updateLeg} />
+              <LegFields leg={legs?.[1]} index={1} route={false} onChange={updateLeg} />
             </div>
           )}
         </div>
@@ -70,7 +78,7 @@ export default function CreateRouteScheduleCard({ options }) {
                     </button>
                   )}
                 </div>
-                <LegFields leg={leg} index={index} options={options} onChange={updateLeg} />
+                <LegFields leg={leg} index={index} onChange={updateLeg} />
               </div>
             ))}
           </div>
@@ -83,3 +91,4 @@ export default function CreateRouteScheduleCard({ options }) {
     </DetailCard>
   );
 }
+

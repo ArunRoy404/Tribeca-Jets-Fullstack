@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronsUpDown, LogOut } from "lucide-react";
 import UserAvatar from "@/components/common/UserAvatar";
 import {
   DropdownMenu,
@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/sidebar";
 import { useCurrentUser, useLogout } from "@/hooks/auth";
 import { toDisplayUser } from "@/lib/user";
+import { ACCOUNT_MENU_ITEMS } from "@/components/common/accountMenuItems";
+import { useRouter } from "next/navigation";
 
 /**
  * Profile block in the sidebar footer.
@@ -27,6 +29,7 @@ import { toDisplayUser } from "@/lib/user";
  * by React Query, so this and the top-nav menu share one request.
  */
 export function NavUser() {
+  const router = useRouter();
   const { isMobile, state } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
 
@@ -48,7 +51,7 @@ export function NavUser() {
               />
             }
           >
-            <UserAvatar name={user?.name} size="sm" className="shrink-0" />
+            <UserAvatar src={user?.avatarUrl} name={user?.name} size="sm" className="shrink-0" />
             {!isCollapsed && (
               <>
                 <div className="grid flex-1 text-left leading-tight">
@@ -65,14 +68,12 @@ export function NavUser() {
           </DropdownMenuTrigger>
           <DropdownMenuContent side={isMobile ? "bottom" : "right"} align="end" sideOffset={4} className="w-56">
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <User />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings />
-                Settings
-              </DropdownMenuItem>
+              {ACCOUNT_MENU_ITEMS.map(({ label, icon: Icon, href }) => (
+                <DropdownMenuItem key={href} onClick={() => router.push(href)}>
+                  <Icon />
+                  {label}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem

@@ -18,7 +18,7 @@ import {
   useWithdrawOperatorPayment,
 } from "@/hooks/operator-payments";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { formatPayableStatus, toPayableRow } from "@/lib/operatorPayment";
 import { useOperatorPaymentsStore } from "@/store/useOperatorPaymentsStore";
 
@@ -35,8 +35,10 @@ export default function OperatorPaymentDetailSheet() {
   const { data, isPending, error, refetch } = useOperatorPayable(id);
   const item = data ? toPayableRow(data) : null;
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_OPERATOR_PAYMENTS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.OPERATOR_PAYMENTS, Action.CREATE);
+  const mayPay = canAccess(Module.OPERATOR_PAYMENTS, Action.PAY);
+  const mayArchive = canAccess(Module.OPERATOR_PAYMENTS, Action.ARCHIVE);
 
   const openEditModal = useOperatorPaymentsStore((s) => s.openEditModal);
   const openPaymentModal = useOperatorPaymentsStore((s) => s.openPaymentModal);
@@ -129,9 +131,9 @@ export default function OperatorPaymentDetailSheet() {
             payments={data?.payments ?? []}
             withdrawn={data?.withdrawnPayments ?? []}
             emptyText="Nothing sent to the operator yet."
-            mayCorrect={live && mayWrite}
-            mayWithdraw={live && mayWrite}
-            mayRestore={open && mayWrite}
+            mayCorrect={live && mayPay}
+            mayWithdraw={live && mayArchive}
+            mayRestore={open && mayArchive}
             withdrawing={withdrawing}
             onCorrect={(payment) => openPaymentModal(data, payment)}
             onWithdraw={(payment, done) =>
@@ -146,28 +148,32 @@ export default function OperatorPaymentDetailSheet() {
             </p>
           </SectionCard>
 
-          {mayWrite && (
+          {(mayCreate || mayPay || mayArchive) && (
             <div className="border-t border-secondary flex flex-wrap items-center justify-between gap-3 pt-4 w-full mt-auto">
               {item.isArchived ? (
-                <Button variant="outline" className="gap-2 px-4" onClick={() => restore(item.id)}>
-                  <RotateCcw className="size-4" />
-                  Restore
-                </Button>
+                mayArchive && (
+                  <Button variant="outline" className="gap-2 px-4" onClick={() => restore(item.id)}>
+                    <RotateCcw className="size-4" />
+                    Restore
+                  </Button>
+                )
               ) : (
                 <>
                   <div className="flex flex-wrap gap-2">
-                    {open && item.hasBalance && (
+                    {open && item.hasBalance && mayPay && (
                       <Button variant="success" className="gap-2 px-4" onClick={() => openPaymentModal(data)}>
                         <DollarSign className="size-4" />
                         Pay Operator
                       </Button>
                     )}
-                    <Button variant="outline" className="gap-2 px-4" onClick={() => openEditModal(data)}>
-                      <Pencil className="size-4" />
-                      Edit
-                    </Button>
+                    {mayCreate && (
+                      <Button variant="outline" className="gap-2 px-4" onClick={() => openEditModal(data)}>
+                        <Pencil className="size-4" />
+                        Edit
+                      </Button>
+                    )}
                   </div>
-                  {item.paymentCount === 0 && (
+                  {mayArchive && item.paymentCount === 0 && (
                     <Button variant="destructive" className="gap-2 px-4" onClick={() => remove(item.id, { onSuccess: close })}>
                       <Trash2 className="size-4" />
                       Archive

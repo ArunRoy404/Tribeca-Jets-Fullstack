@@ -1,3 +1,4 @@
+import { resolveAccess } from '../../common/authorization/access.js';
 import { randomBytes } from 'node:crypto';
 import {
   BadRequestException,
@@ -10,12 +11,18 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
 import { MailService } from '../../core/mail/mail.service.js';
 import { AppConfigService } from '../../config/config.service.js';
-import { UserStatus, VerificationPurpose } from '../../generated/prisma/enums.js';
+import { UserRole, UserStatus, VerificationPurpose } from '../../generated/prisma/enums.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
-import { isPartner } from '../../common/authorization/permissions.js';
 import type { LoginInput } from './dto/login.dto.js';
+import type {
+  ChangePasswordInput,
+  SetTwoFactorInput,
+  UpdateProfileInput,
+} from './dto/account.dto.js';
 import type { SessionContext } from './token.service.js';
 import { VerificationService } from './verification.service.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
 
 /**
  * Argon2id with parameters sized for an interactive login on a modest VPS:
@@ -48,6 +55,7 @@ export class AuthService {
     private readonly mail: MailService,
     private readonly verification: VerificationService,
     private readonly config: AppConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -87,7 +95,7 @@ export class AuthService {
   async validateCredentials(
     input: LoginInput,
     context: SessionContext,
-  ): Promise<AuthenticatedUser & { firstName: string; twoFactorEnabled: boolean }> {
+  ): Promise<AuthenticatedUser & { firstName: string; twoFactorRequired: boolean }> {
     const user = await this.prisma.user.findFirst({
       where: { email: input.email, deletedAt: null },
       select: {
@@ -121,29 +129,54 @@ export class AuthService {
       throw invalid;
     }
 
-    if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException(
-        user.status === UserStatus.SUSPENDED
-          ? 'This account has been suspended. Contact an administrator.'
-          : 'This invitation has not been accepted yet. Use "Forgot password?" to set your password and activate the account.',
-      );
+    if (user.status === UserStatus.SUSPENDED) {
+      throw new UnauthorizedException('This account has been suspended. Contact an administrator.');
     }
+
+    // The invitation carried the first password, so signing in with it *is*
+    // accepting the invitation. Only INVITED is promoted — a suspension is
+    // refused above and never lifted by signing in.
+    if (user.status === UserStatus.INVITED) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { status: UserStatus.ACTIVE },
+      });
+      await this.audit.record({
+        actorId: user.id,
+        action: 'user.invitation_accepted',
+        entityType: 'User',
+        entityId: user.id,
+        metadata: { from: UserStatus.INVITED, to: UserStatus.ACTIVE, via: 'first_sign_in' },
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      });
+    }
+
+    // A code is required when the person turned two-factor on, or — the
+    // company's "Require 2FA for admins" setting — when they administer the
+    // company, whether or not they turned it on themselves. The stored role,
+    // never the matrix switch: who is an administrator is identity.
+    const twoFactorRequired =
+      user.twoFactorEnabled ||
+      (isAdministrator(user.role) && (await this.settings.read()).requireAdminTwoFactor);
 
     // lastLoginAt is stamped once the session actually exists — for a
     // two-factor account that is after the code is verified, not here.
-    if (!user.twoFactorEnabled) {
+    if (!twoFactorRequired) {
       await this.prisma.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
       });
     }
 
+    // A two-factor account has no session yet — only a correct password — so
+    // "success" is written for it later, as `auth.two_factor.verified`.
     await this.audit.record({
       actorId: user.id,
-      action: 'auth.login.success',
+      action: twoFactorRequired ? 'auth.login.password_accepted' : 'auth.login.success',
       entityType: 'User',
       entityId: user.id,
-      metadata: { twoFactorRequired: user.twoFactorEnabled },
+      metadata: { twoFactorRequired, byCompanySetting: twoFactorRequired && !user.twoFactorEnabled },
       ipAddress: context.ipAddress,
       userAgent: context.userAgent,
     });
@@ -153,7 +186,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       firstName: user.firstName,
-      twoFactorEnabled: user.twoFactorEnabled,
+      twoFactorRequired,
     };
   }
 
@@ -172,6 +205,7 @@ export class AuthService {
   async startTwoFactorChallenge(
     user: { id: string; email: string; firstName: string },
     context: SessionContext,
+    rememberMe = false,
   ): Promise<{
     challengeToken: string;
     ttlMs: number;
@@ -182,6 +216,7 @@ export class AuthService {
       user.id,
       VerificationPurpose.TWO_FACTOR,
       context,
+      rememberMe,
     );
 
     const ttlMinutes = this.config.verification.twoFactorTtlMinutes;
@@ -208,8 +243,8 @@ export class AuthService {
     challengeToken: string | undefined,
     code: string,
     context: SessionContext,
-  ): Promise<AuthenticatedUser> {
-    const { userId } = await this.verification.verify(
+  ): Promise<{ user: AuthenticatedUser; rememberMe: boolean }> {
+    const { userId, rememberMe } = await this.verification.verify(
       challengeToken,
       code,
       VerificationPurpose.TWO_FACTOR,
@@ -238,7 +273,7 @@ export class AuthService {
       userAgent: context.userAgent,
     });
 
-    return user;
+    return { user, rememberMe };
   }
 
   async resendTwoFactorCode(
@@ -475,6 +510,108 @@ export class AuthService {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // My Account — the signed-in user's own profile, password and two-factor
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Proves the caller knows the account's password before a sensitive change.
+   * A 400, not a 401: the session is fine, the form is wrong — and a 401
+   * would send the browser into a refresh-and-retry it does not need.
+   */
+  private async assertPassword(userId: string, password: string) {
+    const user = await this.prisma.user.findFirstOrThrow({
+      where: { id: userId, deletedAt: null },
+      select: { id: true, email: true, firstName: true, passwordHash: true, twoFactorEnabled: true },
+    });
+    if (!(await argon2.verify(user.passwordHash, password))) {
+      throw new BadRequestException('Your current password is incorrect');
+    }
+    return user;
+  }
+
+  /** Name, phone and photo. Email, role and status stay an administrator's. */
+  async updateProfile(userId: string, input: UpdateProfileInput, context: SessionContext) {
+    const changed = Object.keys(input).filter(
+      (key) => input[key as keyof UpdateProfileInput] !== undefined,
+    );
+    if (changed.length) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { ...input, updatedById: userId },
+      });
+      await this.audit.record({
+        actorId: userId,
+        action: 'user.profile_updated',
+        entityType: 'User',
+        entityId: userId,
+        metadata: { fields: changed },
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      });
+    }
+    return this.getProfile(userId);
+  }
+
+  /**
+   * A signed-in password change. Every other session is signed out — the
+   * usual reason to change a password is suspecting someone else has it —
+   * while the one making the change stays signed in.
+   */
+  async changePassword(
+    userId: string,
+    input: ChangePasswordInput,
+    keepSessionId: string | null,
+    context: SessionContext,
+  ): Promise<{ signedOutSessions: number }> {
+    const user = await this.assertPassword(userId, input.currentPassword);
+    if (await argon2.verify(user.passwordHash, input.newPassword)) {
+      throw new BadRequestException('Your new password must be different from your current password');
+    }
+
+    const passwordHash = await AuthService.hashPassword(input.newPassword);
+    const [, revoked] = await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash, updatedById: userId } }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null, ...(keepSessionId ? { id: { not: keepSessionId } } : {}) },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    await this.mail.sendPasswordChangedNotice(user.email, user.firstName);
+    await this.audit.record({
+      actorId: userId,
+      action: 'auth.password.changed',
+      entityType: 'User',
+      entityId: userId,
+      metadata: { signedOutSessions: revoked.count },
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+    });
+
+    return { signedOutSessions: revoked.count };
+  }
+
+  /** Turns the caller's own two-factor on or off, after re-checking the password. */
+  async setTwoFactor(userId: string, input: SetTwoFactorInput, context: SessionContext) {
+    const user = await this.assertPassword(userId, input.currentPassword);
+    if (user.twoFactorEnabled !== input.enabled) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { twoFactorEnabled: input.enabled, updatedById: userId },
+      });
+      await this.audit.record({
+        actorId: userId,
+        action: input.enabled ? 'auth.two_factor.enabled' : 'auth.two_factor.disabled',
+        entityType: 'User',
+        entityId: userId,
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      });
+    }
+    return this.getProfile(userId);
+  }
+
   /**
    * The profile behind `GET /auth/me`.
    *
@@ -482,7 +619,7 @@ export class AuthService {
    * signed in, so this endpoint is how the app bootstraps its session state.
    */
   async getProfile(userId: string) {
-    const { commissionBasis, commissionPercentage, commissionAmount, ...profile } =
+    const { commissionBasis, commissionPercentage, commissionAmount, permissions, ...profile } =
       await this.prisma.user.findFirstOrThrow({
         where: { id: userId, deletedAt: null },
         select: {
@@ -494,24 +631,28 @@ export class AuthService {
           role: true,
           status: true,
           avatarKey: true,
+          avatarUrl: true,
           twoFactorEnabled: true,
           lastLoginAt: true,
           createdAt: true,
           commissionBasis: true,
           commissionPercentage: true,
           commissionAmount: true,
+          permissions: true,
         },
       });
 
     return {
       ...profile,
+      /** This person's own permissions with their role's reach (7 Oct 2026). */
+      access: resolveAccess(profile.role, permissions),
       /**
        * A referral agent's own standing terms, for the portal's Commission
        * Center (#11) — their own agreement, so theirs to read. Null for staff,
        * who have none, and for an agent the desk has not set terms for yet.
        */
       commissionTerms:
-        isPartner(profile.role) && commissionBasis
+        profile.role === UserRole.REFERRAL_AGENT && commissionBasis
           ? {
               basis: commissionBasis,
               percentage: commissionPercentage === null ? null : Number(commissionPercentage),

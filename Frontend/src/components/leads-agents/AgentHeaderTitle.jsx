@@ -11,7 +11,7 @@ import { formatUserRole } from "@/lib/user";
  * - Fields:
  *   - name: string (User.firstName + User.lastName)
  *   - status: "ACTIVE" | "SUSPENDED" | "INVITED"
- *   - role: UserRole enum (e.g. "SENIOR_BROKER", "BROKER")
+ *   - role: UserRole enum (e.g. "ADMIN", "BROKER")
  *   - email: string
  *   - phone: string
  *

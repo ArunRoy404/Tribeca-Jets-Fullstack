@@ -7,7 +7,7 @@
  * one dialog and not found by the filter on the next screen. Import this;
  * never re-list the roles in a component.
  */
-export const BROKER_ROLES = new Set(["BROKER", "SENIOR_BROKER", "ADMIN"]);
+export const BROKER_ROLES = new Set(["BROKER"]);
 
 /**
  * The outside partner who refers clients (client adjustment #11). Signs in to
@@ -20,10 +20,27 @@ export function isPartnerRole(role) {
   return role === REFERRAL_AGENT;
 }
 
+/**
+ * SUPER_ADMIN or ADMIN by stored role — the API's `isAdministrator`, for the
+ * few rules the owner tied to who someone *is* rather than a permission
+ * (changing the company's charter rates). It only decides what to render;
+ * the API checks the same.
+ */
+export function isAdministratorRole(role) {
+  return role === "SUPER_ADMIN" || role === "ADMIN";
+}
+
 export const PORTAL_HOME = "/portal";
 export const CRM_HOME = "/dashboard";
 
-/** Where a signed-in user belongs: the portal for a partner, the CRM for staff. */
+/**
+ * Where a signed-in user belongs: the portal for a partner, the CRM for staff.
+ *
+ * Decided by the real role, whatever ROLE_RESTRICTIONS_ENABLED says (7 Oct
+ * 2026): which half of the app someone uses is not a permission. With the
+ * switch overriding it, a referral agent landed on the staff CRM's own
+ * Referrals and Commissions screens.
+ */
 export function homeFor(role) {
   return isPartnerRole(role) ? PORTAL_HOME : CRM_HOME;
 }

@@ -22,11 +22,9 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import {
-  Permission,
-  Scope,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+import { canDo, reachOf, Reach } from '../../common/authorization/access.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
+import { AirportsService } from '../airports/airports.service.js';
 import {
   QuoteStatus,
   TripRequestStatus,
@@ -243,6 +241,7 @@ export class QuotesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly airports: AirportsService,
   ) {}
 
   // ---- Reading ------------------------------------------------------------
@@ -252,12 +251,11 @@ export class QuotesService {
    *
    * A quote is two documents in one row: the offer, which a client sees, and
    * the margin, which nobody outside the desk should. An assistant preparing
-   * paperwork needs the first and has no business with the second — which is
-   * exactly how the permission matrix already scores VIEW_FINANCIALS
-   * (ASSISTANT: NONE).
+   * paperwork needs the first and has no business with the second — gated by
+   * per-user `QUOTES · VIEW_MONEY`.
    */
   private seesFinancials(user: AuthenticatedUser): boolean {
-    return scopeFor(user.role, Permission.VIEW_FINANCIALS) !== Scope.NONE;
+    return canDo(user.access, Module.QUOTES, Action.VIEW_MONEY);
   }
 
   /**
@@ -328,7 +326,7 @@ export class QuotesService {
    * at all — an offer nobody owns still has to be findable, or it is lost.
    */
   private visibilityScope(user: AuthenticatedUser): Prisma.QuoteWhereInput {
-    if (scopeFor(user.role, Permission.VIEW_TRIPS) === Scope.ALL) return {};
+    if (reachOf(user.access, Module.QUOTES) === Reach.ALL) return {};
     return {
       OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }],
     };
@@ -802,14 +800,10 @@ export class QuotesService {
       await this.assertLive('aircraft', links.aircraftId, 'aircraft');
     }
     if (changed('originAirportId')) {
-      await this.assertLive('airport', links.originAirportId, 'origin airport');
+      await this.airports.usable(links.originAirportId!, 'origin');
     }
     if (changed('destinationAirportId')) {
-      await this.assertLive(
-        'airport',
-        links.destinationAirportId,
-        'destination airport',
-      );
+      await this.airports.usable(links.destinationAirportId!, 'destination');
     }
     if (changed('assignedBrokerId')) {
       await this.assertBroker(links.assignedBrokerId);
@@ -817,7 +811,7 @@ export class QuotesService {
   }
 
   /**
-   * Archiving a quote is an administrator's call.
+   * Archiving a quote is an administrator's call (or someone with ARCHIVE access).
    *
    * Same rule as trip requests and operator quotes, for the same reason: a
    * quote the client turned down is evidence, and a broker quietly removing
@@ -825,7 +819,7 @@ export class QuotesService {
    * in the history where the desk's win rate is counted.
    */
   private assertMayArchive(user: AuthenticatedUser): void {
-    if (scopeFor(user.role, Permission.DELETE_TRIPS) !== Scope.ALL) {
+    if (!canDo(user.access, Module.QUOTES, Action.ARCHIVE)) {
       throw new ForbiddenException(
         'Only administrators can remove a quote. Reject or expire it instead.',
       );

@@ -6,7 +6,7 @@ import { useTasksStore } from "@/store/useTasksStore";
 import { useRestoreTask, useTask, useUpdateTask } from "@/hooks/tasks";
 import { useCurrentUser } from "@/hooks/auth/useCurrentUser";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission, Scope } from "@/lib/permissions";
+import { Action, Module, Reach } from "@/lib/access";
 import { TASK_COLUMNS, toTask } from "@/lib/task";
 import { PRIORITY_STYLES, CHIP_STYLES } from "./taskBadgeStyles";
 import TaskChip from "./TaskChip";
@@ -23,7 +23,7 @@ function getInitial(name = "") {
 }
 
 /**
- * One task. Writing controls appear only for a role that may manage tasks,
+ * One task. Writing controls appear only for a role that may edit tasks,
  * and Archive only for the task's author or an administrator — the same rule
  * the API enforces. An archived task offers Restore and nothing else.
  */
@@ -33,15 +33,15 @@ export default function TaskDetailSheet({ taskId, onClose }) {
   const openArchiveModal = useTasksStore((s) => s.openArchiveModal);
   const { data } = useTask(taskId);
   const { data: me } = useCurrentUser();
-  const { canWrite, scopeFor } = usePermissions();
+  const { canAccess, reachOf } = usePermissions();
   const update = useUpdateTask({ quiet: true });
   const restore = useRestoreTask();
 
   const task = data ? toTask(data) : null;
-  const mayWrite = canWrite(Permission.MANAGE_TASKS) && !task?.isArchived;
+  const mayEdit = canAccess(Module.TASKS, Action.EDIT) && !task?.isArchived;
   const mayArchive =
-    canWrite(Permission.MANAGE_TASKS) &&
-    (scopeFor(Permission.MANAGE_TASKS) === Scope.ALL || (task?.createdById && task.createdById === me?.id));
+    canAccess(Module.TASKS, Action.ARCHIVE) &&
+    (reachOf(Module.TASKS) === Reach.ALL || (task?.createdById && task.createdById === me?.id));
   const priorityStyle = PRIORITY_STYLES[task?.priorityLabel] ?? PRIORITY_STYLES.Medium;
 
   const setStatus = (status) => update.mutate({ id: task?.id, status });
@@ -132,10 +132,10 @@ export default function TaskDetailSheet({ taskId, onClose }) {
                   key={item?.id}
                   className={cn(
                     "flex items-center gap-2.5 bg-secondary rounded-sm p-2 w-full",
-                    mayWrite && "cursor-pointer",
+                    mayEdit && "cursor-pointer",
                   )}
                 >
-                  {mayWrite && <Checkbox checked={Boolean(item?.done)} onCheckedChange={() => toggleItem(item?.id)} />}
+                  {mayEdit && <Checkbox checked={Boolean(item?.done)} onCheckedChange={() => toggleItem(item?.id)} />}
                   <span
                     className={cn(
                       "font-montserrat font-medium text-[14px] text-slate",
@@ -161,7 +161,7 @@ export default function TaskDetailSheet({ taskId, onClose }) {
             </div>
           )}
 
-          {mayWrite && (
+          {mayEdit && (
             <div className="flex flex-col gap-2 w-full">
               <p className="font-montserrat font-normal text-[14px] text-muted-foreground">Change status</p>
               <div className="flex flex-wrap gap-1 bg-secondary rounded-sm p-1 w-fit max-w-full">
@@ -196,7 +196,7 @@ export default function TaskDetailSheet({ taskId, onClose }) {
             ) : (
               <>
                 <div className="flex flex-wrap items-center gap-2">
-                  {mayWrite && task.status !== "COMPLETED" && (
+                  {mayEdit && task.status !== "COMPLETED" && (
                     <Button
                       className="gap-2 px-4 bg-success hover:bg-success/90 text-white"
                       onClick={() => setStatus("COMPLETED")}
@@ -205,7 +205,7 @@ export default function TaskDetailSheet({ taskId, onClose }) {
                       Completed
                     </Button>
                   )}
-                  {mayWrite && (
+                  {mayEdit && (
                     <Button variant="outline" className="gap-2 px-4" onClick={() => openEditModal(task.id)}>
                       <Pencil className="size-4" />
                       Edit

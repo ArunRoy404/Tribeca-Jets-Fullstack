@@ -16,6 +16,11 @@ the scope asks for that we chose not to build yet, with the reason.
 > second list is *visibly* blank on screen — nothing in this project quietly
 > pretends a missing dependency is a zero.
 
+> **Role restrictions are on again (7 Oct 2026).** From 4 to 7 Oct every user
+> acted as SUPER_ADMIN; the old role matrix is enforced again, and each module
+> moves to per-user permissions during its review. See `AGENTS.md`, "Role
+> restrictions are on again".
+
 Companion to [MODULES.md](MODULES.md), which explains what each module *is* and
 why it sits where it does in the queue, and to
 [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md), which tracks what the client has
@@ -47,11 +52,38 @@ Legend: ✅ done · ◐ partly done · ⬅ next · ⬜ not started
   tabs, with a minute's warning — and the API refuses to refresh a session that
   has demonstrably been idle past the limit. The limit ships from `/auth/me`
   rather than the frontend's env, so the two cannot drift
+- **Reviewed 6 Oct 2026** (module-by-module pass). Fixed: an idle refusal
+  now signs out only that device (it revoked every session the user had);
+  "Remember me" survives two-factor; the audit log says
+  `auth.login.password_accepted` until a two-factor code is verified, so
+  "success" means a session exists; the profile menus' Account and Settings
+  items now go somewhere.
+- **My Account** (`/dashboard/account`, profile menu → My Account): own name,
+  phone and photo (`PATCH /auth/me`), password change (`POST
+  /auth/change-password` — signs out every other device), own two-factor on
+  and off (`PATCH /auth/two-factor`, password required), and the signed-in
+  devices list with Revoke and "sign out all other devices"
+  (`/auth/sessions`). The same list and password dialog sit in Settings ›
+  Security. Postman: `01 · Auth › 05 · My Account`, run as the assistant and
+  self-restoring.
+- **Fixed 7 Oct 2026: signed out on reload after "Stay signed in".** The
+  server measured idleness by the refresh token's age, which real activity
+  never moved. Sessions now carry `lastActiveAt`, moved by `POST
+  /auth/activity` (sent on real input, at most every two minutes across
+  tabs, and at once on "Stay signed in"); the server's limit is the idle
+  timeout plus five minutes. Two tabs renewing at once within 30 seconds is
+  no longer mistaken for theft. The devices list shows last activity.
+  Postman: `01 · Auth › 03 · Session › 03 · Record activity`.
 
-**Waiting on a dependency** — none. Auth depends on nothing.
+**Waiting on a dependency**
 
-**Known gap** (not a dependency): an invitation cannot be withdrawn and the
-email stays reserved, so a mistyped invitation address is unrecoverable.
+| Not yet | What brings it back |
+|---|---|
+| Session location (city) | Dropped — would need a paid IP-lookup service |
+
+Since 7 Oct 2026 the idle timeout, the warning and "require two-factor for
+administrators" are read from **Settings (#26)**, and a mistaken invitation
+can be withdrawn (`DELETE /users/:id/invitation`).
 
 ---
 
@@ -60,8 +92,9 @@ email stays reserved, so a mistyped invitation address is unrecoverable.
 **Working now**
 
 - Invite, edit, change role, suspend, reactivate
-- Six roles: `SUPER_ADMIN`, `ADMIN`, `SENIOR_BROKER`, `BROKER`, `ASSISTANT`,
-  and since 27 Sep 2026 **`REFERRAL_AGENT`** — a partner, not staff, with NONE
+- Five roles: `SUPER_ADMIN`, `ADMIN`, `BROKER`, `ASSISTANT` (`SENIOR_BROKER`
+  withdrawn 7 Oct 2026, its accounts became brokers), and since 27 Sep 2026
+  **`REFERRAL_AGENT`** — a partner, not staff, with NONE
   on every staff permission (see **Referrals (#32)**). An agent carries their
   standard commission structure on the user row (`commissionBasis` /
   `commissionPercentage` / `commissionAmount`), accepted only on that role
@@ -92,13 +125,65 @@ email stays reserved, so a mistyped invitation address is unrecoverable.
 
 The three unfilled figures render "—" in `toTeamMember`.
 
+**Reviewed 6–7 Oct 2026 — owner signed off**
+
+- Fixed: the Documents tab crashed ("documents?.map is not a function") — it
+  read the page object `{ data, meta }` as the rows.
+- Changed (owner's decision): **the invite form sets the first password**,
+  with a Generate button; the invitation email carries it with a Sign In
+  button; the first sign-in turns the account from Invited to Active. The
+  "Forgot password?" route to activation is no longer what the email or the
+  form describes (it still works).
+- Documents tab uses the shared `FileUpload` drop box (several files at
+  once), and **a document may be any file type**: unrecognised types are
+  stored as opaque bytes that always download (Uploads, `storedContentType`).
+- **Per-user permissions (owner's design, 7 Oct 2026)** — the first module
+  moved off the role matrix. Roles are now Super Admin, Admin, Broker,
+  Assistant and Referral Agent; **Senior Broker is withdrawn** (not in the
+  scope) and its accounts became brokers.
+  - Invite and Edit are **full pages** (`/dashboard/users-roles/invite`,
+    `/dashboard/users-roles/<id>/edit`), replacing the dialog: details on the
+    left, permissions on the right, Save in a sticky header, a warning before
+    leaving with unsaved changes. The **Permissions** picker folds by sidebar
+    section ("5 of 6 on"): 25 modules, each with its actions, starting from
+    the role's defaults. Locked
+    modules and actions show a lock; ticking a module that needs another
+    turns that on too and says so; a needed module cannot be turned off
+    first. A role change resets to the new role's defaults with a warning
+    before saving. Nobody edits their own set; the owner's is fixed.
+  - The detail sheet has a read-only **Permissions** tab.
+  - Roles & Permissions tab: each role's defaults, optional extras, locks
+    and reach, grouped by sidebar section.
+  - Edit, Suspend and Invite appear only with the matching permission;
+    Suspend never on your own account.
+  - API: `/users/stats`, `/users/:id`, invite and edit are on
+    `@RequireAccess`; new `GET /roles` and `GET /roles/:role/defaults`.
+    `GET /users` stays on the old `VIEW_TEAM` because every module's broker
+    picker reads it; Users & Roles · View decides how much of each row shows.
+- **For every module:** the sidebar, `proxy.js` (from the `tj_modules`
+  cookie, before render) and the page gate follow each person's own set; a
+  refused page shows "No access". The APIs of the other modules still use
+  the old matrix (off), until each is moved during its review.
+- **Withdraw invitation** (7 Oct 2026): a pending invitation can be deleted
+  permanently from the row menu or the detail panel, freeing the address;
+  refused while clients, trips, documents or anything else are attached.
+  The one permanent delete in the system.
+- A Referral Agent lands in the partner portal again (by real role, not the
+  switch); staff are kept out of it. The Invite/Edit page asks before any
+  link leaves it with unsaved changes.
+- Seed (7 Oct 2026): every account and contact on example.com; Barry is a
+  broker with extra permissions, Mark one with fewer.
+- Postman: `04 · Users` rebuilt (7 requests, 40 examples, `/roles` and
+  permissions), the Auth session examples recaptured, `02 · Senior Broker`
+  sign-in removed, `08 · Withdraw invitation` added. Full collection green twice: 199 requests, 0 failures.
+
 **By design, not pending:** no archive/restore here. Suspension is enough — a
 user is a person with history attached, and removing the row orphans every
 audit trail pointing at them.
 
 ---
 
-## 3. Airports ✅
+## 3. Airports ✅ *(reviewed and signed off 8 Oct 2026)*
 
 **Working now**
 
@@ -106,14 +191,48 @@ audit trail pointing at them.
 - Search, country filter, sorting, pagination, stats
 - `GET /airports/countries` for the filter, derived from the rows
 - ICAO uniqueness across live and archived rows
-- Referenced as a real foreign key by Clients, Aircraft and Trip Requests
+- Referenced as a real foreign key by Clients, Aircraft, Trip Requests,
+  Quotes, Trips, Empty Legs and Referrals
+- **FBO** — one optional field on the airport (`assignedFbo`), typed in the
+  Add/Edit form; itineraries default to it and may override it per trip.
+  An em dash when none was entered. Not waiting on any module (owner, 8 Oct
+  2026: it stays a single name).
+- **Trips through each airport** on the detail panel — live, uncancelled
+  trips with a leg departing or arriving there, total and this year; a
+  round trip counts once (read through `TripsService.countThroughAirport`).
+
+**Reviewed 8 Oct 2026** (review row 5). Fixed:
+
+- **Permissions per person.** Every read needs only a session — eight forms
+  pick an airport, including the referral portal's — and every write needs
+  the caller's own Airports · Create / Edit / Archive (the owner's "reads are
+  open" rule, AGENTS.md). Moved off the old `MANAGE_AIRPORTS` matrix entry.
+- **The screen hides what a person cannot do** — Add, Edit, Remove, Restore,
+  the bulk button and the checkbox column — instead of offering them and
+  answering 403.
+- **Latitude, longitude and runway can be changed but not cleared** on edit
+  (required on create; an emptied value was accepted and stored as null).
+- The detail panel loads the airport itself: trip count, runway and
+  coordinates (it showed neither), "IATA —" instead of a blank, theme colours
+  instead of hardcoded hex. "Delete" now says "Remove" — it archives.
+- Stat tiles show a dash, not 0, when the counts fail to load.
+- Mobile cards: no stray "/" without an IATA code, the Restored badge, the
+  runway, and on the Archived tab who removed it and when.
+- The form shows the server's message under every field it can refuse.
+- Removed `components/airports/AirportCardsContainer.jsx` — imported nowhere,
+  and importing a file that does not exist.
+- Postman `05 · Airports` rebuilt live on `builder_common`
+  (`build_airports_folder.py`): 10 requests, 33 captured examples, broker
+  refusals and the agent's open reads.
+- API docs now list the 403 on every `@RequireAccess` route (Users and
+  Settings included), derived like the old ones.
 
 **Waiting on a dependency**
 
 | Feature | Unblocked by |
 |---|---|
-| FBO details per airport | **Document Vault (#22)** / operator data — an em dash, never an invented FBO name. *True only since 26 Sep 2026:* until then the detail sidebar and the mobile airport card both fell back to "Signature Flight Support", and every airport without notes read "Primary departure airport for NYC clients." |
-| Traffic / trips-through counts | **Trips (#11)** ✅ — not built yet |
+| ~~FBO details per airport~~ | Not a dependency — the airport's own optional field (above). |
+| ~~Traffic / trips-through counts~~ | ✅ Trips through here, on the detail panel (8 Oct 2026) |
 
 ---
 
@@ -128,8 +247,17 @@ audit trail pointing at them.
   textarea in, `whitespace-pre-line` out, up to 5,000 characters, so a tiered
   policy stays a tier per line instead of collapsing into one paragraph
   (client request #2)
-- `reliabilityRating` as a real 0–5 number; `safetyRating` and `responseSpeed`
-  as the free text they actually are
+- `reliabilityRating` and `safetyRating` as the desk's own 0–5 ratings, as
+  the Figma form (stars only beside a real one; blank is "Not rated")
+- **Fixed choices** (owner's review, 8 Oct 2026): `responseSpeed`
+  Fast/Average/Slow; `paymentTerms` Prepaid/Due on receipt/Net 7/15/30
+- **Status SUSPENDED** — "do not book until further notice"; Request Quote is
+  not offered for it, and the page says so
+- **Documents in the form** — the shared `FileUpload` drop zone; files
+  attached on Add/Edit are filed into the operator's vault folder, under one
+  chosen type, once it saves (`useFileDocuments`), and the Documents tab
+  (already there) lists, dates and archives them
+- Every dropdown in the form is the shared `CommonSelect`
 - **Fleet tab is real** — filled in the second pass the day Aircraft shipped,
   mapped through the aircraft module's own formatter so a tail reads identically
   in both screens
@@ -143,6 +271,44 @@ audit trail pointing at them.
 | ~~Trip history tab~~ | ✅ Shipped with **Trips (#11)** |
 | ~~Payments tab~~ | ✅ Shipped with **Operator Payments (#17)** — the operator's bills and totals from `GET /operator-payments?operatorId=`; the API's `payments: []` stand-in is gone. Hidden without `VIEW_OPERATOR_PAYMENTS` |
 | ~~Sourcing response history~~ | ✅ Shipped — response rate, win rate, average response time and last asked |
+
+**Reviewed 8 Oct 2026** (review row 7), owner tested and signed off 8 Oct. Fixed:
+
+- **Permissions per person.** Reads need only a staff session (pickers in
+  six modules); writes need Operators · Create / Edit / Archive. A referral
+  agent is refused as before (`@StaffOnly`).
+- **The screens hide what a person cannot do** — Add, Edit, Remove, Restore,
+  bulk, checkboxes, Request Quote.
+- **Figma vs. the build, settled by the owner:** Suspended added; safety a
+  0–5 number as in Figma (the owner chose it over a list of audits);
+  response speed and payment terms as dropdowns; payment terms kept though Figma lacks it (Operator Payments
+  reads it); documents added to the form. Certificate number and insurance
+  expiry are not fields — they are vault documents with an expiry date.
+- **Migration `20261008120000_operator_choices`**, hand-written: every typed
+  value that matches a choice is carried across, anything else is appended to
+  the notes ("… (as entered before 8 Oct 2026)") — tested on the pre-wipe
+  backup, where every real value mapped.
+- **Edit could copy the general phone onto the contact** (the form read the
+  table's fallback) — it reads the contact's own fields now.
+- **Edit can change, never clear, home base, contact name and email**
+  (required on create).
+- Overview shows every stored field (contact and general lines, home base,
+  aircraft types, payment terms); no grey stars for safety or speed.
+- Stats count Suspended on its own instead of folding it into Inactive.
+- `OperatorPicker` (on `RecordPicker`) built for the forms that pick an
+  operator; each switches on its own review.
+- Removed `OperatorDetailHeader.jsx` (imported nowhere).
+- Postman `06 · Operators` rebuilt live (`build_operators_folder.py`, 10
+  requests, 29 examples); `build_reference_folders.py` deleted.
+
+**Waiting on other modules' reviews**
+
+| What | Where |
+|---|---|
+| Refuse a SUSPENDED or archived operator when one is picked | Operator Sourcing, Quotes, Trips, Empty Legs — an `OperatorsService.usable` like `AirportsService.usable` |
+| Operator pickers on `OperatorPicker` | Aircraft, Sourcing, Quotes, Trips, Empty Legs, Operator Payments |
+| A bill's due date from the operator's payment terms | Operator Payments |
+| Measured response time beside the desk's Fast/Average/Slow | Operator Sourcing (the scorecard already counts it) |
 
 **Two bugs fixed here on 2026-09-17:** the status dropdown's options carried
 display labels (`value="Active"`) rather than enum values, so it showed "Active"
@@ -193,10 +359,26 @@ entered into the operator's fleet.
 wired to nothing. ✅ It is now the **Documents** tab — the client's folder in
 **Document Vault (#22)**, shipped 29 Sep 2026.
 
-**Known gap, not a dependency:** the Clients *table* does not read
-`usePermissions()` yet — its row menu, checkbox column and bulk actions render
-for every role, and the API refuses what a broker or assistant cannot do. The
-detail page and dialogs are wired; the table is next time Clients is opened.
+**Reviewed 9 Oct 2026:**
+- **Moved to per-user permissions & open reads:**
+  - `@StaffOnly()` on controller (desk data, referral agents refused 403).
+  - Open staff `GET` reads without `@RequireAccess` for picker compatibility.
+  - Writes require `@RequireAccess(Module.CLIENTS, Action.CREATE / EDIT / ARCHIVE)`.
+  - Reach filters Prisma queries (`reachOf(user.access, Module.CLIENTS)` == ASSIGNED → `assignedBrokerId: user.id`).
+- **Server-side validation of picked foreign keys:**
+  - `homeAirportId` checked with `AirportsService.usable(id, 'home airport')`.
+  - `assignedBrokerId` verified active staff broker/admin; reassigning checks `canDo(user.access, Module.CLIENTS, Action.ASSIGN)`.
+- **Company settings integration (§26):**
+  - Create defaults `leadStage` to `SettingsService.read().defaultLeadStage`.
+- **Frontend upgraded:**
+  - Table, toolbar, rows, cards, dialogs, detail header, follow-up banner, and sidebar use `usePermissions()` and hide (never disable) unauthorized actions.
+  - `AddClientDialog` and `ScheduleFollowUpDialog` upgraded to use shared `AirportPicker` and `BrokerPicker` (on `RecordPicker` with live search, server-side pagination, page size selector, and unassign support).
+  - All form controls unified to `h-10 text-[13px] rounded-md` height and typography parity.
+  - `BROKER_ROLES` scoped strictly to `BROKER` (admins excluded from broker pickers).
+  - Table checkbox and bulk action hidden when caller lacks `ARCHIVE` permission.
+- **Testing & Postman:**
+  - Vitest: 10/10 tests in `clients.access.spec.ts` passing; 362/362 backend tests green; Turbopack frontend build 0 errors.
+  - Postman: `03 · Clients` folder verified green (11/11 requests passed, teardown archives probe client).
 
 **Four bugs fixed here on 2026-09-17**, all of the same family — a field the
 API accepted, stored, and never gave back:
@@ -269,6 +451,35 @@ shown in a Photos card on the detail page, with an honest empty slot when
 there is none. The upload does not know it is for an aircraft, which is what
 makes the create form work. See **Uploads (#28)**.
 
+**Reviewed 9 Oct 2026** (review row 8). Fixed:
+
+- **Permissions per person.** Reads need only a staff session (pickers in
+  Quotes, Trips, Sourcing, Flight Tracking, Empty Legs); writes need
+  `Aircraft · Create` / `Edit` / `Archive` in the caller's own permissions
+  (`@RequireAccess`). A referral agent is refused every route (`@StaffOnly`
+  on the controller — fleet is internal desk data).
+- **The screen hides what a person cannot do:** Add Aircraft, Edit, Change Status,
+  Remove, Restore, bulk actions and the checkbox column are hidden based on
+  `canAccess(Module.AIRCRAFT, Action.CREATE/EDIT/ARCHIVE)` (hide, not disable).
+- **Picked ids verified on the server:** Home base verified with
+  `AirportsService.usable(id, 'home base')` (missing or archived returns 400).
+  Operator verified to exist, not be archived, and not be SUSPENDED (400).
+- **Forms & Toolbar UI polished:** `AddAircraftDialog` and `AircraftPicker` use the modern
+  reusable components (`OperatorPicker`, `AirportPicker`, `CommonSelect`). Form input heights
+  standardized to `h-10 text-[13px] rounded-md` matching dropdowns and pickers.
+  `AircraftToolbar` restructured: Add Aircraft sits prominently on the left of Row 1 alongside
+  tabs; `FilterInput` component created for compact `Min seats` and `Min range (nm)` filters
+  matching `SearchInput` and `FilterDropdown` styling.
+  `AircraftPicker` (on `RecordPicker`) created for future modules (Quotes, Trips,
+  Empty Legs, Flight Tracking).
+- **Data honesty:** Empty/null fields in `AircraftCard` and `AircraftTableRow`
+  render `"—"`, never omitted or disappeared cells.
+- **Postman collection:** `07 · Aircraft` rebuilt on `builder_common.py`
+  against port 4100 with 11 requests, 34 live-captured examples, testing staff
+  reads, partner 403, and assistant/broker write/archive refusals. Dedicated
+  teardown request (`11 · Teardown — archive the probe`) keeps test runs clean.
+  Verified with Newman (100% passing, 0 failures, run twice).
+
 ---
 
 ## 7. Leads & Agents ✅
@@ -320,6 +531,19 @@ agent is one of the desk's own brokers — a User — and staff are invited thro
 Users & Roles, where the permission matrix and suspend rules live. *Travel*
 agents are something else: clients of type `TRAVEL_AGENT`.
 
+**Reviewed 9 Oct 2026** (review row 12):
+- **Unified permission & access model:**
+  - Writes on the clients API now accept `Module.LEADS_AGENTS` in addition to `Module.CLIENTS` via `altModule` support on `@RequireAccess()`.
+  - Service methods (`assertMayAssign`, `assertMayArchive`) respect `LEADS_AGENTS · ASSIGN` and `LEADS_AGENTS · ARCHIVE`.
+  - Frontend (`LeadsAgentsContainer`, `AddLeadDialog`, `LeadDetailPage`, etc.) wired to `canAccess(Module.LEADS_AGENTS, Action.X)`.
+- **Company settings integration (§26):**
+  - Integrated company settings: pre-fills default lead stage (`settings.defaultLeadStage`) and automatically calculates initial follow-up date based on `settings.followUpIntervalDays`.
+  - Server-side defaults `nextFollowUpAt` for new leads from `settings.followUpIntervalDays` when omitted.
+- **Frontend component modernization & design system parity:**
+  - Upgraded `AddLeadDialog`, `AssignBrokerDialog`, and `ScheduleFollowUpDialog` to use shared `BrokerPicker`, `AirportPicker`, and `CommonSelect`.
+  - Form field heights standardized to `h-10 text-[13px] rounded-md px-3 py-2`.
+  - Reassignment picker restricted to active staff brokers.
+
 ---
 
 ## 8. Trip Requests ✅
@@ -336,11 +560,13 @@ agents are something else: clients of type `TRAVEL_AGENT`.
 - Return-before-departure rejected on the field, not in a banner
 - Editable after its client is archived — the client is re-checked only when
   it changes (a 400 on every save until 26 Sep 2026)
-- Uses the **trips** permissions (`VIEW_TRIPS` / `MANAGE_TRIPS` /
-  `DELETE_TRIPS`), because a request is the start of a trip
+- Uses **per-user permissions** (`@StaffOnly()`, `@RequireAccess(Module.TRIP_REQUESTS, Action.CREATE / EDIT / ARCHIVE)`, plus `Module.LEADS_AGENTS`), moving off legacy role matrix (10 Oct 2026)
+- Airport foreign keys validated via shared `AirportsService.usable(id, label)`
 - **A page of its own** at `/dashboard/trip-requests` (client request #8/#10a)
   — Active / All Requests / Archived tabs, stats tiles, search, five filters,
   a mobile card view below `lg`, bulk archive and restore
+- **Slide-over detail sheet** (`TripRequestDetailSheet`) on row click, keeping the table context with route strip, flight specs, client overview, quick client profile link, "Source in Operators", edit, and status controls
+- **Shared pickers**: `ClientPicker` (reusable server-paged RecordPicker), `AirportPicker`, `BrokerPicker`, and `CommonSelect` in `TripRequestForm`
 - **Mark as Lost** as the row action, ahead of Remove: a lost enquiry leaves
   the Active tab and stays in the log, which is what makes it findable when an
   empty leg matches it later
@@ -392,6 +618,30 @@ rows, the way a leads table would have split one client.
   average response time, last asked
 - An operator quote stays editable after its aircraft is archived — the
   aircraft is re-checked only when it changes (fixed 26 Sep 2026)
+
+**Reviewed and signed off 10 Oct 2026** (review row 14). Fixed & verified:
+
+- **Permissions per person:** Controller marked `@StaffOnly()` (protects desk data from referral agents).
+  Reads (`findAll`, `stats`, `findOne`) open to any signed-in staff session.
+  Writes require caller's own permissions via `@RequireAccess`:
+  - `Action.CREATE`: Ask operators to quote
+  - `Action.EDIT`: Record quote responses, approve, reject, decline, reopen
+  - `Action.ARCHIVE`: Soft delete, restore, bulk delete, bulk restore
+- **Reach checking:** Broker reach scoped to assigned enquiries via `reachOf(user.access, Module.OPERATOR_SOURCING)`.
+- **Reusable `OperatorPicker` & `RecordPicker`:**
+  - Extended shared `RecordPicker` to support `option.disabled` (disabled state, cursor-not-allowed, opacity, non-interactive).
+  - Extended shared `OperatorPicker` with `disabledIds` prop so operators already asked for an enquiry are visible but disabled with description "Already asked for this enquiry".
+- **Dedicated Figma modal:** Rebuilt `NewSourcingRequestDialog.jsx` matching Figma Image 1 with clean 8-field layout, `Linked trip` selector auto-populating from an open trip request, and required core fields (Client, Route from, Route to, Departure).
+- **Recorded quote response dialog:**
+  - Built dedicated `RecordResponseDialog.jsx` wiring `useRecordQuoteResponse` with `Quoted Price ($) *` strictly required, `AircraftPicker` scoped to operator, custom model/tail, terms, and notes.
+- **Quote action lifecycle in UI:**
+  - Quotes in `AWAITING_RESPONSE` provide "Record response" and "Decline" buttons.
+  - Awaiting cards display informative placeholders ("Awaiting operator pricing", "Suggested: [Aircraft]", "Pending") instead of blank `—` lines.
+  - Status badge tones: `Awaiting Response` (amber), `Received` (cyan), `Declined` (red).
+  - Quotes in `RECEIVED` provide "Approve", "Reject", and edit response buttons.
+  - Quotes with settled decisions provide "Undo decision" (`reopen`).
+  - Added user confirmation via `ConfirmDialog` before approving, rejecting, or recording operator declines.
+- **Access test suite:** Created `operator-quotes.access.spec.ts` testing open staff reads, referral agent refusals, and write access rules. All passing.
 
 **Waiting on a dependency**
 
@@ -483,6 +733,33 @@ client see on the 9th?" — is `QuoteVersion`.
 - **Photo library** on the aircraft photo field, with the chosen tail's own
   fleet photos offered first (27 Sep 2026, client adjustment #3)
 
+**Reviewed 10 Oct 2026** (review row 15). Fixed & verified:
+
+- **Permissions per person:** Controller marked `@StaffOnly()` (blocks partner / referral agent roles from desk quotes).
+  - Open staff reads: `GET /quotes`, `/quotes/stats`, `/quotes/:id`, `/quotes/:id/versions` open to any signed-in staff session.
+  - Financials / margins: Gated behind `canDo(user.access, Module.QUOTES, Action.VIEW_MONEY)` — `operatorCost`, `grossProfit`, `marginPercentage` omitted from quotes and versions when absent. `POST /quotes/suggested-price` requires `VIEW_MONEY`.
+  - Scoped reach: `reachOf(user.access, Module.QUOTES)` scopes broker queries to assigned/own quotes.
+  - Writes guarded via `@RequireAccess`:
+    - `Action.CREATE`: create quote, `price-preview`, duplicate to draft
+    - `Action.EDIT`: update quote, approve, reject, expire, reopen
+    - `Action.SEND`: mark quote sent
+    - `Action.ARCHIVE`: soft delete, restore, bulk remove, bulk restore
+- **Airport validation with `AirportsService.usable`:**
+  - Quotes module imports `AirportsModule`; `assertLinks` validates departure and arrival airports through `AirportsService.usable()` returning named 400s if non-existent or archived.
+- **Frontend Refactoring & Consistency:**
+  - `AddQuoteDialog.jsx`: Replaced raw `PickerSelect` and massive unpaginated list hooks with shared searchable pickers (`ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`), loading single-record detail hooks for preview only.
+  - **Client auto-assignment & home base prefill**: Selecting a client in `ClientPicker` automatically defaults `Broker` to `client.assignedBrokerId` and `Route from` to `client.homeAirportId` (if empty).
+  - **Linked enquiry pre-fill**: Added `Linked enquiry` dropdown powered by `useTripRequests` that pre-fills client, broker, route from/to, dates, party size, and requirements, setting `tripRequestId` for full end-to-end relational continuity.
+  - **Unambiguous required vs optional fields**: Anchored core flight fields as strictly required (`Client *`, `Route from *`, `Route to *`, `Departure *`, `Base price ($) *`) with inline field validation, and clearly tagged all secondary fields with `(Optional)`.
+  - Added bidirectional date constraints on `DatePicker`: departure date has `max={form.returnDate}`, return date has `min={form.departureDate}`.
+  - Gated operator cost input, suggested price picker, and preview margins behind `canAccess(Module.QUOTES, Action.VIEW_MONEY)`.
+  - Added `useAircraft` alias in `hooks/aircraft` pointing to `useAircraftDetail`.
+  - `QuoteCard.jsx`: Updated `Field` helper to render `—` (honest blank) instead of omitting grid cells for missing values.
+  - Fixed syntax error and cleaned up action buttons in `QuoteStatusActionsCard.jsx`.
+  - Fixed `mayCreate` reference in `QuotesContainer.jsx` for `InstantEstimateDialog`.
+- **Unit test coverage:**
+  - Added `quotes.access.spec.ts` testing open staff reads, referral agent refusals (403), and permissions on write endpoints. All passing.
+
 **Waiting on a dependency**
 
 | Feature | Unblocked by |
@@ -558,9 +835,39 @@ owed, paid and balance) — the board's "Op Pmt" column and the trip page's
 operator bills, where a bill is recorded and paid. Absent for a role without
 `VIEW_OPERATOR_PAYMENTS`.
 
+**Reviewed 10 Oct 2026** (review row 16). Fixed & verified:
+
+- **Permissions per person:** Controller decorated with `@StaffOnly()` (refuses referral agent/partner accounts with 403).
+  - Open staff reads: `GET /trips`, `/trips/stats`, `/trips/:id` open to all staff sessions without requiring write permissions.
+  - Financial gating: `operatorCost`, `grossProfit`, `marginPercentage` strictly omitted for callers lacking `canDo(user.access, Module.TRIPS, Action.VIEW_MONEY)`.
+  - Scoped reach: `reachOf(user.access, Module.TRIPS)` enforces broker-level filtering (`OWN` / `ASSIGNED`).
+  - Writes guarded with `@RequireAccess`:
+    - `Action.CREATE`: create trip, book from quote
+    - `Action.EDIT`: update trip, status transitions, leg updates, flight tracking reports
+    - `Action.ARCHIVE`: soft delete, restore, bulk remove, bulk restore
+  - Reassignment: Gated by `isAdministrator(user.role)` or `TRIPS · ASSIGN`.
+- **Airport validation with `AirportsService.usable`:**
+  - Trips module imports `AirportsModule`; all leg departure and arrival airports are checked with `AirportsService.usable(id, 'airport')` returning named 400s if non-existent or archived.
+- **Settings integration:**
+  - `create()` pulls default FET percent and toggle from `CompanySettings` (`settings.applyFetByDefault`, `settings.defaultFetPercent / 100`).
+- **Frontend form upgrades & UI consistency:**
+  - Replaced legacy `useTripFormOptions` and raw `PickerSelect` with shared searchable pickers (`ClientPicker`, `BrokerPicker`, `AirportPicker`, `OperatorPicker`, `AircraftPicker`, `CommonSelect`).
+  - **Client auto-assignment & home base prefill**: Selecting a client in `ClientPicker` automatically defaults `Broker` to `client.assignedBrokerId` and Leg 1 departure to `client.homeAirportId` (if empty).
+  - **Aircraft / Operator linking**: Selecting an aircraft automatically defaults its operator; selecting an operator narrows aircraft choices.
+  - **Passenger count & manifest synchronization**: Synchronized `passengerCount` with manifest rows using `[-] count [+]` stepper and `Add Passenger` button; all passengers (lead and companion slots 2+) collect Full Name, optional Date of Birth, and Passport number with responsive layout and companion remove `[X]`.
+  - **Staged file attachments**: Integrated shared `FileUpload` component (dropzone) into `CreateNotesDocsCard` for staged document attachments (up to 25 MB), automatically filed to the new trip's Document Vault upon creation via `documentsService.create`.
+  - Preserved clean 5-stage lifecycle stepper (`Draft` → `Booked` → `Confirmed` → `In Flight` → `Completed`) backed by `Trip.status` and operational checklist for milestones.
+  - Financial card margins and costs gated behind `canAccess(Module.TRIPS, Action.VIEW_MONEY)`.
+  - Action bar respects `TRIPS · ASSIGN` for reassignment.
+  - Table rows render honest em dashes `" — "` on missing or empty data cells.
+- **Unit test suite:**
+  - Created `trips.access.spec.ts` testing open staff reads, referral agent refusals (403), and permissions on write endpoints. All 45 vitest test suites (386 tests) pass 100%.
+- **Database reset & test seeding:**
+  - Wiped all business tables (preserving the 16 user accounts with `ChangeMe123!`), and seeded consistent linked test records (< 10 per module): 6 airports, 4 charter rates, 4 operators, 5 aircraft, 3 clients, 2 trip requests, 3 operator quotes, 2 quotes, 3 trips (CONFIRMED from accepted quote, DRAFT round-trip, COMPLETED one-way), and 5 email templates.
+
 ---
 
-## 12. Itineraries ✅ *(28 Sep 2026)*
+## 12. Itineraries ✅ *(28 Sep 2026, reviewed and signed off 11 Oct 2026)*
 
 **A thin document over its trip, deliberately.** The passenger-facing document
 for a trip: tail, times, passengers and passport numbers, catering, ground
@@ -629,6 +936,28 @@ trip it claimed to be linked to, which is exactly that bug.
   system. "Send to Client" is real (see `sentAt` above) rather than the old
   `alert()` stub
 
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Permissions per person:** Controller decorated with `@StaffOnly()` (refuses referral agent/partner accounts with 403).
+    - Open staff reads: `GET /itineraries`, `/itineraries/stats`, `GET /itineraries/:id` open to all staff sessions without requiring write permissions.
+    - Scoped reach: `reachOf(user.access, Module.ITINERARIES)` enforces broker reach (`OWN` / `ASSIGNED` via underlying trip's assigned broker or creator).
+    - Writes guarded with `@RequireAccess`:
+      - `Action.CREATE`: create itinerary (`POST /itineraries`)
+      - `Action.EDIT`: update itinerary (`PATCH /itineraries/:id`), confirm (`POST /itineraries/:id/confirm`)
+      - `Action.SEND`: mark sent to client (`POST /itineraries/:id/send`)
+      - `Action.ARCHIVE`: soft delete (`DELETE /itineraries/:id`), restore (`POST /itineraries/:id/restore`), bulk remove (`POST /itineraries/bulk-delete`), bulk restore (`POST /itineraries/bulk-restore`)
+    - Added `Action.ARCHIVE` to `Module.ITINERARIES` in `access.catalogue.ts` and role grants (`access.roles.ts`).
+  - **Private operator attachment vouching:**
+    - Solved the private attachment 404 issue: Added endpoint `GET /api/itineraries/:id/operator-attachment` which verifies the caller's reach to the itinerary and streams the file securely using `UploadsService.openVouched()`.
+    - Integrated in `ItineraryPreview` with target `_blank`.
+  - **TripPicker standardization:**
+    - Created shared `TripPicker` component wrapping `RecordPicker` and `useTrips`, replacing raw selects in `BuildItineraryDialog`.
+    - Upgraded time selection to use shared `CommonTimePicker`.
+  - **Frontend UI & action gating:**
+    - Upgraded `ItinerariesContainer`, `ItinerariesToolbar`, `ItineraryDetailSheet`, and `SendItineraryDialog` to use `usePermissions().canAccess(Module.ITINERARIES, Action.X)`.
+    - Bulk selection checkboxes gated behind `mayArchive`.
+  - **Unit test suite:**
+    - Created `itineraries.access.spec.ts` testing open staff reads, referral agent refusals (403), and permissions on write endpoints. All 46 test suites (389 tests) pass 100%.
+
 **Second pass on Trips (#11), same day.** Three cards on the trip detail page
 had been shipped ahead of this module with an honest "awaiting the operator
 itinerary" placeholder, named in their own code comments as waiting on #12:
@@ -648,13 +977,7 @@ of these cards makes a second request.
 | Print-ready / PDF output | **A PDF generator** — nothing in this system produces a document; the vault (#22) stores files, it does not make them |
 | ~~Emailing the itinerary to the client~~ | ✅ Shipped with **Email Templates (#21)** — "Email It" in the Send dialog; no PDF is attached, because none is generated |
 | Extracting flight data from the operator's own itinerary file | **Not modelled anywhere in this system** — the file attaches for reference; typed fields are typed by a person |
-
-**Not done:** Postman `22 · Itineraries` — the builder (`build_itineraries_folder.py`)
-is written, syntax-checked, and **not run** (no live server in this
-environment); newman has not been run against it. Written by the owner's
-instruction without live browser testing; backend `tsc`, oxlint and vitest
-(185 tests, 18 files) are clean, frontend eslint reports nothing in the files
-changed, and `npm run build` passes.
+| ~~The operator itinerary file opening for anyone but its uploader and admins~~ | ✅ Resolved in **Itineraries review (#17)** via `GET /itineraries/:id/operator-attachment` and `UploadsService.openVouched()` |
 
 ---
 
@@ -686,6 +1009,12 @@ changed, and `npm run build` passes.
   refreshes the calendar
 - Postman builder `build_schedule_folder.py` → `23 · Schedule` (5 requests),
   **written, not run**
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Permissions per person:** Decorated `ScheduleController` with `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /schedule`, `GET /schedule/stats`, `GET /schedule/calendar` open to all staff sessions without requiring write permissions.
+  - Reach scoping: `TripsService` scopes legs, calendar counts, and stats via `reachOf(user.access, Module.TRIPS)` so brokers see only their assigned trips' legs and unassigned legs.
+  - Financials/Receivables: Updated `ScheduleService` to read `canDo(user.access, Module.RECEIVABLES, Action.VIEW)` for payment status visibility on calendar legs.
+  - Unit test suite: Created `schedule.access.spec.ts` verifying `@StaffOnly()` 403 refusal on referral agents and open staff reads. All 47 Vitest test suites (393 tests) pass 100%.
 
 **Deviations from the old screen, stated:**
 
@@ -751,6 +1080,14 @@ changed, and `npm run build` passes.
   (outbound only), and says which
 - Postman builder `build_flight_tracking_folder.py` → `24 · Flight Tracking`
   (8 requests), **written, not run**
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Permissions per person:** Decorated `FlightTrackingController` with `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /flight-tracking`, `GET /flight-tracking/stats`, `GET /flight-tracking/:legId` open to all staff sessions without requiring write permissions, scoped by `reachOf(user.access, Module.TRIPS)`.
+  - Write gating: `PATCH /flight-tracking/:legId` guarded by `@RequireAccess(Module.FLIGHT_TRACKING, Action.EDIT)`.
+  - Financial privacy: `FlightTrackingService` checks `canDo(user.access, Module.RECEIVABLES, Action.VIEW)` before returning client billing details.
+  - Manual report form: Streamlined in `FlightReportForm` inside `FlightTrackingDetailSheet` to capture status, ETA, and dispatch note (external tracking URL removed per owner direction).
+  - Cross-module Schedule linkage: Schedule's `FlightDetailSheet` displays reported flight status badge when present.
+  - Unit test suite: Created `flight-tracking.access.spec.ts` verifying `@StaffOnly()` 403 refusal on referral agents, open staff reads, and edit write access. All 48 Vitest suites (398 tests) pass 100%.
 
 **Deviations from the old screen, stated:**
 
@@ -768,7 +1105,7 @@ changed, and `npm run build` passes.
 |---|---|
 | Live position, automatic status, delay notifications | **A decision** — a flight-data provider (scope §17); the client has not asked |
 | On-time rate | Actual departure/arrival times — not recorded while tracking is manual |
-| The reported status on the Schedule calendar | Buildable now — the calendar's API already returns it |
+| ~~The reported status on the Schedule calendar~~ | ✅ Shipped in **Flight Tracking review (11 Oct 2026)** |
 
 ---
 
@@ -793,6 +1130,13 @@ changed, and `npm run build` passes.
 - Frontend: the board with a match badge, the add/edit dialog, the detail sheet
   with the matches list, and the dashboard's "Empty Leg Opportunities" section
   reading the API. `dummyData/emptyLegs.js` and the dashboard's copy are deleted
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Permissions per person:** Decorated `EmptyLegsController` with `@StaffOnly()`, barring referral agent accounts (403).
+  - Open staff reads: `GET /empty-legs`, `GET /empty-legs/stats`, and `GET /empty-legs/:id` open to all staff sessions without requiring write permissions.
+  - Granular writes: Gated create (`CREATE`), update (`EDIT`), archive/restore and bulk actions (`ARCHIVE`) per person under `Module.EMPTY_LEGS`.
+  - Airport validation: Replaced private airport check with shared `AirportsService.usable(id, label)` across departure and arrival airports for both create and update.
+  - Frontend: Toolbar, table row actions, and detail sheet migrated from coarse `canWrite(Permission.OPERATOR_SOURCING)` to `canAccess(Module.EMPTY_LEGS, Action.CREATE / EDIT / ARCHIVE)`.
+  - Unit test suite: Created `empty-legs.access.spec.ts` verifying `@StaffOnly()` refusal on partners, open reads for all staff roles, and write action gating. All 49 Vitest suites (403 tests) pass 100%.
 
 **Not done:** the Postman folder.
 
@@ -845,6 +1189,12 @@ changed, and `npm run build` passes.
   page, Payment Attention), Clients (the Payments tab and Total Spent)
 - `CommissionPaymentMethod` became the shared `PaymentMethod` (a rename in
   place — the method on every paid commission is kept)
+- **Review & per-person permissions migration (11 Oct 2026):**
+  - **Backend access:** `ReceivablesController` migrated to `@UseGuards(AccessGuard)` and `@StaffOnly()`. Open reads (`findAll`, `stats`, `findOne`) for staff sessions; referral agents refused with 403.
+  - **Granular write actions:** `Action.CREATE` on invoice creation (`POST /receivables`) and edit (`PATCH /receivables/:id`), `Action.PAY` on recording and editing payments, `Action.ARCHIVE` on voiding invoices and payments (and restore routes).
+  - **Scoping:** `ReceivablesService.scope` reads `reachOf(user.access, Module.RECEIVABLES) === Reach.ALL`, filtering broker reads and billing targets via `TripsService.visibleWhere(user)`. `assertMayArchive` asserts `canDo(user.access, Module.RECEIVABLES, Action.ARCHIVE)`.
+  - **Frontend per-person gating:** `ReceivablesContainer`, `ReceivablesToolbar`, and `ReceivableDetailSheet` migrated to `canAccess(Module.RECEIVABLES, Action.CREATE / PAY / ARCHIVE)`. Cross-module views in `ClientDetailPage`, `ClientStatsRow`, and `FinancialAttention` migrated to `canAccess(Module.RECEIVABLES, Action.VIEW)`.
+  - **Test coverage:** Unit test suite `receivables.access.spec.ts` passing (7 tests).
 - Migration `20260928100000_add_receivables`; Postman builder
   `build_receivables_folder.py` → `19 · Receivables` (14 requests), **written,
   not run**
@@ -897,6 +1247,18 @@ as open; this module records them.
 - Migration `20260928120000_add_operator_payments`; Postman builder
   `build_operator_payments_folder.py` → `20 · Operator Payments` (14
   requests), **written, not run**
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Backend access migration:** Controller moved to `@UseGuards(AccessGuard)` and `@StaffOnly()`. Open reads for staff sessions (`findAll`, `stats`, `findOne`); writes gated on `OPERATOR_PAYMENTS · CREATE` (bills), `PAY` (payments), and `ARCHIVE` (voiding/withdrawing bills or payments).
+  - **Service scoping:** Migrated from `scopeFor` to `reachOf(user.access, Module.OPERATOR_PAYMENTS) === Reach.ALL` (trip-based `visibleWhere` for broker `OWN` reach). Added caller scoping to `restore`, `removeMany`, and `restoreMany`, and verified active/suspended status in operator re-checks.
+  - **Access test suite:** Added `operator-payments.access.spec.ts` (7 tests) asserting staff open reads, 403 `StaffOnly` for referral agents, and granular write refusals and grants.
+  - **Frontend per-person access:** Migrated `OperatorPaymentsContainer`, `OperatorPaymentsToolbar`, and `OperatorPaymentDetailSheet` from legacy `canWrite(MANAGE_OPERATOR_PAYMENTS)` to `canAccess(Module.OPERATOR_PAYMENTS, Action...)`.
+  - **Reusable Pickers & Scalability (1,000+ records):**
+    - Refactored `AddOperatorPaymentDialog.jsx`: replaced unoptimized `CommonSelect` and `limit: 100` fetches with standardized `TripPicker` (`components/trips/TripPicker.jsx`) and `OperatorPicker` (`components/operators/OperatorPicker.jsx`).
+    - Both use `RecordPicker` for debounced server-side search, server pagination (10/25/50/100), and `useOne` ID lookup.
+    - "Billed by" defaults to `"The trip's operator (<name>)"` when a trip is chosen, supports resetting via clear, and allows selecting any active operator.
+    - Helper card (`Trip's operator cost` and button) and existing payment stats update dynamically from `useTrip(form.tripId)`.
+  - **Dialog layout refinement:** `AddOperatorPaymentDialog` row 3 dynamically expands Due Date to 100% width on create and 50/50 with Status on edit.
+  - **Cross-module access:** `FinancialAttention` dashboard widget and `OperatorDetailsView` payments tab migrated to `canAccess(Module.OPERATOR_PAYMENTS, Action.VIEW)`.
 
 **Waiting on a dependency**
 
@@ -943,10 +1305,10 @@ status and balance live on its own board, one click away.
 | Feature | Unblocked by |
 |---|---|
 | Export (CSV / accounting) | **Settings / Import / Export (#26)** |
-| Monthly revenue and profit from the ledger | **Reports (#23)** |
+| ~~Monthly revenue and profit~~ | ✅ **Reports (#23)** — revenue and profit by month from Trips, and cash collected by payment date |
 | Refunds as movements | **A decision** — see Client Credits (#30) |
 
-### 18. Commissions ✅
+### 18. Commissions ✅ *(Reviewed & migrated 11 Oct 2026)*
 
 **Working now**
 
@@ -961,15 +1323,25 @@ status and balance live on its own board, one click away.
 - A new commission with no basis copies the agent's standard structure from
   their user row. Linking a referral's trip raises the agent's commission
   automatically (skipped for CUSTOM, and never twice)
-- Scope: ALL for admins and senior brokers; a broker sees the commissions on
-  their trips; an agent sees only their own, stripped of notes, broker and
-  every price input. Writes need `MANAGE_COMMISSIONS` (ALL only)
-- Frontend: the board, stats, add dialog (with an "agent's standard" basis),
-  detail sheet, and the trip's financial card. `dummyData/commissions.js` is
-  deleted
+- **Per-person access:**
+  - Reads open to all signed-in sessions without requiring write permissions,
+    scoped by reach (`ALL` for Admin, `OWN` for Broker scoped to their booked trips,
+    `OWN` for Referral Agent via partner portal).
+  - Controller is **not** staff-only (`@StaffOnly()` omitted) so referral agents
+    can access `GET /commissions` and `GET /commissions/stats` from `/portal/commissions`.
+  - Service shapes `partnerView` for referral agents, stripping notes, broker, and trip pricing.
+  - Granular writes: `CREATE` raises commissions, `PAY` pays / settles commissions,
+    `ARCHIVE` soft-deletes and restores.
+  - Validation: verified active status for referral agent and broker; client archived status checked.
+- **Frontend & Reusable Components:**
+  - `CommissionsContainer`, `CommissionsToolbar`, and `CommissionDetailSheet` migrated to `canAccess(Module.COMMISSIONS, Action.CREATE | Action.PAY | Action.ARCHIVE)`.
+  - Replaced unoptimized `limit: 100` dropdowns in `AddCommissionDialog` with shared
+    `TripPicker`, `ReferralAgentPicker`, `ClientPicker`, and `BrokerPicker`, all powered by `RecordPicker`
+    with server pagination (10/25/50/100) and debounced search.
+  - Partner portal commissions (`/portal/commissions`) fully wired to live API via `PortalCommissionsContainer` and `CommissionTermsCard`.
+- Unit tests: `commissions.access.spec.ts` (7 tests) pinned. All 52 Vitest test suites (424 tests) passing. Next.js Turbopack build succeeds with 0 errors.
 
-**Not done:** the Postman folder; the agent's own Commission Center screen
-(the portal, see #32).
+**Not done:** Postman builder run (left for owner's instruction alongside dev seed).
 
 Money is why soft delete is absolute: `deletedAt` everywhere, no hard delete
 anywhere in the system.
@@ -1021,6 +1393,25 @@ anywhere in the system.
 - "Delete … This cannot be undone" is **Archive**, with Restore.
 - There is no bulk archive: the board has no checkbox column to feed one.
 
+**Reviewed 11 Oct 2026 — Tasks Board reviewed & signed off (Antigravity)**
+
+- **Backend per-person access**:
+  - `TasksController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring referral agents / partners (`403 Forbidden`).
+  - Open reads on `findAll` (`GET /tasks`) and `findOne` (`GET /tasks/:id`) for authenticated staff sessions.
+  - Granular `@RequireAccess`: `POST /tasks` requires `CREATE`; `PATCH /tasks/:id` requires `EDIT`; `DELETE /tasks/:id` and `POST /tasks/:id/restore` require `ARCHIVE`.
+  - Service `scopeWhere` and `assertMayArchive` migrated to `reachOf(user.access, Module.TASKS)` (`Reach.ALL` vs `Reach.ASSIGNED`/`Reach.OWN`). Task reassignment verifies `canDo(user.access, Module.TASKS, Action.ASSIGN)`.
+  - Pinned by unit test suite `tasks.access.spec.ts`. All 55 backend test suites (445 tests) pass 100%.
+- **Frontend Drag-and-Drop (DnD) & Components**:
+  - Implemented smooth, premium Drag-and-Drop across the five status columns using `@dnd-kit/core`.
+  - Configured `PointerSensor` with `activationConstraint: { distance: 5 }` so card clicks cleanly open the `TaskDetailSheet` drawer without accidental drags.
+  - Interactive feedback: `<DragOverlay>` renders floating card with rotation, scale, elevation shadow and grabbing cursor; active drop columns highlight with borders and backdrop accent; source card ghosts with dashed border. Dropping on a new column instantly updates status via `useUpdateTask`.
+  - Form overhaul: Created `AssigneePicker.jsx` over active staff. Replaced 100-limit `useTaskFormOptions` in `AddTaskDialog.jsx` with shared server-paginated `AssigneePicker`, `ClientPicker`, `TripPicker` (scoped to client), and `DatePicker`.
+  - Gated toolbar "Add Task" with `canAccess(Module.TASKS, Action.CREATE)` and detail sheet with `canAccess(Module.TASKS, Action.EDIT | Action.ARCHIVE)`.
+- **Notification Bell upgrade**:
+  - `NotificationPopover.jsx` migrated from legacy role matrix (`can(Permission.VIEW_TASKS)`) to per-person access: `canAccess(Module.TASKS, Action.VIEW)`.
+  - Controlled open/close popover state ensures seamless drawer transitions when clicking any task item.
+  - Added dedicated empty and loading states, urgency indicators (`OVERDUE` in red vs `DUE_TODAY` in amber), and quick links to personal queue and full board.
+
 **Waiting on a dependency**
 
 | Feature | Unblocked by |
@@ -1031,7 +1422,25 @@ anywhere in the system.
 
 ---
 
-## 21. Email Templates ✅ *(28 Sep 2026)*
+## 21. Email Templates ✅ *(28 Sep 2026; reviewed 11 Oct 2026)*
+
+**Reviewed 11 Oct 2026 (Module #27 in queue):**
+- **Permissions migrated to per-person access (`Module.EMAIL_TEMPLATES`):**
+  - Controllers decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, refusing partner/referral agent accounts with 403.
+  - Open reads for staff sessions on `findAll`, `stats`, `fields`, `findOne` in `EmailTemplatesController`, and on `findAll`, `findOne`, `preview` in `EmailsController`.
+  - Write operations guarded with granular per-person permissions:
+    - `POST /email-templates`: `CREATE`
+    - `PATCH /email-templates/:id`: `EDIT`
+    - `DELETE /email-templates/:id`, `bulk-delete`, `restore`, `bulk-restore`: `ARCHIVE`
+    - `POST /emails`: `SEND`
+  - Fixed `assertMayRead` bug in `EmailsService.context`: quote read verification now asserts `Module.QUOTES` instead of trips.
+  - `EmailsService.scopeWhere` evaluates administrator status vs own/assigned scoping (created by caller, or client visible, or trip visible).
+  - Pinned by `email-templates.access.spec.ts` (10 tests) and `email.merge.spec.ts` (14 tests).
+- **Frontend upgraded:**
+  - `EmailTemplatesPage.jsx` tile for "Sent this month" guarded by `canAccess(Module.EMAIL_TEMPLATES, Action.SEND)`.
+  - `EmailTemplatesContainer.jsx` and `EmailTemplatesToolbar.jsx` rewired to granular `mayCreate`, `mayEdit`, `mayArchive`, and `maySend`.
+  - `EmailTemplateDetailSheet.jsx` gates actions using granular `mayEdit`, `mayArchive`, and `maySend`.
+  - `ComposeEmailDialog.jsx` upgraded from unpaginated `limit: 100` queries to shared server-paginated `ClientPicker`, `OperatorPicker`, and `TripPicker`, with live search and optional trip clearing.
 
 **Working now**
 
@@ -1199,12 +1608,63 @@ anywhere in the system.
 
 ---
 
-## 23. Reports ⬜
+## 23. Reports ✅ *(4 Oct 2026)*
 
-Nothing wired. Waits on every financial module (16–19) and Trips ✅.
+**Which date counts** — decided 4 Oct 2026 without the client, under deadline
+(§17 leaves "report layouts and KPI formulas" open): **revenue, profit,
+margin and trip counts by the day a trip departs** (the money is earned when
+the flight is delivered; the Dashboard already counted that way), **cash and
+FET collected by the day a payment arrived**, **outstanding AR/AP as of
+today**. Recorded in `reports.window.ts`; change it there if the client
+answers differently.
 
-Export to CSV / Excel / PDF is an **acceptance criterion in the signed scope
-with no code written**.
+**Working now** — every panel reads the API; `dummyData/reports.js` is
+deleted and `useReportsStore` keeps only the export dialog.
+
+- **Window**: the period tabs (Today, This Week — Monday first, This Month,
+  This Year) or a picked month, quarter or YTD, worked out from the desk's
+  own today and sent as `from`/`to` (both included). In the URL, with each
+  chart's bucket.
+- **Tiles and Financial Summary** (`GET /reports/summary`): revenue, profit,
+  margin, trips, averages per trip, FET charged; FET and cash collected —
+  each payment carries its invoice's share of FET, so a half-paid invoice has
+  collected half its tax; outstanding AR and AP. The panel says under itself
+  how many trips were left out of revenue (no price) or profit (no operator
+  cost) rather than hiding it.
+- **Charts** (`GET /reports/series`): revenue and profit, and trips, per week
+  (twelve, Monday first), month (the year's twelve) or year (five).
+- **Broker performance, top clients, top routes** (`GET /reports/brokers`,
+  `/clients`, `/routes`): paged, largest revenue first; a trip with no broker
+  is "Unassigned", never credited to anyone; a route is the first leg's.
+- **Export** (`GET /reports/export`): one row per trip — reference, departure,
+  status, client, broker, route, aircraft, operator, revenue, FET, operator
+  cost, profit, margin — over the window or everything on record, as **CSV**
+  or **Excel (.xlsx)**. Unknown figures are blank cells, never zero; formula
+  text is defused. Written by `common/export/tabular.ts`, which #26 reuses.
+- **One copy of the arithmetic**: trip figures are summed by
+  `tallyTrips` in `trips/trips.figures.ts`, which the Dashboard's tiles now
+  use too, so the two screens cannot disagree about the same trips.
+- Module `modules/reports/` (window and bucket arithmetic in
+  `reports.window.ts`, DTO checks, all with tests); Postman builder
+  `build_reports_folder.py` → `29 · Reports` (7 requests, 19 examples),
+  **run and Newman-green**. Verified live against probe trips, then archived.
+
+**Waiting on a dependency**
+
+| Feature | Unblocked by |
+|---|---|
+| **Export PDF** (the design's button, removed rather than faked) | **A PDF generator** — nothing in this system produces one |
+| Client lifetime value (§6.21) | Buildable now from Trips — not drawn in the design yet |
+| Sales funnel and open-quote status (§6.21) | Buildable now from Trip Requests and Quotes — not drawn in the design yet |
+| Forecast from open quotes (§6.21) | **A decision** — the probability formula is open (§17) |
+| Admin daily activity report (§6.21) | The Dashboard's activity feed exists; a daily digest needs **a scheduled job** |
+| 403 examples in `29 · Reports` | **The Reports review (#29)** — restrictions are on again; captured when the folder is rebuilt |
+
+**Open, not decided here:** gross profit includes the FET, because
+`priceQuote` computes it as total price minus operator cost — Reports reuses
+that so it agrees with Quotes, Trips, the Dashboard and Commissions. Whether
+it should is the open question in [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md)
+§5; changing it moves every percent-of-profit commission.
 
 ---
 
@@ -1266,13 +1726,116 @@ role.
 
 ---
 
-## 26. Settings / Import / Export / Backup ⬜
+## 26. Settings / Import / Export / Backup — Settings ✅, Import/Export 🟡 *(screens 6 Oct, API 7 Oct, signed off 8 Oct 2026)*
 
-**No screen exists.** Import, export and backup are **acceptance criteria in the
-signed scope with no code written**. So is **offline / PWA support**.
+**Reviewed and signed off 8 Oct 2026** (review row 4, owner tested). The
+review built the API, branded every surface from it (portal included), made
+the contact block all or nothing, accepted AVIF logos, and hid Integrations
+and Import.
 
-Not blocked by anything. They need to be *scheduled*, not discovered at
-delivery.
+> **Left for later — on purpose, each with its owner:**
+>
+> - **Import and Export** — review row 31 (tell the owner when we reach it).
+> - **Each module's settings** — wired in that module's review (the table
+>   below and the map in MODULES.md §26): Clients, Leads, Quotes, Trips,
+>   Itineraries, Flight Tracking, Receivables, Operator Payments, Tasks,
+>   Email Templates.
+> - **Reminders actually firing** — needs a scheduler in the API.
+> - **"Logo on documents", "Show broker contact", PDF header** — the PDF
+>   generator (review row 32).
+> - **A separate logo for dark backgrounds** — offered, not requested.
+
+**One set of settings for the whole company** (owner's decision, 7 Oct
+2026), never per user: the `company_settings` table holds exactly one row
+(a CHECK keeps `id = 1`; the migration inserts it). `/dashboard/settings`
+has five sections, the open one in the URL (`?section=`).
+
+**Working now**
+
+- **`GET /settings`** (Settings · View) and **`PATCH /settings`** (Settings ·
+  Edit) — one object per screen; a screen saves only the fields it changed.
+  Unknown keys and values a screen does not offer are 400s. Every change is
+  audited as `settings.updated` with `{ field: { from, to } }`.
+- **Public branding** — `GET /settings/branding` (name, logo address; email,
+  website, phone, address only while "Show company contact block" is on;
+  the three document switches) and `GET /settings/branding/logo` (the logo
+  image, only that one file). No session needed: **every sidebar and the
+  sign-in page read the logo from it** (`BrandLogo`), with the built-in
+  Tribeca marks while none is uploaded.
+- **The company brand reaches every surface that is not a module still
+  waiting for review:** the logo (`BrandLogo`) on the sidebars, sign-in
+  card and hero, splash, loading screen and 404; the letterhead on every
+  detail sheet (`TribecaLetterhead`); the browser tab titles; the sign-in
+  and reset wording; the referral portal's wording and the assistant's
+  title; and every email's header, footer, subject and sign-off (logo by
+  absolute public URL, name otherwise). AVIF logos are accepted.
+- **The contact block is all or nothing** (owner's rule, 7 Oct 2026): on,
+  the letterhead shows the company name, website, email, phone and address
+  (whichever are filled in); off, it shows none of them — only the logo.
+- **Company & Branding** — profile, logo upload / replace / back to built-in
+  (checked to be a live image), contact-block preview that follows its
+  toggle, three document toggles.
+- **Security & Session — read by Auth now:** the inactivity timeout (the
+  server's idle limit and `/auth/me` → `session`; the
+  `AUTH_IDLE_TIMEOUT_MINUTES` env var is gone), the warning length and
+  whether it shows (the browser's watcher), and **require 2FA for
+  administrators** (SUPER_ADMIN and ADMIN get an emailed code at sign-in
+  whether or not they turned two-factor on; off by default). Change Password
+  and the sessions list were already live.
+- **CRM & Quote Defaults** and **Notifications & Automation** — saved and
+  shown; each screen says what reads them and when (below).
+- Read-only without Settings · Edit: no Save, no upload, controls disabled.
+- Postman `30 · Settings` — 5 requests, 16 captured examples, restores every
+  value it changes; 12 unit tests (branding never leaks, the audit diff,
+  validation).
+
+**Hidden (owner's decision, 7 Oct 2026)**
+
+> ⚠️ **Import is hidden, not dropped.** The Import card is behind
+> `IMPORT_ENABLED` in `DataSection.jsx`. It is built in **Import / Export
+> (#31)**, which also builds Export (the card stays visible and says it is
+> not connected). **When the review reaches #31, tell the owner** — they
+> asked to be reminded.
+>
+> **Integrations is hidden**: three static links that stored nothing.
+> `IntegrationsSection` and `QUICK_LINKS` remain; adding `integrations` back
+> to `SETTINGS_SECTIONS` restores it.
+
+**Read by a module when that module is reviewed** (the map in MODULES.md §26)
+
+| Setting | Module that will read it |
+|---|---|
+| Markup, quote validity, FET %, apply FET, quote terms | Quotes (#15), Trips (#16) |
+| Follow-up interval, lead stage | Clients (#9), Leads & Agents (#12) |
+| Company name, contact, logo on documents, broker contact | Email Templates (#27), Itineraries (#17), the letterhead, the PDF generator |
+| Notification channels, flight alerts, reminders and timing | A reminder scheduler and notification inbox — with Tasks & bell (#26 in the review order) and Flight Tracking (#19) |
+| "Use the company logo on documents", "Show assigned broker contact" | The quote and itinerary documents — Quotes (#15), Itineraries (#17), the PDF generator |
+
+**Waiting on a dependency**
+
+| Removed or inert | Why | What brings it back |
+|---|---|---|
+| ~~Every Save (all sections)~~ | ✅ The Settings API, 7 Oct 2026 | — |
+| Overview tab | Repeated the nav; its toggles duplicated other tabs | Nothing — a real status page, if wanted, reads live health |
+| "Preview PDF Header" | No PDF generator | The PDF generator |
+| "Client & trip behavior" toggles (notes timelines, admin keeps deleted clients) | Always-on system rules, not preferences | Never a toggle |
+| Session "Location" column | Needs a paid IP-lookup service | A geo-IP provider, if the client pays for one |
+| New-device login alerts, remember trusted device | Features nobody asked for | A client request |
+| "Audit & deletion safeguards" toggles | Always on | Never a toggle |
+| WhatsApp Business | No integration | WhatsApp Business API |
+| Weather alerts | No weather data feed | aviationweather.gov integration |
+| Empty-leg email importer | No mailbox parser | Inbound email integration |
+| Flight alerts to clients | Flight tracking is manual | FlightAware AeroAPI |
+| Reminders actually firing | No scheduled job runs | A scheduler in the API |
+| Gmail / Google Calendar / Cloud Storage / Weather / Flight Tracking API rows | Their "Connected" badges were invented | Each row returns when its service exists, showing a measured status |
+| API & webhooks panel | No public API | A public API, if ever scoped |
+| Validate Import, Export XLSX/CSV | No import/export endpoint (exports will reuse `common/export/tabular.ts`) | Import & Export API |
+| Excel column mapping | An `.xlsx` header needs the server to read it | Import API |
+| "File Format" dropdowns | The format is read from the file | Never |
+| "Period" dropdown | The start and end dates are the period | Never |
+| "Import safeguards" toggles | Preview and history preservation are always on | Never a toggle |
+| Backup on/off, frequency, destination, Run Now, Download, Restore upload, "Healthy" / last-backup | Backups run on the server (03:00 UTC to R2); a browser restore is too dangerous; the status was invented | A read-only status from the server, if wanted |
+| Record retention section | "Nothing is ever deleted" makes retention periods meaningless | Never |
 
 ---
 
@@ -1300,6 +1863,58 @@ every future upload button behind a new enum value and a migration. It was
 replaced before any screen consumed it, so nothing was migrated and no real data
 existed.
 
+**Reviewed 7 Oct 2026 — owner signed off**
+
+- **Every broker and assistant could open every private file.** "Is this an
+  administrator?" was asked of the role matrix, which answered SUPER_ADMIN for
+  everyone while restrictions were off. It now reads the stored role
+  (`isAdministrator`): SUPER_ADMIN and ADMIN read every file; everyone else
+  only public files, their own uploads and what is filed about them.
+- **Any signed-in user could remove a public file** — an aircraft photo, a
+  brochure — because removing only checked reading; the file then stopped
+  serving on every record using it. Remove and restore now need the uploader
+  or an administrator (`mayManage`): 403 for someone who can see the file,
+  404 for someone who cannot. The person a document is filed about can no
+  longer remove it.
+- **The partner rules** (an agent's upload is private with no owner; an
+  agent lists only their own) read the stored role, so no switch can turn
+  them off.
+- **Role restrictions switched back on**, both sides, at the owner's request.
+- The broker Documents tab is offered only to an administrator or on your own
+  record — anyone else would get the API's 403.
+- Storage layout kept flat and content-addressed (owner's decision): R2 and
+  local disk alike, the bucket private, files served only through the API.
+- Postman `11 · Uploads` rebuilt on `builder_common`, with the refusals that
+  could not be captured before: another broker's 404 on fetch, describe and
+  remove; a broker filing into someone else's folder; an agent publishing;
+  an agent's own-only list; a PDF renamed `.png`; a zip stored opaque.
+- **Files of 10–25 MB failed with a 500 from the app.** Next buffers a
+  request through its server only up to 10 MB by default; the API was fine.
+  `proxyClientMaxBodySize: "26mb"` in `next.config.mjs`, paired with the
+  25 MB document limit.
+- **Accented filenames were garbled** ("Résumé" stored as "RÃ©sumÃ©"):
+  multer reads the name as latin1. **A name over 255 characters 500'd** on
+  the column. Both fixed by `cleanFilename` (`common/files/filename.ts`),
+  which also drops a client-side path and control characters.
+- **PDFs could not be picked** where a field takes images *and* documents
+  (operator itinerary, referral attachments): `image/png,…,` with the empty
+  "any file" entry offers images only. `FileUpload` now treats a list that
+  includes "any" as no filter.
+- **A HEIC, TIFF or BMP photo was refused** in "auto" fields (the vault,
+  referral attachments): any `image/*` went to the strict image route. Only
+  JPEG, PNG, WebP and GIF go there now; anything else is a document.
+- **Size is checked before the upload** (15 MB image, 25 MB document) with a
+  toast, instead of after the bytes have travelled.
+- **A missing object no longer names its storage path** in the 404, and on
+  R2 an outage is no longer reported as "file not found".
+- **A partly filled R2 configuration refuses to start** rather than falling
+  back to local disk, and production on local disk logs a warning at boot.
+- Removed `StorageService.uploadFor` / `buildKey`: unused, and a second way
+  into storage with date folders and the sender's content type.
+- Tests: 6 more on the access rule (who manages, who administers), 9 on
+  `cleanFilename`; the five that were skipped while the switch was off now
+  run.
+
 **Working now**
 
 - **`POST /api/uploads/image`** and **`POST /api/uploads/document`** — the whole
@@ -1307,9 +1922,10 @@ existed.
   whatever record it was editing. Nothing in the upload path knows what a file
   is *for*, so a new upload spot anywhere in the product needs no backend change
 - **The content type is read from the bytes**, never the upload header, so
-  renaming a file changes nothing. SVG, archives and legacy `.doc`/`.xls` are
-  refused — the first executes script, the second hides its contents from any
-  check, and the last two are byte-identical at the header
+  renaming a file changes nothing. Images are strict (JPEG, PNG, WebP, GIF;
+  never SVG). **A document may be any file** since 6 Oct 2026: PDF, DOCX,
+  XLSX, text and CSV keep their type, anything else is stored as
+  `application/octet-stream` and always downloads
 - **Files land in the folders the client asked for**: `images/` and
   `documents/`, content-addressed as `<sha256>.<ext>`
 - **Per-file access control**: `visibility` (PUBLIC / PRIVATE, defaulting to
@@ -1330,7 +1946,7 @@ existed.
   answers for archived files too, so a list can show "removed" rather than a
   broken link
 - Remove and restore, with **the bytes untouched** either way
-- 9 Postman requests, 18 captured examples, real multipart fixtures, a teardown
+- 9 Postman requests, 28 captured examples, real multipart fixtures, a teardown
   that leaves nothing live, and a folder login so it passes run alone
 - Unit tests: 8 on the rules, 10 on the access rule (every combination), 11 on
   the byte sniffer, and 7 on `uploadUrl` — the shared validator any DTO that
@@ -1421,6 +2037,15 @@ recorded rather than left for somebody to "tidy up" later.
   the DTOs, and the timeline rendered at 375 / 768 / 1440 with no horizontal
   overflow
 
+**Reviewed 9 Oct 2026** (review row 10):
+- **Polymorphic per-user permissions:** `notes.subjects.ts` links each `NoteSubjectType`
+  to its respective `Module` (`CLIENTS`, `TRIPS`, `REFERRALS`, `FLIGHT_TRACKING`).
+- Capabilities evaluate `canDo(user.access, module, Action.VIEW / Action.EDIT)` and `reachOf`.
+- Assistants hold no financial privileges and cannot write notes on client financial context.
+- Author-only editing rule preserved; administrators hold moderation rights (withdraw/restore).
+- Unit tests added: `notes.access.spec.ts` (7 tests, 100% passing).
+- Frontend: `NotesTimeline.jsx` and `timeline.js` updated to use `SUBJECT_MODULE` with `canAccess` and `canModerate`.
+
 **Waiting on a dependency**
 
 | Feature | Blocked by |
@@ -1479,6 +2104,15 @@ his own request that settles it.
   arithmetic and the DTOs, and the tab rendered at 375 / 768 / 1440 with no
   horizontal overflow
 
+**Reviewed 9 Oct 2026** (review row 11):
+- **Access control:** Controller decorated with `@StaffOnly()` (blocks partner/referral agents with 403).
+- Service checks per-person access: `canDo(user.access, Module.CLIENTS, Action.VIEW / Action.EDIT)`.
+- Assistants explicitly forbidden (`user.role === Role.ASSISTANT`) from viewing or writing client credit records.
+- Brokers scoped to their assigned clients via `ClientsService.subjectRef` (foreign broker gets 404).
+- Unit tests added: `client-credits.access.spec.ts` (5 tests, 100% passing).
+- Frontend: `ClientCreditTab.jsx` and `ClientDetailPage.jsx` updated to strictly check assistant role and `canAccess(Module.CLIENTS, Action.EDIT)`.
+- UI: Form inputs and selects in `CreditMovementForm.jsx` standardized to standard height (`h-10 text-[13px] rounded-md px-3 py-2`).
+
 **Waiting on a dependency**
 
 | Feature | Blocked by |
@@ -1494,19 +2128,43 @@ inventing the value now would be guessing at a workflow nobody has described.
 
 ---
 
-## 31. Charter Rates / Instant Estimate ✅ *(client adjustment #6)*
+## 31. Charter Rates / Instant Estimate ✅ *(client adjustment #6 — reviewed and signed off 8 Oct 2026)*
 
 **Working now**
 
 - `GET /charter-rates` — every aircraft category, priced or not
-- `PUT /charter-rates/:category` — administrators and senior brokers only
-  (VIEW_FINANCIALS at ALL scope); `null` clears; audited before/after
+- `PUT /charter-rates/:category` — administrators only; `null` clears;
+  audited before/after
 - `POST /charter-rates/estimate` — great-circle distance, flight and billed
   hours, estimated cost per category, round trip, fits-the-party
 - Instant Estimate dialog on the Quotes screen: estimate → suggested price →
   Start a quote with route, party and price filled in
-- Rates tab, editable or read-only by role
+- Rates tab, editable by an administrator, read-only for everyone else
 - Postman `14 · Charter Rates`, restoring the real rate it changed
+
+**Reviewed 8 Oct 2026** (review row 6). Fixed:
+
+- **Permissions** (owner's decision): part of Quotes, not a module of its
+  own. Seeing the rates, the Instant Estimate button and running an estimate
+  need **Quotes · View money** — rates are money, so not one of the open
+  reads; a broker has it by default, an assistant cannot. **Changing a rate
+  is for an administrator** (SUPER_ADMIN / ADMIN by stored role); the old
+  "senior broker" path is gone with the role.
+- **An archived airport is refused by name** ("KTEB has been archived…").
+  `AirportsService.usable(id, label)` is the shared check every later module
+  uses for a picked airport.
+- The estimate re-runs on returning from the Rates tab, so a rate an
+  administrator just saved shows at once (it kept the old result).
+- A failed estimate says why on screen, not only in a toast.
+- "Start a quote" is hidden for someone who cannot create quotes.
+- The estimate's airport list is sorted by code, like every other picker.
+- Postman `14` gains the broker's read-only access, the broker's estimate,
+  and the archived-airport refusal.
+- **From / To use the new shared `RecordPicker`** (via `AirportPicker`):
+  search always visible, 10 a page by default (10/25/50/100), page numbers,
+  server-side — no 100-airport cap. Other forms move to it on their review.
+- The estimate keeps its height while it recalculates (previous figures stay,
+  dimmed) and shows a skeleton for a new route.
 
 **Waiting on a dependency**
 
@@ -1514,6 +2172,7 @@ inventing the value now would be guessing at a workflow nobody has described.
 |---|---|
 | The desk's actual rates | **Data entry** — the table is empty until someone types them in; no code |
 | Positioning legs / overnight fees in the estimate | **The client's pricing formula** — not modelled rather than guessed |
+| More than 100 airports in the other forms' pickers | **`AirportPicker`** (built 8 Oct, used by the estimate) — each form switches to it on its module's review: Clients, Aircraft, Trip Requests, Quotes, Trips, Empty Legs, Leads, the referral portal. |
 
 ---
 
@@ -1542,6 +2201,23 @@ inventing the value now would be guessing at a workflow nobody has described.
 - Frontend (desk): `/dashboard/referrals` — table, cards, stats, detail sheet
   (convert, broker, status, link trip, attachments, timeline) and the
   Resources card. A client's detail shows the referrals that produced it
+
+**Reviewed 11 Oct 2026 (per-person permissions & reusable pickers pass):**
+- **Per-person permissions migration:**
+  - `@RequireAccess(Module.REFERRALS, Action.CREATE)` on `submit` and `create` resource.
+  - `@RequireAccess(Module.REFERRALS, Action.EDIT)` on `update`, `convert`, and `update` resource.
+  - `@RequireAccess(Module.REFERRALS, Action.ARCHIVE)` on `remove`, `restore`, `removeMany`, `restoreMany`, and resource archiving.
+  - Reads (`findAll`, `stats`, `findOne`, `attachment`, `findAll` resources) open to any signed-in session without `@StaffOnly()`, allowing referral agents full access to their portal pages (`/portal/referrals`, `/portal/resources`).
+- **Service checks:**
+  - `assertAirport` switched to standard `this.airports.usable(id, label)` whole-repo rule.
+  - Active user status enforced: `agent.status === UserStatus.ACTIVE` on submit and `broker.status === UserStatus.ACTIVE` on update.
+  - `removeMany` and `restoreMany` properly scoped to caller's `visibilityScope`.
+- **Reusable pickers:**
+  - `SubmitReferralForm.jsx` switched from 100-cap airport select to shared `AirportPicker`.
+  - `ReferralDetailSheet.jsx` switched from 100-cap broker select to shared `BrokerPicker`.
+  - Conversion flow upgraded to allow picking existing clients via `ClientPicker` with live server pagination.
+  - Trip linking upgraded to use shared `TripPicker` filtered by client.
+- **Pinned by 10 unit tests in `referrals.access.spec.ts`.**
 
 **Working now — the agent portal (27 Sep 2026)**
 
@@ -1582,6 +2258,39 @@ The team member form sets an agent's standard commission (percent of profit,
 flat fee or custom) on invite or edit; `POST /users/invite` accepts the same
 three optional fields as the update. The seed adds `agent@tribecajets.com`
 (REFERRAL_AGENT, 10% of profit) for the portal and the Postman folders.
+
+---
+
+## 25. Transactions
+
+**Working now**
+- The consolidated money ledger at `/dashboard/transactions`: virtual view over the 3 money movement sources:
+  - `CLIENT_PAYMENT` (direction `IN`) from Receivables (#21)
+  - `OPERATOR_PAYMENT` (direction `OUT`) from Operator Payments (#22)
+  - `COMMISSION` (direction `OUT`) from Commissions (#23)
+- Paged via shared `mergePages` across the 3 sources by payment date (`newest first` / `oldest first`, tie-broken by entry timestamp and id)
+- Server-side summed stats row in cents: `Money In`, `Money Out`, `Net Cash Flow`, counts per kind, and unvalued paid commissions note
+- Deep-links from rows directly to the bill it settles:
+  - Client Payment -> `/dashboard/receivables?invoice={id}`
+  - Operator Payment -> `/dashboard/operator-payments?bill={id}`
+  - Commission -> `/dashboard/commissions?commission={id}`
+  - Trip -> `/dashboard/trips/{tripId}`
+- Filters in URL: search text, kind, direction, date range (`from`/`to`), limit, and sort order
+- Mobile cards view below `lg` with `TransactionsCardsContainer` and `TransactionCard`
+- Zero dummy data, clean architectural separation, read-only ledger
+
+**Reviewed 11 Oct 2026 (per-person permissions pass & UI review):**
+- **Per-person permissions migration:**
+  - `@UseGuards(AccessGuard)` and `@StaffOnly()` on `TransactionsController`: referral agents / partners refused (`403 Forbidden`).
+  - `@RequireAccess(Module.TRANSACTIONS, Action.VIEW)` on `findAll` and `stats`: only users granted `TRANSACTIONS · VIEW` (Super Admin, Admin, and Broker) can view the company money ledger; Assistant is refused (`403 Forbidden`).
+  - In `TransactionsService.permitted(user)`: replaced legacy `can(user.role, ...)` with per-person `canDo(user.access, Module.RECEIVABLES, Action.VIEW)`, `Module.OPERATOR_PAYMENTS`, and `Module.COMMISSIONS`. A user with a customized permission set only reads the kinds they have access to view.
+  - Scoping is handled by the underlying services (`ReceivablesService`, `OperatorPaymentsService`, `CommissionsService`) respecting the caller's row-level reach (`Reach.OWN` vs `Reach.ALL`).
+- **UI adjustments & reusable components:**
+  - Shared `CommonDatePicker` updated with `size="sm"` to match compact toolbar pill design (`bg-secondary border border-border px-2 py-1 rounded-sm text-[10px] font-medium text-foreground gap-1.5 h-7 shrink-0`).
+  - `From` and `To` filters aligned inline in `TransactionsToolbar` with mutual date validation (`maxDate` on From, `minDate` on To, visual red error border on invalid range, client parameter sanitization to prevent 400 API errors).
+  - Row and card clicking now opens a slide-over detail drawer (`TransactionDetailSheet` on shared `DetailSheet`) with full payment facts, instead of instantly navigating away.
+  - Action redirect CTAs placed inside the slide-over drawer ("Open Invoice in Receivables", "Open Bill in Operator Payments", "Open Commission in Commissions", "View Trip").
+- **Pinned by unit tests in `transactions.access.spec.ts` (6 tests) and `transactions.ledger.spec.ts` (7 tests).**
 
 ---
 
@@ -1659,88 +2368,34 @@ the call site.
 
 ## The short version
 
-**Usable against the real database today:** Auth, Users & Roles, Airports,
-Operators, Clients, Aircraft, Leads & Agents, Operator Sourcing, Quotes, Trip
-Requests, Uploads, Notes / Timeline, Client Credits, Charter Rates, **Trips,
-Empty Legs, Commissions, Referrals** (desk and portal), **Receivables**,
-**Operator Payments**, **Transactions**, **Itineraries**, **Schedule**,
-**Flight Tracking** (manual), the **Tasks Board** with the notification
-bell, and **Email Templates** with sending.
+*Updated 7 October 2026.* The full picture of where the project is — the
+review stage, what is next, the promises to keep — is **[HANDOFF.md](../HANDOFF.md)**.
+In brief:
 
-**Most recent change (28 September), uncommitted:** Email Templates (#21),
-with sending and its second pass — see its own section. One migration,
-`20260928200000_add_email_templates`, must be deployed (`npm run db:deploy`),
-and `npm run db:seed` adds the starter templates. Written **without live
-testing, by the owner's instruction**: backend `tsc`, oxlint and vitest (221
-tests, 23 files) are clean, frontend eslint reports nothing in the files
-changed, and `npm run build` passes. `26 · Email Templates` is written and
-not run.
+**Built and usable against the real database:** every module in
+[MODULES.md](MODULES.md)'s build table except the Client Portal (#25), the
+AI Assistant (#27, a stub), Import / Export (Import hidden, Export not
+connected) and the PDF generator.
 
-**Before that (28 September, committed and pushed):** Tasks Board (#20) and
-the notification bell. Migration `20260928180000_add_tasks`. `25 · Tasks` is
-written and not run.
+**The stage:** the owner's module-by-module review (MODULES.md, "Review
+order"). Signed off: Auth & Sessions (6 Oct), Users & Roles (7 Oct), Uploads
+(7 Oct), **Settings (8 Oct)** — Import/Export left for review row 31.
+**Airports (8 Oct)**. **Charter Rates (8 Oct)**. **Operators (8 Oct)**. Next: Aircraft (#8).
 
-**Before that (28 September, committed and pushed):** Flight Tracking (#14),
-manual. Migration `20260928160000_add_flight_tracking`.
-`24 · Flight Tracking` is written and not run.
-
-**Before that (28 September, committed and pushed):** Schedule (#13) — the
-calendar as a read-only view over trip legs, no migration. `23 · Schedule` is
-written and not run.
-
-**Before that (28 September):** Itineraries (#12) — see its own
-section above for the design (a thin document over its trip, no duplicated
-aircraft/route/passenger data) and the Trips second pass it made. Two
-migrations, `20260928100000_add_receivables`,
-`20260928120000_add_operator_payments` and `20260928140000_add_itineraries`,
-must be deployed (`npm run db:deploy`) on any environment that has not run
-them. Itineraries was written **without live testing, by the owner's
-instruction**: backend `tsc`, oxlint and vitest (185 tests, 18 files) are
-clean, frontend eslint reports nothing in the files changed, and
-`npm run build` passes. Its Postman builder is written and not run.
-
-**Transactions (#19), Receivables (#16), Operator Payments (#17) and
-Itineraries (#12) are all committed and pushed to `origin/roy`** — the working
-tree was clean through `4a7ffc9` before this session started, and Itineraries
-followed in this pass; an earlier note here calling Transactions uncommitted
-was stale.
-
-**Most recent change (27 September), all uncommitted:** Trips (#11) with every
-second pass it owed; Empty Legs (#15) with client adjustment #10b's matching;
-Commissions (#18); and client adjustment #11's `REFERRAL_AGENT` role, referrals
-and the desk's Referrals page. One migration,
-`20260927160000_add_empty_legs_commissions_referrals`, must be deployed
-(`npm run db:deploy`) before the API starts against an existing database.
-
-**How far that was verified:** Trips was checked with live requests, in the
-browser at three widths and with its own Postman folder, which passed. Empty
-Legs, Commissions and Referrals were written **without live testing, by the
-owner's instruction** — backend `tsc`, oxlint and vitest (150 tests, 15 files)
-are clean, frontend eslint reports nothing in the files changed, and frontend
-`npm run build` passes (27 Sep, end of day). A full Newman run has **not**
-been run since.
-
-**The agent portal (`/portal`) was built 27 Sep, after the commits above**,
-also without live testing: build, eslint, backend lint and tests pass.
-**Left of client adjustment #11:** nothing to build. The three Postman builders
-are written and need one run against a freshly seeded API, then Newman.
-
-**Next in the module queue:** everything that hangs off Trips is complete,
-and so are the Tasks Board (#20), Email Templates (#21), Document Vault (#22)
-and the Dashboard (#24). Next is **Reports (#23)**.
+**Permissions:** role restrictions are on again (7 Oct); Users & Roles,
+Settings, Airports, Charter Rates and Operators are on per-person permissions (`@RequireAccess`), every other module
+on the old role matrix until its review moves it.
 
 **Open decisions, not code:** MongoDB vs PostgreSQL (the signed proposal §13
 says MongoDB; the project is PostgreSQL, which is right for this relational
-data), the flight-tracking data feed (manual until the client asks), whether a credit **refund** is a movement
-the desk needs (see #30), and whether gross profit should count the FET
-(`CLIENT_ADJUSTMENTS.md` §5) — which now also moves every percent-of-profit
-commission.
+data), the flight-tracking data feed (manual until the client asks), whether a
+credit **refund** is a movement the desk needs (see #30), and whether gross
+profit should count the FET (`CLIENT_ADJUSTMENTS.md` §5) — which also moves
+every percent-of-profit commission.
 
-**Known debt:** twelve components nothing imports (listed in
-[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §4, 26 Sep) — kept, because a
-component is not deleted until its module is finished, and one of them
-(`airports/AirportCardsContainer.jsx`) imports a file that does not exist.
-Frontend lint reports two errors, both in older files this work did not
-touch: `react-hooks/set-state-in-effect` in `TripRequestDialog` and
-`react-hooks/purity` in `useIdleLogout.js` (28 Sep, whole `src`); each is
-fixed on its module's turn.
+**Known debt** (each fixed on its module's turn): Postman folders 16–28 are
+missing from the collection JSON though their builders exist; frontend lint
+has one pre-existing error (`set-state-in-effect` in `TripRequestDialog`);
+twelve components nothing imports (listed in
+[CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md) §4, 26 Sep) are kept until
+their modules are finished.

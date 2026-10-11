@@ -14,22 +14,18 @@ import { useAirportStats } from "@/hooks/airports";
 export default function AirportsPage() {
   const { data, isPending } = useAirportStats();
 
+  // "…" while loading; a dash if the counts did not arrive — never a 0 the
+  // API did not send.
+  const count = (value) => (isPending ? "…" : (value ?? "—"));
+
   const stats = [
-    { label: "TOTAL AIRPORTS", value: isPending ? "…" : (data?.total ?? 0) },
+    { label: "TOTAL AIRPORTS", value: count(data?.total) },
     {
       label: data?.homeCountry ? `DOMESTIC (${data.homeCountry})` : "DOMESTIC",
-      value: isPending ? "…" : (data?.domestic ?? 0),
+      value: count(data?.domestic),
     },
-    {
-      label: "INTERNATIONAL",
-      value: isPending ? "…" : (data?.international ?? 0),
-      tone: "purple",
-    },
-    {
-      label: "WITH ASSIGNED FBO",
-      value: isPending ? "…" : (data?.withAssignedFbo ?? 0),
-      tone: "success",
-    },
+    { label: "INTERNATIONAL", value: count(data?.international), tone: "purple" },
+    { label: "WITH ASSIGNED FBO", value: count(data?.withAssignedFbo), tone: "success" },
   ];
 
   return (

@@ -48,4 +48,10 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   role: import('../../generated/prisma/enums.js').UserRole;
+  /**
+   * This person's own permissions with their role's reach — loaded with the
+   * user on every request (`JwtStrategy`). Absent only on users built by hand
+   * in tests, which `canDo` treats as no access.
+   */
+  access?: import('../authorization/access.js').AccessMap;
 }

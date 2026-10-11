@@ -11,7 +11,7 @@ import { useAircraftStore } from "@/store/useAircraftStore";
 import { useAircraftDetail, useRestoreAircraft } from "@/hooks/aircraft";
 import { toAircraftRow } from "@/lib/aircraft";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Module, Action } from "@/lib/access";
 
 export default function AircraftDetailPage({ params }) {
   const unwrappedParams = use(params);
@@ -24,10 +24,11 @@ export default function AircraftDetailPage({ params }) {
   const openStatusModal = useAircraftStore((s) => s.openStatusModal);
   const { mutate: restoreAircraft } = useRestoreAircraft();
 
-  // Assistants hold MANAGE_AIRCRAFT at READ scope — they see the aircraft,
-  // not the buttons that would 403.
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_AIRCRAFT);
+  // Viewing is open to staff sessions. Writes check individual actions:
+  // EDIT for editing details and changing status; ARCHIVE for remove/restore.
+  const { canAccess } = usePermissions();
+  const mayEdit = canAccess(Module.AIRCRAFT, Action.EDIT);
+  const mayArchive = canAccess(Module.AIRCRAFT, Action.ARCHIVE);
 
   const { data, isPending, error, refetch } = useAircraftDetail(rawId);
   const aircraft = data ? toAircraftRow(data) : null;
@@ -63,7 +64,8 @@ export default function AircraftDetailPage({ params }) {
         onChangeStatus={openStatusModal}
         onArchive={openArchiveModal}
         onRestore={restoreAircraft}
-        mayWrite={mayWrite}
+        mayEdit={mayEdit}
+        mayArchive={mayArchive}
       />
 
       <AddAircraftDialog />

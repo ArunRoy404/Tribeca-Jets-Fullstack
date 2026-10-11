@@ -11,7 +11,8 @@ import { MailService } from '../../core/mail/mail.service.js';
 import { paginate, type AuthenticatedUser, type Paginated } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import { equalsAny, orderByField, searchAcross } from '../../common/database/filters.js';
-import { Permission, Scope, can, scopeFor } from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
+import { Action, Module, canDo } from '../../common/authorization/access.js';
 import { EmailMessageStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { ClientsService } from '../clients/clients.service.js';
@@ -118,7 +119,7 @@ export class EmailsService {
 
   /** Emails I sent, or about a client or a trip I may see. ALL sees the lot. */
   private scopeWhere(user: AuthenticatedUser): Prisma.EmailMessageWhereInput {
-    if (scopeFor(user.role, Permission.SEND_EMAILS) === Scope.ALL) return {};
+    if (isAdministrator(user.role)) return {};
     return {
       OR: [
         { createdById: user.id },
@@ -137,9 +138,9 @@ export class EmailsService {
 
   // ---- Resolving what an email is about ----------------------------------
 
-  /** A capability the email needs, beyond SEND_EMAILS: reading what it quotes. */
-  private assertMayRead(user: AuthenticatedUser, permission: Permission, what: string): void {
-    if (!can(user.role, permission)) {
+  /** A capability the email needs, beyond SEND: reading what it quotes. */
+  private assertMayRead(user: AuthenticatedUser, module: Module, what: string): void {
+    if (!canDo(user.access, module, Action.VIEW)) {
       throw new ForbiddenException(`Your role cannot read ${what}, so it cannot email about one.`);
     }
   }
@@ -174,13 +175,13 @@ export class EmailsService {
     let recipient: Recipient;
 
     if (input.clientId) {
-      this.assertMayRead(user, Permission.VIEW_CLIENTS, 'clients');
+      this.assertMayRead(user, Module.CLIENTS, 'clients');
       const client = await this.resolve('client', () => this.clients.emailRecipient(user, input.clientId!));
       recipient = { kind: 'client', id: client.id, name: client.name, email: client.email };
       values.client_name = client.name;
       values.client_first_name = client.firstName;
     } else {
-      this.assertMayRead(user, Permission.MANAGE_OPERATORS, 'operators');
+      this.assertMayRead(user, Module.OPERATORS, 'operators');
       const operator = await this.resolve('operator', () => this.operators.emailRecipient(input.operatorId!));
       recipient = { kind: 'operator', id: operator.id, name: operator.name, email: operator.email };
       values.operator_name = operator.name;
@@ -188,7 +189,7 @@ export class EmailsService {
     }
 
     if (input.tripId) {
-      this.assertMayRead(user, Permission.VIEW_TRIPS, 'trips');
+      this.assertMayRead(user, Module.TRIPS, 'trips');
       const trip = await this.resolve('trip', () => this.trips.findOne(user, input.tripId!));
       const owner = recipient.kind === 'client' ? trip.clientId : trip.operatorId;
       if (owner !== recipient.id) this.notTheirs('trip', recipient);
@@ -207,7 +208,7 @@ export class EmailsService {
 
     if (input.quoteId) {
       if (recipient.kind !== 'client') throw new BadRequestException('A quote is sent to its client, not an operator');
-      this.assertMayRead(user, Permission.VIEW_TRIPS, 'quotes');
+      this.assertMayRead(user, Module.QUOTES, 'quotes');
       const quote = await this.resolve('quote', () => this.quotes.findOne(user, input.quoteId!));
       if (quote.clientId !== recipient.id) this.notTheirs('quote', recipient);
       values.quote_id = `Q-${quote.reference}`;
@@ -230,7 +231,7 @@ export class EmailsService {
 
     if (input.invoiceId) {
       if (recipient.kind !== 'client') throw new BadRequestException('An invoice is sent to its client, not an operator');
-      this.assertMayRead(user, Permission.VIEW_RECEIVABLES, 'invoices');
+      this.assertMayRead(user, Module.RECEIVABLES, 'invoices');
       const invoice = await this.resolve('invoice', () => this.receivables.findOne(user, input.invoiceId!));
       if (invoice.clientId !== recipient.id) this.notTheirs('invoice', recipient);
       values.invoice_id = invoice.number;
@@ -309,26 +310,17 @@ export class EmailsService {
       );
     }
 
-    const outcome = await this.mail.deliver({
-      to: recipient.email,
-      subject: subject.text,
-      text: body.text,
-      replyTo: values.broker_email ?? undefined,
-    });
-    const status = outcome.error
-      ? EmailMessageStatus.FAILED
-      : outcome.delivered
-        ? EmailMessageStatus.SENT
-        : EmailMessageStatus.LOGGED;
-
+    // Written first as QUEUED, then handed to the mail queue, so the broker
+    // gets an answer at once. The worker moves the row to SENT (a mail server
+    // took it), LOGGED (none configured) or FAILED, and writes the timeline
+    // entries then — `email.sent` means sent, not "about to be".
     const row = await this.prisma.emailMessage.create({
       data: {
         toEmail: recipient.email,
         toName: recipient.name,
         subject: subject.text,
         body: body.text,
-        status,
-        error: outcome.error,
+        status: EmailMessageStatus.QUEUED,
         templateId: template?.id ?? null,
         clientId: recipient.kind === 'client' ? recipient.id : null,
         operatorId: recipient.kind === 'operator' ? recipient.id : null,
@@ -340,32 +332,25 @@ export class EmailsService {
       select: EMAIL_DETAIL_SELECT,
     });
 
-    // On the timeline of each record it was about — the client's and the
-    // trip's — so "email sent" sits beside the notes and status changes.
-    const metadata = {
-      emailId: row.id,
-      subject: row.subject,
-      to: row.toEmail,
-      toName: row.toName,
-      status,
-      template: template?.name ?? null,
-    };
-    const action = status === EmailMessageStatus.FAILED ? 'email.failed' : 'email.sent';
-    const subjects = [
-      ...(recipient.kind === 'client' ? [{ entityType: 'Client', entityId: recipient.id }] : []),
-      ...(recipient.kind === 'operator' ? [{ entityType: 'Operator', entityId: recipient.id }] : []),
-      ...(input.tripId ? [{ entityType: 'Trip', entityId: input.tripId }] : []),
-    ];
-    for (const subject of subjects) {
-      await this.audit.record({ actorId: user.id, action, ...subject, metadata });
-    }
-
-    if (status === EmailMessageStatus.FAILED) {
+    try {
+      await this.mail.enqueue(
+        { to: recipient.email, subject: subject.text, text: body.text, replyTo: values.broker_email ?? undefined },
+        row.id,
+      );
+    } catch {
+      await this.prisma.emailMessage.update({
+        where: { id: row.id },
+        data: { status: EmailMessageStatus.FAILED, error: 'The email could not be queued for sending' },
+      });
       throw new BadGatewayException(
-        `The mail server refused the email to ${recipient.name}, so nothing was delivered. The attempt is in the sent log.`,
+        `The email to ${recipient.name} could not be queued, so nothing was sent. The attempt is in the sent log.`,
       );
     }
-    return serialise(row);
+
+    // QUEUED alone cannot say whether it will reach anyone: without a mail
+    // server the worker records it LOGGED. `willDeliver` tells the compose
+    // form, which marks a quote or itinerary sent only when it is true.
+    return { ...serialise(row), willDeliver: this.mail.driverName === 'smtp' };
   }
 
   // ---- The sent log -------------------------------------------------------

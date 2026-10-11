@@ -1,6 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import type { Queue } from 'bullmq';
 import { MAIL_DRIVER, type MailDriver, type MailMessage } from './mail.interface.js';
+import { MAIL_JOB_OPTIONS, MAIL_QUEUE, type MailJob } from './mail.queue.js';
 import { AppConfigService } from '../../config/config.service.js';
+import { renderEmail, renderMessage, type EmailBrand } from './mail.layout.js';
+import { SettingsService } from '../../modules/settings/settings.service.js';
+import { brandingView } from '../../modules/settings/settings.view.js';
 
 /**
  * The only mail entry point feature modules should use.
@@ -14,61 +20,71 @@ export class MailService {
 
   constructor(
     @Inject(MAIL_DRIVER) private readonly driver: MailDriver,
+    @InjectQueue(MAIL_QUEUE) private readonly queue: Queue<MailJob>,
     private readonly config: AppConfigService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /**
+   * The company as Settings names it, for the email's header, footer and
+   * wording. The logo is the public branding route made absolute on the web
+   * app's address — an inbox fetches it with no session, from outside.
+   */
+  private async brand(): Promise<EmailBrand> {
+    const branding = brandingView(await this.settings.read());
+    return {
+      name: branding.companyName,
+      logoUrl: branding.logoUrl ? `${this.config.webAppUrl}${branding.logoUrl}` : null,
+    };
+  }
 
   get driverName() {
     return this.driver.name;
   }
 
   /**
-   * Delivery failures are logged, not thrown.
-   *
-   * A failed send must not turn into a 500 that tells an attacker their target
-   * address exists, and must not roll back the code that was already issued —
-   * the user can simply request a resend.
+   * Queues an account email and returns at once; the worker
+   * (`mail.processor.ts`) sends it, retrying a mail server that is briefly
+   * unreachable. Nothing here throws on a delivery problem — that happens
+   * later, off the request — and a failure to *queue* is logged, not
+   * thrown: it must not turn into a 500 that tells an attacker their target
+   * address exists, and must not roll back a code already issued. The user
+   * can ask for a resend.
    */
   private async send(
     to: string,
     subject: string,
-    text: string,
+    body: { text: string; html: string },
   ): Promise<void> {
     try {
-      await this.driver.send({ to, subject, text });
+      await this.queue.add('account', { message: { to, subject, ...body } }, MAIL_JOB_OPTIONS);
     } catch (error) {
       this.logger.error(
-        `Failed to send "${subject}" to ${to}`,
+        `Could not queue "${subject}" to ${to}`,
         error instanceof Error ? error.stack : undefined,
       );
     }
   }
 
   /**
-   * A message a person composed — an email to a client or an operator
-   * (Email Templates, #21). Unlike the account emails above, the outcome is
-   * **reported, not swallowed**: the desk must know whether a quote went out,
-   * and the record of it must say which.
-   *
-   * `delivered` is false under the log driver — printed to the server log,
-   * delivered to nobody — so the caller can record exactly that rather than
-   * "sent". A mail server's refusal comes back as `error`.
+   * Queues a message a person composed (Email Templates, #21), wrapped in the
+   * same shell as every other email. The caller has already written its
+   * `EmailMessage` row as QUEUED; the worker moves it to SENT, LOGGED or
+   * FAILED. Unlike `send`, a failure to queue **is** thrown — the broker is
+   * waiting on this one and must not be told it is on its way when it is not.
    */
-  async deliver(
-    message: MailMessage,
-  ): Promise<{ delivered: boolean; error: string | null }> {
-    try {
-      await this.driver.send(message);
-      return { delivered: this.driver.name === 'smtp', error: null };
-    } catch (error) {
-      this.logger.error(
-        `Failed to send "${message.subject}" to ${message.to}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      return {
-        delivered: false,
-        error: error instanceof Error ? error.message : 'The mail server refused the message',
-      };
-    }
+  async enqueue(message: MailMessage, emailMessageId: string): Promise<void> {
+    await this.queue.add(
+      'composed',
+      {
+        message: {
+          ...message,
+          html: message.html ?? renderMessage(message.text, message.text.slice(0, 120), await this.brand()),
+        },
+        emailMessageId,
+      },
+      MAIL_JOB_OPTIONS,
+    );
   }
 
   async sendTwoFactorCode(
@@ -77,54 +93,77 @@ export class MailService {
     code: string,
     expiresInMinutes: number,
   ): Promise<void> {
-    await this.send(
-      to,
-      'Your Tribeca Jets sign-in code',
-      [
+    const brand = await this.brand();
+    const caption = `Expires in ${expiresInMinutes} minutes · Single use`;
+    const notice =
+      'Didn\u2019t try to sign in? Someone may know your password. Change it right away and let your administrator know.';
+    await this.send(to, `Your ${brand.name} sign-in code`, {
+      text: lines(brand, [
         `Hi ${firstName},`,
         '',
         `Your sign-in verification code is: ${code}`,
+        caption,
         '',
-        `This code expires in ${expiresInMinutes} minutes and can be used once.`,
-        '',
-        'If you did not try to sign in, someone may have your password.',
-        'Change it immediately.',
-        '',
-        '— Tribeca Jets Command Center',
-      ].join('\n'),
-    );
+        notice,
+      ]),
+      html: renderEmail({
+        brand,
+        preheader: `Your sign-in code is ${code}. It expires in ${expiresInMinutes} minutes.`,
+        eyebrow: 'Sign-in verification',
+        heading: 'Your sign-in code',
+        paragraphs: [`Hi ${firstName},`, `Enter this code to finish signing in to ${brand.name} Command Center.`],
+        code: { value: code, caption },
+        notice,
+      }),
+    });
   }
 
   /**
-   * Carries no credential and no link.
-   *
-   * The invited account has no usable password, so the invitee sets one via
-   * the normal password-reset flow. Mailing a temporary password — or a
-   * link that grants access on click — would put a working credential in an
-   * inbox, which is the thing the reset flow exists to avoid.
+   * The invitation, carrying the first password the administrator chose
+   * (owner's decision, 6 Oct 2026). It is a credential in an inbox, so the
+   * email says so and asks for it to be changed from My Account.
    */
   async sendInvitation(
     to: string,
     firstName: string,
     invitedByName: string,
+    password: string,
   ): Promise<void> {
-    await this.send(
-      to,
-      'You have been invited to Tribeca Jets Command Center',
-      [
+    const brand = await this.brand();
+    const signIn = `${this.config.webAppUrl}/sign-in`;
+    const advice =
+      'For your security, change this password after you sign in: open your profile menu, choose My Account, then Change Password.';
+    await this.send(to, `You\u2019re invited to ${brand.name} Command Center`, {
+      text: lines(brand, [
         `Hi ${firstName},`,
         '',
-        `${invitedByName} has created an account for you at Tribeca Jets Command Center.`,
+        `${invitedByName} has created an account for you at ${brand.name} Command Center.`,
         '',
-        'To get started, open the sign-in page, choose "Forgot password?",',
-        `and enter this email address (${to}). You will receive a code to set`,
-        'your own password.',
+        `Sign in at ${signIn}`,
+        `Email: ${to}`,
+        `Password: ${password}`,
         '',
-        'If you were not expecting this invitation, you can ignore this email.',
+        advice,
         '',
-        '— Tribeca Jets Command Center',
-      ].join('\n'),
-    );
+        'Not expecting this? You can ignore this email.',
+      ]),
+      html: renderEmail({
+        brand,
+        preheader: `${invitedByName} has invited you to ${brand.name} Command Center.`,
+        eyebrow: 'Invitation',
+        heading: 'Welcome aboard',
+        paragraphs: [
+          `Hi ${firstName},`,
+          `${invitedByName} has created an account for you at ${brand.name} Command Center. Here are your sign-in details:`,
+        ],
+        credentials: [
+          { label: 'Email', value: to },
+          { label: 'Password', value: password },
+        ],
+        button: { label: 'Sign In', href: signIn },
+        notice: advice,
+      }),
+    });
   }
 
   async sendPasswordResetCode(
@@ -133,43 +172,60 @@ export class MailService {
     code: string,
     expiresInMinutes: number,
   ): Promise<void> {
-    await this.send(
-      to,
-      'Reset your Tribeca Jets password',
-      [
-        `Hi ${firstName},`,
-        '',
-        `Your password reset code is: ${code}`,
-        '',
-        `This code expires in ${expiresInMinutes} minutes and can be used once.`,
-        '',
-        'If you did not request a password reset, you can ignore this email —',
-        'your password has not been changed.',
-        '',
-        '— Tribeca Jets Command Center',
-      ].join('\n'),
-    );
+    const brand = await this.brand();
+    const caption = `Expires in ${expiresInMinutes} minutes · Single use`;
+    const notice =
+      'Didn\u2019t ask to reset your password? You can ignore this email \u2014 your password has not been changed.';
+    await this.send(to, `Reset your ${brand.name} password`, {
+      text: lines(brand, [`Hi ${firstName},`, '', `Your password reset code is: ${code}`, caption, '', notice]),
+      html: renderEmail({
+        brand,
+        preheader: `Your password reset code is ${code}.`,
+        eyebrow: 'Password reset',
+        heading: 'Reset your password',
+        paragraphs: [`Hi ${firstName},`, 'Enter this code to choose a new password for your account.'],
+        code: { value: code, caption },
+        notice,
+      }),
+    });
   }
 
   /**
-   * Sent after a successful reset. Not a courtesy: it is how a user finds out
-   * their account was taken over if someone else completed the flow.
+   * Sent after any password change — a reset or a signed-in change. Not a
+   * courtesy: it is how a user finds out their account was taken over if
+   * someone else did it.
    */
   async sendPasswordChangedNotice(to: string, firstName: string): Promise<void> {
-    await this.send(
-      to,
-      'Your Tribeca Jets password was changed',
-      [
+    const brand = await this.brand();
+    const signIn = `${this.config.webAppUrl}/sign-in`;
+    const notice = 'Didn\u2019t make this change? Contact your administrator immediately.';
+    await this.send(to, `Your ${brand.name} password was changed`, {
+      text: lines(brand, [
         `Hi ${firstName},`,
         '',
-        'Your password was just changed and all other sessions were signed out.',
+        'Your password was just changed, and your other signed-in devices were signed out.',
         '',
-        'If this was not you, contact your administrator immediately.',
+        notice,
         '',
-        `Sign in: ${this.config.webAppUrl}/sign-in`,
-        '',
-        '— Tribeca Jets Command Center',
-      ].join('\n'),
-    );
+        `Sign in: ${signIn}`,
+      ]),
+      html: renderEmail({
+        brand,
+        preheader: 'Your password was just changed.',
+        eyebrow: 'Security notice',
+        heading: 'Your password was changed',
+        paragraphs: [
+          `Hi ${firstName},`,
+          'Your password was just changed, and your other signed-in devices were signed out.',
+        ],
+        button: { label: 'Sign In', href: signIn },
+        notice,
+      }),
+    });
   }
+}
+
+/** A plain-text body from lines, signed the same way every time. */
+function lines(brand: EmailBrand, body: string[]): string {
+  return [...body, '', `\u2014 ${brand.name} Command Center`].join('\n');
 }

@@ -6,6 +6,7 @@ import { ACCESS_TOKEN_COOKIE } from '../../../common/constants/auth.constants.js
 import { AppConfigService } from '../../../config/config.service.js';
 import { PrismaService } from '../../../core/prisma/prisma.service.js';
 import type { AuthenticatedUser } from '../../../common/types/api.types.js';
+import { resolveAccess } from '../../../common/authorization/access.js';
 
 export interface JwtPayload {
   sub: string;
@@ -42,13 +43,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, deletedAt: null, status: 'ACTIVE' },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, permissions: true },
     });
 
     if (!user) {
       throw new UnauthorizedException('Account is no longer active');
     }
 
-    return user;
+    // Read with the user, so a permission an administrator removes stops
+    // working on the next request — not when the token expires.
+    const { permissions, ...identity } = user;
+    return { ...identity, access: resolveAccess(user.role, permissions) };
   }
 }

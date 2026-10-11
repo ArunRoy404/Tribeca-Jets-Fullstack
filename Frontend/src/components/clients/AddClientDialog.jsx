@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { Plus, Edit, X, ArrowRight } from "lucide-react";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useCreateClient, useUpdateClient } from "@/hooks/clients";
-import { useAirports } from "@/hooks/airports";
-import { useUsers } from "@/hooks/users";
+import AirportPicker from "@/components/airports/AirportPicker";
+import BrokerPicker from "@/components/users/BrokerPicker";
+import CommonSelect from "@/components/common/CommonSelect";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,7 @@ import {
   formatLeadStage,
 } from "@/lib/client";
 import { optionalText } from "@/lib/form";
-import { Permission, Scope } from "@/lib/permissions";
-import { BROKER_ROLES } from "@/lib/roles";
+import { Action, Module } from "@/lib/access";
 
 function FieldWrapper({ label, children, optional }) {
   return (
@@ -46,9 +46,6 @@ function SectionHeader({ title }) {
     </div>
   );
 }
-
-const SELECT_CLASS =
-  "h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer";
 
 /**
  * Blank. Nothing is pre-filled with a plausible-looking value — the old form
@@ -149,17 +146,45 @@ function ClientForm({ editingClient, onDone }) {
   const optional = (value) => optionalText(value, { editing });
 
   // Choosing the broker is reassigning the client, which the API allows only
-  // to a role holding the whole book. Anyone else is not shown the picker —
+  // to a role holding CLIENTS · ASSIGN. Anyone else is not shown the picker —
   // it could only ever answer 403 — and a broker's own client stays theirs.
-  const { scopeFor } = usePermissions();
-  const mayAssignBroker = scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL;
+  const { canAccess } = usePermissions();
+  const mayAssignBroker = canAccess(Module.CLIENTS, Action.ASSIGN);
 
-  // Real reference data for both pickers.
-  const { data: airports } = useAirports({ limit: 100, sortBy: "icao", sortOrder: "asc" });
-  const { data: users } = useUsers({ limit: 100 });
-  const brokers = useMemo(
-    () => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)),
-    [users?.data],
+  const typeOptions = useMemo(
+    () =>
+      FILTERABLE_CLIENT_TYPES.map((v) => ({
+        value: v,
+        label: formatClientType(v),
+      })),
+    [],
+  );
+
+  const statusOptions = useMemo(
+    () =>
+      FILTERABLE_CLIENT_STATUSES.map((v) => ({
+        value: v,
+        label: formatClientStatus(v),
+      })),
+    [],
+  );
+
+  const leadStageOptions = useMemo(
+    () =>
+      CLIENT_LEAD_STAGES.map((v) => ({
+        value: v,
+        label: formatLeadStage(v),
+      })),
+    [],
+  );
+
+  const leadSourceOptions = useMemo(
+    () =>
+      CLIENT_LEAD_SOURCES.map((v) => ({
+        value: v,
+        label: formatLeadSource(v),
+      })),
+    [],
   );
 
   const [form, setForm] = useState(() => initialForm(editingClient));
@@ -296,27 +321,19 @@ function ClientForm({ editingClient, onDone }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
             <FieldWrapper label="Client Type">
-              <select
+              <CommonSelect
                 value={form.type}
-                onChange={(e) => set("type", e.target.value)}
-                className={SELECT_CLASS}
-              >
-                {FILTERABLE_CLIENT_TYPES.map((v) => (
-                  <option key={v} value={v}>{formatClientType(v)}</option>
-                ))}
-              </select>
+                onChange={(val) => set("type", val)}
+                options={typeOptions}
+              />
             </FieldWrapper>
 
             <FieldWrapper label="Status">
-              <select
+              <CommonSelect
                 value={form.status}
-                onChange={(e) => set("status", e.target.value)}
-                className={SELECT_CLASS}
-              >
-                {FILTERABLE_CLIENT_STATUSES.map((v) => (
-                  <option key={v} value={v}>{formatClientStatus(v)}</option>
-                ))}
-              </select>
+                onChange={(val) => set("status", val)}
+                options={statusOptions}
+              />
             </FieldWrapper>
           </div>
 
@@ -324,45 +341,30 @@ function ClientForm({ editingClient, onDone }) {
             {/* Where the relationship stands vs where the deal stands — two
                 separate things, so two separate controls. */}
             <FieldWrapper label="Lead Stage">
-              <select
+              <CommonSelect
                 value={form.leadStage}
-                onChange={(e) => set("leadStage", e.target.value)}
-                className={SELECT_CLASS}
-              >
-                {CLIENT_LEAD_STAGES.map((v) => (
-                  <option key={v} value={v}>{formatLeadStage(v)}</option>
-                ))}
-              </select>
+                onChange={(val) => set("leadStage", val)}
+                options={leadStageOptions}
+              />
             </FieldWrapper>
 
             <FieldWrapper label="Lead Source">
-              <select
+              <CommonSelect
                 value={form.leadSource}
-                onChange={(e) => set("leadSource", e.target.value)}
-                className={SELECT_CLASS}
-              >
-                {CLIENT_LEAD_SOURCES.map((v) => (
-                  <option key={v} value={v}>{formatLeadSource(v)}</option>
-                ))}
-              </select>
+                onChange={(val) => set("leadSource", val)}
+                options={leadSourceOptions}
+              />
             </FieldWrapper>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
             {mayAssignBroker && (
               <FieldWrapper label="Assigned Broker" optional>
-                <select
+                <BrokerPicker
                   value={form.assignedBrokerId}
-                  onChange={(e) => set("assignedBrokerId", e.target.value)}
-                  className={SELECT_CLASS}
-                >
-                  <option value="">Unassigned</option>
-                  {brokers.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {`${b.firstName} ${b.lastName}`.trim()}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => set("assignedBrokerId", val || "")}
+                  placeholder="Unassigned"
+                />
               </FieldWrapper>
             )}
 
@@ -378,21 +380,13 @@ function ClientForm({ editingClient, onDone }) {
           <SectionHeader title="Travel Preferences" />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            {/* A real airport, chosen from the airport database rather than a
-                code typed into a box that matches nothing. */}
+            {/* Real airport record picker: live search, server paged */}
             <FieldWrapper label="Home Airport" optional>
-              <select
+              <AirportPicker
                 value={form.homeAirportId}
-                onChange={(e) => set("homeAirportId", e.target.value)}
-                className={SELECT_CLASS}
-              >
-                <option value="">None</option>
-                {(airports?.data ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.icao} — {a.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => set("homeAirportId", value || "")}
+                placeholder="None"
+              />
             </FieldWrapper>
 
             <FieldWrapper label="Birthday" optional>

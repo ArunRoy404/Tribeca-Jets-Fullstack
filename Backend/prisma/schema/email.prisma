@@ -115,6 +115,8 @@ enum EmailTemplateCategory {
 /// nobody — recorded as exactly that, never as sent. FAILED: the mail server
 /// refused it.
 enum EmailMessageStatus {
+  /// On the mail queue; the worker has not finished with it yet.
+  QUEUED
   SENT
   LOGGED
   FAILED

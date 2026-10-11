@@ -10,6 +10,7 @@ import { useReferralResources } from "@/hooks/referrals";
 import { paginationFields, useTableQueryParams } from "@/hooks/common/useTableQueryParams";
 import { formatTimestamp } from "@/lib/archive";
 import { uploadUrl } from "@/services/uploads.service";
+import { useBranding } from "@/hooks/settings";
 
 /**
  * Mirrors the API's resource sort allowlist. A library reads best by title, so
@@ -28,6 +29,7 @@ export default function PortalResourcesList() {
   const { data, isPending, error, refetch } = useReferralResources(queryParams);
   const resources = data?.data ?? [];
   const meta = data?.meta;
+  const { data: branding } = useBranding();
   const isEmpty = !isPending && !error && resources.length === 0;
   const page = meta?.page ?? 1;
   const pageCount = meta?.totalPages ?? 1;
@@ -36,7 +38,7 @@ export default function PortalResourcesList() {
   return (
     <Reveal className="w-full">
       <CommonCard variant="default" className="p-0 rounded-md overflow-hidden border-border w-full">
-        <SectionHeader title="Resources from Tribeca Jets" />
+        <SectionHeader title={branding?.companyName ? `Resources from ${branding.companyName}` : "Resources"} />
         {isPending || error || isEmpty ? (
           <TableStatus
             isLoading={isPending}

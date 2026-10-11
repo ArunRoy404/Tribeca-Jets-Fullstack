@@ -8,6 +8,9 @@ export const queryKeys = {
   auth: {
     all: ["auth"],
     currentUser: ["auth", "me"],
+    /** The signed-in devices list (My Account and Settings › Security). */
+    sessions: (params) => ["auth", "sessions", params ?? {}],
+    sessionsAll: ["auth", "sessions"],
   },
 
   /**
@@ -18,6 +21,17 @@ export const queryKeys = {
    * uploading into Mark's folder must refresh his tab without refetching every
    * other list on screen.
    */
+  /**
+   * The company's settings. `branding` is its own key under the same
+   * prefix: saving Company & Branding invalidates `settings.all`, which
+   * refreshes every sidebar's logo as well as the Settings screen.
+   */
+  settings: {
+    all: ["settings"],
+    detail: ["settings", "detail"],
+    branding: ["settings", "branding"],
+  },
+
   uploads: {
     all: ["uploads"],
     list: (params) => ["uploads", "list", params ?? {}],
@@ -73,6 +87,21 @@ export const queryKeys = {
     list: (params) => ["trips", "list", params ?? {}],
     detail: (id) => ["trips", "detail", id],
     stats: ["trips", "stats"],
+  },
+
+  /**
+   * Reports (#23) — a read-only view over trips, payments and bills, so its
+   * keys sit under the trips namespace: every trip write, and every invoice,
+   * payment and bill write (which already invalidate `trips.all`), refreshes
+   * the reports too, without any hook having to know they exist.
+   */
+  reports: {
+    all: ["trips", "reports"],
+    summary: (params) => ["trips", "reports", "summary", params ?? {}],
+    series: (params) => ["trips", "reports", "series", params ?? {}],
+    brokers: (params) => ["trips", "reports", "brokers", params ?? {}],
+    clients: (params) => ["trips", "reports", "clients", params ?? {}],
+    routes: (params) => ["trips", "reports", "routes", params ?? {}],
   },
 
   /** The passenger document for a trip (#12). */
@@ -236,6 +265,7 @@ export const queryKeys = {
      * the backend's rules do.
      */
     roles: ["users", "roles"],
+    roleDefaults: (role) => ["users", "roles", "defaults", role],
   },
 
   clients: {

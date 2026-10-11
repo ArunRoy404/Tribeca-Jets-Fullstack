@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AirportsModule } from '../airports/airports.module.js';
 import { QuotesModule } from '../quotes/quotes.module.js';
 import { TripRequestsModule } from '../trip-requests/trip-requests.module.js';
 import { TripsController } from './trips.controller.js';
@@ -13,7 +14,7 @@ import { TripsService } from './trips.service.js';
  * dependants can import it without a cycle.
  */
 @Module({
-  imports: [QuotesModule, TripRequestsModule],
+  imports: [AirportsModule, QuotesModule, TripRequestsModule],
   controllers: [TripsController],
   providers: [TripsService],
   exports: [TripsService],

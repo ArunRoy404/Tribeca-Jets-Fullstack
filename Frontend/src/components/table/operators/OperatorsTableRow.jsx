@@ -14,12 +14,15 @@ export default function OperatorsTableRow({
   getRowActions,
   onSelectOperator,
   archived = false,
+  selectable = true,
 }) {
   return (
     <TableRow key={op?.id} className="border-border cursor-pointer" onClick={() => onSelectOperator?.(op?.id)}>
-      <TableCell className="p-[10px]" onClick={(e) => e.stopPropagation()}>
-        <Checkbox checked={selected} onCheckedChange={() => onToggleRow?.(op?.id)} />
-      </TableCell>
+      {selectable ? (
+        <TableCell className="p-[10px]" onClick={(e) => e.stopPropagation()}>
+          <Checkbox checked={selected} onCheckedChange={() => onToggleRow?.(op?.id)} />
+        </TableCell>
+      ) : null}
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-left">
         <span className="inline-flex items-center gap-2">
           {op?.name}
@@ -39,19 +42,28 @@ export default function OperatorsTableRow({
         </div>
       </TableCell>
       <TableCell className="p-[10px] text-center">
-        <div className="flex flex-wrap gap-1 justify-center max-w-[200px] mx-auto">
-          {op?.aircraftTypes?.map((t) => (
-            <span key={t} className="text-[10px] font-montserrat font-semibold bg-secondary border border-border px-1.5 py-0.5 rounded-full">
-              {t}
-            </span>
-          ))}
-        </div>
+        {op?.aircraftTypes?.length ? (
+          <div className="flex flex-wrap gap-1 justify-center max-w-[200px] mx-auto">
+            {op?.aircraftTypes?.map((t) => (
+              <span key={t} className="text-[10px] font-montserrat font-semibold bg-secondary border border-border px-1.5 py-0.5 rounded-full">
+                {t}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="font-montserrat text-[12px] text-muted-foreground">—</span>
+        )}
       </TableCell>
       <TableCell className="p-[10px] text-center">
-        <div className="inline-flex items-center gap-1 font-montserrat font-bold text-[12px] text-foreground">
-          <Star className="size-3 text-amber-500 fill-amber-500" />
-          <span>{op?.reliability}</span>
-        </div>
+        {/* A star only beside a real rating — never beside "—". */}
+        {op?.rawReliability !== null && op?.rawReliability !== undefined ? (
+          <div className="inline-flex items-center gap-1 font-montserrat font-bold text-[12px] text-foreground">
+            <Star className="size-3 text-amber-500 fill-amber-500" />
+            <span>{op?.reliability}</span>
+          </div>
+        ) : (
+          <span className="font-montserrat text-[12px] text-muted-foreground">Not rated</span>
+        )}
       </TableCell>
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-purple text-center">
         {archived ? op?.deletedAtLabel : op?.totalTrips}

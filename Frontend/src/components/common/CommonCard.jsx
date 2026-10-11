@@ -28,6 +28,7 @@ export default function CommonCard({
         src={bgImage}
         alt=""
         fill
+        unoptimized
         className="object-cover opacity-25 pointer-events-none"
         sizes="(max-width: 768px) 100vw, 400px"
       />

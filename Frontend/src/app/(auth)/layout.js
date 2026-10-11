@@ -1,3 +1,4 @@
+import BrandLogo from "@/components/common/BrandLogo";
 import Image from "next/image";
 
 const stats = [
@@ -20,7 +21,12 @@ export default function AuthLayout({ children }) {
           className="pointer-events-none absolute left-1/2 top-1/2 h-[1591.2px] w-[1985.2px] -translate-x-1/2 -translate-y-1/2"
         />
 
-        <Image src="/auth/img/logo-white.svg" alt="Tribeca Jets" width={168} height={100} className="absolute left-20 top-12 h-[100px] w-[168px]" />
+        <BrandLogo
+          fallbackSrc="/auth/img/logo-white.svg"
+          width={168}
+          height={100}
+          className="absolute left-20 top-12 h-[100px] w-[168px]"
+        />
 
         <div className="absolute left-1/2 top-1/2 flex w-[457px] -translate-x-1/2 -translate-y-1/2 flex-col gap-6 pt-16">
           <div className="flex flex-col gap-4">

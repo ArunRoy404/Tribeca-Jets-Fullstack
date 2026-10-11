@@ -1,3 +1,6 @@
+"use client";
+
+import { useDraggable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { PRIORITY_STYLES, CHIP_STYLES } from "./taskBadgeStyles";
 import TaskChip from "./TaskChip";
@@ -8,21 +11,45 @@ function getInitial(name = "") {
 
 /**
  * One task on the board. The due date is red only when the API says the task
- * is overdue or due today; the old "Auto" chip is gone — nothing raises
- * tasks automatically yet, so no card may claim it was.
+ * is overdue or due today; the card can be dragged across status columns when
+ * the user has EDIT access and the task is not archived.
  */
-export default function TaskCard({ task, onClick }) {
+export default function TaskCard({ task, onClick, mayEdit = false, isOverlay = false }) {
   const priorityStyle = PRIORITY_STYLES[task?.priorityLabel] ?? PRIORITY_STYLES.Medium;
 
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: task?.id,
+    data: { task },
+    disabled: !mayEdit || task?.isArchived || isOverlay,
+  });
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-start gap-2.5 w-full bg-white border border-border rounded-lg p-2 text-left cursor-pointer hover:border-purple/40 hover:shadow-sm transition-all"
+    <div
+      ref={setNodeRef}
+      {...(isOverlay ? {} : attributes)}
+      {...(isOverlay ? {} : listeners)}
+      onClick={isOverlay ? undefined : onClick}
+      role="button"
+      tabIndex={isOverlay ? -1 : 0}
+      onKeyDown={(e) => {
+        if (!isOverlay && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      className={cn(
+        "flex items-start gap-2.5 w-full bg-white border border-border rounded-lg p-3 text-left transition-all select-none",
+        !isOverlay && "hover:border-purple/40 hover:shadow-sm cursor-pointer",
+        mayEdit && !task?.isArchived && !isOverlay && "cursor-grab active:cursor-grabbing",
+        isDragging && "opacity-30 border-dashed border-purple/50 bg-purple/5 scale-[0.98]",
+        isOverlay && "w-[268px] max-w-full shadow-2xl ring-2 ring-purple/50 border-purple/70 rotate-2 scale-[1.03] z-50 cursor-grabbing bg-white/95 backdrop-blur-md pointer-events-none",
+      )}
     >
       <div className="flex flex-1 flex-col gap-2 min-w-0">
         <div className="flex items-start justify-between gap-2 w-full">
-          <p className="flex-1 font-montserrat font-normal text-[14px] text-foreground leading-tight">{task?.title}</p>
+          <p className="flex-1 font-montserrat font-medium text-[14px] text-foreground leading-tight line-clamp-2">
+            {task?.title}
+          </p>
           <span className="font-montserrat text-[10px] text-muted-foreground shrink-0">{task?.reference}</span>
         </div>
 
@@ -32,8 +59,8 @@ export default function TaskCard({ task, onClick }) {
           </TaskChip>
           <p
             className={cn(
-              "font-montserrat font-normal text-[14px] whitespace-nowrap",
-              task?.attention ? "text-destructive" : "text-muted-foreground",
+              "font-montserrat font-normal text-[12px] whitespace-nowrap",
+              task?.attention ? "text-destructive font-medium" : "text-muted-foreground",
             )}
           >
             {task?.attentionLabel ? `${task.attentionLabel} · ${task.dueLabel}` : task?.dueLabel}
@@ -47,23 +74,23 @@ export default function TaskCard({ task, onClick }) {
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-secondary/60">
           <div className="flex items-center gap-2 min-w-0">
             <span
-              className="flex items-center justify-center rounded-full size-[30px] border font-montserrat font-medium text-[12px] shrink-0"
+              className="flex items-center justify-center rounded-full size-[26px] border font-montserrat font-medium text-[11px] shrink-0"
               style={{ backgroundColor: CHIP_STYLES.blue.bg, borderColor: CHIP_STYLES.blue.border, color: CHIP_STYLES.blue.text }}
             >
               {task?.assigneeId ? getInitial(task?.assignee) : "—"}
             </span>
-            <p className="font-montserrat font-normal text-[14px] text-muted-foreground truncate">{task?.assignee}</p>
+            <p className="font-montserrat font-normal text-[13px] text-muted-foreground truncate">{task?.assignee}</p>
           </div>
           {task?.checklistTotal > 0 && (
-            <span className="font-montserrat font-medium text-[11px] text-purple shrink-0">
+            <span className="font-montserrat font-semibold text-[11px] text-purple shrink-0 bg-purple/10 px-1.5 py-0.5 rounded">
               {task.checklistDone}/{task.checklistTotal}
             </span>
           )}
         </div>
       </div>
-    </button>
+    </div>
   );
 }

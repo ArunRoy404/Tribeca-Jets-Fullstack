@@ -4,10 +4,18 @@ import { useState } from "react";
 import { Plus, Edit, X } from "lucide-react";
 import { useOperatorsStore } from "@/store/useOperatorsStore";
 import { useCreateOperator, useUpdateOperator } from "@/hooks/operators";
+import { useFileDocuments } from "@/hooks/documents";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Permission } from "@/lib/permissions";
+import FileUpload from "@/components/common/FileUpload";
+import CommonSelect from "@/components/common/CommonSelect";
 import {
   FILTERABLE_OPERATOR_STATUSES,
+  PAYMENT_TERMS_OPTIONS,
+  RESPONSE_SPEED_OPTIONS,
   formatOperatorStatus,
 } from "@/lib/operator";
+import { formatDocumentCategory } from "@/lib/document";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +58,35 @@ function DialogTextarea({ rows = 3, ...props }) {
   );
 }
 
+/** The shared select, at the height of this form's inputs. */
+const SELECT_CLASS = "data-[size=default]:h-10";
+
+/**
+ * A blank choice for an optional field. The select cannot hold "" as a
+ * value, so blank travels as this sentinel inside the control and as ""
+ * everywhere else — "Not rated", never a guess.
+ */
+const BLANK = "__none__";
+
+function OptionalSelect({ value, onChange, options, blankLabel }) {
+  return (
+    <CommonSelect
+      value={value || BLANK}
+      onChange={(next) => onChange(next === BLANK ? "" : next)}
+      options={[{ value: BLANK, label: blankLabel }, ...options]}
+      className={SELECT_CLASS}
+    />
+  );
+}
+
+/**
+ * The categories an operator's file is likely to be. Insurance and operator
+ * certificates carry an expiry date, set on the Documents tab afterwards.
+ */
+const OPERATOR_DOCUMENT_CATEGORIES = ["OPERATOR_CERTIFICATE", "INSURANCE_CERTIFICATE", "CHARTER_AGREEMENT", "OTHER"].map(
+  (value) => ({ value, label: formatDocumentCategory(value) }),
+);
+
 function SectionHeader({ title }) {
   return (
     <div className="font-montserrat text-[12px] font-semibold text-muted-foreground pt-1 pb-0.5 border-b border-border/40 uppercase tracking-wide">
@@ -74,6 +111,8 @@ const EMPTY_FORM = {
   // carry a score nobody gave them. The input keeps "4.8" as a placeholder,
   // which is a format hint and is never submitted.
   reliability: "",
+  // Blank like reliability: a pre-filled "4.9" put a safety rating nobody
+  // gave on every operator added.
   safety: "",
   responseSpeed: "",
   cancellationPolicy: "",
@@ -103,18 +142,20 @@ function initialForm(operator) {
     generalEmail: fieldValue(operator.generalEmail),
     generalPhone: fieldValue(operator.generalPhone),
     primaryContact: fieldValue(operator.primaryContact),
-    email: fieldValue(operator.email),
-    phone: fieldValue(operator.phone),
+    // The contact's own lines — never the table's fallback to the general
+    // ones, or saving would copy the general number onto the contact.
+    email: fieldValue(operator.contactEmail),
+    phone: fieldValue(operator.contactPhone),
     aircraftTypesInput: list(operator.aircraftTypes),
     serviceRoutesInput: list(operator.serviceRoutes),
     reliability:
       operator.rawReliability === null || operator.rawReliability === undefined
         ? ""
         : String(operator.rawReliability),
-    safety: fieldValue(operator.safety),
-    responseSpeed: fieldValue(operator.responseSpeed),
+    safety: operator.rawSafety === null || operator.rawSafety === undefined ? "" : String(operator.rawSafety),
+    responseSpeed: operator.rawResponseSpeed ?? "",
     cancellationPolicy: fieldValue(operator.cancellationPolicy),
-    paymentTerms: fieldValue(operator.paymentTerms),
+    paymentTerms: operator.rawPaymentTerms ?? "",
     sourcingNotes: operator.sourcingNotes || "",
   };
 }
@@ -148,14 +189,45 @@ export default function AddOperatorDialog() {
 function OperatorForm({ editingOperator, onDone }) {
   const create = useCreateOperator();
   const update = useUpdateOperator();
+  const fileDocuments = useFileDocuments();
   const mutation = editingOperator ? update : create;
   const fieldErrors = mutation?.error?.fieldErrors ?? {};
 
   const [formData, setFormData] = useState(() => initialForm(editingOperator));
+  // Files uploaded in this form, filed into the operator's vault folder once
+  // the operator itself has saved (a new one has no id before that).
+  const [documents, setDocuments] = useState([]);
+  const [documentType, setDocumentType] = useState("OTHER");
+  const { canWrite } = usePermissions();
+  const mayFileDocuments = canWrite(Permission.MANAGE_DOCUMENTS);
   const closeAddModal = onDone;
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // The shared uploader holds the URLs; the title of each is the file's own
+  // name, kept here for the vault.
+  const addDocument = (upload) => {
+    if (!upload?.url) return;
+    setDocuments((prev) =>
+      prev.some((doc) => doc.fileUrl === upload.url)
+        ? prev
+        : [...prev, { fileUrl: upload.url, title: upload.filename ?? "Document" }],
+    );
+  };
+  const removeDocument = (index) => setDocuments((prev) => prev.filter((_, i) => i !== index));
+
+  // The operator saved: file what was attached, then close.
+  const afterSave = (operator) => {
+    if (!documents.length || !operator?.id) return closeAddModal();
+    fileDocuments.mutate(
+      {
+        owner: { operatorId: operator.id },
+        documents: documents.map(({ title, fileUrl }) => ({ title, fileUrl, category: documentType })),
+      },
+      { onSettled: closeAddModal },
+    );
   };
 
   const handleSubmit = (e) => {
@@ -197,21 +269,22 @@ function OperatorForm({ editingOperator, onDone }) {
         : editing
           ? null
           : undefined,
-      safetyRating: optional(formData.safety),
-      responseSpeed: optional(formData.responseSpeed),
+      safetyRating: formData.safety
+        ? Number.parseFloat(formData.safety)
+        : editing
+          ? null
+          : undefined,
+      responseSpeed: formData.responseSpeed || (editing ? null : undefined),
       cancellationPolicy: optional(formData.cancellationPolicy),
-      paymentTerms: optional(formData.paymentTerms),
+      paymentTerms: formData.paymentTerms || (editing ? null : undefined),
       sourcingNotes: optional(formData.sourcingNotes),
     };
 
     if (editing) {
-      update.mutate(
-        { id: editingOperator.id, ...payload },
-        { onSuccess: closeAddModal },
-      );
+      update.mutate({ id: editingOperator.id, ...payload }, { onSuccess: afterSave });
       return;
     }
-    create.mutate(payload, { onSuccess: closeAddModal });
+    create.mutate(payload, { onSuccess: afterSave });
   };
 
   return (
@@ -243,28 +316,21 @@ function OperatorForm({ editingOperator, onDone }) {
             </FieldWrapper>
 
             <FieldWrapper label="Status">
-              <select
+              {/* The enum goes on the wire, the label goes on the screen. */}
+              <CommonSelect
                 value={formData.status}
-                onChange={(e) => handleChange("status", e.target.value)}
-                className="h-10 px-3 rounded-md border border-input bg-background font-montserrat text-[13px] text-foreground outline-none focus:ring-1 focus:ring-purple w-full cursor-pointer"
-              >
-                {/* The enum goes on the wire, the label goes on the screen.
-                    These options used to carry value="Active", which matched
-                    no enum the API accepts and matched no value the form
-                    holds — so the select displayed "Active" for every
-                    operator whatever its real status, and picking anything
-                    sent a label the API rejected. */}
-                {FILTERABLE_OPERATOR_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {formatOperatorStatus(status)}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => handleChange("status", value)}
+                options={FILTERABLE_OPERATOR_STATUSES.map((status) => ({
+                  value: status,
+                  label: formatOperatorStatus(status),
+                }))}
+                className={SELECT_CLASS}
+              />
             </FieldWrapper>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <FieldWrapper label="Home Base">
+            <FieldWrapper label="Home Base" error={fieldErrors?.homeBase}>
               <Input
                 placeholder="Cleveland, OH"
                 value={formData.homeBase}
@@ -309,7 +375,7 @@ function OperatorForm({ editingOperator, onDone }) {
           <SectionHeader title="Primary Contact" />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-            <FieldWrapper label="Contact Name">
+            <FieldWrapper label="Contact Name" error={fieldErrors?.primaryContact}>
               <Input
                 placeholder="James Miller"
                 value={formData.primaryContact}
@@ -369,6 +435,10 @@ function OperatorForm({ editingOperator, onDone }) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
             <FieldWrapper label="Reliability (0-5) (Optional)" error={fieldErrors?.reliabilityRating}>
               <Input
+                type="number"
+                min="0"
+                max="5"
+                step="0.1"
                 placeholder="4.8"
                 value={formData.reliability}
                 onChange={(e) => handleChange("reliability", e.target.value)}
@@ -376,32 +446,36 @@ function OperatorForm({ editingOperator, onDone }) {
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Safety Rating (Optional)">
+            <FieldWrapper label="Safety (0-5) (Optional)" error={fieldErrors?.safetyRating}>
               <Input
-                placeholder="e.g. ARG/US Platinum"
+                type="number"
+                min="0"
+                max="5"
+                step="0.1"
+                placeholder="4.9"
                 value={formData.safety}
                 onChange={(e) => handleChange("safety", e.target.value)}
                 className="h-10 text-[13px] font-montserrat"
               />
             </FieldWrapper>
 
-            <FieldWrapper label="Response speed (Optional)">
-              <Input
-                placeholder="Fast"
+            <FieldWrapper label="Response speed (Optional)" error={fieldErrors?.responseSpeed}>
+              <OptionalSelect
                 value={formData.responseSpeed}
-                onChange={(e) => handleChange("responseSpeed", e.target.value)}
-                className="h-10 text-[13px] font-montserrat"
+                onChange={(value) => handleChange("responseSpeed", value)}
+                options={RESPONSE_SPEED_OPTIONS}
+                blankLabel="Not rated"
               />
             </FieldWrapper>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-            <FieldWrapper label="Payment terms (Optional)">
-              <Input
-                placeholder="Net 30"
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+            <FieldWrapper label="Payment terms (Optional)" error={fieldErrors?.paymentTerms}>
+              <OptionalSelect
                 value={formData.paymentTerms}
-                onChange={(e) => handleChange("paymentTerms", e.target.value)}
-                className="h-10 text-[13px] font-montserrat"
+                onChange={(value) => handleChange("paymentTerms", value)}
+                options={PAYMENT_TERMS_OPTIONS}
+                blankLabel="Not on file"
               />
             </FieldWrapper>
           </div>
@@ -427,6 +501,45 @@ function OperatorForm({ editingOperator, onDone }) {
             />
           </FieldWrapper>
 
+          {/* Operator Documents — filed into the operator's vault folder
+              (#22) once the operator saves; edited, dated and removed on the
+              operator's Documents tab. */}
+          {mayFileDocuments ? (
+            <FieldWrapper label="Operator documents (Optional)">
+              <div className="flex flex-col gap-2 w-full">
+                <FileUpload
+                  variant="dropzone"
+                  kind="document"
+                  visibility="PRIVATE"
+                  multiple
+                  value={documents.map((doc) => doc.fileUrl)}
+                  onUploaded={addDocument}
+                  onRemove={removeDocument}
+                  heading="Upload documents"
+                  description="Certificates, insurance, agreements — PDF, Word, Excel or images, up to 25 MB each."
+                />
+                {documents.length ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-montserrat text-[12px] text-muted-foreground">File them as</span>
+                    <div className="w-56">
+                      <CommonSelect
+                        value={documentType}
+                        onChange={setDocumentType}
+                        options={OPERATOR_DOCUMENT_CATEGORIES}
+                        className="data-[size=default]:h-9"
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                <p className="font-montserrat text-[11px] text-muted-foreground">
+                  {editingOperator
+                    ? "Added to the documents already on file. Set expiry dates on the Documents tab."
+                    : "Filed when the operator is saved. Set expiry dates on the Documents tab."}
+                </p>
+              </div>
+            </FieldWrapper>
+          ) : null}
+
           {/* Footer Buttons */}
           <div className="flex items-center justify-start gap-3 pt-3 border-t border-border/40 w-full">
             <Button
@@ -440,10 +553,13 @@ function OperatorForm({ editingOperator, onDone }) {
             </Button>
             <Button
               type="submit"
-              className="bg-[#252832] hover:bg-[#252832]/90 text-white h-9 px-4 font-medium text-[13px] gap-1.5"
+              disabled={mutation?.isPending || fileDocuments.isPending}
+              className="h-9 px-4 font-medium text-[13px] gap-1.5"
             >
               {editingOperator ? <Edit className="size-3.5" /> : <Plus className="size-3.5" />}
-              {mutation?.isPending
+              {fileDocuments.isPending
+                ? "Filing documents…"
+                : mutation?.isPending
                 ? "Saving…"
                 : editingOperator
                   ? "Save Changes"

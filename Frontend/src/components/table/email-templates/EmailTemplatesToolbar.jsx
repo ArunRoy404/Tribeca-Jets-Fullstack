@@ -31,7 +31,9 @@ export default function EmailTemplatesToolbar({
   onBulkAction,
   onSendEmail,
   onNewTemplate,
+  mayCreate = false,
   mayManage = false,
+  mayArchive = false,
   maySend = false,
   showSentTab = false,
 }) {
@@ -91,7 +93,7 @@ export default function EmailTemplatesToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {mayManage && !isSent && (
+          {(mayArchive || mayManage) && !isSent && (
             <BulkDeleteButton
               count={selectedCount}
               itemLabel="templates"
@@ -105,7 +107,7 @@ export default function EmailTemplatesToolbar({
               <span>Send Email</span>
             </Button>
           )}
-          {mayManage && !isArchived && !isSent && (
+          {(mayCreate || mayManage) && !isArchived && !isSent && (
             <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" onClick={() => onNewTemplate?.()}>
               <Plus className="size-3.5" />
               <span>New Template</span>

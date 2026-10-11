@@ -22,11 +22,8 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import {
-  Permission,
-  Scope,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+import { reachOf, canDo, Reach } from '../../common/authorization/access.js';
+import { Module, Action } from '../../common/authorization/access.catalogue.js';
 import {
   OperatorQuoteStatus,
   TripRequestStatus,
@@ -229,7 +226,7 @@ export class OperatorQuotesService {
   private visibilityScope(
     user: AuthenticatedUser,
   ): Prisma.OperatorQuoteWhereInput {
-    if (scopeFor(user.role, Permission.VIEW_TRIPS) === Scope.ALL) return {};
+    if (reachOf(user.access, Module.OPERATOR_SOURCING) === Reach.ALL) return {};
     return {
       tripRequest: {
         OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }],
@@ -239,11 +236,12 @@ export class OperatorQuotesService {
 
   /** The enquiry must exist, be live, and be one the caller can see. */
   private async assertRequest(user: AuthenticatedUser, id: string) {
+    const isAll = reachOf(user.access, Module.OPERATOR_SOURCING) === Reach.ALL;
     const request = await this.prisma.tripRequest.findFirst({
       where: {
         id,
         deletedAt: null,
-        ...(scopeFor(user.role, Permission.VIEW_TRIPS) === Scope.ALL
+        ...(isAll
           ? {}
           : { OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }] }),
       },
@@ -319,7 +317,7 @@ export class OperatorQuotesService {
    * the operator's scorecard.
    */
   private assertMayArchive(user: AuthenticatedUser): void {
-    if (scopeFor(user.role, Permission.DELETE_TRIPS) !== Scope.ALL) {
+    if (!canDo(user.access, Module.OPERATOR_SOURCING, Action.ARCHIVE)) {
       throw new ForbiddenException(
         'Only administrators can remove a quote. Reject it instead.',
       );

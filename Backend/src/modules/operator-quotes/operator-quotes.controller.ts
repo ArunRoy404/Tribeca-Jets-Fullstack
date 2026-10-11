@@ -14,10 +14,10 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+  RequireAccess,
+  StaffOnly,
+} from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { OperatorQuotesService } from './operator-quotes.service.js';
@@ -33,10 +33,9 @@ import {
  * Operator sourcing — asking operators to price an enquiry, and comparing what
  * comes back (scope §6.7 and §6.9).
  *
- * Uses the trips permissions rather than a new pair, for the same reason trip
- * requests do: sourcing is a stage of a trip, not a separate thing a role
- * might be granted on its own. `VIEW_TRIPS` to read, `MANAGE_TRIPS` to write,
- * `DELETE_TRIPS` (administrators only) to archive.
+ * Uses per-user permissions:
+ * - Reads: open to any signed-in staff session (referral agents blocked by @StaffOnly).
+ * - Writes: @RequireAccess(Module.OPERATOR_SOURCING, Action.CREATE / EDIT / ARCHIVE).
  *
  * The state changes have their own endpoints rather than riding on PATCH.
  * Approving has to check that no other quote on the enquiry is already
@@ -45,12 +44,12 @@ import {
  * both.
  */
 @ApiTags('Operator Sourcing')
+@StaffOnly()
 @Controller('operator-quotes')
 export class OperatorQuotesController {
   constructor(private readonly quotes: OperatorQuotesService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'List operator quotes',
     description:
@@ -65,7 +64,6 @@ export class OperatorQuotesController {
 
   /** Before `:id` — Nest matches in order and would read it as an id. */
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Sourcing tiles',
     description:
@@ -76,7 +74,6 @@ export class OperatorQuotesController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Get one quote',
     description:
@@ -90,7 +87,7 @@ export class OperatorQuotesController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.CREATE)
   @ApiOperation({
     summary: 'Ask an operator to quote',
     description:
@@ -104,7 +101,7 @@ export class OperatorQuotesController {
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.EDIT)
   @ApiOperation({
     summary: 'Edit a quote',
     description:
@@ -120,7 +117,7 @@ export class OperatorQuotesController {
 
   @Post(':id/response')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.EDIT)
   @ApiOperation({
     summary: 'Record the operator’s response',
     description:
@@ -136,7 +133,7 @@ export class OperatorQuotesController {
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.EDIT)
   @ApiOperation({
     summary: 'Approve a quote',
     description:
@@ -152,7 +149,7 @@ export class OperatorQuotesController {
 
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.EDIT)
   @ApiOperation({
     summary: 'Reject a quote',
     description:
@@ -168,7 +165,7 @@ export class OperatorQuotesController {
 
   @Post(':id/decline')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.EDIT)
   @ApiOperation({
     summary: 'Record that the operator declined',
     description:
@@ -184,7 +181,7 @@ export class OperatorQuotesController {
 
   @Post(':id/reopen')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.EDIT)
   @ApiOperation({
     summary: 'Undo a decision',
     description:
@@ -199,11 +196,11 @@ export class OperatorQuotesController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.DELETE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Archive several quotes',
     description:
-      'Administrators only. A broker who has stopped working a quote rejects it — removing it would quietly improve their own sourcing numbers.',
+      'Users with ARCHIVE access only. A broker who has stopped working a quote rejects it — removing it would quietly improve their own sourcing numbers.',
   })
   removeMany(
     @CurrentUser() user: AuthenticatedUser,
@@ -214,7 +211,7 @@ export class OperatorQuotesController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.DELETE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Restore several quotes',
     description:
@@ -229,7 +226,7 @@ export class OperatorQuotesController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.DELETE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Restore a quote',
     description:
@@ -244,11 +241,11 @@ export class OperatorQuotesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.DELETE_TRIPS)
+  @RequireAccess(Module.OPERATOR_SOURCING, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Archive a quote',
     description:
-      'Soft delete. Administrators only, and never the way to say "we are not going with them" — that is Reject, which keeps the quote in the comparison.',
+      'Soft delete. Users with ARCHIVE access only, and never the way to say "we are not going with them" — that is Reject, which keeps the quote in the comparison.',
   })
   remove(
     @CurrentUser() user: AuthenticatedUser,

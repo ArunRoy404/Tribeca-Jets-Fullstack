@@ -7,12 +7,12 @@ import { cn } from "@/lib/utils";
 
 const CELL = "p-3 font-montserrat text-[12px] whitespace-nowrap";
 
-/** One movement of money. Clicking it opens the bill it settles. */
+/** One movement of money. Clicking it opens the detail sheet drawer with action CTAs. */
 export default function TransactionsTableRow({ item, onOpen }) {
   return (
     <TableRow
-      className={cn("border-border transition-colors", item?.href && "cursor-pointer hover:bg-purple/5")}
-      onClick={() => item?.href && onOpen?.(item.href)}
+      className="border-border transition-colors cursor-pointer hover:bg-purple/5"
+      onClick={() => onOpen?.(item)}
     >
       <TableCell className={`${CELL} font-semibold text-foreground`}>{item?.date}</TableCell>
       <TableCell className="p-3">

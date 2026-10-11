@@ -19,7 +19,7 @@ import {
   useUpdateEmptyLeg,
 } from "@/hooks/empty-legs";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toEmptyLegRow } from "@/lib/emptyLeg";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { useEmptyLegsStore } from "@/store/useEmptyLegsStore";
@@ -37,8 +37,10 @@ export default function EmptyLegsContainer({ revealDelay = 0 }) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.OPERATOR_SOURCING);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.EMPTY_LEGS, Action.CREATE);
+  const mayEdit = canAccess(Module.EMPTY_LEGS, Action.EDIT);
+  const mayArchive = canAccess(Module.EMPTY_LEGS, Action.ARCHIVE);
 
   const openAddModal = useEmptyLegsStore((s) => s.openAddModal);
   const openEditModal = useEmptyLegsStore((s) => s.openEditModal);
@@ -76,18 +78,24 @@ export default function EmptyLegsContainer({ revealDelay = 0 }) {
   /** One definition of a row's menu, for the table and the cards alike. */
   const getRowActions = (leg) => {
     const view = { label: "View Matches", icon: <Eye />, onSelect: () => openDetails(leg?.id) };
-    if (!mayWrite) return [view];
     if (isArchived) {
-      return [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreLegs?.(leg?.id) }];
+      return mayArchive
+        ? [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreLegs?.(leg?.id) }]
+        : [view];
     }
 
     const move = (status) => () => updateLeg?.({ id: leg?.id, status });
-    const actions = [view, { label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(leg?.raw) }];
-    if (leg?.rawStatus !== "MATCHED") actions.push({ label: "Mark Matched", icon: <UserCheck />, onSelect: move("MATCHED") });
-    if (leg?.rawStatus !== "BOOKED") actions.push({ label: "Mark Booked", icon: <CalendarCheck />, onSelect: move("BOOKED") });
-    if (leg?.rawStatus !== "EXPIRED") actions.push({ label: "Mark Expired", icon: <Clock />, onSelect: move("EXPIRED") });
-    actions.push("separator");
-    actions.push({ label: "Archive", icon: <Trash2 />, variant: "destructive", onSelect: () => removeLegs?.(leg?.id) });
+    const actions = [view];
+    if (mayEdit) {
+      actions.push({ label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(leg?.raw) });
+      if (leg?.rawStatus !== "MATCHED") actions.push({ label: "Mark Matched", icon: <UserCheck />, onSelect: move("MATCHED") });
+      if (leg?.rawStatus !== "BOOKED") actions.push({ label: "Mark Booked", icon: <CalendarCheck />, onSelect: move("BOOKED") });
+      if (leg?.rawStatus !== "EXPIRED") actions.push({ label: "Mark Expired", icon: <Clock />, onSelect: move("EXPIRED") });
+    }
+    if (mayArchive) {
+      if (mayEdit) actions.push("separator");
+      actions.push({ label: "Archive", icon: <Trash2 />, variant: "destructive", onSelect: () => removeLegs?.(leg?.id) });
+    }
     return actions;
   };
 
@@ -106,7 +114,8 @@ export default function EmptyLegsContainer({ revealDelay = 0 }) {
           selectedCount={selected.size}
           onBulkAction={() => setBulkOpen(true)}
           onAddEmptyLeg={openAddModal}
-          mayWrite={mayWrite}
+          mayCreate={mayCreate}
+          mayArchive={mayArchive}
         />
 
         {isPending || error || isEmpty ? (
@@ -139,7 +148,7 @@ export default function EmptyLegsContainer({ revealDelay = 0 }) {
               onSelectAll={() =>
                 setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((row) => row?.id))))
               }
-              selectable={mayWrite}
+              selectable={mayArchive}
               archived={isArchived}
             />
 

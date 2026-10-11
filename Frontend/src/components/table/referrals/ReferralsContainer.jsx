@@ -17,7 +17,7 @@ import {
   useRestoreReferral,
 } from "@/hooks/referrals";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission, Scope } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toReferralRow } from "@/lib/referral";
 import { ARCHIVE_TABS } from "@/lib/archive";
 
@@ -31,10 +31,9 @@ export default function ReferralsContainer({ revealDelay = 0 }) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  // Archiving is an administrator's or senior broker's call; a broker marks a
-  // referral Lost or Cancelled instead. The checkbox column goes with it.
-  const { scopeFor } = usePermissions();
-  const mayArchive = scopeFor(Permission.MANAGE_REFERRALS) === Scope.ALL;
+  // Archiving is gated by per-person ARCHIVE permission on Referrals.
+  const { canAccess } = usePermissions();
+  const mayArchive = canAccess(Module.REFERRALS, Action.ARCHIVE);
 
   const [selected, setSelected] = useState(() => new Set());
   const [bulkOpen, setBulkOpen] = useState(false);

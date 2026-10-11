@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PortalCommissionStats, PortalReferralStats } from "@/components/portal/PortalStats";
 import RecentReferrals from "@/components/portal/RecentReferrals";
 import { useCurrentUser } from "@/hooks/auth";
+import { useBranding } from "@/hooks/settings";
 
 /**
  * The partner portal's Dashboard (#11): the agent's own figures — referrals
@@ -17,6 +18,8 @@ import { useCurrentUser } from "@/hooks/auth";
 export default function PortalDashboardPage() {
   const { data: me } = useCurrentUser();
 
+  const { data: branding } = useBranding();
+
   return (
     <div className="flex flex-col gap-6 px-4 sm:px-6 py-6 pb-8">
       <Reveal className="w-full">
@@ -26,7 +29,9 @@ export default function PortalDashboardPage() {
               {me?.firstName ? `Welcome, ${me.firstName}` : "Welcome"}
             </h2>
             <p className="font-montserrat text-[13px] text-muted-foreground">
-              Your referrals and commissions with Tribeca Jets.
+              {branding?.companyName
+                ? `Your referrals and commissions with ${branding.companyName}.`
+                : "Your referrals and commissions."}
             </p>
           </div>
           <Button render={<Link href="/portal/submit" />} nativeButton={false} className="gap-2">

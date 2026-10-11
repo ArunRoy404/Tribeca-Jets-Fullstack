@@ -30,8 +30,13 @@ export default function LeadDetailStats({ lead }) {
       <StatCard
         title="Lead Status"
         value={stage}
-        badgeText={stage !== "—" ? stage : null}
-        tone="info"
+        valueTone={
+          lead?.rawStage === "WON"
+            ? "success"
+            : lead?.rawStage === "LOST"
+              ? "destructive"
+              : "info"
+        }
       />
       <StatCard
         title="Assigned Broker"

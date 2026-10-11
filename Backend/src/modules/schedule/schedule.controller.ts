@@ -1,26 +1,28 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { StaffOnly } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { ScheduleService } from './schedule.service.js';
 import { QueryScheduleDto, ScheduleCalendarDto, ScheduleStatsDto } from './dto/schedule.dto.js';
 
 /**
- * Schedule (#13) — the calendar of trip legs, read-only.
+ * Schedule (#13 in scope, #18 in review queue) — the calendar of trip legs, read-only.
  *
- * VIEW_TRIPS, at the trip scope: a broker sees the legs of their own trips and
- * the unassigned ones, exactly as on the trips board. There are no writes —
- * a leg is moved, and a trip's status changed, on the trip.
+ * Open reads for staff sessions, scoped by reachOf(user.access, Module.TRIPS):
+ * a broker sees the legs of their own trips and the unassigned ones, exactly as
+ * on the trips board. There are no writes — a leg is moved, and a trip's status
+ * changed, on the trip. Staff-only: referral agents are refused (403).
  */
 @ApiTags('Schedule')
 @Controller('schedule')
+@UseGuards(AccessGuard)
+@StaffOnly()
 export class ScheduleController {
   constructor(private readonly schedule: ScheduleService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Legs departing in a window',
     description:
@@ -31,7 +33,6 @@ export class ScheduleController {
   }
 
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Calendar tiles',
     description:
@@ -42,7 +43,6 @@ export class ScheduleController {
   }
 
   @Get('calendar')
-  @RequirePermissions(Permission.VIEW_TRIPS)
   @ApiOperation({
     summary: 'Legs counted per day for a year',
     description:

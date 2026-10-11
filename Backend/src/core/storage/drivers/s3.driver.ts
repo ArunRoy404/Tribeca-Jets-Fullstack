@@ -80,8 +80,15 @@ export class S3StorageDriver implements StorageDriver {
         new GetObjectCommand({ Bucket: this.bucket, Key: key }),
       );
       return res.Body as Readable;
-    } catch {
-      throw new NotFoundException(`File not found: ${key}`);
+    } catch (error) {
+      // Only a missing object is a 404. Anything else — bad credentials, R2
+      // unreachable — is an outage and must surface as one; reporting it as
+      // "file not found" sends someone hunting for a file that is fine.
+      if ((error as { name?: string }).name === 'NoSuchKey') {
+        this.logger.warn(`Object missing from bucket ${this.bucket}: ${key}`);
+        throw new NotFoundException('That file does not exist.');
+      }
+      throw error;
     }
   }
 

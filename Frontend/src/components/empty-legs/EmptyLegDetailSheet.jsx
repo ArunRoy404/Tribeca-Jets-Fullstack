@@ -16,7 +16,7 @@ import {
   useUpdateEmptyLeg,
 } from "@/hooks/empty-legs";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toEmptyLegDetail } from "@/lib/emptyLeg";
 import { useEmptyLegsStore } from "@/store/useEmptyLegsStore";
 import { cn } from "@/lib/utils";
@@ -35,8 +35,9 @@ export default function EmptyLegDetailSheet() {
   const { data, isPending, error, refetch } = useEmptyLeg(id);
   const leg = data ? toEmptyLegDetail(data) : null;
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.OPERATOR_SOURCING);
+  const { canAccess } = usePermissions();
+  const mayEdit = canAccess(Module.EMPTY_LEGS, Action.EDIT);
+  const mayArchive = canAccess(Module.EMPTY_LEGS, Action.ARCHIVE);
   const openEditModal = useEmptyLegsStore((s) => s.openEditModal);
 
   const { mutate: updateLeg, isPending: moving } = useUpdateEmptyLeg();
@@ -99,7 +100,7 @@ export default function EmptyLegDetailSheet() {
             </div>
           )}
 
-          {mayWrite && !leg.isArchived && (
+          {mayEdit && !leg.isArchived && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
               <Button
                 variant="outline"
@@ -206,27 +207,33 @@ export default function EmptyLegDetailSheet() {
             )}
           </div>
 
-          {mayWrite && (
+          {(mayEdit || mayArchive) && (
             <div className="border-t border-border flex items-center justify-between pt-4 w-full mt-auto">
               {leg.isArchived ? (
-                <Button variant="outline" className="gap-2 px-5" onClick={() => restoreLeg(leg.id)}>
-                  <RotateCcw className="size-4" />
-                  Restore
-                </Button>
+                mayArchive && (
+                  <Button variant="outline" className="gap-2 px-5" onClick={() => restoreLeg(leg.id)}>
+                    <RotateCcw className="size-4" />
+                    Restore
+                  </Button>
+                )
               ) : (
                 <>
-                  <Button variant="outline" className="gap-2 px-5" onClick={() => openEditModal(data)}>
-                    <Edit className="size-4" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-destructive text-destructive hover:bg-destructive/10 gap-2 px-5"
-                    onClick={() => removeLeg(leg.id, { onSuccess: close })}
-                  >
-                    <Trash2 className="size-4" />
-                    Archive
-                  </Button>
+                  {mayEdit && (
+                    <Button variant="outline" className="gap-2 px-5" onClick={() => openEditModal(data)}>
+                      <Edit className="size-4" />
+                      Edit
+                    </Button>
+                  )}
+                  {mayArchive && (
+                    <Button
+                      variant="outline"
+                      className="border-destructive text-destructive hover:bg-destructive/10 gap-2 px-5 ml-auto"
+                      onClick={() => removeLeg(leg.id, { onSuccess: close })}
+                    >
+                      <Trash2 className="size-4" />
+                      Archive
+                    </Button>
+                  )}
                 </>
               )}
             </div>

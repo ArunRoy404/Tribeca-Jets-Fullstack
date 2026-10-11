@@ -1,3 +1,4 @@
+import { formatPaymentTerms } from "@/lib/operator";
 import { toArchiveFields } from "@/lib/archive";
 import { formatCalendarDate } from "@/lib/date";
 import { formatMoneyExact } from "@/lib/money";
@@ -56,7 +57,8 @@ export function toPayableRow(payable) {
     client: trip?.client ? displayName(trip.client) : DASH,
     operatorId: payable?.operatorId ?? null,
     operator: payable?.operator?.name ?? DASH,
-    paymentTerms: payable?.operator?.paymentTerms || null,
+    // The operator's terms as words ("Net 30") — an enum since Operators' review.
+    paymentTerms: formatPaymentTerms(payable?.operator?.paymentTerms),
     operatorReference: payable?.operatorReference || null,
     total: money(payable?.total),
     paid: money(payable?.paid),

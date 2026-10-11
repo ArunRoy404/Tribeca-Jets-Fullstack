@@ -7,6 +7,7 @@ export { useDocuments } from "./useDocuments";
 export { useDocument } from "./useDocument";
 export { useDocumentStats } from "./useDocumentStats";
 export { useCreateDocument } from "./useCreateDocument";
+export { useFileDocuments } from "./useFileDocuments";
 export { useUpdateDocument } from "./useUpdateDocument";
 export { useRemoveDocument } from "./useRemoveDocument";
 export { useRestoreDocument } from "./useRestoreDocument";

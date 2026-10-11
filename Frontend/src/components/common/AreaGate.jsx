@@ -27,6 +27,7 @@ export default function AreaGate({ area, children }) {
   const { data: user, isPending } = useCurrentUser();
 
   const partner = isPartnerRole(user?.role);
+  // By the real role, whatever the temporary switch says — see `homeFor`.
   const misplaced = Boolean(user) && (area === "partner" ? !partner : partner);
 
   useEffect(() => {

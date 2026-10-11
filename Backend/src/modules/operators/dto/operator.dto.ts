@@ -9,7 +9,11 @@ import {
   nullableNumber,
   optionalNumber,
 } from '../../../common/dto/numbers.js';
-import { OperatorStatus } from '../../../generated/prisma/enums.js';
+import {
+  OperatorStatus,
+  PaymentTerms,
+  ResponseSpeed,
+} from '../../../generated/prisma/enums.js';
 
 /** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
 export const OPERATOR_SORTABLE_FIELDS = [
@@ -18,6 +22,7 @@ export const OPERATOR_SORTABLE_FIELDS = [
   'name',
   'status',
   'reliabilityRating',
+  'safetyRating',
 ] as const;
 
 /**
@@ -31,6 +36,9 @@ const RATING = { min: 0, max: 5 };
 
 const chipList = (max: number) =>
   z.array(z.string().trim().min(1).max(80)).max(max);
+
+/** Required on create, so an edit may change them but never clear them. */
+const keptText = (message: string, max: number) => z.string().trim().min(1, message).max(max);
 
 export const queryOperatorsSchema = paginationSchema
   .extend({
@@ -53,12 +61,8 @@ export const createOperatorSchema = z.object({
    * Everything below stays optional — a fleet is rarely catalogued the day an
    * operator is added, and forcing a rating or a policy just produces a guess.
    */
-  homeBase: z.string().trim().min(1, 'Home base is required').max(120),
-  primaryContact: z
-    .string()
-    .trim()
-    .min(1, 'A named contact is required')
-    .max(120),
+  homeBase: keptText('Home base is required', 120),
+  primaryContact: keptText('A named contact is required', 120),
   contactEmail: z.email('A valid contact email is required').toLowerCase().trim(),
 
   website: z.string().trim().max(200).optional(),
@@ -75,9 +79,13 @@ export const createOperatorSchema = z.object({
    * reads as the worst possible operator rather than an unrated one.
    */
   reliabilityRating: optionalNumber('Reliability must be between 0 and 5', RATING),
-  /** A certification, not a number: "ARG/US Platinum". */
-  safetyRating: z.string().trim().max(120).optional(),
-  responseSpeed: z.string().trim().max(60).optional(),
+  /**
+   * The desk's safety rating, 0–5 like reliability (owner's decision,
+   * 8 Oct 2026). Blank means "not rated" — never defaulted.
+   */
+  safetyRating: optionalNumber('Safety must be between 0 and 5', RATING),
+  /** The desk's judgment: FAST, AVERAGE or SLOW. */
+  responseSpeed: z.enum(ResponseSpeed).optional(),
 
   /**
    * Pasted verbatim from the operator's own terms, so it is a block of text
@@ -86,7 +94,8 @@ export const createOperatorSchema = z.object({
    * like `paymentTerms`, which really is "Net 30".
    */
   cancellationPolicy: z.string().trim().max(5_000).optional(),
-  paymentTerms: z.string().trim().max(120).optional(),
+  /** PREPAID, DUE_ON_RECEIPT, NET_7, NET_15 or NET_30. */
+  paymentTerms: z.enum(PaymentTerms).optional(),
   sourcingNotes: z.string().trim().max(2_000).optional(),
 });
 
@@ -104,24 +113,25 @@ export const updateOperatorSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
     status: z.enum(OperatorStatus).optional(),
-    homeBase: z.string().trim().max(120).nullable().optional(),
+    // Home base, contact name and email are required on create: changed, never cleared.
+    homeBase: keptText('Home base is required', 120).optional(),
     website: z.string().trim().max(200).nullable().optional(),
 
     generalEmail: z.email().toLowerCase().trim().nullable().optional(),
     generalPhone: z.string().trim().max(40).nullable().optional(),
-    primaryContact: z.string().trim().max(120).nullable().optional(),
-    contactEmail: z.email().toLowerCase().trim().nullable().optional(),
+    primaryContact: keptText('A named contact is required', 120).optional(),
+    contactEmail: z.email('A valid contact email is required').toLowerCase().trim().optional(),
     contactPhone: z.string().trim().max(40).nullable().optional(),
 
     aircraftTypes: chipList(40).optional(),
     serviceRoutes: chipList(40).optional(),
 
     reliabilityRating: nullableNumber('Reliability must be between 0 and 5', RATING),
-    safetyRating: z.string().trim().max(120).nullable().optional(),
-    responseSpeed: z.string().trim().max(60).nullable().optional(),
+    safetyRating: nullableNumber('Safety must be between 0 and 5', RATING),
+    responseSpeed: z.enum(ResponseSpeed).nullable().optional(),
 
     cancellationPolicy: z.string().trim().max(5_000).nullable().optional(),
-    paymentTerms: z.string().trim().max(120).nullable().optional(),
+    paymentTerms: z.enum(PaymentTerms).nullable().optional(),
     sourcingNotes: z.string().trim().max(2_000).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {

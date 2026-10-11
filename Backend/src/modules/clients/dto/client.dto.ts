@@ -60,7 +60,8 @@ const clientBaseSchema = z.object({
    */
   homeAirportId: z.uuid().nullable().optional(),
   leadSource: z.enum(LeadSource).default(LeadSource.DIRECT),
-  leadStage: z.enum(LeadStage).default(LeadStage.NEW),
+  /** Optional so the service applies the company settings default (`defaultLeadStage`). */
+  leadStage: z.enum(LeadStage).optional(),
   assignedBrokerId: z.uuid().optional(),
   originatingBrokerId: z.uuid().optional(),
   preferences: preferencesSchema.default({}),

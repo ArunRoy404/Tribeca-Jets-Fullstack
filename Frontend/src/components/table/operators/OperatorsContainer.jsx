@@ -24,6 +24,9 @@ import {
 } from "@/hooks/operators";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { toOperatorRow } from "@/lib/operator";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Action, Module } from "@/lib/access";
+import { Permission } from "@/lib/permissions";
 
 export default function OperatorsContainer({ revealDelay = 0 }) {
   const router = useRouter();
@@ -54,6 +57,15 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
   const { mutate: restoreOperator } = useRestoreOperator();
 
   const isArchived = params?.tab === ARCHIVE_TABS.ARCHIVED;
+
+  // Each control follows the person's own Operators permissions; the API
+  // refuses the same. Requesting a quote is Operator Sourcing's, still on the
+  // old matrix until its review — the same check the sourcing screen makes.
+  const { canAccess, canWrite } = usePermissions();
+  const mayCreate = canAccess(Module.OPERATORS, Action.CREATE);
+  const mayEdit = canAccess(Module.OPERATORS, Action.EDIT);
+  const mayArchive = canAccess(Module.OPERATORS, Action.ARCHIVE);
+  const mayRequestQuote = canWrite(Permission.MANAGE_TRIPS);
 
   // The selection holds ids; the dialog lists the rows behind them. Derived
   // from the current page, so a row removed underneath us simply drops out
@@ -93,30 +105,33 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
     router?.push(`/dashboard/operators/${id}`);
   };
 
-  const getRowActions = (op) =>
-    isArchived
-      ? [
-          { label: "View Details", icon: <Eye />, onSelect: () => handleOpenDetails(op?.id) },
-          {
-            label: "Restore Operator",
-            icon: <RotateCcw />,
-            onSelect: () => restoreOperator?.(op),
-          },
-        ]
-      : [
-          { label: "View Details", icon: <Eye />, onSelect: () => handleOpenDetails(op?.id) },
-          { label: "Edit Operator", icon: <Edit2 />, onSelect: () => openEditModal?.(op) },
-          // Sourcing a quote from an archived operator is not a thing anyone
-          // means to do, so it is absent rather than disabled.
-          { label: "Request Quote", icon: <Send />, onSelect: () => openQuoteModal?.(op) },
-          "separator",
-          {
-            label: "Remove Operator",
-            icon: <Trash2 />,
-            variant: "destructive",
-            onSelect: () => openDeleteModal?.(op),
-          },
-        ];
+  const getRowActions = (op) => {
+    const view = { label: "View Details", icon: <Eye />, onSelect: () => handleOpenDetails(op?.id) };
+    if (isArchived) {
+      return [
+        view,
+        mayArchive && { label: "Restore Operator", icon: <RotateCcw />, onSelect: () => restoreOperator?.(op) },
+      ].filter(Boolean);
+    }
+    return [
+      view,
+      mayEdit && { label: "Edit Operator", icon: <Edit2 />, onSelect: () => openEditModal?.(op) },
+      // Not for an archived operator (above) or a suspended one — "do not
+      // book until further notice" — so absent rather than disabled.
+      mayRequestQuote && !op?.isSuspended && {
+        label: "Request Quote",
+        icon: <Send />,
+        onSelect: () => openQuoteModal?.(op),
+      },
+      mayArchive && "separator",
+      mayArchive && {
+        label: "Remove Operator",
+        icon: <Trash2 />,
+        variant: "destructive",
+        onSelect: () => openDeleteModal?.(op),
+      },
+    ].filter(Boolean);
+  };
 
   return (
     <Reveal delay={revealDelay} className="w-full">
@@ -128,9 +143,9 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
           setStatusFilter={params?.setStatus}
           limit={params?.limit}
           setLimit={params?.setLimit}
-          onAddOperator={openAddModal}
+          onAddOperator={mayCreate ? openAddModal : undefined}
           selectedCount={selectedRows.length}
-          onBulkAction={() => setBulkOpen(true)}
+          onBulkAction={mayArchive ? () => setBulkOpen(true) : undefined}
           tab={params?.tab}
           setTab={params?.setTab}
         />
@@ -157,6 +172,7 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
             <div className="relative w-full lg:hidden">
               <OperatorsCardsContainer
                 operators={rows}
+                selectable={mayArchive}
                 selected={selected}
                 onToggleRow={toggleRow}
                 getRowActions={getRowActions}
@@ -166,6 +182,7 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
 
             <OperatorsTable
               archived={isArchived}
+              selectable={mayArchive}
               pageOperators={rows}
               selected={selected}
               onSelectAll={() =>

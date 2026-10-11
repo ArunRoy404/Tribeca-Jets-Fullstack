@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { RolesController } from './roles.controller.js';
 import { UsersController } from './users.controller.js';
 import { UsersService } from './users.service.js';
 import { TripsModule } from '../trips/trips.module.js';
@@ -10,7 +11,7 @@ import { TripsModule } from '../trips/trips.module.js';
  */
 @Module({
   imports: [TripsModule],
-  controllers: [UsersController],
+  controllers: [UsersController, RolesController],
   providers: [UsersService],
   exports: [UsersService],
 })

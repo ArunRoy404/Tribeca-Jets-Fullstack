@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { passwordSchema } from '../../auth/dto/verification.dto.js';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
 import {
   paginationSchema,
@@ -10,6 +11,7 @@ import {
   UserStatus,
 } from '../../../generated/prisma/enums.js';
 import { nullableNumber, optionalNumber } from '../../../common/dto/numbers.js';
+import { Action, Module } from '../../../common/authorization/access.js';
 
 /** Columns a caller may sort by. See `sortableBy` for why it is a closed list. */
 export const USER_SORTABLE_FIELDS = [
@@ -30,11 +32,21 @@ export const USER_SORTABLE_FIELDS = [
  */
 export const assignableRoleSchema = z.enum([
   UserRole.ADMIN,
-  UserRole.SENIOR_BROKER,
   UserRole.BROKER,
   UserRole.ASSISTANT,
   UserRole.REFERRAL_AGENT,
 ]);
+
+/**
+ * One person's permissions: the actions ticked per module,
+ * `{ "QUOTES": ["VIEW", "SEND"] }`. A module left out has no access. What the
+ * role may never hold is refused by the service, which also adds VIEW and
+ * the modules a ticked one depends on — see `normaliseGrants`.
+ */
+export const permissionsSchema = z.partialRecord(
+  z.enum(Module),
+  z.array(z.enum(Action)).max(Object.keys(Action).length),
+);
 
 /**
  * A referral agent's standard commission (#11). Only meaningful on a
@@ -70,19 +82,26 @@ export type QueryUsersInput = z.infer<typeof queryUsersSchema>;
 export class QueryUsersDto extends createZodDto(queryUsersSchema) {}
 
 /**
- * Invitation, not creation: no password is accepted here.
+ * An invitation carries the first password (owner's decision, 6 Oct 2026).
  *
- * The account is created in INVITED status with an unusable random password,
- * and the invitee sets a real one through the existing password-reset flow.
- * That way a password is never chosen by, transmitted to, or known by the
- * person doing the inviting.
+ * The administrator chooses it, the invitation email delivers it, and the
+ * account stays INVITED until that password is first used to sign in. Same
+ * policy as every other password. The trade-off is deliberate: the inviter
+ * knows it and it sits in an inbox, so the email tells the invitee to change
+ * it from My Account.
  */
 export const inviteUserSchema = z.object({
   email: z.email().toLowerCase().trim(),
+  password: passwordSchema,
   firstName: z.string().trim().min(1, 'First name is required').max(100),
   lastName: z.string().trim().min(1, 'Last name is required').max(100),
   phone: z.string().trim().max(40).optional(),
   role: assignableRoleSchema.default(UserRole.BROKER),
+  /**
+   * Omit for the role's defaults. Sending it needs Users & Roles · Change
+   * roles & permissions.
+   */
+  permissions: permissionsSchema.optional(),
   /**
    * A referral agent's standard commission, settable with the invitation so
    * the desk does not have to invite and then edit. Same rules as on update;
@@ -111,7 +130,14 @@ export const updateUserSchema = z
     firstName: z.string().trim().min(1).max(100).optional(),
     lastName: z.string().trim().min(1).max(100).optional(),
     phone: z.string().trim().max(40).nullable().optional(),
+    /**
+     * Changing the role without `permissions` resets them to the new role's
+     * defaults: the old role's ticks may include what the new one can never
+     * hold.
+     */
     role: assignableRoleSchema.optional(),
+    /** The full set — what is sent replaces what is stored. */
+    permissions: permissionsSchema.optional(),
     /** ACTIVE or SUSPENDED only — see `manageableStatusSchema`. */
     status: manageableStatusSchema.optional(),
     twoFactorEnabled: z.boolean().optional(),

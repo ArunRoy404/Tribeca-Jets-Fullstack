@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -24,7 +25,8 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import type { Prisma } from '../../generated/prisma/client.js';
+import { type Prisma, TripStatus } from '../../generated/prisma/client.js';
+import { isPartner } from '../../common/authorization/permissions.js';
 import type {
   CreateAirportInput,
   QueryAirportsInput,
@@ -97,7 +99,7 @@ export class AirportsService {
   }
 
   // The caller is not read here: reference data is the same rows for
-  // everyone signed in, and the guard has already settled access.
+  // everyone signed in — every read needs only a session.
   async findAll(query: QueryAirportsInput): Promise<Paginated<unknown>> {
     const { skip, take } = toPrismaPagination(query);
 
@@ -134,13 +136,67 @@ export class AirportsService {
    * equivalent. The Archived tab links here, so excluding them turned every
    * archived airport's detail into a 404.
    */
-  async findOne(id: string) {
+  async findOne(id: string, user?: AuthenticatedUser) {
     const row = await this.prisma.airport.findFirst({
       where: { id },
       select: AIRPORT_DETAIL_SELECT,
     });
     if (!row) throw new NotFoundException('Airport not found');
-    return this.serialise(row as AirportRow);
+    // A partner reads airports only to pick one; the desk's traffic is not
+    // theirs to see, so the count is absent rather than zero.
+    // Without a caller (another module resolving an airport) there is no
+    // screen to show it on, so it is not counted.
+    const trips = !user || isPartner(user.role) ? null : await this.countTripsThroughAirport(id);
+    return { ...this.serialise(row as AirportRow), trips };
+  }
+
+  private async countTripsThroughAirport(airportId: string) {
+    const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+    const where: Prisma.TripWhereInput = {
+      deletedAt: null,
+      status: { not: TripStatus.CANCELLED },
+      legs: {
+        some: {
+          deletedAt: null,
+          OR: [{ originAirportId: airportId }, { destinationAirportId: airportId }],
+        },
+      },
+    };
+    const [total, thisYear] = await this.prisma.$transaction([
+      this.prisma.trip.count({ where }),
+      this.prisma.trip.count({ where: { ...where, departureDate: { gte: yearStart } } }),
+    ]);
+    return { total, thisYear };
+  }
+
+  /**
+   * An airport another module is about to use — picked in a form, sent in a
+   * body. Live, or a 400 naming the field: "does not exist" for an id that
+   * matches nothing, "archived" for one that was removed, because the fix
+   * for each is different (AGENTS.md, "say archived when it is archived").
+   *
+   * The server's half of "a write re-checks what was picked": the picker
+   * offers only live airports, but nothing stops a stale form or a direct
+   * call from sending an archived one.
+   */
+  async usable(id: string, label: string) {
+    const row = await this.prisma.airport.findFirst({
+      where: { id },
+      select: { id: true, icao: true, name: true, latitude: true, longitude: true, deletedAt: true },
+    });
+    if (!row) throw new BadRequestException(`That ${label} airport does not exist`);
+    if (row.deletedAt) {
+      throw new BadRequestException(
+        `${row.icao} has been archived. Restore it on the Airports screen, or pick another ${label} airport.`,
+      );
+    }
+    return {
+      id: row.id,
+      icao: row.icao,
+      name: row.name,
+      latitude: row.latitude === null ? null : Number(row.latitude),
+      longitude: row.longitude === null ? null : Number(row.longitude),
+    };
   }
 
   /** The four tiles above the airports table. */

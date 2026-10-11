@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button";
 import { useTasksStore } from "@/store/useTasksStore";
 import { useDebouncedParam } from "@/hooks/common/useTableQueryParams";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { TASK_VIEWS, formatTaskView } from "@/lib/task";
 
 const VIEW_BY_LABEL = Object.fromEntries(TASK_VIEWS.map((view) => [formatTaskView(view), view]));
 
 export default function TasksToolbar({ params }) {
   const openAddModal = useTasksStore((s) => s.openAddModal);
-  const { canWrite } = usePermissions();
+  const { canAccess } = usePermissions();
   const [draft, setDraft] = useDebouncedParam(params?.search, params?.setSearch);
 
   return (
@@ -35,7 +35,7 @@ export default function TasksToolbar({ params }) {
         />
       </div>
 
-      {canWrite(Permission.MANAGE_TASKS) && !params?.archived && (
+      {canAccess(Module.TASKS, Action.CREATE) && !params?.archived && (
         <Button className="gap-2 px-4 shrink-0" onClick={() => openAddModal()}>
           <Plus className="size-4" />
           Add Task

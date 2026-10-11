@@ -1,5 +1,6 @@
 "use client";
 
+import BrandLogo from "@/components/common/BrandLogo";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -51,12 +52,10 @@ export default function FullPageLoader({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7, delay: 0.05, ease: EASE }}
         >
-          <Image
-            src="/auth/img/logo-splash.svg"
-            alt="Tribeca Jets"
+          <BrandLogo
+            fallbackSrc="/auth/img/logo-splash.svg"
             width={400}
             height={238}
-            priority
             className="h-auto w-[160px] sm:w-[200px]"
           />
         </motion.div>

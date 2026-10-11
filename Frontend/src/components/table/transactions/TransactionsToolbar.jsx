@@ -16,9 +16,8 @@ const ORDER_BY_LABEL = Object.fromEntries(Object.entries(ORDER).map(([value, lab
 
 /**
  * The ledger's filters, all in the URL: search, type, a date range by the day
- * the money moved, and the order. There is no Add button and no bulk action —
- * the ledger is read-only; money is recorded on its bill. The old screen's
- * Record Payment and Delete are gone with the dummy data they wrote to.
+ * the money moved, and the order. All controls match the compact toolbar pill style
+ * with mutual From/To date validation.
  */
 export default function TransactionsToolbar({
   search,
@@ -39,8 +38,18 @@ export default function TransactionsToolbar({
   const [draft, setDraft] = useDebouncedParam(search, setSearch);
   const kindFilter = useEnumFilter(MOVEMENT_KINDS, formatMovementKind, ALL_KINDS);
 
+  const isRangeInvalid = Boolean(from && to && from > to);
+
+  const handleFromChange = (value) => {
+    setFrom?.(value ?? "");
+  };
+
+  const handleToChange = (value) => {
+    setTo?.(value ?? "");
+  };
+
   return (
-    <div className="relative flex flex-col gap-3 p-4 w-full bg-sidebar border-b border-border">
+    <div className="relative flex flex-col gap-2 p-3 sm:p-4 w-full bg-sidebar border-b border-border">
       <div className="flex flex-wrap items-center gap-2">
         <SearchInput
           size="sm"
@@ -54,6 +63,25 @@ export default function TransactionsToolbar({
           options={kindFilter.options}
           onChange={(label) => setKind?.(kindFilter.valueByLabel[label] ?? "")}
         />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <DatePicker
+            size="sm"
+            value={from}
+            maxDate={to || undefined}
+            onChange={handleFromChange}
+            placeholder="From"
+            className={isRangeInvalid ? "border-destructive text-destructive" : ""}
+          />
+          <span className="text-[10px] text-muted-foreground font-medium">to</span>
+          <DatePicker
+            size="sm"
+            value={to}
+            minDate={from || undefined}
+            onChange={handleToChange}
+            placeholder="To"
+            className={isRangeInvalid ? "border-destructive text-destructive" : ""}
+          />
+        </div>
         <FilterDropdown
           label={ORDER.desc}
           value={ORDER[sortOrder] ?? ORDER.desc}
@@ -61,21 +89,26 @@ export default function TransactionsToolbar({
           onChange={(label) => setSortOrder?.(ORDER_BY_LABEL[label] ?? "desc")}
         />
         <PageSizeSelect value={limit} onChange={setLimit} />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="w-full sm:w-44">
-          <DatePicker value={from} onChange={(value) => setFrom?.(value ?? "")} placeholder="From" />
-        </div>
-        <div className="w-full sm:w-44">
-          <DatePicker value={to} onChange={(value) => setTo?.(value ?? "")} placeholder="To" />
-        </div>
+
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="gap-1.5" onClick={onClear}>
-            <X className="size-3.5" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-[10px] gap-1 px-2 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+            onClick={onClear}
+          >
+            <X className="size-3" />
             Clear filters
           </Button>
         )}
       </div>
+
+      {isRangeInvalid && (
+        <p className="font-montserrat text-[11px] font-medium text-destructive">
+          From date ({from}) must be on or before To date ({to}).
+        </p>
+      )}
     </div>
   );
 }
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -10,11 +10,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import FilterTabs from "@/components/table/common/FilterTabs";
-import PickerSelect from "@/components/trips/PickerSelect";
+import AirportPicker from "@/components/airports/AirportPicker";
 import SuggestedPricePicker from "@/components/quotes/pricing/SuggestedPricePicker";
 import CharterRatesEditor from "@/components/quotes/estimate/CharterRatesEditor";
-import { useAirports } from "@/hooks/airports";
 import { useCharterEstimate } from "@/hooks/charter-rates";
 import { useQuotesStore } from "@/store/useQuotesStore";
 import { formatAircraftCategory } from "@/lib/aircraft";
@@ -40,8 +40,10 @@ const FIELD_CLASS = "h-10 text-[13px]";
  * The estimate is not written into the quote's operator cost: that field is
  * what the operator actually charges, and an estimate sitting in it would be
  * read later as a real price.
+ *
+ * `mayStartQuote` hides "Start a quote" for someone who cannot create quotes.
  */
-export default function InstantEstimateDialog() {
+export default function InstantEstimateDialog({ mayStartQuote = true }) {
   const open = useQuotesStore((s) => s.estimateModalOpen);
   const close = useQuotesStore((s) => s.closeEstimateModal);
   const openAddQuoteModal = useQuotesStore((s) => s.openAddQuoteModal);
@@ -55,24 +57,16 @@ export default function InstantEstimateDialog() {
   const [selected, setSelected] = useState(null);
   const [basePrice, setBasePrice] = useState("");
 
-  const { data: airports } = useAirports({ limit: 100 }, { enabled: open });
-  const airportOptions = useMemo(
-    () =>
-      (airports?.data ?? []).map((a) => ({
-        value: a.id,
-        label: `${a.icao} · ${a.city ?? a.name}`,
-      })),
-    [airports?.data],
-  );
-
-  const { mutate: estimate, isPending } = useCharterEstimate();
+  const { mutate: estimate, isPending, error } = useCharterEstimate();
   const party = optionalNumber(passengers);
   const ready = Boolean(originAirportId && destinationAirportId && originAirportId !== destinationAirportId);
 
-  // Re-estimate as the inputs settle. The result is only shown while it
-  // still describes the route on screen (see `current` below).
+  // Re-estimate as the inputs settle, and on returning from the Rates tab —
+  // a rate an administrator just saved must show in the next estimate. The
+  // result is only shown while it still describes the route on screen (see
+  // `current` below).
   useEffect(() => {
-    if (!open || !ready) return undefined;
+    if (!open || !ready || tab !== "Estimate") return undefined;
     const handle = setTimeout(() => {
       estimate(
         { originAirportId, destinationAirportId, passengers: party, roundTrip },
@@ -80,7 +74,7 @@ export default function InstantEstimateDialog() {
       );
     }, 300);
     return () => clearTimeout(handle);
-  }, [open, ready, originAirportId, destinationAirportId, party, roundTrip, estimate]);
+  }, [open, ready, tab, originAirportId, destinationAirportId, party, roundTrip, estimate]);
 
   const current =
     ready &&
@@ -90,7 +84,15 @@ export default function InstantEstimateDialog() {
     (result?.passengers ?? undefined) === party
       ? result
       : null;
-  const chosen = current?.options?.find((o) => o?.category === selected && o?.estimate) ?? null;
+  // While the next estimate for the same route is on its way — passengers or
+  // round trip changed — the last one stays on screen, dimmed, so the dialog
+  // keeps its height instead of collapsing and growing back. A new route has
+  // no figures worth showing, so it gets the skeleton instead.
+  const sameRoute =
+    result?.origin?.id === originAirportId && result?.destination?.id === destinationAirportId;
+  const shown = current ?? (ready && sameRoute && !error ? result : null);
+  const refreshing = Boolean(shown) && !current;
+  const chosen = shown?.options?.find((o) => o?.category === selected && o?.estimate) ?? null;
 
   const handleClose = () => {
     setTab("Estimate");
@@ -135,20 +137,18 @@ export default function InstantEstimateDialog() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="flex flex-col gap-1.5 font-montserrat text-[12px] font-medium text-foreground">
                 From
-                <PickerSelect
+                <AirportPicker
                   value={originAirportId}
                   onChange={setOrigin}
-                  options={airportOptions}
                   placeholder="Departure airport"
                   className={FIELD_CLASS}
                 />
               </label>
               <label className="flex flex-col gap-1.5 font-montserrat text-[12px] font-medium text-foreground">
                 To
-                <PickerSelect
+                <AirportPicker
                   value={destinationAirportId}
                   onChange={setDestination}
-                  options={airportOptions}
                   placeholder="Arrival airport"
                   className={FIELD_CLASS}
                 />
@@ -187,26 +187,31 @@ export default function InstantEstimateDialog() {
               <p className="font-montserrat text-[13px] text-muted-foreground py-4">
                 Choose where the trip starts and where it goes.
               </p>
-            ) : !current ? (
-              <div className="flex items-center gap-2 py-4 text-muted-foreground font-montserrat text-[13px]">
-                {isPending && <Loader2 className="size-4 animate-spin" />}
-                {isPending ? "Estimating…" : "No estimate for this route."}
-              </div>
+            ) : !shown ? (
+              error ? (
+                <p className="py-4 font-montserrat text-[13px] text-destructive">{error.message}</p>
+              ) : (
+                <EstimateSkeleton count={result?.options?.length} />
+              )
             ) : (
-              <>
+              <div
+                aria-busy={refreshing}
+                className={cn("flex flex-col gap-4 transition-opacity", refreshing && "opacity-60 pointer-events-none")}
+              >
                 <p className="font-montserrat text-[13px] text-foreground">
                   <span className="font-semibold">
-                    {current.origin?.icao} → {current.destination?.icao}
+                    {shown.origin?.icao} → {shown.destination?.icao}
                   </span>{" "}
-                  · {current.distanceNm?.toLocaleString()} nm great-circle
-                  {current.legs === 2 ? " · round trip, 2 legs" : " · one way"}
+                  · {shown.distanceNm?.toLocaleString()} nm great-circle
+                  {shown.legs === 2 ? " · round trip, 2 legs" : " · one way"}
+                  {refreshing ? <Loader2 className="inline size-3.5 ml-2 animate-spin text-muted-foreground" /> : null}
                   <span className="block text-[11px] text-muted-foreground">
                     Winds, routing and positioning legs are not included.
                   </span>
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {current.options?.map((option) => (
+                  {shown.options?.map((option) => (
                     <EstimateOption
                       key={option?.category}
                       option={option}
@@ -237,20 +242,48 @@ export default function InstantEstimateDialog() {
                 )}
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 pt-2 border-t border-border">
-                  <span className="font-montserrat text-[11px] text-muted-foreground sm:mr-auto">
-                    The quote opens with the route{basePrice ? " and the chosen price" : ""}; the operator cost stays
-                    empty until the operator quotes.
-                  </span>
-                  <Button type="button" onClick={startQuote} className="h-10 px-4 text-[13px]">
-                    Start a quote
-                  </Button>
+                  {mayStartQuote ? (
+                    <span className="font-montserrat text-[11px] text-muted-foreground sm:mr-auto">
+                      The quote opens with the route{basePrice ? " and the chosen price" : ""}; the operator cost stays
+                      empty until the operator quotes.
+                    </span>
+                  ) : null}
+                  {mayStartQuote ? (
+                    <Button type="button" onClick={startQuote} className="h-10 px-4 text-[13px]">
+                      Start a quote
+                    </Button>
+                  ) : null}
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Holds the estimate's place on a new route — the same header line, a card
+ * per category and the footer — so the dialog is the height it will be.
+ */
+function EstimateSkeleton({ count = 7 }) {
+  return (
+    <div className="flex flex-col gap-4" aria-busy aria-label="Estimating">
+      <Skeleton className="h-4 w-3/5" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {Array.from({ length: count }, (_, index) => (
+          <div key={index} className="flex flex-col gap-2 p-3 rounded-md border border-input">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-end pt-2 border-t border-border">
+        <Skeleton className="h-10 w-28" />
+      </div>
+    </div>
   );
 }
 

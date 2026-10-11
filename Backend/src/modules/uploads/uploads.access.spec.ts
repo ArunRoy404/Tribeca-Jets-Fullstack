@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { UserRole, UploadVisibility } from '../../generated/prisma/enums.js';
 import {
   administersUsers,
+  mayManage,
   mayRead,
   visibilityWhere,
   type UploadAccessFacts,
@@ -121,6 +122,37 @@ describe('the list filter agrees with the row check', () => {
           expect(sqlWouldMatch, JSON.stringify(row)).toBe(mayRead(barry, row));
         }
       }
+    }
+  });
+});
+
+describe('who may remove or restore an upload', () => {
+  it('lets the uploader and administrators remove a file', () => {
+    expect(mayManage(admin, marksTaxForm)).toBe(true);
+    expect(mayManage(superAdmin, marksTaxForm)).toBe(true);
+    const barrysOwn = { ...marksTaxForm, ownerUserId: null, uploadedById: barry.id };
+    expect(mayManage(barry, barrysOwn)).toBe(true);
+  });
+
+  /** Read is wide for a PUBLIC file; removal must not follow it. */
+  it('does not let a broker remove a public photo they can read', () => {
+    expect(mayRead(mark, brochure)).toBe(true);
+    expect(mayManage(mark, brochure)).toBe(false);
+    expect(mayManage(assistant, brochure)).toBe(false);
+  });
+
+  it('does not let the person a document is filed about remove it', () => {
+    expect(mayRead(mark, marksTaxForm)).toBe(true);
+    expect(mayManage(mark, marksTaxForm)).toBe(false);
+  });
+});
+
+describe('administrators are decided by the stored role', () => {
+  it('is SUPER_ADMIN and ADMIN, and no one else', () => {
+    expect(administersUsers(admin)).toBe(true);
+    expect(administersUsers(superAdmin)).toBe(true);
+    for (const actor of [mark, assistant, { id: 'agent-1', role: UserRole.REFERRAL_AGENT }]) {
+      expect(administersUsers(actor), actor.role).toBe(false);
     }
   });
 });

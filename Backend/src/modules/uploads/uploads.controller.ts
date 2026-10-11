@@ -52,6 +52,32 @@ import { MAX_UPLOAD_BYTES, UPLOAD_KIND_RULES, contentDisposition } from './uploa
  * Reads still require a session — `JwtAuthGuard` is global and nothing here is
  * `@Public()` — so there is no unauthenticated path to any stored object.
  */
+/** The fields beside the bytes — the same on both upload routes. */
+const FIELD_PROPERTIES = {
+  visibility: {
+    type: 'string',
+    enum: ['PUBLIC', 'PRIVATE'],
+    default: 'PRIVATE',
+    description:
+      'Who may fetch it afterwards. PUBLIC is any signed-in user — aircraft photographs, brochures, logos. '
+      + 'PRIVATE is the uploader, the user named in ownerUserId, and SUPER_ADMIN / ADMIN. Defaults to PRIVATE '
+      + 'so the mistake is a brochure nobody can see, not a tax form everybody can. A referral agent may not '
+      + 'send PUBLIC.',
+  },
+  ownerUserId: {
+    type: 'string',
+    format: 'uuid',
+    description:
+      'The user this document is about, who may then read it. This is what files a 1099 into a broker\'s '
+      + 'folder. Naming anyone but yourself needs permission to manage users.',
+  },
+  label: {
+    type: 'string',
+    maxLength: 200,
+    description: 'A human name shown instead of the filename — "2025 Form 1099".',
+  },
+};
+
 @ApiTags('Uploads')
 @Controller('uploads')
 export class UploadsController {
@@ -76,27 +102,7 @@ export class UploadsController {
           format: 'binary',
           description: `An image. Accepted: ${UPLOAD_KIND_RULES.IMAGE.accept.join(', ')}. Maximum 15 MB.`,
         },
-        visibility: {
-          type: 'string',
-          enum: ['PUBLIC', 'PRIVATE'],
-          default: 'PRIVATE',
-          description:
-            'Who may fetch it afterwards. PUBLIC is any signed-in user — aircraft photographs, brochures, logos. '
-            + 'PRIVATE is the uploader, an administrator, and ownerUserId if given. Defaults to PRIVATE so the '
-            + 'mistake is a brochure nobody can see, not a tax form everybody can.',
-        },
-        ownerUserId: {
-          type: 'string',
-          format: 'uuid',
-          description:
-            'The user this document is about, who may then read it. This is what files a 1099 into a broker\'s '
-            + 'folder. Naming anyone but yourself needs permission to manage users.',
-        },
-        label: {
-          type: 'string',
-          maxLength: 200,
-          description: 'A human name shown instead of the filename — "2025 Form 1099".',
-        },
+        ...FIELD_PROPERTIES,
       },
     },
   })
@@ -131,8 +137,11 @@ export class UploadsController {
         file: {
           type: 'string',
           format: 'binary',
-          description: `A document. Accepted: ${UPLOAD_KIND_RULES.DOCUMENT.accept.join(', ')}. Maximum 25 MB.`,
+          description:
+            `Any file, maximum 25 MB. ${UPLOAD_KIND_RULES.DOCUMENT.accept.join(', ')} keep their own type; ` +
+            'anything else is stored as application/octet-stream and always downloads.',
         },
+        ...FIELD_PROPERTIES,
       },
     },
   })
@@ -140,8 +149,9 @@ export class UploadsController {
     summary: 'Upload a document',
     description:
       'Stores the file under `documents/` and returns the URL to save on whatever record is being edited. ' +
-      'Accepts PDF, DOCX, XLSX, CSV and plain text. Legacy .doc and .xls are refused — both are OLE2 and are ' +
-      'byte-identical at the header, so telling them apart would mean trusting the sender. ' +
+      'Accepts any file. PDF, DOCX, XLSX, CSV and plain text are recognised from their bytes and keep their type; ' +
+      'anything else (a zip, a legacy .xls, a scan) is stored as application/octet-stream and served as an ' +
+      'attachment, so it can never render on this origin. ' +
       'Re-uploading a file this user has already uploaded returns the existing record with `deduplicated: true`.',
   })
   @ApiResponse({ status: 201, type: UploadResponseDto })
@@ -224,8 +234,10 @@ export class UploadsController {
     description:
       'Archives the record; the bytes stay in storage. Nothing in this system is permanently deleted, ' +
       'and the object is content-addressed, so it may be shared with another user who uploaded the same file — ' +
-      'erasing it here would break a record this request never looked at.',
+      'erasing it here would break a record this request never looked at. ' +
+      'Only the uploader or an administrator may remove a file; anyone who cannot read it gets a 404.',
   })
+  @ApiResponse({ status: 403, description: 'The caller can read the file but did not upload it and is not an administrator.' })
   async remove(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -239,8 +251,10 @@ export class UploadsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Restore a removed file',
-    description: 'Clears the deletion stamp and touches nothing else.',
+    description:
+      'Clears the deletion stamp and touches nothing else. The same people who may remove a file may restore it.',
   })
+  @ApiResponse({ status: 403, description: 'The caller can read the file but did not upload it and is not an administrator.' })
   async restore(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

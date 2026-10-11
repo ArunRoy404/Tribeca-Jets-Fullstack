@@ -27,16 +27,21 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import {
-  Permission,
-  Scope,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+  Action,
+  Module,
+  Reach,
+} from '../../common/authorization/access.catalogue.js';
+import { canDo, reachOf } from '../../common/authorization/access.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
 import { FlightStatus, InvoiceStatus, TripStatus, TripType } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
+import { tallyTrips, tripFigures } from './trips.figures.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
+import { AirportsService } from '../airports/airports.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { TripPaymentState, todayUtc, tripPayment } from '../receivables/receivables.amounts.js';
 import { tripOperatorPayment } from '../operator-payments/operator-payments.amounts.js';
 import {
@@ -57,6 +62,15 @@ import type {
   TripWindow,
   UpdateTripInput,
 } from './dto/trip.dto.js';
+
+/** A trip's price inputs — everything `priceQuote` reads, and nothing else. */
+const PRICING_SELECT = {
+  basePrice: true,
+  fetEnabled: true,
+  fetRate: true,
+  operatorCost: true,
+  lineItems: true,
+} as const;
 
 const ACTOR_SELECT = {
   select: { id: true, firstName: true, lastName: true, email: true },
@@ -327,6 +341,8 @@ export class TripsService {
     private readonly audit: AuditService,
     private readonly quotes: QuotesService,
     private readonly requests: TripRequestsService,
+    private readonly airports: AirportsService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ---- Scope ------------------------------------------------------------
@@ -337,35 +353,39 @@ export class TripsService {
    * a booking that arrived before anyone owned it must not disappear.
    */
   private visibilityScope(user: AuthenticatedUser): Prisma.TripWhereInput {
-    if (scopeFor(user.role, Permission.VIEW_TRIPS) === Scope.ALL) return {};
+    const reach = reachOf(user.access, Module.TRIPS);
+    if (reach === Reach.ALL) return {};
     return { OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }] };
   }
 
   private seesFinancials(user: AuthenticatedUser): boolean {
-    return scopeFor(user.role, Permission.VIEW_FINANCIALS) !== Scope.NONE;
+    return canDo(user.access, Module.TRIPS, Action.VIEW_MONEY);
   }
 
   /** Whether the caller may read what the trip's operators billed and were paid. */
   private seesOperatorPayments(user: AuthenticatedUser): boolean {
-    return scopeFor(user.role, Permission.VIEW_OPERATOR_PAYMENTS) !== Scope.NONE;
+    return canDo(user.access, Module.OPERATOR_PAYMENTS, Action.VIEW);
   }
 
   /** Whether the caller may read what the client has been billed and paid. */
   private seesReceivables(user: AuthenticatedUser): boolean {
-    return scopeFor(user.role, Permission.VIEW_RECEIVABLES) !== Scope.NONE;
+    return canDo(user.access, Module.RECEIVABLES, Action.VIEW);
   }
 
-  /** Reassigning a trip is an administrator's call, like a client's. */
+  /** Reassigning a trip is an administrator's call, or requires TRIPS ASSIGN. */
   private assertMayReassign(user: AuthenticatedUser): void {
-    if (scopeFor(user.role, Permission.MANAGE_TRIPS) !== Scope.ALL) {
+    if (
+      !isAdministrator(user.role) &&
+      !canDo(user.access, Module.TRIPS, Action.ASSIGN)
+    ) {
       throw new ForbiddenException(
-        'Only an administrator or senior broker can reassign a trip.',
+        'Only an administrator can reassign a trip.',
       );
     }
   }
 
   private assertMayArchive(user: AuthenticatedUser): void {
-    if (scopeFor(user.role, Permission.DELETE_TRIPS) !== Scope.ALL) {
+    if (!canDo(user.access, Module.TRIPS, Action.ARCHIVE)) {
       throw new ForbiddenException(
         'Only an administrator can archive a trip. Cancel it instead.',
       );
@@ -486,25 +506,15 @@ export class TripsService {
     }
   }
 
-  /** Every airport the legs name must be a live row — checked once, together. */
+  /** Every airport the legs name must be a live row — verified via shared AirportsService.usable. */
   private async assertAirports(legs: LegInput[], previous?: Set<string>): Promise<void> {
     const ids = [...new Set(legs.flatMap((leg) => [leg.originAirportId, leg.destinationAirportId]))]
       // An airport already on this trip is not re-checked: archiving it later
       // must not lock the trip (AGENTS.md, "validate a foreign key only when it
       // is actually changing").
       .filter((id) => !previous?.has(id));
-    if (ids.length === 0) return;
-    const rows = await this.prisma.airport.findMany({
-      where: { id: { in: ids } },
-      select: { id: true, icao: true, deletedAt: true },
-    });
-    const found = new Map(rows.map((row) => [row.id, row]));
     for (const id of ids) {
-      const row = found.get(id);
-      if (!row) throw new BadRequestException('One of the legs names an airport that does not exist');
-      if (row.deletedAt) {
-        throw new BadRequestException(`${row.icao} has been archived. Restore it, or choose another airport.`);
-      }
+      await this.airports.usable(id, 'airport');
     }
   }
 
@@ -666,43 +676,78 @@ export class TripsService {
         status: { in: [...REVENUE_STATUSES] },
         departureDate: { gte: from, lt: to },
       },
-      select: { basePrice: true, fetEnabled: true, fetRate: true, operatorCost: true, lineItems: true },
+      select: PRICING_SELECT,
     });
 
-    let revenue = 0;
-    let fet = 0;
-    let profit = 0;
-    let profitRevenue = 0;
-    let priced = 0;
-    let profitKnown = 0;
-    for (const row of rows) {
-      if (row.basePrice === null) continue;
-      const figures = priceQuote({ ...row, basePrice: row.basePrice });
-      priced += 1;
-      revenue += toCents(figures.totalPrice);
-      fet += toCents(figures.fetAmount);
-      if (figures.grossProfit !== null) {
-        profit += toCents(figures.grossProfit);
-        profitRevenue += toCents(figures.totalPrice);
-        profitKnown += 1;
-      }
-    }
-
+    const tally = tallyTrips(rows.map(tripFigures));
     const financials = this.seesFinancials(user);
     return {
-      tripCount: rows.length,
-      pricedCount: priced,
-      revenue: fromCents(revenue),
-      fet: fromCents(fet),
-      profit: financials ? fromCents(profit) : undefined,
-      profitTripCount: financials ? profitKnown : undefined,
+      tripCount: tally.tripCount,
+      pricedCount: tally.pricedCount,
+      revenue: tally.revenue,
+      fet: tally.fet,
+      profit: financials ? tally.profit : undefined,
+      profitTripCount: financials ? tally.profitTripCount : undefined,
       /** Profit over the revenue of the same trips, to one decimal; null with nothing to divide. */
-      marginPercentage: financials
-        ? profitRevenue > 0
-          ? Math.round((profit / profitRevenue) * 1000) / 10
-          : null
-        : undefined,
+      marginPercentage: financials ? tally.marginPercentage : undefined,
     };
+  }
+
+  // ---- Reports (#23) ------------------------------------------------------
+  //
+  // Reports stores nothing and prices nothing: it reads trips here, in the
+  // trip scope, each with its own computed figures, and aggregates them.
+
+  /**
+   * Booked and flown trips — the revenue statuses — departing in
+   * `[from, to)`, or every one when no window is given, each with the
+   * facts a report groups by and its computed figures (null when unpriced).
+   * Oldest departure first, so an export reads as a ledger.
+   */
+  async reportRows(user: AuthenticatedUser, window: { from: Date; to: Date } | null) {
+    const rows = await this.prisma.trip.findMany({
+      where: {
+        deletedAt: null,
+        ...this.visibilityScope(user),
+        status: { in: [...REVENUE_STATUSES] },
+        ...(window ? { departureDate: { gte: window.from, lt: window.to } } : {}),
+      },
+      orderBy: [{ departureDate: 'asc' }, { reference: 'asc' }],
+      select: {
+        ...PRICING_SELECT,
+        id: true,
+        reference: true,
+        status: true,
+        departureDate: true,
+        aircraftDescription: true,
+        client: { select: { id: true, firstName: true, lastName: true, companyName: true } },
+        assignedBroker: { select: { id: true, firstName: true, lastName: true } },
+        operator: { select: { id: true, name: true } },
+        aircraft: { select: { id: true, tailNumber: true, model: true } },
+        legs: {
+          orderBy: { sequence: 'asc' },
+          take: 1,
+          select: {
+            originAirport: { select: { id: true, icao: true, iata: true } },
+            destinationAirport: { select: { id: true, icao: true, iata: true } },
+          },
+        },
+      },
+    });
+
+    return rows.map(({ basePrice, fetEnabled, fetRate, operatorCost, lineItems, legs, ...trip }) => ({
+      ...trip,
+      /** The first leg's origin and destination — a round trip reads as its outbound. */
+      route: legs[0] ? { origin: legs[0].originAirport, destination: legs[0].destinationAirport } : null,
+      figures: tripFigures({ basePrice, fetEnabled, fetRate, operatorCost, lineItems }),
+    }));
+  }
+
+  /** How many trips `reportRows(user, null)` would return — every operation on record. */
+  async reportCount(user: AuthenticatedUser): Promise<number> {
+    return this.prisma.trip.count({
+      where: { deletedAt: null, ...this.visibilityScope(user), status: { in: [...REVENUE_STATUSES] } },
+    });
   }
 
   /** Trips still ahead of the desk whose first leg leaves today or later. */
@@ -731,6 +776,8 @@ export class TripsService {
       this.assertAirports(dto.legs),
     ]);
 
+    const settings = await this.settings.read();
+
     const trip = await this.prisma.$transaction(async (tx) => {
       const created = await tx.trip.create({
         data: {
@@ -747,8 +794,8 @@ export class TripsService {
           passengerCount: dto.passengerCount ?? null,
           departureDate: dto.legs[0]?.departureDate ?? null,
           basePrice: dto.basePrice ?? null,
-          fetEnabled: dto.fetEnabled,
-          ...(dto.fetRate !== undefined ? { fetRate: dto.fetRate } : {}),
+          fetEnabled: dto.fetEnabled !== undefined ? dto.fetEnabled : settings.applyFetByDefault,
+          fetRate: dto.fetRate !== undefined ? dto.fetRate : settings.defaultFetPercent / 100,
           operatorCost: dto.operatorCost ?? null,
           lineItems: (dto.lineItems ?? []) as Prisma.InputJsonValue,
           internalNotes: dto.internalNotes ?? null,
@@ -1522,6 +1569,31 @@ export class TripsService {
 
   async countByAircraft(aircraftIds: string[]) {
     return this.countBy('aircraftId', aircraftIds);
+  }
+
+  /**
+   * Live, uncancelled trips with a live leg departing from or arriving at one
+   * airport, for the airport's detail (#5's second pass). Desk-wide, like the
+   * operator and aircraft counts: a fact about the airport, not a list of
+   * trips. A round trip through the airport counts once.
+   */
+  async countThroughAirport(airportId: string) {
+    const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+    const where: Prisma.TripWhereInput = {
+      deletedAt: null,
+      status: { not: TripStatus.CANCELLED },
+      legs: {
+        some: {
+          deletedAt: null,
+          OR: [{ originAirportId: airportId }, { destinationAirportId: airportId }],
+        },
+      },
+    };
+    const [total, thisYear] = await this.prisma.$transaction([
+      this.prisma.trip.count({ where }),
+      this.prisma.trip.count({ where: { ...where, departureDate: { gte: yearStart } } }),
+    ]);
+    return { total, thisYear };
   }
 
   /** Active (not completed, not cancelled) trips per broker. */

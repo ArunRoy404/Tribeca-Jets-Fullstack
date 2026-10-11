@@ -19,7 +19,7 @@ import {
   useWithdrawPayment,
 } from "@/hooks/receivables";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission, Scope } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { formatInvoiceStatus, toReceivableRow } from "@/lib/receivable";
 import { useReceivablesStore } from "@/store/useReceivablesStore";
 
@@ -36,9 +36,10 @@ export default function ReceivableDetailSheet() {
   const { data, isPending, error, refetch } = useReceivable(id);
   const item = data ? toReceivableRow(data) : null;
 
-  const { canWrite, scopeFor } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_RECEIVABLES);
-  const mayArchive = scopeFor(Permission.MANAGE_RECEIVABLES) === Scope.ALL;
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.RECEIVABLES, Action.CREATE);
+  const mayPay = canAccess(Module.RECEIVABLES, Action.PAY);
+  const mayArchive = canAccess(Module.RECEIVABLES, Action.ARCHIVE);
 
   const openEditModal = useReceivablesStore((s) => s.openEditModal);
   const openPaymentModal = useReceivablesStore((s) => s.openPaymentModal);
@@ -51,7 +52,7 @@ export default function ReceivableDetailSheet() {
 
   const close = () => params.setInvoice("");
   const live = item && !item.isArchived;
-  const mayTouchPayments = live && mayWrite && item.rawStatus === "SENT";
+  const mayTouchPayments = live && mayPay && item.rawStatus === "SENT";
 
   return (
     <DetailSheet open={Boolean(id)} onOpenChange={(open) => !open && close()} resetKey={id}>
@@ -122,7 +123,7 @@ export default function ReceivableDetailSheet() {
             emptyText={
               item.rawStatus === "DRAFT" ? "No payments. Mark the invoice as sent to record one." : "No payments recorded yet."
             }
-            mayCorrect={live && mayWrite}
+            mayCorrect={live && mayPay}
             mayWithdraw={live && mayArchive}
             mayRestore={mayTouchPayments && mayArchive}
             withdrawing={withdrawing}
@@ -139,7 +140,7 @@ export default function ReceivableDetailSheet() {
             </p>
           </SectionCard>
 
-          {(mayWrite || mayArchive) && (
+          {(mayCreate || mayPay || mayArchive) && (
             <div className="border-t border-secondary flex flex-wrap items-center justify-between gap-3 pt-4 w-full mt-auto">
               {item.isArchived ? (
                 mayArchive && (
@@ -157,7 +158,7 @@ export default function ReceivableDetailSheet() {
                         Record Payment
                       </Button>
                     )}
-                    {mayWrite && item.rawStatus === "DRAFT" && (
+                    {mayCreate && item.rawStatus === "DRAFT" && (
                       <Button
                         variant="outline"
                         disabled={sending}
@@ -168,7 +169,7 @@ export default function ReceivableDetailSheet() {
                         Mark Sent
                       </Button>
                     )}
-                    {mayWrite && (
+                    {mayCreate && (
                       <Button variant="outline" className="gap-2 px-4" onClick={() => openEditModal(data)}>
                         <Pencil className="size-4" />
                         Edit

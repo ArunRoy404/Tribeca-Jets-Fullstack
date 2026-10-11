@@ -26,12 +26,8 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import {
-  Permission,
-  Scope,
-  isPartner,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+import { isPartner } from '../../common/authorization/permissions.js';
+import { Action, Module, Reach, canDo, reachOf } from '../../common/authorization/access.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
 import {
   ClientPriority,
@@ -42,8 +38,10 @@ import {
   ReferralStatus,
   TripRequestStatus,
   UserRole,
+  UserStatus,
 } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { AirportsService } from '../airports/airports.service.js';
 import { ClientsService } from '../clients/clients.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
 import { TripsService } from '../trips/trips.service.js';
@@ -149,6 +147,7 @@ export class ReferralsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly airports: AirportsService,
     private readonly clients: ClientsService,
     private readonly requests: TripRequestsService,
     private readonly trips: TripsService,
@@ -165,12 +164,15 @@ export class ReferralsService {
    */
   private visibilityScope(user: AuthenticatedUser): Prisma.ReferralWhereInput {
     if (isPartner(user.role)) return { agentId: user.id };
-    if (scopeFor(user.role, Permission.VIEW_REFERRALS) === Scope.ALL) return {};
-    return { OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }] };
+    if (reachOf(user.access, Module.REFERRALS) === Reach.ALL) return {};
+    if (reachOf(user.access, Module.REFERRALS) === Reach.OWN) {
+      return { OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }] };
+    }
+    return { id: '__none__' };
   }
 
   private administers(user: AuthenticatedUser): boolean {
-    return scopeFor(user.role, Permission.MANAGE_REFERRALS) === Scope.ALL;
+    return reachOf(user.access, Module.REFERRALS) === Reach.ALL;
   }
 
   /** Only the desk works a referral. The agent submits it and reads it. */
@@ -303,8 +305,7 @@ export class ReferralsService {
 
   private async assertAirport(id: string | undefined, label: string): Promise<void> {
     if (!id) return;
-    const row = await this.prisma.airport.findUnique({ where: { id }, select: { deletedAt: true } });
-    if (!row || row.deletedAt) throw new BadRequestException(`That ${label} airport does not exist`);
+    await this.airports.usable(id, `${label} airport`);
   }
 
   /** An attachment must be a file the submitter uploaded themselves. */
@@ -327,9 +328,10 @@ export class ReferralsService {
       if (!dto.agentId) throw new BadRequestException('Choose the referral agent this came from');
       const agent = await this.prisma.user.findFirst({
         where: { id: dto.agentId, deletedAt: null },
-        select: { role: true },
+        select: { role: true, status: true },
       });
       if (agent?.role !== UserRole.REFERRAL_AGENT) throw new BadRequestException('That referral agent does not exist');
+      if (agent.status !== UserStatus.ACTIVE) throw new BadRequestException('That referral agent is suspended');
       agentId = dto.agentId;
     }
 
@@ -382,14 +384,15 @@ export class ReferralsService {
       // one to somebody else is an administrator's call.
       const takingIt = dto.assignedBrokerId === user.id && current.assignedBrokerId === null;
       if (!takingIt && !this.administers(user)) {
-        throw new ForbiddenException('Only an administrator or senior broker can reassign a referral.');
+        throw new ForbiddenException('Only an administrator can reassign a referral.');
       }
       if (dto.assignedBrokerId) {
         const broker = await this.prisma.user.findFirst({
           where: { id: dto.assignedBrokerId, deletedAt: null },
-          select: { role: true },
+          select: { role: true, status: true },
         });
         if (!broker || broker.role === UserRole.REFERRAL_AGENT) throw new BadRequestException('That broker does not exist');
+        if (broker.status !== UserStatus.ACTIVE) throw new BadRequestException('That broker is suspended');
       }
     }
 
@@ -577,7 +580,7 @@ export class ReferralsService {
   async removeMany(user: AuthenticatedUser, ids: string[]): Promise<BulkResult> {
     this.assertMayArchive(user);
     const targets = await this.prisma.referral.findMany({
-      where: { id: { in: ids }, deletedAt: null },
+      where: { id: { in: ids }, deletedAt: null, ...this.visibilityScope(user) },
       select: { id: true, reference: true },
     });
     if (targets.length) {
@@ -598,7 +601,7 @@ export class ReferralsService {
   async restoreMany(user: AuthenticatedUser, ids: string[]): Promise<BulkResult> {
     this.assertMayArchive(user);
     const targets = await this.prisma.referral.findMany({
-      where: { id: { in: ids }, deletedAt: { not: null } },
+      where: { id: { in: ids }, deletedAt: { not: null }, ...this.visibilityScope(user) },
       select: { id: true, reference: true },
     });
     if (targets.length) {
@@ -618,7 +621,7 @@ export class ReferralsService {
 
   /** Archiving is an administrator's call; a broker marks it Lost or Cancelled. */
   private assertMayArchive(user: AuthenticatedUser): void {
-    if (!this.administers(user)) {
+    if (!canDo(user.access, Module.REFERRALS, Action.ARCHIVE)) {
       throw new ForbiddenException('Only an administrator can archive a referral. Mark it Lost or Cancelled instead.');
     }
   }

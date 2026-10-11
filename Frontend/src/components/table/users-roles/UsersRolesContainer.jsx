@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { Eye, Edit } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Eye, Edit, UserMinus } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
 import TablePagination from "@/components/table/common/TablePagination";
@@ -9,10 +10,13 @@ import UsersToolbar from "./UsersToolbar";
 import UsersCardsContainer from "./UsersCardsContainer";
 import UsersTable from "./UsersTable";
 import RolesPermissionsTab from "@/components/users-roles/RolesPermissionsTab";
-import InviteUserDialog from "@/components/users-roles/InviteUserDialog";
+import WithdrawInvitationDialog from "@/components/users-roles/WithdrawInvitationDialog";
 import { useUsers, useUsersTableParams, USERS_TABS } from "@/hooks/users";
 import { useUsersRolesStore } from "@/store/useUsersRolesStore";
 import { toTeamMember } from "@/lib/user";
+import { useCurrentUser } from "@/hooks/auth";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Action, Module } from "@/lib/access";
 
 export default function UsersRolesContainer({ revealDelay = 0 }) {
   // The URL is the state. Every filter below reads and writes it, so the view
@@ -25,8 +29,21 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
   const usersQuery = useUsers(params?.queryParams, { enabled: !isRolesTab });
 
   const selectUser = useUsersRolesStore((s) => s.selectUser);
-  const openInviteModal = useUsersRolesStore((s) => s.openInviteModal);
-  const openEditUserModal = useUsersRolesStore((s) => s.openEditUserModal);
+  // Invite and Edit are full pages (7 Oct 2026): the permissions run to 25
+  // modules, more than a dialog holds comfortably.
+  const router = useRouter();
+
+  // Users & Roles is on the per-user permissions (7 Oct 2026): a control the
+  // API would refuse is not offered. The owner's account is editable only by
+  // the owner.
+  const { canAccess } = usePermissions();
+  const { data: me } = useCurrentUser();
+  const mayInvite = canAccess(Module.USERS, Action.CREATE);
+  // Which pending invitation the confirm dialog is about — local and
+  // disposable, like any open/closed flag.
+  const [withdrawing, setWithdrawing] = useState(null);
+  const mayEdit = (item) =>
+    canAccess(Module.USERS, Action.EDIT) && (item?.role !== "SUPER_ADMIN" || me?.role === "SUPER_ADMIN");
 
   const rows = useMemo(
     () => (usersQuery?.data?.data ?? []).map(toTeamMember),
@@ -43,11 +60,26 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
       icon: <Eye />,
       onSelect: () => selectUser?.(item?.id),
     },
-    {
-      label: "Edit User",
-      icon: <Edit />,
-      onSelect: () => openEditUserModal?.(item),
-    },
+    ...(mayEdit(item)
+      ? [
+          {
+            label: "Edit User",
+            icon: <Edit />,
+            onSelect: () => router.push(`/dashboard/users-roles/${item?.id}/edit`),
+          },
+        ]
+      : []),
+    // A pending invitation can be withdrawn — the one permanent delete; any
+    // account that has signed in is suspended instead.
+    ...(item?.rawStatus === "INVITED" && mayInvite
+      ? [
+          {
+            label: "Withdraw Invitation",
+            icon: <UserMinus />,
+            onSelect: () => setWithdrawing(item),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -64,7 +96,7 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
           setStatusFilter={params?.setStatus}
           limit={params?.limit}
           setLimit={params?.setLimit}
-          onInviteUser={openInviteModal}
+          onInviteUser={mayInvite ? () => router.push("/dashboard/users-roles/invite") : undefined}
         />
 
         {isRolesTab ? (
@@ -109,7 +141,7 @@ export default function UsersRolesContainer({ revealDelay = 0 }) {
           </>
         )}
 
-        <InviteUserDialog />
+        <WithdrawInvitationDialog user={withdrawing} onClose={() => setWithdrawing(null)} />
       </CommonCard>
     </Reveal>
   );

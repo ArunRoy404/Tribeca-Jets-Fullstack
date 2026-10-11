@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useCreateTripStore } from "@/store/useCreateTripStore";
 import { useCreateTrip, useUpdateTrip } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission, Scope } from "@/lib/permissions";
+import { useCurrentUser } from "@/hooks/auth";
+import { Action, Module, Reach } from "@/lib/access";
+import { isAdministratorRole } from "@/lib/roles";
+import { documentsService } from "@/services/documents.service";
 import { optionalNumber, optionalText } from "@/lib/form";
 
 /**
@@ -19,8 +22,12 @@ export default function CreateFormActionBar() {
   const draft = useCreateTripStore();
   const { mutate: createTrip, isPending: creating } = useCreateTrip();
   const { mutate: updateTrip, isPending: updating } = useUpdateTrip();
-  const { scopeFor } = usePermissions();
-  const mayAssign = scopeFor(Permission.MANAGE_TRIPS) === Scope.ALL;
+  const { canAccess, reachOf } = usePermissions();
+  const { data: currentUser } = useCurrentUser();
+  const mayAssign =
+    canAccess(Module.TRIPS, Action.ASSIGN) ||
+    reachOf(Module.TRIPS) === Reach.ALL ||
+    isAdministratorRole(currentUser?.role);
   const editing = Boolean(draft.editingId);
   const busy = creating || updating;
   const opts = { editing };
@@ -64,7 +71,23 @@ export default function CreateFormActionBar() {
 
   const save = (status) => {
     const payload = buildPayload(status);
-    const done = (trip) => {
+    const done = async (trip) => {
+      if (!editing && trip?.id && draft.attachments?.length > 0) {
+        for (const item of draft.attachments) {
+          const url = typeof item === "string" ? item : item?.url;
+          const title = typeof item === "object" && item?.title ? item.title : "Trip Document";
+          if (url) {
+            await documentsService
+              .create({
+                title,
+                category: "OTHER",
+                fileUrl: url,
+                tripId: trip.id,
+              })
+              .catch(() => null);
+          }
+        }
+      }
       draft.reset?.();
       router.push(`/dashboard/trips/${trip?.id}`);
     };

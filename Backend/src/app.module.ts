@@ -15,6 +15,7 @@ import { AirportsModule } from './modules/airports/airports.module.js';
 import { OperatorsModule } from './modules/operators/operators.module.js';
 import { AircraftModule } from './modules/aircraft/aircraft.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
 import { TripRequestsModule } from './modules/trip-requests/trip-requests.module.js';
 import { OperatorQuotesModule } from './modules/operator-quotes/operator-quotes.module.js';
 import { QuotesModule } from './modules/quotes/quotes.module.js';
@@ -34,6 +35,7 @@ import { ReceivablesModule } from './modules/receivables/receivables.module.js';
 import { OperatorPaymentsModule } from './modules/operator-payments/operator-payments.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { ReportsModule } from './modules/reports/reports.module.js';
 import { DocumentsModule } from './modules/documents/documents.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
@@ -41,6 +43,7 @@ import { UsersModule } from './modules/users/users.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { CsrfGuard } from './common/guards/csrf.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
+import { AccessGuard } from './common/guards/access.guard.js';
 import { PermissionsGuard } from './common/guards/permissions.guard.js';
 import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe.js';
@@ -72,6 +75,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     OperatorsModule,
     AircraftModule,
     UploadsModule,
+    SettingsModule,
     TripRequestsModule,
     OperatorQuotesModule,
     QuotesModule,
@@ -91,6 +95,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     OperatorPaymentsModule,
     TransactionsModule,
     DashboardModule,
+    ReportsModule,
     DocumentsModule,
   ],
   providers: [
@@ -99,17 +104,20 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
      *   1. JwtAuthGuard   — authenticated by default; opt out with @Public()
      *   2. CsrfGuard      — cookie sessions need CSRF protection on writes
      *   3. RolesGuard        — coarse role checks from @Roles()
-     *   4. PermissionsGuard  — capability checks from @RequirePermissions()
-     *   5. RateLimitGuard    — per-route limits from @RateLimit()
+     *   4. PermissionsGuard  — the old role matrix, @RequirePermissions()
+     *   5. AccessGuard       — per-user module/action, @RequireAccess()
+     *   6. RateLimitGuard    — per-route limits from @RateLimit()
      *
-     * Neither RolesGuard nor PermissionsGuard does row-level filtering; that
-     * belongs in the service layer, which calls scopeFor() and narrows its
-     * own `where` clause. See common/authorization/permissions.ts.
+     * None of them does row-level filtering; that belongs in the service
+     * layer, which reads the role's reach (reachOf / scopeFor) and narrows its
+     * own `where` clause. Modules move from 4 to 5 one at a time as each is
+     * reviewed — see common/authorization/access.ts.
      */
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_GUARD, useClass: AccessGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
 
     { provide: APP_PIPE, useClass: ZodValidationPipe },
