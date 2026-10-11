@@ -140,8 +140,8 @@ your recommendation. **Wait** for their decision.
 cd Backend && npx tsc --noEmit && npm run lint && npm test
 cd ../Frontend && npx eslint src/<touched> && npm run build
 ```
-Baselines (8 Oct 2026): backend **343 tests pass**; frontend lint has **one
-pre-existing error** (`TripRequestDialog.jsx`, fixed on Trip Requests' turn).
+Baselines (11 Oct 2026): backend **512 tests pass** (59 test suites); frontend
+builds cleanly with 0 errors across all 45 routes.
 
 **Step 6 — Postman.** Rebuild the module's folder with its builder
 (`Backend/postman/build_<module>_folder.py`, on `builder_common.py`) against
