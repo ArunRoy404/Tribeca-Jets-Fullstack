@@ -127,7 +127,7 @@ export default function AgentDetailPage({ params }) {
 
           {/* Section 3: Bottom 2-Column Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start w-full">
-            <AgentAssociatedTrips />
+            <AgentAssociatedTrips agentId={rawId} />
             <AgentRecentActivity />
           </div>
         </div>
