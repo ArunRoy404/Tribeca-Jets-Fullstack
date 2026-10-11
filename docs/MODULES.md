@@ -77,7 +77,7 @@ without waiting on the client; #11's agent portal followed the same day, and
 **Itineraries (#12)**, **Schedule (#13)** and **Flight Tracking (#14, manual)**
 on 28 September — everything that hangs off Trips — the **Tasks Board
 (#20)** and **Email Templates (#21)**; the **Dashboard (#24)** and **Document
-Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:** the module-by-module review below — #1–#4 signed off (Settings 8 Oct 2026), #5 Airports signed off 8 Oct; #6 Charter Rates signed off 8 Oct; #7 Operators signed off 8 Oct; #8–#19 signed off (Flight Tracking 11 Oct). Next is #20 Empty Legs.
+Vault (#22)** on 28–29 September, and **Reports (#23)** on 4 October. **What is next:** the module-by-module review below — #1–#4 signed off (Settings 8 Oct 2026), #5 Airports signed off 8 Oct; #6 Charter Rates signed off 8 Oct; #7 Operators signed off 8 Oct; #8–#20 signed off (Empty Legs 11 Oct). Next is #21 Receivables.
 
 **Uploads (#28) was built out of order, on purpose.** It is not in the signed
 scope's module list and it is not a client request in its own right: it is the
@@ -145,8 +145,8 @@ reviewed yet — the module may still be built and working.
 | 17 | Itineraries | Yes — document identity and toggles | ✅ 11 Oct — owner tested & signed off |
 | 18 | Schedule | — | ✅ 11 Oct — owner tested & signed off |
 | 19 | Flight Tracking | Yes — flight alerts to brokers | ✅ 11 Oct — owner tested & signed off |
-| 20 | Empty Legs | — | 🟡 (next in review) |
-| 21 | Receivables | Yes — payment reminders | ⬜ |
+| 20 | Empty Legs | — | ✅ 11 Oct — owner tested & signed off |
+| 21 | Receivables | Yes — payment reminders | 🟡 (next in review) |
 | 22 | Operator Payments | Yes — payment reminders | ⬜ |
 | 23 | Commissions | — | ⬜ |
 | 24 | Referrals / Referral Agent | — | ⬜ |

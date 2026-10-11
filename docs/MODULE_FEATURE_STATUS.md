@@ -1130,6 +1130,13 @@ of these cards makes a second request.
 - Frontend: the board with a match badge, the add/edit dialog, the detail sheet
   with the matches list, and the dashboard's "Empty Leg Opportunities" section
   reading the API. `dummyData/emptyLegs.js` and the dashboard's copy are deleted
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Permissions per person:** Decorated `EmptyLegsController` with `@StaffOnly()`, barring referral agent accounts (403).
+  - Open staff reads: `GET /empty-legs`, `GET /empty-legs/stats`, and `GET /empty-legs/:id` open to all staff sessions without requiring write permissions.
+  - Granular writes: Gated create (`CREATE`), update (`EDIT`), archive/restore and bulk actions (`ARCHIVE`) per person under `Module.EMPTY_LEGS`.
+  - Airport validation: Replaced private airport check with shared `AirportsService.usable(id, label)` across departure and arrival airports for both create and update.
+  - Frontend: Toolbar, table row actions, and detail sheet migrated from coarse `canWrite(Permission.OPERATOR_SOURCING)` to `canAccess(Module.EMPTY_LEGS, Action.CREATE / EDIT / ARCHIVE)`.
+  - Unit test suite: Created `empty-legs.access.spec.ts` verifying `@StaffOnly()` refusal on partners, open reads for all staff roles, and write action gating. All 49 Vitest suites (403 tests) pass 100%.
 
 **Not done:** the Postman folder.
 

@@ -49,17 +49,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 17 | **Itineraries** | ✅ 11 Oct — owner tested & signed off |
 | 18 | **Schedule** | ✅ 11 Oct — owner tested & signed off |
 | 19 | **Flight Tracking** | ✅ 11 Oct — owner tested & signed off |
-| 20 | **Empty Legs** | 🟡 **next in queue** |
-| 21–35 | Receivables, Operator Payments, … | ⬜ in the table's order |
+| 20 | **Empty Legs** | ✅ 11 Oct — owner tested & signed off |
+| 21 | **Receivables** | 🟡 **next in queue** |
+| 22–35 | Operator Payments, Commissions, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Empty Legs (#20) review
+### What is next — Receivables (#21) review
 
-- **Flight Tracking (#19) reviewed, signed off, committed:** Controller decorated with `@StaffOnly()`, open staff reads, `@RequireAccess(Module.FLIGHT_TRACKING, Action.EDIT)` on updates. Sidebar report form streamlined without external tracking URLs. Cross-module Schedule status badge display connected. Unit test suite `flight-tracking.access.spec.ts` passing 100%.
-- **Next module in queue:** **Empty Legs (#20)** — repositioning flights offered at a discount; client adjustment #10b route matching against trip requests (exact airports, within ±3 days, lost & converted requests included).
+- **Empty Legs (#20) reviewed, tested and verified:** Controller gated with `@StaffOnly()`, open staff reads, `@RequireAccess(Module.EMPTY_LEGS, ...)` on writes. Picked departure/arrival airports validated via shared `AirportsService.usable`. Frontend toolbar, container, and detail sheet migrated to granular per-person permissions. Unit test suite `empty-legs.access.spec.ts` passing 100%.
+- **Next module in queue:** **Receivables (#21)** — client invoices on trips, charges, due dates, settlement math, PDF generation, and payment reminders.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -515,5 +516,18 @@ this says *what the owner decided*, which nothing else records.
   - Preserved the clean sidebar architecture: clicking any flight row or card opens the sidebar sheet (`FlightTrackingDetailSheet`).
   - The operational report form (`FlightReportForm`) is hosted directly inside the sidebar sheet, gated by `canAccess(Module.FLIGHT_TRACKING, Action.EDIT)`.
   - Connected Schedule (#18) to display reported flight status badges on `FlightDetailSheet`.
+- **Git & Next Step:** Committed in batches and pushed to `origin/roy`.
+
+### 11 Oct 2026 — Empty Legs (#20) reviewed, implemented & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - Decorated `EmptyLegsController` with `@UseGuards(AccessGuard)` and `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /api/empty-legs`, `/api/empty-legs/stats`, and `GET /api/empty-legs/:id` open to all staff sessions without requiring write permissions.
+  - Granular write gating: Gated create (`CREATE`), update (`EDIT`), archive/restore and bulk actions (`ARCHIVE`) under `Module.EMPTY_LEGS`.
+  - Airport validation: Replaced private airport check with shared `AirportsService.usable(id, label)` across departure and arrival airports on both create and update.
+  - Unit test suite: Created `empty-legs.access.spec.ts` verifying staff reads, partner refusal (403), and granular write permissions. All 49 Vitest suites (403 tests) pass 100%.
+- **Frontend Architecture & Verification:**
+  - Migrated `EmptyLegsToolbar`, `EmptyLegsContainer`, and `EmptyLegDetailSheet` from coarse `canWrite(Permission.OPERATOR_SOURCING)` to per-person permissions via `canAccess(Module.EMPTY_LEGS, ...)`.
+  - Add button rendered only when holding `CREATE`, status moves and Edit rendered only when holding `EDIT`, Archive/Restore and bulk selection rendered only when holding `ARCHIVE`.
   - Frontend Turbopack production build (`npm run build`) compiled cleanly in 4.2s (0 errors across 45 routes).
-- **Git & Next Step:** Committed in batches and pushed to `origin/roy`. Proceeding to Empty Legs (#20).
+- **Git & Next Step:** Committed in batches and pushed to `origin/roy`. Proceeding to Receivables (#21).
