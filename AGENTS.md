@@ -128,7 +128,7 @@ permission is a **module** — one per sidebar screen — and an **action** in i
 - **Moving a module over is part of reviewing it:** swap its
   `@RequirePermissions` for `@RequireAccess`, its `scopeFor` for `reachOf`,
   and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
-  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators, Aircraft, Clients, Notes, Client Credits, Leads & Agents, Trip Requests, Operator Sourcing, Quotes, Trips, Itineraries, Schedule, Flight Tracking, Empty Legs, Receivables, Operator Payments, Commissions, Referrals.** Uploads needs no move — its
+  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators, Aircraft, Clients, Notes, Client Credits, Leads & Agents, Trip Requests, Operator Sourcing, Quotes, Trips, Itineraries, Schedule, Flight Tracking, Empty Legs, Receivables, Operator Payments, Commissions, Referrals, Transactions.** Uploads needs no move — its
   routes carry no permission by design and its rules are identity-based.
   Every other module's API is still on the old matrix, enforced by role.
   When the last one moves, delete the old matrix and the switch.
@@ -164,6 +164,7 @@ Done so far: **Airports** (pinned by `airports.controller.spec.ts`) and
 **Operators**, **Aircraft**, **Clients**, **Leads & Agents**, **Trip Requests**, **Operator Sourcing**, **Quotes**, **Trips**, **Itineraries**, **Schedule**, **Flight Tracking**, **Empty Legs**, **Receivables**, **Operator Payments** — with `@StaffOnly()`: an open read over desk data a partner
 never needs refuses the referral agent (403) by stored role, in
 `AccessGuard`. Put it on the controller for the whole module.
+**Transactions** has `@StaffOnly()` and `@RequireAccess(Module.TRANSACTIONS, Action.VIEW)`: a read-only desk money ledger (pinned by `transactions.access.spec.ts`).
 **Commissions** has open reads and per-person writes (`CREATE`, `PAY`, `ARCHIVE`), but does **not** carry `@StaffOnly()`: a partner referral agent reads their own commissions via the portal (`/portal/commissions`).
 **Referrals** has open reads and per-person writes (`CREATE`, `EDIT`, `ARCHIVE`), and does **not** carry `@StaffOnly()`: partner referral agents submit referrals (`/portal/submit`), read their own submissions (`/portal/referrals`), and read portal resources (`/portal/resources`).
 **Charter Rates** is the first "money" case, decided by the owner: its reads

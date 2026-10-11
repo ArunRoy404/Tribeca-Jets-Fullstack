@@ -2224,6 +2224,39 @@ three optional fields as the update. The seed adds `agent@tribecajets.com`
 
 ---
 
+## 25. Transactions
+
+**Working now**
+- The consolidated money ledger at `/dashboard/transactions`: virtual view over the 3 money movement sources:
+  - `CLIENT_PAYMENT` (direction `IN`) from Receivables (#21)
+  - `OPERATOR_PAYMENT` (direction `OUT`) from Operator Payments (#22)
+  - `COMMISSION` (direction `OUT`) from Commissions (#23)
+- Paged via shared `mergePages` across the 3 sources by payment date (`newest first` / `oldest first`, tie-broken by entry timestamp and id)
+- Server-side summed stats row in cents: `Money In`, `Money Out`, `Net Cash Flow`, counts per kind, and unvalued paid commissions note
+- Deep-links from rows directly to the bill it settles:
+  - Client Payment -> `/dashboard/receivables?invoice={id}`
+  - Operator Payment -> `/dashboard/operator-payments?bill={id}`
+  - Commission -> `/dashboard/commissions?commission={id}`
+  - Trip -> `/dashboard/trips/{tripId}`
+- Filters in URL: search text, kind, direction, date range (`from`/`to`), limit, and sort order
+- Mobile cards view below `lg` with `TransactionsCardsContainer` and `TransactionCard`
+- Zero dummy data, clean architectural separation, read-only ledger
+
+**Reviewed 11 Oct 2026 (per-person permissions pass & UI review):**
+- **Per-person permissions migration:**
+  - `@UseGuards(AccessGuard)` and `@StaffOnly()` on `TransactionsController`: referral agents / partners refused (`403 Forbidden`).
+  - `@RequireAccess(Module.TRANSACTIONS, Action.VIEW)` on `findAll` and `stats`: only users granted `TRANSACTIONS · VIEW` (Super Admin, Admin, and Broker) can view the company money ledger; Assistant is refused (`403 Forbidden`).
+  - In `TransactionsService.permitted(user)`: replaced legacy `can(user.role, ...)` with per-person `canDo(user.access, Module.RECEIVABLES, Action.VIEW)`, `Module.OPERATOR_PAYMENTS`, and `Module.COMMISSIONS`. A user with a customized permission set only reads the kinds they have access to view.
+  - Scoping is handled by the underlying services (`ReceivablesService`, `OperatorPaymentsService`, `CommissionsService`) respecting the caller's row-level reach (`Reach.OWN` vs `Reach.ALL`).
+- **UI adjustments & reusable components:**
+  - Shared `CommonDatePicker` updated with `size="sm"` to match compact toolbar pill design (`bg-secondary border border-border px-2 py-1 rounded-sm text-[10px] font-medium text-foreground gap-1.5 h-7 shrink-0`).
+  - `From` and `To` filters aligned inline in `TransactionsToolbar` with mutual date validation (`maxDate` on From, `minDate` on To, visual red error border on invalid range, client parameter sanitization to prevent 400 API errors).
+  - Row and card clicking now opens a slide-over detail drawer (`TransactionDetailSheet` on shared `DetailSheet`) with full payment facts, instead of instantly navigating away.
+  - Action redirect CTAs placed inside the slide-over drawer ("Open Invoice in Receivables", "Open Bill in Operator Payments", "Open Commission in Commissions", "View Trip").
+- **Pinned by unit tests in `transactions.access.spec.ts` (6 tests) and `transactions.ledger.spec.ts` (7 tests).**
+
+---
+
 ## Cross-cutting fixes
 
 Things repaired in one place that changed behaviour in several modules. They

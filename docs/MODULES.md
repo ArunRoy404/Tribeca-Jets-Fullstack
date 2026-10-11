@@ -150,7 +150,7 @@ reviewed yet — the module may still be built and working.
 | 22 | Operator Payments | Yes — payment reminders | ✅ 11 Oct — owner tested & signed off |
 | 23 | Commissions | — | ✅ 11 Oct — owner tested & signed off |
 | 24 | Referrals / Referral Agent | — | ✅ 11 Oct — owner tested & signed off |
-| 25 | Transactions | — | ⬜ |
+| 25 | Transactions | — | ✅ 11 Oct — owner tested & signed off |
 | 26 | Tasks Board & notification bell | Yes — in-app channel, follow-up reminders | ⬜ |
 | 27 | Email Templates & sending | Yes — company identity, email channel | ⬜ |
 | 28 | Document Vault | — | ⬜ |

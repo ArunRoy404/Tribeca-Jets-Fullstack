@@ -54,17 +54,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 22 | **Operator Payments** | ✅ 11 Oct — owner tested & signed off |
 | 23 | **Commissions** | ✅ 11 Oct — owner tested & signed off |
 | 24 | **Referrals / Referral Agent** | ✅ 11 Oct — owner tested & signed off |
-| 25 | **Transactions** | ⬜ **next in review queue** |
-| 26–35 | Tasks, Email Templates, … | ⬜ in the table's order |
+| 25 | **Transactions** | ✅ 11 Oct — owner tested & signed off |
+| 26 | **Tasks Board & notification bell** | ⬜ **next in review queue** |
+| 27–35 | Email Templates, Document Vault, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Transactions (#25)
+### What is next — Tasks Board & notification bell (#26)
 
-- **Referrals / Referral Agent (#24) reviewed:** Complete review, migrated to per-person permissions, replaced all 100-limit selectors with reusable pickers (`AirportPicker`, `BrokerPicker`, `ClientPicker`, `TripPicker`). Ready for owner testing.
-- **Next module in queue:** **Transactions (#25)** — the unified money ledger over Receivables, Operator Payments, and Commissions.
+- **Transactions (#25) reviewed:** Consolidated money ledger migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.TRANSACTIONS, Action.VIEW)`), service updated to `canDo(user.access, ...)`, pinned by unit tests (`transactions.access.spec.ts`). Ready for owner testing.
+- **Next module in queue:** **Tasks Board & notification bell (#26)** (`/dashboard/tasks-board`).
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -633,4 +634,28 @@ this says *what the owner decided*, which nothing else records.
   - Fixed portal logo and static asset rendering in [proxy.js](file:///c:/Users/ROY/Desktop/out/Tribeca-Jets-Fullstack/Frontend/src/proxy.js): static asset requests under `/dashboard/img/*` and `/dashboard/bg/*` are passed through so partner portal sessions are not redirected by the CRM path matcher.
   - Turbopack production build (`npm run build`) compiled cleanly in 3.9s with 0 errors across 45 routes.
 - **Next Step:** Ready for owner testing of Referrals (#24). Awaiting user testing and review before committing. Next module in queue: Transactions (#25).
+
+### 11 Oct 2026 — Transactions (#25) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `TransactionsController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring referral agent / partner accounts (`403 Forbidden`).
+  - Gated `GET /transactions` and `GET /transactions/stats` under `@RequireAccess(Module.TRANSACTIONS, Action.VIEW)`. Assistant without this module is refused (`403 Forbidden`, matching the Postman builder requirement).
+  - Migrated `TransactionsService.permitted(user)` from legacy `can(user.role, ...)` to per-person checks:
+    - `canDo(user.access, Module.RECEIVABLES, Action.VIEW)` $\rightarrow$ `CLIENT_PAYMENT`
+    - `canDo(user.access, Module.OPERATOR_PAYMENTS, Action.VIEW)` $\rightarrow$ `OPERATOR_PAYMENT`
+    - `canDo(user.access, Module.COMMISSIONS, Action.VIEW)` $\rightarrow$ `COMMISSION`
+  - Scoping is handled by the underlying module services (`ReceivablesService`, `OperatorPaymentsService`, `CommissionsService`) respecting the caller's row-level reach (`Reach.OWN` vs `Reach.ALL`).
+  - Unit test suite: Created `transactions.access.spec.ts` (6 tests) verifying `@StaffOnly()`, `@RequireAccess`, assistant refusal (403), partner refusal (403), and granular `permitted` kind filtering. All 54 Vitest suites (440 tests) pass 100%. `tsc --noEmit` clean with 0 errors. Oxlint clean with 0 warnings/errors.
+- **Frontend Architecture & Reusable Component Adjustments:**
+  - **Compact Toolbar Date Picker & Validation:**
+    - Upgraded shared `CommonDatePicker` (`Frontend/src/components/common/DatePicker.jsx`) with `size="sm"` to match the table toolbar's compact pill design (`bg-secondary border border-border px-2 py-1 rounded-sm text-[10px] font-medium text-foreground gap-1.5 h-7 shrink-0`), preserving 100% backward compatibility for dialog forms.
+    - Placed `From` and `To` date pickers inline in `TransactionsToolbar.jsx` with full mutual validation (`maxDate={to}` on `From`, `minDate={from}` on `To`, error border outline on inverted range, and client-side sanitization in `useTransactionsTableParams.js` to prevent 400 bad request API calls).
+  - **Slide-Over Detail Sheet Drawer & Redirect CTA:**
+    - Table rows (`TransactionsTableRow.jsx`) and mobile cards (`TransactionsCardsContainer.jsx`) no longer immediately navigate away to other pages on click.
+    - Instead, clicking a row opens a slide-over detail sheet drawer (`TransactionDetailSheet.jsx` built on `DetailSheet` with `TribecaLetterhead`), displaying all movement facts (amount, direction, date, payment method, reference, document number, trip reference, assigned broker).
+    - Inside the sheet drawer, dedicated redirect CTA buttons ("Open Invoice in Receivables", "Open Bill in Operator Payments", "Open Commission in Commissions", plus "View Trip") allow intentional navigation to origin modules.
+  - Turbopack production build (`npm run build`) compiled cleanly in 5.2s with 0 errors across 45 routes.
+- **Next Step:** Ready for owner testing of Transactions (#25). Next module in queue: Tasks Board & notification bell (#26).
+
+
 
