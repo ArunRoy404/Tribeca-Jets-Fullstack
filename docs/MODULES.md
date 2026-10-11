@@ -155,8 +155,8 @@ reviewed yet — the module may still be built and working.
 | 27 | Email Templates & sending | Yes — company identity, email channel | ✅ 11 Oct — owner tested & signed off |
 | 28 | Document Vault | — | ✅ 11 Oct — owner tested & verified |
 | 29 | Reports | — | ✅ 11 Oct — owner tested & verified |
-| 30 | Dashboard | — | ⬜ **next in review queue** |
-| 31 | Import / Export (#26, the rest) — **tell the owner when we reach it** (Import hidden, Export not connected since 7 Oct) | — | ⬜ |
+| 30 | Dashboard | — | ✅ 11 Oct — owner tested & verified |
+| 31 | Import / Export (#26, the rest) — **tell the owner when we reach it** (Import hidden, Export not connected since 7 Oct) | — | ⬜ **next in review queue** |
 | 32 | PDF generator | Yes — document identity and toggles | ⬜ |
 | 33 | Client Portal (#25) | — | ⬜ |
 | 34 | AI Assistant (#27) | — | ⬜ |

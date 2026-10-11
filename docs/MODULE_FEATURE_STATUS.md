@@ -1727,6 +1727,20 @@ it should is the open question in [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md)
   Postman builder `build_dashboard_folder.py` → `27 · Dashboard` (7
   requests), **written, not run**.
 
+**Reviewed 11 Oct 2026 (per-person permissions pass & architecture review):**
+- **Per-person permissions migration:**
+  - `@UseGuards(AccessGuard)` and `@StaffOnly()` on `DashboardController`: outside partners / referral agents refused (`403 Forbidden`).
+  - `@RequireAccess(Module.DASHBOARD, Action.VIEW)` on `/summary`, `/priorities`, and `/activity`: dropped legacy role matrix `@RequirePermissions(Permission.VIEW_DASHBOARD)`.
+  - Financial calculations (`summary.money`) require administrator status or `canDo(user.access, Module.QUOTES, Action.VIEW_MONEY)` / `Module.TRIPS, Action.VIEW_MONEY`.
+  - Summary tiles check `canDo(user.access, ...)` for `TRIPS`, `TRIP_REQUESTS`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, and `EMPTY_LEGS`.
+  - Priorities list checks `canDo(user.access, ...)` for `CLIENTS`, `TASKS`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, and `DOCUMENTS`.
+  - Recent activity audit feed scoped via `ACTIVITY_MODULE` mapping and caller reach: users with `Reach.ALL` (and administrators) see company-wide audit entries; users with `Reach.OWN` see only audit entries where `actorId === user.id`.
+- **Frontend architecture & clean state:**
+  - `OverviewPage.jsx` and its dashboard widgets (`StatsGrid`, `TodaysPriorities`, `EmptyLegsSection`, `RecentActivityFeed`, `FollowUpsSection`, `UpcomingTripsContainer`, `FinancialAttention`) verified clean.
+  - Reusable components (`TableStatus`, `StaggerContainer`, `CommonCard`, `SectionHeader`, `Reveal`) handle loading, empty states, and errors with honest fallbacks (no invented numbers or dummy fallbacks).
+  - Oxlint clean (0 errors, 0 warnings across all 26 dashboard files). Turbopack build clean with 0 errors across all 45 routes.
+- **Pinned by unit tests in `dashboard.access.spec.ts` (15 tests) and `dashboard.period.spec.ts` (7 tests).**
+
 **Waiting on a dependency**
 
 | Feature | Unblocked by |

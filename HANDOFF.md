@@ -58,17 +58,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 26 | **Tasks Board & notification bell** | ✅ 11 Oct — owner tested & signed off |
 | 27 | **Email Templates & sending** | ✅ 11 Oct — owner tested & signed off |
 | 29 | **Reports** | ✅ 11 Oct — owner tested & verified |
-| 30 | **Dashboard** | ⬜ **next in review queue** |
-| 31–35 | Import/Export, PDF generator, Client Portal, ... | ⬜ in the table's order |
+| 30 | **Dashboard** | ✅ 11 Oct — owner tested & verified |
+| 31 | **Import / Export** (#26, the rest) | ⬜ **next in review queue** |
+| 32–35 | PDF generator, Client Portal, ... | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Dashboard (#30)
+### What is next — Import / Export (#31)
 
-- **Reports (#29) reviewed & verified:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.REPORTS, Action.VIEW)`, `@RequireAccess(Module.REPORTS, Action.EXPORT)`), scoped trip rows to broker reach (`Reach.OWN`), and updated frontend export buttons and dialog to `canAccess(Module.REPORTS, Action.EXPORT)`.
-- **Next module in queue:** **Dashboard (#30)** (`/dashboard`).
+- **Dashboard (#30) reviewed & verified:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.DASHBOARD, Action.VIEW)`), replaced legacy `Permission`/`Scope` checks with granular module access (`QUOTES`/`TRIPS` `VIEW_MONEY`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, `EMPTY_LEGS`, `TRIP_REQUESTS`, `CLIENTS`, `TASKS`, `DOCUMENTS`), scoped activity audit feed with `ACTIVITY_MODULE` and reach (`Reach.ALL` vs `Reach.OWN`). Pinned by 15 tests in `dashboard.access.spec.ts`.
+- **Next module in queue:** **Import / Export (#31)** (`/dashboard/settings` Import/Export tab) — **reminder to tell the owner as promised:** Import is currently hidden and Export is not connected since 7 Oct. We will build Export on `common/export/tabular.ts`.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -734,3 +735,19 @@ this says *what the owner decided*, which nothing else records.
   - `ReportsToolbar.jsx` upgraded: migrated export buttons from legacy `can(Permission.EXPORT_DATA)` to `canAccess(Module.REPORTS, Action.EXPORT)`.
   - `ExportOperationsDialog.jsx` upgraded: gated download trigger and export modal rendering with `canAccess(Module.REPORTS, Action.EXPORT)`.
   - Oxlint clean (0 warnings / 0 errors across 25 files). Turbopack production build (`npm run build`) compiled successfully in 4.9s with 0 errors across 45 routes.
+
+### 11 Oct 2026 — Dashboard (#30) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `DashboardController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring outside partner / referral agent accounts (`403 Forbidden`).
+  - `@RequireAccess(Module.DASHBOARD, Action.VIEW)` on all dashboard endpoints (`/summary`, `/priorities`, `/activity`), replacing legacy role matrix `@RequirePermissions(Permission.VIEW_DASHBOARD)`.
+  - Financial calculations (`summary.money`) require administrator status or `canDo(user.access, Module.QUOTES, Action.VIEW_MONEY)` / `Module.TRIPS, Action.VIEW_MONEY`.
+  - Summary counts check `canDo(user.access, ...)` across `TRIPS`, `TRIP_REQUESTS`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, and `EMPTY_LEGS`.
+  - Priorities list checks `canDo(user.access, ...)` across `CLIENTS`, `TASKS`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, and `DOCUMENTS`.
+  - Activity audit feed mapped to `ACTIVITY_MODULE` and scoped by caller reach (`Reach.ALL` vs `Reach.OWN` where `actorId === user.id`).
+  - Unit test suite: Created `dashboard.access.spec.ts` (15 tests) verifying `@StaffOnly()`, per-person access checks, and audit reach scoping. All 59 Vitest suites (512 tests) pass 100%. `nest build` clean with 0 errors.
+- **Frontend Architecture & Reusable Component Verification:**
+  - `OverviewPage.jsx` and widgets (`StatsGrid`, `TodaysPriorities`, `EmptyLegsSection`, `RecentActivityFeed`, `FollowUpsSection`, `UpcomingTripsContainer`, `FinancialAttention`) verified clean.
+  - Reusable components (`TableStatus`, `StaggerContainer`, `CommonCard`, `SectionHeader`, `Reveal`) handle loading, empty states, and errors with honest fallbacks (no invented numbers or dummy fallbacks).
+  - Oxlint clean (0 errors, 0 warnings across all 26 dashboard files). Turbopack build clean with 0 errors across all 45 routes.
+
