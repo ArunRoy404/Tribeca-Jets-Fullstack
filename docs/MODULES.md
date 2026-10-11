@@ -146,8 +146,8 @@ reviewed yet — the module may still be built and working.
 | 18 | Schedule | — | ✅ 11 Oct — owner tested & signed off |
 | 19 | Flight Tracking | Yes — flight alerts to brokers | ✅ 11 Oct — owner tested & signed off |
 | 20 | Empty Legs | — | ✅ 11 Oct — owner tested & signed off |
-| 21 | Receivables | Yes — payment reminders | 🟡 (next in review) |
-| 22 | Operator Payments | Yes — payment reminders | ⬜ |
+| 21 | Receivables | Yes — payment reminders | ✅ 11 Oct — owner tested & signed off |
+| 22 | Operator Payments | Yes — payment reminders | 🟡 (next in review) |
 | 23 | Commissions | — | ⬜ |
 | 24 | Referrals / Referral Agent | — | ⬜ |
 | 25 | Transactions | — | ⬜ |

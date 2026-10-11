@@ -50,17 +50,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 18 | **Schedule** | ✅ 11 Oct — owner tested & signed off |
 | 19 | **Flight Tracking** | ✅ 11 Oct — owner tested & signed off |
 | 20 | **Empty Legs** | ✅ 11 Oct — owner tested & signed off |
-| 21 | **Receivables** | 🟡 **next in queue** |
-| 22–35 | Operator Payments, Commissions, … | ⬜ in the table's order |
+| 21 | **Receivables** | ✅ 11 Oct — owner tested & signed off |
+| 22 | **Operator Payments** | 🟡 **next in queue** |
+| 23–35 | Commissions, Referrals, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Receivables (#21) review
+### What is next — Receivables (#21) testing & Operator Payments (#22)
 
-- **Empty Legs (#20) reviewed, tested and verified:** Controller gated with `@StaffOnly()`, open staff reads, `@RequireAccess(Module.EMPTY_LEGS, ...)` on writes. Picked departure/arrival airports validated via shared `AirportsService.usable`. Frontend toolbar, container, and detail sheet migrated to granular per-person permissions. Unit test suite `empty-legs.access.spec.ts` passing 100%.
-- **Next module in queue:** **Receivables (#21)** — client invoices on trips, charges, due dates, settlement math, PDF generation, and payment reminders.
+- **Receivables (#21) reviewed, migrated and verified:** Controller gated with `@StaffOnly()`, open staff reads, `@RequireAccess(Module.RECEIVABLES, CREATE | PAY | ARCHIVE)` on writes. Scoping via `reachOf(user.access, Module.RECEIVABLES) === Reach.ALL` and `TripsService.visibleWhere(user)`. Frontend toolbar, container, detail sheet, client details, and financial attention migrated to granular per-person permissions. Unit test suite `receivables.access.spec.ts` passing 100%. Next.js production build passes 100% (45 routes).
+- **Next module in queue:** **Operator Payments (#22)** — operator bills on trips, charges, due dates, settlement math, payment records, and payment reminders.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -531,3 +532,19 @@ this says *what the owner decided*, which nothing else records.
   - Add button rendered only when holding `CREATE`, status moves and Edit rendered only when holding `EDIT`, Archive/Restore and bulk selection rendered only when holding `ARCHIVE`.
   - Frontend Turbopack production build (`npm run build`) compiled cleanly in 4.2s (0 errors across 45 routes).
 - **Git & Next Step:** Committed in batches and pushed to `origin/roy`. Proceeding to Receivables (#21).
+
+### 11 Oct 2026 — Receivables (#21) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - Decorated `ReceivablesController` with `@UseGuards(AccessGuard)` and `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /api/receivables`, `/api/receivables/stats`, and `GET /api/receivables/:id` open to all staff sessions without requiring write permissions.
+  - Scoping via `reachOf(user.access, Module.RECEIVABLES)` and `TripsService.visibleWhere(user)`.
+  - Granular write gating: Gated create & update under `Action.CREATE`, recording & updating payments under `Action.PAY`, voiding/restoring invoices and withdrawing/restoring payments under `Action.ARCHIVE`.
+  - `ReceivablesService.assertMayArchive` asserts `canDo(user.access, Module.RECEIVABLES, Action.ARCHIVE)`.
+  - Unit test suite: Created `receivables.access.spec.ts` verifying staff reads, partner refusal (403), and granular write permissions. All 50 Vitest suites (410 tests) pass 100%.
+- **Frontend Architecture & Verification:**
+  - Migrated `ReceivablesContainer`, `ReceivablesToolbar`, and `ReceivableDetailSheet` from coarse `Permission.MANAGE_RECEIVABLES` to per-person permissions via `canAccess(Module.RECEIVABLES, Action.CREATE | Action.PAY | Action.ARCHIVE)`.
+  - Updated cross-module reads in `ClientDetailPage`, `ClientStatsRow`, and `FinancialAttention` to `canAccess(Module.RECEIVABLES, Action.VIEW)`.
+  - Turbopack production build (`npm run build`) compiled cleanly in 4.3s with 0 errors across 45 routes.
+- **Git & Next Step:** Pending owner testing and explicit instruction to commit and push. Proceeding to Operator Payments (#22).
+

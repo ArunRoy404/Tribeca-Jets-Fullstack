@@ -1189,6 +1189,12 @@ of these cards makes a second request.
   page, Payment Attention), Clients (the Payments tab and Total Spent)
 - `CommissionPaymentMethod` became the shared `PaymentMethod` (a rename in
   place — the method on every paid commission is kept)
+- **Review & per-person permissions migration (11 Oct 2026):**
+  - **Backend access:** `ReceivablesController` migrated to `@UseGuards(AccessGuard)` and `@StaffOnly()`. Open reads (`findAll`, `stats`, `findOne`) for staff sessions; referral agents refused with 403.
+  - **Granular write actions:** `Action.CREATE` on invoice creation (`POST /receivables`) and edit (`PATCH /receivables/:id`), `Action.PAY` on recording and editing payments, `Action.ARCHIVE` on voiding invoices and payments (and restore routes).
+  - **Scoping:** `ReceivablesService.scope` reads `reachOf(user.access, Module.RECEIVABLES) === Reach.ALL`, filtering broker reads and billing targets via `TripsService.visibleWhere(user)`. `assertMayArchive` asserts `canDo(user.access, Module.RECEIVABLES, Action.ARCHIVE)`.
+  - **Frontend per-person gating:** `ReceivablesContainer`, `ReceivablesToolbar`, and `ReceivableDetailSheet` migrated to `canAccess(Module.RECEIVABLES, Action.CREATE / PAY / ARCHIVE)`. Cross-module views in `ClientDetailPage`, `ClientStatsRow`, and `FinancialAttention` migrated to `canAccess(Module.RECEIVABLES, Action.VIEW)`.
+  - **Test coverage:** Unit test suite `receivables.access.spec.ts` passing (7 tests).
 - Migration `20260928100000_add_receivables`; Postman builder
   `build_receivables_folder.py` → `19 · Receivables` (14 requests), **written,
   not run**
