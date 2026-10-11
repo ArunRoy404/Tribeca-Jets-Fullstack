@@ -10,14 +10,13 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { OperatorPaymentsService } from './operator-payments.service.js';
@@ -34,18 +33,19 @@ import {
  * Operator Payments (#17) — what Tribeca owes operators for its trips and the
  * money sent against each bill.
  *
- * VIEW_OPERATOR_PAYMENTS reads: every bill for an administrator or senior
- * broker, the bills on their own (and unassigned) trips for a broker.
- * MANAGE_OPERATOR_PAYMENTS writes, and only administrators and senior brokers
- * hold it — money leaving the company, as with commissions.
+ * Scoped by reachOf(user.access, Module.OPERATOR_PAYMENTS): ALL sees every bill,
+ * OWN sees bills on the caller's trips. Writes need granular per-person permissions
+ * (OPERATOR_PAYMENTS · CREATE / PAY / ARCHIVE). Reads are open to any signed-in
+ * staff user, but closed to outside partners (@StaffOnly).
  */
 @ApiTags('Operator Payments')
 @Controller('operator-payments')
+@UseGuards(AccessGuard)
+@StaffOnly()
 export class OperatorPaymentsController {
   constructor(private readonly payables: OperatorPaymentsService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_OPERATOR_PAYMENTS)
   @ApiOperation({
     summary: 'List operator bills',
     description:
@@ -57,7 +57,6 @@ export class OperatorPaymentsController {
 
   /** Before `:id` — Nest matches in order. */
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_OPERATOR_PAYMENTS)
   @ApiOperation({
     summary: 'Operator payment totals',
     description:
@@ -68,7 +67,6 @@ export class OperatorPaymentsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_OPERATOR_PAYMENTS)
   @ApiOperation({
     summary: 'Get one operator bill, with its payments',
     description: 'Archived bills included. Outside the caller\'s scope: 404, never 403. `withdrawnPayments` lists payments taken off the record.',
@@ -78,7 +76,7 @@ export class OperatorPaymentsController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.CREATE)
   @ApiOperation({
     summary: 'Record an operator\'s bill on a trip',
     description: 'On a live trip. `operatorId` defaults to the trip\'s operator; a trip without one needs it named.',
@@ -89,7 +87,7 @@ export class OperatorPaymentsController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Archive several operator bills',
     description: 'Bills with live payments, and ids that match nothing, come back in `skipped`.',
@@ -100,14 +98,14 @@ export class OperatorPaymentsController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore several archived operator bills' })
   restoreMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.payables.restoreMany(user, body.ids);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.CREATE)
   @ApiOperation({
     summary: 'Edit or cancel an operator bill',
     description: 'The amount cannot drop below what has been paid, and a bill with live payments cannot be cancelled. The trip is fixed once recorded.',
@@ -122,7 +120,7 @@ export class OperatorPaymentsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive an operator bill', description: 'Only with no live payments. Nothing is deleted.' })
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.payables.remove(user, id);
@@ -130,7 +128,7 @@ export class OperatorPaymentsController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore an archived operator bill', description: 'Clears the archive stamp and nothing else.' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.payables.restore(user, id);
@@ -139,7 +137,7 @@ export class OperatorPaymentsController {
   // ---- Payments -----------------------------------------------------------
 
   @Post(':id/payments')
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.PAY)
   @ApiOperation({
     summary: 'Record money sent to the operator',
     description: 'Never past what the bill still owes, and never on a cancelled bill. `paidAt` defaults to today. Returns the bill.',
@@ -153,7 +151,7 @@ export class OperatorPaymentsController {
   }
 
   @Patch(':id/payments/:paymentId')
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.PAY)
   @ApiOperation({
     summary: 'Correct a recorded payment',
     description: 'A new amount is checked against the bill without this payment in it. Returns the bill.',
@@ -169,7 +167,7 @@ export class OperatorPaymentsController {
 
   @Delete(':id/payments/:paymentId')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Withdraw a payment',
     description: 'The payment stays on the record under `withdrawnPayments`. Returns the bill.',
@@ -184,7 +182,7 @@ export class OperatorPaymentsController {
 
   @Post(':id/payments/:paymentId/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_OPERATOR_PAYMENTS)
+  @RequireAccess(Module.OPERATOR_PAYMENTS, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Restore a withdrawn payment',
     description: 'Re-checked against the bill as it is now: refused if it would overpay it, or if the bill is cancelled.',

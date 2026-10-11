@@ -24,11 +24,8 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import {
-  Permission,
-  Scope,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+import { Reach, reachOf } from '../../common/authorization/access.js';
+import { Module } from '../../common/authorization/access.catalogue.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
 import { OperatorPayableStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -164,7 +161,7 @@ export class OperatorPaymentsService {
   // ---- Scope ------------------------------------------------------------
 
   private scope(user: AuthenticatedUser): Prisma.OperatorPayableWhereInput {
-    if (scopeFor(user.role, Permission.VIEW_OPERATOR_PAYMENTS) === Scope.ALL) return {};
+    if (reachOf(user.access, Module.OPERATOR_PAYMENTS) === Reach.ALL) return {};
     return { trip: this.trips.visibleWhere(user) };
   }
 
@@ -446,9 +443,15 @@ export class OperatorPaymentsService {
   // ---- Link checks --------------------------------------------------------
 
   private async assertOperator(id: string): Promise<void> {
-    const row = await this.prisma.operator.findUnique({ where: { id }, select: { deletedAt: true } });
+    const row = await this.prisma.operator.findUnique({
+      where: { id },
+      select: { name: true, deletedAt: true, status: true },
+    });
     if (!row) throw new BadRequestException('That operator does not exist');
     if (row.deletedAt) throw new BadRequestException('That operator has been archived. Restore it, or choose another.');
+    if (row.status === 'SUSPENDED') {
+      throw new BadRequestException(`${row.name} is suspended. Restore it to active status before recording bills against it.`);
+    }
   }
 
   private async findLive(user: AuthenticatedUser, id: string) {
@@ -559,7 +562,7 @@ export class OperatorPaymentsService {
 
   async restore(user: AuthenticatedUser, id: string) {
     const row = await this.prisma.operatorPayable.findFirst({
-      where: { id, deletedAt: { not: null } },
+      where: { id, deletedAt: { not: null }, ...this.scope(user) },
       select: { id: true, reference: true, createdAt: true },
     });
     if (!row) throw new NotFoundException('Archived operator payable not found');
@@ -577,7 +580,7 @@ export class OperatorPaymentsService {
   /** Bills carrying live payments are skipped, and come back in `skipped`. */
   async removeMany(user: AuthenticatedUser, ids: string[]): Promise<BulkResult> {
     const targets = await this.prisma.operatorPayable.findMany({
-      where: { id: { in: ids }, deletedAt: null, payments: { none: { deletedAt: null } } },
+      where: { id: { in: ids }, deletedAt: null, payments: { none: { deletedAt: null } }, ...this.scope(user) },
       select: { id: true, reference: true, createdAt: true },
     });
     if (targets.length) {
@@ -597,7 +600,7 @@ export class OperatorPaymentsService {
 
   async restoreMany(user: AuthenticatedUser, ids: string[]): Promise<BulkResult> {
     const targets = await this.prisma.operatorPayable.findMany({
-      where: { id: { in: ids }, deletedAt: { not: null } },
+      where: { id: { in: ids }, deletedAt: { not: null }, ...this.scope(user) },
       select: { id: true, reference: true, createdAt: true },
     });
     if (targets.length) {
