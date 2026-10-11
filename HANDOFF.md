@@ -57,18 +57,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 25 | **Transactions** | ✅ 11 Oct — owner tested & signed off |
 | 26 | **Tasks Board & notification bell** | ✅ 11 Oct — owner tested & signed off |
 | 27 | **Email Templates & sending** | ✅ 11 Oct — owner tested & signed off |
-| 28 | **Document Vault** | ⬜ **next in review queue** |
-| 29–35 | Reports, Dashboard, … | ⬜ in the table's order |
+| 28 | **Document Vault** | ✅ 11 Oct — owner tested & verified |
+| 29 | **Reports** | ⬜ **next in review queue** |
+| 30–35 | Dashboard, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Document Vault (#28)
+### What is next — Reports (#29)
 
-- **Email Templates & sending (#27) reviewed & signed off:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.EMAIL_TEMPLATES, Action.CREATE | EDIT | ARCHIVE | SEND)`), open staff reads, server-paginated pickers (`ClientPicker`, `OperatorPicker`, `TripPicker`), and full live merge fields engine.
-- **Production deployment & DB wipe (11 Oct 2026):** Merged to `main` and redeployed cleanly via Dokploy on VPS. Production PostgreSQL database wiped of all test data via `TRUNCATE TABLE ... CASCADE`, preserving single active `SUPER_ADMIN` (`ari@tribecajets.com`).
-- **Next module in queue:** **Document Vault (#28)** (`/dashboard/documents`).
+- **Document Vault (#28) reviewed & verified:** Migrated to per-person permissions (`@StaffOnly()`, open staff reads, `@RequireAccess(Module.DOCUMENTS, Action.CREATE | EDIT | ARCHIVE)`), sensitive files (`VIEW_SENSITIVE`) restricted to authorized staff, server-paginated pickers (`ClientPicker`, `TripPicker`, `OperatorPicker`), and resolved runtime reference errors on `DocumentsPanel`.
+- **Next module in queue:** **Reports (#29)** (`/dashboard/reports`).
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -703,6 +703,25 @@ this says *what the owner decided*, which nothing else records.
   - `ComposeEmailDialog.jsx` upgraded: replaced unpaginated `limit: 100` dropdown queries with shared server-paginated `ClientPicker`, `OperatorPicker`, and `TripPicker`, with live search, server pagination, and optional trip clearing.
   - Oxlint clean (0 warnings / 0 errors across 13 files). Turbopack production build (`npm run build`) compiled successfully in 5.7s with 0 errors across 45 routes.
 - **Owner Test & Sign-off:** Owner tested and signed off on Email Templates & sending (#27). All changes committed and pushed to `origin/roy`. Next in queue: Document Vault (#28).
+
+### 11 Oct 2026 — Document Vault (#28) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `DocumentsController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring outside partner / referral agent accounts (`403 Forbidden`).
+  - Open staff reads: `GET /documents`, `GET /documents/stats`, `GET /documents/:id`, and `GET /documents/:id/file` open to all authenticated staff sessions; row reach follows owner visibility (`ClientsService.visibleWhere`, `TripsService.visibleWhere`).
+  - Passports and IDs restricted strictly by `canDo(user.access, Module.DOCUMENTS, Action.VIEW_SENSITIVE)`. Without it, sensitive categories are excluded from list/stats and return 404 when named.
+  - Granular per-person write gating:
+    - `POST /documents`: `@RequireAccess(Module.DOCUMENTS, Action.CREATE)` (*"File documents"*)
+    - `PATCH /documents/:id`: `@RequireAccess(Module.DOCUMENTS, Action.EDIT)`
+    - `DELETE /documents/:id`, `POST /documents/bulk-delete`, `POST /documents/:id/restore`, `POST /documents/bulk-restore`: `@RequireAccess(Module.DOCUMENTS, Action.ARCHIVE)`
+  - Archiving restriction: `assertMayArchive` and `bulk` archive permit callers holding `Reach.ALL` or `isAdministrator(user.role)`, while restricting `Reach.OWN` callers to documents they filed (`createdById === user.id`).
+  - Unit test suite: Created `documents.access.spec.ts` (21 tests) verifying `@StaffOnly()`, open reads, write actions, and passport exclusion. All 57 Vitest suites (476 tests) pass 100%. `nest build` clean with 0 errors.
+- **Frontend Architecture & Reusable Component Upgrades:**
+  - `DocumentFormDialog.jsx` upgraded: replaced unpaginated `limit: 100` plain dropdowns with shared server-paginated `ClientPicker`, `TripPicker`, and `OperatorPicker` using `RecordPicker`.
+  - Migrated `useDocumentRowActions.jsx` to per-person permissions (`canAccess(Module.DOCUMENTS, Action.EDIT | Action.ARCHIVE)`, `reachOf(Module.DOCUMENTS)`).
+  - Migrated `DocumentsPanel.jsx` to `canAccess(Module.DOCUMENTS, Action.VIEW)` and `canAccess(Module.DOCUMENTS, Action.CREATE)`.
+  - Migrated `DocumentsToolbar.jsx` and `DocumentsContainer.jsx` to distinct `mayCreate` and `mayArchive` controls.
+  - Oxlint clean (0 warnings / 0 errors across 9 files). Turbopack production build (`npm run build`) compiled successfully in 5.7s with 0 errors across 45 routes.
 
 
 

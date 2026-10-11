@@ -1538,7 +1538,25 @@ anywhere in the system.
 
 ---
 
-## 22. Document Vault ✅ *(29 Sep 2026)*
+## 22. Document Vault ✅ *(29 Sep 2026; reviewed 11 Oct 2026)*
+
+**Reviewed 11 Oct 2026 (Module #28 in queue):**
+- **Backend architecture & per-person access (`Module.DOCUMENTS`):**
+  - Controller decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring external partner accounts (referral agents) with 403.
+  - Open staff reads: `GET /documents`, `GET /documents/stats`, `GET /documents/:id`, and `GET /documents/:id/file` open to authenticated staff sessions; row reach follows owner visibility (`ClientsService.visibleWhere`, `TripsService.visibleWhere`).
+  - Passports and IDs restricted strictly by `canDo(user.access, Module.DOCUMENTS, Action.VIEW_SENSITIVE)`. Without it, sensitive categories are excluded from list/stats and 404 when named.
+  - Granular write gating:
+    - `POST /documents`: `@RequireAccess(Module.DOCUMENTS, Action.CREATE)` (*"File documents"*)
+    - `PATCH /documents/:id`: `@RequireAccess(Module.DOCUMENTS, Action.EDIT)`
+    - `DELETE /documents/:id`, `bulk-delete`, `restore`, `bulk-restore`: `@RequireAccess(Module.DOCUMENTS, Action.ARCHIVE)`
+  - Archiving restriction: `assertMayArchive` and `bulk` archive permit callers holding `Reach.ALL` or `isAdministrator(user.role)`, while restricting `Reach.OWN` callers to documents they filed (`createdById === user.id`).
+  - Unit test suite: `documents.access.spec.ts` (21 tests) verifying `@StaffOnly()`, open reads, write actions, and passport exclusion. All 57 test suites (476 tests) pass 100%. `nest build` clean with 0 errors.
+- **Frontend upgrades & reusable components:**
+  - Upgraded `DocumentFormDialog.jsx`: replaced unpaginated `limit: 100` plain dropdowns with shared server-paginated `ClientPicker`, `TripPicker`, and `OperatorPicker` using `RecordPicker`.
+  - Migrated `useDocumentRowActions.jsx` to per-person permissions (`canAccess(Module.DOCUMENTS, Action.EDIT | Action.ARCHIVE)`, `reachOf(Module.DOCUMENTS)`).
+  - Migrated `DocumentsPanel.jsx` to `canAccess(Module.DOCUMENTS, Action.VIEW)` and `canAccess(Module.DOCUMENTS, Action.CREATE)`.
+  - Migrated `DocumentsToolbar.jsx` and `DocumentsContainer.jsx` to distinct `mayCreate` and `mayArchive` controls.
+  - Oxlint clean (0 warnings / 0 errors across 9 files). Turbopack production build (`npm run build`) compiled cleanly in 5.7s with 0 errors across 45 routes.
 
 **Working now**
 
