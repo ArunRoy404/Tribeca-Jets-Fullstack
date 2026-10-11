@@ -41,8 +41,12 @@ export default function CommissionsToolbar({
   selectedCount = 0,
   onBulkAction,
   onAddCommission,
+  mayCreate = false,
+  mayArchive = false,
   mayWrite = false,
 }) {
+  const canCreate = mayCreate || mayWrite;
+  const canArchive = mayArchive || mayWrite;
   const isArchived = tab === ARCHIVE_TABS.ARCHIVED;
   const [draft, setDraft] = useDebouncedParam(search, setSearch);
   const statusFilter = useEnumFilter(COMMISSION_STATUSES, formatCommissionStatus, ALL_STATUS);
@@ -80,7 +84,7 @@ export default function CommissionsToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {mayWrite && (
+          {canArchive && (
             <BulkDeleteButton
               count={selectedCount}
               itemLabel="commissions"
@@ -88,7 +92,7 @@ export default function CommissionsToolbar({
               action={isArchived ? "restore" : "remove"}
             />
           )}
-          {mayWrite && !isArchived && (
+          {canCreate && !isArchived && (
             <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" onClick={() => onAddCommission?.()}>
               <Plus className="size-3.5" />
               <span>Add Commission</span>

@@ -16,7 +16,7 @@ import {
   useUpdateCommission,
 } from "@/hooks/commissions";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toCommissionRow } from "@/lib/commission";
 import { useCommissionsStore } from "@/store/useCommissionsStore";
 
@@ -27,8 +27,10 @@ export default function CommissionDetailSheet() {
   const { data, isPending, error, refetch } = useCommission(id);
   const item = data ? toCommissionRow(data) : null;
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_COMMISSIONS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.COMMISSIONS, Action.CREATE);
+  const mayPay = canAccess(Module.COMMISSIONS, Action.PAY);
+  const mayArchive = canAccess(Module.COMMISSIONS, Action.ARCHIVE);
   const openEditModal = useCommissionsStore((s) => s.openEditModal);
 
   const { mutate: update, isPending: moving } = useUpdateCommission();
@@ -97,37 +99,43 @@ export default function CommissionDetailSheet() {
             </p>
           </SectionCard>
 
-          {mayWrite && (
+          {(mayCreate || mayPay || mayArchive) && (
             <div className="border-t border-secondary flex flex-wrap items-center justify-between gap-3 pt-4 w-full mt-auto">
               {item.isArchived ? (
-                <Button variant="outline" className="gap-2 px-4" onClick={() => restore(item.id)}>
-                  <RotateCcw className="size-4" />
-                  Restore
-                </Button>
+                mayArchive && (
+                  <Button variant="outline" className="gap-2 px-4" onClick={() => restore(item.id)}>
+                    <RotateCcw className="size-4" />
+                    Restore
+                  </Button>
+                )
               ) : (
                 <>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" className="gap-2 px-4" onClick={() => openEditModal(data)}>
-                      <Pencil className="size-4" />
-                      Edit
-                    </Button>
-                    {item.rawStatus === "PENDING" && (
+                    {mayCreate && (
+                      <Button variant="outline" className="gap-2 px-4" onClick={() => openEditModal(data)}>
+                        <Pencil className="size-4" />
+                        Edit
+                      </Button>
+                    )}
+                    {(mayPay || mayCreate) && item.rawStatus === "PENDING" && (
                       <Button variant="outline" disabled={moving} className="gap-2 px-4" onClick={() => update({ id: item.id, status: "EARNED" })}>
                         <BadgeCheck className="size-4" />
                         Mark Earned
                       </Button>
                     )}
-                    {item.rawStatus !== "PAID" && item.rawStatus !== "CANCELLED" && (
+                    {mayPay && item.rawStatus !== "PAID" && item.rawStatus !== "CANCELLED" && (
                       <Button variant="outline" disabled={moving} className="gap-2 px-4" onClick={() => update({ id: item.id, status: "PAID" })}>
                         <Banknote className="size-4" />
                         Mark Paid Today
                       </Button>
                     )}
                   </div>
-                  <Button variant="destructive" className="gap-2 px-4" onClick={() => remove(item.id, { onSuccess: close })}>
-                    <Trash2 className="size-4" />
-                    Archive
-                  </Button>
+                  {mayArchive && (
+                    <Button variant="destructive" className="gap-2 px-4" onClick={() => remove(item.id, { onSuccess: close })}>
+                      <Trash2 className="size-4" />
+                      Archive
+                    </Button>
+                  )}
                 </>
               )}
             </div>

@@ -19,7 +19,7 @@ import {
   useUpdateCommission,
 } from "@/hooks/commissions";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toCommissionRow } from "@/lib/commission";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { useCommissionsStore } from "@/store/useCommissionsStore";
@@ -34,8 +34,10 @@ export default function CommissionsContainer({ revealDelay = 0 }) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_COMMISSIONS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.COMMISSIONS, Action.CREATE);
+  const mayPay = canAccess(Module.COMMISSIONS, Action.PAY);
+  const mayArchive = canAccess(Module.COMMISSIONS, Action.ARCHIVE);
 
   const openAddModal = useCommissionsStore((s) => s.openAddModal);
   const openEditModal = useCommissionsStore((s) => s.openEditModal);
@@ -72,19 +74,30 @@ export default function CommissionsContainer({ revealDelay = 0 }) {
 
   const getRowActions = (row) => {
     const view = { label: "View Details", icon: <Eye />, onSelect: () => openDetails(row?.id) };
-    if (!mayWrite) return [view];
+    if (!mayCreate && !mayPay && !mayArchive) return [view];
     if (isArchived) {
-      return [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreCommissions?.(row?.id) }];
+      return mayArchive
+        ? [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreCommissions?.(row?.id) }]
+        : [view];
     }
-    const actions = [view, { label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(row?.raw) }];
-    if (row?.rawStatus === "PENDING") {
-      actions.push({ label: "Mark Earned", icon: <BadgeCheck />, onSelect: () => updateCommission?.({ id: row?.id, status: "EARNED" }) });
+    const actions = [view];
+    if (mayCreate) {
+      actions.push({ label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(row?.raw) });
     }
-    if (row?.rawStatus !== "PAID" && row?.rawStatus !== "CANCELLED") {
-      actions.push({ label: "Mark Paid Today", icon: <Banknote />, onSelect: () => updateCommission?.({ id: row?.id, status: "PAID" }) });
+    if (mayCreate || mayPay) {
+      if (row?.rawStatus === "PENDING") {
+        actions.push({ label: "Mark Earned", icon: <BadgeCheck />, onSelect: () => updateCommission?.({ id: row?.id, status: "EARNED" }) });
+      }
     }
-    actions.push("separator");
-    actions.push({ label: "Archive", icon: <Trash2 />, variant: "destructive", onSelect: () => removeCommissions?.(row?.id) });
+    if (mayPay) {
+      if (row?.rawStatus !== "PAID" && row?.rawStatus !== "CANCELLED") {
+        actions.push({ label: "Mark Paid Today", icon: <Banknote />, onSelect: () => updateCommission?.({ id: row?.id, status: "PAID" }) });
+      }
+    }
+    if (mayArchive) {
+      actions.push("separator");
+      actions.push({ label: "Archive", icon: <Trash2 />, variant: "destructive", onSelect: () => removeCommissions?.(row?.id) });
+    }
     return actions;
   };
 
@@ -105,7 +118,8 @@ export default function CommissionsContainer({ revealDelay = 0 }) {
           selectedCount={selected.size}
           onBulkAction={() => setBulkOpen(true)}
           onAddCommission={() => openAddModal()}
-          mayWrite={mayWrite}
+          mayCreate={mayCreate}
+          mayArchive={mayArchive}
         />
 
         {isPending || error || isEmpty ? (
@@ -138,7 +152,7 @@ export default function CommissionsContainer({ revealDelay = 0 }) {
               onSelectAll={() =>
                 setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((row) => row?.id))))
               }
-              selectable={mayWrite}
+              selectable={mayArchive}
               archived={isArchived}
             />
 
