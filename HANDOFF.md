@@ -51,17 +51,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 19 | **Flight Tracking** | ✅ 11 Oct — owner tested & signed off |
 | 20 | **Empty Legs** | ✅ 11 Oct — owner tested & signed off |
 | 21 | **Receivables** | ✅ 11 Oct — owner tested & signed off |
-| 22 | **Operator Payments** | 🟡 **next in queue** |
-| 23–35 | Commissions, Referrals, … | ⬜ in the table's order |
+| 22 | **Operator Payments** | ✅ 11 Oct — owner tested & signed off |
+| 23 | **Commissions** | 🟡 **next in review queue** |
+| 24–35 | Referrals, Transactions, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Receivables (#21) testing & Operator Payments (#22)
+### What is next — Operator Payments (#22) testing & Commissions (#23)
 
-- **Receivables (#21) reviewed, migrated and verified:** Controller gated with `@StaffOnly()`, open staff reads, `@RequireAccess(Module.RECEIVABLES, CREATE | PAY | ARCHIVE)` on writes. Scoping via `reachOf(user.access, Module.RECEIVABLES) === Reach.ALL` and `TripsService.visibleWhere(user)`. Frontend toolbar, container, detail sheet, client details, and financial attention migrated to granular per-person permissions. Unit test suite `receivables.access.spec.ts` passing 100%. Next.js production build passes 100% (45 routes).
-- **Next module in queue:** **Operator Payments (#22)** — operator bills on trips, charges, due dates, settlement math, payment records, and payment reminders.
+- **Operator Payments (#22) reviewed, migrated and verified:** Controller gated with `@StaffOnly()`, open staff reads, `@RequireAccess(Module.OPERATOR_PAYMENTS, CREATE | PAY | ARCHIVE)` on writes. Scoping via `reachOf(user.access, Module.OPERATOR_PAYMENTS) === Reach.ALL` and `TripsService.visibleWhere(user)`. Frontend toolbar, container, detail sheet, dialogs, operator detail tab, and financial attention migrated to granular per-person permissions. Unit test suite `operator-payments.access.spec.ts` (7 tests) passing 100%. All 51 Vitest suites (417 tests) passing 100%. Next.js production build passes 100% (45 routes).
+- **Next module in queue:** **Commissions (#23)** — trip commissions to referral agents, brokers, travel agents, and named recipients.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -546,5 +547,26 @@ this says *what the owner decided*, which nothing else records.
   - Migrated `ReceivablesContainer`, `ReceivablesToolbar`, and `ReceivableDetailSheet` from coarse `Permission.MANAGE_RECEIVABLES` to per-person permissions via `canAccess(Module.RECEIVABLES, Action.CREATE | Action.PAY | Action.ARCHIVE)`.
   - Updated cross-module reads in `ClientDetailPage`, `ClientStatsRow`, and `FinancialAttention` to `canAccess(Module.RECEIVABLES, Action.VIEW)`.
   - Turbopack production build (`npm run build`) compiled cleanly in 4.3s with 0 errors across 45 routes.
-- **Git & Next Step:** Pending owner testing and explicit instruction to commit and push. Proceeding to Operator Payments (#22).
+- **Git & Next Step:** Committed in batches and pushed to `origin/roy`. Proceeding to Operator Payments (#22).
+
+### 11 Oct 2026 — Operator Payments (#22) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - Decorated `OperatorPaymentsController` with `@UseGuards(AccessGuard)` and `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /operator-payments`, `GET /operator-payments/stats`, and `GET /operator-payments/:id` open to all staff sessions without requiring write permissions.
+  - Scoping via `reachOf(user.access, Module.OPERATOR_PAYMENTS)` and `TripsService.visibleWhere(user)`.
+  - Granular write gating: Gated create & update under `Action.CREATE`, recording & updating payments under `Action.PAY`, voiding/restoring bills and withdrawing/restoring payments under `Action.ARCHIVE`.
+  - Added caller scope checking to `restore`, `removeMany`, and `restoreMany`; validated active and non-suspended status in `assertOperator`.
+  - Unit test suite: Created `operator-payments.access.spec.ts` (7 tests) verifying staff reads, partner refusal (403), and granular write permissions. All 51 Vitest suites (417 tests) pass 100%. `tsc --noEmit` clean with 0 errors.
+- **Frontend Architecture & Verification:**
+  - Migrated `OperatorPaymentsContainer`, `OperatorPaymentsToolbar`, and `OperatorPaymentDetailSheet` from coarse `Permission.MANAGE_OPERATOR_PAYMENTS` to per-person permissions via `canAccess(Module.OPERATOR_PAYMENTS, Action.CREATE | Action.PAY | Action.ARCHIVE)`.
+  - Form layout refinement in `AddOperatorPaymentDialog`: row 3 Due date takes 100% width on create and aligns 50/50 with Status when editing.
+  - Replaced unoptimized `CommonSelect` and `limit: 100` fetches in `AddOperatorPaymentDialog` with the reusable `TripPicker` (`components/trips/TripPicker.jsx`) and `OperatorPicker` (`components/operators/OperatorPicker.jsx`) powered by `RecordPicker`:
+    - Handles 1,000+ records via debounced server-side search and server pagination (10/25/50/100).
+    - `TripPicker` displays reference, client, and route with live search.
+    - `OperatorPicker` defaults cleanly to the trip's operator (`The trip's operator (<name>)`), supports clearable resetting, and searches all operators.
+    - Automatically populates the trip cost helper box and owed/paid stats via `useTrip(form.tripId)`.
+  - Updated cross-module reads in `FinancialAttention` and `OperatorDetailsView` to `canAccess(Module.OPERATOR_PAYMENTS, Action.VIEW)`.
+  - Turbopack production build (`npm run build`) compiled cleanly in 4.3s with 0 errors across 45 routes.
+- **Git & Next Step:** Pending owner testing and explicit instruction to commit and push. Next in queue: Commissions (#23).
 

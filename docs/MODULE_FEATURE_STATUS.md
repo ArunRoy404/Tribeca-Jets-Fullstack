@@ -1247,6 +1247,18 @@ as open; this module records them.
 - Migration `20260928120000_add_operator_payments`; Postman builder
   `build_operator_payments_folder.py` → `20 · Operator Payments` (14
   requests), **written, not run**
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Backend access migration:** Controller moved to `@UseGuards(AccessGuard)` and `@StaffOnly()`. Open reads for staff sessions (`findAll`, `stats`, `findOne`); writes gated on `OPERATOR_PAYMENTS · CREATE` (bills), `PAY` (payments), and `ARCHIVE` (voiding/withdrawing bills or payments).
+  - **Service scoping:** Migrated from `scopeFor` to `reachOf(user.access, Module.OPERATOR_PAYMENTS) === Reach.ALL` (trip-based `visibleWhere` for broker `OWN` reach). Added caller scoping to `restore`, `removeMany`, and `restoreMany`, and verified active/suspended status in operator re-checks.
+  - **Access test suite:** Added `operator-payments.access.spec.ts` (7 tests) asserting staff open reads, 403 `StaffOnly` for referral agents, and granular write refusals and grants.
+  - **Frontend per-person access:** Migrated `OperatorPaymentsContainer`, `OperatorPaymentsToolbar`, and `OperatorPaymentDetailSheet` from legacy `canWrite(MANAGE_OPERATOR_PAYMENTS)` to `canAccess(Module.OPERATOR_PAYMENTS, Action...)`.
+  - **Reusable Pickers & Scalability (1,000+ records):**
+    - Refactored `AddOperatorPaymentDialog.jsx`: replaced unoptimized `CommonSelect` and `limit: 100` fetches with standardized `TripPicker` (`components/trips/TripPicker.jsx`) and `OperatorPicker` (`components/operators/OperatorPicker.jsx`).
+    - Both use `RecordPicker` for debounced server-side search, server pagination (10/25/50/100), and `useOne` ID lookup.
+    - "Billed by" defaults to `"The trip's operator (<name>)"` when a trip is chosen, supports resetting via clear, and allows selecting any active operator.
+    - Helper card (`Trip's operator cost` and button) and existing payment stats update dynamically from `useTrip(form.tripId)`.
+  - **Dialog layout refinement:** `AddOperatorPaymentDialog` row 3 dynamically expands Due Date to 100% width on create and 50/50 with Status on edit.
+  - **Cross-module access:** `FinancialAttention` dashboard widget and `OperatorDetailsView` payments tab migrated to `canAccess(Module.OPERATOR_PAYMENTS, Action.VIEW)`.
 
 **Waiting on a dependency**
 
