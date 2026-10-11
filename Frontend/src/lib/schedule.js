@@ -3,6 +3,7 @@ import { displayName } from "@/lib/client";
 import { personName } from "@/lib/lead";
 import { formatTripReference, formatTripStatus, formatTripType } from "@/lib/trip";
 import { toTripPayment } from "@/lib/receivable";
+import { formatFlightStatus } from "@/lib/flight";
 
 /**
  * Display helpers for Schedule (#13), the calendar of trip legs.
@@ -67,6 +68,8 @@ export function toScheduleEvent(leg) {
     timeLabel: leg?.departureTime ?? "Time not set",
     arrivalTime: leg?.arrivalTime ?? null,
     duration: leg?.flightTime || DASH,
+    flightStatusRaw: leg?.flightStatus ?? null,
+    flightStatus: leg?.flightStatus ? formatFlightStatus(leg.flightStatus) : null,
     rawStatus: trip?.status ?? null,
     status: formatTripStatus(trip?.status),
     client: trip?.client ? displayName(trip.client) : DASH,

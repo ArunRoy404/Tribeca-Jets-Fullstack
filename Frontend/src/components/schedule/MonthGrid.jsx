@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { useScheduleEvents, useScheduleParams } from "@/hooks/schedule";
-import { getMonthGrid, isSameDay, formatShortDay, dayLabel } from "@/lib/date";
+import { getMonthGrid, isSameDay, formatShortDay, dayLabel, toISODate } from "@/lib/date";
 import FlightEventCard from "@/components/common/FlightEventCard";
 
 const WEEKDAY_LABELS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
@@ -18,6 +18,7 @@ export default function MonthGrid() {
   const { currentDate, goToDate } = useScheduleParams();
   const { eventsFor: getEventsForDate } = useScheduleEvents();
   const selectEvent = useScheduleStore((s) => s.selectEvent);
+  const openDaySchedule = useScheduleStore((s) => s.openDaySchedule);
   const weeks = getMonthGrid(currentDate);
   const selectedDayEvents = getEventsForDate(currentDate);
   const currentMonth = currentDate.getMonth();
@@ -104,22 +105,36 @@ export default function MonthGrid() {
               const events = getEventsForDate(day);
               const visibleEvents = events.slice(0, MAX_VISIBLE_EVENTS);
               const overflowCount = events.length - visibleEvents.length;
+              const isoDate = toISODate(day);
+              const hasEvents = events.length > 0;
               return (
                 <div
                   key={day.toISOString()}
+                  onClick={() => hasEvents && openDaySchedule(isoDate)}
                   className={cn(
-                    "flex flex-col gap-[5px] items-start h-[92px] p-2 border-b border-r border-secondary bg-white overflow-hidden",
+                    "group flex flex-col gap-[5px] items-start h-[92px] p-2 border-b border-r border-secondary bg-white overflow-hidden transition-colors",
+                    hasEvents && "cursor-pointer hover:bg-purple/5",
                     isSameDay(day, currentDate) && "bg-purple/5"
                   )}
                 >
-                  <p className="font-montserrat font-bold text-[16px] text-foreground shrink-0">{day.getDate()}</p>
+                  <div className="flex items-center justify-between w-full shrink-0">
+                    <p className="font-montserrat font-bold text-[16px] text-foreground shrink-0">{day.getDate()}</p>
+                    {events.length > 1 && (
+                      <span className="font-montserrat text-[10px] text-purple font-medium group-hover:underline">
+                        {events.length} flights
+                      </span>
+                    )}
+                  </div>
                   {visibleEvents.map((event) => {
                     const isInFlight = event?.rawStatus === "IN_FLIGHT";
                     return (
                       <button
                         key={event?.id}
                         type="button"
-                        onClick={() => selectEvent(event?.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          selectEvent(event?.id, isoDate);
+                        }}
                         className={cn(
                           "flex flex-col gap-px items-start px-[7px] py-1 rounded-[5px] w-full text-left cursor-pointer overflow-hidden shrink-0",
                           isInFlight ? "bg-warning/10" : "bg-secondary"
@@ -135,7 +150,16 @@ export default function MonthGrid() {
                     );
                   })}
                   {overflowCount > 0 && (
-                    <p className="font-montserrat font-medium text-[8px] text-muted-foreground shrink-0">+{overflowCount} more</p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDaySchedule(isoDate);
+                      }}
+                      className="font-montserrat font-medium text-[8px] text-purple hover:underline shrink-0 cursor-pointer"
+                    >
+                      +{overflowCount} more
+                    </button>
                   )}
                 </div>
               );

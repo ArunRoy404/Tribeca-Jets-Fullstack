@@ -7,6 +7,10 @@ import { create } from "zustand";
  */
 export const useScheduleStore = create((set) => ({
   selectedEventId: null,
-  selectEvent: (eventId) => set({ selectedEventId: eventId }),
-  closeEventDetail: () => set({ selectedEventId: null }),
+  selectedDayDate: null,
+  selectEvent: (eventId, dayDate = null) =>
+    set((state) => ({ selectedEventId: eventId, selectedDayDate: dayDate ?? state.selectedDayDate })),
+  closeEventDetail: () => set({ selectedEventId: null, selectedDayDate: null }),
+  openDaySchedule: (dayDate) => set({ selectedDayDate: dayDate, selectedEventId: null }),
+  backToDayList: () => set({ selectedEventId: null }),
 }));
