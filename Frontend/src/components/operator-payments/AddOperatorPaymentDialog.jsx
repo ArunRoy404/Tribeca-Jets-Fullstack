@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Edit, Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,24 +8,21 @@ import CommonInput from "@/components/common/CommonInput";
 import CommonSelect from "@/components/common/CommonSelect";
 import DatePicker from "@/components/common/DatePicker";
 import FormField from "@/components/trips/FormField";
+import TripPicker from "@/components/trips/TripPicker";
+import OperatorPicker from "@/components/operators/OperatorPicker";
 import { useCreateOperatorPayable, useUpdateOperatorPayable } from "@/hooks/operator-payments";
-import { useTrip, useTrips } from "@/hooks/trips";
-import { useOperators } from "@/hooks/operators";
+import { useTrip } from "@/hooks/trips";
 import { PAYABLE_STATUSES, formatPayableStatus } from "@/lib/operatorPayment";
-import { displayName } from "@/lib/client";
-import { formatTripReference, formatTripRoute } from "@/lib/trip";
+import { formatTripReference } from "@/lib/trip";
 import { formatMoneyExact } from "@/lib/money";
 import { optionalNumber, optionalText } from "@/lib/form";
 import { toDateInput } from "@/lib/date";
 import { useOperatorPaymentsStore } from "@/store/useOperatorPaymentsStore";
 
-/** "Billed by" left on the trip's own operator. */
-const TRIP_OPERATOR = "__trip_operator__";
-
 function initialForm(bill, draft) {
   return {
     tripId: bill?.tripId ?? draft?.tripId ?? "",
-    operatorId: bill ? bill.operatorId : TRIP_OPERATOR,
+    operatorId: bill?.operatorId ?? draft?.operatorId ?? "",
     amount: bill?.amount ?? "",
     status: bill?.status ?? "OPEN",
     dueDate: toDateInput(bill?.dueDate),
@@ -63,31 +60,11 @@ function BillForm({ bill, draft, onDone }) {
   const [errors, setErrors] = useState({});
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const { data: trips } = useTrips({ limit: 100, sortBy: "departureDate", sortOrder: "desc" }, { enabled: !editing });
-  const { data: operators } = useOperators({ limit: 100, sortBy: "name", sortOrder: "asc" });
-
-  // A trip handed over from its own page may sit outside the picker's first
-  // page; it is fetched on its own so the picker can still name it.
-  const listed = (trips?.data ?? []).some((t) => t.id === form.tripId);
-  const { data: handedOver } = useTrip(!editing && form.tripId && trips && !listed ? form.tripId : null);
-  const tripRows = useMemo(
-    () => [...(handedOver ? [handedOver] : []), ...(trips?.data ?? [])],
-    [handedOver, trips?.data],
-  );
-  const tripOptions = tripRows.map((t) => ({
-    value: t.id,
-    label: `${formatTripReference(t.reference)} · ${t.client ? displayName(t.client) : "—"} · ${formatTripRoute(t)}`,
-  }));
-  const trip = tripRows.find((t) => t.id === form.tripId) ?? null;
+  const { data: trip } = useTrip(form.tripId || null);
   const owed = trip?.operatorPayment ?? null;
   // Present only for a role with VIEW_FINANCIALS — and only such roles can
   // record bills — so the button never offers a figure the caller cannot see.
   const operatorCost = trip?.operatorCost ?? null;
-
-  const operatorOptions = [
-    { value: TRIP_OPERATOR, label: trip?.operator?.name ? `The trip's operator (${trip.operator.name})` : "The trip's operator" },
-    ...(operators?.data ?? []).map((o) => ({ value: o.id, label: o.name })),
-  ];
 
   const { mutate: create, isPending: creating } = useCreateOperatorPayable();
   const { mutate: update, isPending: updating } = useUpdateOperatorPayable();
@@ -96,7 +73,7 @@ function BillForm({ bill, draft, onDone }) {
     event.preventDefault();
     const next = {};
     if (!editing && !form.tripId) next.tripId = "Choose the trip";
-    if (!editing && form.operatorId === TRIP_OPERATOR && trip && !trip.operatorId) {
+    if (!editing && !form.operatorId && trip && !trip.operatorId) {
       next.operatorId = "This trip has no operator yet — choose who billed it";
     }
     if (!String(form.amount).trim()) next.amount = "Enter what the operator billed";
@@ -106,7 +83,7 @@ function BillForm({ bill, draft, onDone }) {
     const clear = { editing };
     const payload = {
       ...(editing ? {} : { tripId: form.tripId }),
-      ...(form.operatorId && form.operatorId !== TRIP_OPERATOR ? { operatorId: form.operatorId } : {}),
+      ...(form.operatorId ? { operatorId: form.operatorId } : (editing && trip?.operatorId ? { operatorId: trip.operatorId } : {})),
       amount: optionalNumber(form.amount),
       ...(editing ? { status: form.status } : {}),
       dueDate: form.dueDate || (editing ? null : undefined),
@@ -117,6 +94,15 @@ function BillForm({ bill, draft, onDone }) {
     const onError = (error) => setErrors(error?.fieldErrors ?? {});
     if (editing) update({ id: bill.id, ...payload }, { onSuccess: onDone, onError });
     else create(payload, { onSuccess: onDone, onError });
+  };
+
+  const handleTripChange = (tripId) => {
+    setForm((prev) => ({
+      ...prev,
+      tripId,
+      // Reset operatorId so it defaults to the newly picked trip's operator
+      operatorId: "",
+    }));
   };
 
   return (
@@ -138,11 +124,31 @@ function BillForm({ bill, draft, onDone }) {
                 {bill?.trip?.reference ? formatTripReference(bill.trip.reference) : "—"}
               </p>
             ) : (
-              <CommonSelect value={form.tripId} onChange={set("tripId")} options={tripOptions} placeholder="Choose the trip" />
+              <TripPicker
+                value={form.tripId}
+                onChange={handleTripChange}
+                invalid={Boolean(errors.tripId)}
+                placeholder="Choose the trip"
+              />
             )}
           </FormField>
           <FormField label="Billed by" error={errors.operatorId}>
-            <CommonSelect value={form.operatorId} onChange={set("operatorId")} options={operatorOptions} />
+            <OperatorPicker
+              value={form.operatorId}
+              onChange={(id) => set("operatorId")(id || "")}
+              allowClear={Boolean(trip?.operator?.name || trip?.operatorId)}
+              clearLabel={
+                trip?.operator?.name
+                  ? `The trip's operator (${trip.operator.name})`
+                  : "The trip's operator"
+              }
+              placeholder={
+                trip?.operator?.name
+                  ? `The trip's operator (${trip.operator.name})`
+                  : "Choose who billed it"
+              }
+              invalid={Boolean(errors.operatorId)}
+            />
           </FormField>
         </div>
 
@@ -190,7 +196,7 @@ function BillForm({ bill, draft, onDone }) {
           </FormField>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+        <div className={editing ? "grid grid-cols-1 sm:grid-cols-2 gap-4 w-full" : "w-full"}>
           <FormField label="Due date (Optional)" error={errors.dueDate}>
             <DatePicker value={form.dueDate} onChange={set("dueDate")} placeholder="Choose Date" />
           </FormField>

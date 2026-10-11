@@ -7,7 +7,6 @@ import FinanceColumn from "@/components/dashboard/financial-attention/FinanceCol
 import { useReceivables, useReceivableStats } from "@/hooks/receivables";
 import { useOperatorPayables, useOperatorPayableStats } from "@/hooks/operator-payments";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
 import { Action, Module } from "@/lib/access";
 import { queryPresets } from "@/config/query.config";
 import { formatMoneyExact } from "@/lib/money";
@@ -24,9 +23,9 @@ const OPEN_SOONEST = { open: true, sortBy: "dueDate", sortOrder: "asc", limit: S
  * drawn; with neither, the section is not drawn at all.
  */
 export default function FinancialAttention({ revealDelay = 0 }) {
-  const { can, canAccess } = usePermissions();
+  const { canAccess } = usePermissions();
   const seesReceivables = canAccess(Module.RECEIVABLES, Action.VIEW);
-  const seesPayables = can(Permission.VIEW_OPERATOR_PAYMENTS);
+  const seesPayables = canAccess(Module.OPERATOR_PAYMENTS, Action.VIEW);
 
   const invoices = useReceivables(OPEN_SOONEST, { ...queryPresets.live, enabled: seesReceivables });
   const invoiceStats = useReceivableStats({}, { enabled: seesReceivables });

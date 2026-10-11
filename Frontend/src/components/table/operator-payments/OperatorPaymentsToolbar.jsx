@@ -34,6 +34,8 @@ export default function OperatorPaymentsToolbar({
   onBulkAction,
   onAdd,
   mayWrite = false,
+  mayCreate = mayWrite,
+  mayArchive = mayWrite,
 }) {
   const isArchived = tab === ARCHIVE_TABS.ARCHIVED;
   const [draft, setDraft] = useDebouncedParam(search, setSearch);
@@ -65,7 +67,7 @@ export default function OperatorPaymentsToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {mayWrite && (
+          {mayArchive && (
             <BulkDeleteButton
               count={selectedCount}
               itemLabel="bills"
@@ -73,7 +75,7 @@ export default function OperatorPaymentsToolbar({
               action={isArchived ? "restore" : "remove"}
             />
           )}
-          {mayWrite && !isArchived && (
+          {mayCreate && !isArchived && (
             <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" onClick={() => onAdd?.()}>
               <Plus className="size-3.5" />
               <span>Add Operator Bill</span>

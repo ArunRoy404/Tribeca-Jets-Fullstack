@@ -19,7 +19,7 @@ import {
   useRestoreOperatorPayable,
 } from "@/hooks/operator-payments";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { toPayableRow } from "@/lib/operatorPayment";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { useOperatorPaymentsStore } from "@/store/useOperatorPaymentsStore";
@@ -29,12 +29,8 @@ import { useOperatorPaymentsStore } from "@/store/useOperatorPaymentsStore";
  * pages, and every figure on a row is computed by the API from the bill and
  * its payments.
  *
- * Writing is administrators' and senior brokers' only — money leaving the
- * company — so for everyone else the checkbox column, the Add button and every
- * write action are absent rather than disabled. The old screen's "Send
- * Remittance" is not back: Email Templates (#21) can email an operator, but
- * it has no merge fields for an operator bill yet, so a remittance would
- * carry no amount — see MODULE_FEATURE_STATUS §17.
+ * Writes are gated by per-person permissions: CREATE records/edits bills,
+ * PAY sends payments, and ARCHIVE voids/restores bills or payments.
  */
 export default function OperatorPaymentsContainer({ revealDelay = 0 }) {
   const params = useOperatorPaymentsTableParams();
@@ -45,8 +41,10 @@ export default function OperatorPaymentsContainer({ revealDelay = 0 }) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
   const isEmpty = !isPending && !error && rows.length === 0;
 
-  const { canWrite } = usePermissions();
-  const mayWrite = canWrite(Permission.MANAGE_OPERATOR_PAYMENTS);
+  const { canAccess } = usePermissions();
+  const mayCreate = canAccess(Module.OPERATOR_PAYMENTS, Action.CREATE);
+  const mayPay = canAccess(Module.OPERATOR_PAYMENTS, Action.PAY);
+  const mayArchive = canAccess(Module.OPERATOR_PAYMENTS, Action.ARCHIVE);
 
   const openAddModal = useOperatorPaymentsStore((s) => s.openAddModal);
   const openEditModal = useOperatorPaymentsStore((s) => s.openEditModal);
@@ -83,17 +81,20 @@ export default function OperatorPaymentsContainer({ revealDelay = 0 }) {
 
   const getRowActions = (row) => {
     const view = { label: "View Details", icon: <Eye />, onSelect: () => openDetails(row?.id) };
-    if (!mayWrite) return [view];
-    if (isArchived) return [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreBills?.(row?.id) }];
+    if (isArchived) {
+      return mayArchive ? [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreBills?.(row?.id) }] : [view];
+    }
 
     const actions = [view];
-    if (row?.rawStatus === "OPEN" && row?.hasBalance) {
+    if (mayPay && row?.rawStatus === "OPEN" && row?.hasBalance) {
       actions.push({ label: "Record Payment", icon: <DollarSign />, onSelect: () => openPaymentModal?.(row?.raw) });
     }
-    actions.push({ label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(row?.raw) });
+    if (mayCreate) {
+      actions.push({ label: "Edit", icon: <Edit />, onSelect: () => openEditModal?.(row?.raw) });
+    }
     // A bill with money against it cannot be archived; the menu does not
     // offer what the API would refuse.
-    if (row?.paymentCount === 0) {
+    if (mayArchive && row?.paymentCount === 0) {
       actions.push("separator");
       actions.push({ label: "Archive", icon: <Trash2 />, variant: "destructive", onSelect: () => removeBills?.(row?.id) });
     }
@@ -115,7 +116,8 @@ export default function OperatorPaymentsContainer({ revealDelay = 0 }) {
           selectedCount={selected.size}
           onBulkAction={() => setBulkOpen(true)}
           onAdd={() => openAddModal()}
-          mayWrite={mayWrite}
+          mayCreate={mayCreate}
+          mayArchive={mayArchive}
         />
 
         {isPending || error || isEmpty ? (
@@ -153,7 +155,7 @@ export default function OperatorPaymentsContainer({ revealDelay = 0 }) {
               onSelectAll={() =>
                 setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((row) => row?.id))))
               }
-              selectable={mayWrite}
+              selectable={mayArchive}
               archived={isArchived}
             />
 
