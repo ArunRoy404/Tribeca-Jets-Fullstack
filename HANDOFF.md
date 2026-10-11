@@ -64,10 +64,11 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Email Templates & sending (#27)
+### What is next — Document Vault (#28)
 
-- **Tasks Board & Notification Bell (#26) reviewed & signed off:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.TASKS, Action.CREATE | EDIT | ARCHIVE)`), open staff reads, server-paginated pickers, smooth Drag-and-Drop Kanban interaction with `@dnd-kit/core`, and upgraded `NotificationPopover` with per-person access, controlled open state, and empty/attention urgency badges.
-- **Next module in queue:** **Email Templates & sending (#27)** (`/dashboard/email-templates`).
+- **Email Templates & sending (#27) reviewed & signed off:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.EMAIL_TEMPLATES, Action.CREATE | EDIT | ARCHIVE | SEND)`), open staff reads, server-paginated pickers (`ClientPicker`, `OperatorPicker`, `TripPicker`), and full live merge fields engine.
+- **Production deployment & DB wipe (11 Oct 2026):** Merged to `main` and redeployed cleanly via Dokploy on VPS. Production PostgreSQL database wiped of all test data via `TRUNCATE TABLE ... CASCADE`, preserving single active `SUPER_ADMIN` (`ari@tribecajets.com`).
+- **Next module in queue:** **Document Vault (#28)** (`/dashboard/documents`).
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.

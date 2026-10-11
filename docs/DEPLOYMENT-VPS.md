@@ -644,6 +644,28 @@ before it listens. Roll back from the app's **Deployments** list.
 | CPU / memory | the app → **Monitoring** |
 | Restore a backup | `postgres` → **Backups** → restore |
 
+### Clean database wipe (preserving SUPER_ADMIN Ari)
+
+To clear all operational/test data and sessions while keeping only `ari@tribecajets.com`:
+Dokploy → `postgres` → **Open Terminal** → `psql -U tribeca -d tribeca_jets`:
+
+```sql
+BEGIN;
+TRUNCATE TABLE 
+  aircraft, airports, audit_logs, charter_rates, client_credits, clients,
+  commissions, documents, email_messages, email_templates, empty_legs,
+  invoice_payments, invoices, itineraries, notes, operator_payable_payments,
+  operator_payables, operator_quotes, operators, quote_versions, quotes,
+  referral_resources, referrals, tasks, trip_legs, trip_passengers, trip_requests,
+  trips, uploads, verification_codes CASCADE;
+TRUNCATE TABLE refresh_tokens CASCADE;
+UPDATE users SET "createdById" = NULL, "updatedById" = NULL;
+DELETE FROM users WHERE LOWER(email) != 'ari@tribecajets.com';
+UPDATE users SET role = 'SUPER_ADMIN', status = 'ACTIVE', "deletedAt" = NULL WHERE LOWER(email) = 'ari@tribecajets.com';
+COMMIT;
+SELECT id, email, role, status FROM users;
+```
+
 Swagger (`/api/docs`) is not served in production, by design.
 
 ## Reusing this for a new project
