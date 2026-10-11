@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { paginate, type AuthenticatedUser, type Paginated } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
-import { Permission, Scope, scopeFor } from '../../common/authorization/permissions.js';
+import { Action, Module, canDo } from '../../common/authorization/access.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
 import { mergePages } from '../../common/database/merge-pages.js';
 import { todayUtc } from '../../common/money/settlement.js';
 import { TripsService } from '../trips/trips.service.js';
@@ -78,26 +79,27 @@ export class DashboardService {
     private readonly documents: DocumentsService,
   ) {}
 
-  private may(user: AuthenticatedUser, permission: Permission): boolean {
-    return scopeFor(user.role, permission) !== Scope.NONE;
-  }
-
   // ---- Summary ------------------------------------------------------------
 
   /** The tiles: counts that are true now, and money for the chosen window against the one before. */
   async summary(user: AuthenticatedUser, query: DashboardSummaryInput) {
     const today = query.on ?? todayUtc();
     const range = periodRange(query.period, today);
-    const financials = this.may(user, Permission.VIEW_FINANCIALS);
+    const financials =
+      isAdministrator(user.role) ||
+      canDo(user.access, Module.QUOTES, Action.VIEW_MONEY) ||
+      canDo(user.access, Module.TRIPS, Action.VIEW_MONEY);
 
     const [upcoming, requests, current, previous, receivables, payables, emptyLegs] = await Promise.all([
-      this.trips.upcomingCount(user, today),
-      this.requests.stats(user),
+      canDo(user.access, Module.TRIPS, Action.VIEW) ? this.trips.upcomingCount(user, today) : 0,
+      canDo(user.access, Module.TRIP_REQUESTS, Action.VIEW)
+        ? this.requests.stats(user)
+        : { open: 0, sourcing: 0, quoted: 0, booked: 0, pipelineValue: 0 },
       this.trips.periodFigures(user, range.from, range.to),
       this.trips.periodFigures(user, range.previousFrom, range.previousTo),
-      this.may(user, Permission.VIEW_RECEIVABLES) ? this.receivables.stats(user, {}) : null,
-      this.may(user, Permission.VIEW_OPERATOR_PAYMENTS) ? this.operatorPayments.stats(user, {}) : null,
-      this.may(user, Permission.OPERATOR_SOURCING) ? this.emptyLegs.stats() : null,
+      canDo(user.access, Module.RECEIVABLES, Action.VIEW) ? this.receivables.stats(user, {}) : null,
+      canDo(user.access, Module.OPERATOR_PAYMENTS, Action.VIEW) ? this.operatorPayments.stats(user, {}) : null,
+      canDo(user.access, Module.EMPTY_LEGS, Action.VIEW) ? this.emptyLegs.stats() : null,
     ]);
 
     const compare = (now: number, before: number) => ({
@@ -181,11 +183,11 @@ export class DashboardService {
     const none = Promise.resolve({ rows: [] as never[], total: 0 });
 
     const [followUps, tasks, invoices, payables, documents] = await Promise.all([
-      this.may(user, Permission.VIEW_CLIENTS) ? this.clients.dueFollowUps(user, tomorrow, need) : none,
-      this.may(user, Permission.VIEW_TASKS) ? this.tasks.dueForAssignee(user, tomorrow, need) : none,
-      this.may(user, Permission.VIEW_RECEIVABLES) ? this.receivables.attention(user, horizon, need) : none,
-      this.may(user, Permission.VIEW_OPERATOR_PAYMENTS) ? this.operatorPayments.attention(user, horizon, need) : none,
-      this.may(user, Permission.VIEW_DOCUMENTS) ? this.documents.expiringBefore(user, documentHorizon, need) : none,
+      canDo(user.access, Module.CLIENTS, Action.VIEW) ? this.clients.dueFollowUps(user, tomorrow, need) : none,
+      canDo(user.access, Module.TASKS, Action.VIEW) ? this.tasks.dueForAssignee(user, tomorrow, need) : none,
+      canDo(user.access, Module.RECEIVABLES, Action.VIEW) ? this.receivables.attention(user, horizon, need) : none,
+      canDo(user.access, Module.OPERATOR_PAYMENTS, Action.VIEW) ? this.operatorPayments.attention(user, horizon, need) : none,
+      canDo(user.access, Module.DOCUMENTS, Action.VIEW) ? this.documents.expiringBefore(user, documentHorizon, need) : none,
     ]);
 
     const sources: Priority[][] = [
