@@ -1,28 +1,33 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { TransactionsService } from './transactions.service.js';
 import { QueryTransactionsDto, TransactionStatsDto } from './dto/transaction.dto.js';
 
 /**
- * Transactions (#19) — the money ledger, read-only.
+ * Transactions (#19, reviewed #25) — the money ledger, read-only.
  *
- * VIEW_FINANCIALS opens it (administrators and senior brokers everything, a
- * broker their own). Inside, each kind of row is read only if the caller also
- * holds that kind's own permission — VIEW_RECEIVABLES, VIEW_OPERATOR_PAYMENTS,
- * VIEW_COMMISSIONS — at that module's scope. There are no writes: a movement
- * is corrected or withdrawn on the bill it settles.
+ * Staff-only desk financials: referral agents / partner roles are refused (403 StaffOnly).
+ * Routes require TRANSACTIONS · VIEW (@RequireAccess).
+ * Inside, each kind of row is read only if the caller's per-person permissions also include
+ * that kind's own module VIEW (RECEIVABLES, OPERATOR_PAYMENTS, COMMISSIONS), and scoped by
+ * that module's row-level reach (Reach.OWN vs Reach.ALL).
+ *
+ * There are no writes: a movement is corrected or withdrawn on the bill it settles.
  */
 @ApiTags('Transactions')
 @Controller('transactions')
+@UseGuards(AccessGuard)
+@StaffOnly()
 export class TransactionsController {
   constructor(private readonly transactions: TransactionsService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_FINANCIALS)
+  @RequireAccess(Module.TRANSACTIONS, Action.VIEW)
   @ApiOperation({
     summary: 'The money ledger',
     description:
@@ -33,7 +38,7 @@ export class TransactionsController {
   }
 
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_FINANCIALS)
+  @RequireAccess(Module.TRANSACTIONS, Action.VIEW)
   @ApiOperation({
     summary: 'Ledger totals',
     description:
@@ -43,3 +48,4 @@ export class TransactionsController {
     return this.transactions.stats(user, query);
   }
 }
+

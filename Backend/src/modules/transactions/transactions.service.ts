@@ -5,7 +5,8 @@ import {
   type Paginated,
 } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
-import { Permission, can } from '../../common/authorization/permissions.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
+import { canDo } from '../../common/authorization/access.js';
 import { mergePages } from '../../common/database/merge-pages.js';
 import {
   MovementKind,
@@ -40,12 +41,12 @@ export class TransactionsService {
     private readonly commissions: CommissionsService,
   ) {}
 
-  /** The kinds this role may read, each by its own module's permission. */
+  /** The kinds this user may read, each by its own module's per-person permission. */
   private permitted(user: AuthenticatedUser): Set<MovementKind> {
     const kinds = new Set<MovementKind>();
-    if (can(user.role, Permission.VIEW_RECEIVABLES)) kinds.add(MovementKind.CLIENT_PAYMENT);
-    if (can(user.role, Permission.VIEW_OPERATOR_PAYMENTS)) kinds.add(MovementKind.OPERATOR_PAYMENT);
-    if (can(user.role, Permission.VIEW_COMMISSIONS)) kinds.add(MovementKind.COMMISSION);
+    if (canDo(user.access, Module.RECEIVABLES, Action.VIEW)) kinds.add(MovementKind.CLIENT_PAYMENT);
+    if (canDo(user.access, Module.OPERATOR_PAYMENTS, Action.VIEW)) kinds.add(MovementKind.OPERATOR_PAYMENT);
+    if (canDo(user.access, Module.COMMISSIONS, Action.VIEW)) kinds.add(MovementKind.COMMISSION);
     return kinds;
   }
 
