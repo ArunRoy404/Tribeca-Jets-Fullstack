@@ -10,14 +10,13 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { CommissionsService } from './commissions.service.js';
@@ -30,18 +29,23 @@ import {
 /**
  * Commissions (scope §6.12) and #11's Commission Center.
  *
- * VIEW_COMMISSIONS reads — every row for an administrator or senior broker,
- * the rows booked against them for a broker, the rows paid to them for a
- * referral agent. MANAGE_COMMISSIONS writes, and only roles that see every
- * row hold it.
+ * Reads are open to any signed-in session; reach scopes the rows:
+ * - Admin: ALL
+ * - Broker: commissions on their booked trips
+ * - Referral Agent: their own commissions (partner view)
+ *
+ * Writes are gated by per-person permissions:
+ * - CREATE: raise or edit commissions
+ * - PAY: mark paid / update payment
+ * - ARCHIVE: archive or restore
  */
 @ApiTags('Commissions')
 @Controller('commissions')
+@UseGuards(AccessGuard)
 export class CommissionsController {
   constructor(private readonly commissions: CommissionsService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_COMMISSIONS)
   @ApiOperation({
     summary: 'List commissions',
     description:
@@ -53,7 +57,6 @@ export class CommissionsController {
 
   /** Before `:id` — Nest matches in order. */
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_COMMISSIONS)
   @ApiOperation({
     summary: 'Commission totals',
     description:
@@ -64,14 +67,13 @@ export class CommissionsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_COMMISSIONS)
   @ApiOperation({ summary: 'Get one commission', description: 'Outside the caller\'s scope: 404, never 403.' })
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.commissions.findOne(user, id);
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_COMMISSIONS)
+  @RequireAccess(Module.COMMISSIONS, Action.CREATE)
   @ApiOperation({
     summary: 'Raise a commission',
     description:
@@ -83,7 +85,7 @@ export class CommissionsController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_COMMISSIONS)
+  @RequireAccess(Module.COMMISSIONS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive several commissions', description: 'Ids that match nothing come back in `skipped`.' })
   removeMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.commissions.removeMany(user, body.ids);
@@ -91,14 +93,13 @@ export class CommissionsController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_COMMISSIONS)
+  @RequireAccess(Module.COMMISSIONS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore several archived commissions' })
   restoreMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.commissions.restoreMany(user, body.ids);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_COMMISSIONS)
   @ApiOperation({
     summary: 'Edit a commission, settle it or mark it paid',
     description:
@@ -114,7 +115,7 @@ export class CommissionsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.MANAGE_COMMISSIONS)
+  @RequireAccess(Module.COMMISSIONS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive a commission', description: 'Nothing is deleted; restore brings it back.' })
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.commissions.remove(user, id);
@@ -122,7 +123,7 @@ export class CommissionsController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_COMMISSIONS)
+  @RequireAccess(Module.COMMISSIONS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore an archived commission', description: 'Clears the archive stamp and nothing else.' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.commissions.restore(user, id);

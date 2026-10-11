@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -25,17 +26,22 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import {
-  Permission,
-  Scope,
   isPartner,
-  scopeFor,
 } from '../../common/authorization/permissions.js';
+import {
+  Action,
+  Module,
+  Reach,
+  canDo,
+  reachOf,
+} from '../../common/authorization/access.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
 import {
   CommissionBasis,
   CommissionRecipientType,
   CommissionStatus,
   UserRole,
+  UserStatus,
 } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
@@ -154,11 +160,14 @@ export class CommissionsService {
   // ---- Scope ------------------------------------------------------------
 
   private scope(user: AuthenticatedUser): Prisma.CommissionWhereInput {
-    if (scopeFor(user.role, Permission.VIEW_COMMISSIONS) === Scope.ALL) return {};
+    if (reachOf(user.access, Module.COMMISSIONS) === Reach.ALL) return {};
     if (isPartner(user.role)) {
       return { recipientType: CommissionRecipientType.REFERRAL_AGENT, recipientUserId: user.id };
     }
-    return { brokerId: user.id };
+    if (reachOf(user.access, Module.COMMISSIONS) === Reach.OWN) {
+      return { brokerId: user.id };
+    }
+    return { id: '__none__' };
   }
 
   // ---- Shaping ----------------------------------------------------------
@@ -430,6 +439,7 @@ export class CommissionsService {
       select: {
         id: true,
         role: true,
+        status: true,
         commissionBasis: true,
         commissionPercentage: true,
         commissionAmount: true,
@@ -437,6 +447,9 @@ export class CommissionsService {
     });
     if (!agent || agent.role !== UserRole.REFERRAL_AGENT) {
       throw new BadRequestException('That referral agent does not exist');
+    }
+    if (agent.status !== UserStatus.ACTIVE) {
+      throw new BadRequestException('That referral agent is suspended. Choose an active agent.');
     }
     return agent;
   }
@@ -449,9 +462,12 @@ export class CommissionsService {
 
   private async assertBroker(id: string | null | undefined): Promise<void> {
     if (!id) return;
-    const broker = await this.prisma.user.findFirst({ where: { id, deletedAt: null }, select: { role: true } });
+    const broker = await this.prisma.user.findFirst({ where: { id, deletedAt: null }, select: { role: true, status: true } });
     if (!broker || broker.role === UserRole.REFERRAL_AGENT) {
       throw new BadRequestException('That broker does not exist');
+    }
+    if (broker.status !== UserStatus.ACTIVE) {
+      throw new BadRequestException('That broker has been suspended. Choose an active broker.');
     }
   }
 
@@ -524,6 +540,13 @@ export class CommissionsService {
   // ---- Writes -----------------------------------------------------------
 
   async create(user: AuthenticatedUser, dto: CreateCommissionInput) {
+    if (
+      (dto.status === CommissionStatus.PAID || dto.finalAmount !== undefined || dto.paidAt !== undefined) &&
+      !canDo(user.access, Module.COMMISSIONS, Action.PAY)
+    ) {
+      throw new ForbiddenException('You do not have permission to pay or record paid commissions');
+    }
+
     const trip = await this.trips.commissionTarget(dto.tripId);
     const { agent, columns } = await this.recipient(dto.recipientType, dto);
     if (dto.referralId) await this.assertReferral(dto.referralId, columns.recipientUserId);
@@ -627,9 +650,9 @@ export class CommissionsService {
     });
   }
 
-  private async findLive(id: string) {
+  private async findLive(id: string, user?: AuthenticatedUser) {
     const row = await this.prisma.commission.findFirst({
-      where: { id, deletedAt: null },
+      where: { id, deletedAt: null, ...(user ? this.scope(user) : {}) },
       select: {
         id: true,
         reference: true,
@@ -653,7 +676,40 @@ export class CommissionsService {
   }
 
   async update(user: AuthenticatedUser, id: string, dto: UpdateCommissionInput) {
-    const current = await this.findLive(id);
+    const mayCreate = canDo(user.access, Module.COMMISSIONS, Action.CREATE);
+    const mayPay = canDo(user.access, Module.COMMISSIONS, Action.PAY);
+    if (!mayCreate && !mayPay) {
+      throw new ForbiddenException('You do not have permission for Commissions · Raise commissions');
+    }
+    if (!mayCreate) {
+      const touchedTerms =
+        dto.tripId !== undefined ||
+        dto.recipientType !== undefined ||
+        dto.recipientUserId !== undefined ||
+        dto.recipientClientId !== undefined ||
+        dto.recipientName !== undefined ||
+        dto.recipientCompany !== undefined ||
+        dto.referralId !== undefined ||
+        dto.brokerId !== undefined ||
+        dto.basis !== undefined ||
+        dto.percentage !== undefined ||
+        dto.amount !== undefined;
+      if (touchedTerms) {
+        throw new ForbiddenException('You do not have permission to edit commission terms');
+      }
+    }
+    if (!mayPay) {
+      const touchedPayment =
+        dto.finalAmount !== undefined ||
+        dto.method !== undefined ||
+        dto.paidAt !== undefined ||
+        dto.status === CommissionStatus.PAID;
+      if (touchedPayment) {
+        throw new ForbiddenException('You do not have permission to record or pay commissions');
+      }
+    }
+
+    const current = await this.findLive(id, user);
 
     if (dto.tripId && dto.tripId !== current.tripId) await this.trips.commissionTarget(dto.tripId);
 
@@ -734,7 +790,7 @@ export class CommissionsService {
   }
 
   async remove(user: AuthenticatedUser, id: string): Promise<void> {
-    const row = await this.findLive(id);
+    const row = await this.findLive(id, user);
     await this.prisma.commission.update({ where: { id }, data: { ...archiveData(user.id), updatedById: user.id } });
     await this.audit.record({
       actorId: user.id,
@@ -747,7 +803,7 @@ export class CommissionsService {
 
   async restore(user: AuthenticatedUser, id: string) {
     const row = await this.prisma.commission.findFirst({
-      where: { id, deletedAt: { not: null } },
+      where: { id, deletedAt: { not: null }, ...this.scope(user) },
       select: { id: true, reference: true },
     });
     if (!row) throw new NotFoundException('Archived commission not found');
@@ -764,7 +820,7 @@ export class CommissionsService {
 
   async removeMany(user: AuthenticatedUser, ids: string[]): Promise<BulkResult> {
     const targets = await this.prisma.commission.findMany({
-      where: { id: { in: ids }, deletedAt: null },
+      where: { id: { in: ids }, deletedAt: null, ...this.scope(user) },
       select: { id: true, reference: true },
     });
     if (targets.length) {
@@ -784,7 +840,7 @@ export class CommissionsService {
 
   async restoreMany(user: AuthenticatedUser, ids: string[]): Promise<BulkResult> {
     const targets = await this.prisma.commission.findMany({
-      where: { id: { in: ids }, deletedAt: { not: null } },
+      where: { id: { in: ids }, deletedAt: { not: null }, ...this.scope(user) },
       select: { id: true, reference: true },
     });
     if (targets.length) {
