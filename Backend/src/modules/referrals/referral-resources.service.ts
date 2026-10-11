@@ -20,12 +20,8 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import {
-  Permission,
-  Scope,
-  isPartner,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+import { isPartner } from '../../common/authorization/permissions.js';
+import { Module, Reach, reachOf } from '../../common/authorization/access.js';
 import { UploadVisibility } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { UploadsService } from '../uploads/uploads.service.js';
@@ -62,8 +58,8 @@ export class ReferralResourcesService {
   ) {}
 
   private assertCurator(user: AuthenticatedUser): void {
-    if (scopeFor(user.role, Permission.MANAGE_REFERRALS) !== Scope.ALL) {
-      throw new ForbiddenException('Only an administrator or senior broker manages portal resources.');
+    if (isPartner(user.role) || reachOf(user.access, Module.REFERRALS) !== Reach.ALL) {
+      throw new ForbiddenException('Only an administrator manages portal resources.');
     }
   }
 

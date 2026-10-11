@@ -13,15 +13,14 @@ import {
   Query,
   Res,
   StreamableFile,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { contentDisposition } from '../uploads/uploads.rules.js';
@@ -40,18 +39,23 @@ import {
 /**
  * Portal referrals — client adjustment #11.
  *
- * VIEW_REFERRALS reads (a referral agent: their own; a broker: assigned and
- * unassigned; the rest: all). MANAGE_REFERRALS writes — for a referral agent
- * that is submitting and nothing more, which the service enforces: every
- * later change is the desk's.
+ * Reads are open to any authenticated session; reach scopes the rows:
+ * - Referral agent: their own referrals only
+ * - Broker: referrals assigned to them or unassigned
+ * - Admin: ALL referrals
+ *
+ * Writes are gated by per-person permissions:
+ * - CREATE: submit a referral (both partners and staff)
+ * - EDIT: work or convert a referral (desk staff only)
+ * - ARCHIVE: archive, bulk-archive or restore
  */
 @ApiTags('Referrals')
 @Controller('referrals')
+@UseGuards(AccessGuard)
 export class ReferralsController {
   constructor(private readonly referrals: ReferralsService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_REFERRALS)
   @ApiOperation({
     summary: 'List referrals',
     description:
@@ -63,7 +67,6 @@ export class ReferralsController {
 
   /** Before `:id` — Nest matches in order. */
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_REFERRALS)
   @ApiOperation({
     summary: 'Referral counts',
     description:
@@ -74,14 +77,12 @@ export class ReferralsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_REFERRALS)
   @ApiOperation({ summary: 'Get one referral', description: "Outside the caller's scope: 404, never 403." })
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.referrals.findOne(user, id);
   }
 
   @Get(':id/attachments/:uploadId')
-  @RequirePermissions(Permission.VIEW_REFERRALS)
   @Header('X-Content-Type-Options', 'nosniff')
   @ApiOperation({
     summary: "Open a referral's attachment",
@@ -103,7 +104,7 @@ export class ReferralsController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.CREATE)
   @ApiOperation({
     summary: 'Submit a referral',
     description:
@@ -115,7 +116,7 @@ export class ReferralsController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive several referrals', description: 'Administrators and senior brokers only.' })
   removeMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.referrals.removeMany(user, body.ids);
@@ -123,14 +124,14 @@ export class ReferralsController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore several archived referrals', description: 'Administrators and senior brokers only.' })
   restoreMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.referrals.restoreMany(user, body.ids);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.EDIT)
   @ApiOperation({
     summary: 'Work a referral',
     description:
@@ -146,7 +147,7 @@ export class ReferralsController {
 
   @Post(':id/convert')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.EDIT)
   @ApiOperation({
     summary: 'Convert a referral into a client and a trip request',
     description:
@@ -162,7 +163,7 @@ export class ReferralsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Archive a referral', description: 'Administrators and senior brokers only. Nothing is deleted.' })
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.referrals.remove(user, id);
@@ -170,7 +171,7 @@ export class ReferralsController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore an archived referral', description: 'Clears the archive stamp and nothing else.' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.referrals.restore(user, id);
@@ -178,16 +179,16 @@ export class ReferralsController {
 }
 
 /**
- * The portal's Resources section (#11). Every VIEW_REFERRALS holder reads;
- * curating needs MANAGE_REFERRALS at ALL, checked in the service.
+ * The portal's Resources section (#11). Open read for all signed-in sessions;
+ * curating needs REFERRALS · CREATE/EDIT/ARCHIVE at ALL reach.
  */
 @ApiTags('Referral Resources')
 @Controller('referral-resources')
+@UseGuards(AccessGuard)
 export class ReferralResourcesController {
   constructor(private readonly resources: ReferralResourcesService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_REFERRALS)
   @ApiOperation({
     summary: 'List portal resources',
     description: 'Each carries the URL of a PUBLIC upload. `archived` is ignored for a referral agent.',
@@ -197,7 +198,7 @@ export class ReferralResourcesController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.CREATE)
   @ApiOperation({
     summary: 'Publish a resource to the portal',
     description: 'Administrators and senior brokers. `fileUrl` must be a PUBLIC upload, or agents could not open it.',
@@ -207,7 +208,7 @@ export class ReferralResourcesController {
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.EDIT)
   @ApiOperation({ summary: 'Edit a portal resource' })
   update(
     @CurrentUser() user: AuthenticatedUser,
@@ -219,7 +220,7 @@ export class ReferralResourcesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Take a resource off the portal', description: 'Archived, never deleted.' })
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.resources.remove(user, id);
@@ -227,7 +228,7 @@ export class ReferralResourcesController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_REFERRALS)
+  @RequireAccess(Module.REFERRALS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Put an archived resource back on the portal' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.resources.restore(user, id);
