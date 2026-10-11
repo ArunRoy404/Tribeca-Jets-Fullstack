@@ -1393,6 +1393,21 @@ anywhere in the system.
 - "Delete … This cannot be undone" is **Archive**, with Restore.
 - There is no bulk archive: the board has no checkbox column to feed one.
 
+**Reviewed 11 Oct 2026 — Tasks Board reviewed & signed off (Antigravity)**
+
+- **Backend per-person access**:
+  - `TasksController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring referral agents / partners (`403 Forbidden`).
+  - Open reads on `findAll` (`GET /tasks`) and `findOne` (`GET /tasks/:id`) for authenticated staff sessions.
+  - Granular `@RequireAccess`: `POST /tasks` requires `CREATE`; `PATCH /tasks/:id` requires `EDIT`; `DELETE /tasks/:id` and `POST /tasks/:id/restore` require `ARCHIVE`.
+  - Service `scopeWhere` and `assertMayArchive` migrated to `reachOf(user.access, Module.TASKS)` (`Reach.ALL` vs `Reach.ASSIGNED`/`Reach.OWN`). Task reassignment verifies `canDo(user.access, Module.TASKS, Action.ASSIGN)`.
+  - Pinned by unit test suite `tasks.access.spec.ts`. All 55 backend test suites (445 tests) pass 100%.
+- **Frontend Drag-and-Drop (DnD) & Components**:
+  - Implemented smooth, premium Drag-and-Drop across the five status columns using `@dnd-kit/core`.
+  - Configured `PointerSensor` with `activationConstraint: { distance: 5 }` so card clicks cleanly open the `TaskDetailSheet` drawer without accidental drags.
+  - Interactive feedback: `<DragOverlay>` renders floating card with rotation, scale, elevation shadow and grabbing cursor; active drop columns highlight with borders and backdrop accent; source card ghosts with dashed border. Dropping on a new column instantly updates status via `useUpdateTask`.
+  - Form overhaul: Created `AssigneePicker.jsx` over active staff. Replaced 100-limit `useTaskFormOptions` in `AddTaskDialog.jsx` with shared server-paginated `AssigneePicker`, `ClientPicker`, `TripPicker` (scoped to client), and `DatePicker`.
+  - Gated toolbar "Add Task" with `canAccess(Module.TASKS, Action.CREATE)` and detail sheet with `canAccess(Module.TASKS, Action.EDIT | Action.ARCHIVE)`.
+
 **Waiting on a dependency**
 
 | Feature | Unblocked by |

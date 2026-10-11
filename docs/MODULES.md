@@ -151,7 +151,7 @@ reviewed yet — the module may still be built and working.
 | 23 | Commissions | — | ✅ 11 Oct — owner tested & signed off |
 | 24 | Referrals / Referral Agent | — | ✅ 11 Oct — owner tested & signed off |
 | 25 | Transactions | — | ✅ 11 Oct — owner tested & signed off |
-| 26 | Tasks Board & notification bell | Yes — in-app channel, follow-up reminders | ⬜ |
+| 26 | Tasks Board & notification bell | Yes — in-app channel, follow-up reminders | ⏳ Tasks Board ✅ 11 Oct (DnD); notification bell next |
 | 27 | Email Templates & sending | Yes — company identity, email channel | ⬜ |
 | 28 | Document Vault | — | ⬜ |
 | 29 | Reports | — | ⬜ |

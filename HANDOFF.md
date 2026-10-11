@@ -55,17 +55,17 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 23 | **Commissions** | ✅ 11 Oct — owner tested & signed off |
 | 24 | **Referrals / Referral Agent** | ✅ 11 Oct — owner tested & signed off |
 | 25 | **Transactions** | ✅ 11 Oct — owner tested & signed off |
-| 26 | **Tasks Board & notification bell** | ⬜ **next in review queue** |
+| 26 | **Tasks Board & notification bell** | ⏳ Tasks Board ✅ 11 Oct (DnD); notification bell next |
 | 27–35 | Email Templates, Document Vault, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Tasks Board & notification bell (#26)
+### What is next — Notification bell (#26 part 2) & Email Templates (#27)
 
-- **Transactions (#25) reviewed:** Consolidated money ledger migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.TRANSACTIONS, Action.VIEW)`), service updated to `canDo(user.access, ...)`, pinned by unit tests (`transactions.access.spec.ts`). Ready for owner testing.
-- **Next module in queue:** **Tasks Board & notification bell (#26)** (`/dashboard/tasks-board`).
+- **Tasks Board (#26 part 1) reviewed & signed off:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.TASKS, Action.CREATE | EDIT | ARCHIVE)`), open staff reads, server-paginated `AssigneePicker`, `ClientPicker`, `TripPicker`, and smooth Drag-and-Drop Kanban interaction with `@dnd-kit/core`.
+- **Next in queue:** **Notification bell** adjustment (in-app alerts / tasks attention feed), followed by **Email Templates & sending (#27)**.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -655,7 +655,29 @@ this says *what the owner decided*, which nothing else records.
     - Instead, clicking a row opens a slide-over detail sheet drawer (`TransactionDetailSheet.jsx` built on `DetailSheet` with `TribecaLetterhead`), displaying all movement facts (amount, direction, date, payment method, reference, document number, trip reference, assigned broker).
     - Inside the sheet drawer, dedicated redirect CTA buttons ("Open Invoice in Receivables", "Open Bill in Operator Payments", "Open Commission in Commissions", plus "View Trip") allow intentional navigation to origin modules.
   - Turbopack production build (`npm run build`) compiled cleanly in 5.2s with 0 errors across 45 routes.
-- **Next Step:** Ready for owner testing of Transactions (#25). Next module in queue: Tasks Board & notification bell (#26).
+- **Owner Test & Sign-off:** Owner tested and signed off on Transactions (#25). All changes committed in batches and pushed to `origin/roy`. Next in queue: Tasks Board & notification bell (#26).
+
+### 11 Oct 2026 — Tasks Board (#26 part 1) reviewed, migrated & verified with Drag-and-Drop (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `TasksController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring partner / referral agent accounts (`403 Forbidden`).
+  - Open staff reads: `GET /tasks` and `GET /tasks/:id` open to all authenticated staff sessions without write gates, allowing tasks to feed pickers and cross-module linkages.
+  - Granular per-person write gating:
+    - `POST /tasks`: `@RequireAccess(Module.TASKS, Action.CREATE)`
+    - `PATCH /tasks/:id`: `@RequireAccess(Module.TASKS, Action.EDIT)`
+    - `DELETE /tasks/:id` & `POST /tasks/:id/restore`: `@RequireAccess(Module.TASKS, Action.ARCHIVE)`
+  - Scoping & Reassignment:
+    - `scopeWhere` and `assertMayArchive` migrated to `reachOf(user.access, Module.TASKS)` (`Reach.ALL` vs `Reach.ASSIGNED`/`Reach.OWN`).
+    - Task reassignment checks `canDo(user.access, Module.TASKS, Action.ASSIGN)`.
+  - Unit test suite: Created `tasks.access.spec.ts` (5 tests) verifying `@StaffOnly()`, open reads, and granular write route protection. All 55 Vitest test suites (445 tests) pass 100%. `tsc --noEmit` clean with 0 errors.
+- **Frontend Architecture & Drag-and-Drop (DnD) Kanban:**
+  - Installed `@dnd-kit/core` and `@dnd-kit/utilities` (lightweight, zero React 19 hydration issues).
+  - Configured `PointerSensor` with `{ activationConstraint: { distance: 5 } }`: clicking any task card opens `TaskDetailSheet` immediately; dragging > 5px engages drag mode.
+  - Interactive feedback: `<DragOverlay>` renders floating card with rotation (`rotate-2`), zoom (`scale-[1.03]`), shadow-2xl, and grabbing cursor. Columns show hover drop feedback (`ring-2 ring-purple/50 border-purple/70 bg-purple/[0.04]`), and the source card ghosts with dashed border. Dropping on another column moves status via `useUpdateTask`.
+  - Reusable pickers: Built `AssigneePicker.jsx` over active staff. Overhauled `AddTaskDialog.jsx` by replacing 100-limit `useTaskFormOptions` with shared server-paginated `AssigneePicker`, `ClientPicker`, `TripPicker` (scoped to client), and `DatePicker`.
+  - Gated toolbar "Add Task" with `canAccess(Module.TASKS, Action.CREATE)` and detail sheet actions with `canAccess(Module.TASKS, Action.EDIT | Action.ARCHIVE)`.
+  - Oxlint clean (0 errors/warnings). Turbopack production build (`npm run build`) compiled in 6.3s with 0 errors across 45 routes.
+- **Next Step:** Ready for Notification bell adjustment (part of #26), followed by Email Templates & sending (#27).
 
 
 
