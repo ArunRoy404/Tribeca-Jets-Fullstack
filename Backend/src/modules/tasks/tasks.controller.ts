@@ -10,31 +10,31 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { TasksService } from './tasks.service.js';
 import { CreateTaskDto, QueryTasksDto, UpdateTaskDto } from './dto/task.dto.js';
 
 /**
- * Tasks Board (#20). VIEW_TASKS to read and MANAGE_TASKS to write — ALL for
- * administrators and senior brokers, OWN (assigned to me or written by me)
- * for brokers and assistants. There is no bulk route: the board has no
- * checkbox column to feed one.
+ * Tasks Board (#20).
+ * Reads are open to signed-in staff and scoped by Reach (ALL for Admins,
+ * ASSIGNED / OWN for Brokers & Assistants).
+ * Writes require granular per-person permissions under Module.TASKS.
  */
 @ApiTags('Tasks')
+@UseGuards(AccessGuard)
+@StaffOnly()
 @Controller('tasks')
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_TASKS)
   @ApiOperation({
     summary: 'List tasks',
     description:
@@ -45,14 +45,13 @@ export class TasksController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_TASKS)
   @ApiOperation({ summary: 'One task', description: 'Archived tasks load too.' })
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.tasks.findOne(user, id);
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_TASKS)
+  @RequireAccess(Module.TASKS, Action.CREATE)
   @ApiOperation({
     summary: 'Add a task',
     description:
@@ -63,7 +62,7 @@ export class TasksController {
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_TASKS)
+  @RequireAccess(Module.TASKS, Action.EDIT)
   @ApiOperation({
     summary: 'Edit a task, or move it to another column',
     description:
@@ -79,7 +78,7 @@ export class TasksController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.MANAGE_TASKS)
+  @RequireAccess(Module.TASKS, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Archive a task',
     description: 'Its author or an administrator. Nothing is deleted — restore brings it back.',
@@ -90,9 +89,10 @@ export class TasksController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_TASKS)
+  @RequireAccess(Module.TASKS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore an archived task', description: 'Its author or an administrator.' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.tasks.restore(user, id);
   }
 }
+
