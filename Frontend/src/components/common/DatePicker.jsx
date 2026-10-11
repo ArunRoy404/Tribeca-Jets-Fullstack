@@ -64,8 +64,10 @@ export function CommonDatePicker({
   maxDate,
   className,
   iconClassName,
+  size = "default",
 }) {
   const [open, setOpen] = useState(false);
+  const isSm = size === "sm";
 
   const selected = useMemo(() => parseIsoDate(value), [value]);
 
@@ -152,14 +154,28 @@ export function CommonDatePicker({
     >
       <PopoverTrigger
         className={cn(
-          "h-10 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-left flex items-center justify-between gap-2 outline-none focus:ring-1 focus:ring-purple cursor-pointer transition-colors hover:border-purple/50",
+          isSm
+            ? "bg-secondary border border-border flex gap-1.5 h-full items-center px-2 py-1 rounded-sm shrink-0 cursor-pointer outline-none transition-colors hover:border-purple/40"
+            : "h-10 w-full rounded-md border border-input bg-background px-3 font-montserrat text-[13px] text-left flex items-center justify-between gap-2 outline-none focus:ring-1 focus:ring-purple cursor-pointer transition-colors hover:border-purple/50",
           className
         )}
       >
-        <span className={cn(label ? "text-foreground font-medium" : "text-muted-foreground")}>
+        <span
+          className={cn(
+            isSm
+              ? "font-montserrat font-medium text-[10px] whitespace-nowrap"
+              : "font-montserrat",
+            label ? "text-foreground font-medium" : "text-muted-foreground"
+          )}
+        >
           {label || placeholder}
         </span>
-        <CalendarIcon className={cn("size-4 text-muted-foreground shrink-0", iconClassName)} />
+        <CalendarIcon
+          className={cn(
+            isSm ? "size-3.5 text-foreground shrink-0" : "size-4 text-muted-foreground shrink-0",
+            iconClassName
+          )}
+        />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-3 bg-white border border-border shadow-lg rounded-lg">
         {/* Month / Year Nav */}
