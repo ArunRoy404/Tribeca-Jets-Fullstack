@@ -1667,6 +1667,12 @@ deleted and `useReportsStore` keeps only the export dialog.
   `build_reports_folder.py` → `29 · Reports` (7 requests, 19 examples),
   **run and Newman-green**. Verified live against probe trips, then archived.
 
+**Reviewed 11 Oct 2026 (Module #29 review):**
+- **Per-person access:** Migrated `ReportsController` from legacy `@RequirePermissions(Permission.VIEW_FINANCIALS)` to `@StaffOnly()`, `@UseGuards(AccessGuard)`, and `@RequireAccess(Module.REPORTS, Action.VIEW)` on all 5 read endpoints (`summary`, `series`, `brokers`, `clients`, `routes`). The `export` endpoint requires `@RequireAccess(Module.REPORTS, Action.EXPORT)`. Outside referral agents / partners are barred by role with 403.
+- **Scoping:** `TripsService.reportRows` and `reportCount` respect caller reach (`reachOf(Module.REPORTS)` / `reachOf(Module.TRIPS)`), restricting `Reach.OWN` brokers to their own operations.
+- **Frontend controls:** Migrated `ReportsToolbar.jsx` and `ExportOperationsDialog.jsx` to `canAccess(Module.REPORTS, Action.EXPORT)`.
+- **Test coverage:** Added `reports.access.spec.ts` (21 tests) covering `@StaffOnly()`, per-person access checks, and export authorization.
+
 **Waiting on a dependency**
 
 | Feature | Unblocked by |
@@ -1676,7 +1682,6 @@ deleted and `useReportsStore` keeps only the export dialog.
 | Sales funnel and open-quote status (§6.21) | Buildable now from Trip Requests and Quotes — not drawn in the design yet |
 | Forecast from open quotes (§6.21) | **A decision** — the probability formula is open (§17) |
 | Admin daily activity report (§6.21) | The Dashboard's activity feed exists; a daily digest needs **a scheduled job** |
-| 403 examples in `29 · Reports` | **The Reports review (#29)** — restrictions are on again; captured when the folder is rebuilt |
 
 **Open, not decided here:** gross profit includes the FET, because
 `priceQuote` computes it as total price minus operator cost — Reports reuses

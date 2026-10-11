@@ -57,18 +57,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 25 | **Transactions** | ✅ 11 Oct — owner tested & signed off |
 | 26 | **Tasks Board & notification bell** | ✅ 11 Oct — owner tested & signed off |
 | 27 | **Email Templates & sending** | ✅ 11 Oct — owner tested & signed off |
-| 28 | **Document Vault** | ✅ 11 Oct — owner tested & verified |
-| 29 | **Reports** | ⬜ **next in review queue** |
-| 30–35 | Dashboard, … | ⬜ in the table's order |
+| 29 | **Reports** | ✅ 11 Oct — owner tested & verified |
+| 30 | **Dashboard** | ⬜ **next in review queue** |
+| 31–35 | Import/Export, PDF generator, Client Portal, ... | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Reports (#29)
+### What is next — Dashboard (#30)
 
-- **Document Vault (#28) reviewed & verified:** Migrated to per-person permissions (`@StaffOnly()`, open staff reads, `@RequireAccess(Module.DOCUMENTS, Action.CREATE | EDIT | ARCHIVE)`), sensitive files (`VIEW_SENSITIVE`) restricted to authorized staff, server-paginated pickers (`ClientPicker`, `TripPicker`, `OperatorPicker`), and resolved runtime reference errors on `DocumentsPanel`.
-- **Next module in queue:** **Reports (#29)** (`/dashboard/reports`).
+- **Reports (#29) reviewed & verified:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.REPORTS, Action.VIEW)`, `@RequireAccess(Module.REPORTS, Action.EXPORT)`), scoped trip rows to broker reach (`Reach.OWN`), and updated frontend export buttons and dialog to `canAccess(Module.REPORTS, Action.EXPORT)`.
+- **Next module in queue:** **Dashboard (#30)** (`/dashboard`).
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -721,7 +721,16 @@ this says *what the owner decided*, which nothing else records.
   - Migrated `useDocumentRowActions.jsx` to per-person permissions (`canAccess(Module.DOCUMENTS, Action.EDIT | Action.ARCHIVE)`, `reachOf(Module.DOCUMENTS)`).
   - Migrated `DocumentsPanel.jsx` to `canAccess(Module.DOCUMENTS, Action.VIEW)` and `canAccess(Module.DOCUMENTS, Action.CREATE)`.
   - Migrated `DocumentsToolbar.jsx` and `DocumentsContainer.jsx` to distinct `mayCreate` and `mayArchive` controls.
-  - Oxlint clean (0 warnings / 0 errors across 9 files). Turbopack production build (`npm run build`) compiled successfully in 5.7s with 0 errors across 45 routes.
 
+### 11 Oct 2026 — Reports (#29) reviewed, migrated & verified (Antigravity)
 
-
+- **Backend Architecture & Per-Person Access:**
+  - `ReportsController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring outside partner / referral agent accounts (`403 Forbidden`).
+  - Financial reads: `GET /reports/summary`, `GET /reports/series`, `GET /reports/brokers`, `GET /reports/clients`, and `GET /reports/routes` require `@RequireAccess(Module.REPORTS, Action.VIEW)`.
+  - Operations export: `GET /reports/export` requires `@RequireAccess(Module.REPORTS, Action.EXPORT)`.
+  - Scoping: `TripsService.reportRows` and `reportCount` respect caller reach (`reachOf(Module.REPORTS)` / `reachOf(Module.TRIPS)`), restricting `Reach.OWN` brokers to their own operations.
+  - Unit test suite: Created `reports.access.spec.ts` (21 tests) verifying `@StaffOnly()`, per-person access checks, and export authorization. All 58 Vitest suites (497 tests) pass 100%. `nest build` clean with 0 errors.
+- **Frontend Architecture & Access Upgrades:**
+  - `ReportsToolbar.jsx` upgraded: migrated export buttons from legacy `can(Permission.EXPORT_DATA)` to `canAccess(Module.REPORTS, Action.EXPORT)`.
+  - `ExportOperationsDialog.jsx` upgraded: gated download trigger and export modal rendering with `canAccess(Module.REPORTS, Action.EXPORT)`.
+  - Oxlint clean (0 warnings / 0 errors across 25 files). Turbopack production build (`npm run build`) compiled successfully in 4.9s with 0 errors across 45 routes.

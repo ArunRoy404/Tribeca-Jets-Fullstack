@@ -154,8 +154,8 @@ reviewed yet — the module may still be built and working.
 | 26 | Tasks Board & notification bell | Yes — in-app channel, follow-up reminders | ✅ 11 Oct — owner tested & signed off |
 | 27 | Email Templates & sending | Yes — company identity, email channel | ✅ 11 Oct — owner tested & signed off |
 | 28 | Document Vault | — | ✅ 11 Oct — owner tested & verified |
-| 29 | Reports | — | ⬜ **next in review queue** |
-| 30 | Dashboard | — | ⬜ |
+| 29 | Reports | — | ✅ 11 Oct — owner tested & verified |
+| 30 | Dashboard | — | ⬜ **next in review queue** |
 | 31 | Import / Export (#26, the rest) — **tell the owner when we reach it** (Import hidden, Export not connected since 7 Oct) | — | ⬜ |
 | 32 | PDF generator | Yes — document identity and toggles | ⬜ |
 | 33 | Client Portal (#25) | — | ⬜ |
