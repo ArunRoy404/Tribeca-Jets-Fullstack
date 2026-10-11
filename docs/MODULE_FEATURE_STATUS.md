@@ -1080,6 +1080,14 @@ of these cards makes a second request.
   (outbound only), and says which
 - Postman builder `build_flight_tracking_folder.py` → `24 · Flight Tracking`
   (8 requests), **written, not run**
+- **Reviewed 11 Oct 2026** (module-by-module pass):
+  - **Permissions per person:** Decorated `FlightTrackingController` with `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /flight-tracking`, `GET /flight-tracking/stats`, `GET /flight-tracking/:legId` open to all staff sessions without requiring write permissions, scoped by `reachOf(user.access, Module.TRIPS)`.
+  - Write gating: `PATCH /flight-tracking/:legId` guarded by `@RequireAccess(Module.FLIGHT_TRACKING, Action.EDIT)`.
+  - Financial privacy: `FlightTrackingService` checks `canDo(user.access, Module.RECEIVABLES, Action.VIEW)` before returning client billing details.
+  - Manual report form: Streamlined in `FlightReportForm` inside `FlightTrackingDetailSheet` to capture status, ETA, and dispatch note (external tracking URL removed per owner direction).
+  - Cross-module Schedule linkage: Schedule's `FlightDetailSheet` displays reported flight status badge when present.
+  - Unit test suite: Created `flight-tracking.access.spec.ts` verifying `@StaffOnly()` 403 refusal on referral agents, open staff reads, and edit write access. All 48 Vitest suites (398 tests) pass 100%.
 
 **Deviations from the old screen, stated:**
 
@@ -1097,7 +1105,7 @@ of these cards makes a second request.
 |---|---|
 | Live position, automatic status, delay notifications | **A decision** — a flight-data provider (scope §17); the client has not asked |
 | On-time rate | Actual departure/arrival times — not recorded while tracking is manual |
-| The reported status on the Schedule calendar | Buildable now — the calendar's API already returns it |
+| ~~The reported status on the Schedule calendar~~ | ✅ Shipped in **Flight Tracking review (11 Oct 2026)** |
 
 ---
 

@@ -48,17 +48,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 16 | **Trips** | ✅ 10 Oct — owner tested & signed off |
 | 17 | **Itineraries** | ✅ 11 Oct — owner tested & signed off |
 | 18 | **Schedule** | ✅ 11 Oct — owner tested & signed off |
-| 19 | **Flight Tracking** | 🟡 **next in queue** |
-| 20–35 | Empty Legs, Receivables, … | ⬜ in the table's order |
+| 19 | **Flight Tracking** | ✅ 11 Oct — owner tested & signed off |
+| 20 | **Empty Legs** | 🟡 **next in queue** |
+| 21–35 | Receivables, Operator Payments, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Flight Tracking (#19) review
+### What is next — Empty Legs (#20) review
 
-- **Schedule (#18) tested, signed off and pushed:** Controller decorated with `@StaffOnly()`, open reads for staff, writes guarded. Schedule is a pure read-only calendar view over `TripLeg` rows, scoped through `TripsService` via `reachOf(user.access, Module.TRIPS)`. Receivables visibility gated via `canDo(user.access, Module.RECEIVABLES, Action.VIEW)`. Unit test suite `schedule.access.spec.ts` passing (100% across all 47 test suites, 393 tests).
-- **Next module in queue:** **Flight Tracking (#19)** — real-time tracking, live flight positions, delay/departure alerts to brokers.
+- **Flight Tracking (#19) reviewed, signed off, committed:** Controller decorated with `@StaffOnly()`, open staff reads, `@RequireAccess(Module.FLIGHT_TRACKING, Action.EDIT)` on updates. Sidebar report form streamlined without external tracking URLs. Cross-module Schedule status badge display connected. Unit test suite `flight-tracking.access.spec.ts` passing 100%.
+- **Next module in queue:** **Empty Legs (#20)** — repositioning flights offered at a discount; client adjustment #10b route matching against trip requests (exact airports, within ±3 days, lost & converted requests included).
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -500,6 +501,19 @@ this says *what the owner decided*, which nothing else records.
 - **Frontend Architecture & Verification:**
   - Verified `Frontend/src/components/schedule/` components (`ScheduleGrid`, `ScheduleEvents`, `ScheduleStats`, `useScheduleEvents`, `useScheduleStats`) consume live API without mock fallbacks.
   - Filter state synchronized through URL params via `useScheduleParams`.
-  - Honest status tags and em dash fallbacks maintained across day, week, month, and year calendar grids.
-  - Turbopack production build (`npm run build`) compiles with 0 errors across all 45 routes.
-- **Git & Next Step:** Committed in batches and pushed to `origin/roy`. Proceeding to Flight Tracking (#19).
+  - Upgraded Month grid: clicking any date cell or `+N more` opens the total day schedule sidebar with 1-click transition to flight details and back navigation.
+
+### 11 Oct 2026 — Flight Tracking (#19) reviewed, implemented & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - Decorated `FlightTrackingController` with `@StaffOnly()`, strictly barring referral agent/partner accounts (403).
+  - Open staff reads: `GET /api/flight-tracking`, `/api/flight-tracking/stats`, and `GET /api/flight-tracking/:legId` open to all staff sessions without requiring write permissions, scoped by `reachOf(user.access, Module.TRIPS)`.
+  - Granular write gating: `PATCH /api/flight-tracking/:legId` guarded by `@RequireAccess(Module.FLIGHT_TRACKING, Action.EDIT)`.
+  - Financial privacy: `FlightTrackingService` checks `canDo(user.access, Module.RECEIVABLES, Action.VIEW)` before returning invoice/billing figures.
+  - Created unit test suite `flight-tracking.access.spec.ts` verifying staff reads, partner refusal (403), and write action gating. All 48 Vitest suites (398 tests) pass 100%.
+- **Frontend Architecture & Verification:**
+  - Preserved the clean sidebar architecture: clicking any flight row or card opens the sidebar sheet (`FlightTrackingDetailSheet`).
+  - The operational report form (`FlightReportForm`) is hosted directly inside the sidebar sheet, gated by `canAccess(Module.FLIGHT_TRACKING, Action.EDIT)`.
+  - Connected Schedule (#18) to display reported flight status badges on `FlightDetailSheet`.
+  - Frontend Turbopack production build (`npm run build`) compiled cleanly in 4.2s (0 errors across 45 routes).
+- **Git & Next Step:** Committed in batches and pushed to `origin/roy`. Proceeding to Empty Legs (#20).
