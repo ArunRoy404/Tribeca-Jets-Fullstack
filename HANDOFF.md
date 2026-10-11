@@ -53,17 +53,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 21 | **Receivables** | ✅ 11 Oct — owner tested & signed off |
 | 22 | **Operator Payments** | ✅ 11 Oct — owner tested & signed off |
 | 23 | **Commissions** | ✅ 11 Oct — owner tested & signed off |
-| 24 | **Referrals / Referral Agent** | 🟡 **next in review queue** |
-| 25–35 | Transactions, Tasks, … | ⬜ in the table's order |
+| 24 | **Referrals / Referral Agent** | ✅ 11 Oct — owner tested & signed off |
+| 25 | **Transactions** | ⬜ **next in review queue** |
+| 26–35 | Tasks, Email Templates, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Referrals / Referral Agent (#24)
+### What is next — Transactions (#25)
 
-- **Commissions (#23) signed off:** Tested and signed off by the owner. Reusable `FilterTabs` background transition animation removed in favor of static indicator.
-- **Next module in queue:** **Referrals / Referral Agent (#24)** — desk referrals directory, agent referral submission and lifecycle, and client adjustment #11 portal integration.
+- **Referrals / Referral Agent (#24) reviewed:** Complete review, migrated to per-person permissions, replaced all 100-limit selectors with reusable pickers (`AirportPicker`, `BrokerPicker`, `ClientPicker`, `TripPicker`). Ready for owner testing.
+- **Next module in queue:** **Transactions (#25)** — the unified money ledger over Receivables, Operator Payments, and Commissions.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -598,4 +599,38 @@ this says *what the owner decided*, which nothing else records.
   - Partner portal commissions (`/portal/commissions`) verified end-to-end with live stats, terms card, and scoped commissions table.
   - FilterTabs UI adjustment: Removed framer-motion transition animation on the active tab background in `FilterTabs.jsx`, replacing it with a static active indicator to avoid glitches.
 - **Owner Test & Sign-off:** Owner tested and signed off on Commissions (#23). All changes committed in batches and pushed to `origin/roy`. Next in queue: Referrals / Referral Agent (#24).
+
+### 11 Oct 2026 — Referrals / Referral Agent (#24) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `ReferralsController` & `ReferralResourcesController` decorated with `@UseGuards(AccessGuard)`, `@RequirePermissions` completely removed.
+  - Open session reads: `GET /referrals`, `GET /referrals/stats`, `GET /referrals/:id`, `GET /referrals/:id/attachments/:uploadId`, and `GET /referral-resources` open to all authenticated sessions without requiring write permissions.
+  - Controller is **not** `@StaffOnly()`: Partner referral agents access reads to operate `/portal/referrals`, `/portal/submit`, and `/portal/resources`.
+  - Service shapes `partnerView(row)` when caller is `isPartner(user.role)`, projecting down to hide desk notes, broker identity, and internal CRM linkage.
+  - Scoping via `reachOf(user.access, Module.REFERRALS)`: `ALL` for Admin, `OWN` for Broker (trips where assignedBrokerId = user.id or unassigned), `OWN` for Referral Agent (agentId = user.id).
+  - Granular write gating:
+    - Submit referral & Create resource: `@RequireAccess(Module.REFERRALS, Action.CREATE)`
+    - Update referral, Convert referral, & Update resource: `@RequireAccess(Module.REFERRALS, Action.EDIT)`
+    - Archive, Restore, Bulk-archive, Bulk-restore, & Resource archive: `@RequireAccess(Module.REFERRALS, Action.ARCHIVE)`
+  - Standard service validation:
+    - Replaced custom airport check with `AirportsService.usable(id, label)` repo-wide standard rule.
+    - Added active status checks for referral agent (`agent.status === UserStatus.ACTIVE`) on submit and broker (`broker.status === UserStatus.ACTIVE`) on update.
+    - Scoped `removeMany` and `restoreMany` to caller's `visibilityScope`.
+  - Unit test suite: Created `referrals.access.spec.ts` (10 tests) verifying open reads, partner portal access, partner write gating (403 on edit/archive), and admin/curator privileges. All 53 Vitest suites (434 tests) pass 100%. `tsc --noEmit` clean with 0 errors.
+- **Frontend Architecture & Reusable Components:**
+  - Upgraded partner portal `SubmitReferralForm.jsx` (`Frontend/src/components/portal/SubmitReferralForm.jsx`):
+    - Replaced `limit: 100` airport fetch with the reusable `AirportPicker` component (`Frontend/src/components/airports/AirportPicker.jsx`) for departure and arrival airports.
+  - Upgraded desk `ReferralDetailSheet.jsx` (`Frontend/src/components/referrals/ReferralDetailSheet.jsx`):
+    - Migrated to per-person permissions via `canAccess(Module.REFERRALS, Action.EDIT | Action.ARCHIVE)`.
+    - Removed `limit: 100` broker query, replaced with shared `BrokerPicker` (`Frontend/src/components/users/BrokerPicker.jsx`).
+    - Upgraded conversion flow: cleanly allows toggling between creating a new client and selecting an existing client using the searchable, server-paginated `ClientPicker` (`Frontend/src/components/clients/ClientPicker.jsx`).
+    - Upgraded trip linking: replaced 50-limit dropdown with shared `TripPicker` (`Frontend/src/components/trips/TripPicker.jsx`) with client scoping.
+    - Updated `TripPicker.jsx` to support optional custom `params` prop for flexible filtering while remaining 100% backward compatible.
+  - Upgraded desk `ReferralsContainer.jsx`:
+    - Migrated bulk deletion and row archiving to `canAccess(Module.REFERRALS, Action.ARCHIVE)`.
+  - Upgraded desk `ReferralResourcesCard.jsx`:
+    - Migrated curation permissions to `reachOf(Module.REFERRALS) === Reach.ALL && canAccess(Module.REFERRALS, Action.CREATE)`.
+  - Fixed portal logo and static asset rendering in [proxy.js](file:///c:/Users/ROY/Desktop/out/Tribeca-Jets-Fullstack/Frontend/src/proxy.js): static asset requests under `/dashboard/img/*` and `/dashboard/bg/*` are passed through so partner portal sessions are not redirected by the CRM path matcher.
+  - Turbopack production build (`npm run build`) compiled cleanly in 3.9s with 0 errors across 45 routes.
+- **Next Step:** Ready for owner testing of Referrals (#24). Awaiting user testing and review before committing. Next module in queue: Transactions (#25).
 

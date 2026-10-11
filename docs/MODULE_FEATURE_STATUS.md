@@ -2165,6 +2165,23 @@ inventing the value now would be guessing at a workflow nobody has described.
   (convert, broker, status, link trip, attachments, timeline) and the
   Resources card. A client's detail shows the referrals that produced it
 
+**Reviewed 11 Oct 2026 (per-person permissions & reusable pickers pass):**
+- **Per-person permissions migration:**
+  - `@RequireAccess(Module.REFERRALS, Action.CREATE)` on `submit` and `create` resource.
+  - `@RequireAccess(Module.REFERRALS, Action.EDIT)` on `update`, `convert`, and `update` resource.
+  - `@RequireAccess(Module.REFERRALS, Action.ARCHIVE)` on `remove`, `restore`, `removeMany`, `restoreMany`, and resource archiving.
+  - Reads (`findAll`, `stats`, `findOne`, `attachment`, `findAll` resources) open to any signed-in session without `@StaffOnly()`, allowing referral agents full access to their portal pages (`/portal/referrals`, `/portal/resources`).
+- **Service checks:**
+  - `assertAirport` switched to standard `this.airports.usable(id, label)` whole-repo rule.
+  - Active user status enforced: `agent.status === UserStatus.ACTIVE` on submit and `broker.status === UserStatus.ACTIVE` on update.
+  - `removeMany` and `restoreMany` properly scoped to caller's `visibilityScope`.
+- **Reusable pickers:**
+  - `SubmitReferralForm.jsx` switched from 100-cap airport select to shared `AirportPicker`.
+  - `ReferralDetailSheet.jsx` switched from 100-cap broker select to shared `BrokerPicker`.
+  - Conversion flow upgraded to allow picking existing clients via `ClientPicker` with live server pagination.
+  - Trip linking upgraded to use shared `TripPicker` filtered by client.
+- **Pinned by 10 unit tests in `referrals.access.spec.ts`.**
+
 **Working now — the agent portal (27 Sep 2026)**
 
 - `/portal`, its own shell: the CRM's sidebar and header (`AppSidebar` /
