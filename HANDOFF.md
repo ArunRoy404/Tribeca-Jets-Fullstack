@@ -52,17 +52,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 20 | **Empty Legs** | ✅ 11 Oct — owner tested & signed off |
 | 21 | **Receivables** | ✅ 11 Oct — owner tested & signed off |
 | 22 | **Operator Payments** | ✅ 11 Oct — owner tested & signed off |
-| 23 | **Commissions** | 🟡 **next in review queue** |
-| 24–35 | Referrals, Transactions, … | ⬜ in the table's order |
+| 23 | **Commissions** | ✅ 11 Oct — owner tested & signed off |
+| 24 | **Referrals / Referral Agent** | 🟡 **next in review queue** |
+| 25–35 | Transactions, Tasks, … | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Operator Payments (#22) testing & Commissions (#23)
+### What is next — Referrals / Referral Agent (#24)
 
-- **Operator Payments (#22) reviewed, migrated and verified:** Controller gated with `@StaffOnly()`, open staff reads, `@RequireAccess(Module.OPERATOR_PAYMENTS, CREATE | PAY | ARCHIVE)` on writes. Scoping via `reachOf(user.access, Module.OPERATOR_PAYMENTS) === Reach.ALL` and `TripsService.visibleWhere(user)`. Frontend toolbar, container, detail sheet, dialogs, operator detail tab, and financial attention migrated to granular per-person permissions. Unit test suite `operator-payments.access.spec.ts` (7 tests) passing 100%. All 51 Vitest suites (417 tests) passing 100%. Next.js production build passes 100% (45 routes).
-- **Next module in queue:** **Commissions (#23)** — trip commissions to referral agents, brokers, travel agents, and named recipients.
+- **Commissions (#23) signed off:** Tested and signed off by the owner. Reusable `FilterTabs` background transition animation removed in favor of static indicator.
+- **Next module in queue:** **Referrals / Referral Agent (#24)** — desk referrals directory, agent referral submission and lifecycle, and client adjustment #11 portal integration.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -568,5 +569,33 @@ this says *what the owner decided*, which nothing else records.
     - Automatically populates the trip cost helper box and owed/paid stats via `useTrip(form.tripId)`.
   - Updated cross-module reads in `FinancialAttention` and `OperatorDetailsView` to `canAccess(Module.OPERATOR_PAYMENTS, Action.VIEW)`.
   - Turbopack production build (`npm run build`) compiled cleanly in 4.3s with 0 errors across 45 routes.
-- **Git & Next Step:** Pending owner testing and explicit instruction to commit and push. Next in queue: Commissions (#23).
+- **Git & Next Step:** Committed Operator Payments in batches and pushed to `origin/roy`. Next in queue: Commissions (#23).
+
+### 11 Oct 2026 — Commissions (#23) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `CommissionsController` decorated with `@UseGuards(AccessGuard)`, `@RequirePermissions` removed.
+  - Open session reads: `GET /commissions`, `GET /commissions/stats`, and `GET /commissions/:id` open to all authenticated sessions without write permissions.
+  - Controller is **not** `@StaffOnly()`: Partner referral agents access `GET /commissions` and `GET /commissions/stats` for `/portal/commissions`.
+  - Service shapes `partnerView(row)` when caller is `isPartner(user.role)`, projecting down to hide desk notes, broker identity, and trip pricing/profit.
+  - Scoping via `reachOf(user.access, Module.COMMISSIONS)`: `ALL` for Admin, `OWN` for Broker (trips where assignedBrokerId = user.id), `OWN` for Referral Agent (recipientUserId = user.id).
+  - Granular write gating:
+    - `POST /commissions`: `@RequireAccess(Module.COMMISSIONS, Action.CREATE)`
+    - `PATCH /commissions/:id`: requires `Action.CREATE` (to touch terms/structure) or `Action.PAY` (to settle/pay/change status to PAID).
+    - `DELETE /commissions/:id`, `POST /commissions/:id/restore`, `POST /commissions/bulk-delete`, `POST /commissions/bulk-restore`: guarded by `@RequireAccess(Module.COMMISSIONS, Action.ARCHIVE)`.
+  - Input validation: verified active status for referral agent (`UserStatus.ACTIVE`) and broker; verified live/unarchived status for client.
+  - Unit test suite: Created `commissions.access.spec.ts` (7 tests) verifying open reads, partner portal reads, partner write refusal (403), broker write refusal (403), and admin write grants. All 52 Vitest test suites (424 tests) pass 100%. `tsc --noEmit` clean with 0 errors.
+- **Frontend Architecture & Reusable Components:**
+  - Built reusable `ReferralAgentPicker.jsx` (`Frontend/src/components/users/ReferralAgentPicker.jsx`) powered by `RecordPicker` for searchable, server-paginated referral agent selection.
+  - Upgraded `AddCommissionDialog.jsx` (`Frontend/src/components/commissions/AddCommissionDialog.jsx`):
+    - Removed unoptimized `limit: 100` fetches (`useTrips`, `useUsers`, `useClients`).
+    - Replaced with shared `TripPicker`, `ReferralAgentPicker`, `ClientPicker`, and `BrokerPicker` (with unassign/clear support), all handling 1,000+ records via debounced search and pagination (10/25/50/100).
+    - Fetches the picked referral agent's standing structure on-demand via `useUser` to prefill/label standard terms dynamically.
+  - Migrated `CommissionsToolbar`, `CommissionsContainer`, and `CommissionDetailSheet` to granular per-person permissions via `canAccess(Module.COMMISSIONS, Action.CREATE | Action.PAY | Action.ARCHIVE)`.
+    - `selectable={mayArchive}` on table so checkboxes only appear when user has archive permissions.
+    - `Mark Paid Today` strictly requires `mayPay`.
+    - `Mark Earned` requires `mayCreate || mayPay`.
+  - Partner portal commissions (`/portal/commissions`) verified end-to-end with live stats, terms card, and scoped commissions table.
+  - FilterTabs UI adjustment: Removed framer-motion transition animation on the active tab background in `FilterTabs.jsx`, replacing it with a static active indicator to avoid glitches.
+- **Owner Test & Sign-off:** Owner tested and signed off on Commissions (#23). All changes committed in batches and pushed to `origin/roy`. Next in queue: Referrals / Referral Agent (#24).
 

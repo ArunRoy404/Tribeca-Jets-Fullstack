@@ -1308,7 +1308,7 @@ status and balance live on its own board, one click away.
 | ~~Monthly revenue and profit~~ | ✅ **Reports (#23)** — revenue and profit by month from Trips, and cash collected by payment date |
 | Refunds as movements | **A decision** — see Client Credits (#30) |
 
-### 18. Commissions ✅
+### 18. Commissions ✅ *(Reviewed & migrated 11 Oct 2026)*
 
 **Working now**
 
@@ -1323,15 +1323,25 @@ status and balance live on its own board, one click away.
 - A new commission with no basis copies the agent's standard structure from
   their user row. Linking a referral's trip raises the agent's commission
   automatically (skipped for CUSTOM, and never twice)
-- Scope: ALL for admins and senior brokers; a broker sees the commissions on
-  their trips; an agent sees only their own, stripped of notes, broker and
-  every price input. Writes need `MANAGE_COMMISSIONS` (ALL only)
-- Frontend: the board, stats, add dialog (with an "agent's standard" basis),
-  detail sheet, and the trip's financial card. `dummyData/commissions.js` is
-  deleted
+- **Per-person access:**
+  - Reads open to all signed-in sessions without requiring write permissions,
+    scoped by reach (`ALL` for Admin, `OWN` for Broker scoped to their booked trips,
+    `OWN` for Referral Agent via partner portal).
+  - Controller is **not** staff-only (`@StaffOnly()` omitted) so referral agents
+    can access `GET /commissions` and `GET /commissions/stats` from `/portal/commissions`.
+  - Service shapes `partnerView` for referral agents, stripping notes, broker, and trip pricing.
+  - Granular writes: `CREATE` raises commissions, `PAY` pays / settles commissions,
+    `ARCHIVE` soft-deletes and restores.
+  - Validation: verified active status for referral agent and broker; client archived status checked.
+- **Frontend & Reusable Components:**
+  - `CommissionsContainer`, `CommissionsToolbar`, and `CommissionDetailSheet` migrated to `canAccess(Module.COMMISSIONS, Action.CREATE | Action.PAY | Action.ARCHIVE)`.
+  - Replaced unoptimized `limit: 100` dropdowns in `AddCommissionDialog` with shared
+    `TripPicker`, `ReferralAgentPicker`, `ClientPicker`, and `BrokerPicker`, all powered by `RecordPicker`
+    with server pagination (10/25/50/100) and debounced search.
+  - Partner portal commissions (`/portal/commissions`) fully wired to live API via `PortalCommissionsContainer` and `CommissionTermsCard`.
+- Unit tests: `commissions.access.spec.ts` (7 tests) pinned. All 52 Vitest test suites (424 tests) passing. Next.js Turbopack build succeeds with 0 errors.
 
-**Not done:** the Postman folder; the agent's own Commission Center screen
-(the portal, see #32).
+**Not done:** Postman builder run (left for owner's instruction alongside dev seed).
 
 Money is why soft delete is absolute: `deletedAt` everywhere, no hard delete
 anywhere in the system.
