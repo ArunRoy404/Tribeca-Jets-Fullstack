@@ -34,6 +34,7 @@ export default function TripPicker({
   value,
   onChange,
   placeholder = "Select a trip",
+  params,
   ...props
 }) {
   return (
@@ -42,7 +43,7 @@ export default function TripPicker({
       onChange={onChange}
       useList={useTrips}
       useOne={useTrip}
-      params={PARAMS}
+      params={params ? { ...PARAMS, ...params } : PARAMS}
       getOption={tripOption}
       placeholder={placeholder}
       searchPlaceholder="Search trip reference (TJ-1048), client, tail, route…"

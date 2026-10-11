@@ -109,6 +109,12 @@ function refusedPage(request, pathname, allowed) {
 export function proxy(request) {
   const { pathname, search } = request.nextUrl;
 
+  // Static files in public/ (e.g. /dashboard/img/logo.svg, /dashboard/bg/*.png)
+  // are static assets, not CRM pages, and must never be redirected by role.
+  if (/\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?|ttf|eot)$/i.test(pathname)) {
+    return NextResponse.next();
+  }
+
   const hasSessionHint = SESSION_HINT_COOKIES.some((name) =>
     request.cookies.has(name),
   );
