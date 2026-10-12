@@ -212,6 +212,7 @@ export const SETTINGS_FIELDS = {
     defaultQuoteTerms: "text",
   },
   security: {
+    idleLogoutEnabled: "bool",
     idleTimeoutMinutes: "number",
     idleWarningMinutes: "number",
     showIdleWarning: "bool",

@@ -38,6 +38,12 @@ import { useCurrentUser } from "@/hooks/auth";
  * without saving kept this timer happy while the server's clock ran out, and
  * the next reload landed on the sign-in page. The ping is claimed through a
  * shared `localStorage` stamp, so one tab sends it for all of them.
+ *
+ * **The company can switch it off** (Settings › Security & Session,
+ * `session.idleLogoutEnabled`, 12 Oct 2026). Off, no timer runs and no
+ * warning shows — but activity is still recorded, here and on the server, so
+ * switching it back on measures idleness from real use and does not sign out
+ * everyone who had been working the whole time.
  */
 
 /** Shared across tabs of this origin. Not a secret — a millisecond timestamp. */
@@ -139,10 +145,13 @@ export function useIdleLogout({ enabled = true } = {}) {
 
   // Absent while `/auth/me` is in flight, so the timer simply does not run
   // yet — better than guessing a limit and signing someone out on a number
-  // the server never sent.
-  const timeoutMs = user?.session?.idleTimeoutMinutes
-    ? user.session.idleTimeoutMinutes * 60_000
-    : null;
+  // the server never sent. Null too while the company has switched
+  // automatic logout off.
+  const idleLogoutEnabled = user?.session?.idleLogoutEnabled !== false;
+  const timeoutMs =
+    idleLogoutEnabled && user?.session?.idleTimeoutMinutes
+      ? user.session.idleTimeoutMinutes * 60_000
+      : null;
 
   // How long before the deadline the "Stay signed in" warning appears, and
   // whether it appears at all — Settings › Security & Session, via the
@@ -152,7 +161,9 @@ export function useIdleLogout({ enabled = true } = {}) {
       ? user.session.idleWarningMinutes * 60_000
       : 0;
 
-  const active = enabled && Boolean(user) && Boolean(timeoutMs);
+  // Signed in: activity is recorded. Active: the timer also runs.
+  const signedIn = enabled && Boolean(user);
+  const active = signedIn && Boolean(timeoutMs);
 
   const [secondsLeft, setSecondsLeft] = useState(null);
   // The stamp is mirrored in a ref so the tick reads it without re-subscribing,
@@ -176,8 +187,9 @@ export function useIdleLogout({ enabled = true } = {}) {
     reportActivity(true);
   }, [markActive]);
 
+  // Recording activity — while signed in, whether or not the timer runs.
   useEffect(() => {
-    if (!active) return undefined;
+    if (!signedIn) return undefined;
 
     // Adopt whatever another tab last recorded, so opening a second tab does
     // not reset a session that has been idle for nine minutes.
@@ -200,6 +212,18 @@ export function useIdleLogout({ enabled = true } = {}) {
       }
     };
     window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      for (const event of ACTIVITY_EVENTS) {
+        window.removeEventListener(event, onActivity);
+      }
+    };
+  }, [signedIn, markActive]);
+
+  // The timer — only while automatic logout is on.
+  useEffect(() => {
+    if (!active) return undefined;
 
     const signOut = async () => {
       if (signingOut.current) return;
@@ -242,18 +266,16 @@ export function useIdleLogout({ enabled = true } = {}) {
     // signs out now rather than a second from now.
     tick();
 
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("storage", onStorage);
-      for (const event of ACTIVITY_EVENTS) {
-        window.removeEventListener(event, onActivity);
-      }
-    };
-  }, [active, timeoutMs, warningMs, markActive]);
+    return () => window.clearInterval(interval);
+  }, [active, timeoutMs, warningMs]);
 
   return {
-    /** Seconds remaining once inside the warning window, else null. */
-    secondsLeft,
+    /**
+     * Seconds remaining once inside the warning window, else null — always
+     * null while the timer is off, so switching it off mid-countdown closes
+     * the warning.
+     */
+    secondsLeft: active ? secondsLeft : null,
     /** "I'm still here" — resets the clock in every tab and on the server. */
     staySignedIn,
     idleTimeoutMinutes: user?.session?.idleTimeoutMinutes ?? null,

@@ -30,42 +30,60 @@ export default function SecuritySection() {
     refetch,
   } = useSettingsSection("security");
   const [changingPassword, setChangingPassword] = useState(false);
+  // A row saved before the switch existed reads as on, as the server's default.
+  const idleLogoutOn = security?.idleLogoutEnabled !== false;
 
   if (isPending || error) return <SettingsSectionStatus isPending={isPending} error={error} onRetry={refetch} />;
 
   return (
     <>
       <SettingsCard title="Session security" description="Automatic session controls requested for CRM security.">
-        {/* Always on — the server refuses an idle session's refresh, so a
-            switch here could only lie. The pill says so instead. */}
+        {/* The company-wide switch (owner's decision, 12 Oct 2026). The server
+            honours it too: off, it stops refusing idle sessions, so the switch
+            does what it says on both sides. */}
         <SettingRow
           label="Automatic logout after inactivity"
-          description="Sign the user out when the CRM has not been touched for the configured duration."
-          pill="Required"
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-          <SettingsSelect
-            label="Inactivity Timeout"
-            value={security?.idleTimeoutMinutes}
-            onChange={set("idleTimeoutMinutes")}
-            disabled={!canEdit}
-            options={IDLE_TIMEOUT_OPTIONS}
-          />
-          <SettingsSelect
-            label="Warning Before Logout"
-            value={security?.idleWarningMinutes}
-            onChange={set("idleWarningMinutes")}
-            disabled={!canEdit}
-            options={IDLE_WARNING_OPTIONS}
-          />
-        </div>
-        <SettingRow
-          label="Show inactivity warning"
-          description="Display a “Stay Signed In” warning before the session expires."
-          checked={security?.showIdleWarning}
-          onCheckedChange={set("showIdleWarning")}
+          description={
+            idleLogoutOn
+              ? "Sign the user out when the CRM has not been touched for the configured duration."
+              : "Off — nobody is signed out for inactivity. Sessions still end when they expire or are signed out."
+          }
+          checked={idleLogoutOn}
+          onCheckedChange={set("idleLogoutEnabled")}
           disabled={!canEdit}
         />
+        {/* Kept, not cleared, while it is off — they apply again the moment it
+            is switched back on. */}
+        <div
+          aria-disabled={!idleLogoutOn}
+          className={`flex flex-col gap-4 w-full transition-opacity duration-300 ${
+            idleLogoutOn ? "" : "opacity-50 pointer-events-none select-none"
+          }`}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <SettingsSelect
+              label="Inactivity Timeout"
+              value={security?.idleTimeoutMinutes}
+              onChange={set("idleTimeoutMinutes")}
+              disabled={!canEdit || !idleLogoutOn}
+              options={IDLE_TIMEOUT_OPTIONS}
+            />
+            <SettingsSelect
+              label="Warning Before Logout"
+              value={security?.idleWarningMinutes}
+              onChange={set("idleWarningMinutes")}
+              disabled={!canEdit || !idleLogoutOn}
+              options={IDLE_WARNING_OPTIONS}
+            />
+          </div>
+          <SettingRow
+            label="Show inactivity warning"
+            description="Display a “Stay Signed In” warning before the session expires."
+            checked={security?.showIdleWarning}
+            onCheckedChange={set("showIdleWarning")}
+            disabled={!canEdit || !idleLogoutOn}
+          />
+        </div>
       </SettingsCard>
 
       <SettingsCard title="Authentication" description="Protect sign-in and sensitive administrative actions.">
