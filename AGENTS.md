@@ -1793,6 +1793,13 @@ formats in UTC, and loaded into an input with `toDateInput` (both in
 local time shows the 13th everywhere west of Greenwich. Timestamps keep using
 the local-time formatters.
 
+**An edit form seeds every calendar date through `toDateInput`, never the raw
+API value.** `DatePicker` tolerates a full timestamp for display, so a form
+that loads `2026-10-16T00:00:00.000Z` looks right and posts it back unchanged
+— and the API refuses it with "Use a YYYY-MM-DD date". The quote edit form did
+this: changing only the expiry failed on the untouched departure date (12 Oct
+2026).
+
 The same component also opened on a hardcoded month, offered a hardcoded
 "Today", and matched the selected day by substring so the 1st highlighted the
 10th. Shared controls get used everywhere; a mock value left in one is a wrong
