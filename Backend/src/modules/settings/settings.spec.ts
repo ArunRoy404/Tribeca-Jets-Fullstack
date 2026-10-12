@@ -23,6 +23,7 @@ const row: SettingsRow = {
   followUpIntervalDays: 3,
   defaultLeadStage: LeadStage.NEW,
   defaultQuoteTerms: 'Subject to availability.',
+  idleLogoutEnabled: true,
   idleTimeoutMinutes: 10,
   idleWarningMinutes: 1,
   showIdleWarning: true,
@@ -126,5 +127,16 @@ describe('PATCH /settings validation', () => {
 
   it('wants the idle warning before the timeout', () => {
     expect(ok({ security: { idleTimeoutMinutes: 5, idleWarningMinutes: 5 } })).toBe(false);
+  });
+
+  it('switches automatic logout off and on, and only with a true/false', () => {
+    expect(ok({ security: { idleLogoutEnabled: false } })).toBe(true);
+    expect(ok({ security: { idleLogoutEnabled: true } })).toBe(true);
+    expect(ok({ security: { idleLogoutEnabled: 'off' } })).toBe(false);
+  });
+
+  it('shows the switch on the security screen, never in the public branding', () => {
+    expect(settingsView(row).security).toHaveProperty('idleLogoutEnabled', true);
+    expect(brandingView(row)).not.toHaveProperty('idleLogoutEnabled');
   });
 });

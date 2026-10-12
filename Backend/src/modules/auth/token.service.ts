@@ -292,7 +292,7 @@ export class TokenService {
         tokenHash: this.hash(presentedToken),
         revokedAt: null,
         expiresAt: { gt: new Date() },
-        lastActiveAt: { gt: new Date(Date.now() - this.idleLimitMs()) },
+        ...this.notIdleWhere(),
       },
       data: { lastActiveAt: new Date() },
     });
@@ -343,15 +343,28 @@ export class TokenService {
    * request, which is a write per request to save a few minutes at the tail of
    * an already-expired session.
    */
-  /** The idle limit the server holds a session to — see ACTIVITY_SLACK_MS. */
-  private idleLimitMs(): number {
-    // The company's Security & Session setting, read when deciding.
-    return this.settings.current().idleTimeoutMinutes * 60_000 + ACTIVITY_SLACK_MS;
+  /**
+   * The idle limit the server holds a session to — see ACTIVITY_SLACK_MS —
+   * or null while the company has switched automatic logout off. Both are
+   * the Security & Session settings, read when deciding, so switching it
+   * back on applies on the next refresh.
+   */
+  private idleLimitMs(): number | null {
+    const settings = this.settings.current();
+    if (!settings.idleLogoutEnabled) return null;
+    return settings.idleTimeoutMinutes * 60_000 + ACTIVITY_SLACK_MS;
   }
 
   /** Whether nobody has used this device for longer than the idle limit. */
   private hasBeenIdle(lastActiveAt: Date): boolean {
-    return Date.now() - lastActiveAt.getTime() > this.idleLimitMs();
+    const limit = this.idleLimitMs();
+    return limit !== null && Date.now() - lastActiveAt.getTime() > limit;
+  }
+
+  /** The `where` half of "not idle past the limit" — nothing while it is off. */
+  private notIdleWhere() {
+    const limit = this.idleLimitMs();
+    return limit === null ? {} : { lastActiveAt: { gt: new Date(Date.now() - limit) } };
   }
 
 
@@ -383,7 +396,7 @@ export class TokenService {
       userId,
       revokedAt: null,
       expiresAt: { gt: new Date() },
-      lastActiveAt: { gt: new Date(Date.now() - this.idleLimitMs()) },
+      ...this.notIdleWhere(),
     };
   }
 

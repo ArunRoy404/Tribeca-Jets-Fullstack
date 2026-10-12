@@ -78,6 +78,7 @@ const defaultsSchema = z
 
 const securitySchema = z
   .object({
+    idleLogoutEnabled: z.boolean().optional(),
     idleTimeoutMinutes: oneOf(IDLE_TIMEOUT_MINUTES, 'Inactivity timeout').optional(),
     idleWarningMinutes: oneOf(IDLE_WARNING_MINUTES, 'Warning before logout').optional(),
     showIdleWarning: z.boolean().optional(),
