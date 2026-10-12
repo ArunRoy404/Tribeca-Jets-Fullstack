@@ -1834,6 +1834,19 @@ reach the server.**
 same reason the permission matrix does. Two copies of one number drift, and
 they drift silently.
 
+**The company can switch it off** (owner's decision, 12 Oct 2026):
+Settings › Security & Session › "Automatic logout after inactivity",
+`company_settings.idleLogoutEnabled`, on by default. It is a setting, not an
+env var, and it is honoured on **both** sides or it would be a fake control:
+off, `TokenService.idleLimitMs()` is null — refresh, the activity ping and
+the sessions list drop the idle cut-off — and `/auth/me` → `session` carries
+`idleLogoutEnabled: false`, so the browser runs no timer and no warning.
+**Activity is still recorded while it is off** (the stamp and the ping), so
+switching it back on measures idleness from real use rather than signing out
+everyone who was working. The timeout and warning are kept while it is off,
+greyed on the screen. Never add a second switch for this (an env var, a
+frontend flag): one setting, read by the server and shipped to the browser.
+
 ## A session is one device, and only theft ends them all
 
 Every sign-in is its own `RefreshToken` chain — one per browser — renewed

@@ -85,6 +85,18 @@ Since 7 Oct 2026 the idle timeout, the warning and "require two-factor for
 administrators" are read from **Settings (#26)**, and a mistaken invitation
 can be withdrawn (`DELETE /users/:id/invitation`).
 
+**12 Oct 2026 (owner's request):** automatic logout can be **switched off**
+for the whole company — a toggle at the top of Settings › Security & Session
+(`idleLogoutEnabled`, on by default, migration
+`20261012120000_idle_logout_switch`). Off: no browser timer or warning, and
+the API stops refusing idle sessions (refresh, activity ping, sessions
+list); the timeout and warning stay stored, greyed out. Activity is still
+recorded, so switching it back on never signs out someone who was working.
+Session expiry (7 / 30 days) and sign-out are unaffected. Tested: 5 new unit
+tests, Postman `30 · Settings` rebuilt and green twice, and live on the
+4100 API — a session idle for 2 hours renews while off and is refused (401)
+once it is back on.
+
 ---
 
 ## 2. Users & Roles ✅

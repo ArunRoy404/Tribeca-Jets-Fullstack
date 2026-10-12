@@ -270,6 +270,19 @@ Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
 
+### 12 Oct 2026 — Automatic logout can be switched off (Claude Code)
+
+- **Owner's request:** a toggle at the top of Settings › Security & Session
+  that turns automatic logout after inactivity off or on for everyone; when
+  off, the rest of that card is greyed out (50% opacity, not clickable).
+- Chosen over an env var: one setting, honoured by the server and shipped to
+  the browser through `/auth/me`. Off really means off on both sides; the
+  values are kept for when it is switched back on.
+- Migration `20261012120000_idle_logout_switch` (applied to `tribeca_jets`
+  and `tribeca_postman`). Postman `30 · Settings` rebuilt.
+- This Mac needed `npm install` in `Frontend/` for `@dnd-kit/core` (added by
+  the Tasks Board review) — any machine that pulls should run it too.
+
 ### 9 Oct 2026 — Notes / Timeline (#10), Client Credits (#11), and Leads & Agents (#12) reviewed (Antigravity)
 
 - **UI form field height & alignment standardization (owner's request):**

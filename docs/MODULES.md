@@ -720,6 +720,7 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 | Default follow-up interval (Defaults) | Clients, Leads — create / follow-up dialogs | — | ⬜ |
 | Default lead stage (Defaults) | Clients, Leads — create forms | `NEW` in the forms | ⬜ |
 | Default quote terms (Defaults) | Quotes — new-quote form | — | ⬜ |
+| Automatic logout on/off (Security, 12 Oct) | Auth — refresh check, activity ping, sessions list, `/auth/me` → `session.idleLogoutEnabled` | always on | ✅ |
 | Inactivity timeout (Security) | Auth — `/auth/me` and the refresh check | — (env var removed 7 Oct) | ✅ |
 | Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` via `/auth/me` → `session` | — | ✅ |
 | Require 2FA for admins (Security) | Auth — sign-in (SUPER_ADMIN and ADMIN) | — | ✅ |
