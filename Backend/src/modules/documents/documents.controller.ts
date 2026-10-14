@@ -13,15 +13,14 @@ import {
   Query,
   Res,
   StreamableFile,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import {
-  RequirePermissions,
-  RequireWritePermissions,
-} from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import { contentDisposition } from '../uploads/uploads.rules.js';
@@ -34,29 +33,28 @@ import {
 } from './dto/document.dto.js';
 
 /**
- * Document Vault (#22). VIEW_DOCUMENTS reads, MANAGE_DOCUMENTS files and
- * archives; which documents a caller reaches is their clients', trips' and
- * operators' own scope, and passports and IDs need VIEW_SENSITIVE_DOCUMENTS
- * — both enforced in the service, where a `findMany` can be scoped.
+ * Document Vault (#22 / #28). Open staff reads (the folders and stats feed
+ * pickers and detail tabs across modules). Writes guarded by per-person access:
+ * CREATE (file), EDIT, ARCHIVE. Passports and IDs restricted to VIEW_SENSITIVE.
  */
 @ApiTags('Documents')
 @Controller('documents')
+@UseGuards(AccessGuard)
+@StaffOnly()
 export class DocumentsController {
   constructor(private readonly documents: DocumentsService) {}
 
   @Get()
-  @RequirePermissions(Permission.VIEW_DOCUMENTS)
   @ApiOperation({
     summary: 'List documents',
     description:
-      'The vault, or one folder with `clientId` / `tripId` / `operatorId`. `owner` narrows to one kind of folder, `category` to one kind of document, `expiry` to NONE, VALID, EXPIRING (within 90 days of `on`) or EXPIRED. `search` matches the title, notes, file name, the owner and a trip\'s TJ-number. `archived=true` lists the archived half. Passports and IDs are absent for a role without VIEW_SENSITIVE_DOCUMENTS.',
+      'The vault, or one folder with `clientId` / `tripId` / `operatorId`. `owner` narrows to one kind of folder, `category` to one kind of document, `expiry` to NONE, VALID, EXPIRING (within 90 days of `on`) or EXPIRED. `search` matches the title, notes, file name, the owner and a trip\'s TJ-number. `archived=true` lists the archived half. Passports and IDs are absent for a role without VIEW_SENSITIVE.',
   })
   findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: QueryDocumentsDto) {
     return this.documents.findAll(user, query);
   }
 
   @Get('stats')
-  @RequirePermissions(Permission.VIEW_DOCUMENTS)
   @ApiOperation({
     summary: 'The tiles',
     description: 'Live documents in your scope — optionally one folder — by kind of folder, expired, and expiring within 90 days of `on`.',
@@ -66,14 +64,12 @@ export class DocumentsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_DOCUMENTS)
   @ApiOperation({ summary: 'One document', description: 'Archived documents load too — the Archived tab opens them.' })
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.documents.findOne(user, id);
   }
 
   @Get(':id/file')
-  @RequirePermissions(Permission.VIEW_DOCUMENTS)
   @Header('X-Content-Type-Options', 'nosniff')
   @ApiOperation({
     summary: "Open a document's file",
@@ -94,11 +90,11 @@ export class DocumentsController {
   }
 
   @Post()
-  @RequireWritePermissions(Permission.MANAGE_DOCUMENTS)
+  @RequireAccess(Module.DOCUMENTS, Action.CREATE)
   @ApiOperation({
     summary: 'File a document',
     description:
-      'Upload the file first (POST /uploads/document or /uploads/image) and send its URL as `fileUrl`, with exactly one of `clientId`, `tripId` or `operatorId`. The file must be one you may read; the folder must be one you may see and not archived. Filing a PASSPORT or ID needs VIEW_SENSITIVE_DOCUMENTS.',
+      'Upload the file first (POST /uploads/document or /uploads/image) and send its URL as `fileUrl`, with exactly one of `clientId`, `tripId` or `operatorId`. The file must be one you may read; the folder must be one you may see and not archived. Filing a PASSPORT or ID needs VIEW_SENSITIVE.',
   })
   create(@CurrentUser() user: AuthenticatedUser, @Body() body: CreateDocumentDto) {
     return this.documents.create(user, body);
@@ -106,7 +102,7 @@ export class DocumentsController {
 
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_DOCUMENTS)
+  @RequireAccess(Module.DOCUMENTS, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Archive several documents',
     description: 'Ids out of scope, already archived, or filed by someone else (for a broker) come back in `skipped`.',
@@ -117,14 +113,14 @@ export class DocumentsController {
 
   @Post('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_DOCUMENTS)
+  @RequireAccess(Module.DOCUMENTS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore several documents', description: 'The same partial-success rule as archiving.' })
   restoreMany(@CurrentUser() user: AuthenticatedUser, @Body() body: BulkIdsDto) {
     return this.documents.restoreMany(user, body.ids);
   }
 
   @Patch(':id')
-  @RequireWritePermissions(Permission.MANAGE_DOCUMENTS)
+  @RequireAccess(Module.DOCUMENTS, Action.EDIT)
   @ApiOperation({
     summary: 'Edit a document',
     description: 'Title, category, expiry, notes, or a new `fileUrl` to replace the file. The folder cannot change — archive it and file it again.',
@@ -139,7 +135,7 @@ export class DocumentsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequireWritePermissions(Permission.MANAGE_DOCUMENTS)
+  @RequireAccess(Module.DOCUMENTS, Action.ARCHIVE)
   @ApiOperation({
     summary: 'Archive a document',
     description: 'Nothing is deleted, and the file stays in storage. Whoever filed it, or an administrator.',
@@ -150,7 +146,7 @@ export class DocumentsController {
 
   @Post(':id/restore')
   @HttpCode(HttpStatus.OK)
-  @RequireWritePermissions(Permission.MANAGE_DOCUMENTS)
+  @RequireAccess(Module.DOCUMENTS, Action.ARCHIVE)
   @ApiOperation({ summary: 'Restore an archived document' })
   restore(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.documents.restore(user, id);

@@ -26,8 +26,18 @@ const ALL_FOLDERS = "All Folders";
 const ANY_EXPIRY = "Any Expiry";
 
 /** The vault's tabs and filters, all in the URL. Write controls only for a role that has them. */
-export default function DocumentsToolbar({ params, selectedCount = 0, onBulkAction, onAdd, mayManage = false }) {
+export default function DocumentsToolbar({
+  params,
+  selectedCount = 0,
+  onBulkAction,
+  onAdd,
+  mayCreate = false,
+  mayArchive = false,
+  mayManage = false,
+}) {
   const isArchived = params.tab === ARCHIVE_TABS.ARCHIVED;
+  const allowCreate = mayCreate || mayManage;
+  const allowArchive = mayArchive || mayManage;
   const [draft, setDraft] = useDebouncedParam(params.search, params.setSearch);
   const category = useEnumFilter(DOCUMENT_CATEGORIES, formatDocumentCategory, ALL_CATEGORIES);
   const owner = useEnumFilter(DOCUMENT_OWNERS, formatDocumentOwner, ALL_FOLDERS);
@@ -71,7 +81,7 @@ export default function DocumentsToolbar({ params, selectedCount = 0, onBulkActi
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {mayManage && (
+          {allowArchive && (
             <BulkDeleteButton
               count={selectedCount}
               itemLabel="documents"
@@ -79,7 +89,7 @@ export default function DocumentsToolbar({ params, selectedCount = 0, onBulkActi
               action={isArchived ? "restore" : "remove"}
             />
           )}
-          {mayManage && !isArchived && (
+          {allowCreate && !isArchived && (
             <Button variant="outline" size="sm" className="px-3 sm:px-4 gap-2" onClick={() => onAdd?.()}>
               <Plus className="size-3.5" />
               <span>File a Document</span>

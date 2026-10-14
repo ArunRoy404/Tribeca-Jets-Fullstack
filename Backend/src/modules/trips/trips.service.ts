@@ -702,13 +702,26 @@ export class TripsService {
    * Booked and flown trips — the revenue statuses — departing in
    * `[from, to)`, or every one when no window is given, each with the
    * facts a report groups by and its computed figures (null when unpriced).
+   */
+  private reportScope(user: AuthenticatedUser): Prisma.TripWhereInput {
+    const reportsReach = reachOf(user.access, Module.REPORTS);
+    const tripsReach = reachOf(user.access, Module.TRIPS);
+    if (reportsReach === Reach.OWN || tripsReach === Reach.OWN) {
+      return { OR: [{ assignedBrokerId: user.id }, { assignedBrokerId: null }] };
+    }
+    return {};
+  }
+
+  /**
+   * Booked and flown trips for the Reports module (#23), with the figures
+   * each trip's own arithmetic computes. Scoped by caller's REPORTS / TRIPS reach.
    * Oldest departure first, so an export reads as a ledger.
    */
   async reportRows(user: AuthenticatedUser, window: { from: Date; to: Date } | null) {
     const rows = await this.prisma.trip.findMany({
       where: {
         deletedAt: null,
-        ...this.visibilityScope(user),
+        ...this.reportScope(user),
         status: { in: [...REVENUE_STATUSES] },
         ...(window ? { departureDate: { gte: window.from, lt: window.to } } : {}),
       },
@@ -746,7 +759,7 @@ export class TripsService {
   /** How many trips `reportRows(user, null)` would return — every operation on record. */
   async reportCount(user: AuthenticatedUser): Promise<number> {
     return this.prisma.trip.count({
-      where: { deletedAt: null, ...this.visibilityScope(user), status: { in: [...REVENUE_STATUSES] } },
+      where: { deletedAt: null, ...this.reportScope(user), status: { in: [...REVENUE_STATUSES] } },
     });
   }
 

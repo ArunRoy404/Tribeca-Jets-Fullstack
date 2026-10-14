@@ -128,7 +128,7 @@ permission is a **module** — one per sidebar screen — and an **action** in i
 - **Moving a module over is part of reviewing it:** swap its
   `@RequirePermissions` for `@RequireAccess`, its `scopeFor` for `reachOf`,
   and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
-  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators, Aircraft, Clients, Notes, Client Credits, Leads & Agents, Trip Requests, Operator Sourcing, Quotes, Trips, Itineraries, Schedule, Flight Tracking, Empty Legs, Receivables, Operator Payments, Commissions, Referrals, Transactions.** Uploads needs no move — its
+  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators, Aircraft, Clients, Notes, Client Credits, Leads & Agents, Trip Requests, Operator Sourcing, Quotes, Trips, Itineraries, Schedule, Flight Tracking, Empty Legs, Receivables, Operator Payments, Commissions, Referrals, Transactions, Tasks Board, Email Templates, Document Vault, Reports, Dashboard.** Uploads needs no move — its
   routes carry no permission by design and its rules are identity-based.
   Every other module's API is still on the old matrix, enforced by role.
   When the last one moves, delete the old matrix and the switch.
@@ -161,12 +161,15 @@ is readable without a session except the company branding. Beyond that:
   data and those cases are not decided yet.
 
 Done so far: **Airports** (pinned by `airports.controller.spec.ts`) and
-**Operators**, **Aircraft**, **Clients**, **Leads & Agents**, **Trip Requests**, **Operator Sourcing**, **Quotes**, **Trips**, **Itineraries**, **Schedule**, **Flight Tracking**, **Empty Legs**, **Receivables**, **Operator Payments** — with `@StaffOnly()`: an open read over desk data a partner
+**Operators**, **Aircraft**, **Clients**, **Leads & Agents**, **Trip Requests**, **Operator Sourcing**, **Quotes**, **Trips**, **Itineraries**, **Schedule**, **Flight Tracking**, **Empty Legs**, **Receivables**, **Operator Payments**, **Tasks Board**, **Email Templates**, **Document Vault** — with `@StaffOnly()`: an open read over desk data a partner
 never needs refuses the referral agent (403) by stored role, in
 `AccessGuard`. Put it on the controller for the whole module.
 **Transactions** has `@StaffOnly()` and `@RequireAccess(Module.TRANSACTIONS, Action.VIEW)`: a read-only desk money ledger (pinned by `transactions.access.spec.ts`).
+**Reports** has `@StaffOnly()` and `@RequireAccess(Module.REPORTS, Action.VIEW)` / `EXPORT`: desk financial analytics and operations export (pinned by `reports.access.spec.ts`).
+**Dashboard** has `@StaffOnly()` and `@RequireAccess(Module.DASHBOARD, Action.VIEW)`: tiles, priorities, and audit feed with reach scoping (pinned by `dashboard.access.spec.ts`).
 **Commissions** has open reads and per-person writes (`CREATE`, `PAY`, `ARCHIVE`), but does **not** carry `@StaffOnly()`: a partner referral agent reads their own commissions via the portal (`/portal/commissions`).
 **Referrals** has open reads and per-person writes (`CREATE`, `EDIT`, `ARCHIVE`), and does **not** carry `@StaffOnly()`: partner referral agents submit referrals (`/portal/submit`), read their own submissions (`/portal/referrals`), and read portal resources (`/portal/resources`).
+**Document Vault** sensitive categories (passports, IDs) require `DOCUMENTS · VIEW_SENSITIVE` on reads.
 **Charter Rates** is the first "money" case, decided by the owner: its reads
 need Quotes · View money, and changing a rate is administrators only.
 
@@ -1790,6 +1793,13 @@ formats in UTC, and loaded into an input with `toDateInput` (both in
 local time shows the 13th everywhere west of Greenwich. Timestamps keep using
 the local-time formatters.
 
+**An edit form seeds every calendar date through `toDateInput`, never the raw
+API value.** `DatePicker` tolerates a full timestamp for display, so a form
+that loads `2026-10-16T00:00:00.000Z` looks right and posts it back unchanged
+— and the API refuses it with "Use a YYYY-MM-DD date". The quote edit form did
+this: changing only the expiry failed on the untouched departure date (12 Oct
+2026).
+
 The same component also opened on a hardcoded month, offered a hardcoded
 "Today", and matched the selected day by substring so the 1st highlighted the
 10th. Shared controls get used everywhere; a mock value left in one is a wrong
@@ -1830,6 +1840,19 @@ reach the server.**
 **The limit ships from `/auth/me`, never from the frontend's own env** — the
 same reason the permission matrix does. Two copies of one number drift, and
 they drift silently.
+
+**The company can switch it off** (owner's decision, 12 Oct 2026):
+Settings › Security & Session › "Automatic logout after inactivity",
+`company_settings.idleLogoutEnabled`, on by default. It is a setting, not an
+env var, and it is honoured on **both** sides or it would be a fake control:
+off, `TokenService.idleLimitMs()` is null — refresh, the activity ping and
+the sessions list drop the idle cut-off — and `/auth/me` → `session` carries
+`idleLogoutEnabled: false`, so the browser runs no timer and no warning.
+**Activity is still recorded while it is off** (the stamp and the ping), so
+switching it back on measures idleness from real use rather than signing out
+everyone who was working. The timeout and warning are kept while it is off,
+greyed on the screen. Never add a second switch for this (an env var, a
+frontend flag): one setting, read by the server and shipped to the browser.
 
 ## A session is one device, and only theft ends them all
 

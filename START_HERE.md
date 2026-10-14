@@ -4,9 +4,8 @@ For the owner. Follow it top to bottom the first time; after that only
 sections 4–6 matter. (For the AI: the project state is in `HANDOFF.md`, the
 rules in `AGENTS.md`, the procedure in `docs/REVIEW_PLAYBOOK.md`.)
 
-Checked on 8 Oct 2026: the database backup restores cleanly into a fresh
-database (7 users, 5 airports, 1 operator, 5 charter rates, 3 uploads, 1
-document, 36 migrations), backend 343 tests pass, frontend builds.
+Checked on 11 Oct 2026: the database backup restores cleanly into a fresh
+database, backend 512 tests pass, frontend builds (all 45 routes).
 
 ---
 
@@ -85,8 +84,8 @@ first message — that prompt makes it read everything. A `review-module`
 workflow is in `.agent/workflows/`. Use the strongest model it offers for
 this work.
 
-Either tool should answer with the current state and "next: Trip Requests (#13)"
-(with modules #8–#12 reviewed and ready for owner manual testing)
+Either tool should answer with the current state and "next: Import / Export (#31)"
+(with modules #1–#30 reviewed, migrated and verified)
 before writing any code. If it starts coding straight away, stop it and tell
 it to read the files first.
 

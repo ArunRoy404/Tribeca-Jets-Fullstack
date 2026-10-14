@@ -19,7 +19,7 @@ import {
   formatMoney,
   personName,
 } from "@/lib/lead";
-import { formatDate } from "@/lib/archive";
+import { formatCalendarDate, toDateInput } from "@/lib/date";
 import {
   DEFAULT_FET_RATE,
   formatFetRate,
@@ -180,8 +180,8 @@ export default function AddQuoteDialog() {
       assignedBrokerId: found.assignedBrokerId || prev.assignedBrokerId,
       originAirportId: found.originAirportId || prev.originAirportId,
       destinationAirportId: found.destinationAirportId || prev.destinationAirportId,
-      departureDate: found.departureDate ? found.departureDate.slice(0, 10) : prev.departureDate,
-      returnDate: found.returnDate ? found.returnDate.slice(0, 10) : prev.returnDate,
+      departureDate: found.departureDate ? toDateInput(found.departureDate) : prev.departureDate,
+      returnDate: found.returnDate ? toDateInput(found.returnDate) : prev.returnDate,
       passengers: found.passengers != null ? String(found.passengers) : prev.passengers,
       terms: found.requirements || prev.terms,
       internalNotes: found.internalNotes || prev.internalNotes,
@@ -291,9 +291,9 @@ export default function AddQuoteDialog() {
             aircraftId: editing.aircraftId ?? "",
             quotedAircraft: editing.rawQuotedAircraft ?? "",
             exteriorImageUrl: editing.exteriorImageUrl ?? "",
-            departureDate: editing.rawDepartureDate ?? "",
-            returnDate: editing.rawReturnDate ?? "",
-            validUntil: editing.rawValidUntil ?? "",
+            departureDate: toDateInput(editing.rawDepartureDate),
+            returnDate: toDateInput(editing.rawReturnDate),
+            validUntil: toDateInput(editing.rawValidUntil),
             passengers: editing.passengers === "—" ? "" : (editing.passengers ?? ""),
             basePrice: editing.rawBasePrice ?? "",
             operatorCost: editing.rawOperatorCost ?? "",
@@ -415,9 +415,9 @@ export default function AddQuoteDialog() {
 
       origin: selectedOriginAirport?.icao ?? "—",
       destination: selectedDestinationAirport?.icao ?? "—",
-      departure: form.departureDate ? formatDate(form.departureDate) : "—",
+      departure: formatCalendarDate(form.departureDate),
       rawReturnDate: form.returnDate || null,
-      returnDate: form.returnDate ? formatDate(form.returnDate) : "—",
+      returnDate: formatCalendarDate(form.returnDate),
 
       aircraft: selectedAircraft
         ? [selectedAircraft.model, selectedAircraft.tailNumber].filter(Boolean).join(" · ")
@@ -449,7 +449,7 @@ export default function AddQuoteDialog() {
       // is an already-sent offer lapsing unanswered, and QuoteDetailStats'
       // EXPIRED/VALID UNTIL split is about that state, not a past-dated pick
       // in a form nobody has sent yet.
-      expiry: form.validUntil ? formatDate(form.validUntil) : "—",
+      expiry: formatCalendarDate(form.validUntil),
       isExpired: false,
 
       terms: form.terms,

@@ -85,6 +85,18 @@ Since 7 Oct 2026 the idle timeout, the warning and "require two-factor for
 administrators" are read from **Settings (#26)**, and a mistaken invitation
 can be withdrawn (`DELETE /users/:id/invitation`).
 
+**12 Oct 2026 (owner's request):** automatic logout can be **switched off**
+for the whole company — a toggle at the top of Settings › Security & Session
+(`idleLogoutEnabled`, on by default, migration
+`20261012120000_idle_logout_switch`). Off: no browser timer or warning, and
+the API stops refusing idle sessions (refresh, activity ping, sessions
+list); the timeout and warning stay stored, greyed out. Activity is still
+recorded, so switching it back on never signs out someone who was working.
+Session expiry (7 / 30 days) and sign-out are unaffected. Tested: 5 new unit
+tests, Postman `30 · Settings` rebuilt and green twice, and live on the
+4100 API — a session idle for 2 hours renews while off and is refused (401)
+once it is back on.
+
 ---
 
 ## 2. Users & Roles ✅
@@ -1538,7 +1550,25 @@ anywhere in the system.
 
 ---
 
-## 22. Document Vault ✅ *(29 Sep 2026)*
+## 22. Document Vault ✅ *(29 Sep 2026; reviewed 11 Oct 2026)*
+
+**Reviewed 11 Oct 2026 (Module #28 in queue):**
+- **Backend architecture & per-person access (`Module.DOCUMENTS`):**
+  - Controller decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring external partner accounts (referral agents) with 403.
+  - Open staff reads: `GET /documents`, `GET /documents/stats`, `GET /documents/:id`, and `GET /documents/:id/file` open to authenticated staff sessions; row reach follows owner visibility (`ClientsService.visibleWhere`, `TripsService.visibleWhere`).
+  - Passports and IDs restricted strictly by `canDo(user.access, Module.DOCUMENTS, Action.VIEW_SENSITIVE)`. Without it, sensitive categories are excluded from list/stats and 404 when named.
+  - Granular write gating:
+    - `POST /documents`: `@RequireAccess(Module.DOCUMENTS, Action.CREATE)` (*"File documents"*)
+    - `PATCH /documents/:id`: `@RequireAccess(Module.DOCUMENTS, Action.EDIT)`
+    - `DELETE /documents/:id`, `bulk-delete`, `restore`, `bulk-restore`: `@RequireAccess(Module.DOCUMENTS, Action.ARCHIVE)`
+  - Archiving restriction: `assertMayArchive` and `bulk` archive permit callers holding `Reach.ALL` or `isAdministrator(user.role)`, while restricting `Reach.OWN` callers to documents they filed (`createdById === user.id`).
+  - Unit test suite: `documents.access.spec.ts` (21 tests) verifying `@StaffOnly()`, open reads, write actions, and passport exclusion. All 57 test suites (476 tests) pass 100%. `nest build` clean with 0 errors.
+- **Frontend upgrades & reusable components:**
+  - Upgraded `DocumentFormDialog.jsx`: replaced unpaginated `limit: 100` plain dropdowns with shared server-paginated `ClientPicker`, `TripPicker`, and `OperatorPicker` using `RecordPicker`.
+  - Migrated `useDocumentRowActions.jsx` to per-person permissions (`canAccess(Module.DOCUMENTS, Action.EDIT | Action.ARCHIVE)`, `reachOf(Module.DOCUMENTS)`).
+  - Migrated `DocumentsPanel.jsx` to `canAccess(Module.DOCUMENTS, Action.VIEW)` and `canAccess(Module.DOCUMENTS, Action.CREATE)`.
+  - Migrated `DocumentsToolbar.jsx` and `DocumentsContainer.jsx` to distinct `mayCreate` and `mayArchive` controls.
+  - Oxlint clean (0 warnings / 0 errors across 9 files). Turbopack production build (`npm run build`) compiled cleanly in 5.7s with 0 errors across 45 routes.
 
 **Working now**
 
@@ -1649,6 +1679,12 @@ deleted and `useReportsStore` keeps only the export dialog.
   `build_reports_folder.py` → `29 · Reports` (7 requests, 19 examples),
   **run and Newman-green**. Verified live against probe trips, then archived.
 
+**Reviewed 11 Oct 2026 (Module #29 review):**
+- **Per-person access:** Migrated `ReportsController` from legacy `@RequirePermissions(Permission.VIEW_FINANCIALS)` to `@StaffOnly()`, `@UseGuards(AccessGuard)`, and `@RequireAccess(Module.REPORTS, Action.VIEW)` on all 5 read endpoints (`summary`, `series`, `brokers`, `clients`, `routes`). The `export` endpoint requires `@RequireAccess(Module.REPORTS, Action.EXPORT)`. Outside referral agents / partners are barred by role with 403.
+- **Scoping:** `TripsService.reportRows` and `reportCount` respect caller reach (`reachOf(Module.REPORTS)` / `reachOf(Module.TRIPS)`), restricting `Reach.OWN` brokers to their own operations.
+- **Frontend controls:** Migrated `ReportsToolbar.jsx` and `ExportOperationsDialog.jsx` to `canAccess(Module.REPORTS, Action.EXPORT)`.
+- **Test coverage:** Added `reports.access.spec.ts` (21 tests) covering `@StaffOnly()`, per-person access checks, and export authorization.
+
 **Waiting on a dependency**
 
 | Feature | Unblocked by |
@@ -1658,7 +1694,6 @@ deleted and `useReportsStore` keeps only the export dialog.
 | Sales funnel and open-quote status (§6.21) | Buildable now from Trip Requests and Quotes — not drawn in the design yet |
 | Forecast from open quotes (§6.21) | **A decision** — the probability formula is open (§17) |
 | Admin daily activity report (§6.21) | The Dashboard's activity feed exists; a daily digest needs **a scheduled job** |
-| 403 examples in `29 · Reports` | **The Reports review (#29)** — restrictions are on again; captured when the folder is rebuilt |
 
 **Open, not decided here:** gross profit includes the FET, because
 `priceQuote` computes it as total price minus operator cost — Reports reuses
@@ -1703,6 +1738,20 @@ it should is the open question in [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md)
   with tests, the activity visibility rule in `dashboard.activity.ts`);
   Postman builder `build_dashboard_folder.py` → `27 · Dashboard` (7
   requests), **written, not run**.
+
+**Reviewed 11 Oct 2026 (per-person permissions pass & architecture review):**
+- **Per-person permissions migration:**
+  - `@UseGuards(AccessGuard)` and `@StaffOnly()` on `DashboardController`: outside partners / referral agents refused (`403 Forbidden`).
+  - `@RequireAccess(Module.DASHBOARD, Action.VIEW)` on `/summary`, `/priorities`, and `/activity`: dropped legacy role matrix `@RequirePermissions(Permission.VIEW_DASHBOARD)`.
+  - Financial calculations (`summary.money`) require administrator status or `canDo(user.access, Module.QUOTES, Action.VIEW_MONEY)` / `Module.TRIPS, Action.VIEW_MONEY`.
+  - Summary tiles check `canDo(user.access, ...)` for `TRIPS`, `TRIP_REQUESTS`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, and `EMPTY_LEGS`.
+  - Priorities list checks `canDo(user.access, ...)` for `CLIENTS`, `TASKS`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, and `DOCUMENTS`.
+  - Recent activity audit feed scoped via `ACTIVITY_MODULE` mapping and caller reach: users with `Reach.ALL` (and administrators) see company-wide audit entries; users with `Reach.OWN` see only audit entries where `actorId === user.id`.
+- **Frontend architecture & clean state:**
+  - `OverviewPage.jsx` and its dashboard widgets (`StatsGrid`, `TodaysPriorities`, `EmptyLegsSection`, `RecentActivityFeed`, `FollowUpsSection`, `UpcomingTripsContainer`, `FinancialAttention`) verified clean.
+  - Reusable components (`TableStatus`, `StaggerContainer`, `CommonCard`, `SectionHeader`, `Reveal`) handle loading, empty states, and errors with honest fallbacks (no invented numbers or dummy fallbacks).
+  - Oxlint clean (0 errors, 0 warnings across all 26 dashboard files). Turbopack build clean with 0 errors across all 45 routes.
+- **Pinned by unit tests in `dashboard.access.spec.ts` (15 tests) and `dashboard.period.spec.ts` (7 tests).**
 
 **Waiting on a dependency**
 

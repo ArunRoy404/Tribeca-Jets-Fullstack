@@ -1,9 +1,10 @@
-import { Controller, Get, Header, Query, Res, StreamableFile } from '@nestjs/common';
+import { Controller, Get, Header, Query, Res, StreamableFile, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
+import { AccessGuard } from '../../common/guards/access.guard.js';
+import { Action, Module } from '../../common/authorization/access.js';
 import { EXPORT_CONTENT_TYPES } from '../../common/export/tabular.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { ReportsService } from './reports.service.js';
@@ -13,17 +14,19 @@ const BY_DEPARTURE =
   'Booked and flown trips (BOOKED, CONFIRMED, IN_FLIGHT, COMPLETED) count by the day they depart.';
 
 /**
- * Reports (#23). Every figure is money, so every read needs VIEW_FINANCIALS,
- * and rows are scoped exactly as the trips board is. The export is a file,
- * so it needs EXPORT_DATA as well.
+ * Reports (#23 / #29). Every figure is money: readings require
+ * REPORTS · VIEW, and operations export requires REPORTS · EXPORT. Outside
+ * partners (referral agents) are barred entirely with @StaffOnly().
  */
 @ApiTags('Reports')
+@StaffOnly()
+@UseGuards(AccessGuard)
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 
   @Get('summary')
-  @RequirePermissions(Permission.VIEW_FINANCIALS)
+  @RequireAccess(Module.REPORTS, Action.VIEW)
   @ApiOperation({
     summary: 'The tiles and the financial summary',
     description: `Revenue, profit, margin, FET charged, averages and trip count over \`from\`–\`to\` (both days included). ${BY_DEPARTURE} \`collected\` is the cash and FET received by payment date in the same window. \`outstanding\` is receivables and payables as they stand today. Averages and margin are null when there is nothing to divide.`,
@@ -33,7 +36,7 @@ export class ReportsController {
   }
 
   @Get('series')
-  @RequirePermissions(Permission.VIEW_FINANCIALS)
+  @RequireAccess(Module.REPORTS, Action.VIEW)
   @ApiOperation({
     summary: 'Revenue, profit and trips over time',
     description: `One point per bucket — WEEK (the twelve weeks ending with the one containing \`on\`), MONTH (the twelve months of its year) or YEAR (the five years ending with it) — each with its \`start\` day. ${BY_DEPARTURE}`,
@@ -43,7 +46,7 @@ export class ReportsController {
   }
 
   @Get('brokers')
-  @RequirePermissions(Permission.VIEW_FINANCIALS)
+  @RequireAccess(Module.REPORTS, Action.VIEW)
   @ApiOperation({
     summary: 'Broker performance',
     description: `Revenue, profit, margin and trips per assigned broker over the window, largest revenue first. \`broker\` is null for trips nobody is assigned. ${BY_DEPARTURE}`,
@@ -53,7 +56,7 @@ export class ReportsController {
   }
 
   @Get('clients')
-  @RequirePermissions(Permission.VIEW_FINANCIALS)
+  @RequireAccess(Module.REPORTS, Action.VIEW)
   @ApiOperation({
     summary: 'Top clients by revenue',
     description: `Revenue, profit, margin and trips per client over the window, largest revenue first. ${BY_DEPARTURE}`,
@@ -63,7 +66,7 @@ export class ReportsController {
   }
 
   @Get('routes')
-  @RequirePermissions(Permission.VIEW_FINANCIALS)
+  @RequireAccess(Module.REPORTS, Action.VIEW)
   @ApiOperation({
     summary: 'Top routes',
     description: `Trips and revenue per route — the first leg's origin and destination, so a round trip counts as its outbound — over the window, largest revenue first. ${BY_DEPARTURE}`,
@@ -73,7 +76,7 @@ export class ReportsController {
   }
 
   @Get('export')
-  @RequirePermissions(Permission.VIEW_FINANCIALS, Permission.EXPORT_DATA)
+  @RequireAccess(Module.REPORTS, Action.EXPORT)
   @Header('X-Content-Type-Options', 'nosniff')
   @ApiProduces(EXPORT_CONTENT_TYPES.CSV, EXPORT_CONTENT_TYPES.XLSX)
   @ApiOperation({

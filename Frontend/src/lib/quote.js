@@ -1,5 +1,6 @@
 import { formatDate, formatTimestamp, toArchiveFields } from "@/lib/archive";
 import { formatMoney, formatRoute, personName } from "@/lib/lead";
+import { formatCalendarDate } from "@/lib/date";
 
 /**
  * Display helpers for client quotes.
@@ -140,9 +141,9 @@ export function toQuoteRow(quote) {
     originAirportId: quote?.originAirportId ?? null,
     destinationAirportId: quote?.destinationAirportId ?? null,
 
-    departure: formatDate(quote?.departureDate),
+    departure: formatCalendarDate(quote?.departureDate),
     rawDepartureDate: quote?.departureDate ?? null,
-    returnDate: formatDate(quote?.returnDate),
+    returnDate: formatCalendarDate(quote?.returnDate),
     rawReturnDate: quote?.returnDate ?? null,
     passengers: quote?.passengers ?? DASH,
 
@@ -210,7 +211,7 @@ export function toQuoteRow(quote) {
     viewed: quote?.viewedAt ? formatTimestamp(quote.viewedAt) : DASH,
     decided: formatDate(quote?.decidedAt),
 
-    expiry: formatDate(quote?.validUntil),
+    expiry: formatCalendarDate(quote?.validUntil),
     rawValidUntil: quote?.validUntil ?? null,
     /** Derived by the API on every read, never a stored flag. */
     isExpired: quote?.isExpired ?? null,

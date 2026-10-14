@@ -23367,7 +23367,7 @@
     },
     {
       "name": "30 \u00b7 Settings",
-      "description": "One set of settings for the whole company (owner's decision, 7 Oct 2026) \u2014 never per user. One object per Settings screen:\n\n| Section | Fields | Read by |\n|---|---|---|\n| `company` | `companyName`, `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |\n| `defaults` | `defaultMarkupPercent`, `quoteValidityHours`, `defaultFetPercent`, `applyFetByDefault`, `followUpIntervalDays`, `defaultLeadStage`, `defaultQuoteTerms` | Quotes, Trips, Clients and Leads \u2014 each when its module is reviewed. **New records only.** |\n| `security` | `idleTimeoutMinutes`, `idleWarningMinutes`, `showIdleWarning`, `requireAdminTwoFactor` | Auth, now: the idle limit, the warning (`/auth/me` \u2192 `session`) and sign-in |\n| `notifications` | `emailNotifications`, `inAppNotifications`, `flightAlertsToBrokers`, `followUpReminders`, `paymentReminders`, `quoteExpiryReminders`, `quoteExpiryWarningHours`, `paymentReminderDays`, `followUpReminderMinutes` | Stored; read when the alerts are built |\n\n**Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 \u00b7 24 \u00b7 48 \u00b7 72 \u00b7 168 \u2014 `followUpIntervalDays` 1 \u00b7 2 \u00b7 3 \u00b7 5 \u00b7 7 \u2014 `idleTimeoutMinutes` 5 \u00b7 10 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `idleWarningMinutes` 1 \u00b7 2 \u00b7 5 (less than the timeout) \u2014 `quoteExpiryWarningHours` 1 \u00b7 2 \u00b7 4 \u00b7 12 \u00b7 24 \u2014 `paymentReminderDays` 0 \u00b7 1 \u00b7 3 \u00b7 7 \u2014 `followUpReminderMinutes` 0 \u00b7 15 \u00b7 60 \u00b7 1440. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.\n\n**Permissions:** reading needs Settings \u00b7 View, changing needs Settings \u00b7 Edit \u2014 administrators by default; every other role is locked out (403). The branding and the logo are **public**.",
+      "description": "One set of settings for the whole company (owner's decision, 7 Oct 2026) \u2014 never per user. One object per Settings screen:\n\n| Section | Fields | Read by |\n|---|---|---|\n| `company` | `companyName`, `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |\n| `defaults` | `defaultMarkupPercent`, `quoteValidityHours`, `defaultFetPercent`, `applyFetByDefault`, `followUpIntervalDays`, `defaultLeadStage`, `defaultQuoteTerms` | Quotes, Trips, Clients and Leads \u2014 each when its module is reviewed. **New records only.** |\n| `security` | `idleLogoutEnabled`, `idleTimeoutMinutes`, `idleWarningMinutes`, `showIdleWarning`, `requireAdminTwoFactor` | Auth, now: whether idle sign-out happens at all (`idleLogoutEnabled`, true/false \u2014 off, the browser runs no timer and the API stops refusing idle sessions), the idle limit, the warning (`/auth/me` \u2192 `session`) and sign-in |\n| `notifications` | `emailNotifications`, `inAppNotifications`, `flightAlertsToBrokers`, `followUpReminders`, `paymentReminders`, `quoteExpiryReminders`, `quoteExpiryWarningHours`, `paymentReminderDays`, `followUpReminderMinutes` | Stored; read when the alerts are built |\n\n**Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 \u00b7 24 \u00b7 48 \u00b7 72 \u00b7 168 \u2014 `followUpIntervalDays` 1 \u00b7 2 \u00b7 3 \u00b7 5 \u00b7 7 \u2014 `idleTimeoutMinutes` 5 \u00b7 10 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `idleWarningMinutes` 1 \u00b7 2 \u00b7 5 (less than the timeout) \u2014 `quoteExpiryWarningHours` 1 \u00b7 2 \u00b7 4 \u00b7 12 \u00b7 24 \u2014 `paymentReminderDays` 0 \u00b7 1 \u00b7 3 \u00b7 7 \u2014 `followUpReminderMinutes` 0 \u00b7 15 \u00b7 60 \u00b7 1440. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.\n\n**Permissions:** reading needs Settings \u00b7 View, changing needs Settings \u00b7 Edit \u2014 administrators by default; every other role is locked out (403). The branding and the logo are **public**.",
       "item": [
         {
           "name": "01 \u00b7 Read the settings",
@@ -23429,7 +23429,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null,\n      \"logoUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-07T10:00:47.006Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-12T08:31:37.708Z\"\n  }\n}"
             },
             {
               "name": "403 \u00b7 A broker (Settings is locked for the role)",
@@ -23456,7 +23456,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 View\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.381Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 View\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.469Z\"\n}"
             },
             {
               "name": "401 \u00b7 Signed out",
@@ -23483,7 +23483,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.382Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.469Z\"\n}"
             }
           ]
         },
@@ -23547,7 +23547,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"defaults\": {\n    \"quoteValidityHours\": 72\n  }\n}"
+                  "raw": "{\n  \"defaults\": {\n    \"quoteValidityHours\": 48\n  }\n}"
                 }
               },
               "status": "OK",
@@ -23560,7 +23560,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null,\n      \"logoUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 72,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-07T10:01:03.386Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-12T08:31:53.474Z\"\n  }\n}"
             },
             {
               "name": "200 \u00b7 A logo set (an image upload URL)",
@@ -23578,7 +23578,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/bf9f793a-222a-4d34-8048-ba9be944b3e2\"\n  }\n}"
+                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/1d2477f3-4e2b-460c-9187-c641aa09d9b5\"\n  }\n}"
                 }
               },
               "status": "OK",
@@ -23591,7 +23591,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null,\n      \"logoUrl\": \"/api/uploads/bf9f793a-222a-4d34-8048-ba9be944b3e2\",\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 72,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-07T10:01:03.432Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": \"/api/uploads/1d2477f3-4e2b-460c-9187-c641aa09d9b5\",\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-12T08:31:53.537Z\"\n  }\n}"
             },
             {
               "name": "400 \u00b7 Not one of the offered values",
@@ -23622,7 +23622,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults.quoteValidityHours\": \"Quote validity must be one of 12, 24, 48, 72, 168\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.393Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults.quoteValidityHours\": \"Quote validity must be one of 12, 24, 48, 72, 168\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.481Z\"\n}"
             },
             {
               "name": "400 \u00b7 An unknown field",
@@ -23653,7 +23653,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults\": \"Unrecognized key: \\\"quoteValidity\\\"\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.394Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults\": \"Unrecognized key: \\\"quoteValidity\\\"\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.482Z\"\n}"
             },
             {
               "name": "400 \u00b7 The warning must come before the timeout",
@@ -23684,7 +23684,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"security.idleWarningMinutes\": \"The warning must come before the timeout\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.395Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"security.idleWarningMinutes\": \"The warning must come before the timeout\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.483Z\"\n}"
             },
             {
               "name": "400 \u00b7 A document is not a logo",
@@ -23715,7 +23715,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Bad Request Exception\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.409Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Bad Request Exception\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.506Z\"\n}"
             },
             {
               "name": "403 \u00b7 A broker",
@@ -23733,7 +23733,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"defaults\": {\n    \"quoteValidityHours\": 72\n  }\n}"
+                  "raw": "{\n  \"defaults\": {\n    \"quoteValidityHours\": 48\n  }\n}"
                 }
               },
               "status": "Forbidden",
@@ -23746,7 +23746,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 Edit\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-07T10:01:03.397Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 Edit\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.484Z\"\n}"
             },
             {
               "name": "200 \u00b7 Then, with \"require 2FA for administrators\" on, the owner signing in is asked for a code",
@@ -23778,7 +23778,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"ad***@example.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"601790\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"ad***@example.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"297442\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
             }
           ]
         },
@@ -23813,34 +23813,6 @@
           },
           "response": [
             {
-              "name": "200 \u00b7 The branding with the contact block",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding"
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"logoUrl\": null,\n    \"contact\": {\n      \"email\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null\n    },\n    \"documents\": {\n      \"showContactBlock\": true,\n      \"showLogo\": true,\n      \"showBrokerContact\": true\n    }\n  }\n}"
-            },
-            {
               "name": "200 \u00b7 The branding without the contact block",
               "originalRequest": {
                 "method": "GET",
@@ -23867,6 +23839,34 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": true,\n  \"data\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"logoUrl\": null,\n    \"contact\": null,\n    \"documents\": {\n      \"showContactBlock\": false,\n      \"showLogo\": true,\n      \"showBrokerContact\": true\n    }\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 The branding with the contact block",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/branding",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "branding"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"logoUrl\": null,\n    \"contact\": {\n      \"email\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\"\n    },\n    \"documents\": {\n      \"showContactBlock\": true,\n      \"showLogo\": true,\n      \"showBrokerContact\": true\n    }\n  }\n}"
             }
           ]
         },
@@ -23910,7 +23910,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo?v=bf9f793a-222a-4d34-8048-ba9be944b3e2",
+                  "raw": "{{baseUrl}}/settings/branding/logo?v=1d2477f3-4e2b-460c-9187-c641aa09d9b5",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -23960,7 +23960,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo has been set.\",\n  \"path\": \"/api/settings/branding/logo\",\n  \"timestamp\": \"2026-10-07T10:01:03.424Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo has been set.\",\n  \"path\": \"/api/settings/branding/logo\",\n  \"timestamp\": \"2026-10-12T08:31:53.527Z\"\n}"
             }
           ]
         },
@@ -24034,7 +24034,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"companyEmail\": null,\n    \"website\": null,\n    \"phone\": null,\n    \"address\": null,\n    \"clientServicesLabel\": null,\n    \"logoUrl\": null,\n    \"showContactBlock\": true,\n    \"logoOnDocuments\": true,\n    \"showBrokerContact\": true\n  },\n  \"defaults\": {\n    \"defaultMarkupPercent\": 15,\n    \"quoteValidityHours\": 48,\n    \"defaultFetPercent\": 7.5,\n    \"applyFetByDefault\": true,\n    \"followUpIntervalDays\": 3,\n    \"defaultLeadStage\": \"NEW\",\n    \"defaultQuoteTerms\": null\n  },\n  \"security\": {\n    \"idleTimeoutMinutes\": 10,\n    \"idleWarningMinutes\": 1,\n    \"showIdleWarning\": true,\n    \"requireAdminTwoFactor\": false\n  },\n  \"notifications\": {\n    \"emailNotifications\": true,\n    \"inAppNotifications\": true,\n    \"flightAlertsToBrokers\": true,\n    \"followUpReminders\": true,\n    \"paymentReminders\": true,\n    \"quoteExpiryReminders\": true,\n    \"quoteExpiryWarningHours\": 4,\n    \"paymentReminderDays\": 1,\n    \"followUpReminderMinutes\": 0\n  }\n}"
+                  "raw": "{\n  \"company\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"companyEmail\": \"fly@tribecajets.com\",\n    \"website\": null,\n    \"phone\": null,\n    \"address\": \"test address\",\n    \"clientServicesLabel\": \"test label\",\n    \"logoUrl\": null,\n    \"showContactBlock\": false,\n    \"logoOnDocuments\": true,\n    \"showBrokerContact\": true\n  },\n  \"defaults\": {\n    \"defaultMarkupPercent\": 15,\n    \"quoteValidityHours\": 24,\n    \"defaultFetPercent\": 7.5,\n    \"applyFetByDefault\": true,\n    \"followUpIntervalDays\": 3,\n    \"defaultLeadStage\": \"NEW\",\n    \"defaultQuoteTerms\": null\n  },\n  \"security\": {\n    \"idleLogoutEnabled\": true,\n    \"idleTimeoutMinutes\": 10,\n    \"idleWarningMinutes\": 1,\n    \"showIdleWarning\": true,\n    \"requireAdminTwoFactor\": false\n  },\n  \"notifications\": {\n    \"emailNotifications\": true,\n    \"inAppNotifications\": true,\n    \"flightAlertsToBrokers\": true,\n    \"followUpReminders\": true,\n    \"paymentReminders\": true,\n    \"quoteExpiryReminders\": true,\n    \"quoteExpiryWarningHours\": 4,\n    \"paymentReminderDays\": 1,\n    \"followUpReminderMinutes\": 0\n  }\n}"
                 }
               },
               "status": "OK",
@@ -24047,7 +24047,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": null,\n      \"website\": null,\n      \"phone\": null,\n      \"address\": null,\n      \"clientServicesLabel\": null,\n      \"logoUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-07T10:01:03.478Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-12T08:31:53.596Z\"\n  }\n}"
             }
           ]
         }
@@ -24072,8 +24072,9 @@
               "const NEEDED = 'owner';",
               "",
               "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    const baseUrl = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
               "    pm.sendRequest({",
-              "        url: pm.collectionVariables.get('baseUrl') + '/auth/login',",
+              "        url: baseUrl + '/auth/login',",
               "        method: 'POST',",
               "        header: { 'Content-Type': 'application/json' },",
               "        body: {",
@@ -24093,7 +24094,7 @@
               "        if (body && body.data && body.data.requiresTwoFactor) {",
               "            const code = body.data.devCode && body.data.devCode.code;",
               "            pm.sendRequest({",
-              "                url: pm.collectionVariables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                url: baseUrl + '/auth/two-factor/verify',",
               "                method: 'POST',",
               "                header: { 'Content-Type': 'application/json' },",
               "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",

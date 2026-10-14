@@ -41,6 +41,11 @@ model CompanySettings {
   defaultQuoteTerms    String?   @db.Text
 
   // ---- Security & session ----------------------------------------------------
+  /// Signing out after inactivity, on or off for the whole company (owner's
+  /// decision, 12 Oct 2026). Off: the browser runs no timer and the API stops
+  /// refusing idle sessions; the timeout and warning below are kept, unused,
+  /// for when it is switched back on. On by default.
+  idleLogoutEnabled     Boolean @default(true)
   idleTimeoutMinutes    Int     @default(10)
   idleWarningMinutes    Int     @default(1)
   showIdleWarning       Boolean @default(true)

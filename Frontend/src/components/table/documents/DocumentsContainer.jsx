@@ -29,7 +29,7 @@ export default function DocumentsContainer({ params, revealDelay = 0 }) {
   const isEmpty = !isPending && !error && docs.length === 0;
 
   const [dialog, setDialog] = useState({ open: false, document: null });
-  const { getRowActions, mayManage } = useDocumentRowActions({
+  const { getRowActions, mayCreate, mayArchive, mayManage } = useDocumentRowActions({
     onEdit: (row) => setDialog({ open: true, document: row }),
   });
 
@@ -63,7 +63,7 @@ export default function DocumentsContainer({ params, revealDelay = 0 }) {
     ? "Archived documents appear here and can be restored."
     : params.hasFilters
       ? "Try clearing a filter."
-      : mayManage
+      : mayCreate
         ? "File a document here, or from a client, trip or operator page."
         : "No documents have been filed yet.";
 
@@ -75,6 +75,8 @@ export default function DocumentsContainer({ params, revealDelay = 0 }) {
           selectedCount={selectedRows.length}
           onBulkAction={() => setBulkOpen(true)}
           onAdd={() => setDialog({ open: true, document: null })}
+          mayCreate={mayCreate}
+          mayArchive={Boolean(mayArchive)}
           mayManage={mayManage}
         />
 
@@ -94,7 +96,7 @@ export default function DocumentsContainer({ params, revealDelay = 0 }) {
               selected={selected}
               onToggleRow={toggleRow}
               getRowActions={getRowActions}
-              selectable={mayManage}
+              selectable={Boolean(mayArchive)}
               archived={isArchived}
             />
             <DocumentsTable
@@ -105,7 +107,7 @@ export default function DocumentsContainer({ params, revealDelay = 0 }) {
                 setSelected((prev) => (prev.size === docs.length ? new Set() : new Set(docs.map((d) => d?.id))))
               }
               getRowActions={getRowActions}
-              selectable={mayManage}
+              selectable={Boolean(mayArchive)}
               archived={isArchived}
             />
           </>

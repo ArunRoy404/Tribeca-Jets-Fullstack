@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TokenService, parseDuration } from './token.service.js';
 
 describe('parseDuration', () => {
@@ -39,8 +39,13 @@ describe('TokenService sessions', () => {
       cookieSecure: false,
     },
   };
-  // The idle timeout is the company's Security & Session setting.
-  const settings = { current: () => ({ idleTimeoutMinutes: 10 }) };
+  // The idle timeout is the company's Security & Session setting; each test
+  // starts with automatic logout on, as a new company does.
+  const security = { idleLogoutEnabled: true, idleTimeoutMinutes: 10 };
+  const settings = { current: () => security };
+  beforeEach(() => {
+    security.idleLogoutEnabled = true;
+  });
   const user = { id: 'u1', email: 'a@example.com', role: 'BROKER', status: 'ACTIVE', deletedAt: null };
 
   function setup(stored: Record<string, unknown> | null, replacement?: Record<string, unknown>) {
@@ -111,5 +116,36 @@ describe('TokenService sessions', () => {
     await expect(service.touchSession('presented')).resolves.toBe(true);
     prisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 0 });
     await expect(service.touchSession('presented')).resolves.toBe(false);
+  });
+
+  describe('with automatic logout switched off (Settings › Security & Session)', () => {
+    it('renews a session however long it sat untouched', async () => {
+      security.idleLogoutEnabled = false;
+      const { service, res } = setup(row({ lastActiveAt: new Date(Date.now() - minutes(60 * 20)) }));
+      await expect(service.rotateSession(res as never, 'presented', {})).resolves.toMatchObject({ id: 'u1' });
+      expect(res.cookie).toHaveBeenCalled();
+    });
+
+    it('records activity and lists devices without an idle cut-off', async () => {
+      security.idleLogoutEnabled = false;
+      const { service, prisma } = setup(null);
+      await service.touchSession('presented');
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.not.objectContaining({ lastActiveAt: expect.anything() }),
+        }),
+      );
+    });
+
+    it('applies the limit again the moment it is switched back on', async () => {
+      security.idleLogoutEnabled = false;
+      const stale = row({ lastActiveAt: new Date(Date.now() - minutes(16)) });
+      const off = setup(stale);
+      await expect(off.service.rotateSession(off.res as never, 'presented', {})).resolves.toMatchObject({ id: 'u1' });
+
+      security.idleLogoutEnabled = true;
+      const on = setup(stale);
+      await expect(on.service.rotateSession(on.res as never, 'presented', {})).rejects.toThrow(/inactivity/);
+    });
   });
 });

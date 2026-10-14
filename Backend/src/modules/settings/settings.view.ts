@@ -26,6 +26,7 @@ export interface SettingsRow {
   followUpIntervalDays: number;
   defaultLeadStage: LeadStage;
   defaultQuoteTerms: string | null;
+  idleLogoutEnabled: boolean;
   idleTimeoutMinutes: number;
   idleWarningMinutes: number;
   showIdleWarning: boolean;
@@ -52,7 +53,7 @@ export const SECTIONS = {
     'defaultMarkupPercent', 'quoteValidityHours', 'defaultFetPercent', 'applyFetByDefault',
     'followUpIntervalDays', 'defaultLeadStage', 'defaultQuoteTerms',
   ],
-  security: ['idleTimeoutMinutes', 'idleWarningMinutes', 'showIdleWarning', 'requireAdminTwoFactor'],
+  security: ['idleLogoutEnabled', 'idleTimeoutMinutes', 'idleWarningMinutes', 'showIdleWarning', 'requireAdminTwoFactor'],
   notifications: [
     'emailNotifications', 'inAppNotifications', 'flightAlertsToBrokers', 'followUpReminders',
     'paymentReminders', 'quoteExpiryReminders', 'quoteExpiryWarningHours', 'paymentReminderDays',

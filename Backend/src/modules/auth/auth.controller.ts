@@ -261,6 +261,9 @@ export class AuthController {
   private sessionPolicy() {
     const settings = this.settingsService.current();
     return {
+      // Off: the browser runs no timer (the API stops refusing idle sessions
+      // too). The minutes still travel, for the warning's wording.
+      idleLogoutEnabled: settings.idleLogoutEnabled,
       idleTimeoutMinutes: settings.idleTimeoutMinutes,
       idleWarningMinutes: settings.idleWarningMinutes,
       showIdleWarning: settings.showIdleWarning,
@@ -306,6 +309,8 @@ export class AuthController {
        * frontend's own env would drift from the server's the first time one
        * changed, and it would drift silently.
        *
+       * `idleLogoutEnabled` says whether the app signs anyone out for
+       * inactivity at all (Settings › Security & Session); while it is on,
        * `idleTimeoutMinutes` is how long the app may sit untouched before it
        * signs the user out. The browser keeps the precise timer; the API
        * refuses a refresh for a session that has demonstrably been idle past

@@ -18,7 +18,8 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import { todayUtc } from '../../common/money/settlement.js';
-import { Permission, Scope, scopeFor } from '../../common/authorization/permissions.js';
+import { Action, Module, Reach, canDo, reachOf } from '../../common/authorization/access.js';
+import { isAdministrator } from '../../common/authorization/permissions.js';
 import type { DocumentCategory } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { ClientsService } from '../clients/clients.service.js';
@@ -97,7 +98,6 @@ export interface OwnerRef {
   label: string;
 }
 
-/** The audit row is written on the owner, so the entry lands on its timeline. */
 const OWNER_ENTITY: Record<DocumentOwner, string> = { CLIENT: 'Client', TRIP: 'Trip', OPERATOR: 'Operator' };
 
 /**
@@ -107,7 +107,7 @@ const OWNER_ENTITY: Record<DocumentOwner, string> = { CLIENT: 'Client', TRIP: 'T
  * client, trip or operator is, resolved through the owning module's own rule
  * (`ClientsService.visibleWhere`, `TripsService.visibleWhere`; operators are
  * desk reference data) — never a copy of it. Passports and IDs additionally
- * need VIEW_SENSITIVE_DOCUMENTS: without it they are absent from every list
+ * need VIEW_SENSITIVE: without it they are absent from every list
  * and a 404 when named.
  *
  * **The bytes go through the document.** A document's file is usually an
@@ -129,41 +129,37 @@ export class DocumentsService {
 
   // ---- Scope ------------------------------------------------------------
 
-  private may(user: AuthenticatedUser, permission: Permission): boolean {
-    return scopeFor(user.role, permission) !== Scope.NONE;
-  }
-
   /** The documents whose owner the caller may read, and passports only for those allowed. */
   private scope(user: AuthenticatedUser): Prisma.DocumentWhereInput {
     const owners: Prisma.DocumentWhereInput[] = [];
-    if (this.may(user, Permission.VIEW_CLIENTS)) {
+    if (canDo(user.access, Module.CLIENTS, Action.VIEW)) {
       owners.push({ clientId: { not: null }, client: this.clients.visibleWhere(user) });
     }
-    if (this.may(user, Permission.VIEW_TRIPS)) {
+    if (canDo(user.access, Module.TRIPS, Action.VIEW)) {
       owners.push({ tripId: { not: null }, trip: this.trips.visibleWhere(user) });
     }
-    if (this.may(user, Permission.MANAGE_OPERATORS)) {
+    if (canDo(user.access, Module.OPERATORS, Action.VIEW)) {
       owners.push({ operatorId: { not: null } });
     }
     return {
       AND: [
         { OR: owners.length ? owners : [{ id: { in: [] } }] },
-        this.may(user, Permission.VIEW_SENSITIVE_DOCUMENTS) ? {} : { category: { notIn: SENSITIVE_CATEGORIES } },
+        canDo(user.access, Module.DOCUMENTS, Action.VIEW_SENSITIVE) ? {} : { category: { notIn: SENSITIVE_CATEGORIES } },
       ],
     };
   }
 
-  /** Archiving somebody else's filing is an administrator's or senior broker's call. */
+  /** Archiving somebody else's filing is an administrator's call or reach=ALL. */
   private assertMayArchive(user: AuthenticatedUser, row: { createdById: string | null }): void {
-    if (scopeFor(user.role, Permission.MANAGE_DOCUMENTS) === Scope.ALL) return;
+    if (isAdministrator(user.role) || reachOf(user.access, Module.DOCUMENTS) === Reach.ALL) return;
     if (row.createdById !== user.id) {
       throw new ForbiddenException('Only whoever filed a document, or an administrator, can archive or restore it.');
     }
   }
 
   private assertMayFileSensitive(user: AuthenticatedUser, category: DocumentCategory | undefined): void {
-    if (category && isSensitive(category) && !this.may(user, Permission.VIEW_SENSITIVE_DOCUMENTS)) {
-      throw new ForbiddenException('Your role cannot file passports or IDs.');
+    if (category && isSensitive(category) && !canDo(user.access, Module.DOCUMENTS, Action.VIEW_SENSITIVE)) {
+      throw new ForbiddenException('Your permissions do not allow filing passports or IDs.');
     }
   }
 
@@ -473,7 +469,7 @@ export class DocumentsService {
   }
 
   private async bulk(user: AuthenticatedUser, ids: string[], archive: boolean): Promise<BulkResult> {
-    const mayAll = scopeFor(user.role, Permission.MANAGE_DOCUMENTS) === Scope.ALL;
+    const mayAll = isAdministrator(user.role) || reachOf(user.access, Module.DOCUMENTS) === Reach.ALL;
     const targets = await this.prisma.document.findMany({
       where: {
         AND: [

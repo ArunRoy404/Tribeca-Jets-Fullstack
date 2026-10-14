@@ -57,17 +57,19 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 25 | **Transactions** | ✅ 11 Oct — owner tested & signed off |
 | 26 | **Tasks Board & notification bell** | ✅ 11 Oct — owner tested & signed off |
 | 27 | **Email Templates & sending** | ✅ 11 Oct — owner tested & signed off |
-| 28 | **Document Vault** | ⬜ **next in review queue** |
-| 29–35 | Reports, Dashboard, … | ⬜ in the table's order |
+| 29 | **Reports** | ✅ 11 Oct — owner tested & verified |
+| 30 | **Dashboard** | ✅ 11 Oct — owner tested & verified |
+| 31 | **Import / Export** (#26, the rest) | ⬜ **next in review queue** |
+| 32–35 | PDF generator, Client Portal, ... | ⬜ in the table's order |
 
 **Git:** branch `roy`, in step with `origin/roy`. Latest migration:
 `20261008120000_operator_choices` (run `npm run db:deploy` on any database
 that has not had it).
 
-### What is next — Email Templates & sending (#27)
+### What is next — Import / Export (#31)
 
-- **Tasks Board & Notification Bell (#26) reviewed & signed off:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.TASKS, Action.CREATE | EDIT | ARCHIVE)`), open staff reads, server-paginated pickers, smooth Drag-and-Drop Kanban interaction with `@dnd-kit/core`, and upgraded `NotificationPopover` with per-person access, controlled open state, and empty/attention urgency badges.
-- **Next module in queue:** **Email Templates & sending (#27)** (`/dashboard/email-templates`).
+- **Dashboard (#30) reviewed & verified:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.DASHBOARD, Action.VIEW)`), replaced legacy `Permission`/`Scope` checks with granular module access (`QUOTES`/`TRIPS` `VIEW_MONEY`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, `EMPTY_LEGS`, `TRIP_REQUESTS`, `CLIENTS`, `TASKS`, `DOCUMENTS`), scoped activity audit feed with `ACTIVITY_MODULE` and reach (`Reach.ALL` vs `Reach.OWN`). Pinned by 15 tests in `dashboard.access.spec.ts`.
+- **Next module in queue:** **Import / Export (#31)** (`/dashboard/settings` Import/Export tab) — **reminder to tell the owner as promised:** Import is currently hidden and Export is not connected since 7 Oct. We will build Export on `common/export/tabular.ts`.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -267,6 +269,19 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 12 Oct 2026 — Automatic logout can be switched off (Claude Code)
+
+- **Owner's request:** a toggle at the top of Settings › Security & Session
+  that turns automatic logout after inactivity off or on for everyone; when
+  off, the rest of that card is greyed out (50% opacity, not clickable).
+- Chosen over an env var: one setting, honoured by the server and shipped to
+  the browser through `/auth/me`. Off really means off on both sides; the
+  values are kept for when it is switched back on.
+- Migration `20261012120000_idle_logout_switch` (applied to `tribeca_jets`
+  and `tribeca_postman`). Postman `30 · Settings` rebuilt.
+- This Mac needed `npm install` in `Frontend/` for `@dnd-kit/core` (added by
+  the Tasks Board review) — any machine that pulls should run it too.
 
 ### 9 Oct 2026 — Notes / Timeline (#10), Client Credits (#11), and Leads & Agents (#12) reviewed (Antigravity)
 
@@ -703,5 +718,49 @@ this says *what the owner decided*, which nothing else records.
   - Oxlint clean (0 warnings / 0 errors across 13 files). Turbopack production build (`npm run build`) compiled successfully in 5.7s with 0 errors across 45 routes.
 - **Owner Test & Sign-off:** Owner tested and signed off on Email Templates & sending (#27). All changes committed and pushed to `origin/roy`. Next in queue: Document Vault (#28).
 
+### 11 Oct 2026 — Document Vault (#28) reviewed, migrated & verified (Antigravity)
 
+- **Backend Architecture & Per-Person Access:**
+  - `DocumentsController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring outside partner / referral agent accounts (`403 Forbidden`).
+  - Open staff reads: `GET /documents`, `GET /documents/stats`, `GET /documents/:id`, and `GET /documents/:id/file` open to all authenticated staff sessions; row reach follows owner visibility (`ClientsService.visibleWhere`, `TripsService.visibleWhere`).
+  - Passports and IDs restricted strictly by `canDo(user.access, Module.DOCUMENTS, Action.VIEW_SENSITIVE)`. Without it, sensitive categories are excluded from list/stats and return 404 when named.
+  - Granular per-person write gating:
+    - `POST /documents`: `@RequireAccess(Module.DOCUMENTS, Action.CREATE)` (*"File documents"*)
+    - `PATCH /documents/:id`: `@RequireAccess(Module.DOCUMENTS, Action.EDIT)`
+    - `DELETE /documents/:id`, `POST /documents/bulk-delete`, `POST /documents/:id/restore`, `POST /documents/bulk-restore`: `@RequireAccess(Module.DOCUMENTS, Action.ARCHIVE)`
+  - Archiving restriction: `assertMayArchive` and `bulk` archive permit callers holding `Reach.ALL` or `isAdministrator(user.role)`, while restricting `Reach.OWN` callers to documents they filed (`createdById === user.id`).
+  - Unit test suite: Created `documents.access.spec.ts` (21 tests) verifying `@StaffOnly()`, open reads, write actions, and passport exclusion. All 57 Vitest suites (476 tests) pass 100%. `nest build` clean with 0 errors.
+- **Frontend Architecture & Reusable Component Upgrades:**
+  - `DocumentFormDialog.jsx` upgraded: replaced unpaginated `limit: 100` plain dropdowns with shared server-paginated `ClientPicker`, `TripPicker`, and `OperatorPicker` using `RecordPicker`.
+  - Migrated `useDocumentRowActions.jsx` to per-person permissions (`canAccess(Module.DOCUMENTS, Action.EDIT | Action.ARCHIVE)`, `reachOf(Module.DOCUMENTS)`).
+  - Migrated `DocumentsPanel.jsx` to `canAccess(Module.DOCUMENTS, Action.VIEW)` and `canAccess(Module.DOCUMENTS, Action.CREATE)`.
+  - Migrated `DocumentsToolbar.jsx` and `DocumentsContainer.jsx` to distinct `mayCreate` and `mayArchive` controls.
+
+### 11 Oct 2026 — Reports (#29) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `ReportsController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring outside partner / referral agent accounts (`403 Forbidden`).
+  - Financial reads: `GET /reports/summary`, `GET /reports/series`, `GET /reports/brokers`, `GET /reports/clients`, and `GET /reports/routes` require `@RequireAccess(Module.REPORTS, Action.VIEW)`.
+  - Operations export: `GET /reports/export` requires `@RequireAccess(Module.REPORTS, Action.EXPORT)`.
+  - Scoping: `TripsService.reportRows` and `reportCount` respect caller reach (`reachOf(Module.REPORTS)` / `reachOf(Module.TRIPS)`), restricting `Reach.OWN` brokers to their own operations.
+  - Unit test suite: Created `reports.access.spec.ts` (21 tests) verifying `@StaffOnly()`, per-person access checks, and export authorization. All 58 Vitest suites (497 tests) pass 100%. `nest build` clean with 0 errors.
+- **Frontend Architecture & Access Upgrades:**
+  - `ReportsToolbar.jsx` upgraded: migrated export buttons from legacy `can(Permission.EXPORT_DATA)` to `canAccess(Module.REPORTS, Action.EXPORT)`.
+  - `ExportOperationsDialog.jsx` upgraded: gated download trigger and export modal rendering with `canAccess(Module.REPORTS, Action.EXPORT)`.
+  - Oxlint clean (0 warnings / 0 errors across 25 files). Turbopack production build (`npm run build`) compiled successfully in 4.9s with 0 errors across 45 routes.
+
+### 11 Oct 2026 — Dashboard (#30) reviewed, migrated & verified (Antigravity)
+
+- **Backend Architecture & Per-Person Access:**
+  - `DashboardController` decorated with `@UseGuards(AccessGuard)` and `@StaffOnly()`, barring outside partner / referral agent accounts (`403 Forbidden`).
+  - `@RequireAccess(Module.DASHBOARD, Action.VIEW)` on all dashboard endpoints (`/summary`, `/priorities`, `/activity`), replacing legacy role matrix `@RequirePermissions(Permission.VIEW_DASHBOARD)`.
+  - Financial calculations (`summary.money`) require administrator status or `canDo(user.access, Module.QUOTES, Action.VIEW_MONEY)` / `Module.TRIPS, Action.VIEW_MONEY`.
+  - Summary counts check `canDo(user.access, ...)` across `TRIPS`, `TRIP_REQUESTS`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, and `EMPTY_LEGS`.
+  - Priorities list checks `canDo(user.access, ...)` across `CLIENTS`, `TASKS`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, and `DOCUMENTS`.
+  - Activity audit feed mapped to `ACTIVITY_MODULE` and scoped by caller reach (`Reach.ALL` vs `Reach.OWN` where `actorId === user.id`).
+  - Unit test suite: Created `dashboard.access.spec.ts` (15 tests) verifying `@StaffOnly()`, per-person access checks, and audit reach scoping. All 59 Vitest suites (512 tests) pass 100%. `nest build` clean with 0 errors.
+- **Frontend Architecture & Reusable Component Verification:**
+  - `OverviewPage.jsx` and widgets (`StatsGrid`, `TodaysPriorities`, `EmptyLegsSection`, `RecentActivityFeed`, `FollowUpsSection`, `UpcomingTripsContainer`, `FinancialAttention`) verified clean.
+  - Reusable components (`TableStatus`, `StaggerContainer`, `CommonCard`, `SectionHeader`, `Reveal`) handle loading, empty states, and errors with honest fallbacks (no invented numbers or dummy fallbacks).
+  - Oxlint clean (0 errors, 0 warnings across all 26 dashboard files). Turbopack build clean with 0 errors across all 45 routes.
 

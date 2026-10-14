@@ -153,10 +153,10 @@ reviewed yet — the module may still be built and working.
 | 25 | Transactions | — | ✅ 11 Oct — owner tested & signed off |
 | 26 | Tasks Board & notification bell | Yes — in-app channel, follow-up reminders | ✅ 11 Oct — owner tested & signed off |
 | 27 | Email Templates & sending | Yes — company identity, email channel | ✅ 11 Oct — owner tested & signed off |
-| 28 | Document Vault | — | ⬜ **next in review queue** |
-| 29 | Reports | — | ⬜ |
-| 30 | Dashboard | — | ⬜ |
-| 31 | Import / Export (#26, the rest) — **tell the owner when we reach it** (Import hidden, Export not connected since 7 Oct) | — | ⬜ |
+| 28 | Document Vault | — | ✅ 11 Oct — owner tested & verified |
+| 29 | Reports | — | ✅ 11 Oct — owner tested & verified |
+| 30 | Dashboard | — | ✅ 11 Oct — owner tested & verified |
+| 31 | Import / Export (#26, the rest) — **tell the owner when we reach it** (Import hidden, Export not connected since 7 Oct) | — | ⬜ **next in review queue** |
 | 32 | PDF generator | Yes — document identity and toggles | ⬜ |
 | 33 | Client Portal (#25) | — | ⬜ |
 | 34 | AI Assistant (#27) | — | ⬜ |
@@ -720,6 +720,7 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 | Default follow-up interval (Defaults) | Clients, Leads — create / follow-up dialogs | — | ⬜ |
 | Default lead stage (Defaults) | Clients, Leads — create forms | `NEW` in the forms | ⬜ |
 | Default quote terms (Defaults) | Quotes — new-quote form | — | ⬜ |
+| Automatic logout on/off (Security, 12 Oct) | Auth — refresh check, activity ping, sessions list, `/auth/me` → `session.idleLogoutEnabled` | always on | ✅ |
 | Inactivity timeout (Security) | Auth — `/auth/me` and the refresh check | — (env var removed 7 Oct) | ✅ |
 | Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` via `/auth/me` → `session` | — | ✅ |
 | Require 2FA for admins (Security) | Auth — sign-in (SUPER_ADMIN and ADMIN) | — | ✅ |

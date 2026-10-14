@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { useRemoveDocument, useRestoreDocument } from "@/hooks/documents";
-import { Permission, Scope } from "@/lib/permissions";
+import { Module, Action, Reach } from "@/lib/access";
 
 /**
  * One definition of a document row's menu, for the vault table, its cards
@@ -16,13 +16,17 @@ import { Permission, Scope } from "@/lib/permissions";
 export function useDocumentRowActions({ onEdit, showOwner = true } = {}) {
   const router = useRouter();
   const { data: me } = useCurrentUser();
-  const { canWrite, scopeFor } = usePermissions();
+  const { canAccess, reachOf } = usePermissions();
   const { mutate: remove } = useRemoveDocument();
   const { mutate: restore } = useRestoreDocument();
 
-  const mayManage = canWrite(Permission.MANAGE_DOCUMENTS);
+  const mayCreate = canAccess(Module.DOCUMENTS, Action.CREATE);
+  const mayEdit = canAccess(Module.DOCUMENTS, Action.EDIT);
+  const hasArchive = canAccess(Module.DOCUMENTS, Action.ARCHIVE);
+  const reach = reachOf(Module.DOCUMENTS);
+
   const mayArchive = (row) =>
-    mayManage && (scopeFor(Permission.MANAGE_DOCUMENTS) === Scope.ALL || row?.createdById === me?.id);
+    hasArchive && (reach === Reach.ALL || row?.createdById === me?.id);
 
   const getRowActions = (row) => {
     const open = {
@@ -38,7 +42,7 @@ export function useDocumentRowActions({ onEdit, showOwner = true } = {}) {
       if (mayArchive(row)) actions.push({ label: "Restore", icon: <RotateCcw />, onSelect: () => restore(row?.id) });
       return actions;
     }
-    if (mayManage) actions.push({ label: "Edit", icon: <Edit2 />, onSelect: () => onEdit?.(row) });
+    if (mayEdit) actions.push({ label: "Edit", icon: <Edit2 />, onSelect: () => onEdit?.(row) });
     if (mayArchive(row)) {
       actions.push("separator");
       actions.push({ label: "Archive", icon: <Trash2 />, variant: "destructive", onSelect: () => remove(row?.id) });
@@ -46,5 +50,5 @@ export function useDocumentRowActions({ onEdit, showOwner = true } = {}) {
     return actions;
   };
 
-  return { getRowActions, mayManage, mayArchive };
+  return { getRowActions, mayCreate, mayEdit, mayArchive, mayManage: mayCreate || mayEdit || hasArchive };
 }
