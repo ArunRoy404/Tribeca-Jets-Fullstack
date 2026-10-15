@@ -23,6 +23,8 @@ import type { SessionContext } from './token.service.js';
 import { VerificationService } from './verification.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { isAdministrator } from '../../common/authorization/permissions.js';
+import { SignInThrottleService, pausedError } from './sign-in-throttle.service.js';
+import { invalidMessage } from './sign-in-throttle.js';
 
 /**
  * Argon2id with parameters sized for an interactive login on a modest VPS:
@@ -56,6 +58,7 @@ export class AuthService {
     private readonly verification: VerificationService,
     private readonly config: AppConfigService,
     private readonly settings: SettingsService,
+    private readonly throttle: SignInThrottleService,
   ) {}
 
   /**
@@ -90,12 +93,20 @@ export class AuthService {
    * Verifies credentials.
    *
    * Returns the same error for "no such user" and "wrong password" so the
-   * endpoint cannot be used to enumerate which emails have accounts.
+   * endpoint cannot be used to enumerate which emails have accounts — and
+   * both count as a failed sign-in, for the same reason.
+   *
+   * Only failures are limited (Settings › Rate Limiting, 15 Oct 2026): a
+   * pause is checked before the password, a wrong one is counted, a right one
+   * clears the count. A correct sign-in is never refused for being frequent.
    */
   async validateCredentials(
     input: LoginInput,
     context: SessionContext,
   ): Promise<AuthenticatedUser & { firstName: string; twoFactorRequired: boolean }> {
+    const throttleKey = await this.throttle.signInKey({ email: input.email, ip: context.ipAddress ?? null });
+    await this.throttle.assertOpen(throttleKey);
+
     const user = await this.prisma.user.findFirst({
       where: { email: input.email, deletedAt: null },
       select: {
@@ -109,11 +120,10 @@ export class AuthService {
       },
     });
 
-    const invalid = new UnauthorizedException('Invalid email or password');
     if (!user) {
       // Burn comparable time so a missing account is not detectably faster.
       await argon2.hash(input.password, ARGON_OPTIONS);
-      throw invalid;
+      throw await this.failedSignIn(throttleKey, null, context);
     }
 
     const passwordMatches = await argon2.verify(user.passwordHash, input.password);
@@ -126,8 +136,11 @@ export class AuthService {
         ipAddress: context.ipAddress,
         userAgent: context.userAgent,
       });
-      throw invalid;
+      throw await this.failedSignIn(throttleKey, user.id, context);
     }
+
+    // The password is right: earlier mistakes no longer count.
+    await this.throttle.clear(throttleKey);
 
     if (user.status === UserStatus.SUSPENDED) {
       throw new UnauthorizedException('This account has been suspended. Contact an administrator.');
@@ -190,6 +203,31 @@ export class AuthService {
     };
   }
 
+
+  /**
+   * Counts a failed sign-in and answers it: a 401 that warns when few
+   * attempts are left, or — for the failure that reaches the limit — a 429
+   * saying how long sign-in is paused, with the pause written to the
+   * account's audit trail when the email belongs to one.
+   */
+  private async failedSignIn(throttleKey: string, userId: string | null, context: SessionContext) {
+    const outcome = await this.throttle.fail(throttleKey);
+    if (outcome.pausedFor === null) {
+      return new UnauthorizedException(invalidMessage(outcome.remaining, outcome.lockoutMinutes));
+    }
+    if (userId) {
+      await this.audit.record({
+        actorId: userId,
+        action: 'auth.login.paused',
+        entityType: 'User',
+        entityId: userId,
+        metadata: { minutes: outcome.lockoutMinutes },
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      });
+    }
+    return pausedError(outcome.pausedFor);
+  }
 
   // ---------------------------------------------------------------------------
   // Two-factor sign-in
@@ -287,6 +325,7 @@ export class AuthService {
     const resent = await this.verification.resend(
       challengeToken,
       VerificationPurpose.TWO_FACTOR,
+      (email) => this.throttle.assertMaySendCode(email),
     );
 
     const ttlMinutes = this.config.verification.twoFactorTtlMinutes;
@@ -326,6 +365,10 @@ export class AuthService {
     maskedEmail: string;
     devCode?: DevCodeHint;
   }> {
+    // Counted for every address asked about, registered or not, so the
+    // limit answers the same either way.
+    await this.throttle.assertMaySendCode(email);
+
     const ttlMinutes = this.config.verification.passwordResetTtlMinutes;
     const user = await this.prisma.user.findFirst({
       where: { email, deletedAt: null },
@@ -401,6 +444,7 @@ export class AuthService {
     const resent = await this.verification.resend(
       challengeToken,
       VerificationPurpose.PASSWORD_RESET,
+      (email) => this.throttle.assertMaySendCode(email),
     );
 
     const ttlMinutes = this.config.verification.passwordResetTtlMinutes;
@@ -518,15 +562,26 @@ export class AuthService {
    * Proves the caller knows the account's password before a sensitive change.
    * A 400, not a 401: the session is fine, the form is wrong — and a 401
    * would send the browser into a refresh-and-retry it does not need.
+   *
+   * Wrong guesses follow the failed sign-in limit, counted per account and
+   * apart from sign-in: a stolen session must not be a way to guess the
+   * password at leisure, and a right password is never refused for being
+   * frequent.
    */
   private async assertPassword(userId: string, password: string) {
+    const throttleKey = this.throttle.reauthKey(userId);
+    await this.throttle.assertOpen(throttleKey);
+
     const user = await this.prisma.user.findFirstOrThrow({
       where: { id: userId, deletedAt: null },
       select: { id: true, email: true, firstName: true, passwordHash: true, twoFactorEnabled: true },
     });
     if (!(await argon2.verify(user.passwordHash, password))) {
+      const outcome = await this.throttle.fail(throttleKey);
+      if (outcome.pausedFor !== null) throw pausedError(outcome.pausedFor);
       throw new BadRequestException('Your current password is incorrect');
     }
+    await this.throttle.clear(throttleKey);
     return user;
   }
 

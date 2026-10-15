@@ -6,6 +6,7 @@ import { AuthService } from './auth.service.js';
 import { TokenService } from './token.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { VerificationService } from './verification.service.js';
+import { SignInThrottleService } from './sign-in-throttle.service.js';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { VerificationService } from './verification.service.js';
     JwtModule.register({}),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, JwtStrategy, VerificationService],
+  providers: [AuthService, TokenService, JwtStrategy, VerificationService, SignInThrottleService],
   exports: [AuthService, TokenService],
 })
 export class AuthModule {}

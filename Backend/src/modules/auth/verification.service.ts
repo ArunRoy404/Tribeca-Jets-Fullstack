@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AppConfigService } from '../../config/config.service.js';
 import { VerificationPurpose } from '../../generated/prisma/enums.js';
+import { SettingsService } from '../settings/settings.service.js';
 
 export interface IssuedChallenge {
   /** Opaque token for the httpOnly flow cookie. */
@@ -35,6 +36,7 @@ export class VerificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: AppConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   private hash(value: string): string {
@@ -98,12 +100,17 @@ export class VerificationService {
   /**
    * Re-issues a code for an in-flight challenge, returning a fresh challenge
    * token so the caller can refresh the cookie.
+   *
+   * `beforeIssue` runs with the account's email before anything changes — the
+   * code-sending limit — so a refused resend leaves the current code live.
    */
   async resend(
     challengeToken: string | undefined,
     purpose: VerificationPurpose,
+    beforeIssue?: (email: string) => Promise<void>,
   ): Promise<IssuedChallenge & { userId: string; email: string; firstName: string }> {
     const record = await this.loadActive(challengeToken, purpose);
+    await beforeIssue?.(record.user.email);
 
     const issued = await this.issue(
       record.userId,
@@ -165,7 +172,9 @@ export class VerificationService {
     purpose: VerificationPurpose,
   ): Promise<VerifiedChallenge> {
     const record = await this.loadActive(challengeToken, purpose);
-    const maxAttempts = this.config.verification.maxAttempts;
+    // Settings › Rate Limiting — null is "Never": a code is not burned by
+    // wrong guesses, and only its expiry ends it.
+    const maxAttempts = (await this.settings.read()).codeAttemptLimit ?? Infinity;
 
     if (record.attempts >= maxAttempts) {
       await this.prisma.verificationCode.update({
@@ -185,6 +194,9 @@ export class VerificationService {
       });
 
       const remaining = maxAttempts - attempts;
+      if (remaining === Infinity) {
+        throw new BadRequestException('Incorrect code.');
+      }
       if (remaining <= 0) {
         this.logger.warn(
           `Verification code exhausted for user ${record.userId} (${purpose})`,

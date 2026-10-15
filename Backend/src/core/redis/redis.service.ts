@@ -53,4 +53,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async ttl(key: string): Promise<number> {
     return this.client.ttl(key);
   }
+
+  /** Sets `key` to expire after `ttlSeconds`, replacing any earlier value. */
+  async setWithTtl(key: string, ttlSeconds: number): Promise<void> {
+    await this.client.set(key, '1', 'EX', ttlSeconds);
+  }
+
+  async del(...keys: string[]): Promise<void> {
+    if (keys.length) await this.client.del(...keys);
+  }
 }

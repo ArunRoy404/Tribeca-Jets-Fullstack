@@ -59,19 +59,17 @@ export const envSchema = z
     PASSWORD_RESET_CODE_TTL_MINUTES: z.coerce.number().int().min(1).max(120).default(15),
     /** Window to choose a new password after the reset code is verified. */
     PASSWORD_RESET_WINDOW_MINUTES: z.coerce.number().int().min(1).max(120).default(15),
-    /** Wrong guesses before a code is burned. */
-    VERIFICATION_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
 
     // ---- Rate limiting -----------------------------------------------------
     /**
      * Multiplies every `@RateLimit` allowance. Defaults to 1, so production
      * behaviour is exactly what the decorators declare.
      *
-     * Exists because the per-route limits are tuned for real users and are far
-     * too tight for an end-to-end API run: the Postman collection signs in
-     * eight times, against a login limit of five per fifteen minutes, so a
-     * full pass could never succeed. Raise it locally rather than loosening
-     * the limits themselves, which would weaken production.
+     * Governs only the fixed per-route limits left — refresh, the activity
+     * ping, the public branding. Sign-in is not among them: failed sign-ins
+     * and emailed codes follow Settings › Rate Limiting (15 Oct 2026), and a
+     * correct sign-in is never limited. Raise it locally for a full Postman
+     * run rather than loosening the limits themselves.
      *
      * Refused above 1 in production — see the superRefine below.
      */

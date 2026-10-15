@@ -36,7 +36,6 @@ export interface AppConfig {
     twoFactorTtlMinutes: number;
     passwordResetTtlMinutes: number;
     passwordResetWindowMinutes: number;
-    maxAttempts: number;
   };
 
   rateLimit: {
@@ -166,7 +165,6 @@ export function buildConfig(env: Env): AppConfig {
       twoFactorTtlMinutes: env.TWO_FACTOR_CODE_TTL_MINUTES,
       passwordResetTtlMinutes: env.PASSWORD_RESET_CODE_TTL_MINUTES,
       passwordResetWindowMinutes: env.PASSWORD_RESET_WINDOW_MINUTES,
-      maxAttempts: env.VERIFICATION_MAX_ATTEMPTS,
     },
 
     rateLimit: {

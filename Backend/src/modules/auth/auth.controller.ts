@@ -82,9 +82,9 @@ export class AuthController {
   // ---------------------------------------------------------------------------
 
   @Public()
-  // Five attempts per 15 minutes per IP — slows credential stuffing without
-  // locking out someone who simply mistyped.
-  @RateLimit({ limit: 5, windowSeconds: 900 })
+  // No request counter: only *failed* sign-ins are limited, by the company's
+  // Settings › Rate Limiting, inside AuthService (15 Oct 2026). Counting every
+  // request paused an office after five correct sign-ins.
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -93,6 +93,8 @@ export class AuthController {
       'For accounts without two-factor, sets the session cookies and returns the profile. ' +
       'For accounts with two-factor, sets only a short-lived challenge cookie and returns ' +
       'requiresTwoFactor: true — no session exists until the code is verified. ' +
+      'Only failed sign-ins are limited (Settings › Rate Limiting): the failure that reaches ' +
+      'the limit, and every attempt during the pause, answers 429 saying how long it lasts. ' +
       'When SMTP is not configured outside production, the response also carries a ' +
       'devCode object holding the generated code, so the flow is usable without email.',
   })
@@ -131,7 +133,7 @@ export class AuthController {
   }
 
   @Public()
-  @RateLimit({ limit: 10, windowSeconds: 900 })
+  // Wrong guesses are limited per code (Settings › Rate Limiting), not per request.
   @Post('two-factor/verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -153,9 +155,8 @@ export class AuthController {
   }
 
   @Public()
-  // Tighter than verification: resend sends real email, so it is the abusable
-  // side of the flow.
-  @RateLimit({ limit: 3, windowSeconds: 900 })
+  // Codes sent are limited per account by Settings › Rate Limiting — sending
+  // real email is the abusable side of the flow.
   @Post('two-factor/resend')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resend the two-factor code' })
@@ -340,7 +341,7 @@ export class AuthController {
     return this.session(await this.auth.updateProfile(userId, dto, this.contextOf(req)));
   }
 
-  @RateLimit({ limit: 5, windowSeconds: 900 })
+  // A wrong current password follows the failed sign-in limit (AuthService).
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -358,7 +359,7 @@ export class AuthController {
     return { message: 'Your password has been changed.', ...result };
   }
 
-  @RateLimit({ limit: 5, windowSeconds: 900 })
+  // A wrong current password follows the failed sign-in limit (AuthService).
   @Patch('two-factor')
   @ApiOperation({
     summary: 'Turn your own two-factor on or off',
@@ -437,7 +438,7 @@ export class AuthController {
   // ---------------------------------------------------------------------------
 
   @Public()
-  @RateLimit({ limit: 5, windowSeconds: 900 })
+  // Codes sent are limited per address by Settings › Rate Limiting.
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -472,7 +473,7 @@ export class AuthController {
   }
 
   @Public()
-  @RateLimit({ limit: 10, windowSeconds: 900 })
+  // Wrong guesses are limited per code (Settings › Rate Limiting).
   @Post('forgot-password/verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -494,7 +495,7 @@ export class AuthController {
   }
 
   @Public()
-  @RateLimit({ limit: 3, windowSeconds: 900 })
+  // Codes sent are limited per account by Settings › Rate Limiting.
   @Post('forgot-password/resend')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Resend the password reset code' })
@@ -522,7 +523,7 @@ export class AuthController {
   }
 
   @Public()
-  @RateLimit({ limit: 5, windowSeconds: 900 })
+  // Reachable only with a verified code, which the code limits already guard.
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
