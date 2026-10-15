@@ -724,6 +724,8 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 | Inactivity timeout (Security) | Auth — `/auth/me` and the refresh check | — (env var removed 7 Oct) | ✅ |
 | Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` via `/auth/me` → `session` | — | ✅ |
 | Require 2FA for admins (Security) | Auth — sign-in (SUPER_ADMIN and ADMIN) | — | ✅ |
+| Failed sign-ins allowed, counting window, pause length, whose failures count (Rate Limiting, 15 Oct) | Auth — `SignInThrottleService` on sign-in and on My Account's password re-check | `@RateLimit` 5 requests / 15 min per IP on `/auth/login` (counted correct sign-ins too) — removed | ✅ |
+| Codes per address + window, wrong guesses per code (Rate Limiting, 15 Oct) | Auth — reset codes and two-factor resends; code verification | `@RateLimit` 3 / 15 min per IP on resends; `VERIFICATION_MAX_ATTEMPTS` env var — both removed | ✅ |
 | Email / in-app channels (Notifications) | Tasks Board notifications, Email sending | both always on | ⬜ |
 | Flight alerts to brokers (Notifications) | Flight Tracking — status change | — | ⬜ |
 | Follow-up / payment / quote-expiry reminders + timing (Notifications) | A reminder scheduler (new) reading Clients, Receivables, Operator Payments, Quotes | no scheduler | ⬜ waits on scheduler |

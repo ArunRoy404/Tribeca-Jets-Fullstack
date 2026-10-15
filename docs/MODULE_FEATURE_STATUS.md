@@ -97,6 +97,39 @@ tests, Postman `30 · Settings` rebuilt and green twice, and live on the
 4100 API — a session idle for 2 hours renews while off and is refused (401)
 once it is back on.
 
+**15 Oct 2026 (owner's request): only failed sign-ins and emailed codes are
+limited, and the company sets the limits.** The client, testing by switching
+between the role accounts, was refused a sign-in with a correct password —
+`/auth/login` counted every request, five per fifteen minutes per IP. Now:
+
+- **A correct sign-in is never limited**, for any role, and it clears the
+  count. A wrong password (or an email with no account) counts; the 401
+  warns when two attempts are left; the failure that reaches the limit, and
+  every attempt during the pause — right password included — answers 429
+  saying how long. A pause is written to the account's audit log
+  (`auth.login.paused`).
+- **Settings › Rate Limiting** (new tab): failed sign-ins allowed (3 / 5 /
+  10 / 20 / Never), counted within (5 / 15 / 30 min / 1 h), pause for
+  (1 / 5 / 15 / 30 min / 1 h / 24 h), count failures for (same account on
+  the same network — default / same account anywhere / everyone on the
+  network); codes an address can request (3 / 5 / 10 / Never) per 15 / 30 /
+  60 min; a code stops working after (3 / 5 / 10 / Never) wrong guesses.
+  Defaults are the old numbers. "Never" lifts a running pause.
+- A wrong current password on My Account (change password, two-factor
+  toggle) follows the same limit, counted apart from sign-in.
+- Removed: the request counters on login, both verify routes, both resends,
+  forgot-password, reset-password, change-password and the two-factor
+  toggle; the `VERIFICATION_MAX_ATTEMPTS` env var. Kept: the fixed limits on
+  refresh, the activity ping and the public branding.
+- Migration `20261015120000_sign_in_rate_limits`. Tested: 21 new unit tests
+  (533 pass); live on the 4100 API — 16 correct sign-ins across four roles
+  in a row, the countdown and pause, the right password refused while
+  paused, another account on the same network unaffected, "Never" lifting
+  the pause, the reset-code and resend limits, wrong guesses per code with
+  and without a limit. Postman `30 · Settings` rebuilt (20 examples, green
+  twice); `01 · Auth` sign-in and reset-code examples recaptured
+  (`recapture_auth_rate_limits.py`), with new 401-warning and 429 examples.
+
 ---
 
 ## 2. Users & Roles ✅
@@ -1831,6 +1864,10 @@ has five sections, the open one in the URL (`?section=`).
   administrators** (SUPER_ADMIN and ADMIN get an emailed code at sign-in
   whether or not they turned two-factor on; off by default). Change Password
   and the sessions list were already live.
+- **Rate Limiting — read by Auth now** (15 Oct 2026, owner's request): a
+  tab of its own. Only failed sign-ins and emailed codes are limited; a
+  correct sign-in never is. Every limit has "Never". Details under Auth &
+  Sessions (#1).
 - **CRM & Quote Defaults** and **Notifications & Automation** — saved and
   shown; each screen says what reads them and when (below).
 - Read-only without Settings · Edit: no Save, no upload, controls disabled.

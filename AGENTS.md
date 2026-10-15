@@ -431,10 +431,16 @@ Tracking (#14), which read the same trip facts a third and fourth time.
   tests in the dev database, and every run leaves archived probes in its
   Archived tabs; on the copy they bother nobody. Refresh the copy after a
   migration.
-- **A local Newman run needs `RATE_LIMIT_MULTIPLIER=20`** in `Backend/.env`.
-  A full run signs in more often than the login limit allows, so at `1` it
-  fails with 429s that look like real failures. Never raise the limits
-  themselves, and never the multiplier outside a developer machine.
+- **A local Newman run needs `RATE_LIMIT_MULTIPLIER=20`** in `Backend/.env`
+  for the fixed per-route limits that remain (refresh, activity, branding),
+  which a full run can exceed. Sign-in is no longer one of them (15 Oct
+  2026): only failures are counted, so a run's correct sign-ins never
+  trip it. Never raise the limits themselves, and never the multiplier
+  outside a developer machine.
+- **A Postman failure is made on a fresh probe address** (`probe-<random>@example.com`,
+  no account), never on a seeded account — failures count towards a pause,
+  and pausing `broker@` breaks every folder signed in as them for the next
+  fifteen minutes.
 - **A folder that creates a row archives it again in a teardown.** The run is a
   demonstration, not a data entry session. `03 · Clients` had no teardown and
   ended by *restoring* the client it created, so every Newman run left one more
@@ -1804,6 +1810,42 @@ The same component also opened on a hardcoded month, offered a hardcoded
 "Today", and matched the selected day by substring so the 1st highlighted the
 10th. Shared controls get used everywhere; a mock value left in one is a wrong
 answer on twenty screens.
+
+## Sign-in is limited only by its failures (since 15 Oct 2026)
+
+**The owner's rule:** a correct sign-in is never limited — not by how often,
+not for any role. Only **failed sign-ins** and **emailed codes** are, and
+the company sets how much in **Settings › Rate Limiting**
+(`company_settings`, section `rateLimits`), every limit with a "Never".
+
+It replaced `@RateLimit({ limit: 5, windowSeconds: 900 })` on `/auth/login`,
+which counted *requests* per IP: the client, switching between the five
+role accounts while testing, was refused the sixth sign-in with a correct
+password, and an office behind one IP shared five sign-ins between
+everyone. **Never put a request counter back on a sign-in or code route.**
+
+- **`SignInThrottleService`** (`modules/auth/`) is the one implementation;
+  the rules are pure functions in `sign-in-throttle.ts`. Redis-backed, and
+  it reads the settings on every attempt, so a change applies at once.
+- **A wrong password counts, and so does an email with no account** — the
+  answers must never say which addresses exist. **A right password clears
+  the count.** The failure that reaches the limit is the first 429.
+- **A pause refuses every attempt, the right password too.** A pause that
+  let the right password through would tell a guesser which one was right.
+  Every 429 says how long to wait — the error filter drops `retryAfter`, so
+  the wait is in the message, and the screens show the message.
+- **Whose failures count together is a setting**: `ACCOUNT_AND_IP`
+  (default — one person's typos never pause a colleague), `ACCOUNT`, `IP`.
+- **Codes are counted per address** (two-factor resends and reset codes
+  together); the code a correct sign-in sends is not. Wrong guesses per
+  code are `codeAttemptLimit` — it replaced the `VERIFICATION_MAX_ATTEMPTS`
+  env var, which was deleted so there is one number.
+- **A wrong current password on My Account** follows the same limit, counted
+  per account and apart from sign-in.
+- **"Never" (`null`) counts nothing and lifts a running pause** — it is the
+  owner's switch, and the screen says in red what it gives up.
+- The fixed per-route limits left — refresh, activity ping, public branding
+  — stay `@RateLimit` with the env multiplier; they are not sign-ins.
 
 ## Signing out an idle session takes both sides
 

@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 11 October 2026.** Update the "Where we are" section in the
+**Last updated: 15 October 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -62,9 +62,14 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 31 | **Import / Export** (#26, the rest) | ⬜ **next in review queue** |
 | 32–35 | PDF generator, Client Portal, ... | ⬜ in the table's order |
 
-**Git:** branch `roy`, in step with `origin/roy`. Latest migration:
-`20261008120000_operator_choices` (run `npm run db:deploy` on any database
-that has not had it).
+**Git:** branch `roy`. Latest migration:
+`20261015120000_sign_in_rate_limits` (run `npm run db:deploy` on any database
+that has not had it — applied to `tribeca_jets` and `tribeca_postman`).
+
+**15 Oct 2026:** Settings › Rate Limiting — only failed sign-ins and
+emailed codes are limited (session log below). Committed and pushed to
+`roy`; the owner merges to `main` (auto-deploy applies the migration on the
+API's start). Import / Export (#31) comes after.
 
 ### What is next — Import / Export (#31)
 
@@ -120,6 +125,10 @@ For clean testing, the database was wiped and seeded with standard baseline data
 
 ### Known findings, not yet fixed (each on its module's turn)
 
+- Postman `01 · Auth` fails 3 assertions on the 4100 API, all from before
+  15 Oct: two pre-request scripts call `localhost:4000` instead of
+  `{{baseUrl}}` (Sign out one other device), and `reset-demo@example.com`
+  does not exist in `tribeca_postman` (Verify reset code, Set new password).
 - Postman folders **16–28** are missing from the collection JSON (their builders exist in `Backend/postman/`). Rebuild each with its module's review.
 - Frontend lint: one pre-existing error, `react-hooks/set-state-in-effect` in `TripRequestDialog.jsx` — Trip Requests (#13).
 - `RecordPicker` (8 Oct): the shared searchable, paged picker. Wrappers in use:
@@ -269,6 +278,28 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 15 Oct 2026 — Sign-in rate limiting: failures only, set in Settings (Claude Code)
+
+- **Why:** the client, testing by switching between role accounts with
+  correct passwords, was refused a sign-in — `/auth/login` allowed five
+  *requests* per 15 minutes per IP, successful ones included.
+- **Owner's decision:** limit only failed attempts and code sending; never a
+  successful sign-in, for any role; a detailed Settings tab with several
+  options and a "Never" on each limit.
+- **Built:** Settings › Rate Limiting (failed sign-ins allowed, window,
+  pause length, whose failures count together; codes per address and
+  window; wrong guesses per code). Defaults are the old numbers. A right
+  password clears the count; a pause refuses even the right password and
+  says how long; "Never" lifts a pause. The `VERIFICATION_MAX_ATTEMPTS` env
+  var is gone (now a setting). Refresh / activity / branding keep their
+  fixed limits. Rule in AGENTS.md, "Sign-in is limited only by its failures".
+- Migration `20261015120000_sign_in_rate_limits`, applied to both databases.
+  Committed in batches and pushed to `roy` (owner's instruction); the owner
+  merges to `main`.
+- Started the Import / Export (#31) review first: state reported and five
+  decisions asked (who may export/import, "All records" as CSV, archived
+  rows in exports, duplicates, rows with errors). Still open.
 
 ### 12 Oct 2026 — Automatic logout can be switched off (Claude Code)
 

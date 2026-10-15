@@ -233,7 +233,10 @@ Format: **route** — what it is · what to check · *known, not a bug*.
 - **`/sign-in`** — email + password, "Remember me". Wrong password → clear
   error. Super Admin/Admin/Broker/Assistant land on `/dashboard`, the agent on
   `/portal`. `security@example.com` → `/sign-in/two-factor` code screen
-  (stop there). Rapid repeated failures are rate-limited (429 message).
+  (stop there). Only *failed* sign-ins are limited (Settings › Rate Limiting,
+  5 within 15 minutes by default): the message warns when two attempts are
+  left, then sign-in pauses with a 429 saying how long. Correct sign-ins,
+  however many, are never refused.
 - **`/forgot-password`** — asks for an email and sends a code; check the
   screens only (rule 6).
 - **`/dashboard/account`** (profile menu → My Account) — edit name, phone,
