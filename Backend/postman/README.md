@@ -177,9 +177,12 @@ re-seed fails on "new password must differ from the current one" — the API
 behaving correctly, not a broken collection. That account exists precisely so
 the reset flow never disturbs the accounts the other folders depend on.
 
-**Set `RATE_LIMIT_MULTIPLIER=20` in `.env` for local runs.** A full pass signs
-in eight times against a login limit of five per fifteen minutes, so it cannot
-otherwise complete. The multiplier is pinned to 1 in production — the app
+**Set `RATE_LIMIT_MULTIPLIER=20` in `.env` for local runs.** It relaxes the
+fixed limits on refresh, the activity ping and the branding, which a full pass
+can exceed. Sign-ins no longer count (15 Oct 2026): only *failed* sign-ins
+and emailed codes are limited, by Settings › Rate Limiting — so a failure in
+a builder is always made on a fresh `probe-…@example.com` address, never on a
+seeded account (see `recapture_auth_rate_limits.py`). The multiplier is pinned to 1 in production — the app
 refuses to boot otherwise — so this relaxes nothing that ships.
 
 ## Structure
@@ -327,8 +330,8 @@ rebuild those with `update_session_example.py` / `build_users_folder.py`.
 **A request made as a second account** uses `sign_in_as()` from
 `builder_common.py`: a request-level pre-request that signs in as that account
 and sets `_sessionAs`, so the folder's own login signs the owner back in on
-the next request. Each switch is a login, so a full run needs
-`RATE_LIMIT_MULTIPLIER=20`.
+the next request. A correct sign-in is never limited, so switching accounts
+costs nothing.
 
 Two things every live builder does, and a new one must copy:
 

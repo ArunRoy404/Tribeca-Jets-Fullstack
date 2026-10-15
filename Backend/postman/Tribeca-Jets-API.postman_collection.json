@@ -392,7 +392,7 @@
                     "login"
                   ]
                 },
-                "description": "The seeded owner. Holds every permission, and is the one account that cannot be demoted, suspended or removed \u2014 so the system can never be locked out of its own administration.\n\nUse this for the Users and Clients folders.\n\n**Sets four cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n| `tj_modules` | matches refresh | the modules this person may view \u2014 the frontend's proxy reads it to refuse a page before it renders |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.",
+                "description": "The seeded owner. Holds every permission, and is the one account that cannot be demoted, suspended or removed \u2014 so the system can never be locked out of its own administration.\n\nUse this for the Users and Clients folders.\n\n**Sets four cookies**, all httpOnly except the last:\n\n| Cookie | Lifetime | Purpose |\n|---|---|---|\n| `tj_access` | 15 minutes | the session |\n| `tj_refresh` | 7 days, or 30 with `rememberMe` | rotates the session |\n| `tj_csrf` | matches refresh | echoed back as `X-CSRF-Token` on writes |\n| `tj_modules` | matches refresh | the modules this person may view \u2014 the frontend's proxy reads it to refuse a page before it renders |\n\nNo token is ever returned in the body. The browser attaches them automatically and frontend JavaScript cannot read the first two.\n\n**Only failed sign-ins are limited** (Settings \u203a Rate Limiting, 15 Oct 2026). A correct sign-in is never limited, however often, for any role \u2014 and it clears the count. A wrong password counts, and so does an email with no account, so the answers never say which addresses exist. When two or fewer attempts are left the 401 says so; the failure that reaches the limit, and every attempt while sign-in is paused \u2014 the right password too \u2014 answers **429** saying how long to wait. The limit, the window, the pause and whose failures count together (`ACCOUNT_AND_IP` by default) are company settings (`30 \u00b7 Settings`); \"Never\" turns it off.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"email\": \"{{ownerEmail}}\",   // required \u00b7 valid email, case-insensitive \u00b7 Held in the ownerEmail variable: the Clients and Users folders sign in as this account too, and two copies would drift.\n\n  \"password\": \"{{password}}\",  // required \u00b7 every seeded account shares this password, so it lives in the password variable rather than in five bodies\n\n  \"rememberMe\": false          // optional \u00b7 default false \u00b7 true extends the refresh cookie from 7 days to 30\n}",
@@ -440,21 +440,7 @@
                   "name": "401 \u00b7 Wrong password",
                   "originalRequest": {
                     "method": "POST",
-                    "header": [
-                      {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                      }
-                    ],
-                    "body": {
-                      "mode": "raw",
-                      "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"WrongPassword1!\"\n}",
-                      "options": {
-                        "raw": {
-                          "language": "json"
-                        }
-                      }
-                    },
+                    "header": [],
                     "url": {
                       "raw": "{{baseUrl}}/auth/login",
                       "host": [
@@ -464,6 +450,10 @@
                         "auth",
                         "login"
                       ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"WrongPassword1!\"\n}"
                     }
                   },
                   "status": "Unauthorized",
@@ -476,27 +466,13 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T08:34:52.568Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-10-15T03:47:41.435Z\"\n}"
                 },
                 {
                   "name": "401 \u00b7 No such account (identical to a wrong password)",
                   "originalRequest": {
                     "method": "POST",
-                    "header": [
-                      {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                      }
-                    ],
-                    "body": {
-                      "mode": "raw",
-                      "raw": "{\n  \"email\": \"nobody@example.com\",\n  \"password\": \"ChangeMe123!\"\n}",
-                      "options": {
-                        "raw": {
-                          "language": "json"
-                        }
-                      }
-                    },
+                    "header": [],
                     "url": {
                       "raw": "{{baseUrl}}/auth/login",
                       "host": [
@@ -506,6 +482,10 @@
                         "auth",
                         "login"
                       ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"email\": \"probe-f1ca9a07@example.com\",\n  \"password\": \"ChangeMe123!\"\n}"
                     }
                   },
                   "status": "Unauthorized",
@@ -518,7 +498,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T08:34:52.652Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-10-15T03:47:41.501Z\"\n}"
                 },
                 {
                   "name": "400 \u00b7 Malformed body",
@@ -561,6 +541,70 @@
                   ],
                   "cookie": [],
                   "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"email\": \"A valid email address is required\",\n    \"password\": \"Password is required\"\n  },\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-09-15T08:34:52.688Z\"\n}"
+                },
+                {
+                  "name": "401 \u00b7 One more failed attempt will pause sign-in",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"email\": \"probe-5750f3a1@example.com\",\n  \"password\": \"not-the-password\"\n}"
+                    }
+                  },
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password. 1 more failed attempt will pause sign-in for 15 minutes.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-10-15T03:47:41.622Z\"\n}"
+                },
+                {
+                  "name": "429 \u00b7 Sign-in paused after too many failed attempts",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/login",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "login"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"email\": \"probe-5750f3a1@example.com\",\n  \"password\": \"not-the-password\"\n}"
+                    }
+                  },
+                  "status": "Too Many Requests",
+                  "code": 429,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 429,\n  \"message\": \"Too many failed sign-in attempts. Please try again in 15 minutes.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-10-15T03:47:41.653Z\"\n}"
                 }
               ]
             },
@@ -1571,7 +1615,7 @@
                     "forgot-password"
                   ]
                 },
-                "description": "Starts the reset and emails a 6-digit code.\n\n**Always returns 200 and always sets a `tj_pwreset` cookie**, registered address or not. Omitting the cookie for unknown addresses would leak which emails have accounts just as surely as a 404 would.\n\nThe cookie binds the flow to this browser, so a code phished onto another device is unusable.",
+                "description": "Starts the reset and emails a 6-digit code.\n\n**Always returns 200 and always sets a `tj_pwreset` cookie**, registered address or not. Omitting the cookie for unknown addresses would leak which emails have accounts just as surely as a 404 would.\n\nThe cookie binds the flow to this browser, so a code phished onto another device is unusable.\n\n**Codes are limited per address** (Settings \u203a Rate Limiting): reset codes and two-factor resends count together, for registered and unregistered addresses alike, and past the limit the answer is **429** saying how long. The code a correct sign-in sends is not counted.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"email\": \"reset-demo@example.com\"  // required \u00b7 the account's email address \u00b7 Responds 200 whether or not it is registered, so the endpoint cannot be used to discover which emails have accounts. Points at the dedicated reset-demo account on purpose: completing this flow really does change the password, and using a working account would break every other folder on the next run.\n}",
@@ -1708,6 +1752,38 @@
                   ],
                   "cookie": [],
                   "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"email\": \"A valid email address is required\"\n  },\n  \"path\": \"/api/auth/forgot-password\",\n  \"timestamp\": \"2026-09-15T04:16:26.263Z\"\n}"
+                },
+                {
+                  "name": "429 \u00b7 Too many codes for one address",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/forgot-password",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "forgot-password"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"email\": \"probe-57c8956c@example.com\"\n}"
+                    }
+                  },
+                  "status": "Too Many Requests",
+                  "code": 429,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 429,\n  \"message\": \"Too many codes have been requested for this account. Please try again in 15 minutes.\",\n  \"path\": \"/api/auth/forgot-password\",\n  \"timestamp\": \"2026-10-15T03:47:41.664Z\"\n}"
                 }
               ],
               "event": [
@@ -23367,7 +23443,7 @@
     },
     {
       "name": "30 \u00b7 Settings",
-      "description": "One set of settings for the whole company (owner's decision, 7 Oct 2026) \u2014 never per user. One object per Settings screen:\n\n| Section | Fields | Read by |\n|---|---|---|\n| `company` | `companyName`, `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |\n| `defaults` | `defaultMarkupPercent`, `quoteValidityHours`, `defaultFetPercent`, `applyFetByDefault`, `followUpIntervalDays`, `defaultLeadStage`, `defaultQuoteTerms` | Quotes, Trips, Clients and Leads \u2014 each when its module is reviewed. **New records only.** |\n| `security` | `idleLogoutEnabled`, `idleTimeoutMinutes`, `idleWarningMinutes`, `showIdleWarning`, `requireAdminTwoFactor` | Auth, now: whether idle sign-out happens at all (`idleLogoutEnabled`, true/false \u2014 off, the browser runs no timer and the API stops refusing idle sessions), the idle limit, the warning (`/auth/me` \u2192 `session`) and sign-in |\n| `notifications` | `emailNotifications`, `inAppNotifications`, `flightAlertsToBrokers`, `followUpReminders`, `paymentReminders`, `quoteExpiryReminders`, `quoteExpiryWarningHours`, `paymentReminderDays`, `followUpReminderMinutes` | Stored; read when the alerts are built |\n\n**Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 \u00b7 24 \u00b7 48 \u00b7 72 \u00b7 168 \u2014 `followUpIntervalDays` 1 \u00b7 2 \u00b7 3 \u00b7 5 \u00b7 7 \u2014 `idleTimeoutMinutes` 5 \u00b7 10 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `idleWarningMinutes` 1 \u00b7 2 \u00b7 5 (less than the timeout) \u2014 `quoteExpiryWarningHours` 1 \u00b7 2 \u00b7 4 \u00b7 12 \u00b7 24 \u2014 `paymentReminderDays` 0 \u00b7 1 \u00b7 3 \u00b7 7 \u2014 `followUpReminderMinutes` 0 \u00b7 15 \u00b7 60 \u00b7 1440. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.\n\n**Permissions:** reading needs Settings \u00b7 View, changing needs Settings \u00b7 Edit \u2014 administrators by default; every other role is locked out (403). The branding and the logo are **public**.",
+      "description": "One set of settings for the whole company (owner's decision, 7 Oct 2026) \u2014 never per user. One object per Settings screen:\n\n| Section | Fields | Read by |\n|---|---|---|\n| `company` | `companyName`, `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |\n| `defaults` | `defaultMarkupPercent`, `quoteValidityHours`, `defaultFetPercent`, `applyFetByDefault`, `followUpIntervalDays`, `defaultLeadStage`, `defaultQuoteTerms` | Quotes, Trips, Clients and Leads \u2014 each when its module is reviewed. **New records only.** |\n| `security` | `idleLogoutEnabled`, `idleTimeoutMinutes`, `idleWarningMinutes`, `showIdleWarning`, `requireAdminTwoFactor` | Auth, now: whether idle sign-out happens at all (`idleLogoutEnabled`, true/false \u2014 off, the browser runs no timer and the API stops refusing idle sessions), the idle limit, the warning (`/auth/me` \u2192 `session`) and sign-in |\n| `rateLimits` | `failedSignInLimit`, `failedSignInWindowMinutes`, `signInLockoutMinutes`, `failedSignInScope`, `codeSendLimit`, `codeSendWindowMinutes`, `codeAttemptLimit` | Auth, now: **only failures are limited** (15 Oct 2026). A wrong password counts (an unknown email too); a correct sign-in is never limited and clears the count. The failure that reaches the limit, and every attempt during the pause, answers 429 saying how long. Codes emailed (two-factor resends, reset codes) are counted per address; wrong guesses per code. A wrong current password on My Account follows the same limit, counted apart. |\n| `notifications` | `emailNotifications`, `inAppNotifications`, `flightAlertsToBrokers`, `followUpReminders`, `paymentReminders`, `quoteExpiryReminders`, `quoteExpiryWarningHours`, `paymentReminderDays`, `followUpReminderMinutes` | Stored; read when the alerts are built |\n\n**Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 \u00b7 24 \u00b7 48 \u00b7 72 \u00b7 168 \u2014 `followUpIntervalDays` 1 \u00b7 2 \u00b7 3 \u00b7 5 \u00b7 7 \u2014 `idleTimeoutMinutes` 5 \u00b7 10 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `idleWarningMinutes` 1 \u00b7 2 \u00b7 5 (less than the timeout) \u2014 `quoteExpiryWarningHours` 1 \u00b7 2 \u00b7 4 \u00b7 12 \u00b7 24 \u2014 `paymentReminderDays` 0 \u00b7 1 \u00b7 3 \u00b7 7 \u2014 `followUpReminderMinutes` 0 \u00b7 15 \u00b7 60 \u00b7 1440 \u2014 `failedSignInLimit` 3 \u00b7 5 \u00b7 10 \u00b7 20 \u00b7 `null` (Never) \u2014 `failedSignInWindowMinutes` 5 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `signInLockoutMinutes` 1 \u00b7 5 \u00b7 15 \u00b7 30 \u00b7 60 \u00b7 1440 \u2014 `codeSendLimit` 3 \u00b7 5 \u00b7 10 \u00b7 `null` \u2014 `codeSendWindowMinutes` 15 \u00b7 30 \u00b7 60 \u2014 `codeAttemptLimit` 3 \u00b7 5 \u00b7 10 \u00b7 `null`. `failedSignInScope`: ACCOUNT_AND_IP (default \u2014 one email on one network) | ACCOUNT (one email from anywhere) | IP (everyone on one network). A `null` limit is \"Never\": nothing is counted, and a pause already running lifts. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.\n\n**Permissions:** reading needs Settings \u00b7 View, changing needs Settings \u00b7 Edit \u2014 administrators by default; every other role is locked out (403). The branding and the logo are **public**.",
       "item": [
         {
           "name": "01 \u00b7 Read the settings",
@@ -23380,7 +23456,7 @@
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
                   "const current = pm.response.json().data;",
                   "pm.test('one object per screen', () =>",
-                  "  pm.expect(current).to.include.keys('company', 'defaults', 'security', 'notifications'));",
+                  "  pm.expect(current).to.include.keys('company', 'defaults', 'security', 'rateLimits', 'notifications'));",
                   "// Saved whole, so 05 \u00b7 Teardown can put every value back.",
                   "const { updatedAt, ...sections } = current;",
                   "pm.collectionVariables.set('settingsBefore', JSON.stringify(sections));",
@@ -23429,7 +23505,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-12T08:31:37.708Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-15T03:45:39.809Z\"\n  }\n}"
             },
             {
               "name": "403 \u00b7 A broker (Settings is locked for the role)",
@@ -23456,7 +23532,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 View\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.469Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 View\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-15T03:47:41.017Z\"\n}"
             },
             {
               "name": "401 \u00b7 Signed out",
@@ -23483,7 +23559,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.469Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-15T03:47:41.017Z\"\n}"
             }
           ]
         },
@@ -23560,7 +23636,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-12T08:31:53.474Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-15T03:47:41.024Z\"\n  }\n}"
             },
             {
               "name": "200 \u00b7 A logo set (an image upload URL)",
@@ -23578,7 +23654,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/1d2477f3-4e2b-460c-9187-c641aa09d9b5\"\n  }\n}"
+                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/3d1ee818-fb40-4520-9898-bdbd3b17f6e3\"\n  }\n}"
                 }
               },
               "status": "OK",
@@ -23591,7 +23667,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": \"/api/uploads/1d2477f3-4e2b-460c-9187-c641aa09d9b5\",\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-12T08:31:53.537Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": \"/api/uploads/3d1ee818-fb40-4520-9898-bdbd3b17f6e3\",\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 3,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 1,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-15T03:47:41.229Z\"\n  }\n}"
             },
             {
               "name": "400 \u00b7 Not one of the offered values",
@@ -23622,7 +23698,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults.quoteValidityHours\": \"Quote validity must be one of 12, 24, 48, 72, 168\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.481Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults.quoteValidityHours\": \"Quote validity must be one of 12, 24, 48, 72, 168\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-15T03:47:41.034Z\"\n}"
             },
             {
               "name": "400 \u00b7 An unknown field",
@@ -23653,7 +23729,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults\": \"Unrecognized key: \\\"quoteValidity\\\"\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.482Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults\": \"Unrecognized key: \\\"quoteValidity\\\"\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-15T03:47:41.036Z\"\n}"
             },
             {
               "name": "400 \u00b7 The warning must come before the timeout",
@@ -23684,7 +23760,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"security.idleWarningMinutes\": \"The warning must come before the timeout\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.483Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"security.idleWarningMinutes\": \"The warning must come before the timeout\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-15T03:47:41.038Z\"\n}"
             },
             {
               "name": "400 \u00b7 A document is not a logo",
@@ -23715,7 +23791,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Bad Request Exception\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.506Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Bad Request Exception\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-15T03:47:41.191Z\"\n}"
             },
             {
               "name": "403 \u00b7 A broker",
@@ -23746,7 +23822,133 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 Edit\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-12T08:31:53.484Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 Edit\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-15T03:47:41.040Z\"\n}"
+            },
+            {
+              "name": "200 \u00b7 Rate limits \u2014 a limit set to Never (null)",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rateLimits\": {\n    \"failedSignInLimit\": null,\n    \"codeSendLimit\": 5\n  }\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": null,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-15T03:47:41.046Z\"\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 A rate limit that is not offered",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rateLimits\": {\n    \"failedSignInLimit\": 7\n  }\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"rateLimits.failedSignInLimit\": \"Failed sign-ins allowed must be one of 3, 5, 10, 20, or null for Never\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-10-15T03:47:41.056Z\"\n}"
+            },
+            {
+              "name": "401 \u00b7 Then, with 3 failed sign-ins allowed, the second wrong password warns",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"locked-497a9cd0@example.com\",\n  \"password\": \"not-the-password\"\n}"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password. 1 more failed attempt will pause sign-in for 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-10-15T03:47:41.131Z\"\n}"
+            },
+            {
+              "name": "429 \u00b7 \u2026and the third pauses sign-in, saying for how long",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"locked-497a9cd0@example.com\",\n  \"password\": \"not-the-password\"\n}"
+                }
+              },
+              "status": "Too Many Requests",
+              "code": 429,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 429,\n  \"message\": \"Too many failed sign-in attempts. Please try again in 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-10-15T03:47:41.165Z\"\n}"
             },
             {
               "name": "200 \u00b7 Then, with \"require 2FA for administrators\" on, the owner signing in is asked for a code",
@@ -23778,7 +23980,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"ad***@example.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"297442\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"ad***@example.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"965626\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
             }
           ]
         },
@@ -23910,7 +24112,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo?v=1d2477f3-4e2b-460c-9187-c641aa09d9b5",
+                  "raw": "{{baseUrl}}/settings/branding/logo?v=3d1ee818-fb40-4520-9898-bdbd3b17f6e3",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -23960,7 +24162,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo has been set.\",\n  \"path\": \"/api/settings/branding/logo\",\n  \"timestamp\": \"2026-10-12T08:31:53.527Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo has been set.\",\n  \"path\": \"/api/settings/branding/logo\",\n  \"timestamp\": \"2026-10-15T03:47:41.217Z\"\n}"
             }
           ]
         },
@@ -23984,7 +24186,10 @@
                 "exec": [
                   "pm.test('restored', () => pm.response.to.have.status(200));",
                   "const before = JSON.parse(pm.collectionVariables.get('settingsBefore'));",
-                  "pm.test('exactly as before', () => pm.expect(pm.response.json().data.defaults).to.eql(before.defaults));"
+                  "pm.test('exactly as before', () => {",
+                  "  pm.expect(pm.response.json().data.defaults).to.eql(before.defaults);",
+                  "  pm.expect(pm.response.json().data.rateLimits).to.eql(before.rateLimits);",
+                  "});"
                 ]
               }
             }
@@ -24034,7 +24239,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"companyEmail\": \"fly@tribecajets.com\",\n    \"website\": null,\n    \"phone\": null,\n    \"address\": \"test address\",\n    \"clientServicesLabel\": \"test label\",\n    \"logoUrl\": null,\n    \"showContactBlock\": false,\n    \"logoOnDocuments\": true,\n    \"showBrokerContact\": true\n  },\n  \"defaults\": {\n    \"defaultMarkupPercent\": 15,\n    \"quoteValidityHours\": 24,\n    \"defaultFetPercent\": 7.5,\n    \"applyFetByDefault\": true,\n    \"followUpIntervalDays\": 3,\n    \"defaultLeadStage\": \"NEW\",\n    \"defaultQuoteTerms\": null\n  },\n  \"security\": {\n    \"idleLogoutEnabled\": true,\n    \"idleTimeoutMinutes\": 10,\n    \"idleWarningMinutes\": 1,\n    \"showIdleWarning\": true,\n    \"requireAdminTwoFactor\": false\n  },\n  \"notifications\": {\n    \"emailNotifications\": true,\n    \"inAppNotifications\": true,\n    \"flightAlertsToBrokers\": true,\n    \"followUpReminders\": true,\n    \"paymentReminders\": true,\n    \"quoteExpiryReminders\": true,\n    \"quoteExpiryWarningHours\": 4,\n    \"paymentReminderDays\": 1,\n    \"followUpReminderMinutes\": 0\n  }\n}"
+                  "raw": "{\n  \"company\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"companyEmail\": \"fly@tribecajets.com\",\n    \"website\": null,\n    \"phone\": null,\n    \"address\": \"test address\",\n    \"clientServicesLabel\": \"test label\",\n    \"logoUrl\": null,\n    \"showContactBlock\": false,\n    \"logoOnDocuments\": true,\n    \"showBrokerContact\": true\n  },\n  \"defaults\": {\n    \"defaultMarkupPercent\": 15,\n    \"quoteValidityHours\": 24,\n    \"defaultFetPercent\": 7.5,\n    \"applyFetByDefault\": true,\n    \"followUpIntervalDays\": 3,\n    \"defaultLeadStage\": \"NEW\",\n    \"defaultQuoteTerms\": null\n  },\n  \"security\": {\n    \"idleLogoutEnabled\": true,\n    \"idleTimeoutMinutes\": 10,\n    \"idleWarningMinutes\": 1,\n    \"showIdleWarning\": true,\n    \"requireAdminTwoFactor\": false\n  },\n  \"rateLimits\": {\n    \"failedSignInLimit\": 5,\n    \"failedSignInWindowMinutes\": 15,\n    \"signInLockoutMinutes\": 15,\n    \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n    \"codeSendLimit\": 3,\n    \"codeSendWindowMinutes\": 15,\n    \"codeAttemptLimit\": 5\n  },\n  \"notifications\": {\n    \"emailNotifications\": true,\n    \"inAppNotifications\": true,\n    \"flightAlertsToBrokers\": true,\n    \"followUpReminders\": true,\n    \"paymentReminders\": true,\n    \"quoteExpiryReminders\": true,\n    \"quoteExpiryWarningHours\": 4,\n    \"paymentReminderDays\": 1,\n    \"followUpReminderMinutes\": 0\n  }\n}"
                 }
               },
               "status": "OK",
@@ -24047,7 +24252,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-12T08:31:53.596Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-10-15T03:47:41.290Z\"\n  }\n}"
             }
           ]
         }

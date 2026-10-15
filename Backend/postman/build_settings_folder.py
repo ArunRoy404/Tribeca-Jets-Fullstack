@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import pathlib
 import urllib.error
+import uuid
 import urllib.request
 
 from builder_common import BASE, FIXTURES, WRITE_HEADERS, Session, ensure_variables, example, script, url
@@ -38,9 +39,10 @@ SECTIONS_DOC = """One set of settings for the whole company (owner's decision, 7
 | `company` | `companyName`, `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |
 | `defaults` | `defaultMarkupPercent`, `quoteValidityHours`, `defaultFetPercent`, `applyFetByDefault`, `followUpIntervalDays`, `defaultLeadStage`, `defaultQuoteTerms` | Quotes, Trips, Clients and Leads — each when its module is reviewed. **New records only.** |
 | `security` | `idleLogoutEnabled`, `idleTimeoutMinutes`, `idleWarningMinutes`, `showIdleWarning`, `requireAdminTwoFactor` | Auth, now: whether idle sign-out happens at all (`idleLogoutEnabled`, true/false — off, the browser runs no timer and the API stops refusing idle sessions), the idle limit, the warning (`/auth/me` → `session`) and sign-in |
+| `rateLimits` | `failedSignInLimit`, `failedSignInWindowMinutes`, `signInLockoutMinutes`, `failedSignInScope`, `codeSendLimit`, `codeSendWindowMinutes`, `codeAttemptLimit` | Auth, now: **only failures are limited** (15 Oct 2026). A wrong password counts (an unknown email too); a correct sign-in is never limited and clears the count. The failure that reaches the limit, and every attempt during the pause, answers 429 saying how long. Codes emailed (two-factor resends, reset codes) are counted per address; wrong guesses per code. A wrong current password on My Account follows the same limit, counted apart. |
 | `notifications` | `emailNotifications`, `inAppNotifications`, `flightAlertsToBrokers`, `followUpReminders`, `paymentReminders`, `quoteExpiryReminders`, `quoteExpiryWarningHours`, `paymentReminderDays`, `followUpReminderMinutes` | Stored; read when the alerts are built |
 
-**Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 · 24 · 48 · 72 · 168 — `followUpIntervalDays` 1 · 2 · 3 · 5 · 7 — `idleTimeoutMinutes` 5 · 10 · 15 · 30 · 60 — `idleWarningMinutes` 1 · 2 · 5 (less than the timeout) — `quoteExpiryWarningHours` 1 · 2 · 4 · 12 · 24 — `paymentReminderDays` 0 · 1 · 3 · 7 — `followUpReminderMinutes` 0 · 15 · 60 · 1440. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.
+**Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 · 24 · 48 · 72 · 168 — `followUpIntervalDays` 1 · 2 · 3 · 5 · 7 — `idleTimeoutMinutes` 5 · 10 · 15 · 30 · 60 — `idleWarningMinutes` 1 · 2 · 5 (less than the timeout) — `quoteExpiryWarningHours` 1 · 2 · 4 · 12 · 24 — `paymentReminderDays` 0 · 1 · 3 · 7 — `followUpReminderMinutes` 0 · 15 · 60 · 1440 — `failedSignInLimit` 3 · 5 · 10 · 20 · `null` (Never) — `failedSignInWindowMinutes` 5 · 15 · 30 · 60 — `signInLockoutMinutes` 1 · 5 · 15 · 30 · 60 · 1440 — `codeSendLimit` 3 · 5 · 10 · `null` — `codeSendWindowMinutes` 15 · 30 · 60 — `codeAttemptLimit` 3 · 5 · 10 · `null`. `failedSignInScope`: ACCOUNT_AND_IP (default — one email on one network) | ACCOUNT (one email from anywhere) | IP (everyone on one network). A `null` limit is \"Never\": nothing is counted, and a pause already running lifts. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.
 
 **Permissions:** reading needs Settings · View, changing needs Settings · Edit — administrators by default; every other role is locked out (403). The branding and the logo are **public**."""
 
@@ -61,7 +63,7 @@ def capture() -> dict:
     status, before = owner.request('GET', '/settings')
     assert status == 200, before
     saved = before['data']
-    original = {section: dict(saved[section]) for section in ('company', 'defaults', 'security', 'notifications')}
+    original = {section: dict(saved[section]) for section in ('company', 'defaults', 'security', 'rateLimits', 'notifications')}
 
     cap['read'] = (status, before)
     cap['read_broker'] = broker.request('GET', '/settings')
@@ -74,6 +76,18 @@ def capture() -> dict:
     cap['patch_key'] = owner.request('PATCH', '/settings', {'defaults': {'quoteValidity': 48}})
     cap['patch_warning'] = owner.request('PATCH', '/settings', {'security': {'idleTimeoutMinutes': 5, 'idleWarningMinutes': 5}})
     cap['patch_broker'] = broker.request('PATCH', '/settings', cap['patch_body'])
+
+    # Rate limits: a limit set to Never, a value not offered, then a tighter
+    # limit and a probe address (no account, so no real person is paused).
+    cap['limits_body'] = {'rateLimits': {'failedSignInLimit': None, 'codeSendLimit': 5}}
+    cap['patch_limits'] = owner.request('PATCH', '/settings', cap['limits_body'])
+    cap['patch_limit_bad'] = owner.request('PATCH', '/settings', {'rateLimits': {'failedSignInLimit': 7}})
+    owner.request('PATCH', '/settings', {'rateLimits': {'failedSignInLimit': 3, 'signInLockoutMinutes': 1}})
+    probe, anonymous_probe = f'locked-{uuid.uuid4().hex[:8]}@example.com', Session(None)
+    cap['probe_body'] = {'email': probe, 'password': 'not-the-password'}
+    anonymous_probe.request('POST', '/auth/login', cap['probe_body'])
+    cap['limit_warning'] = anonymous_probe.request('POST', '/auth/login', cap['probe_body'])
+    cap['limit_paused'] = anonymous_probe.request('POST', '/auth/login', cap['probe_body'])
 
     # A document is not a logo.
     _, document = owner.upload('/uploads/document', DOCUMENT, {'label': 'Not a logo'})
@@ -127,7 +141,7 @@ def build(cap: dict) -> dict:
                     "pm.test('200 OK', () => pm.response.to.have.status(200));",
                     "const current = pm.response.json().data;",
                     "pm.test('one object per screen', () =>",
-                    "  pm.expect(current).to.include.keys('company', 'defaults', 'security', 'notifications'));",
+                    "  pm.expect(current).to.include.keys('company', 'defaults', 'security', 'rateLimits', 'notifications'));",
                     "// Saved whole, so 05 · Teardown can put every value back.",
                     "const { updatedAt, ...sections } = current;",
                     "pm.collectionVariables.set('settingsBefore', JSON.stringify(sections));",
@@ -176,6 +190,14 @@ def build(cap: dict) -> dict:
                     example('400 · A document is not a logo', 'PATCH', '/settings', *cap['patch_logo_doc'],
                             req_body={'company': {'logoUrl': '/api/uploads/<a document>'}}),
                     example('403 · A broker', 'PATCH', '/settings', *cap['patch_broker'], req_body=cap['patch_body']),
+                    example('200 · Rate limits — a limit set to Never (null)', 'PATCH', '/settings',
+                            *cap['patch_limits'], req_body=cap['limits_body']),
+                    example('400 · A rate limit that is not offered', 'PATCH', '/settings', *cap['patch_limit_bad'],
+                            req_body={'rateLimits': {'failedSignInLimit': 7}}),
+                    example('401 · Then, with 3 failed sign-ins allowed, the second wrong password warns',
+                            'POST', '/auth/login', *cap['limit_warning'], req_body=cap['probe_body']),
+                    example('429 · …and the third pauses sign-in, saying for how long',
+                            'POST', '/auth/login', *cap['limit_paused'], req_body=cap['probe_body']),
                     example('200 · Then, with "require 2FA for administrators" on, the owner signing in is asked for a code',
                             'POST', '/auth/login', *cap['admin_2fa'],
                             req_body={'email': OWNER, 'password': '{{password}}'}),
@@ -240,7 +262,10 @@ def build(cap: dict) -> dict:
                     script('test', [
                         "pm.test('restored', () => pm.response.to.have.status(200));",
                         "const before = JSON.parse(pm.collectionVariables.get('settingsBefore'));",
-                        "pm.test('exactly as before', () => pm.expect(pm.response.json().data.defaults).to.eql(before.defaults));",
+                        "pm.test('exactly as before', () => {",
+                        "  pm.expect(pm.response.json().data.defaults).to.eql(before.defaults);",
+                        "  pm.expect(pm.response.json().data.rateLimits).to.eql(before.rateLimits);",
+                        "});",
                     ]),
                 ],
                 'request': {
