@@ -1,0 +1,74 @@
+We have completed the Tribeca Jets Command Center: the frontend, the backend and the database are fully connected, and the system is live at tribecajetscommandcenter.com. Every module below has been built and tested.
+
+-- Authentication & Account
+- I have developed secure sign-in with "Remember me", Forgot Password and Reset Password
+- I have developed Two-Factor Authentication (email verification code)
+- I have developed automatic logout after inactivity, with a warning before signing out (can be switched on/off from Settings)
+- I have developed the My Account page (profile, photo, change password, two-factor, active devices with remote sign-out)
+
+
+
+-- Dashboard
+- I have developed the Dashboard overview page (revenue, profit, upcoming trips, open requests, follow-ups due, priorities and recent activity)
+
+-- Operations
+- I have developed the Trips module (bookings with route, aircraft, operator, passengers, pricing, status and notes timeline)
+- I have developed the Schedule module (week and month calendar of all flights)
+- I have developed the Operator Sourcing module (sending requests to operators and comparing their quotes side by side)
+- I have developed the Flight Tracking module (flight status updates for every trip)
+- I have developed the Itineraries module (client-ready itineraries built from the trip, with preview and sending)
+- I have developed the Empty Legs module (listing empty legs and matching them to client requests)
+
+-- Sales & CRM
+- I have developed the Clients module (client directory, profile, preferences, follow-ups, assigned broker, notes timeline and client credits)
+- I have developed the Client Credits ledger (credits and their use on later trips, with a running balance)
+- I have developed the Leads & Agents module (lead source, lead stage, follow-ups and conversion to client)
+- I have developed the Trip Requests module (client enquiries, from request through to quote)
+- I have developed the Referrals module (referrals received from referral agents, with conversion to a trip request)
+- I have developed the Quotes module (pricing with FET, extras, suggested markup, profit and margin, version history, preview, send, accept/decline)
+- I have developed the Instant Estimate tool (quick price estimate from charter rates by aircraft category)
+- I have developed the Email Templates module (reusable templates with merge fields, and sending emails directly from the CRM)
+
+-- Database
+- I have developed the Operators module (operator directory with ratings, contacts, fleet and documents)
+- I have developed the Aircraft module (aircraft with tail number, category, operator, photos and maintenance dates)
+- I have developed the Airports module (airport directory with ICAO/IATA codes and searchable airport picker)
+- I have developed the Charter Rates module (hourly rates per aircraft category used for estimates)
+- I have developed the Document Vault (documents filed against clients, trips and operators, with protected passports and IDs)
+- I have developed the Photo Library (reusing uploaded aircraft photos in quotes and itineraries)
+
+-- Finance
+- I have developed the Receivables module (client invoices, payments received, balance and overdue tracking)
+- I have developed the Operator Payments module (operator bills, payments sent and outstanding balance)
+- I have developed the Commissions module (commissions for referral agents and travel agents, as percent of profit, flat fee or custom amount)
+- I have developed the Transactions module (one ledger of all money received and paid out)
+
+-- Reports
+- I have developed the Reports module (revenue, profit, margin, FET collected, trip counts, receivables and payables over any period)
+- I have developed CSV and Excel export for reports
+
+-- System
+- I have developed the Tasks Board (kanban board with priority, due date, assignee, checklist, linked client and trip)
+- I have developed notifications for tasks due today or overdue
+- I have developed the Users & Roles module (inviting team members, roles, suspending accounts, and per-person permissions for every module)
+- I have developed the Settings module (company identity and logo, quote defaults, FET rate, markup, lead and follow-up defaults, security and session settings)
+- I have developed the Archive and Restore feature across all modules (nothing is permanently deleted, every removed record can be restored)
+- I have developed the Audit trail (every important change is recorded with who made it and when)
+
+-- Referral Agent Portal
+- I have developed the Referral Agent Dashboard
+- I have developed the Submit Referral page
+- I have developed the My Referrals page (status of each referral and updates shared by the broker)
+- I have developed the Commissions page (the agent's own commissions and payment status)
+- I have developed the Resources page
+
+-- General
+- Fully responsive on mobile, tablet and desktop
+- Role-based and per-person access control on every screen and every action
+- Secure file uploads for images and documents
+- Complete API documentation (Swagger) and a tested Postman collection for every endpoint
+- Deployed to the production server
+
+
+
+
