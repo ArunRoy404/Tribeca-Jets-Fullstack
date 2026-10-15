@@ -39,6 +39,17 @@ export const SETTINGS_SECTIONS = [
     subtitle: "Configure account protection, inactivity logout and signed-in sessions.",
   },
   {
+    // Owner's decision, 15 Oct 2026: only failed sign-ins and emailed codes
+    // are limited, and the company chooses how much. The id is the API's
+    // section key (`GET /settings` → `rateLimits`).
+    id: "rateLimits",
+    label: "Rate Limiting",
+    description: "Failed sign-ins, pauses and codes",
+    title: "Rate Limiting",
+    subtitle:
+      "Choose how many failed sign-ins and verification codes are allowed before a pause, and how long it lasts. A correct sign-in is never limited.",
+  },
+  {
     id: "notifications",
     label: "Notifications & Automation",
     description: "Alerts, reminders and automation",
@@ -92,6 +103,72 @@ export const IDLE_WARNING_OPTIONS = [
   { value: "1", label: "1 minute" },
   { value: "2", label: "2 minutes" },
   { value: "5", label: "5 minutes" },
+];
+
+/**
+ * Rate Limiting. A limit's "Never" is `NEVER` in the form and `null` on the
+ * wire (the `limit` field kind below); every other value is a number, as the
+ * API's option lists in `settings.options.ts` — change both together.
+ */
+export const NEVER = "NEVER";
+
+export const FAILED_SIGN_IN_LIMIT_OPTIONS = [
+  { value: "3", label: "3 failed attempts" },
+  { value: "5", label: "5 failed attempts" },
+  { value: "10", label: "10 failed attempts" },
+  { value: "20", label: "20 failed attempts" },
+  { value: NEVER, label: "Never — no limit" },
+];
+
+export const FAILED_SIGN_IN_WINDOW_OPTIONS = [
+  { value: "5", label: "Within 5 minutes" },
+  { value: "15", label: "Within 15 minutes" },
+  { value: "30", label: "Within 30 minutes" },
+  { value: "60", label: "Within 1 hour" },
+];
+
+export const SIGN_IN_LOCKOUT_OPTIONS = [
+  { value: "1", label: "1 minute" },
+  { value: "5", label: "5 minutes" },
+  { value: "15", label: "15 minutes" },
+  { value: "30", label: "30 minutes" },
+  { value: "60", label: "1 hour" },
+  { value: "1440", label: "24 hours" },
+];
+
+/** Whose failures add up to one pause — `FailedSignInScope` on the API. */
+export const FAILED_SIGN_IN_SCOPE_OPTIONS = [
+  { value: "ACCOUNT_AND_IP", label: "The same account on the same network" },
+  { value: "ACCOUNT", label: "The same account, from anywhere" },
+  { value: "IP", label: "Everyone on the same network" },
+];
+
+/** What each scope means, shown under the choice. */
+export const FAILED_SIGN_IN_SCOPE_HINTS = {
+  ACCOUNT_AND_IP: "Recommended. A colleague's typing mistakes never pause anyone else, even in the same office.",
+  ACCOUNT:
+    "Also stops guessing spread over many networks — but anyone who knows an email address can pause that person.",
+  IP: "Everyone in one office shares one count, whichever account they type.",
+};
+
+export const CODE_SEND_LIMIT_OPTIONS = [
+  { value: "3", label: "3 codes" },
+  { value: "5", label: "5 codes" },
+  { value: "10", label: "10 codes" },
+  { value: NEVER, label: "Never — no limit" },
+];
+
+export const CODE_SEND_WINDOW_OPTIONS = [
+  { value: "15", label: "Per 15 minutes" },
+  { value: "30", label: "Per 30 minutes" },
+  { value: "60", label: "Per hour" },
+];
+
+export const CODE_ATTEMPT_LIMIT_OPTIONS = [
+  { value: "3", label: "3 wrong guesses" },
+  { value: "5", label: "5 wrong guesses" },
+  { value: "10", label: "10 wrong guesses" },
+  { value: NEVER, label: "Never — no limit" },
 ];
 
 export const QUOTE_EXPIRY_WARNING_OPTIONS = [
@@ -187,6 +264,8 @@ export const QUICK_LINKS = [
  * - `number` — a number on the wire, a string in a box or a select (the
  *   option lists above are strings); a blank box is sent as `null`, which
  *   the API refuses with the field's message rather than storing 0.
+ * - `limit` — a number, or `null` for "Never", which the select holds as
+ *   `NEVER` (Rate Limiting).
  * - `bool`, `enum` — the same either side.
  */
 export const SETTINGS_FIELDS = {
@@ -218,6 +297,15 @@ export const SETTINGS_FIELDS = {
     showIdleWarning: "bool",
     requireAdminTwoFactor: "bool",
   },
+  rateLimits: {
+    failedSignInLimit: "limit",
+    failedSignInWindowMinutes: "number",
+    signInLockoutMinutes: "number",
+    failedSignInScope: "enum",
+    codeSendLimit: "limit",
+    codeSendWindowMinutes: "number",
+    codeAttemptLimit: "limit",
+  },
   notifications: {
     emailNotifications: "bool",
     inAppNotifications: "bool",
@@ -238,6 +326,7 @@ export function settingsToForm(section, values) {
     Object.entries(fields).map(([key, kind]) => {
       const value = values?.[key];
       if (kind === "number") return [key, value === null || value === undefined ? "" : String(value)];
+      if (kind === "limit") return [key, value === null ? NEVER : value === undefined ? "" : String(value)];
       if (kind === "text" || kind === "upload") return [key, value ?? ""];
       if (kind === "bool") return [key, Boolean(value)];
       return [key, value ?? ""];
@@ -258,6 +347,7 @@ export function settingsPayload(section, form, saved) {
       changed.map(([key, kind]) => {
         const value = form[key];
         if (kind === "number") return [key, value === "" ? null : Number(value)];
+        if (kind === "limit") return [key, value === NEVER || value === "" ? null : Number(value)];
         if (kind === "text") return [key, value.trim()];
         if (kind === "upload") return [key, value || null];
         return [key, value];

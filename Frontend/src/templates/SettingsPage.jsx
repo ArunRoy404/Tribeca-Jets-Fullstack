@@ -6,6 +6,7 @@ import SettingsNav from "@/components/settings/SettingsNav";
 import CompanyBrandingSection from "@/components/settings/sections/CompanyBrandingSection";
 import QuoteDefaultsSection from "@/components/settings/sections/QuoteDefaultsSection";
 import SecuritySection from "@/components/settings/sections/SecuritySection";
+import RateLimitsSection from "@/components/settings/sections/RateLimitsSection";
 import NotificationsSection from "@/components/settings/sections/NotificationsSection";
 import DataSection from "@/components/settings/sections/DataSection";
 
@@ -13,6 +14,7 @@ const SECTIONS = {
   company: CompanyBrandingSection,
   defaults: QuoteDefaultsSection,
   security: SecuritySection,
+  rateLimits: RateLimitsSection,
   notifications: NotificationsSection,
   // Integrations is hidden (7 Oct 2026) — see SETTINGS_SECTIONS.
   data: DataSection,
