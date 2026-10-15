@@ -13,3 +13,11 @@ export const IDLE_WARNING_MINUTES = [1, 2, 5] as const;
 export const QUOTE_EXPIRY_WARNING_HOURS = [1, 2, 4, 12, 24] as const;
 export const PAYMENT_REMINDER_DAYS = [0, 1, 3, 7] as const;
 export const FOLLOW_UP_REMINDER_MINUTES = [0, 15, 60, 1440] as const;
+
+// ---- Rate limiting (15 Oct 2026). A limit may also be null — "Never". ----
+export const FAILED_SIGN_IN_LIMITS = [3, 5, 10, 20] as const;
+export const FAILED_SIGN_IN_WINDOW_MINUTES = [5, 15, 30, 60] as const;
+export const SIGN_IN_LOCKOUT_MINUTES = [1, 5, 15, 30, 60, 1440] as const;
+export const CODE_SEND_LIMITS = [3, 5, 10] as const;
+export const CODE_SEND_WINDOW_MINUTES = [15, 30, 60] as const;
+export const CODE_ATTEMPT_LIMITS = [3, 5, 10] as const;

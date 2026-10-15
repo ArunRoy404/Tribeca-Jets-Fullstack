@@ -143,6 +143,7 @@ export class SettingsService implements OnModuleInit {
         ...input.company,
         ...input.defaults,
         ...input.security,
+        ...input.rateLimits,
         ...input.notifications,
         updatedById: actor.id,
       },

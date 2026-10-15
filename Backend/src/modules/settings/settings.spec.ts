@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LeadStage } from '../../generated/prisma/enums.js';
+import { FailedSignInScope, LeadStage } from '../../generated/prisma/enums.js';
 import { updateSettingsSchema } from './dto/settings.dto.js';
 import { brandingView, settingsDiff, settingsView, type SettingsRow } from './settings.view.js';
 
@@ -28,6 +28,13 @@ const row: SettingsRow = {
   idleWarningMinutes: 1,
   showIdleWarning: true,
   requireAdminTwoFactor: false,
+  failedSignInLimit: 5,
+  failedSignInWindowMinutes: 15,
+  signInLockoutMinutes: 15,
+  failedSignInScope: FailedSignInScope.ACCOUNT_AND_IP,
+  codeSendLimit: 3,
+  codeSendWindowMinutes: 15,
+  codeAttemptLimit: 5,
   emailNotifications: true,
   inAppNotifications: true,
   flightAlertsToBrokers: true,
@@ -60,7 +67,7 @@ describe('public branding', () => {
   /** The public route is read with no session: nothing internal may leak. */
   it('carries nothing but branding', () => {
     const text = JSON.stringify(brandingView(row));
-    for (const internal of ['idleTimeout', 'requireAdminTwoFactor', 'Markup', 'Fet', 'Reminder', 'Terms']) {
+    for (const internal of ['idleTimeout', 'requireAdminTwoFactor', 'Markup', 'Fet', 'Reminder', 'Terms', 'SignIn', 'code']) {
       expect(text).not.toContain(internal);
     }
   });
@@ -69,7 +76,7 @@ describe('public branding', () => {
 describe('settings view', () => {
   it('groups the row by screen', () => {
     const view = settingsView(row);
-    expect(Object.keys(view)).toEqual(['company', 'defaults', 'security', 'notifications', 'updatedAt']);
+    expect(Object.keys(view)).toEqual(['company', 'defaults', 'security', 'rateLimits', 'notifications', 'updatedAt']);
     expect(view.defaults.defaultFetPercent).toBe(7.5);
     expect(view.security).not.toHaveProperty('companyName');
   });
@@ -138,5 +145,25 @@ describe('PATCH /settings validation', () => {
   it('shows the switch on the security screen, never in the public branding', () => {
     expect(settingsView(row).security).toHaveProperty('idleLogoutEnabled', true);
     expect(brandingView(row)).not.toHaveProperty('idleLogoutEnabled');
+  });
+
+  it('takes a rate limit as an offered number or null — the screen\'s "Never"', () => {
+    expect(ok({ rateLimits: { failedSignInLimit: 10, codeSendLimit: null, codeAttemptLimit: null } })).toBe(true);
+    expect(ok({ rateLimits: { failedSignInLimit: 7 } })).toBe(false);
+    expect(ok({ rateLimits: { failedSignInLimit: 0 } })).toBe(false);
+    // A window or a pause has no "Never" — only a limit does.
+    expect(ok({ rateLimits: { signInLockoutMinutes: null } })).toBe(false);
+    expect(ok({ rateLimits: { signInLockoutMinutes: 1440, failedSignInWindowMinutes: 60 } })).toBe(true);
+  });
+
+  it('counts failures only by the three offered scopes', () => {
+    expect(ok({ rateLimits: { failedSignInScope: 'ACCOUNT' } })).toBe(true);
+    expect(ok({ rateLimits: { failedSignInScope: 'EVERYONE' } })).toBe(false);
+  });
+
+  it('records "Never" in the audit diff as null', () => {
+    expect(settingsDiff(row, { rateLimits: { failedSignInLimit: null } })).toEqual({
+      failedSignInLimit: { from: 5, to: null },
+    });
   });
 });

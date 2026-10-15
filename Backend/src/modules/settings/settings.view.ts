@@ -1,4 +1,4 @@
-import type { LeadStage } from '../../generated/prisma/enums.js';
+import type { FailedSignInScope, LeadStage } from '../../generated/prisma/enums.js';
 import { uploadIdFrom } from '../../common/dto/uploads.js';
 
 /**
@@ -31,6 +31,14 @@ export interface SettingsRow {
   idleWarningMinutes: number;
   showIdleWarning: boolean;
   requireAdminTwoFactor: boolean;
+  /** Null on a limit is "Never". */
+  failedSignInLimit: number | null;
+  failedSignInWindowMinutes: number;
+  signInLockoutMinutes: number;
+  failedSignInScope: FailedSignInScope;
+  codeSendLimit: number | null;
+  codeSendWindowMinutes: number;
+  codeAttemptLimit: number | null;
   emailNotifications: boolean;
   inAppNotifications: boolean;
   flightAlertsToBrokers: boolean;
@@ -54,6 +62,10 @@ export const SECTIONS = {
     'followUpIntervalDays', 'defaultLeadStage', 'defaultQuoteTerms',
   ],
   security: ['idleLogoutEnabled', 'idleTimeoutMinutes', 'idleWarningMinutes', 'showIdleWarning', 'requireAdminTwoFactor'],
+  rateLimits: [
+    'failedSignInLimit', 'failedSignInWindowMinutes', 'signInLockoutMinutes', 'failedSignInScope',
+    'codeSendLimit', 'codeSendWindowMinutes', 'codeAttemptLimit',
+  ],
   notifications: [
     'emailNotifications', 'inAppNotifications', 'flightAlertsToBrokers', 'followUpReminders',
     'paymentReminders', 'quoteExpiryReminders', 'quoteExpiryWarningHours', 'paymentReminderDays',
@@ -72,6 +84,7 @@ export function settingsView(row: SettingsRow) {
     company: pick(row, SECTIONS.company),
     defaults: pick(row, SECTIONS.defaults),
     security: pick(row, SECTIONS.security),
+    rateLimits: pick(row, SECTIONS.rateLimits),
     notifications: pick(row, SECTIONS.notifications),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -92,7 +105,8 @@ export const LOGO_PATH = '/api/settings/branding/logo';
  * - **The document toggles**, so a letterhead or PDF can follow them without
  *   a second call. They are switches, not data.
  *
- * Nothing else: no defaults, no security policy, no notification settings.
+ * Nothing else: no defaults, no security policy, no rate limits, no
+ * notification settings.
  */
 export function brandingView(row: SettingsRow) {
   const logoId = uploadIdFrom(row.logoUrl);

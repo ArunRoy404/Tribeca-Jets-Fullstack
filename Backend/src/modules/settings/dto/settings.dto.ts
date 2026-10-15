@@ -1,8 +1,14 @@
 import { z } from 'zod';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
 import { uploadUrl } from '../../../common/dto/uploads.js';
-import { LeadStage } from '../../../generated/prisma/enums.js';
+import { FailedSignInScope, LeadStage } from '../../../generated/prisma/enums.js';
 import {
+  CODE_ATTEMPT_LIMITS,
+  CODE_SEND_LIMITS,
+  CODE_SEND_WINDOW_MINUTES,
+  FAILED_SIGN_IN_LIMITS,
+  FAILED_SIGN_IN_WINDOW_MINUTES,
+  SIGN_IN_LOCKOUT_MINUTES,
   FOLLOW_UP_INTERVAL_DAYS,
   FOLLOW_UP_REMINDER_MINUTES,
   IDLE_TIMEOUT_MINUTES,
@@ -30,6 +36,15 @@ const oneOf = (values: readonly number[], what: string) =>
     .refine((value) => values.includes(value), {
       message: `${what} must be one of ${values.join(', ')}`,
     });
+
+/** A rate limit: one of its offered numbers, or null — the screen's "Never". */
+const limitOf = (values: readonly number[], what: string) =>
+  z
+    .number({ error: `${what} must be a number, or null for Never` })
+    .refine((value) => values.includes(value), {
+      message: `${what} must be one of ${values.join(', ')}, or null for Never`,
+    })
+    .nullable();
 
 /** A percentage with at most `places` decimals — the column's precision. */
 const percent = (what: string, places: number) =>
@@ -86,6 +101,23 @@ const securitySchema = z
   })
   .strict();
 
+/**
+ * Settings › Rate Limiting. A limit is one of its offered numbers or `null`,
+ * the screen's "Never" — no pause at all. Only failures and emailed codes
+ * are limited; a correct sign-in never is (owner's decision, 15 Oct 2026).
+ */
+const rateLimitsSchema = z
+  .object({
+    failedSignInLimit: limitOf(FAILED_SIGN_IN_LIMITS, 'Failed sign-ins allowed').optional(),
+    failedSignInWindowMinutes: oneOf(FAILED_SIGN_IN_WINDOW_MINUTES, 'Counting window').optional(),
+    signInLockoutMinutes: oneOf(SIGN_IN_LOCKOUT_MINUTES, 'Pause length').optional(),
+    failedSignInScope: z.enum(FailedSignInScope).optional(),
+    codeSendLimit: limitOf(CODE_SEND_LIMITS, 'Codes per account').optional(),
+    codeSendWindowMinutes: oneOf(CODE_SEND_WINDOW_MINUTES, 'Code window').optional(),
+    codeAttemptLimit: limitOf(CODE_ATTEMPT_LIMITS, 'Wrong guesses per code').optional(),
+  })
+  .strict();
+
 const notificationsSchema = z
   .object({
     emailNotifications: z.boolean().optional(),
@@ -105,6 +137,7 @@ export const updateSettingsSchema = z
     company: companySchema.optional(),
     defaults: defaultsSchema.optional(),
     security: securitySchema.optional(),
+    rateLimits: rateLimitsSchema.optional(),
     notifications: notificationsSchema.optional(),
   })
   .strict()

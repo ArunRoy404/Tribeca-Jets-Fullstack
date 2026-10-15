@@ -53,6 +53,23 @@ model CompanySettings {
   /// two-factor on themselves. Off until the owner switches it on.
   requireAdminTwoFactor Boolean @default(false)
 
+  // ---- Rate limiting (owner's decision, 15 Oct 2026) -------------------------
+  /// Only failures are counted: a correct password is never limited, and it
+  /// clears the count. Null on a limit is the screen's "Never" — no pause.
+  /// The defaults are the limits the routes carried before.
+  /// Wrong passwords allowed inside the window before sign-in pauses.
+  failedSignInLimit         Int?              @default(5)
+  failedSignInWindowMinutes Int               @default(15)
+  /// How long sign-in stays paused once the limit is reached.
+  signInLockoutMinutes      Int               @default(15)
+  /// Whose failures are counted together.
+  failedSignInScope         FailedSignInScope @default(ACCOUNT_AND_IP)
+  /// Emailed codes (two-factor resends, password reset) per account per window.
+  codeSendLimit             Int?              @default(3)
+  codeSendWindowMinutes     Int               @default(15)
+  /// Wrong guesses before one code stops working.
+  codeAttemptLimit          Int?              @default(5)
+
   // ---- Notifications & automation (stored; read when their senders exist) ---
   emailNotifications      Boolean @default(true)
   inAppNotifications      Boolean @default(true)
@@ -73,4 +90,15 @@ model CompanySettings {
   updatedBy   User?    @relation("CompanySettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("company_settings")
+}
+
+/// Whose failed sign-ins count towards one pause (Settings › Rate Limiting).
+enum FailedSignInScope {
+  /// One email from one network — a colleague's typos never pause anyone else.
+  ACCOUNT_AND_IP
+  /// One email from anywhere — also stops guessing spread over many networks,
+  /// at the cost that anyone can pause a known address.
+  ACCOUNT
+  /// Everyone on one network, whatever email they typed.
+  IP
 }
