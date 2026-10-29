@@ -1,0 +1,212 @@
+# QA Review Remediation Plan — Tribeca Jets Command Center
+
+**Document Reference:** `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf`  
+**Test Window:** Audited Oct 11–13, 2026 (QA Test Report v2.0)  
+**Analysis Date:** 29 October 2026  
+**Status:** Architecture Designed & Verified — Awaiting Owner Approval Before Code Execution
+
+---
+
+## 1. Executive Summary & Verification Matrix
+
+Every issue reported in `Tribeca_Jets_CRM—Module_Issues_Explained.pdf` has been cross-checked against our actual PostgreSQL schema, NestJS backend, and Next.js frontend code. 
+
+**Summary:** The findings are overwhelmingly **TRUE** and accurate. Several identify critical architectural gaps in financial arithmetic (FET treated as gross income), data security (permissive file uploads), and sales lifecycle automation (broken follow-up UUID passing and stagnant client stages).
+
+| Severity | Issue Key | Module | Root Cause Verified | Recommended Action |
+|---|---|---|---|---|
+| **High** | #4 | Quotes, Trips, Commissions, Reports | `quotes.pricing.ts` line 100 includes `fetAmount` in `grossProfit` | **FIX:** Exclude FET from profit (`profit = base + extras - operatorCost`). |
+| **High** | #6 | Uploads, Document Vault | `uploads.rules.ts` line 96 sets `acceptsAnyFile: true` (`.exe` accepted) | **FIX:** Restrict documents strictly to PDF, Word, Excel, text, and images. |
+| **High** | #23 | Receivables | `receivables.service.ts` create() has no trip invoice ceiling | **FIX:** Auto-fill balance due, enforce `sum(invoices) <= trip.totalPrice`. |
+| **High** | #3 | Clients | `ClientDetailPage.jsx` line 71 passes string id; dialog expects client object | **FIX:** Pass full client object so `client.id` is valid UUID. |
+| **High** | #5 | Auth & Sessions | Stale `localStorage` keys from legacy prototypes persist on client browsers | **FIX:** Add boot-time cleanup purging legacy `tjcc_*` keys. |
+| **Medium** | #29 | Clients | Client model not updated on trip creation; summary header has hardcoded `—` | **FIX:** Auto-advance client to `ACTIVE` on booking; wire recent trip data. |
+| **Medium** | #7 | Client Credits | `client-credits.service.ts` remove() does not check if balance goes negative | **FIX:** Refuse credit withdrawal if remaining balance < 0. |
+| **Medium** | #15 | Notes / Timeline | Credit movements, bookings, and payments do not push timeline events | **FIX:** Record timeline note events on credit/booking actions. |
+| **Medium** | #33 | Notifications & Settings | Forms ignore `Settings` CRM & Quote defaults | **FIX:** Wire `useSettings()` to populate defaults in Quote/Client/Lead dialogs. |
+| **Medium** | #24 | Quotes | Date string formatting mismatch on edit | **FIX:** Normalize date values to `YYYY-MM-DD` in `EditQuoteDialog.jsx`. |
+| **Medium** | #27 | Operator Sourcing → Quotes | Quote creation does not copy approved operator, aircraft & cost | **FIX:** Pass sourcing quote parameters into `BuildQuoteDialog`. |
+| **Medium** | #11 | Quotes | Deposit amount input accepts values > total price | **FIX:** Add validation capping deposit at `totalPrice`. |
+| **Medium** | #9, #26 | Trips | Trip confirmed without operator; departed/completed set days in advance | **FIX:** Enforce confirmation checklist, departure date guards, and warning on open balance. |
+| **Medium** | #22, #26 | Itineraries | Missing departure time; email failure still marks itinerary as Sent | **FIX:** Add departure time field, show passenger count, sync Sent status with SMTP response. |
+| **Medium** | #25 | Flight Tracking | Manual status allows Landed before departure date; out of sync with trip | **FIX:** Validate status chronology; sync flight status changes to Trip status. |
+| **Medium** | #28, #36 | Operator Sourcing | "Source in Operators" filter mismatch; operator request email not dispatched | **FIX:** Filter by full reference; wire SMTP dispatch or label clearly as log record. |
+| **Low** | #12 | Leads & Agents | From/To airports can be identical | **FIX:** Block save when `originAirportId === destinationAirportId`. |
+| **Low** | #13 | Leads & Agents | Add Client stage options differ from Add Lead / schema | **FIX:** Unify frontend stage dropdowns with Prisma `LeadStage` enum. |
+| **Low** | #16 | Leads & Agents | "Active Agents" counts invited/pending users | **FIX:** Filter count to `status: ACTIVE`. |
+| **Low** | #34 | Users & Roles | `BROKER_ROLES` in `roles.js` only contains `BROKER`, excluding Super Admin/Admin | **FIX:** Add `SUPER_ADMIN` and `ADMIN` so owner can be assigned deals. |
+| **Low** | #17 | Users & Roles / Aircraft | Invite phone accepts non-numeric; aircraft built in future / empty > MTOW | **FIX:** Add phone regex validation; validate aircraft `yearBuilt <= currentYear` & `emptyWeight < MTOW`. |
+| **Low** | #35 | Auth & Sessions | Auth layout shows hardcoded mock figures (`240+ Active Clients`, etc.) | **FIX:** Remove hardcoded marketing statistics to follow project rule. |
+| **Low** | #37 | Email Templates | Money displayed without thousands separators (`$12255.00`) | **FIX:** Format numbers with commas (`$12,255.00`). |
+| **Low** | #38 | Instant Estimate | Sized category & estimated price don't carry into quote | **FIX:** Pass category & estimate price into `Start Quote` action. |
+
+---
+
+## 2. Deep-Dive Architecture & Fix Design
+
+### Phase 1: Security & Financial Math Integrity (High Severity)
+
+#### 1. Issue #4 — Federal Excise Tax (FET) Excluded from Gross Profit
+* **Affected Files:**
+  - `Backend/src/modules/quotes/quotes.pricing.ts`
+  - `Backend/src/modules/trips/trips.figures.ts`
+  - `Backend/src/modules/commissions/commissions.service.ts`
+  - `Backend/src/modules/reports/reports.service.ts`
+  - `Backend/src/modules/dashboard/dashboard.service.ts`
+* **Architecture:**
+  - FET (7.5% + segment tax) is government pass-through tax, not revenue earned by the brokerage.
+  - Formula update:
+    $$\text{grossProfit} = (\text{basePrice} + \text{extrasTotal}) - \text{operatorCost}$$
+    $$\text{marginPercentage} = \frac{\text{grossProfit}}{\text{basePrice} + \text{extrasTotal}} \times 100$$
+    $$\text{totalPrice} = \text{basePrice} + \text{fetAmount} + \text{extrasTotal}$$
+  - Commission payouts calculated on percent-of-profit will correctly calculate against net brokerage margin rather than inflating broker payouts by 45%.
+
+#### 2. Issue #6 — File Upload Whitelist & Malware Protection
+* **Affected Files:**
+  - `Backend/src/modules/uploads/uploads.rules.ts`
+  - `Backend/src/common/files/file-signature.ts`
+* **Architecture:**
+  - Change `acceptsAnyFile: true` to `false` for `UploadKind.DOCUMENT`.
+  - Allowed MIME list: PDF (`application/pdf`), Word (`.docx`), Excel (`.xlsx`, `.csv`), Text (`text/plain`), Images (`image/jpeg`, `image/png`, `image/webp`, `image/gif`, `image/avif`).
+  - Reject `.exe`, `.bat`, `.sh`, `.cmd`, `.dll`, `.zip`, `.vbs` with `UnsupportedMediaTypeException` ("This system only accepts PDF, Word, Excel, text documents, or photos").
+
+#### 3. Issue #23 — Receivables Over-Invoicing Guard
+* **Affected Files:**
+  - `Backend/src/modules/receivables/receivables.service.ts`
+  - `Frontend/src/components/receivables/CreateInvoiceDialog.jsx`
+* **Architecture:**
+  - In `receivables.service.ts`, before creating an invoice:
+    - Query sum of existing non-archived invoices for the `tripId`:
+      $$\text{alreadyBilled} = \sum (\text{invoice.amount} + \text{invoice.fetAmount})$$
+    - Ensure $\text{alreadyBilled} + \text{newInvoiceAmount} \le \text{trip.totalPrice}$.
+    - Throw `BadRequestException` ("Total invoiced would exceed trip price of $X. Remaining uninvoiced: $Y").
+  - In `CreateInvoiceDialog.jsx`:
+    - "Bill the full trip" automatically populates $\text{trip.totalPrice} - \text{alreadyBilled}$ rather than the entire original trip price.
+
+#### 4. Issue #3 — Client Follow-up Scheduling UUID Fix
+* **Affected Files:**
+  - `Frontend/src/templates/ClientDetailPage.jsx`
+  - `Frontend/src/components/clients/ScheduleFollowUpDialog.jsx`
+* **Architecture:**
+  - In `ClientDetailPage.jsx` line 71: change `openFollowUpModal(client?.id || client)` to `openFollowUpModal(client)`.
+  - In `ScheduleFollowUpDialog.jsx`: normalize target client ID handling:
+    `const clientId = typeof client === 'string' ? client : client?.id;`
+  - Ensures valid UUID is always dispatched to `PATCH /clients/:id`.
+
+#### 5. Issue #5 & #35 — Auth Storage Cleanup & Marketing Stats
+* **Affected Files:**
+  - `Frontend/src/lib/session.js`
+  - `Frontend/src/app/(auth)/layout.js`
+* **Architecture:**
+  - In `session.js`, add `clearLegacyStorage()`:
+    Removes `tjcc_broker_accounts_v1` and any legacy `tjcc_*` keys from `window.localStorage`.
+  - In `AuthLayout.jsx`: remove the hardcoded `stats` array (`240+ Active Clients`, `$18M YTD Revenue`, `96% Trip Success`) in strict adherence to the project rule: *"Never display a number the data did not supply"*.
+
+---
+
+### Phase 2: Sales & Booking Flow (Medium Severity)
+
+#### 6. Issue #29 — Client Auto-Advance on Booking & Summary Strip
+* **Affected Files:**
+  - `Backend/src/modules/trips/trips.service.ts`
+  - `Frontend/src/components/clients/ClientDetailHeader.jsx`
+* **Architecture:**
+  - When a trip is created (`trips.service.ts`), automatically update the client:
+    `status: ClientStatus.ACTIVE`, `leadStage: LeadStage.WON`.
+  - In `ClientDetailHeader.jsx`: replace the hardcoded `—` placeholders in lines 110–140 with dynamic data from `ClientStatsRow.jsx` / `useTrips({ clientId })`.
+
+#### 7. Issue #33 — Propagate Settings Defaults to Create Forms
+* **Affected Files:**
+  - `Frontend/src/components/quotes/BuildQuoteDialog.jsx`
+  - `Frontend/src/components/clients/AddClientDialog.jsx`
+  - `Frontend/src/components/leads/AddLeadDialog.jsx`
+* **Architecture:**
+  - Call `useSettings()` to initialize defaults:
+    - Quote: `markupPercentage`, `validityDays` (to calculate `validUntil`), `fetEnabled` toggle, and default `terms`.
+    - Client / Lead: `defaultLeadStage` and `followUpIntervalDays` (to calculate initial `nextFollowUpAt`).
+
+#### 8. Issue #27 & #24 — Operator Sourcing to Quote Autofill & Date Fix
+* **Affected Files:**
+  - `Frontend/src/components/quotes/BuildQuoteDialog.jsx`
+  - `Frontend/src/components/quotes/EditQuoteDialog.jsx`
+  - `Frontend/src/components/operator-sourcing/OperatorSourcingBoard.jsx`
+* **Architecture:**
+  - When clicking "Create Quote" from an approved operator quote, carry over `operatorId`, `aircraftId`, and `operatorCost`.
+  - In `EditQuoteDialog.jsx`, ensure `validUntil` and `departureDate` format as `YYYY-MM-DD` string on initial load so saving without changes does not throw date validation error.
+
+---
+
+### Phase 3: Operations & Flight Guardrails (Medium Severity)
+
+#### 9. Issue #9 & #26 — Trip Lifecycle & Confirmation Guardrails
+* **Affected Files:**
+  - `Backend/src/modules/trips/trips.service.ts`
+  - `Backend/src/modules/trips/trips.lifecycle.ts`
+  - `Frontend/src/components/trips/TripDetailActions.jsx`
+* **Architecture:**
+  - Transition to `CONFIRMED`: Require operator assigned (`operatorId != null`), passenger count >= 1, and valid departure time.
+  - Transition to `DEPARTED` / `COMPLETED`: Prevent setting `DEPARTED` or `COMPLETED` when the current date is before `departureDate`.
+  - Display warning banner in UI if unbilled/uninvoiced balances remain when marking completed.
+
+#### 10. Issue #22 & #26 — Itinerary Departure Time & Email Sync
+* **Affected Files:**
+  - `Frontend/src/components/itineraries/BuildItineraryDialog.jsx`
+  - `Frontend/src/components/itineraries/ItineraryDetailSheet.jsx`
+  - `Backend/src/modules/itineraries/itineraries.service.ts`
+* **Architecture:**
+  - Add explicit departure time input to itinerary legs.
+  - Display passenger count when names are absent ("4 Passengers").
+  - Do not update itinerary status to `SENT` if `mailService.send()` throws an error.
+
+#### 11. Issue #25 — Flight Tracking Sync with Trip Status
+* **Affected Files:**
+  - `Backend/src/modules/flight-tracking/flight-tracking.service.ts`
+* **Architecture:**
+  - Disallow setting status to `LANDED` or `IN_FLIGHT` on flights where `departureDate` is in the future.
+  - When flight status updates to `DEPARTED` or `LANDED`, synchronize the linked `Trip.status` accordingly.
+
+#### 12. Issue #28 & #36 — Operator Sourcing Reference Search & Email Logging
+* **Affected Files:**
+  - `Frontend/src/components/operator-sourcing/OperatorSourcingBoard.jsx`
+  - `Backend/src/modules/operator-quotes/operator-quotes.service.ts`
+* **Architecture:**
+  - Normalize reference filter (search by `"TR-3"` as well as `"3"`).
+  - When clicking "Ask Operator", trigger an audit record `operator_quote.rfq_sent` and dispatch/log the RFQ email.
+
+---
+
+### Phase 4: Validations & Polish (Low Severity)
+
+#### 13. Issues #7 & #15 — Credit Ledger Balance Integrity & Timeline Notes
+* **Affected Files:**
+  - `Backend/src/modules/client-credits/client-credits.service.ts`
+* **Architecture:**
+  - In `remove()`, calculate balance excluding the entry: if removing a `CREDIT` causes remaining balance to become negative, throw `BadRequestException` ("Cannot withdraw credit: $X has already been applied towards trips. Remaining credit is insufficient.").
+  - Automatically log an audit/timeline event on credit creation and withdrawal.
+
+#### 14. Issues #12, #13, #16, #34, #17, #37, #38
+* **Leads (#12):** Validate `originAirportId !== destinationAirportId`.
+* **Lead Stages (#13):** Synchronize `AddClientDialog.jsx` to use shared `LeadStage` options (`NEW`, `CONTACTED`, `QUALIFIED`, `PROPOSAL`, `QUOTED`, `WON`, `LOST`).
+* **Active Agents (#16):** Filter agent count query to `status: ACTIVE`.
+* **Broker Roles (#34):** In `Frontend/src/lib/roles.js`, update `BROKER_ROLES` to include `SUPER_ADMIN` and `ADMIN`.
+* **Invite Phone & Aircraft Validations (#17):** Add regex phone format check to user invite; validate aircraft `emptyWeight < maxTakeoffWeight` and `yearBuilt <= new Date().getFullYear()`.
+* **Email Numbers (#37):** Format money values with `formatMoney()` (`$12,255.00`).
+* **Instant Estimate Carry-Over (#38):** Pass chosen category and estimate total into `BuildQuoteDialog`.
+
+---
+
+## 3. What We Are NOT Fixing (And Why)
+
+1. **Live Radar Flight Feed:** The QA report mentions "status is typed in by hand (there's no live feed)". Per signed scope §14 and project agreements, flight tracking is manual until the client decides on a paid radar data provider (FlightAware AeroAPI). Manual tracking with status synchronization is the correct intended design.
+2. **Auto-Filling Airports via Third-Party ICAO Geo-Database:** Entering coordinates manually or via import is the current scope; automatic geo-lookup requires an external API subscription. Coordinates validation (`-90` to `90` lat, `-180` to `180` lng) will be made clear and friendly.
+
+---
+
+## 4. Remediation Order
+
+We will execute in 4 discrete batches by concern, testing and verifying each batch thoroughly before committing:
+
+1. **Batch 1:** Security & Financial Math (#4 FET gross profit, #6 upload whitelist, #23 receivables ceiling, #5 auth cleanup).
+2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format).
+3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search).
+4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over).

@@ -74,7 +74,16 @@ emailed codes are limited (session log below). Committed and pushed to
 `roy`; the owner merges to `main` (auto-deploy applies the migration on the
 API's start). Import / Export (#31) comes after.
 
-### What is next — Owner testing of Import / Export (#31), PDF generator (#32), Client Portal (#33) & AI Assistant (#34)
+### What is next — QA Audit Remediation (docs/QA_REVIEW_REMEDIATION.md) & Owner Testing
+
+- **QA Audit Analysis Completed (29 Oct 2026):**
+  - Audited `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf` (QA Test Report v2.0).
+  - All reported issues verified against the codebase and cataloged in `docs/QA_REVIEW_REMEDIATION.md` with full architectural designs.
+  - Remediation organized into 4 planned execution batches:
+    1. **Batch 1:** Security & Financial Math (#4 FET profit deduction, #6 upload whitelist, #23 receivables ceiling, #5 auth cleanup).
+    2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format).
+    3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search).
+    4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over).
 
 - **Offline / PWA (#35) — Deferred by decision (documented for future):** Removed from active project per owner instruction (29 Oct 2026). The full architecture, Service Worker caching strategies, manifest configuration, and offline manager specification are preserved in `docs/MODULE_FEATURE_STATUS.md` §35 for future reference if desired.
 
