@@ -42,7 +42,7 @@ export interface QuotePdfData {
   extrasTotal: number;
   totalPrice: number;
   depositAmount?: number | null;
-  lineItems?: ReadonlyArray<{ description?: string; label?: string; amount: number }>;
+  lineItems?: ReadonlyArray<{ description?: string; label?: string; amount?: number | null; included?: boolean }>;
   terms?: string | null;
   client?: {
     firstName?: string | null;
@@ -152,7 +152,11 @@ export async function renderQuotePdf(
 
   for (const item of quote.lineItems ?? []) {
     const itemLabel = item.description || item.label || 'Additional Service';
-    drawPriceRow(itemLabel, formatPdfMoney(item.amount));
+    const amountLabel =
+      item.included && (item.amount === null || item.amount === undefined)
+        ? 'Included'
+        : formatPdfMoney(item.amount);
+    drawPriceRow(itemLabel, amountLabel);
   }
 
   if (quote.fetEnabled) {

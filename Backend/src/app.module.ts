@@ -37,6 +37,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { DocumentsModule } from './modules/documents/documents.module.js';
+import { ClientPortalModule } from './modules/client-portal/client-portal.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -97,6 +98,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     DashboardModule,
     ReportsModule,
     DocumentsModule,
+    ClientPortalModule,
   ],
   providers: [
     /**
