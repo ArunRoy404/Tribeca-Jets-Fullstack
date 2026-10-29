@@ -121,7 +121,4 @@ export async function clearSession({ notifyServer = true } = {}) {
   // Leaving one user's clients and financials cached for whoever signs in next
   // on this browser is a data leak, not a stale cache.
   clearAllQueries();
-  if (typeof navigator !== "undefined" && navigator.serviceWorker?.controller) {
-    navigator.serviceWorker.controller.postMessage({ type: "CLEAR_PWA_CACHE" });
-  }
 }

@@ -7,7 +7,6 @@ import { getQueryClient } from "@/lib/queryClient";
 import { setUnauthorizedHandler } from "@/lib/axios";
 import { handleSessionExpiry } from "@/lib/session";
 import { TOAST_DURATION } from "@/lib/toast";
-import PwaOfflineManager from "@/components/common/PwaOfflineManager";
 
 /**
  * Teaches the axios layer what to do when a request comes back unauthenticated.
@@ -30,7 +29,6 @@ export default function QueryProvider({ children }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PwaOfflineManager />
       {children}
       <GooeyToaster
         position="top-right"

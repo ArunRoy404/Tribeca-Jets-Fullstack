@@ -41,21 +41,11 @@ async function companyName() {
   }
 }
 
-export const viewport = {
-  themeColor: "#18181B",
-};
-
 export async function generateMetadata() {
   const brand = (await companyName()) ?? "Command Center";
   return {
     title: { default: brand, template: `%s | ${brand}` },
     description: "Charter operations dashboard",
-    manifest: "/manifest.webmanifest",
-    appleWebApp: {
-      capable: true,
-      statusBarStyle: "default",
-      title: brand,
-    },
   };
 }
 
