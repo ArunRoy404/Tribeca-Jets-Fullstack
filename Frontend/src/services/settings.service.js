@@ -52,6 +52,9 @@ export const settingsService = {
  * The download URL for `GET /settings/export` (#31). Followed directly by the
  * browser so the httpOnly session cookie travels with the download.
  */
+/** Direct URL for the Settings › Company & Branding PDF header preview (#32). */
+export const settingsPdfPreviewUrl = () => uploadUrl("/api/settings/pdf-preview");
+
 export function settingsExportUrl({ scope = "ALL", format = "XLSX", from, to, includeArchived = false }) {
   const params = new URLSearchParams({ scope, format });
   if (from) params.set("from", from);

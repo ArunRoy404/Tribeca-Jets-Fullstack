@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DollarSign, Edit, Eye, Mail, RotateCcw, Send, Trash2 } from "lucide-react";
+import { DollarSign, Download, Edit, Eye, Mail, RotateCcw, Send, Trash2 } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
 import BulkDeleteDialog from "@/components/common/BulkDeleteDialog";
@@ -24,6 +24,7 @@ import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
 import { toReceivableRow } from "@/lib/receivable";
 import { ARCHIVE_TABS } from "@/lib/archive";
+import { receivablePdfUrl } from "@/services/receivables.service";
 import { useReceivablesStore } from "@/store/useReceivablesStore";
 
 /**
@@ -89,13 +90,18 @@ export default function ReceivablesContainer({ revealDelay = 0 }) {
 
   const getRowActions = (row) => {
     const view = { label: "View Details", icon: <Eye />, onSelect: () => openDetails(row?.id) };
+    const download = {
+      label: "Download PDF",
+      icon: <Download />,
+      onSelect: () => window.open(receivablePdfUrl(row?.id), "_blank", "noopener,noreferrer"),
+    };
     if (isArchived) {
       return mayArchive
-        ? [view, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreInvoices?.(row?.id) }]
-        : [view];
+        ? [view, download, { label: "Restore", icon: <RotateCcw />, onSelect: () => restoreInvoices?.(row?.id) }]
+        : [view, download];
     }
 
-    const actions = [view];
+    const actions = [view, download];
     if (mayPay && row?.rawStatus === "SENT" && row?.hasBalance) {
       actions.push({ label: "Record Payment", icon: <DollarSign />, onSelect: () => openPaymentModal?.(row?.raw) });
     }
@@ -203,7 +209,7 @@ export default function ReceivablesContainer({ revealDelay = 0 }) {
           }}
           category="PAYMENT"
           title="Send Payment Reminder"
-          description="Email the client about this invoice. The amounts are filled in from the invoice as it stands today."
+          description="Email the client about this invoice. The amounts are filled in from the invoice as it stands today, and the Invoice PDF is attached."
         />
 
         <BulkDeleteDialog

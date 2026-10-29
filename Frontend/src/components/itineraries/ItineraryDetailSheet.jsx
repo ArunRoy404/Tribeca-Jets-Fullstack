@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { CheckCircle, Edit, RotateCcw, Send, Trash2 } from "lucide-react";
+import { CheckCircle, Download, Edit, RotateCcw, Send, Trash2 } from "lucide-react";
+import { itineraryPdfUrl } from "@/services/itineraries.service";
 import { useItinerary, useConfirmItinerary, useRemoveItinerary, useRestoreItinerary } from "@/hooks/itineraries";
 import { useItinerariesStore } from "@/store/useItinerariesStore";
 import { usePermissions } from "@/hooks/common/usePermissions";
@@ -56,7 +57,14 @@ export default function ItineraryDetailSheet({ itineraryId, onClose }) {
           )}
 
           {/* Action Buttons */}
+          {/* Action Buttons */}
           <div className="flex flex-col gap-2.5 pt-4 border-t border-border w-full mt-auto">
+            <Button asChild variant="outline" className="w-full h-10 text-[13px] gap-2 font-medium">
+              <a href={itineraryPdfUrl(row.id)} target="_blank" rel="noreferrer">
+                <Download className="size-4" />
+                Download PDF
+              </a>
+            </Button>
             {maySend && !isArchived && (
               <Button
                 variant="outline"

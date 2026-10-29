@@ -1,4 +1,5 @@
 import { request, requestWithMeta } from "@/lib/axios";
+import { uploadUrl } from "@/services/uploads.service";
 
 /**
  * Thin, one-to-one wrappers around the API's `/quotes` endpoints.
@@ -14,6 +15,9 @@ import { request, requestWithMeta } from "@/lib/axios";
  *
  * No toasts, no redirects, no cache writes — services only talk HTTP.
  */
+/** Direct download URL for the branded Quote PDF (#32). */
+export const quotePdfUrl = (id) => uploadUrl(`/api/quotes/${id}/pdf`);
+
 export const quotesService = {
   /** GET /quotes — scoped to the caller's quotes; `meta` drives the pager. */
   list: (params) => requestWithMeta({ url: "/quotes", method: "GET", params }),

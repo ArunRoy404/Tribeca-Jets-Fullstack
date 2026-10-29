@@ -68,9 +68,10 @@ function ComposeForm({ context = {}, category, templateId: initialTemplateId, ti
         tripId: fixedRecipient ? context.tripId : (pickedTripId || undefined),
         quoteId: context.quoteId,
         invoiceId: context.invoiceId,
+        itineraryId: context.itineraryId,
         templateId: templateId && templateId !== NONE ? templateId : undefined,
       }),
-    [clientId, operatorId, fixedRecipient, context.tripId, context.quoteId, context.invoiceId, pickedTripId, templateId],
+    [clientId, operatorId, fixedRecipient, context.tripId, context.quoteId, context.invoiceId, context.itineraryId, pickedTripId, templateId],
   );
   const hasRecipient = Boolean(request.clientId || request.operatorId);
 

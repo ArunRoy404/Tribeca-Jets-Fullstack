@@ -5,6 +5,7 @@ import CommonInput from "@/components/common/CommonInput";
 import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
 import BrandLogo from "@/components/common/BrandLogo";
 import { passthroughImageLoader, uploadUrl } from "@/services/uploads.service";
+import { settingsPdfPreviewUrl } from "@/services/settings.service";
 import { useSettingsSection } from "@/hooks/settings";
 import SettingsCard from "../SettingsCard";
 import SettingRow from "../SettingRow";
@@ -22,10 +23,7 @@ const PROFILE_FIELDS = [
 
 /**
  * The company's identity — read by every sidebar and the sign-in page through
- * the public branding endpoint, and later by the letterhead and documents.
- *
- * "Preview PDF Header" is not offered: nothing generates a PDF yet
- * (MODULE_FEATURE_STATUS.md, Settings).
+ * the public branding endpoint, and by the letterhead and generated PDFs (#32).
  */
 export default function CompanyBrandingSection() {
   const { values, set, save, isDirty, isSaving, canEdit, isPending, error, refetch } =
@@ -130,7 +128,7 @@ export default function CompanyBrandingSection() {
 
       <SettingsCard
         title="Client-facing document defaults"
-        description="Keep letterhead consistent across quotes and itineraries."
+        description="Keep letterhead consistent across quotes, itineraries, invoices and reports."
       >
         <SettingRow
           label="Show company contact block"
@@ -141,7 +139,7 @@ export default function CompanyBrandingSection() {
         />
         <SettingRow
           label="Use the company logo on documents"
-          description="Apply the current logo to quote and itinerary documents."
+          description="Apply the current logo to quote, itinerary and invoice documents."
           checked={values.logoOnDocuments}
           onCheckedChange={set("logoOnDocuments")}
           disabled={!canEdit}
@@ -153,11 +151,16 @@ export default function CompanyBrandingSection() {
           onCheckedChange={set("showBrokerContact")}
           disabled={!canEdit}
         />
-        {canEdit ? (
-          <SettingsButton primary disabled={!isDirty || isSaving} onClick={save}>
-            {isSaving ? "Saving…" : "Save Company & Branding"}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {canEdit ? (
+            <SettingsButton primary disabled={!isDirty || isSaving} onClick={save}>
+              {isSaving ? "Saving…" : "Save Company & Branding"}
+            </SettingsButton>
+          ) : null}
+          <SettingsButton onClick={() => window.open(settingsPdfPreviewUrl(), "_blank", "noopener,noreferrer")}>
+            Preview PDF Header
           </SettingsButton>
-        ) : null}
+        </div>
       </SettingsCard>
     </>
   );

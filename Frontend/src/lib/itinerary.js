@@ -84,6 +84,7 @@ export function toItineraryRow(item) {
     interiorImageOverride: item?.interiorImageOverride ?? "",
 
     logoUrl: item?.logoUrl ?? null,
+    assignedBroker: item?.assignedBroker ?? null,
     notes: item?.notes || "",
 
     tripStatus: formatTripStatus(item?.tripStatus),

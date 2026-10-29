@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
  */
 export default function TribecaLetterhead({ className }) {
   const { data: branding } = useBranding();
+  const showLogo = branding?.documents?.showLogo !== false;
   // `contact` is null while the company hides its contact block.
   const contact = branding?.contact;
   const lines = contact
@@ -26,7 +27,7 @@ export default function TribecaLetterhead({ className }) {
 
   return (
     <div className={cn("flex items-start justify-between border-b border-border pb-4 pr-8 w-full", className)}>
-      <BrandLogo tone="dark" width={80} height={48} className="h-12 w-auto" />
+      {showLogo ? <BrandLogo tone="dark" width={80} height={48} className="h-12 w-auto" /> : <div />}
       {lines.length ? (
         <div className="flex flex-col items-end text-right text-[11px] font-montserrat text-muted-foreground">
           {lines.map((line, index) => (

@@ -1,4 +1,5 @@
 import { request, requestWithMeta } from "@/lib/axios";
+import { uploadUrl } from "@/services/uploads.service";
 
 /**
  * Thin wrappers around the API's `/itineraries` endpoints (#12).
@@ -34,3 +35,6 @@ export const itinerariesService = {
   restore: (id) => request({ url: `/itineraries/${id}/restore`, method: "POST" }),
   restoreMany: (ids) => request({ url: "/itineraries/bulk-restore", method: "POST", data: { ids } }),
 };
+
+/** Direct download URL for the Passenger Itinerary PDF (#32). */
+export const itineraryPdfUrl = (id) => uploadUrl(`/api/itineraries/${id}/pdf`);

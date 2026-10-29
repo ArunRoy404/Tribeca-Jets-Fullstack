@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DollarSign, Pencil, RotateCcw, Send, Trash2 } from "lucide-react";
+import { DollarSign, Download, Pencil, RotateCcw, Send, Trash2 } from "lucide-react";
 import DetailSheet from "@/components/common/DetailSheet";
 import DetailField from "@/components/common/DetailField";
 import SectionCard from "@/components/common/SectionCard";
@@ -21,6 +21,7 @@ import {
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
 import { formatInvoiceStatus, toReceivableRow } from "@/lib/receivable";
+import { receivablePdfUrl } from "@/services/receivables.service";
 import { useReceivablesStore } from "@/store/useReceivablesStore";
 
 const LABEL = "text-[14px]";
@@ -60,7 +61,7 @@ export default function ReceivableDetailSheet() {
         <TableStatus isLoading={isPending} error={error} onRetry={refetch} />
       ) : (
         <>
-          <div className="border-b border-secondary flex items-start justify-between pb-4 w-full">
+          <div className="border-b border-secondary flex items-start justify-between gap-3 pb-4 w-full">
             <div className="flex flex-col gap-2 items-start">
               <div className="flex flex-wrap gap-2 items-center">
                 <p className="font-montserrat font-bold text-[20px] text-foreground">{item.client}</p>
@@ -71,6 +72,12 @@ export default function ReceivableDetailSheet() {
                 {item.number} · {item.tripReference}
               </p>
             </div>
+            <Button asChild variant="outline" size="sm" className="gap-1.5 h-9 px-3 text-[12px] shrink-0">
+              <a href={receivablePdfUrl(item.id)} target="_blank" rel="noreferrer">
+                <Download className="size-3.5" />
+                Download PDF
+              </a>
+            </Button>
           </div>
 
           <SectionCard>
@@ -186,7 +193,6 @@ export default function ReceivableDetailSheet() {
               )}
             </div>
           )}
-
         </>
       )}
     </DetailSheet>

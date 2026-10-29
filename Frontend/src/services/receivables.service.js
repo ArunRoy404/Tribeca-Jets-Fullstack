@@ -1,4 +1,5 @@
 import { request, requestWithMeta } from "@/lib/axios";
+import { uploadUrl } from "@/services/uploads.service";
 
 /**
  * Thin wrappers around the API's `/receivables` endpoints — the Receivables
@@ -6,6 +7,9 @@ import { request, requestWithMeta } from "@/lib/axios";
  * call answers with the whole invoice, so the sheet re-renders from one
  * response rather than re-deriving a balance.
  */
+/** Direct download URL for the Client Invoice PDF (#32). */
+export const receivablePdfUrl = (id) => uploadUrl(`/api/receivables/${id}/pdf`);
+
 export const receivablesService = {
   list: (params) => requestWithMeta({ url: "/receivables", method: "GET", params }),
   stats: (params) => request({ url: "/receivables/stats", method: "GET", params }),

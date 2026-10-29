@@ -111,7 +111,7 @@ export function toSentEmail(email) {
  * What the compose form sends: exactly one recipient, and only the records
  * that were actually named. Empty ids are dropped, never sent as "".
  */
-export function emailContext({ clientId, operatorId, tripId, quoteId, invoiceId, templateId } = {}) {
-  const context = { clientId, operatorId, tripId, quoteId, invoiceId, templateId };
+export function emailContext({ clientId, operatorId, tripId, quoteId, invoiceId, itineraryId, templateId } = {}) {
+  const context = { clientId, operatorId, tripId, quoteId, invoiceId, itineraryId, templateId };
   return Object.fromEntries(Object.entries(context).filter(([, value]) => Boolean(value)));
 }

@@ -97,10 +97,10 @@ export default function SendItineraryDialog() {
       <ComposeEmailDialog
         open={Boolean(composeFor)}
         onOpenChange={(next) => !next && setComposeFor(null)}
-        context={{ clientId: composeFor?.clientId, tripId: composeFor?.tripId }}
+        context={{ clientId: composeFor?.clientId, tripId: composeFor?.tripId, itineraryId: composeFor?.id }}
         category="TRIP_CONFIRMATION"
         title="Email the itinerary"
-        description="The trip's route, date and aircraft are filled in by the system. Once it is accepted, the itinerary is marked sent."
+        description="The trip's route, date and aircraft are filled in by the system, and the Passenger Itinerary PDF is attached. Once it is accepted, the itinerary is marked sent."
         // Delivered to nobody (no mail server) is not sent — only a real
         // delivery marks the document.
         onSent={(email) => emailWillReachRecipient(email) && markSent(composeFor?.id)}

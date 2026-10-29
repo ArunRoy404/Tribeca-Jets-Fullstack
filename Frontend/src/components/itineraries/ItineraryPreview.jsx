@@ -7,6 +7,8 @@ import DetailField from "@/components/common/DetailField";
 import SectionCard from "@/components/common/SectionCard";
 import { PhotoTile } from "@/components/common/photo-tile";
 import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
+import { useBranding } from "@/hooks/settings";
+import { getFullName } from "@/lib/user";
 
 /**
  * The itinerary document body — everything between the Tribeca Jets
@@ -23,7 +25,11 @@ import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
  * builder, never twice.
  */
 export default function ItineraryPreview({ item }) {
+  const { data: branding } = useBranding();
   if (!item) return null;
+  const showLogo = branding?.documents?.showLogo !== false;
+  const showBrokerContact = Boolean(branding?.documents?.showBrokerContact);
+  const brokerName = item.assignedBroker ? getFullName(item.assignedBroker) : null;
 
   const gallery = [
     { label: "Aircraft Exterior", src: item.exteriorImageUrl ? uploadUrl(item.exteriorImageUrl) : null },
@@ -38,7 +44,7 @@ export default function ItineraryPreview({ item }) {
     <>
       {/* Document Title Banner — with the document's own logo when one was uploaded */}
       <div className="flex flex-col items-center justify-center text-center gap-1 py-2">
-        {item.logoUrl ? (
+        {showLogo && item.logoUrl ? (
           <div className="relative h-12 w-40 mb-2">
             <Image
               src={uploadUrl(item.logoUrl)}
@@ -209,6 +215,21 @@ export default function ItineraryPreview({ item }) {
               <div className="p-3 bg-secondary/20 rounded-md border border-border/40 text-[12px] text-foreground/90 whitespace-pre-wrap leading-relaxed">
                 {item.operatorItineraryText}
               </div>
+            )}
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Assigned Broker Contact — shown when Settings › Company & Branding enables it */}
+      {showBrokerContact && item.assignedBroker && (
+        <SectionCard title="Your Charter Advisor">
+          <div className="flex flex-col gap-1.5 text-[13px] font-montserrat w-full">
+            <span className="font-bold text-foreground">{brokerName || "—"}</span>
+            {item.assignedBroker.email && (
+              <span className="text-muted-foreground">{item.assignedBroker.email}</span>
+            )}
+            {item.assignedBroker.phone && (
+              <span className="text-muted-foreground">{item.assignedBroker.phone}</span>
             )}
           </div>
         </SectionCard>
