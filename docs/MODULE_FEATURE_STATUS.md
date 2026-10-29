@@ -2472,10 +2472,11 @@ the call site.
 *Updated 29 October 2026.* The full picture of where the project is — the
 review stage, what is next, the promises to keep — is **[HANDOFF.md](../HANDOFF.md)**.
 
-### 35. Offline / PWA 🟡 *(built 29 Oct 2026 — ready for owner test)*
-- **Dynamic Web App Manifest (`Frontend/src/app/manifest.js`):** Serves `/manifest.webmanifest` populated with the company's live branding from `/api/settings/branding`.
-- **Service Worker (`Frontend/public/sw.js`):** Caches static shell assets (`/_next/static/*`, `/dashboard/icons/*`, `/dashboard/img/*`) and `/offline`; never caches `/api/*` endpoints; clears cache on sign-out (`CLEAR_PWA_CACHE` in `Frontend/src/lib/session.js`).
-- **Offline Banner & Fallback Page (`PwaOfflineManager.jsx`, `/offline`):** Tracks live connectivity via `useSyncExternalStore` and React Query's `onlineManager`, displays an editorial Offline Mode strip when offline, and automatically re-synchronizes active queries when connection returns.
+### 35. Offline / PWA ⏹️ *(deferred by owner decision 29 Oct 2026 — documented for future)*
+- **Status:** Removed from the active project codebase per owner instruction. The feature design, Service Worker caching strategies, and manifest integration are documented below for future implementation if requested.
+- **Dynamic Web App Manifest:** Served `/manifest.webmanifest` dynamically populated with the company's live branding from `GET /api/settings/branding` (standalone display mode, `#FAF9F6` background, `#18181B` theme color).
+- **Service Worker Shell Cache:** Pre-cached brand icons, cached static shell assets (`/_next/static/*`, `/dashboard/icons/*`, `/dashboard/img/*`) with Stale-While-Revalidate, Network-First page navigations with `/offline` fallback; strictly omitted `/api/*` endpoints to keep sensitive CRM data out of `CacheStorage`; purged cache on sign-out (`CLEAR_PWA_CACHE` in `session.js`).
+- **Offline Manager & Fallback:** Subscribed to `online`/`offline` window events via `useSyncExternalStore` and synchronized with React Query's `onlineManager`, displayed an editorial top status banner during outages, automatically invalidated queries on reconnection, and provided an editorial `/offline` page.
 
 *Updated 7 October 2026.* The full picture of where the project is — the
 review stage, what is next, the promises to keep — is **[HANDOFF.md](../HANDOFF.md)**.

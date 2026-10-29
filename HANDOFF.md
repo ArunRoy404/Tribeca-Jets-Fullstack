@@ -63,7 +63,7 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 32 | **PDF generator** | 🟡 Built & verified — ready for owner test |
 | 33 | **Client Portal** (#25) | 🟡 Built & verified — ready for owner test |
 | 34 | **AI Assistant** (#27) | 🟡 Built & verified — ready for owner test |
-| 35 | **Offline / PWA** | 🟡 Built & verified — ready for owner test |
+| 35 | Offline / PWA | ⏹️ Deferred by owner decision (documented for future) |
 
 **Git:** branch `roy`. Latest migration:
 `20261015120000_sign_in_rate_limits` (run `npm run db:deploy` on any database
@@ -74,9 +74,9 @@ emailed codes are limited (session log below). Committed and pushed to
 `roy`; the owner merges to `main` (auto-deploy applies the migration on the
 API's start). Import / Export (#31) comes after.
 
-### What is next — Owner testing of Import / Export (#31), PDF generator (#32), Client Portal (#33), AI Assistant (#34) & Offline / PWA (#35)
+### What is next — Owner testing of Import / Export (#31), PDF generator (#32), Client Portal (#33) & AI Assistant (#34)
 
-- **Offline / PWA (#35) built & verified:**
+- **Offline / PWA (#35) — Deferred by decision (documented for future):** Removed from active project per owner instruction (29 Oct 2026); architecture, Service Worker caching strategies, and manifest design documented below and in `docs/MODULE_FEATURE_STATUS.md` §35 for future reference if desired.
   - **Dynamic Web App Manifest (`Frontend/src/app/manifest.js`):** Serves `/manifest.webmanifest` reading the live `companyName` from `GET /api/settings/branding`, with standalone display mode, `#FAF9F6` warm-stone background, `#18181B` theme color, and SVG brand icons.
   - **Service Worker (`Frontend/public/sw.js`):** Pre-caches core brand marks and `/offline`, caches immutable static shell assets (`/_next/static/*`, `/dashboard/icons/*`, `/dashboard/img/*`) with Stale-While-Revalidate, uses Network-First for page navigations with `/offline` fallback, never caches `/api/*` responses, and purges cache on `CLEAR_PWA_CACHE` during sign-out (`Frontend/src/lib/session.js`).
   - **Live Connectivity Manager & Offline Route (`Frontend/src/components/common/PwaOfflineManager.jsx`, `Frontend/src/app/offline/page.js`):** Synchronizes browser online/offline state with React Query's `onlineManager`, renders an editorial Offline Mode top banner when connectivity drops, automatically invalidates active queries when connectivity returns, and provides a standalone `/offline` fallback page.

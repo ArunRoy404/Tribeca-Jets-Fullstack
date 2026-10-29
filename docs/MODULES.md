@@ -159,8 +159,8 @@ reviewed yet — the module may still be built and working.
 | 31 | Import / Export (#26, the rest) | — | 🟡 Built & ready for owner test |
 | 32 | PDF generator | Yes — document identity and toggles | 🟡 Built & ready for owner test |
 | 33 | Client Portal (#25) | — | 🟡 Built & ready for owner test |
-| 34 | AI Assistant (#27) | — | ⬜ |
-| 35 | Offline / PWA | — | 🟡 Built & ready for owner test |
+| 34 | AI Assistant (#27) | — | 🟡 Built & ready for owner test |
+| 35 | Offline / PWA | — | ⏹️ Deferred by owner decision (documented for future) |
 
 ---
 
