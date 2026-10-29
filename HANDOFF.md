@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 15 October 2026.** Update the "Where we are" section in the
+**Last updated: 29 October 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -865,4 +865,33 @@ this says *what the owner decided*, which nothing else records.
   - `OverviewPage.jsx` and widgets (`StatsGrid`, `TodaysPriorities`, `EmptyLegsSection`, `RecentActivityFeed`, `FollowUpsSection`, `UpcomingTripsContainer`, `FinancialAttention`) verified clean.
   - Reusable components (`TableStatus`, `StaggerContainer`, `CommonCard`, `SectionHeader`, `Reveal`) handle loading, empty states, and errors with honest fallbacks (no invented numbers or dummy fallbacks).
   - Oxlint clean (0 errors, 0 warnings across all 26 dashboard files). Turbopack build clean with 0 errors across all 45 routes.
+
+### 29 Oct 2026 — Modules #31, #32, #33, #34 built, verified & pushed; #35 documented (Antigravity)
+
+- **Module #31 — Import / Export (#26) built & wired:**
+  - `GET /settings/export` (`SETTINGS · VIEW`): Multi-sheet XLSX workbook for `ALL` (`Clients`, `Trips`, `Quotes`, `Receivables`, `Operator Payments`, `Commissions`) and single-entity CSV/XLSX downloads with formula sanitization, date filters, and archived record toggles.
+  - `POST /settings/import/validate` & `POST /settings/import/commit` (`SETTINGS · EDIT`): 2-step import for `CLIENTS`, `OPERATORS`, `AIRCRAFT`, `AIRPORTS` with byte-sniffed CSV/XLSX parsing, auto-column mapping, preview table, and transactional commit.
+  - Unit tests: `tabular.spec.ts` (6 tests) and `settings.data.spec.ts` (9 tests).
+- **Module #32 — PDF Generator built & wired:**
+  - Shared editorial PDF engine built on `pdfkit` (`pdf.document.ts`, `pdf.templates.ts`, pinned by `pdf.spec.ts` — 5 tests) with vector Tribeca logo rendering, hairline rules, page numbering, and company document identity toggle support.
+  - 5 PDF endpoints wired: Quotes (`GET /quotes/:id/pdf`), Itineraries (`GET /itineraries/:id/pdf`), Invoices (`GET /receivables/:id/pdf`), Reports (`GET /reports/export?format=PDF`), and Branding Header (`GET /settings/pdf-preview`).
+  - Automatic PDF email attachments (`POST /emails`) wired for Quote, Itinerary, and Invoice emails.
+- **Module #33 — Client Portal (#25) built & wired:**
+  - Separate token authentication surface (`client-portal.token.ts`, pinned by `client-portal.spec.ts` — 4 tests) using 90-day HMAC-SHA256 signed URLs verified in constant time against live clients, isolated from staff session cookies.
+  - Staff issuance action: `GET /client-portal/link/:clientId` wired in `ClientHeaderActions.jsx` (**Client Portal** button & **Copy Link**).
+  - Public Client Portal view (`/client-portal/[token]`): Executive summary, Charter Advisor card, Proposals tab with online **Approve / Decline** actions and PDF downloads, Trips & Itineraries tab, Statements & Invoices tab, and non-sensitive Document Vault downloads.
+- **Module #34 — AI Assistant (#27) built & wired:**
+  - Permission-scoped Command Center Assistant (`Backend/src/modules/assistant/`, pinned by `assistant.spec.ts` — 3 tests) with `@StaffOnly()`.
+  - Dynamic Suggestions (`GET /assistant/suggestions`) & Live Q&A (`POST /assistant/ask`) answering desk queries across Trips, Quotes, Receivables, Clients, Trip Requests, Empty Legs, and Tasks strictly within caller row reach and `VIEW_MONEY` permissions, plus built-in Command Center workflow knowledge (`assistant.knowledge.ts`).
+  - Frontend: Wired top-bar **Ask Anything** popover (`⌘K` / `Ctrl+K`) in `AskAnythingPopover.jsx`, `AssistantHeader.jsx`, `useAssistantStore.js`.
+  - Completely deleted `Frontend/src/dummyData/assistant.js` — zero dummy data remaining across the entire project (`Frontend/src/dummyData/` is 100% empty).
+- **Module #35 — Offline / PWA decision:**
+  - Removed from active codebase per owner instruction.
+  - Architectural specification, Service Worker caching strategies, and manifest design fully documented under Deferred by decision in `docs/MODULE_FEATURE_STATUS.md` §35 and `docs/MODULES.md` for future implementation if requested.
+- **End-to-End Test & Build Verification:**
+  - Backend Vitest: 64 test suites, 557/557 unit tests passed 100% green.
+  - Backend TypeScript: 0 errors (`tsc --noEmit`).
+  - Backend Linter: 0 errors (`oxlint`).
+  - Frontend Lint: 0 errors, 0 warnings (`eslint`).
+  - Frontend Next.js Build: Successfully compiled all 45 routes with Turbopack (`npm run build`).
 
