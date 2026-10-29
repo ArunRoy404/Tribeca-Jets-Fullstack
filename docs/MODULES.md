@@ -61,7 +61,7 @@ set of broken joins the day the real table arrives.
 | 22 | **Document Vault** | ✅ Done (29 Sep) — client, trip and operator folders; passports and IDs restricted | Trips, Clients, Operators, Uploads |
 | 23 | **Reports** | ✅ Done (4 Oct) — revenue/profit by departure, cash and FET by payment; CSV and Excel export | All financial modules |
 | 24 | **Dashboard** | ✅ Done (28 Sep) — tiles, priorities, activity; lists read the owning modules | Nearly everything — built last |
-| 25 | **Client Portal** | No screen yet | Trips, Quotes, Documents |
+| 25 | **Client Portal** | 🟡 Built & ready for owner test | Trips, Quotes, Documents |
 | 26 | **Settings / Import / Export / Backup** | ✅ Settings done 8 Oct (owner tested); 🟡 Import hidden, Export not connected — see the settings map below | Users, Uploads; every module in the map reads it |
 | 27 | **AI Assistant** | Stub only | All |
 | 28 | **Uploads** | ✅ Done | — (built out of order; see below) |
@@ -158,7 +158,7 @@ reviewed yet — the module may still be built and working.
 | 30 | Dashboard | — | ✅ 11 Oct — owner tested & verified |
 | 31 | Import / Export (#26, the rest) | — | 🟡 Built & ready for owner test |
 | 32 | PDF generator | Yes — document identity and toggles | 🟡 Built & ready for owner test |
-| 33 | Client Portal (#25) | — | ⬜ |
+| 33 | Client Portal (#25) | — | 🟡 Built & ready for owner test |
 | 34 | AI Assistant (#27) | — | ⬜ |
 | 35 | Offline / PWA | — | ⬜ |
 

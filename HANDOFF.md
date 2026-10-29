@@ -62,7 +62,8 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 31 | **Import / Export** (#26, the rest) | 🟡 Built & verified — ready for owner test |
 | 31 | **Import / Export** (#26, the rest) | 🟡 Built & verified — ready for owner test |
 | 32 | **PDF generator** | 🟡 Built & verified — ready for owner test |
-| 33–35 | Client Portal, AI Assistant, Offline / PWA | ⬜ in the table's order |
+| 33 | **Client Portal** (#25) | 🟡 Built & verified — ready for owner test |
+| 34–35 | AI Assistant, Offline / PWA | ⬜ in the table's order |
 
 **Git:** branch `roy`. Latest migration:
 `20261015120000_sign_in_rate_limits` (run `npm run db:deploy` on any database
@@ -73,7 +74,17 @@ emailed codes are limited (session log below). Committed and pushed to
 `roy`; the owner merges to `main` (auto-deploy applies the migration on the
 API's start). Import / Export (#31) comes after.
 
-### What is next — Client Portal (#33 / #25), plus owner testing of Import / Export (#31) & PDF generator (#32)
+### What is next — AI Assistant (#34 / #27), plus owner testing of Import / Export (#31), PDF generator (#32) & Client Portal (#33)
+
+- **Client Portal (#33 / #25) built & verified:**
+  - **Separate Token Authentication Surface (`Backend/src/modules/client-portal/`):** Stateless HMAC-SHA256 signed portal links (`client-portal.token.ts`, pinned by `client-portal.spec.ts` — 4 tests) verified in constant time against the live `Client` row (`deletedAt: null`), completely separate from the staff `tj_access` session cookie.
+  - **Desk Action (`GET /client-portal/link/:clientId`):** Staff can open or copy a client's portal link directly from `ClientHeaderActions.jsx` (**Client Portal** button + **Copy Client Portal Link** in the More menu).
+  - **Public Client Portal Endpoints (`/client-portal/:token`) & UI (`/client-portal/[token]`):**
+    - Displays company branding (`BrandLogo` + contact block), client profile, dedicated Charter Advisor contact card, and executive summary strip (Open Proposals, Active & Upcoming Trips, Open Statement Balance, Credit on Account).
+    - **Charter Proposals tab:** Lists sent/answered quotes (never `DRAFT` quotes, never `operatorCost`, `grossProfit`, or `marginPercentage`), with **Download PDF Proposal** (`GET /client-portal/:token/quotes/:quoteId/pdf`) and **Approve Proposal** / **Decline** (`POST /client-portal/:token/quotes/:quoteId/respond`).
+    - **Trips & Itineraries tab:** Lists live trips with multi-leg schedule, FBO handling, and **Download Itinerary PDF** (`GET /client-portal/:token/itineraries/:itineraryId/pdf`).
+    - **Statements & Invoices tab:** Lists sent invoices with balance due and **Download Invoice PDF** (`GET /client-portal/:token/invoices/:invoiceId/pdf`).
+    - **Documents tab:** Lists non-sensitive client/trip documents (`PASSPORT` and `ID` excluded) with direct download (`GET /client-portal/:token/documents/:documentId/file`).
 
 - **PDF generator (#32) built & verified:**
   - **Shared Editorial PDF Engine (`Backend/src/common/pdf/`):** Built on `pdfkit` (`pdf.document.ts`, `pdf.templates.ts`, pinned by `pdf.spec.ts` — 5 tests). Uses a clean monochrome & warm-stone typography hierarchy, hairline rules, native vector rendering of the built-in Tribeca Jets logo (`logo_black.svg`), uploaded raster logo/photo support, `Page X of Y` footers, and honors all 3 Settings › Company & Branding document identity toggles (`showContactBlock`, `logoOnDocuments`, `showBrokerContact`).
@@ -294,6 +305,12 @@ the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
 
 
+
+### 29 Oct 2026 — Client Portal (#33 / #25) built & verified (ready for owner test)
+
+- **Separate token authentication (`Backend/src/modules/client-portal/`):** Built HMAC-SHA256 signed client portal tokens (`client-portal.token.ts`, 90-day TTL, verified against live `Client` records), `ClientPortalService`, and `ClientPortalController` (`GET /client-portal/link/:clientId` for staff; `@Public()` routes at `/client-portal/:token` for overview, quote approval/decline, quote/itinerary/invoice PDF downloads, and non-sensitive vault document downloads).
+- **Minimalistic editorial Client Portal UI (`/client-portal/[token]`):** Built `ClientPortalView.jsx` with the same clean monochrome & warm-stone editorial hierarchy as the PDFs, plus **Client Portal** / **Copy Client Portal Link** actions on `ClientHeaderActions.jsx`.
+- **Verification:** `client-portal.spec.ts` (4/4 tests pass), `tsc --noEmit` (0 errors), `oxlint` (0 errors), Frontend ESLint (0 errors).
 
 ### 29 Oct 2026 — PDF generator (#32) built & verified (ready for owner test)
 

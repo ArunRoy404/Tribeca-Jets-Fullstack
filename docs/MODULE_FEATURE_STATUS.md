@@ -1800,7 +1800,16 @@ asked for yet.
 
 ---
 
-## 25. Client Portal ⬜
+## 25. Client Portal 🟡 *(built 29 Oct 2026 — ready for owner test)*
+
+**Built 29 Oct 2026:**
+- **Separate token authentication surface (`Backend/src/modules/client-portal/`):** Uses HMAC-SHA256 signed URL tokens (`client-portal.token.ts`, 90-day validity, constant-time `timingSafeEqual`) verified against the live `Client` row (`deletedAt: null`), completely separate from staff `tj_access` cookies.
+- **Staff Link Issuance (`GET /client-portal/link/:clientId`):** Guarded by `@StaffOnly()` and `ClientsService.findOne(user, clientId)`; wired to the **Client Portal** button and **Copy Client Portal Link** menu item in `ClientHeaderActions.jsx`.
+- **Client Dossier UI (`/client-portal/[token]`):** Minimalistic editorial layout (`ClientPortalView.jsx`) with company branding, dedicated Charter Advisor card, executive summary strip, and 4 tabs:
+  1. **Charter Proposals:** Lists `SENT`, `VIEWED`, `APPROVED`, `REJECTED`, and `EXPIRED` quotes (never `DRAFT` quotes, never `operatorCost`, `grossProfit`, or `marginPercentage`), with **Download PDF Proposal** and **Approve Proposal** / **Decline** actions (`POST /client-portal/:token/quotes/:quoteId/respond`).
+  2. **Trips & Itineraries:** Lists live trips with multi-leg schedule, FBO handling, and **Download Itinerary PDF**.
+  3. **Statements & Invoices:** Lists `SENT` invoices with balance due and **Download Invoice PDF**.
+  4. **Documents:** Lists non-sensitive client/trip vault documents (`PASSPORT` and `ID` excluded) with direct file download via `UploadsService.openVouched`.
 
 **No screen exists.** Waits on Trips ✅, Quotes and Documents, and needs a
 **separate authentication surface** — it is not the staff login with a different
