@@ -156,7 +156,7 @@ reviewed yet — the module may still be built and working.
 | 28 | Document Vault | — | ✅ 11 Oct — owner tested & verified |
 | 29 | Reports | — | ✅ 11 Oct — owner tested & verified |
 | 30 | Dashboard | — | ✅ 11 Oct — owner tested & verified |
-| 31 | Import / Export (#26, the rest) — **tell the owner when we reach it** (Import hidden, Export not connected since 7 Oct) | — | ⬜ **next in review queue** |
+| 31 | Import / Export (#26, the rest) | — | 🟡 Built & ready for owner test |
 | 32 | PDF generator | Yes — document identity and toggles | ⬜ |
 | 33 | Client Portal (#25) | — | ⬜ |
 | 34 | AI Assistant (#27) | — | ⬜ |

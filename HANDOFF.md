@@ -59,7 +59,7 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 27 | **Email Templates & sending** | ✅ 11 Oct — owner tested & signed off |
 | 29 | **Reports** | ✅ 11 Oct — owner tested & verified |
 | 30 | **Dashboard** | ✅ 11 Oct — owner tested & verified |
-| 31 | **Import / Export** (#26, the rest) | ⬜ **next in review queue** |
+| 31 | **Import / Export** (#26, the rest) | 🟡 Built & verified — ready for owner test |
 | 32–35 | PDF generator, Client Portal, ... | ⬜ in the table's order |
 
 **Git:** branch `roy`. Latest migration:
@@ -71,10 +71,12 @@ emailed codes are limited (session log below). Committed and pushed to
 `roy`; the owner merges to `main` (auto-deploy applies the migration on the
 API's start). Import / Export (#31) comes after.
 
-### What is next — Import / Export (#31)
+### What is next — Import / Export (#31) owner testing, then PDF generator (#32)
 
-- **Dashboard (#30) reviewed & verified:** Migrated to per-person permissions (`@StaffOnly()`, `@RequireAccess(Module.DASHBOARD, Action.VIEW)`), replaced legacy `Permission`/`Scope` checks with granular module access (`QUOTES`/`TRIPS` `VIEW_MONEY`, `RECEIVABLES`, `OPERATOR_PAYMENTS`, `EMPTY_LEGS`, `TRIP_REQUESTS`, `CLIENTS`, `TASKS`, `DOCUMENTS`), scoped activity audit feed with `ACTIVITY_MODULE` and reach (`Reach.ALL` vs `Reach.OWN`). Pinned by 15 tests in `dashboard.access.spec.ts`.
-- **Next module in queue:** **Import / Export (#31)** (`/dashboard/settings` Import/Export tab) — **reminder to tell the owner as promised:** Import is currently hidden and Export is not connected since 7 Oct. We will build Export on `common/export/tabular.ts`.
+- **Import / Export (#31) built & verified:**
+  - **Export (`GET /settings/export`, `SETTINGS · VIEW`):** Supports `ALL` (multi-sheet XLSX workbook with `Clients`, `Trips`, `Quotes`, `Receivables`, `Operator Payments`, `Commissions`) and individual scopes in `XLSX` or `CSV` (with `ALL` + `CSV` disabled in UI and refused with 400 on API). Supports `from`/`to` date filtering and `includeArchived` toggle (adds `Archived` column).
+  - **Import (`POST /settings/import/validate` & `/commit`, `SETTINGS · EDIT`):** Unhidden in `DataSection.jsx`; accepts `.csv` and `.xlsx` (sniffed via `readTabular` in `common/export/tabular.ts`); uses shared `CommonSelect` for column mapping; two-step Validate → Commit flow previews valid rows, duplicates (skipped), and invalid rows (skipped) before transactional insert + audit logging.
+  - Pinned by unit tests in `tabular.spec.ts` (6 tests) and `settings.data.spec.ts` (9 tests). All 61 backend test suites (545 tests) pass.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -278,6 +280,20 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 29 Oct 2026 — Import / Export (#31) built & wired end-to-end (Antigravity)
+
+- **Owner's decisions on the 5 Import / Export questions:**
+  1. Build **both Export and Import** end-to-end and unhide the Import card in `DataSection.jsx`.
+  2. **Permissions:** `Settings · Edit` for Import (writes data), `Settings · View` for Export (administrators only, since `Settings` is locked to administrators).
+  3. **"All CRM Records" as CSV:** Disable `Export CSV` when `All CRM Records` is selected (with a hint to pick a single scope for CSV or use `Export XLSX` for all tabs); API refuses `scope=ALL&format=CSV` with a 400.
+  4. **Archived rows in exports:** Live records only by default, with an `"Include archived records"` toggle (`SettingRow`) that adds an `Archived` date column when enabled.
+  5. **Import duplicates & invalid rows:** Two-step **Validate → Commit** flow — preview lists valid rows, duplicates (skipped), and invalid rows (with row number + reason); Commit imports valid non-duplicate rows in a transaction and logs `settings.data_imported`.
+- **Built:**
+  - Extended `Backend/src/common/export/tabular.ts` with `toMultiSheetXlsx` and byte-sniffed `readTabular` / `parseCsvText` (for CSV and XLSX).
+  - Added `GET /settings/export`, `POST /settings/import/validate`, and `POST /settings/import/commit` in `SettingsController` / `SettingsService`, backed by `settings.data.ts` and `dto/settings-data.dto.ts`.
+  - Upgraded `DataSection.jsx` to unhide Import, use shared `CommonSelect` for column mappings, render the validation preview table and summary pills, and wire `Export XLSX` / `Export CSV` with mutual date bounds and the `Include archived records` switch.
+  - Pinned by unit tests in `tabular.spec.ts` (6 tests) and `settings.data.spec.ts` (9 tests). All 61 backend test suites (545 tests) pass.
 
 ### 15 Oct 2026 — Sign-in rate limiting: failures only, set in Settings (Claude Code)
 

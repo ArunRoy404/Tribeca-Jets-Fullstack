@@ -1875,14 +1875,20 @@ has five sections, the open one in the URL (`?section=`).
   value it changes; 12 unit tests (branding never leaks, the audit diff,
   validation).
 
+**Data Import & Export (#31 — built & wired 29 Oct 2026)**
+
+- **`GET /settings/export`** (`Settings · View` — administrators only):
+  - Scopes: `ALL` (multi-sheet XLSX workbook with `Clients`, `Trips`, `Quotes`, `Receivables`, `Operator Payments`, `Commissions`), or any single scope as `XLSX` or `CSV` (built on `common/export/tabular.ts` with `toMultiSheetXlsx` and formula-injection neutralisation).
+  - `ALL` + `CSV` is refused on the API (400) and disabled in the UI with a clear hint.
+  - Optional `from` and `to` (`YYYY-MM-DD`) date filters and `includeArchived` toggle (appends an `Archived` date column when enabled; defaults to live records only).
+- **`POST /settings/import/validate` & `POST /settings/import/commit`** (`Settings · Edit` — administrators only):
+  - Supports `CLIENTS`, `OPERATORS`, `AIRCRAFT`, and `AIRPORTS` from `.csv` or `.xlsx` files (sniffed from bytes via `readTabular` in `common/export/tabular.ts`; legacy `.xls` and non-tabular files are refused).
+  - Column mapping uses shared `CommonSelect` with automatic header & alias guessing (`resolveColumnMapping`).
+  - Two-step **Validate → Commit**: `validate` returns row-by-row preview (`VALID`, `DUPLICATE`, `ERROR` with row number, record summary, and reason) without writing; `commit` inserts all valid non-duplicate rows inside a transaction, applies company defaults (`defaultLeadStage`, `followUpIntervalDays`) on new clients, and logs `settings.data_imported` to the audit trail.
+  - Pinned by unit tests in `tabular.spec.ts` (6 tests) and `settings.data.spec.ts` (9 tests).
+
 **Hidden (owner's decision, 7 Oct 2026)**
 
-> ⚠️ **Import is hidden, not dropped.** The Import card is behind
-> `IMPORT_ENABLED` in `DataSection.jsx`. It is built in **Import / Export
-> (#31)**, which also builds Export (the card stays visible and says it is
-> not connected). **When the review reaches #31, tell the owner** — they
-> asked to be reminded.
->
 > **Integrations is hidden**: three static links that stored nothing.
 > `IntegrationsSection` and `QUICK_LINKS` remain; adding `integrations` back
 > to `SETTINGS_SECTIONS` restores it.
