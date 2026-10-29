@@ -10,8 +10,13 @@ import {
   Patch,
   Post,
   Query,
+  Header,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import {
   RequireAccess,
@@ -91,6 +96,26 @@ export class QuotesController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.quotes.findOne(user, id);
+  }
+
+  @Get(':id/pdf')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @ApiProduces(PDF_CONTENT_TYPE)
+  @ApiOperation({
+    summary: 'Download the branded quote PDF (#32)',
+    description:
+      'Renders the client-facing quotation PDF with route, aircraft specification, pricing breakdown and company letterhead.',
+  })
+  async downloadPdf(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const file = await this.quotes.renderPdf(user, id);
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Content-Length', String(file.body.length));
+    response.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    return new StreamableFile(file.body);
   }
 
   @Get(':id/versions')

@@ -21,6 +21,9 @@ export class LogMailDriver implements MailDriver {
         `  To:      ${message.to}`,
         ...(message.replyTo ? [`  Reply-To: ${message.replyTo}`] : []),
         `  Subject: ${message.subject}`,
+        ...(message.attachments?.length
+          ? [`  Attachments: ${message.attachments.map((a) => a.filename).join(', ')}`]
+          : []),
         '',
         message.text
           .split('\n')

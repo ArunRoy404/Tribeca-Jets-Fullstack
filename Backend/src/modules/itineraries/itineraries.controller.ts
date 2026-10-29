@@ -14,7 +14,8 @@ import {
   Res,
   StreamableFile,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
 import type { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import {
@@ -71,6 +72,26 @@ export class ItinerariesController {
   })
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.itineraries.findOne(user, id);
+  }
+
+  @Get(':id/pdf')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @ApiProduces(PDF_CONTENT_TYPE)
+  @ApiOperation({
+    summary: 'Download the passenger itinerary PDF (#32)',
+    description:
+      'Renders the passenger itinerary PDF with route, schedule, FBO handling, catering, ground transport, passenger manifest and letterhead.',
+  })
+  async downloadPdf(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const file = await this.itineraries.renderPdf(user, id);
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Content-Length', String(file.body.length));
+    response.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    return new StreamableFile(file.body);
   }
 
   @Get(':id/operator-attachment')

@@ -1,3 +1,10 @@
+export interface MailAttachment {
+  filename: string;
+  contentType: string;
+  /** Base64-encoded binary payload so attachments serialise cleanly through the BullMQ Redis queue. */
+  contentBase64: string;
+}
+
 export interface MailMessage {
   to: string;
   subject: string;
@@ -9,6 +16,7 @@ export interface MailMessage {
    * from the desk's address, and the client's answer must reach the broker.
    */
   replyTo?: string;
+  attachments?: MailAttachment[];
 }
 
 /**

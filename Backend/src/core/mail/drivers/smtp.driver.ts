@@ -40,6 +40,11 @@ export class SmtpMailDriver implements MailDriver {
       text: message.text,
       html: message.html,
       replyTo: message.replyTo,
+      attachments: message.attachments?.map((att) => ({
+        filename: att.filename,
+        contentType: att.contentType,
+        content: Buffer.from(att.contentBase64, 'base64'),
+      })),
     });
   }
 }

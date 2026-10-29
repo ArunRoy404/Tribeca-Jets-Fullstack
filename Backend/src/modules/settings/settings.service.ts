@@ -10,6 +10,8 @@ import {
   toMultiSheetXlsx,
   type WorksheetSpec,
 } from '../../common/export/tabular.js';
+import { PDF_CONTENT_TYPE, type PdfCompanyBrand } from '../../common/pdf/pdf.document.js';
+import { renderBrandingPreviewPdf } from '../../common/pdf/pdf.templates.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UploadsService, type IncomingFile } from '../uploads/uploads.service.js';
 import type { SettingsExportInput, SettingsImportFieldsInput, ImportType } from './dto/settings-data.dto.js';
@@ -135,6 +137,70 @@ export class SettingsService implements OnModuleInit {
     const id = uploadIdFrom((await this.read()).logoUrl);
     if (!id) throw new NotFoundException('No logo has been set.');
     return this.uploads.openVouched(id);
+  }
+
+  /**
+   * Reads a PNG or JPEG upload into a Buffer for embedding in a generated PDF.
+   * Returns null when absent, unsupported by PDFKit (WebP/AVIF/GIF), or missing
+   * from storage so PDF generation never fails over an image asset.
+   */
+  async readUploadRaster(urlOrId: string | null | undefined): Promise<Buffer | null> {
+    const id = uploadIdFrom(urlOrId);
+    if (!id) return null;
+    try {
+      const opened = await this.uploads.openVouched(id);
+      if (opened.contentType !== 'image/png' && opened.contentType !== 'image/jpeg') {
+        opened.stream.destroy();
+        return null;
+      }
+      const chunks: Buffer[] = [];
+      for await (const chunk of opened.stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+      }
+      return Buffer.concat(chunks);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * The company's document identity for every generated PDF (#32):
+   * honors `showContactBlock`, `logoOnDocuments` (`showLogo`), and `showBrokerContact`.
+   */
+  async documentBranding(): Promise<PdfCompanyBrand> {
+    const row = await this.read();
+    const logoBuffer = row.logoOnDocuments ? await this.readUploadRaster(row.logoUrl) : null;
+    return {
+      companyName: row.companyName,
+      contact: row.showContactBlock
+        ? {
+            email: row.companyEmail,
+            website: row.website,
+            phone: row.phone,
+            address: row.address,
+            clientServicesLabel: row.clientServicesLabel,
+          }
+        : null,
+      showLogo: row.logoOnDocuments,
+      showBrokerContact: row.showBrokerContact,
+      defaultQuoteTerms: row.defaultQuoteTerms,
+      logoBuffer,
+    };
+  }
+
+  /** `GET /settings/pdf-preview` (#32) — sample PDF showing current document identity settings. */
+  async previewBrandingPdf(actor: AuthenticatedUser) {
+    const brand = await this.documentBranding();
+    const user = await this.prisma.user.findUnique({
+      where: { id: actor.id },
+      select: { firstName: true, lastName: true, email: true, phone: true },
+    });
+    const body = await renderBrandingPreviewPdf(brand, user);
+    return {
+      body,
+      contentType: PDF_CONTENT_TYPE,
+      filename: 'tribeca-document-header-preview.pdf',
+    };
   }
 
   /** `PATCH /settings` — each screen saves its own section. */

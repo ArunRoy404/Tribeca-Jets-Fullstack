@@ -15,6 +15,7 @@ const contextShape = {
   tripId: z.uuid().optional(),
   quoteId: z.uuid().optional(),
   invoiceId: z.uuid().optional(),
+  itineraryId: z.uuid().optional(),
   /** The template it starts from. Optional — an email can be written from scratch. */
   templateId: z.uuid().optional(),
 };
@@ -40,6 +41,8 @@ export const sendEmailSchema = z
      */
     subject: z.string().trim().min(1, 'The email needs a subject').max(300),
     body: z.string().trim().min(1, 'The email needs a message').max(20000),
+    /** Attach the branded PDF for the linked quote, itinerary or invoice (default true). */
+    attachPdf: z.boolean().optional(),
   })
   .refine(oneRecipient, ONE_RECIPIENT);
 export type SendEmailInput = z.infer<typeof sendEmailSchema>;

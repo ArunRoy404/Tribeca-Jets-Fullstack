@@ -6,6 +6,7 @@ import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorat
 import { AccessGuard } from '../../common/guards/access.guard.js';
 import { Action, Module } from '../../common/authorization/access.js';
 import { EXPORT_CONTENT_TYPES } from '../../common/export/tabular.js';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { ReportsService } from './reports.service.js';
 import { ReportExportDto, ReportRankingDto, ReportSeriesDto, ReportWindowDto } from './dto/reports.dto.js';
@@ -78,7 +79,7 @@ export class ReportsController {
   @Get('export')
   @RequireAccess(Module.REPORTS, Action.EXPORT)
   @Header('X-Content-Type-Options', 'nosniff')
-  @ApiProduces(EXPORT_CONTENT_TYPES.CSV, EXPORT_CONTENT_TYPES.XLSX)
+  @ApiProduces(EXPORT_CONTENT_TYPES.CSV, EXPORT_CONTENT_TYPES.XLSX, PDF_CONTENT_TYPE)
   @ApiOperation({
     summary: 'Export operations',
     description: `One row per trip — reference, departure, status, client, broker, route, aircraft, operator, revenue, FET, operator cost, profit and margin — as CSV or XLSX, always downloaded. Over \`from\`–\`to\`, or every operation on record when both are omitted. ${BY_DEPARTURE} An unknown figure is an empty cell, never zero.`,

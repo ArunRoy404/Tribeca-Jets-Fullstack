@@ -5,6 +5,9 @@ import { pageFields } from '../../../common/dto/pagination.dto.js';
 import { EXPORT_FORMATS } from '../../../common/export/tabular.js';
 import { SERIES_BUCKETS } from '../reports.window.js';
 
+export const REPORT_EXPORT_FORMATS = [...EXPORT_FORMATS, 'PDF'] as const;
+export type ReportExportFormat = (typeof REPORT_EXPORT_FORMATS)[number];
+
 /** Ten years and a day of leap — wide enough for any report, narrow enough not to scan forever. */
 const MAX_WINDOW_DAYS = 3660;
 
@@ -61,7 +64,7 @@ export const reportExportSchema = windowChecks(
       /** Omit both `from` and `to` to export every operation on record. */
       from: calendarDate.optional(),
       to: calendarDate.optional(),
-      format: z.enum(EXPORT_FORMATS).default('CSV'),
+      format: z.enum(REPORT_EXPORT_FORMATS).default('CSV'),
     })
     .strict(),
 ).refine((value) => (value.from === undefined) === (value.to === undefined), {

@@ -4,6 +4,7 @@ import { OperatorsModule } from '../operators/operators.module.js';
 import { TripsModule } from '../trips/trips.module.js';
 import { QuotesModule } from '../quotes/quotes.module.js';
 import { ReceivablesModule } from '../receivables/receivables.module.js';
+import { ItinerariesModule } from '../itineraries/itineraries.module.js';
 import { EmailTemplatesController } from './email-templates.controller.js';
 import { EmailsController } from './emails.controller.js';
 import { EmailTemplatesService } from './email-templates.service.js';
@@ -15,7 +16,7 @@ import { EmailsService } from './emails.service.js';
  * this module, so it adds no cycle.
  */
 @Module({
-  imports: [ClientsModule, OperatorsModule, TripsModule, QuotesModule, ReceivablesModule],
+  imports: [ClientsModule, OperatorsModule, TripsModule, QuotesModule, ReceivablesModule, ItinerariesModule],
   controllers: [EmailTemplatesController, EmailsController],
   providers: [EmailTemplatesService, EmailsService],
 })

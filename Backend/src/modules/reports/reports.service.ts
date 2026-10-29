@@ -12,6 +12,9 @@ import { TripsService } from '../trips/trips.service.js';
 import { ReceivablesService } from '../receivables/receivables.service.js';
 import { OperatorPaymentsService } from '../operator-payments/operator-payments.service.js';
 import { tallyTrips } from '../trips/trips.figures.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
+import { renderOperationsReportPdf } from '../../common/pdf/pdf.templates.js';
 import { bucketSpan, isoDay, rankBy, seriesBuckets, tallyByBucket, windowFromDays } from './reports.window.js';
 import type {
   ReportExportInput,
@@ -52,6 +55,7 @@ export class ReportsService {
     private readonly trips: TripsService,
     private readonly receivables: ReceivablesService,
     private readonly operatorPayments: OperatorPaymentsService,
+    private readonly settings: SettingsService,
   ) {}
 
   /** The tiles and the financial summary for the window. */
@@ -137,6 +141,45 @@ export class ReportsService {
   async export(user: AuthenticatedUser, query: ReportExportInput) {
     const window = query.from && query.to ? windowFromDays(query.from, query.to) : null;
     const trips = await this.trips.reportRows(user, window);
+    if (query.format === 'PDF') {
+      const span = query.from && query.to ? `${isoDay(query.from)}-to-${isoDay(query.to)}` : 'all';
+      const tally = tallyTrips(trips.map((t) => t.figures));
+      const fetTotal = trips.reduce((acc, t) => acc + (t.figures?.fetAmount ?? 0), 0);
+      const branding = await this.settings.documentBranding();
+      const body = await renderOperationsReportPdf(
+        {
+          periodLabel: query.from && query.to ? `${isoDay(query.from)} – ${isoDay(query.to)}` : 'All Time Operations',
+          rows: trips.map((trip) => ({
+            reference: `TJ-${trip.reference}`,
+            departure: trip.departureDate ? isoDay(trip.departureDate) : null,
+            status: trip.status,
+            client: clientName(trip.client),
+            broker: personName(trip.assignedBroker),
+            route: trip.route ? `${airportCode(trip.route.origin)} - ${airportCode(trip.route.destination)}` : null,
+            aircraft: trip.aircraft ? `${trip.aircraft.tailNumber} (${trip.aircraft.model})` : trip.aircraftDescription,
+            operator: trip.operator?.name ?? null,
+            revenue: trip.figures?.totalPrice ?? null,
+            fet: trip.figures?.fetAmount ?? null,
+            operatorCost: trip.figures?.operatorCost ?? null,
+            profit: trip.figures?.grossProfit ?? null,
+            marginPercentage: trip.figures?.marginPercentage ?? null,
+          })),
+          totals: {
+            tripCount: tally.tripCount,
+            revenue: tally.revenue,
+            fet: fetTotal,
+            profit: tally.profit,
+            marginPercentage: tally.marginPercentage,
+          },
+        },
+        branding,
+      );
+      return {
+        body,
+        contentType: PDF_CONTENT_TYPE,
+        filename: `tribeca-operations-${span}.pdf`,
+      };
+    }
     const body = await toFile(query.format, OPERATION_COLUMNS, trips, 'Operations');
     const span = query.from && query.to ? `${isoDay(query.from)}-to-${isoDay(query.to)}` : 'all';
     return {

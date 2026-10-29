@@ -36,6 +36,9 @@ import { fromCents, toCents } from '../../common/money/cents.js';
 import { InvoiceStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { TripsService } from '../trips/trips.service.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
+import { renderInvoicePdf } from '../../common/pdf/pdf.templates.js';
 import {
   MovementDirection,
   MovementKind,
@@ -67,7 +70,7 @@ import type {
 } from './dto/receivable.dto.js';
 
 const ACTOR_SELECT = {
-  select: { id: true, firstName: true, lastName: true, email: true },
+  select: { id: true, firstName: true, lastName: true, email: true, phone: true },
 } satisfies Prisma.UserDefaultArgs;
 
 const CLIENT_SELECT = {
@@ -173,6 +176,7 @@ export class ReceivablesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly trips: TripsService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ---- Scope ------------------------------------------------------------
@@ -353,6 +357,18 @@ export class ReceivablesService {
    * spent) or one trip. Summed here in cents from the computed figures: the
    * database cannot `SUM` a balance that is itself a sum of another table.
    */
+  /** Renders the Client Invoice PDF (#32). */
+  async renderPdf(user: AuthenticatedUser, id: string) {
+    const invoice = await this.findOne(user, id);
+    const brand = await this.settings.documentBranding();
+    const body = await renderInvoicePdf(invoice, brand);
+    return {
+      body,
+      contentType: PDF_CONTENT_TYPE,
+      filename: `Invoice-${invoice.number}.pdf`,
+    };
+  }
+
   async stats(user: AuthenticatedUser, query: ReceivableStatsInput) {
     const rows = await this.prisma.invoice.findMany({
       where: {

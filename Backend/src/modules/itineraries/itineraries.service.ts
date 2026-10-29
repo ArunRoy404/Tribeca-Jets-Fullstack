@@ -31,6 +31,9 @@ import { Module, Reach } from '../../common/authorization/access.catalogue.js';
 import { reachOf } from '../../common/authorization/access.js';
 import { TripsService } from '../trips/trips.service.js';
 import { UploadsService } from '../uploads/uploads.service.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
+import { renderItineraryPdf } from '../../common/pdf/pdf.templates.js';
 import type {
   CreateItineraryInput,
   QueryItinerariesInput,
@@ -38,7 +41,7 @@ import type {
 } from './dto/itinerary.dto.js';
 
 const ACTOR_SELECT = {
-  select: { id: true, firstName: true, lastName: true, email: true },
+  select: { id: true, firstName: true, lastName: true, email: true, phone: true },
 } satisfies Prisma.UserDefaultArgs;
 
 /** Enough of an airport to show a route code and its FBO default. */
@@ -83,6 +86,7 @@ const ITINERARY_TRIP_SELECT = {
       select: { id: true, firstName: true, lastName: true, companyName: true },
     },
     assignedBrokerId: true,
+    assignedBroker: ACTOR_SELECT,
     operatorId: true,
     operator: { select: { id: true, name: true } },
     aircraftId: true,
@@ -146,6 +150,7 @@ export class ItinerariesService {
     private readonly audit: AuditService,
     private readonly trips: TripsService,
     private readonly uploads: UploadsService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ---- Scope --------------------------------------------------------------
@@ -188,6 +193,8 @@ export class ItinerariesService {
       clientId: trip.clientId,
       client: trip.client,
       assignedBrokerId: trip.assignedBrokerId,
+      assignedBroker: trip.assignedBroker,
+      legs: trip.legs,
       operatorId: trip.operatorId,
       operator: trip.operator,
       aircraftId: trip.aircraftId,
@@ -280,6 +287,37 @@ export class ItinerariesService {
   /** The board tiles: total, confirmed, and the honest remainder — never a
    * fabricated "pending upload" / "awaiting confirmation" split nothing in
    * this schema actually distinguishes. */
+  /** Renders the Passenger Itinerary PDF (#32). */
+  async renderPdf(user: AuthenticatedUser, id: string) {
+    const itinerary = await this.findOne(user, id);
+    const brand = await this.settings.documentBranding();
+    const [logoBuffer, exteriorBuffer, interiorBuffer] = await Promise.all([
+      brand.showLogo && itinerary.logoUrl ? this.settings.readUploadRaster(itinerary.logoUrl) : Promise.resolve(null),
+      this.settings.readUploadRaster(itinerary.exteriorImageUrl),
+      this.settings.readUploadRaster(itinerary.interiorImageUrl),
+    ]);
+    const body = await renderItineraryPdf(itinerary, brand, {
+      logoBuffer,
+      exteriorBuffer,
+      interiorBuffer,
+    });
+    return {
+      body,
+      contentType: PDF_CONTENT_TYPE,
+      filename: `Itinerary-${itinerary.tripReference}.pdf`,
+    };
+  }
+
+  /** Renders the trip's live itinerary PDF if one exists, for email attachment (#32). */
+  async renderPdfForTrip(user: AuthenticatedUser, tripId: string) {
+    const row = await this.prisma.itinerary.findFirst({
+      where: { tripId, deletedAt: null, ...this.visibilityScope(user) },
+      select: { id: true },
+    });
+    if (!row) return null;
+    return this.renderPdf(user, row.id);
+  }
+
   async stats(user: AuthenticatedUser) {
     const scope: Prisma.ItineraryWhereInput = { deletedAt: null, ...this.visibilityScope(user) };
     const [total, confirmed] = await Promise.all([

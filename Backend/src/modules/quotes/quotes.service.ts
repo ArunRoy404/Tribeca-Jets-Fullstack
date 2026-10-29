@@ -25,6 +25,9 @@ import {
 import { canDo, reachOf, Reach } from '../../common/authorization/access.js';
 import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import { AirportsService } from '../airports/airports.service.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
+import { renderQuotePdf } from '../../common/pdf/pdf.templates.js';
 import {
   QuoteStatus,
   TripRequestStatus,
@@ -48,7 +51,7 @@ import type {
 } from './dto/quote.dto.js';
 
 const ACTOR_SELECT = {
-  select: { id: true, firstName: true, lastName: true, email: true },
+  select: { id: true, firstName: true, lastName: true, email: true, phone: true },
 } satisfies Prisma.UserDefaultArgs;
 
 const CLIENT_SELECT = {
@@ -76,6 +79,7 @@ const AIRCRAFT_SELECT = {
     category: true,
     maxPassengers: true,
     rangeNm: true,
+    exteriorImageUrl: true,
   },
 } satisfies Prisma.AircraftDefaultArgs;
 
@@ -242,6 +246,7 @@ export class QuotesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly airports: AirportsService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ---- Reading ------------------------------------------------------------
@@ -461,6 +466,35 @@ export class QuotesService {
    * Every figure comes back exactly as it was written — nothing here is
    * recomputed, which is the entire point of a snapshot.
    */
+  /**
+   * Renders the branded Quote PDF (#32). Client-facing: never prints
+   * `operatorCost` or `grossProfit`, and follows the Company & Branding
+   * document toggles (`showContactBlock`, `logoOnDocuments`, `showBrokerContact`).
+   */
+  async renderPdf(user: AuthenticatedUser, id: string) {
+    const quote = await this.findOne(user, id);
+    const photoUrl = quote.exteriorImageUrl ?? quote.aircraft?.exteriorImageUrl ?? null;
+    const [brand, exteriorPhoto] = await Promise.all([
+      this.settings.documentBranding(),
+      this.settings.readUploadRaster(photoUrl),
+    ]);
+    const body = await renderQuotePdf(
+      {
+        ...quote,
+        lineItems: Array.isArray(quote.lineItems)
+          ? (quote.lineItems as { description?: string; label?: string; amount: number }[])
+          : [],
+      },
+      brand,
+      exteriorPhoto,
+    );
+    return {
+      body,
+      contentType: PDF_CONTENT_TYPE,
+      filename: `Quote-Q-${quote.reference}.pdf`,
+    };
+  }
+
   async versionsFor(user: AuthenticatedUser, id: string) {
     await this.findOne(user, id);
     const financials = this.seesFinancials(user);

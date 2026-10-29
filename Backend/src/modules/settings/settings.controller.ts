@@ -23,6 +23,7 @@ import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
 import { RequireAccess } from '../../common/decorators/access.decorator.js';
 import { Action, Module } from '../../common/authorization/access.js';
 import { EXPORT_CONTENT_TYPES } from '../../common/export/tabular.js';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { MAX_UPLOAD_BYTES, contentDisposition } from '../uploads/uploads.rules.js';
 import type { IncomingFile } from '../uploads/uploads.service.js';
@@ -94,6 +95,26 @@ export class SettingsController {
   })
   update(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateSettingsDto) {
     return this.settings.update(user, dto);
+  }
+
+  @Get('pdf-preview')
+  @RequireAccess(Module.SETTINGS, Action.VIEW)
+  @Header('X-Content-Type-Options', 'nosniff')
+  @ApiProduces(PDF_CONTENT_TYPE)
+  @ApiOperation({
+    summary: 'Preview the PDF document header (#32)',
+    description:
+      'Renders a sample PDF using the current Company & Branding document identity toggles (`showContactBlock`, `logoOnDocuments`, `showBrokerContact`).',
+  })
+  async previewPdf(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const file = await this.settings.previewBrandingPdf(user);
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Content-Length', String(file.body.length));
+    response.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+    return new StreamableFile(file.body);
   }
 
   @Get('export')

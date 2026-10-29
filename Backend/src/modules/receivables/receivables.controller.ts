@@ -11,8 +11,13 @@ import {
   Post,
   Query,
   UseGuards,
+  Header,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
 import { AccessGuard } from '../../common/guards/access.guard.js';
@@ -74,6 +79,26 @@ export class ReceivablesController {
   })
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.receivables.findOne(user, id);
+  }
+
+  @Get(':id/pdf')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @ApiProduces(PDF_CONTENT_TYPE)
+  @ApiOperation({
+    summary: 'Download the client invoice PDF (#32)',
+    description:
+      'Renders the client invoice PDF with invoice number, trip reference, charges, payments received, balance due and company letterhead.',
+  })
+  async downloadPdf(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const file = await this.receivables.renderPdf(user, id);
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Content-Length', String(file.body.length));
+    response.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    return new StreamableFile(file.body);
   }
 
   @Post()

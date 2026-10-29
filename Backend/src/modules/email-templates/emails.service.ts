@@ -21,6 +21,9 @@ import { TripsService } from '../trips/trips.service.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { ReceivablesService } from '../receivables/receivables.service.js';
 import { invoiceNumber } from '../receivables/receivables.amounts.js';
+import { ItinerariesService } from '../itineraries/itineraries.service.js';
+import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
+import type { MailAttachment } from '../../core/mail/mail.interface.js';
 import { mergeField } from './email.fields.js';
 import {
   airportCode,
@@ -113,6 +116,7 @@ export class EmailsService {
     private readonly trips: TripsService,
     private readonly quotes: QuotesService,
     private readonly receivables: ReceivablesService,
+    private readonly itineraries: ItinerariesService,
   ) {}
 
   // ---- Scope ------------------------------------------------------------
@@ -240,6 +244,13 @@ export class EmailsService {
       values.due_date = formatDay(invoice.dueDate);
     }
 
+    if (input.itineraryId) {
+      if (recipient.kind !== 'client') throw new BadRequestException('An itinerary is sent to its client, not an operator');
+      this.assertMayRead(user, Module.ITINERARIES, 'itineraries');
+      const itinerary = await this.resolve('itinerary', () => this.itineraries.findOne(user, input.itineraryId!));
+      if (itinerary.client?.id !== recipient.id) this.notTheirs('itinerary', recipient);
+    }
+
     const sender = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: { firstName: true, lastName: true, email: true },
@@ -314,6 +325,7 @@ export class EmailsService {
     // gets an answer at once. The worker moves the row to SENT (a mail server
     // took it), LOGGED (none configured) or FAILED, and writes the timeline
     // entries then — `email.sent` means sent, not "about to be".
+    const attachments = await this.buildAttachments(user, recipient, input);
     const row = await this.prisma.emailMessage.create({
       data: {
         toEmail: recipient.email,
@@ -334,7 +346,13 @@ export class EmailsService {
 
     try {
       await this.mail.enqueue(
-        { to: recipient.email, subject: subject.text, text: body.text, replyTo: values.broker_email ?? undefined },
+        {
+          to: recipient.email,
+          subject: subject.text,
+          text: body.text,
+          replyTo: values.broker_email ?? undefined,
+          attachments,
+        },
         row.id,
       );
     } catch {
@@ -351,6 +369,36 @@ export class EmailsService {
     // server the worker records it LOGGED. `willDeliver` tells the compose
     // form, which marks a quote or itinerary sent only when it is true.
     return { ...serialise(row), willDeliver: this.mail.driverName === 'smtp' };
+  }
+
+  /**
+   * When an email to a client is about a quote, an invoice or an itinerary,
+   * attach the branded PDF document unless `attachPdf: false` was sent.
+   */
+  private async buildAttachments(
+    user: AuthenticatedUser,
+    recipient: Recipient,
+    input: SendEmailInput,
+  ): Promise<MailAttachment[] | undefined> {
+    if (input.attachPdf === false || recipient.kind !== 'client') return undefined;
+    let pdf: { body: Buffer; filename: string } | null = null;
+    if (input.quoteId) {
+      pdf = await this.quotes.renderPdf(user, input.quoteId);
+    } else if (input.invoiceId) {
+      pdf = await this.receivables.renderPdf(user, input.invoiceId);
+    } else if (input.itineraryId) {
+      pdf = await this.itineraries.renderPdf(user, input.itineraryId);
+    } else if (input.tripId && canDo(user.access, Module.ITINERARIES, Action.VIEW)) {
+      pdf = await this.itineraries.renderPdfForTrip(user, input.tripId);
+    }
+    if (!pdf) return undefined;
+    return [
+      {
+        filename: pdf.filename,
+        contentType: PDF_CONTENT_TYPE,
+        contentBase64: pdf.body.toString('base64'),
+      },
+    ];
   }
 
   // ---- The sent log -------------------------------------------------------
