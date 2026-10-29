@@ -1,8 +1,9 @@
 import { create } from "zustand";
-import { assistantSuggestions } from "@/dummyData/assistant";
 
 export const useAssistantStore = create((set) => ({
-  suggestions: assistantSuggestions,
   message: "",
   setMessage: (message) => set({ message }),
+  turns: [],
+  appendTurn: (turn) => set((state) => ({ turns: [...state.turns, turn] })),
+  clearTurns: () => set({ turns: [], message: "" }),
 }));
