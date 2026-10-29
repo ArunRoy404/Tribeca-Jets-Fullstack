@@ -3,3 +3,4 @@ export { useSettings } from "./useSettings";
 export { useUpdateSettings } from "./useUpdateSettings";
 export { useSettingsSection } from "./useSettingsSection";
 export { useBranding, useProductName } from "./useBranding";
+export { useValidateImport, useCommitImport } from "./useSettingsData";
