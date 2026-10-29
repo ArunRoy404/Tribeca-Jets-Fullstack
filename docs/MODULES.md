@@ -63,7 +63,7 @@ set of broken joins the day the real table arrives.
 | 24 | **Dashboard** | ✅ Done (28 Sep) — tiles, priorities, activity; lists read the owning modules | Nearly everything — built last |
 | 25 | **Client Portal** | 🟡 Built & ready for owner test | Trips, Quotes, Documents |
 | 26 | **Settings / Import / Export / Backup** | ✅ Settings done 8 Oct (owner tested); 🟡 Import hidden, Export not connected — see the settings map below | Users, Uploads; every module in the map reads it |
-| 27 | **AI Assistant** | 🟡 Built & ready for owner test | All |
+| 27 | **AI Assistant** | Stub only | All |
 | 28 | **Uploads** | ✅ Done | — (built out of order; see below) |
 | 29 | **Notes / Timeline** | ✅ Done — Clients, Trips, Referrals, Flights | Clients, Users (built out of order; adjustment #5) |
 | 30 | **Client Credits** | ✅ Done | Clients, Trips (built out of order; adjustment #9) |
@@ -159,8 +159,8 @@ reviewed yet — the module may still be built and working.
 | 31 | Import / Export (#26, the rest) | — | 🟡 Built & ready for owner test |
 | 32 | PDF generator | Yes — document identity and toggles | 🟡 Built & ready for owner test |
 | 33 | Client Portal (#25) | — | 🟡 Built & ready for owner test |
-| 34 | AI Assistant (#27) | — | 🟡 Built & ready for owner test |
-| 35 | Offline / PWA | — | ⬜ |
+| 34 | AI Assistant (#27) | — | ⬜ |
+| 35 | Offline / PWA | — | 🟡 Built & ready for owner test |
 
 ---
 
