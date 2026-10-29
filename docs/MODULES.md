@@ -157,7 +157,7 @@ reviewed yet — the module may still be built and working.
 | 29 | Reports | — | ✅ 11 Oct — owner tested & verified |
 | 30 | Dashboard | — | ✅ 11 Oct — owner tested & verified |
 | 31 | Import / Export (#26, the rest) | — | 🟡 Built & ready for owner test |
-| 32 | PDF generator | Yes — document identity and toggles | ⬜ |
+| 32 | PDF generator | Yes — document identity and toggles | 🟡 Built & ready for owner test |
 | 33 | Client Portal (#25) | — | ⬜ |
 | 34 | AI Assistant (#27) | — | ⬜ |
 | 35 | Offline / PWA | — | ⬜ |

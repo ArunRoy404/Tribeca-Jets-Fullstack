@@ -60,7 +60,9 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 29 | **Reports** | ✅ 11 Oct — owner tested & verified |
 | 30 | **Dashboard** | ✅ 11 Oct — owner tested & verified |
 | 31 | **Import / Export** (#26, the rest) | 🟡 Built & verified — ready for owner test |
-| 32–35 | PDF generator, Client Portal, ... | ⬜ in the table's order |
+| 31 | **Import / Export** (#26, the rest) | 🟡 Built & verified — ready for owner test |
+| 32 | **PDF generator** | 🟡 Built & verified — ready for owner test |
+| 33–35 | Client Portal, AI Assistant, Offline / PWA | ⬜ in the table's order |
 
 **Git:** branch `roy`. Latest migration:
 `20261015120000_sign_in_rate_limits` (run `npm run db:deploy` on any database
@@ -71,7 +73,17 @@ emailed codes are limited (session log below). Committed and pushed to
 `roy`; the owner merges to `main` (auto-deploy applies the migration on the
 API's start). Import / Export (#31) comes after.
 
-### What is next — Import / Export (#31) owner testing, then PDF generator (#32)
+### What is next — Client Portal (#33 / #25), plus owner testing of Import / Export (#31) & PDF generator (#32)
+
+- **PDF generator (#32) built & verified:**
+  - **Shared Editorial PDF Engine (`Backend/src/common/pdf/`):** Built on `pdfkit` (`pdf.document.ts`, `pdf.templates.ts`, pinned by `pdf.spec.ts` — 5 tests). Uses a clean monochrome & warm-stone typography hierarchy, hairline rules, native vector rendering of the built-in Tribeca Jets logo (`logo_black.svg`), uploaded raster logo/photo support, `Page X of Y` footers, and honors all 3 Settings › Company & Branding document identity toggles (`showContactBlock`, `logoOnDocuments`, `showBrokerContact`).
+  - **5 PDF Endpoints & Email Attachments:**
+    1. **Quotes (`GET /quotes/:id/pdf`):** Client-facing charter quotation (never exposes `operatorCost` or `grossProfit`), plus `Download PDF` button in `QuoteHeaderActions.jsx`.
+    2. **Itineraries (`GET /itineraries/:id/pdf`):** Passenger itinerary briefing with route, FBO handling, catering, ground transport, multi-leg schedule, passenger manifest, and optional aircraft exterior/interior photos; `Download PDF` button in `ItineraryDetailSheet.jsx`.
+    3. **Receivables (`GET /receivables/:id/pdf`):** Client invoice & payment statement with `Download PDF` button in `ReceivableDetailSheet.jsx` and row menu in `ReceivablesContainer.jsx`.
+    4. **Reports (`GET /reports/export?format=PDF`):** Landscape Operations & Financial Ledger PDF added alongside CSV and XLSX (`EXPORT_FORMATS = ["CSV", "XLSX", "PDF"]`).
+    5. **Settings › Company & Branding (`GET /settings/pdf-preview`):** `Preview PDF Header` button in `CompanyBrandingSection.jsx`, plus `TribecaLetterhead.jsx` and `ItineraryPreview.jsx` honoring `logoOnDocuments` and `showBrokerContact`.
+    6. **Email PDF Attachments (`POST /emails`):** Automatically attaches the corresponding Quote, Itinerary, or Invoice PDF when emailing a client (`SmtpMailDriver` & `LogMailDriver` updated with `MailAttachment` support).
 
 - **Import / Export (#31) built & verified:**
   - **Export (`GET /settings/export`, `SETTINGS · VIEW`):** Supports `ALL` (multi-sheet XLSX workbook with `Clients`, `Trips`, `Quotes`, `Receivables`, `Operator Payments`, `Commissions`) and individual scopes in `XLSX` or `CSV` (with `ALL` + `CSV` disabled in UI and refused with 400 on API). Supports `from`/`to` date filtering and `includeArchived` toggle (adds `Archived` column).
@@ -280,6 +292,22 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+
+
+### 29 Oct 2026 — PDF generator (#32) built & verified (ready for owner test)
+
+- **Shared PDF engine (`Backend/src/common/pdf/`):** Built `pdf.document.ts` and `pdf.templates.ts` on `pdfkit` with a minimalistic, editorial monochrome & warm-stone layout (native vector rendering of the built-in Tribeca Jets logo, uploaded PNG/JPEG logo & aircraft photo support, `Page X of Y` footers, and strict enforcement of `showContactBlock`, `logoOnDocuments`, and `showBrokerContact`).
+- **Wired all 5 surfaces waiting on PDF generation:**
+  1. `GET /quotes/:id/pdf` + `Download PDF` in `QuoteHeaderActions.jsx` (client-facing; never leaks `operatorCost` or `grossProfit`).
+  2. `GET /itineraries/:id/pdf` + `Download PDF` in `ItineraryDetailSheet.jsx` + `ItineraryPreview.jsx` honoring `logoOnDocuments` and `showBrokerContact`.
+  3. `GET /receivables/:id/pdf` + `Download PDF` in `ReceivableDetailSheet.jsx` and `ReceivablesContainer.jsx`.
+  4. `GET /reports/export?format=PDF` + `PDF` format option in `Frontend/src/lib/reports.js`.
+  5. `GET /settings/pdf-preview` + `Preview PDF Header` in `CompanyBrandingSection.jsx` + `TribecaLetterhead.jsx` honoring `logoOnDocuments`.
+- **Email PDF attachments (`POST /emails`):** Extended `MailMessage` (`mail.interface.ts`, `smtp.driver.ts`, `log.driver.ts`) and `EmailsService` so emailing a client about a quote, itinerary, or invoice automatically attaches the branded PDF.
+- **Verification:** `pdf.spec.ts` (5/5 tests pass), `tsc --noEmit` (0 errors), `oxlint` (0 errors), Frontend ESLint (0 errors).
+
+
 
 ### 29 Oct 2026 — Import / Export (#31) built & wired end-to-end (Antigravity)
 

@@ -2464,7 +2464,7 @@ the call site.
 review stage, what is next, the promises to keep — is **[HANDOFF.md](../HANDOFF.md)**.
 In brief:
 
-**Built and usable against the real database:** every module in
+**Built and usable against the real database (Import / Export #31 and PDF generator #32 ready for owner test):** every module in
 [MODULES.md](MODULES.md)'s build table except the Client Portal (#25), the
 AI Assistant (#27, a stub), Import / Export (Import hidden, Export not
 connected) and the PDF generator.
