@@ -63,7 +63,8 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 31 | **Import / Export** (#26, the rest) | 🟡 Built & verified — ready for owner test |
 | 32 | **PDF generator** | 🟡 Built & verified — ready for owner test |
 | 33 | **Client Portal** (#25) | 🟡 Built & verified — ready for owner test |
-| 34–35 | AI Assistant, Offline / PWA | ⬜ in the table's order |
+| 34 | **AI Assistant** (#27) | 🟡 Built & verified — ready for owner test |
+| 35 | Offline / PWA | ⬜ in the table's order |
 
 **Git:** branch `roy`. Latest migration:
 `20261015120000_sign_in_rate_limits` (run `npm run db:deploy` on any database
@@ -74,7 +75,12 @@ emailed codes are limited (session log below). Committed and pushed to
 `roy`; the owner merges to `main` (auto-deploy applies the migration on the
 API's start). Import / Export (#31) comes after.
 
-### What is next — AI Assistant (#34 / #27), plus owner testing of Import / Export (#31), PDF generator (#32) & Client Portal (#33)
+### What is next — Offline / PWA (#35), plus owner testing of Import / Export (#31), PDF generator (#32), Client Portal (#33) & AI Assistant (#34)
+
+- **AI Assistant (#34 / #27) built & verified:**
+  - **Permission-Scoped Command Center Assistant (`Backend/src/modules/assistant/`):** Guarded by `@UseGuards(AccessGuard)` and `@StaffOnly()` (pinned by `assistant.spec.ts` — 3 tests).
+  - **Dynamic Suggestions (`GET /assistant/suggestions`) & Live Q&A (`POST /assistant/ask`):** Answers live desk queries across Trips, Quotes, Receivables, Clients, Trip Requests, Empty Legs, and Tasks strictly within the caller's row-level reach (`Reach.OWN` vs `Reach.ALL`) and `VIEW_MONEY` permissions, plus built-in Command Center workflow guidance (`assistant.knowledge.ts`).
+  - **Frontend (`AskAnythingPopover.jsx`, `AssistantHeader.jsx`, `useAssistantStore.js`):** Wired top-bar **Ask Anything** popover with multi-turn thread history, clickable deep-link record cards, follow-up prompt pills, and `Clear` button; deleted `Frontend/src/dummyData/assistant.js`.
 
 - **Client Portal (#33 / #25) built & verified:**
   - **Separate Token Authentication Surface (`Backend/src/modules/client-portal/`):** Stateless HMAC-SHA256 signed portal links (`client-portal.token.ts`, pinned by `client-portal.spec.ts` — 4 tests) verified in constant time against the live `Client` row (`deletedAt: null`), completely separate from the staff `tj_access` session cookie.

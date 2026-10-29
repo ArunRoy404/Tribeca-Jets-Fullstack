@@ -1940,7 +1940,25 @@ has five sections, the open one in the URL (`?section=`).
 
 ---
 
-## 27. AI Assistant ⬜
+## 27. AI Assistant 🟡 *(built 29 Oct 2026 — ready for owner test)*
+
+**Built 29 Oct 2026:**
+- **Permission-Scoped Command Center Assistant (`Backend/src/modules/assistant/`):** Guarded by `@UseGuards(AccessGuard)` and `@StaffOnly()` (refuses partner referral agents with `403 Forbidden`).
+- **Dynamic Suggestions (`GET /assistant/suggestions`):** Returns prompt chips tailored to the caller's live permissions (`TRIPS`, `QUOTES`, `CLIENTS`, `RECEIVABLES` + `VIEW_MONEY`, `TRIP_REQUESTS`, `TASKS`), plus workflow guidance prompts.
+- **Live Desk Data & Workflow Q&A (`POST /assistant/ask`):**
+  - Answers live desk questions strictly within the caller's row-level reach (`Reach.OWN` vs `Reach.ALL`) and field permissions (`VIEW_MONEY` required for financial totals):
+    - Upcoming & active trips (`TRIPS · VIEW`)
+    - Pending quotes & proposals (`QUOTES · VIEW`, values shown only with `QUOTES · VIEW_MONEY`)
+    - Overdue & open invoices (`RECEIVABLES · VIEW` + `VIEW_MONEY`)
+    - Scheduled & overdue client follow-ups (`CLIENTS · VIEW`)
+    - Open trip requests & available empty legs (`TRIP_REQUESTS · VIEW` / `EMPTY_LEGS · VIEW`)
+    - Caller's open tasks (`TASKS`)
+    - Desk overview brief combining all permitted counts
+  - Includes a built-in Command Center workflow knowledge base (`assistant.knowledge.ts`) covering Quotes & Pricing, Operator Sourcing, Trips & Itineraries, Client Portal & Document Vault, Receivables & Credits, and Import/Export.
+  - Returns clickable deep-link record items (`label`, `detail`, `href`) and contextual follow-up prompt pills. Pinned by unit tests in `assistant.spec.ts` (3 tests).
+- **Frontend (`AskAnythingPopover.jsx`, `AssistantHeader.jsx`, `useAssistantStore.js`):**
+  - Wired the top-bar **Ask Anything** popover to `GET /assistant/suggestions` and `POST /assistant/ask`, with multi-turn thread history, clickable record cards that navigate directly to the record, follow-up prompt pills, and a `Clear` button.
+  - Deleted `Frontend/src/dummyData/assistant.js`.
 
 Currently four hardcoded suggestion strings. The scope describes an in-app
 assistant answering questions about the desk's own data — so in practice it
