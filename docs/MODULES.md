@@ -1032,15 +1032,15 @@ the frontend at all:
 
 1. ~~Open Trip Requests~~ ✅ **closed 19 September 2026** — `/dashboard/trip-requests`
 2. ~~Document Vault~~ ✅ **closed 29 September 2026** — `/dashboard/documents`
-3. Client Portal
-4. Settings / Backup / Import / Export
-5. AI Assistant
+3. ~~Client Portal~~ ✅ **closed 29 October 2026** — `/client-portal/[token]` (#33)
+4. ~~Settings / Backup / Import / Export~~ ✅ **closed 29 October 2026** — `/dashboard/settings?section=import-export` (#31)
+5. ~~AI Assistant~~ ✅ **closed 29 October 2026** — TopNav Ask Anything popover (#34)
 
-Plus two acceptance criteria with zero code: **PWA / offline support** and
-**import/export/backup**.
+All five previously open architectural items and acceptance criteria (**Import / Export** #31, **PDF Generator** #32, **Client Portal** #33, **AI Assistant** #34, and **PWA / Offline Support** #35) are now completely built, verified, and ready for owner testing.
 
-None of these are blocked. They just have not been scheduled, and they are the
-most likely source of a surprise at delivery.
+
+
+
 
 ---
 
