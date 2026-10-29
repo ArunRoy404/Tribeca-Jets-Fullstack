@@ -35,6 +35,7 @@ describe('report DTOs', () => {
     expect(reportExportSchema.safeParse({ format: 'XLSX' }).success).toBe(true);
     expect(reportExportSchema.safeParse({ from: '2026-10-01', to: '2026-10-31' }).success).toBe(true);
     expect(reportExportSchema.safeParse({ from: '2026-10-01' }).success).toBe(false);
-    expect(reportExportSchema.safeParse({ format: 'PDF' }).success).toBe(false);
+    expect(reportExportSchema.safeParse({ format: 'PDF' }).success).toBe(true);
+    expect(reportExportSchema.safeParse({ format: 'DOCX' }).success).toBe(false);
   });
 });
