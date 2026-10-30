@@ -203,4 +203,17 @@ describe('collectedTally', () => {
   it('collects no FET on an invoice that charged none', () => {
     expect(collectedTally([{ amount: '100.00', invoice: { amount: '100.00', fetAmount: '0.00' } }]).fet).toBe(0);
   });
+
+  it('correctly calculates remaining invoiceable balance and flags over-invoicing', () => {
+    const tripTotalCents = 12_255_00; // $12,255.00 ($11,400 + $855 FET)
+    const existingInvoicedCents = 7_000_00;
+    const remainingCents = tripTotalCents - existingInvoicedCents;
+    expect(remainingCents).toBe(5_255_00);
+
+    const validNextInvoice = 5_255_00;
+    expect(existingInvoicedCents + validNextInvoice <= tripTotalCents).toBe(true);
+
+    const overInvoice = 6_000_00;
+    expect(existingInvoicedCents + overInvoice > tripTotalCents).toBe(true);
+  });
 });

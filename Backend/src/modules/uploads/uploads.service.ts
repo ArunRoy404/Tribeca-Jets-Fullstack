@@ -31,7 +31,7 @@ import {
   mayRead,
   visibilityWhere,
 } from './uploads.access.js';
-import { formatBytes, ruleFor, storedContentType } from './uploads.rules.js';
+import { BLOCKED_EXTENSIONS, formatBytes, ruleFor, storedContentType } from './uploads.rules.js';
 import type { ListUploadsQuery } from './dto/upload-query.dto.js';
 
 /** The multipart part multer hands us, narrowed to what is actually read. */
@@ -172,13 +172,34 @@ export class UploadsService {
    * cannot: whether text is `text/plain` or `text/csv`. Those are the same
    * bytes and differ only in what the sender meant by them.
    */
+  private extractExtension(filename: string | undefined): string {
+    if (!filename) return '';
+    const dot = filename.lastIndexOf('.');
+    return dot >= 0 ? filename.slice(dot).toLowerCase() : '';
+  }
+
   private resolveContentType(file: IncomingFile, kind: UploadKind): string {
     const rule = ruleFor(kind);
-    const stored = storedContentType(rule, sniffContentType(file.buffer, file.mimetype));
+    const ext = this.extractExtension(file.originalname);
+
+    if (BLOCKED_EXTENSIONS.has(ext)) {
+      throw new UnsupportedMediaTypeException(
+        `Files with executable or script extension '${ext}' are blocked for security reasons.`,
+      );
+    }
+
+    const sniffed = sniffContentType(file.buffer, file.mimetype);
+    const stored = storedContentType(rule, sniffed);
 
     if (!stored) {
       throw new UnsupportedMediaTypeException(
-        `This endpoint accepts ${rule.label}. Allowed types: ${rule.accept.join(', ')}.`,
+        `This endpoint accepts ${rule.label}. Executables, scripts, and unrecognised file types are rejected.`,
+      );
+    }
+
+    if (stored === 'text/plain' && ext !== '.txt' && ext !== '') {
+      throw new UnsupportedMediaTypeException(
+        `Plain text files must have a .txt extension. Received: '${ext || '(none)'}'.`,
       );
     }
 

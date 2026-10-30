@@ -3,7 +3,7 @@ import { UploadKind } from '../../generated/prisma/enums.js';
 import {
   MAX_UPLOAD_BYTES,
   UPLOAD_KIND_RULES,
-  OPAQUE_CONTENT_TYPE,
+  BLOCKED_EXTENSIONS,
   formatBytes,
   ruleFor,
   storedContentType,
@@ -58,27 +58,25 @@ describe('upload kind rules', () => {
   });
 
   /**
-   * Since 6 Oct 2026 a document may be any file — but anything unrecognised
-   * is stored as opaque bytes, so it always downloads and never renders.
-   * Images stay strict: they are served inline.
+   * Strict whitelist: documents accept verified document and photo formats,
+   * but strictly refuse unrecognised files (executables, opaque binaries, unknown scripts).
    */
-  it('stores an unrecognised document as opaque bytes, and refuses it as an image', () => {
+  it('strictly refuses unrecognised files or executables for both documents and images', () => {
     const documents = ruleFor(UploadKind.DOCUMENT);
     const images = ruleFor(UploadKind.IMAGE);
     expect(storedContentType(documents, 'application/pdf')).toBe('application/pdf');
-    expect(storedContentType(documents, null)).toBe(OPAQUE_CONTENT_TYPE);
-    expect(storedContentType(documents, 'image/png')).toBe(OPAQUE_CONTENT_TYPE);
+    expect(storedContentType(documents, 'image/png')).toBe('image/png');
+    expect(storedContentType(documents, null)).toBeNull();
     expect(storedContentType(images, 'image/png')).toBe('image/png');
     expect(storedContentType(images, null)).toBeNull();
     expect(storedContentType(images, 'application/pdf')).toBeNull();
   });
 
-  it('keeps images and documents disjoint, so a kind is unambiguous', () => {
-    const images = new Set(UPLOAD_KIND_RULES.IMAGE.accept);
-    const overlap = UPLOAD_KIND_RULES.DOCUMENT.accept.filter((t) =>
-      images.has(t),
-    );
-    expect(overlap).toEqual([]);
+  it('blocks dangerous executable and script extensions', () => {
+    const blocked = ['.exe', '.dll', '.bat', '.sh', '.ps1', '.vbs', '.js'];
+    for (const ext of blocked) {
+      expect(BLOCKED_EXTENSIONS.has(ext)).toBe(true);
+    }
   });
 
   /**

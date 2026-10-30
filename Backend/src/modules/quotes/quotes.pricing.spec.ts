@@ -55,10 +55,23 @@ describe('priceQuote', () => {
     expect(priced.marginPercentage).toBeNull();
   });
 
-  it('works out gross profit and margin from the full total', () => {
+  it('works out gross profit and margin excluding pass-through FET', () => {
     const priced = priceQuote(base);
-    expect(priced.grossProfit).toBe(20462.5);
-    expect(priced.marginPercentage).toBe(23.9);
+    expect(priced.grossProfit).toBe(14500);
+    expect(priced.marginPercentage).toBe(18.2);
+
+    // QA Report #4 audit benchmark: $11,400 charter, $9,500 cost, 7.5% FET
+    const audited = priceQuote({
+      basePrice: 11400,
+      fetEnabled: true,
+      fetRate: 0.075,
+      operatorCost: 9500,
+      lineItems: [],
+    });
+    expect(audited.fetAmount).toBe(855);
+    expect(audited.totalPrice).toBe(12255);
+    expect(audited.grossProfit).toBe(1900);
+    expect(audited.marginPercentage).toBe(16.7);
   });
 
   it('holds cents exactly rather than drifting in binary floating point', () => {

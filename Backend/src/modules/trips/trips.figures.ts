@@ -47,11 +47,12 @@ export function tallyTrips(figures: (PricedQuote | null)[]): TripTally {
   for (const trip of figures) {
     if (!trip) continue;
     priced += 1;
-    revenue += toCents(trip.totalPrice);
+    const charterRevenue = toCents(trip.basePrice) + toCents(trip.extrasTotal);
+    revenue += charterRevenue;
     fet += toCents(trip.fetAmount);
     if (trip.grossProfit !== null) {
       profit += toCents(trip.grossProfit);
-      profitRevenue += toCents(trip.totalPrice);
+      profitRevenue += charterRevenue;
       profitKnown += 1;
     }
   }

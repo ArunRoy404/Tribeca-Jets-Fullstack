@@ -138,8 +138,8 @@ export class UploadsController {
           type: 'string',
           format: 'binary',
           description:
-            `Any file, maximum 25 MB. ${UPLOAD_KIND_RULES.DOCUMENT.accept.join(', ')} keep their own type; ` +
-            'anything else is stored as application/octet-stream and always downloads.',
+            `A document (PDF, Word, Excel, text, CSV, or photo scan: JPG, PNG, WebP, GIF, AVIF), maximum 25 MB. ` +
+            'Executables, scripts, and unrecognised file types are rejected for security.',
         },
         ...FIELD_PROPERTIES,
       },
@@ -149,9 +149,8 @@ export class UploadsController {
     summary: 'Upload a document',
     description:
       'Stores the file under `documents/` and returns the URL to save on whatever record is being edited. ' +
-      'Accepts any file. PDF, DOCX, XLSX, CSV and plain text are recognised from their bytes and keep their type; ' +
-      'anything else (a zip, a legacy .xls, a scan) is stored as application/octet-stream and served as an ' +
-      'attachment, so it can never render on this origin. ' +
+      'Accepts PDF, DOCX, XLSX, text, CSV, and photo scans (JPG, PNG, WebP, GIF, AVIF). ' +
+      'Executables, scripts, and unverified binaries are rejected for security. ' +
       'Re-uploading a file this user has already uploaded returns the existing record with `deduplicated: true`.',
   })
   @ApiResponse({ status: 201, type: UploadResponseDto })

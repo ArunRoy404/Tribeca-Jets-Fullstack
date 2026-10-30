@@ -507,7 +507,7 @@ export class ReceivablesService {
   private async findLive(user: AuthenticatedUser, id: string) {
     const row = await this.prisma.invoice.findFirst({
       where: { id, deletedAt: null, ...this.scope(user) },
-      select: { ...FIGURES_SELECT, reference: true, createdAt: true, clientId: true, issuedAt: true },
+      select: { ...FIGURES_SELECT, reference: true, createdAt: true, clientId: true, issuedAt: true, tripId: true },
     });
     if (!row) throw new NotFoundException('Invoice not found');
     return row;
@@ -518,6 +518,37 @@ export class ReceivablesService {
   async create(user: AuthenticatedUser, dto: CreateInvoiceInput) {
     const trip = await this.trips.billingTarget(user, dto.tripId);
     if (dto.clientId && dto.clientId !== trip.clientId) await this.assertClient(dto.clientId);
+
+    if (trip.totalPrice !== null) {
+      const existingInvoices = await this.prisma.invoice.findMany({
+        where: {
+          tripId: trip.id,
+          deletedAt: null,
+          status: { not: InvoiceStatus.CANCELLED },
+        },
+        select: { amount: true, fetAmount: true },
+      });
+
+      const alreadyInvoicedCents = existingInvoices.reduce(
+        (sum, inv) => sum + totalCents(inv),
+        0,
+      );
+      const newInvoiceCents = totalCents({
+        amount: dto.amount,
+        fetAmount: dto.fetAmount ?? 0,
+      });
+      const tripTotalCents = toCents(trip.totalPrice);
+
+      if (alreadyInvoicedCents + newInvoiceCents > tripTotalCents) {
+        const remainingCents = Math.max(0, tripTotalCents - alreadyInvoicedCents);
+        const attempted = fromCents(alreadyInvoicedCents + newInvoiceCents);
+        const tripTotal = fromCents(tripTotalCents);
+        const remaining = fromCents(remainingCents);
+        throw new BadRequestException({
+          amount: `Total invoiced for trip TJ-${trip.reference} would reach ${attempted.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}, exceeding the trip total of ${tripTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}. Maximum remaining amount to invoice is ${remaining.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}.`,
+        });
+      }
+    }
 
     const created = await this.prisma.invoice.create({
       data: {
@@ -577,6 +608,38 @@ export class ReceivablesService {
           ? 'This invoice has payments recorded against it. Withdraw them before cancelling it.'
           : 'This invoice has payments recorded against it, so it cannot go back to draft.',
       );
+    }
+
+    // Over-invoicing guard: if active and linked to a trip, verify total does not exceed trip total
+    if (status !== InvoiceStatus.CANCELLED && current.tripId) {
+      const trip = await this.trips.billingTarget(user, current.tripId);
+      if (trip.totalPrice !== null) {
+        const otherInvoices = await this.prisma.invoice.findMany({
+          where: {
+            tripId: current.tripId,
+            id: { not: id },
+            deletedAt: null,
+            status: { not: InvoiceStatus.CANCELLED },
+          },
+          select: { amount: true, fetAmount: true },
+        });
+
+        const otherInvoicedCents = otherInvoices.reduce(
+          (sum, inv) => sum + totalCents(inv),
+          0,
+        );
+        const tripTotalCents = toCents(trip.totalPrice);
+
+        if (otherInvoicedCents + total > tripTotalCents) {
+          const remainingCents = Math.max(0, tripTotalCents - otherInvoicedCents);
+          const attempted = fromCents(otherInvoicedCents + total);
+          const tripTotal = fromCents(tripTotalCents);
+          const remaining = fromCents(remainingCents);
+          throw new BadRequestException({
+            amount: `Total invoiced for trip TJ-${trip.reference} would reach ${attempted.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}, exceeding the trip total of ${tripTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}. Maximum remaining amount to invoice is ${remaining.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}.`,
+          });
+        }
+      }
     }
 
     // Sent means a day it was sent; a draft has none. A cancelled invoice keeps

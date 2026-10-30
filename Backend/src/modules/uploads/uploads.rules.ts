@@ -75,14 +75,46 @@ const DOCUMENT_EXTENSIONS = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
   'text/plain': '.txt',
   'text/csv': '.csv',
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+  'image/avif': '.avif',
 } as const;
+
+/** Executable and script extensions that must never be accepted. */
+export const BLOCKED_EXTENSIONS = new Set([
+  '.exe',
+  '.dll',
+  '.bat',
+  '.cmd',
+  '.sh',
+  '.ps1',
+  '.vbs',
+  '.vbe',
+  '.js',
+  '.jse',
+  '.wsf',
+  '.wsh',
+  '.msc',
+  '.msi',
+  '.msp',
+  '.com',
+  '.scr',
+  '.pif',
+  '.jar',
+  '.reg',
+  '.hta',
+  '.py',
+  '.rb',
+]);
 
 export const UPLOAD_KIND_RULES: Record<UploadKind, UploadKindRule> = {
   [UploadKind.IMAGE]: {
     folder: 'images',
     accept: Object.keys(IMAGE_EXTENSIONS),
     maxBytes: 15 * MB,
-    label: 'an image',
+    label: 'an image (JPG, PNG, WebP, GIF, AVIF)',
     extensions: IMAGE_EXTENSIONS,
     // An image is rendered inline, so it must be one the sniffer proved.
     acceptsAnyFile: false,
@@ -91,9 +123,9 @@ export const UPLOAD_KIND_RULES: Record<UploadKind, UploadKindRule> = {
     folder: 'documents',
     accept: Object.keys(DOCUMENT_EXTENSIONS),
     maxBytes: 25 * MB,
-    label: 'a document',
+    label: 'a document (PDF, Word, Excel, text, CSV, or photo: JPG, PNG, WebP, GIF, AVIF)',
     extensions: DOCUMENT_EXTENSIONS,
-    acceptsAnyFile: true,
+    acceptsAnyFile: false,
   },
 };
 

@@ -8,7 +8,7 @@ describe('tallyTrips', () => {
   it('sums revenue, FET and profit to the cent', () => {
     const tally = tallyTrips([trip(10_000, 8_000), trip(20_000.1, 15_000)]);
     // 10,000 + 750 FET, and 20,000.10 + 1,500.01 FET (7.5% of 20,000.10, to the cent).
-    expect(tally.revenue).toBe(32_250.11);
+    expect(tally.revenue).toBe(30_000.1);
     expect(tally.fet).toBe(2_250.01);
     expect(tally.tripCount).toBe(2);
     expect(tally.pricedCount).toBe(2);
@@ -18,7 +18,7 @@ describe('tallyTrips', () => {
     const tally = tallyTrips([trip(10_000, 8_000), trip(null)]);
     expect(tally.tripCount).toBe(2);
     expect(tally.pricedCount).toBe(1);
-    expect(tally.revenue).toBe(10_750);
+    expect(tally.revenue).toBe(10_000);
   });
 
   it('takes profit and margin only over trips whose operator cost is known', () => {

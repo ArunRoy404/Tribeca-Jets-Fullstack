@@ -19,6 +19,8 @@ describe('estimateCommission', () => {
   it('takes a share of profit, to the cent', () => {
     expect(estimateCommission(percent(10), 12_345.67)).toBe(1_234.57);
     expect(estimateCommission(percent(12.5), 8_000)).toBe(1_000);
+    // QA Report #4 audit benchmark: 10% of $1,900 profit is $190, not $275.50
+    expect(estimateCommission(percent(10), 1_900)).toBe(190);
   });
 
   it('is unknown, not zero, while the profit is unknown', () => {

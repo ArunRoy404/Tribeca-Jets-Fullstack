@@ -90,6 +90,7 @@ export function priceQuote(row: PricingInputs): PricedQuote {
     lineItems.reduce((sum, item) => sum + (item.amount ?? 0), 0),
   );
   const totalPrice = cents(basePrice + fetAmount + extrasTotal);
+  const charterRevenue = cents(basePrice + extrasTotal);
 
   /**
    * Null, not zero, when the operator's price is not in yet. A margin of "we
@@ -97,12 +98,12 @@ export function priceQuote(row: PricingInputs): PricedQuote {
    * would quote against.
    */
   const grossProfit =
-    operatorCost === null ? null : cents(totalPrice - operatorCost);
+    operatorCost === null ? null : cents(charterRevenue - operatorCost);
 
   const marginPercentage =
-    grossProfit === null || totalPrice === 0
+    grossProfit === null || charterRevenue === 0
       ? null
-      : Math.round((grossProfit / totalPrice) * 1000) / 10;
+      : Math.round((grossProfit / charterRevenue) * 1000) / 10;
 
   return {
     basePrice,

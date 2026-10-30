@@ -439,12 +439,21 @@ export class TripsService {
              * server figures rather than adding them up in the browser. Null
              * while the trip has no price.
              */
-            fullCharge: priced
-              ? {
-                  amount: fromCents(toCents(priced.basePrice) + toCents(priced.extrasTotal)),
-                  fetAmount: priced.fetAmount,
-                }
-              : null,
+            fullCharge: (() => {
+              if (!priced) return null;
+              const activeInvoices = invoices.filter((inv) => inv.status !== InvoiceStatus.CANCELLED);
+              const invoicedBaseCents = activeInvoices.reduce((sum, inv) => sum + toCents(inv.amount), 0);
+              const invoicedFetCents = activeInvoices.reduce((sum, inv) => sum + toCents(inv.fetAmount), 0);
+              const tripBaseCents = toCents(priced.basePrice) + toCents(priced.extrasTotal);
+              const tripFetCents = priced.fetAmount ? toCents(priced.fetAmount) : 0;
+              const remainingBaseCents = Math.max(0, tripBaseCents - invoicedBaseCents);
+              const remainingFetCents = Math.max(0, tripFetCents - invoicedFetCents);
+              if (remainingBaseCents === 0 && remainingFetCents === 0) return null;
+              return {
+                amount: fromCents(remainingBaseCents),
+                fetAmount: fromCents(remainingFetCents),
+              };
+            })(),
           }
         : undefined,
       /**
@@ -1516,11 +1525,39 @@ export class TripsService {
   async billingTarget(user: AuthenticatedUser, tripId: string) {
     const trip = await this.prisma.trip.findFirst({
       where: { id: tripId, ...this.visibilityScope(user) },
-      select: { id: true, reference: true, clientId: true, operatorId: true, deletedAt: true },
+      select: {
+        id: true,
+        reference: true,
+        clientId: true,
+        operatorId: true,
+        deletedAt: true,
+        basePrice: true,
+        fetEnabled: true,
+        fetRate: true,
+        lineItems: true,
+      },
     });
     if (!trip) throw new BadRequestException('That trip does not exist');
     if (trip.deletedAt) throw new BadRequestException(`TJ-${trip.reference} has been archived. Restore it first.`);
-    return trip;
+
+    const priced =
+      trip.basePrice === null
+        ? null
+        : priceQuote({
+            basePrice: trip.basePrice,
+            fetEnabled: trip.fetEnabled,
+            fetRate: trip.fetRate,
+            operatorCost: null,
+            lineItems: trip.lineItems,
+          });
+
+    return {
+      ...trip,
+      totalPrice: priced?.totalPrice ?? null,
+      basePrice: priced?.basePrice ?? null,
+      fetAmount: priced?.fetAmount ?? null,
+      extrasTotal: priced?.extrasTotal ?? null,
+    };
   }
 
   /**
