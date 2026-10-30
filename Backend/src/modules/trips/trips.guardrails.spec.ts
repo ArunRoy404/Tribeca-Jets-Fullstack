@@ -80,3 +80,4 @@ describe('Trip Confirmation and Lifecycle Guardrails (Batch 3)', () => {
     expect(() => checkConfirmation({ operatorId: 'op-1', departureDate: new Date(), passengerCount: 4 })).not.toThrow();
   });
 });
+
