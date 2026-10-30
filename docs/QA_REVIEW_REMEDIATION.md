@@ -239,3 +239,24 @@ We will execute in 4 discrete batches by concern, testing and verifying each bat
 * **Verification:**
   - Backend: Vitest suite (64 test files, 558/558 tests passed); `tsc --noEmit` passed with 0 errors; `oxlint --type-aware` passed with 0 errors.
   - Frontend: `npm run lint` passed with 0 errors across the entire repository.
+
+### Batch 2: Sales & CRM Pipeline Remediation (Completed: 30 Oct 2026)
+* **Issue #3 (Client Follow-up Scheduling UUID Fix):**
+  - Updated `Frontend/src/templates/ClientDetailPage.jsx`: changed `openFollowUpModal(client?.id || client)` to `openFollowUpModal(client)` so that the full client object is passed.
+  - Hardened both `Frontend/src/components/clients/ScheduleFollowUpDialog.jsx` and `Frontend/src/components/leads-agents/ScheduleFollowUpDialog.jsx` so that `clientId` / `leadId` cleanly resolves whether given a raw UUID string (`typeof client === "string" ? client : client?.id`) or an entity object, preventing `undefined` UUID routes on `PATCH /clients/:id/follow-up`.
+* **Issue #29 (Client Auto-Advance on Booking & Dynamic Header Stats):**
+  - Updated `Backend/src/modules/trips/trips.service.ts`: added `autoAdvanceClientOnBooking(tx, clientId, userId)` executed in transactions for both direct trip booking (`create`) and quote conversion (`bookFromQuote`). Automatically advances client from `status: LEAD` to `ACTIVE` and `leadStage` to `WON` while logging an audit activity entry.
+  - Updated `Frontend/src/components/clients/ClientStatsRow.jsx`: wired `useQuotes({ clientId, status: "SENT", limit: 1 })` to dynamically count active quotes (`meta.total`).
+  - Updated `Frontend/src/components/clients/ClientDetailHeader.jsx`: replaced hardcoded placeholder dashes with `<ClientStatsRow client={client} />`.
+* **Issue #33 (Settings Defaults Propagation into Creation Forms):**
+  - Updated `Frontend/src/components/clients/AddClientDialog.jsx`: injected `useSettings()` to populate default `leadStage` and auto-calculate `nextFollowUpAt` based on `followUpIntervalDays`.
+  - Updated `Frontend/src/components/quotes/AddQuoteDialog.jsx`: injected `useSettings()`, defaulting `fetEnabled` to `settings.applyFetByDefault`, `terms` to `settings.defaultQuoteTerms`, and calculating default `validUntil` based on `settings.quoteValidityHours`.
+* **Issue #27 & #24 (Operator Sourcing-to-Quote Autofill & Date Format Normalization):**
+  - Updated `Backend/src/common/dto/dates.ts`: enriched `calendarDate` Zod schema with `z.preprocess()` to cleanly strip ISO datetime components (`T00:00:00.000Z`) down to `YYYY-MM-DD` (`val.slice(0, 10)`), completely preventing 400 validation failures when dates are sent with timestamps.
+  - Updated `Frontend/src/components/operator-sourcing/QuoteCard.jsx`: added a "Build Client Quote" action button on approved operator quotes (`quote.rawStatus === "APPROVED"`).
+  - Updated `Frontend/src/components/operator-sourcing/SourcingRequestDetailSheet.jsx`: wired `handleBuildQuote(quote)` using `useQuotesStore.openAddQuoteModal(null, draft)` pre-populating operator ID, aircraft tail ID, operator cost (`quote.rawPrice`), and request route/dates/party size.
+  - Mounted `<AddQuoteDialog />` inside `Frontend/src/templates/OperatorSourcingPage.jsx`.
+  - Updated `Frontend/src/components/quotes/AddQuoteDialog.jsx`: normalized dates with `.slice(0, 10)` in payload submission and `toDateInput(editing.rawDepartureDate || editing.departureDate)` on edit initialization.
+* **Verification:**
+  - Backend: Vitest suite (64 test files, 558/558 tests passed); `tsc --noEmit` passed with 0 errors; `oxlint src/ test/` passed with 0 errors.
+  - Frontend: `npm run lint` passed with 0 errors across the entire codebase; `npm run build` compiled all 45 pages in production mode with 0 errors.

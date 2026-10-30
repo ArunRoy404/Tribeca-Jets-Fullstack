@@ -81,8 +81,8 @@ API's start). Import / Export (#31) comes after.
   - All reported issues verified against the codebase and cataloged in `docs/QA_REVIEW_REMEDIATION.md` with full architectural designs.
   - Remediation organized into 4 planned execution batches:
     1. **Batch 1:** Security & Financial Math (#4 FET profit deduction, #6 upload whitelist, #23 receivables ceiling, #5 auth cleanup) — ✅ COMPLETED 30 Oct 2026.
-    2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format) — 🟡 NEXT.
-    3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search).
+    2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format) — ✅ COMPLETED 30 Oct 2026.
+    3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search) — 🟡 NEXT.
     4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over).
 
 - **Offline / PWA (#35) — Deferred by decision (documented for future):** Removed from active project per owner instruction (29 Oct 2026). The full architecture, Service Worker caching strategies, manifest configuration, and offline manager specification are preserved in `docs/MODULE_FEATURE_STATUS.md` §35 for future reference if desired.
@@ -923,3 +923,21 @@ this says *what the owner decided*, which nothing else records.
 - **Verification:**
   - Backend: Vitest 64/64 test suites (558 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
   - Frontend: `npm run lint` 0 errors across the entire codebase.
+
+### 30 Oct 2026 — QA Audit Remediation: Batch 2 (Sales & CRM Pipeline Remediation)
+
+- **Issue #3 (Client Follow-up Scheduling UUID Fix):**
+  - Root cause: In `ClientDetailPage.jsx`, `client?.id || client` passed the string `client.id` into `openFollowUpModal`, but `ScheduleFollowUpDialog.jsx` previously expected an object and read `client.id`, resolving to `undefined` and hitting `PATCH /clients/undefined/follow-up`.
+  - Solution: In `ClientDetailPage.jsx`, passed `openFollowUpModal(client)`. In both `ScheduleFollowUpDialog.jsx` (Clients) and `ScheduleFollowUpDialog.jsx` (Leads & Agents), defensively resolved ID via `typeof client === "string" ? client : client?.id`.
+- **Issue #29 (Client Auto-Advance on Booking & Dynamic Header Stats):**
+  - Root cause: Booking a trip or converting a quote into a booked trip did not update the client from `LEAD` to `ACTIVE` / `WON`. In addition, `ClientDetailHeader.jsx` displayed placeholder dashes for active quotes and total trips.
+  - Solution: In `trips.service.ts`, added transactional `autoAdvanceClientOnBooking()` in both `create()` and `bookFromQuote()` advancing `status: LEAD -> ACTIVE` and `leadStage -> WON` with audit logging. Wired `useQuotes` in `ClientStatsRow.jsx` to dynamically count active quotes (`SENT` status), and replaced placeholder dashes in `ClientDetailHeader.jsx` with `<ClientStatsRow client={client} />`.
+- **Issue #33 (Settings Defaults Propagation into Creation Forms):**
+  - Root cause: Default quote validity hours, terms, FET settings, and client follow-up intervals in CRM Settings were not populating the creation dialogs.
+  - Solution: In `AddClientDialog.jsx`, injected `useSettings()` to populate default `leadStage` and auto-compute `nextFollowUpAt` from `followUpIntervalDays`. In `AddQuoteDialog.jsx`, injected `useSettings()`, defaulting `fetEnabled` to `settings.applyFetByDefault`, `terms` to `settings.defaultQuoteTerms`, and calculating default `validUntil` from `settings.quoteValidityHours`.
+- **Issue #27 & #24 (Operator Sourcing-to-Quote Autofill & Date Normalization):**
+  - Root cause: Operator quotes lacked an action to build a client quote. In addition, ISO datetime strings (`YYYY-MM-DDTHH:mm:ss.sssZ`) caused `calendarDate` schema validation to fail on quotes and editing quotes.
+  - Solution: In `Backend/src/common/dto/dates.ts`, enriched `calendarDate` Zod schema with `z.preprocess()` to cleanly strip ISO datetime components down to `YYYY-MM-DD` (`val.slice(0, 10)`). Added "Build Client Quote" action on approved quotes in `QuoteCard.jsx`, wired `handleBuildQuote()` in `SourcingRequestDetailSheet.jsx` to prefill `useQuotesStore.openAddQuoteModal(null, draft)` with operator, aircraft tail, cost, and request route/dates/party size. Mounted `<AddQuoteDialog />` in `OperatorSourcingPage.jsx`. Normalized edit dates via `toDateInput` in `AddQuoteDialog.jsx`.
+- **Verification:**
+  - Backend: Vitest 64/64 test suites (558 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
+  - Frontend: `npm run lint` 0 errors; `npm run build` compiled all 45 routes with 0 errors.
