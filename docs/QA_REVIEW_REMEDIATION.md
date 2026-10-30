@@ -210,3 +210,32 @@ We will execute in 4 discrete batches by concern, testing and verifying each bat
 2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format).
 3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search).
 4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over).
+
+
+
+---
+
+## 5. Execution & Verification Log
+
+### Batch 1: Security & Financial Math Integrity (Completed: 30 Oct 2026)
+* **Issue #4 (FET Profit Math):**
+  - Updated `quotes.pricing.ts` and `trips.figures.ts` so `grossProfit = charterRevenue - operatorCost` where `charterRevenue = basePrice + extrasTotal`, and `marginPercentage = Math.round((grossProfit / charterRevenue) * 1000) / 10`.
+  - Pinned by benchmark assertions in `quotes.pricing.spec.ts`, `trips.figures.spec.ts`, and `commissions.amounts.spec.ts` ($11,400 charter with $9,500 cost + 7.5% FET yields $855 FET, $12,255 total, $1,900 gross profit, 16.7% margin, and 10% commission is $190.00).
+* **Issue #6 (Uploads & Document Vault Strict Whitelist):**
+  - Updated `uploads.rules.ts`: Set `acceptsAnyFile: false` on `UploadKind.DOCUMENT`. Added photo formats (`.jpg`, `.png`, `.webp`, `.gif`, `.avif`) to `DOCUMENT_EXTENSIONS` so ID scans and passport photos are recognized, while executables, scripts, and opaque binaries return `null` and are rejected.
+  - Added `BLOCKED_EXTENSIONS` set covering `.exe`, `.dll`, `.bat`, `.cmd`, `.sh`, `.ps1`, `.vbs`, `.js`, etc.
+  - Updated `UploadsService.resolveContentType()`: Rejects blocked script/executable extensions and enforces that text files carry a `.txt` extension.
+  - Updated OpenAPI annotations in `uploads.controller.ts`.
+  - Pinned by `uploads.rules.spec.ts` (9/9 pass) and `uploads.access.spec.ts` (14/14 pass).
+* **Issue #23 (Receivables Trip Over-Invoicing Guard):**
+  - Updated `trips.service.ts`: `billingTarget()` attaches priced totals (`totalPrice`, `basePrice`, `fetAmount`, `extrasTotal`).
+  - Updated `trips.service.ts`: `fullCharge` in `clientPayment` calculates the exact remaining unbilled balance (`remainingBaseCents`, `remainingFetCents`), returning `null` if the trip is fully invoiced.
+  - Updated `receivables.service.ts`: `create()` and `update()` calculate non-cancelled invoices against the trip total. If an invoice would cause total billing to exceed `trip.totalPrice`, a clear `BadRequestException` is thrown specifying attempted total, trip total, and maximum remaining invoiceable balance.
+  - Updated `AddReceivableDialog.jsx`: Displays "Trip fully invoiced" when fully billed; button dynamically toggles between "Bill the full trip" (if unbilled) and "Bill remaining balance" (if partially billed).
+  - Pinned by `receivables.amounts.spec.ts` (25/25 pass) and full trip/receivable suite (48/48 pass).
+* **Issue #5 (Auth Browser Storage Cleanup):**
+  - Added `purgeLegacyStorage()` in `Frontend/src/lib/session.js` to scan and remove any legacy prototype keys (`tjcc_*`, `broker_accounts`, `mock_*`, `prototype_*`) from `window.localStorage`.
+  - Invoked `purgeLegacyStorage()` on client app initialization in `Frontend/src/providers/QueryProvider.jsx` and on sign-out in `clearSession()`.
+* **Verification:**
+  - Backend: Vitest suite (64 test files, 558/558 tests passed); `tsc --noEmit` passed with 0 errors; `oxlint --type-aware` passed with 0 errors.
+  - Frontend: `npm run lint` passed with 0 errors across the entire repository.

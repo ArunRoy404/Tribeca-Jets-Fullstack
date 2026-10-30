@@ -80,8 +80,8 @@ API's start). Import / Export (#31) comes after.
   - Audited `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf` (QA Test Report v2.0).
   - All reported issues verified against the codebase and cataloged in `docs/QA_REVIEW_REMEDIATION.md` with full architectural designs.
   - Remediation organized into 4 planned execution batches:
-    1. **Batch 1:** Security & Financial Math (#4 FET profit deduction, #6 upload whitelist, #23 receivables ceiling, #5 auth cleanup).
-    2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format).
+    1. **Batch 1:** Security & Financial Math (#4 FET profit deduction, #6 upload whitelist, #23 receivables ceiling, #5 auth cleanup) — ✅ COMPLETED 30 Oct 2026.
+    2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format) — 🟡 NEXT.
     3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search).
     4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over).
 
@@ -901,3 +901,25 @@ this says *what the owner decided*, which nothing else records.
   - Frontend Lint: 0 errors, 0 warnings (`eslint`).
   - Frontend Next.js Build: Successfully compiled all 45 routes with Turbopack (`npm run build`).
 
+
+
+### 30 Oct 2026 — QA Audit Remediation: Batch 1 (Security & Financial Math Integrity)
+
+- **Issue #4 (FET Profit Math Deduction across Quotes, Trips, Commissions, Reports, Dashboard):**
+  - Root cause: FET was included in the revenue calculation for gross profit and margin calculations. Because FET is a government excise tax passed through to the IRS, it is not charter brokerage revenue.
+  - Solution: In `Backend/src/modules/quotes/quotes.pricing.ts` and `trips.figures.ts`, defined `charterRevenue = cents(basePrice + extrasTotal)` and calculated `grossProfit = charterRevenue - operatorCost` and `marginPercentage = Math.round((grossProfit / charterRevenue) * 1000) / 10`.
+  - Pinned by benchmark assertions in `quotes.pricing.spec.ts`, `trips.figures.spec.ts`, and `commissions.amounts.spec.ts`.
+- **Issue #6 (Uploads & Document Vault Strict Whitelist & Malware Protection):**
+  - Root cause: `UploadKind.DOCUMENT` previously had `acceptsAnyFile: true`, storing unrecognized files (including `.exe` and scripts) as `application/octet-stream`.
+  - Solution: In `uploads.rules.ts`, set `acceptsAnyFile: false` on documents, added photo MIME types (`.jpg`, `.png`, `.webp`, `.gif`, `.avif`) to `DOCUMENT_EXTENSIONS` for passport/ID scans, and added `BLOCKED_EXTENSIONS` (`.exe`, `.dll`, `.bat`, `.cmd`, `.sh`, `.ps1`, etc.). In `UploadsService.resolveContentType()`, blocked dangerous extensions and enforced `.txt` for plain text.
+  - Pinned by `uploads.rules.spec.ts` (9 tests) and `uploads.access.spec.ts` (14 tests).
+- **Issue #23 (Receivables Trip Over-Invoicing Guard & Remaining Balance Autofill):**
+  - Root cause: Neither `create()` nor `update()` in `ReceivablesService` prevented invoices from exceeding `trip.totalPrice`. Furthermore, "Bill the full trip" blindly copied original trip totals instead of remaining unbilled balance.
+  - Solution: In `trips.service.ts`, `billingTarget()` attaches priced quote figures (`totalPrice`, `basePrice`, `fetAmount`, `extrasTotal`), and `fullCharge` computes remaining unbilled balance (`remainingBaseCents`, `remainingFetCents`), returning `null` if fully invoiced. In `receivables.service.ts`, `create()` and `update()` block over-invoicing with `BadRequestException` detailing attempted total, trip total, and remaining limit. Updated `AddReceivableDialog.jsx` to dynamically label "Bill remaining balance" and display "Trip fully invoiced".
+  - Pinned by `receivables.amounts.spec.ts` (25 tests).
+- **Issue #5 (Auth Storage Cleanup):**
+  - Added `purgeLegacyStorage()` in `Frontend/src/lib/session.js` to purge legacy keys (`tjcc_*`, `broker_accounts`, `mock_*`, `prototype_*`) from `localStorage`.
+  - Called `purgeLegacyStorage()` on client app boot in `QueryProvider.jsx` and on sign-out in `clearSession()`.
+- **Verification:**
+  - Backend: Vitest 64/64 test suites (558 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
+  - Frontend: `npm run lint` 0 errors across the entire codebase.
