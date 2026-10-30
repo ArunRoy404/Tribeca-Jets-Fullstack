@@ -282,3 +282,28 @@ We will execute in 4 discrete batches by concern, testing and verifying each bat
 * **Verification:**
   - Backend: Vitest suite (65 test files, 563/563 tests passed 100% green); `tsc --noEmit` passed with 0 errors; `oxlint src/ test/` passed with 0 errors.
   - Frontend: `npm run lint` passed with 0 errors across the entire codebase; `npm run build` compiled all 45 routes with 0 errors.
+
+### Batch 4: Polish & Edge Validations (Completed: 30 Oct 2026)
+* **Issues #7 & #15 (Credit Ledger Overdraw Guard & Client Activity Timeline):**
+  - Updated `Backend/src/modules/client-credits/client-credits.service.ts`: In `remove()`, when withdrawing a `CREDIT` entry, computes the net remaining balance excluding this entry via `balanceCentsFor(target.clientId, id)`. If the balance drops below zero (`< 0`), throws `BadRequestException` detailing the exact amount already applied towards trips or invoices and the resulting deficit, permanently preventing balance overdraws.
+  - Updated `Backend/src/modules/notes/notes.service.ts`: For `NoteSubjectType.CLIENT`, expanded `eventWhere` query to merge `ClientCredit` and `Trip` audit records referencing the client via JSON `path: ['clientId']`.
+  - Updated `Frontend/src/lib/timeline.js`: Added humanised event phrases and structured display for credit ledger events (`client_credit.created`, `updated`, `removed`, `restored`, and `client.auto_advanced_on_booking`), rendering exact applied and credited dollar amounts.
+* **Issue #12 & #13 (Lead Route Airport Block & Canonical Funnel Stages):**
+  - Updated `Frontend/src/components/clients/AddClientDialog.jsx`: In `handleSubmit`, added client-side validation rejecting identical departure and arrival preferred route airports with `toastError`.
+  - Updated `Frontend/src/lib/client.js`: Aligned `STAGE_LABELS` with canonical `LeadStage` Prisma enum (`NEW`, `CONTACTED`, `QUALIFIED`, `PROPOSAL`, `QUOTED`, `WON`, `LOST`), eliminating legacy `NEGOTIATING` / `BOOKED` labels.
+* **Issue #16 & #34 (Active Agents Directory & Broker Roles Scope):**
+  - Updated `Backend/src/modules/clients/clients.service.ts` (`brokerPerformance`): Filtered staff directory query strictly to `status: UserStatus.ACTIVE` and included `SUPER_ADMIN`, ensuring only active desk agents are counted and reported.
+  - Updated `Frontend/src/lib/roles.js`: Expanded `BROKER_ROLES` set to `["BROKER", "ADMIN", "SUPER_ADMIN"]`, ensuring administrators and owners managing charter deals are cleanly recognized in all table toolbars, filters, and assignment selectors across the system.
+* **Issue #17 (User Invite Phone & Aircraft Weight/Year Guards):**
+  - Updated `Backend/src/modules/users/dto/user.dto.ts`: Added strict `phoneSchema` regex validation (`^(\+?[0-9\s().-]{7,40})?$`) to both `inviteUserSchema` and `updateUserSchema`.
+  - Updated `Frontend/src/components/users-roles/UserForm.jsx`: Added client-side phone format validation.
+  - Updated `Backend/src/modules/aircraft/dto/aircraft.dto.ts`: Set `yearBuilt` maximum bound to `new Date().getFullYear()` to block future build years; added `.refine()` on `createAircraftSchema` and `updateAircraftSchema` enforcing `emptyWeightLb < maxTakeoffWeightLb`.
+  - Updated `Backend/src/modules/aircraft/aircraft.service.ts` (`update`): Enforced that partial updates never leave an airframe with empty weight exceeding or equal to max takeoff weight.
+  - Added `Backend/src/modules/aircraft/aircraft.guardrails.spec.ts` pinning weight inequality, future build year rejection, and user phone validations (7 tests).
+* **Issue #37 & #38 (Email Template Monetary Formatting & Instant Estimate Carry-Over):**
+  - Updated `Backend/src/modules/email-templates/email.fields.ts`: Added `base_price`, `deposit_amount`, and `balance_due` merge keys to catalog.
+  - Updated `Backend/src/modules/email-templates/emails.service.ts`: Populated monetary merge fields with `formatMoney()` (`$12,255.00`) across quote and trip contexts, guaranteeing humanized currency presentation with 2 decimals.
+  - Updated `Frontend/src/components/quotes/estimate/InstantEstimateDialog.jsx`: Extended `startQuote` to pass selected aircraft category, pre-filled aircraft label, chosen or estimated price, and operator cost into quote draft creation.
+* **Verification:**
+  - Backend: Vitest suite (66 test files, 570/570 tests passed 100% green); `tsc --noEmit` passed with 0 errors; `oxlint src/ test/` passed with 0 errors.
+  - Frontend: `npm run lint` passed with 0 errors across the entire codebase; `npm run build` compiled all 45 routes with 0 errors.

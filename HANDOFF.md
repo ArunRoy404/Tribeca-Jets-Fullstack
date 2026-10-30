@@ -83,7 +83,9 @@ API's start). Import / Export (#31) comes after.
     1. **Batch 1:** Security & Financial Math (#4 FET profit deduction, #6 upload whitelist, #23 receivables ceiling, #5 auth cleanup) — ✅ COMPLETED 30 Oct 2026.
     2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format) — ✅ COMPLETED 30 Oct 2026.
     3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search) — ✅ COMPLETED 30 Oct 2026.
-    4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over) — 🟡 NEXT.
+    4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over) — ✅ COMPLETED 30 Oct 2026.
+
+- **ALL 26 QA AUDIT ISSUES REMEDIATED & PINNED:** Every issue from `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf` has been audited, designed, implemented, tested, and pinned across all 4 execution batches. Vitest passes 100% (66 test suites, 570 tests), `tsc --noEmit` has 0 errors, `oxlint` has 0 errors, `npm run lint` has 0 errors, and Next.js `npm run build` compiles all 45 routes with 0 errors. Ready for owner acceptance testing.
 
 - **Offline / PWA (#35) — Deferred by decision (documented for future):** Removed from active project per owner instruction (29 Oct 2026). The full architecture, Service Worker caching strategies, manifest configuration, and offline manager specification are preserved in `docs/MODULE_FEATURE_STATUS.md` §35 for future reference if desired.
 
@@ -958,4 +960,25 @@ this says *what the owner decided*, which nothing else records.
   - Solution: In `trip-requests.service.ts`, wired `referenceFromSearch(query.search, 'TR')` into the search query `OR` array. Added `Backend/src/modules/trips/trips.guardrails.spec.ts` pinning reference parsing, itinerary schemas, and lifecycle guards (5 tests).
 - **Verification:**
   - Backend: Vitest 65/65 test suites (563 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
+  - Frontend: `npm run lint` 0 errors; `npm run build` compiled all 45 routes with 0 errors.
+
+### 30 Oct 2026 — QA Audit Remediation: Batch 4 (Polish & Edge Validations)
+
+- **Issues #7 & #15 (Credit Ledger Overdraw Guard & Client Activity Timeline):**
+  - Root cause: Removing a credit from `client_credits` did not verify if the balance would drop below zero, allowing a credit to be withdrawn even if it had already been spent on trips or invoices. Additionally, credit movements were not surfacing on the client's timeline.
+  - Solution: In `client-credits.service.ts` (`remove`), checked remaining balance excluding target entry via `balanceCentsFor(target.clientId, id)`. If `balanceWithoutThisEntry < 0`, threw a detailed `BadRequestException` naming the amount and deficit. In `notes.service.ts` (`timeline`), expanded `eventWhere` for client subjects to merge audit logs for `ClientCredit` and `Trip` entries via JSON `path: ['clientId']`. In `timeline.js`, mapped credit ledger and client advance events with formatted currency amounts.
+- **Issue #12 & #13 (Lead Route Airport Block & Canonical Funnel Stages):**
+  - Root cause: `AddClientDialog.jsx` allowed identical origin and destination preferred route airports, and `client.js` still listed legacy lead stages (`NEGOTIATING` / `BOOKED`) out of sync with `LeadStage` Prisma enum.
+  - Solution: Added client-side `toastError` validation in `AddClientDialog.jsx` blocking identical preferred route airports. Synchronized `STAGE_LABELS` in `Frontend/src/lib/client.js` to canonical stages (`NEW`, `CONTACTED`, `QUALIFIED`, `PROPOSAL`, `QUOTED`, `WON`, `LOST`).
+- **Issue #16 & #34 (Active Agents Directory & Broker Roles Scope):**
+  - Root cause: `brokerPerformance` in `clients.service.ts` did not check `status: UserStatus.ACTIVE` and excluded `SUPER_ADMIN`, counting inactive accounts. In `Frontend/src/lib/roles.js`, `BROKER_ROLES` only contained `BROKER`, causing administrators and owners managing charter deals to be excluded from broker pickers and table filters.
+  - Solution: Added `status: UserStatus.ACTIVE` and `UserRole.SUPER_ADMIN` to `brokerPerformance` query in `clients.service.ts`. Updated `BROKER_ROLES = new Set(["BROKER", "ADMIN", "SUPER_ADMIN"])` in `roles.js`.
+- **Issue #17 (User Invite Phone & Aircraft Weight/Year Guards):**
+  - Root cause: User invitation schema accepted invalid non-phone strings. Aircraft schemas allowed future `yearBuilt` and did not ensure `emptyWeightLb < maxTakeoffWeightLb`.
+  - Solution: Added regex phone validation to `inviteUserSchema` and `updateUserSchema` in `user.dto.ts` and to `UserForm.jsx`. Bound `yearBuilt` maximum to current year, added `.refine()` on aircraft schemas and service enforcing `emptyWeightLb < maxTakeoffWeightLb`. Added `aircraft.guardrails.spec.ts` pinning 7 validation scenarios.
+- **Issue #37 & #38 (Email Template Monetary Formatting & Instant Estimate Carry-Over):**
+  - Root cause: Template merge fields lacked explicit money formatting on financial fields, and Instant Estimate did not carry over selected aircraft category, prefilled aircraft label, or estimated cost into quote creation.
+  - Solution: Added `base_price`, `deposit_amount`, and `balance_due` merge keys to `email.fields.ts` and formatted all monetary tags via `formatMoney()` in `emails.service.ts`. Updated `startQuote` in `InstantEstimateDialog.jsx` to pass category, formatted category aircraft label, price, and operator cost to `openAddQuoteModal`.
+- **Verification:**
+  - Backend: Vitest 66/66 test suites (570 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
   - Frontend: `npm run lint` 0 errors; `npm run build` compiled all 45 routes with 0 errors.
