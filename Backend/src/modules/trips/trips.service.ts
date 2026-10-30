@@ -33,7 +33,7 @@ import {
 } from '../../common/authorization/access.catalogue.js';
 import { canDo, reachOf } from '../../common/authorization/access.js';
 import { isAdministrator } from '../../common/authorization/permissions.js';
-import { FlightStatus, InvoiceStatus, TripStatus, TripType } from '../../generated/prisma/enums.js';
+import { ClientStatus, FlightStatus, InvoiceStatus, LeadStage, TripStatus, TripType } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
 import { tallyTrips, tripFigures } from './trips.figures.js';
@@ -389,6 +389,32 @@ export class TripsService {
       throw new ForbiddenException(
         'Only an administrator can archive a trip. Cancel it instead.',
       );
+    }
+  }
+
+  private async autoAdvanceClientOnBooking(
+    tx: Prisma.TransactionClient,
+    clientId: string,
+    userId: string,
+  ): Promise<void> {
+    const client = await tx.client.findUnique({
+      where: { id: clientId },
+      select: { status: true, leadStage: true },
+    });
+    if (!client) return;
+
+    const nextStatus = client.status === ClientStatus.LEAD ? ClientStatus.ACTIVE : client.status;
+    const nextStage = LeadStage.WON;
+
+    if (nextStatus !== client.status || client.leadStage !== nextStage) {
+      await tx.client.update({
+        where: { id: clientId },
+        data: {
+          status: nextStatus,
+          leadStage: nextStage,
+          updatedById: userId,
+        },
+      });
     }
   }
 
@@ -829,6 +855,7 @@ export class TripsService {
       });
       await this.writeLegs(tx, user, created.id, dto.legs, []);
       await this.writePassengers(tx, user, created.id, dto.passengers, []);
+      await this.autoAdvanceClientOnBooking(tx, dto.clientId, user.id);
       return created;
     });
 
@@ -906,6 +933,7 @@ export class TripsService {
         select: { id: true, reference: true },
       });
       await this.writeLegs(tx, user, created.id, legs, []);
+      await this.autoAdvanceClientOnBooking(tx, quote.clientId, user.id);
       return created;
     });
 

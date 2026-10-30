@@ -16,8 +16,8 @@ import { z } from 'zod';
  * Use this for a day the user names. For an instant the system records —
  * `requestedAt`, `respondedAt` — use a real timestamp, not this.
  */
-export const calendarDate = z.iso
-  .date('Use a YYYY-MM-DD date')
+export const calendarDate = z.preprocess((val) => (typeof val === 'string' && val.includes('T') ? val.slice(0, 10) : val), z.iso.date('Use a YYYY-MM-DD date'))
+
   .meta({ type: 'string', format: 'date', example: '2026-11-14' })
   .transform((value) => new Date(`${value}T00:00:00.000Z`));
 
