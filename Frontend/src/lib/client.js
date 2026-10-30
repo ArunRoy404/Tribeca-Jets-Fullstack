@@ -23,9 +23,10 @@ const TYPE_LABELS = {
 const STAGE_LABELS = {
   NEW: "New",
   CONTACTED: "Contacted",
+  QUALIFIED: "Qualified",
+  PROPOSAL: "Proposal",
   QUOTED: "Quoted",
-  NEGOTIATING: "Negotiating",
-  BOOKED: "Booked",
+  WON: "Won",
   LOST: "Lost",
 };
 

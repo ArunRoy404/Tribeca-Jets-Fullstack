@@ -188,6 +188,10 @@ export default function UserForm({ editingUser = null }) {
     e?.preventDefault();
 
     const termErrors = isAgent ? commissionTermsErrors(form) : {};
+    if (form.phone && !/^\+?[0-9\s().-]{7,40}$/.test(form.phone.trim())) {
+      setLocalErrors({ ...termErrors, phone: "Please enter a valid phone number (at least 7 digits)." });
+      return;
+    }
     setLocalErrors(termErrors);
     if (Object.keys(termErrors).length) return;
 

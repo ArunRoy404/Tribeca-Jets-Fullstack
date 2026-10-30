@@ -24,6 +24,7 @@ import {
   formatLeadStage,
 } from "@/lib/client";
 import { optionalText } from "@/lib/form";
+import { toastError } from "@/lib/toast";
 import { Action, Module } from "@/lib/access";
 
 function FieldWrapper({ label, children, optional }) {
@@ -217,6 +218,15 @@ function ClientForm({ editingClient, settings, onDone }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (
+      form.routeFrom &&
+      form.routeTo &&
+      form.routeFrom.trim().toUpperCase() === form.routeTo.trim().toUpperCase()
+    ) {
+      toastError("Invalid preferred route", "Origin and destination airports cannot be the same.");
+      return;
+    }
 
     const preferredAirports = form.preferredAirports
       .split(",")

@@ -74,6 +74,11 @@ const EVENT_PHRASES = {
   "document.replaced": "replaced the file of a document",
   "document.archived": "archived a document",
   "document.restored": "restored a document",
+  "client_credit.created": "added credit to this account",
+  "client_credit.updated": "updated credit on this account",
+  "client_credit.removed": "withdrew credit from this account",
+  "client_credit.restored": "restored credit to this account",
+  "client.auto_advanced_on_booking": "auto-advanced client to active on trip booking",
 };
 
 const FLIGHT_STATUS_WORDS = {
@@ -127,6 +132,12 @@ function humanise(action) {
  */
 export function describeEvent(entry) {
   const phrase = EVENT_PHRASES[entry?.action] ?? humanise(entry?.action);
+
+  if (entry?.action?.startsWith("client_credit.") && entry?.metadata?.amount) {
+    const formattedAmount = "$" + Number(entry.metadata.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const typeLabel = entry.metadata.type === "APPLICATION" ? "applied" : "credit";
+    return `${phrase} (${typeLabel} ${formattedAmount})`;
+  }
 
   const status = entry?.metadata?.changes?.status;
   if (status?.to) {

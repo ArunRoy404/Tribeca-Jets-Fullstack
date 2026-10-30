@@ -107,11 +107,15 @@ export default function InstantEstimateDialog({ mayStartQuote = true }) {
   };
 
   const startQuote = () => {
+    const effectiveBasePrice =
+      basePrice || (chosen?.estimate?.estimatedCost ? String(chosen.estimate.estimatedCost) : "");
     openAddQuoteModal?.(null, {
       originAirportId,
       destinationAirportId,
       ...(party !== undefined ? { passengers: String(party) } : {}),
-      ...(basePrice ? { basePrice } : {}),
+      ...(selected ? { quotedAircraft: formatAircraftCategory(selected) } : {}),
+      ...(effectiveBasePrice ? { basePrice: effectiveBasePrice } : {}),
+      ...(chosen?.estimate?.estimatedCost ? { operatorCost: String(chosen.estimate.estimatedCost) } : {}),
     });
     handleClose();
   };
