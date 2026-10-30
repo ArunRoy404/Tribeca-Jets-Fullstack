@@ -418,9 +418,17 @@ export class AircraftService {
         status: true,
         operatorId: true,
         homeBaseId: true,
+        emptyWeightLb: true,
+        maxTakeoffWeightLb: true,
       },
     });
     if (!target) throw new NotFoundException('Aircraft not found');
+
+    const emptyWeight = dto.emptyWeightLb !== undefined ? dto.emptyWeightLb : target.emptyWeightLb;
+    const maxWeight = dto.maxTakeoffWeightLb !== undefined ? dto.maxTakeoffWeightLb : target.maxTakeoffWeightLb;
+    if (emptyWeight && maxWeight && emptyWeight >= maxWeight) {
+      throw new BadRequestException('Empty weight must be strictly less than maximum takeoff weight');
+    }
 
     if (dto.tailNumber && dto.tailNumber !== target.tailNumber) {
       await this.assertTailAvailable(dto.tailNumber);

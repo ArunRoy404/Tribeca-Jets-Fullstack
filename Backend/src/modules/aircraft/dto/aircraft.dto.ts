@@ -39,7 +39,7 @@ export const AIRCRAFT_SORTABLE_FIELDS = [
  */
 const PASSENGERS = { min: 1, max: 200, int: true };
 const RANGE_NM = { min: 1, max: 20_000, int: true };
-const YEAR = { min: 1950, max: 2100, int: true };
+const YEAR = { min: 1950, max: new Date().getFullYear(), int: true };
 const CEILING_FT = { min: 0, max: 100_000, int: true };
 const BAGGAGE_CU_FT = { min: 0, max: 5_000, int: true };
 const CABIN_LENGTH_FT = { min: 0, max: 300 };
@@ -183,7 +183,18 @@ export const createAircraftSchema = z.object({
   /** Relative `/api/uploads/<id>` URLs from the uploads surface — see `uploadUrl`. */
   exteriorImageUrl: uploadUrl.optional(),
   interiorImageUrl: uploadUrl.optional(),
-});
+}).refine(
+  (data) => {
+    if (data.emptyWeightLb && data.maxTakeoffWeightLb) {
+      return data.emptyWeightLb < data.maxTakeoffWeightLb;
+    }
+    return true;
+  },
+  {
+    message: 'Empty weight must be strictly less than maximum takeoff weight',
+    path: ['emptyWeightLb'],
+  },
+);
 
 export type CreateAircraftInput = z.infer<typeof createAircraftSchema>;
 export class CreateAircraftDto extends createZodDto(createAircraftSchema) {}
@@ -235,7 +246,19 @@ export const updateAircraftSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Provide at least one field to update',
-  });
+  })
+  .refine(
+    (data) => {
+      if (data.emptyWeightLb && data.maxTakeoffWeightLb) {
+        return data.emptyWeightLb < data.maxTakeoffWeightLb;
+      }
+      return true;
+    },
+    {
+      message: 'Empty weight must be strictly less than maximum takeoff weight',
+      path: ['emptyWeightLb'],
+    },
+  );
 
 export type UpdateAircraftInput = z.infer<typeof updateAircraftSchema>;
 export class UpdateAircraftDto extends createZodDto(updateAircraftSchema) {}

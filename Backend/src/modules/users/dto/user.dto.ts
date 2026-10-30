@@ -90,12 +90,18 @@ export class QueryUsersDto extends createZodDto(queryUsersSchema) {}
  * knows it and it sits in an inbox, so the email tells the invitee to change
  * it from My Account.
  */
+const phoneSchema = z
+  .string()
+  .trim()
+  .max(40)
+  .regex(/^(\+?[0-9\s().-]{7,40})?$/, 'Please provide a valid phone number');
+
 export const inviteUserSchema = z.object({
   email: z.email().toLowerCase().trim(),
   password: passwordSchema,
   firstName: z.string().trim().min(1, 'First name is required').max(100),
   lastName: z.string().trim().min(1, 'Last name is required').max(100),
-  phone: z.string().trim().max(40).optional(),
+  phone: phoneSchema.optional(),
   role: assignableRoleSchema.default(UserRole.BROKER),
   /**
    * Omit for the role's defaults. Sending it needs Users & Roles · Change
@@ -129,7 +135,7 @@ export const updateUserSchema = z
   .object({
     firstName: z.string().trim().min(1).max(100).optional(),
     lastName: z.string().trim().min(1).max(100).optional(),
-    phone: z.string().trim().max(40).nullable().optional(),
+    phone: phoneSchema.nullable().optional(),
     /**
      * Changing the role without `permissions` resets them to the new role's
      * defaults: the old role's ticks may include what the new one can never

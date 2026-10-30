@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
-import { TripStatus, FlightStatus } from '../../generated/prisma/enums.js';
+import { TripStatus } from '../../generated/prisma/enums.js';
 import { referenceFromSearch } from '../../common/database/document-number.js';
 import { createItinerarySchema } from '../itineraries/dto/itinerary.dto.js';
 import { todayUtc } from '../../common/money/settlement.js';

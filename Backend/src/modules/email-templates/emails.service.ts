@@ -208,6 +208,10 @@ export class EmailsService {
       values.aircraft = trip.aircraft?.model ?? trip.aircraftDescription ?? null;
       values.tail_number = trip.aircraft?.tailNumber ?? null;
       values.passenger_count = trip.passengerCount ? String(trip.passengerCount) : null;
+      if (!values.total_price && (trip as any).totalPrice != null) values.total_price = formatMoney((trip as any).totalPrice);
+      if (!values.base_price && (trip as any).basePrice != null) values.base_price = formatMoney((trip as any).basePrice);
+      if (!values.deposit_amount && (trip as any).depositAmount != null) values.deposit_amount = formatMoney((trip as any).depositAmount);
+      if (!values.balance_due && (trip as any).clientBilling?.balance != null) values.balance_due = formatMoney((trip as any).clientBilling.balance);
     }
 
     if (input.quoteId) {
@@ -217,6 +221,14 @@ export class EmailsService {
       if (quote.clientId !== recipient.id) this.notTheirs('quote', recipient);
       values.quote_id = `Q-${quote.reference}`;
       values.total_price = formatMoney(quote.totalPrice);
+      values.base_price = formatMoney((quote as any).basePrice);
+      values.deposit_amount = formatMoney((quote as any).depositAmount);
+      values.balance_due = formatMoney(
+        (quote as any).balanceDue ??
+          (quote.totalPrice != null && (quote as any).depositAmount != null
+            ? quote.totalPrice - (quote as any).depositAmount
+            : null)
+      );
       values.fet_amount = formatMoney(quote.fetAmount);
       values.quote_valid_until = formatDay(quote.validUntil);
       // The offer's own route, date and aircraft stand in only while no trip

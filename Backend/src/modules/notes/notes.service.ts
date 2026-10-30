@@ -20,7 +20,7 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import { NoteVisibility, type NoteSubjectType } from '../../generated/prisma/enums.js';
+import { NoteVisibility, NoteSubjectType } from '../../generated/prisma/enums.js';
 import { isPartner } from '../../common/authorization/permissions.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import {
@@ -217,10 +217,34 @@ export class NotesService {
       deletedAt: null,
       ...(partner ? { visibility: NoteVisibility.SHARED } : {}),
     };
-    const eventWhere: Prisma.AuditLogWhereInput = {
-      entityType: subjectDefinition(query.subjectType).entityType,
-      entityId: subject.id,
-    };
+    const eventWhere: Prisma.AuditLogWhereInput =
+      query.subjectType === NoteSubjectType.CLIENT
+        ? {
+            OR: [
+              {
+                entityType: subjectDefinition(query.subjectType).entityType,
+                entityId: subject.id,
+              },
+              {
+                entityType: 'ClientCredit',
+                metadata: {
+                  path: ['clientId'],
+                  equals: subject.id,
+                },
+              },
+              {
+                entityType: 'Trip',
+                metadata: {
+                  path: ['clientId'],
+                  equals: subject.id,
+                },
+              },
+            ],
+          }
+        : {
+            entityType: subjectDefinition(query.subjectType).entityType,
+            entityId: subject.id,
+          };
 
     // `Promise.all` rather than `$transaction`: both reads are read-only, and
     // a filter that asks for one source must not send a placeholder query to

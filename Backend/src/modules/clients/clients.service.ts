@@ -40,6 +40,7 @@ import {
   ClientStatus,
   LeadStage,
   UserRole,
+  UserStatus,
 } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type {
@@ -624,8 +625,9 @@ export class ClientsService {
     const brokers = await this.prisma.user.findMany({
       where: {
         deletedAt: null,
+        status: UserStatus.ACTIVE,
         role: {
-          in: [UserRole.BROKER, UserRole.ADMIN],
+          in: [UserRole.BROKER, UserRole.ADMIN, UserRole.SUPER_ADMIN],
         },
       },
       select: {

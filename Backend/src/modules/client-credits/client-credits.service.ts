@@ -437,6 +437,18 @@ export class ClientCreditsService {
       throw new NotFoundException('That entry has already been withdrawn');
     }
 
+    // Refuse removing a CREDIT if funds from it were already spent on trips or
+    // invoices, which would leave the client with an overdrawn negative balance.
+    if (target.type === CreditEntryType.CREDIT) {
+      const balanceWithoutThisEntry = await this.balanceCentsFor(target.clientId, id);
+      if (balanceWithoutThisEntry < 0) {
+        const deficit = fromCents(-balanceWithoutThisEntry).toFixed(2);
+        throw new BadRequestException(
+          `Cannot withdraw this credit: $${fromCents(toCents(target.amount)).toFixed(2)} has already been applied towards trips or invoices. Withdrawing it would leave the account overdrawn by $${deficit}.`,
+        );
+      }
+    }
+
     await this.prisma.clientCredit.update({
       where: { id },
       data: { ...archiveData(user.id), updatedById: user.id },
