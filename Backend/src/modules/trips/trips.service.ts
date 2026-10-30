@@ -824,6 +824,19 @@ export class TripsService {
       this.assertAirports(dto.legs),
     ]);
 
+    if (dto.status === TripStatus.CONFIRMED) {
+      if (!dto.operatorId) {
+        throw new BadRequestException('Cannot create a confirmed trip: an operator must be assigned.');
+      }
+      if (!dto.legs[0]?.departureDate) {
+        throw new BadRequestException('Cannot create a confirmed trip: departure date must be set.');
+      }
+      const count = dto.passengerCount ?? dto.passengers?.length ?? 0;
+      if (count < 1) {
+        throw new BadRequestException('Cannot create a confirmed trip: passenger count or passenger manifest must be provided.');
+      }
+    }
+
     const settings = await this.settings.read();
 
     const trip = await this.prisma.$transaction(async (tx) => {
@@ -965,6 +978,8 @@ export class TripsService {
         operatorId: true,
         aircraftId: true,
         operatorConfirmedAt: true,
+        departureDate: true,
+        passengerCount: true,
         legs: { where: { deletedAt: null }, select: { id: true, originAirportId: true, destinationAirportId: true, departureDate: true } },
         passengers: { where: { deletedAt: null }, select: { id: true } },
       },
@@ -1135,6 +1150,27 @@ export class TripsService {
       throw new BadRequestException(
         `A ${current.status} trip cannot move to ${dto.status}. From here it can move to: ${allowed}.`,
       );
+    }
+
+    if (dto.status === TripStatus.CONFIRMED) {
+      if (!current.operatorId) {
+        throw new BadRequestException('Cannot confirm trip: an operator must be assigned before confirming.');
+      }
+      const depDate = current.departureDate ?? current.legs[0]?.departureDate;
+      if (!depDate) {
+        throw new BadRequestException('Cannot confirm trip: departure date must be set.');
+      }
+      if ((current.passengerCount === null || current.passengerCount < 1) && current.passengers.length === 0) {
+        throw new BadRequestException('Cannot confirm trip: passenger count or passenger manifest must be provided.');
+      }
+    }
+
+    if (dto.status === TripStatus.IN_FLIGHT || dto.status === TripStatus.COMPLETED) {
+      const depDate = current.departureDate ?? current.legs[0]?.departureDate;
+      if (depDate && depDate > todayUtc()) {
+        const label = dto.status === TripStatus.IN_FLIGHT ? 'in-flight' : 'completed';
+        throw new BadRequestException(`Cannot mark trip as ${label} before its departure date.`);
+      }
     }
 
     await this.prisma.trip.update({
@@ -1495,10 +1531,11 @@ export class TripsService {
         id: true,
         sequence: true,
         deletedAt: true,
+        departureDate: true,
         flightStatus: true,
         estimatedArrival: true,
         trackingUrl: true,
-        trip: { select: { reference: true, status: true, deletedAt: true } },
+        trip: { select: { id: true, reference: true, status: true, deletedAt: true } },
       },
     });
     if (!leg) throw new NotFoundException('Flight not found');
@@ -1511,6 +1548,13 @@ export class TripsService {
     }
 
     const statusChanged = dto.flightStatus !== undefined && dto.flightStatus !== leg.flightStatus;
+    if (statusChanged && (dto.flightStatus === FlightStatus.IN_FLIGHT || dto.flightStatus === FlightStatus.LANDED)) {
+      if (leg.departureDate && leg.departureDate > todayUtc()) {
+        const statusLabel = dto.flightStatus.toLowerCase().replace('_', ' ');
+        throw new BadRequestException(`Cannot set flight to ${statusLabel} before its departure date.`);
+      }
+    }
+
     const fields = (['estimatedArrival', 'trackingUrl'] as const).filter(
       (key) => dto[key] !== undefined && dto[key] !== leg[key],
     );
@@ -1541,6 +1585,41 @@ export class TripsService {
         note: dto.note ?? null,
       },
     });
+
+    if (statusChanged) {
+      if (dto.flightStatus === FlightStatus.IN_FLIGHT) {
+        if (leg.trip.status !== TripStatus.IN_FLIGHT && leg.trip.status !== TripStatus.COMPLETED) {
+          await this.prisma.trip.update({
+            where: { id: leg.trip.id },
+            data: { status: TripStatus.IN_FLIGHT, updatedById: user.id },
+          });
+          await this.audit.record({
+            actorId: user.id,
+            action: 'trip.status_changed',
+            entityType: 'Trip',
+            entityId: leg.trip.id,
+            metadata: { reference: leg.trip.reference, from: leg.trip.status, to: TripStatus.IN_FLIGHT, reason: 'flight_departed' },
+          });
+        }
+      } else if (dto.flightStatus === FlightStatus.LANDED) {
+        const unlanded = await this.prisma.tripLeg.count({
+          where: { tripId: leg.trip.id, deletedAt: null, id: { not: legId }, flightStatus: { not: FlightStatus.LANDED } },
+        });
+        if (unlanded === 0 && leg.trip.status !== TripStatus.COMPLETED) {
+          await this.prisma.trip.update({
+            where: { id: leg.trip.id },
+            data: { status: TripStatus.COMPLETED, updatedById: user.id },
+          });
+          await this.audit.record({
+            actorId: user.id,
+            action: 'trip.status_changed',
+            entityType: 'Trip',
+            entityId: leg.trip.id,
+            metadata: { reference: leg.trip.reference, from: leg.trip.status, to: TripStatus.COMPLETED, reason: 'all_flights_landed' },
+          });
+        }
+      }
+    }
 
     return this.flight(user, legId);
   }

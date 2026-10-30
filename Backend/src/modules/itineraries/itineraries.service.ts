@@ -94,6 +94,7 @@ const ITINERARY_TRIP_SELECT = {
       select: { id: true, tailNumber: true, model: true, exteriorImageUrl: true, interiorImageUrl: true },
     },
     aircraftDescription: true,
+    passengerCount: true,
     legs: ITINERARY_LEG_SELECT,
     passengers: ITINERARY_PASSENGER_SELECT,
   },
@@ -205,7 +206,7 @@ export class ItinerariesService {
       departureDate: first?.departureDate ?? null,
       departureTime: first?.departureTime ?? null,
       passengers: trip.passengers,
-      passengerCount: trip.passengers.length,
+      passengerCount: trip.passengerCount ?? trip.passengers.length,
 
       /**
        * The raw override rides along beside the effective value: the edit
@@ -347,7 +348,7 @@ export class ItinerariesService {
       );
     }
 
-    const { tripId, ...fields } = dto;
+    const { tripId, departureTime, ...fields } = dto;
     const created = await this.prisma.itinerary.create({
       data: {
         tripId,
@@ -357,6 +358,13 @@ export class ItinerariesService {
       },
       select: { id: true },
     });
+
+    if (departureTime !== undefined) {
+      await this.prisma.tripLeg.updateMany({
+        where: { tripId, sequence: 1 },
+        data: { departureTime, updatedById: user.id },
+      });
+    }
 
     await this.audit.record({
       actorId: user.id,
@@ -375,6 +383,7 @@ export class ItinerariesService {
       where: { id, deletedAt: null, ...this.visibilityScope(user) },
       select: {
         id: true,
+        tripId: true,
         status: true,
         trip: { select: { reference: true, deletedAt: true } },
       },
@@ -387,10 +396,18 @@ export class ItinerariesService {
     const current = await this.findLive(user, id);
     this.assertTripLive(current);
 
+    const { departureTime, ...fields } = dto;
     await this.prisma.itinerary.update({
       where: { id },
-      data: { ...dto, updatedById: user.id },
+      data: { ...fields, updatedById: user.id },
     });
+
+    if (departureTime !== undefined) {
+      await this.prisma.tripLeg.updateMany({
+        where: { tripId: current.tripId, sequence: 1 },
+        data: { departureTime, updatedById: user.id },
+      });
+    }
 
     await this.audit.record({
       actorId: user.id,

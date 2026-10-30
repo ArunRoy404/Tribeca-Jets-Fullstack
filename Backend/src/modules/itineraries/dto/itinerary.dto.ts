@@ -44,6 +44,7 @@ export const createItinerarySchema = z.object({
 
   logoUrl: uploadUrl.optional(),
 
+  departureTime: clockTime.optional(),
   arrivalTime: clockTime.optional(),
   flightTime: z.string().trim().max(20).optional(),
   miles: z.string().trim().max(20).optional(),
@@ -78,7 +79,8 @@ export const updateItinerarySchema = z
   .object({
     logoUrl: uploadUrl.nullable().optional(),
 
-    arrivalTime: clockTime.nullable().optional(),
+    departureTime: clockTime.nullable().optional(),
+  arrivalTime: clockTime.nullable().optional(),
     flightTime: z.string().trim().max(20).nullable().optional(),
     miles: z.string().trim().max(20).nullable().optional(),
 

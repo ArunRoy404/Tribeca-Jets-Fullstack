@@ -21,6 +21,7 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
+import { referenceFromSearch } from '../../common/database/document-number.js';
 import {
   Action,
   Module,
@@ -246,6 +247,19 @@ export class TripRequestsService {
   ): Promise<Paginated<unknown>> {
     const { skip, take } = toPrismaPagination(query);
 
+    const trRef = query.search ? referenceFromSearch(query.search, 'TR') : null;
+    const searchConditions: Prisma.TripRequestWhereInput[] = query.search
+      ? [
+          ...(trRef !== null ? [{ reference: trRef }] : []),
+          { summary: { contains: query.search, mode: 'insensitive' } },
+          { client: { firstName: { contains: query.search, mode: 'insensitive' } } },
+          { client: { lastName: { contains: query.search, mode: 'insensitive' } } },
+          { client: { companyName: { contains: query.search, mode: 'insensitive' } } },
+          { originAirport: { icao: { contains: query.search, mode: 'insensitive' } } },
+          { destinationAirport: { icao: { contains: query.search, mode: 'insensitive' } } },
+        ]
+      : [];
+
     const where: Prisma.TripRequestWhereInput = {
       ...archiveFilter(query.archived),
       ...this.visibilityScope(user),
@@ -262,18 +276,7 @@ export class TripRequestsService {
       // The working list, not the archive: a converted or lost request is
       // history, and leaving it on the board buries the ones needing a price.
       ...(query.openOnly ? { status: { in: OPEN_STATUSES } } : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { summary: { contains: query.search, mode: 'insensitive' } },
-              { client: { firstName: { contains: query.search, mode: 'insensitive' } } },
-              { client: { lastName: { contains: query.search, mode: 'insensitive' } } },
-              { client: { companyName: { contains: query.search, mode: 'insensitive' } } },
-              { originAirport: { icao: { contains: query.search, mode: 'insensitive' } } },
-              { destinationAirport: { icao: { contains: query.search, mode: 'insensitive' } } },
-            ],
-          }
-        : {}),
+      ...(searchConditions.length ? { OR: searchConditions } : {}),
     };
 
     const [rows, total] = await this.prisma.$transaction([
