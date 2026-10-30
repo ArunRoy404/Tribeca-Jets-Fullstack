@@ -5,6 +5,7 @@ import OperatorSourcingContainer from "@/components/table/operator-sourcing/Oper
 import SourcingRequestDetailSheet from "@/components/operator-sourcing/SourcingRequestDetailSheet";
 import NewSourcingRequestDialog from "@/components/operator-sourcing/NewSourcingRequestDialog";
 import RequestOperatorQuoteDialog from "@/components/operator-sourcing/RequestOperatorQuoteDialog";
+import AddQuoteDialog from "@/components/quotes/AddQuoteDialog";
 import { useOperatorQuoteStats } from "@/hooks/operator-quotes";
 import { useTripRequestStats } from "@/hooks/trip-requests";
 import { formatResponseTime } from "@/lib/sourcing";
@@ -63,6 +64,7 @@ export default function OperatorSourcingPage() {
       <SourcingRequestDetailSheet />
       <NewSourcingRequestDialog />
       <RequestOperatorQuoteDialog />
+      <AddQuoteDialog />
     </>
   );
 }

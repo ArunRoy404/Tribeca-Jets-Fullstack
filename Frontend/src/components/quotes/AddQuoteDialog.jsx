@@ -14,6 +14,7 @@ import { useAirport } from "@/hooks/airports";
 import { useOperator } from "@/hooks/operators";
 import { useAircraft } from "@/hooks/aircraft";
 import { useUser } from "@/hooks/users";
+import { useSettings } from "@/hooks/settings";
 import { displayName } from "@/lib/client";
 import {
   formatMoney,
@@ -131,6 +132,7 @@ export default function AddQuoteDialog() {
   const editing = useQuotesStore((s) => s.editingQuote);
   const draft = useQuotesStore((s) => s.draftQuote);
   const closeModal = useQuotesStore((s) => s.closeAddQuoteModal);
+  const { data: settings } = useSettings();
 
   const [activeTab, setActiveTab] = useState("form");
 
@@ -155,6 +157,19 @@ export default function AddQuoteDialog() {
     { openOnly: true, limit: 100 },
     { enabled: Boolean(open && !editing) },
   );
+
+  useEffect(() => {
+    if (open && !editing && settings?.quoteValidityHours) {
+      const timer = setTimeout(() => {
+        setForm((prev) => {
+          if (prev.validUntil) return prev;
+          const validUntil = new Date(Date.now() + settings.quoteValidityHours * 3600 * 1000).toISOString().slice(0, 10);
+          return { ...prev, validUntil };
+        });
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [open, editing, settings?.quoteValidityHours]);
 
   const linkedTripOptions = useMemo(() => {
     const list = openRequestsData?.data ?? [];
@@ -278,9 +293,12 @@ export default function AddQuoteDialog() {
     setActiveTab("form");
     setForm(
       !editing
-        ? // A new quote starts empty, or from what the instant estimate
-          // handed over — only fields the estimate actually knows.
-          { ...EMPTY_FORM, ...(draft ?? {}) }
+        ? {
+            ...EMPTY_FORM,
+            fetEnabled: settings?.applyFetByDefault !== undefined ? settings.applyFetByDefault : true,
+            terms: settings?.defaultQuoteTerms || "",
+            ...(draft ?? {}),
+          }
         : {
             clientId: editing.clientId ?? "",
             tripRequestId: editing.tripRequestId ?? "",
@@ -291,9 +309,9 @@ export default function AddQuoteDialog() {
             aircraftId: editing.aircraftId ?? "",
             quotedAircraft: editing.rawQuotedAircraft ?? "",
             exteriorImageUrl: editing.exteriorImageUrl ?? "",
-            departureDate: toDateInput(editing.rawDepartureDate),
-            returnDate: toDateInput(editing.rawReturnDate),
-            validUntil: toDateInput(editing.rawValidUntil),
+            departureDate: toDateInput(editing.rawDepartureDate || editing.departureDate),
+            returnDate: toDateInput(editing.rawReturnDate || editing.returnDate),
+            validUntil: toDateInput(editing.rawValidUntil || editing.validUntil),
             passengers: editing.passengers === "—" ? "" : (editing.passengers ?? ""),
             basePrice: editing.rawBasePrice ?? "",
             operatorCost: editing.rawOperatorCost ?? "",
@@ -497,9 +515,9 @@ export default function AddQuoteDialog() {
       aircraftId: form.aircraftId || null,
       quotedAircraft: optionalText(form.quotedAircraft, clear),
       exteriorImageUrl: optionalText(form.exteriorImageUrl, clear),
-      departureDate: optionalText(form.departureDate, clear),
-      returnDate: optionalText(form.returnDate, clear),
-      validUntil: optionalText(form.validUntil, clear),
+      departureDate: form.departureDate ? String(form.departureDate).slice(0, 10) : (clear.editing ? null : undefined),
+      returnDate: form.returnDate ? String(form.returnDate).slice(0, 10) : (clear.editing ? null : undefined),
+      validUntil: form.validUntil ? String(form.validUntil).slice(0, 10) : (clear.editing ? null : undefined),
       passengers: optionalNumber(form.passengers, clear),
       basePrice: Number(form.basePrice),
       fetEnabled: form.fetEnabled,

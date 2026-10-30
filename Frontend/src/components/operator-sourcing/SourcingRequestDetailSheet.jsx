@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Send } from "lucide-react";
 import { useOperatorSourcingStore } from "@/store/useOperatorSourcingStore";
+import { useQuotesStore } from "@/store/useQuotesStore";
 import { useTripRequest } from "@/hooks/trip-requests";
 import { useDecideQuote, useOperatorQuotes } from "@/hooks/operator-quotes";
 import { usePermissions } from "@/hooks/common/usePermissions";
@@ -93,6 +94,25 @@ export default function SourcingRequestDetailSheet() {
     });
   };
 
+  const openAddQuoteModal = useQuotesStore((s) => s.openAddQuoteModal);
+
+  const handleBuildQuote = (quote) => {
+    if (!request) return;
+    openAddQuoteModal(null, {
+      clientId: request.clientId || "",
+      tripRequestId: request.id || "",
+      operatorId: quote.operatorId || "",
+      aircraftId: quote.aircraftId || "",
+      operatorCost: quote.rawPrice || "",
+      originAirportId: request.originAirportId || "",
+      destinationAirportId: request.destinationAirportId || "",
+      departureDate: request.departureDate ? String(request.departureDate).slice(0, 10) : "",
+      returnDate: request.returnDate ? String(request.returnDate).slice(0, 10) : "",
+      passengers: request.passengers && request.passengers !== "—" ? request.passengers : "",
+      assignedBrokerId: request.assignedBrokerId || "",
+    });
+  };
+
   const handleReopen = (quote) => {
     decide({ id: quote.id, action: "reopen" });
   };
@@ -179,6 +199,7 @@ export default function SourcingRequestDetailSheet() {
                   onDecline={() => handleDecline(quote)}
                   onRecordResponse={() => setRecordingQuote(quote)}
                   onReopen={() => handleReopen(quote)}
+                  onBuildQuote={() => handleBuildQuote(quote)}
                 />
               ))}
               {quotes.length === 0 && !quotesQuery.isPending && (

@@ -1,4 +1,4 @@
-import { Ban, Building2, Check, Clock, Edit3, RotateCcw, XCircle } from "lucide-react";
+import { Ban, Building2, Check, Clock, Edit3, FileText, RotateCcw, XCircle } from "lucide-react";
 import SectionCard from "@/components/common/SectionCard";
 import StatusBadge from "@/components/common/StatusBadge";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ export default function QuoteCard({
   onDecline,
   onRecordResponse,
   onReopen,
+  onBuildQuote,
   mayWrite = true,
   isDeciding = false,
 }) {
@@ -88,18 +89,31 @@ export default function QuoteCard({
             /* A settled quote shows the way back instead of two dead buttons.
                Without this a mis-click on Approve is unfixable from the
                screen, because both buttons disable the moment it lands. */
-            <button
-              type="button"
-              disabled={isDeciding}
-              onClick={onReopen}
-              className={cn(
-                "flex flex-1 gap-2 items-center justify-center px-4 py-2 rounded-sm border border-border bg-secondary/40 font-montserrat font-medium text-[14px] text-foreground cursor-pointer",
-                "disabled:cursor-not-allowed disabled:opacity-50",
+            <div className="flex gap-2 w-full">
+              {quote.rawStatus === "APPROVED" && (
+                <button
+                  type="button"
+                  onClick={() => onBuildQuote?.(quote)}
+                  className="flex flex-1 gap-2 items-center justify-center px-4 py-2 rounded-sm border border-purple bg-purple/10 font-montserrat font-medium text-[14px] text-purple cursor-pointer hover:bg-purple/20 transition-colors"
+                >
+                  <FileText className="size-4" />
+                  Build Client Quote
+                </button>
               )}
-            >
-              <RotateCcw className="size-4" />
-              Undo decision
-            </button>
+              <button
+                type="button"
+                disabled={isDeciding}
+                onClick={onReopen}
+                className={cn(
+                  "flex gap-2 items-center justify-center px-4 py-2 rounded-sm border border-border bg-secondary/40 font-montserrat font-medium text-[14px] text-foreground cursor-pointer hover:bg-secondary",
+                  quote.rawStatus !== "APPROVED" && "flex-1",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              >
+                <RotateCcw className="size-4" />
+                Undo decision
+              </button>
+            </div>
           ) : isAwaiting ? (
             <>
               <button

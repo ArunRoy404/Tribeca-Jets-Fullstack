@@ -8,6 +8,7 @@ import AirportPicker from "@/components/airports/AirportPicker";
 import BrokerPicker from "@/components/users/BrokerPicker";
 import CommonSelect from "@/components/common/CommonSelect";
 import { usePermissions } from "@/hooks/common/usePermissions";
+import { useSettings } from "@/hooks/settings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,8 +84,19 @@ function splitRoute(route) {
 }
 
 /** Builds the form state for a client, or a blank form when adding. */
-function initialForm(client) {
-  if (!client) return EMPTY;
+function initialForm(client, settings) {
+  if (!client) {
+    const followUpDate = settings?.followUpIntervalDays
+      ? new Date(Date.now() + settings.followUpIntervalDays * 86_400_000)
+          .toISOString()
+          .slice(0, 10)
+      : "";
+    return {
+      ...EMPTY,
+      leadStage: settings?.defaultLeadStage || "NEW",
+      nextFollowUpAt: followUpDate,
+    };
+  }
   const prefs = client.preferences ?? {};
   const route = splitRoute((prefs.preferredRoutes ?? [])[0]);
   return {
@@ -115,6 +127,7 @@ export default function AddClientDialog() {
   const open = useClientsStore((s) => s.addModalOpen);
   const editingClient = useClientsStore((s) => s.editingClient);
   const closeModal = useClientsStore((s) => s.closeAddModal);
+  const { data: settings } = useSettings();
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && closeModal()}>
@@ -128,6 +141,7 @@ export default function AddClientDialog() {
           <ClientForm
             key={editingClient?.id ?? "new"}
             editingClient={editingClient}
+            settings={settings}
             onDone={closeModal}
           />
         )}
@@ -136,7 +150,7 @@ export default function AddClientDialog() {
   );
 }
 
-function ClientForm({ editingClient, onDone }) {
+function ClientForm({ editingClient, settings, onDone }) {
   const closeModal = onDone;
   const { mutate: createClient, isPending: isCreating } = useCreateClient();
   const { mutate: updateClient, isPending: isUpdating } = useUpdateClient();
@@ -187,7 +201,7 @@ function ClientForm({ editingClient, onDone }) {
     [],
   );
 
-  const [form, setForm] = useState(() => initialForm(editingClient));
+  const [form, setForm] = useState(() => initialForm(editingClient, settings));
   // The keys this form does not render — catering, pets, wifi and the rest of
   // the open set. Carried through untouched so saving the two fields the form
   // does own cannot delete the ones it never showed.

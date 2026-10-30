@@ -45,7 +45,7 @@ function FollowUpForm({ lead, onDone }) {
     e.preventDefault();
     updateClient(
       {
-        id: lead.id,
+        id: typeof lead === "string" ? lead : lead?.id,
         // Clearing the date clears the reminder — null, not an empty string,
         // which the API would reject as an invalid date.
         nextFollowUpAt: date ? new Date(`${date}T00:00`).toISOString() : null,

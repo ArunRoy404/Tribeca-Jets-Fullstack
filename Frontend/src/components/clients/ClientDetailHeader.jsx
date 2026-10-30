@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Edit, Plus, MoreHorizontal, Archive, Calendar } from "lucide-react";
 import StatusBadge from "@/components/common/StatusBadge";
+import ClientStatsRow from "./ClientStatsRow";
 import { Button } from "@/components/ui/button";
 import { useClientsStore } from "@/store/useClientsStore";
 import {
@@ -107,38 +108,7 @@ export default function ClientDetailHeader({ client }) {
       </div>
 
       {/* 4 Stat Summary KPI Tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        <div className="p-4 bg-white border border-border rounded-lg shadow-card flex flex-col gap-1">
-          <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Total Trips</span>
-          {/* Awaiting the trips module — an em dash, never a stand-in figure. */}
-          <span className="font-montserrat font-bold text-[22px] text-muted-foreground">—</span>
-          <span className="font-montserrat text-[11px] text-muted-foreground">once trips are recorded</span>
-        </div>
-
-        <div className="p-4 bg-white border border-border rounded-lg shadow-card flex flex-col gap-1">
-          <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Total Spent</span>
-          {/* Awaiting invoices and payments. */}
-          <span className="font-montserrat font-bold text-[22px] text-muted-foreground">—</span>
-          <span className="font-montserrat text-[11px] text-muted-foreground">all time</span>
-        </div>
-
-        <div className="p-4 bg-white border border-border rounded-lg shadow-card flex flex-col gap-1">
-          <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Active Quotes</span>
-          {/* Awaiting the quotes module. */}
-          <span className="font-montserrat font-bold text-[22px] text-muted-foreground">—</span>
-          <span className="font-montserrat text-[11px] text-muted-foreground">awaiting response</span>
-        </div>
-
-        <div className="p-4 bg-white border border-border rounded-lg shadow-card flex flex-col gap-1">
-          <span className="font-montserrat text-[11px] text-muted-foreground uppercase font-medium">Next Follow-up</span>
-          <span className="font-montserrat font-bold text-[20px] text-[#D97706] truncate">
-            {client.nextFollowUpLabel}
-          </span>
-          <span className="font-montserrat text-[11px] text-muted-foreground">
-            {client.followUpWindowLabel}
-          </span>
-        </div>
-      </div>
+      <ClientStatsRow client={client} />
 
       {/* A "flight context" bar sat here showing a client name, broker,
           operator, aircraft, passenger count and route — every value a

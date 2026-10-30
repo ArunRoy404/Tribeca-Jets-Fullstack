@@ -68,7 +68,7 @@ export default function ClientDetailPage({ params }) {
     updateClient({ id: client.id, nextFollowUpAt: null, followUpNote: null });
   };
 
-  const handleFollowUp = mayEdit ? () => openFollowUpModal(client?.id || client) : undefined;
+  const handleFollowUp = mayEdit ? () => openFollowUpModal(client) : undefined;
   const handleComplete = mayEdit ? markFollowUpComplete : undefined;
 
   if (isPending || error) {

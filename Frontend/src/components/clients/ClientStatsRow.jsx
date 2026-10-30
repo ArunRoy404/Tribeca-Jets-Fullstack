@@ -1,5 +1,6 @@
 import StatCard from "@/components/common/StatCard";
 import { useTrips } from "@/hooks/trips";
+import { useQuotes } from "@/hooks/quotes";
 import { useReceivableStats } from "@/hooks/receivables";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
@@ -34,7 +35,12 @@ export default function ClientStatsRow({ client }) {
     { enabled: Boolean(client?.id) && maySeeInvoices },
   );
   const totalSpent = maySeeInvoices && billing ? formatMoney(billing.collected) : "—";
-  const activeQuotes = client?.activeQuotesCount ?? "—";
+  const maySeeQuotes = canAccess(Module.QUOTES, Action.VIEW);
+  const { data: quotesData } = useQuotes(
+    { clientId: client?.id, status: "SENT", limit: 1 },
+    { enabled: Boolean(client?.id) && maySeeQuotes },
+  );
+  const activeQuotes = maySeeQuotes && quotesData?.meta ? String(quotesData.meta.total) : "—";
   const nextFollowUp =
     client?.nextFollowUpLabel && client?.nextFollowUpLabel !== "—"
       ? client.nextFollowUpLabel

@@ -30,6 +30,10 @@ function FieldWrapper({ label, children, optional }) {
 export default function ScheduleFollowUpDialog() {
   const open = useClientsStore((s) => s.followUpModalOpen);
   const client = useClientsStore((s) => s.followUpTarget);
+  const clientId = typeof client === "string" ? client : client?.id;
+  const clientDisplayName = typeof client === "string"
+    ? ""
+    : (client?.name || (client?.firstName ? `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim() : ""));
   const closeModal = useClientsStore((s) => s.closeFollowUpModal);
   const { mutate: updateClient, isPending } = useUpdateClient();
   // Reassigning is for a role holding CLIENTS · ASSIGN; the picker is not shown
@@ -44,7 +48,7 @@ export default function ScheduleFollowUpDialog() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!client || !date) return;
+    if (!clientId || !date) return;
 
     // Date and time are two controls but one column. Without a time the
     // follow-up lands at the start of that day, which is what "due today"
@@ -54,7 +58,7 @@ export default function ScheduleFollowUpDialog() {
 
     updateClient(
       {
-        id: client.id,
+        id: clientId,
         nextFollowUpAt: nextFollowUpAt.toISOString(),
         followUpNote: note || null,
         ...(mayAssignBroker && broker ? { assignedBrokerId: broker } : {}),
@@ -71,7 +75,7 @@ export default function ScheduleFollowUpDialog() {
             Schedule Follow-up
           </DialogTitle>
           <DialogDescription className="font-montserrat text-[13px] text-muted-foreground font-medium">
-            {client?.name}
+            {clientDisplayName || "Follow-up reminder"}
           </DialogDescription>
         </DialogHeader>
 
