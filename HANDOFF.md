@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 29 October 2026.** Update the "Where we are" section in the
+**Last updated: 30 October 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
