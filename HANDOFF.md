@@ -82,8 +82,8 @@ API's start). Import / Export (#31) comes after.
   - Remediation organized into 4 planned execution batches:
     1. **Batch 1:** Security & Financial Math (#4 FET profit deduction, #6 upload whitelist, #23 receivables ceiling, #5 auth cleanup) — ✅ COMPLETED 30 Oct 2026.
     2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format) — ✅ COMPLETED 30 Oct 2026.
-    3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search) — 🟡 NEXT.
-    4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over).
+    3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search) — ✅ COMPLETED 30 Oct 2026.
+    4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over) — 🟡 NEXT.
 
 - **Offline / PWA (#35) — Deferred by decision (documented for future):** Removed from active project per owner instruction (29 Oct 2026). The full architecture, Service Worker caching strategies, manifest configuration, and offline manager specification are preserved in `docs/MODULE_FEATURE_STATUS.md` §35 for future reference if desired.
 
@@ -940,4 +940,22 @@ this says *what the owner decided*, which nothing else records.
   - Solution: In `Backend/src/common/dto/dates.ts`, enriched `calendarDate` Zod schema with `z.preprocess()` to cleanly strip ISO datetime components down to `YYYY-MM-DD` (`val.slice(0, 10)`). Added "Build Client Quote" action on approved quotes in `QuoteCard.jsx`, wired `handleBuildQuote()` in `SourcingRequestDetailSheet.jsx` to prefill `useQuotesStore.openAddQuoteModal(null, draft)` with operator, aircraft tail, cost, and request route/dates/party size. Mounted `<AddQuoteDialog />` in `OperatorSourcingPage.jsx`. Normalized edit dates via `toDateInput` in `AddQuoteDialog.jsx`.
 - **Verification:**
   - Backend: Vitest 64/64 test suites (558 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
+  - Frontend: `npm run lint` 0 errors; `npm run build` compiled all 45 routes with 0 errors.
+
+### 30 Oct 2026 — QA Audit Remediation: Batch 3 (Operations & Flights Remediation)
+
+- **Issue #9 & #26 (Trip Lifecycle, Confirmation Guardrails & Date Validation):**
+  - Root cause: Trips could be moved to `CONFIRMED` without an operator, departure date, or passenger manifest/count. In addition, trips could be marked in-flight or completed prior to their departure date.
+  - Solution: In `trips.service.ts` (`create` & `changeStatus`), enforced that moving to `CONFIRMED` requires `operatorId`, valid departure date, and `passengerCount >= 1` or manifest. Disallowed moving trips to `IN_FLIGHT` or `COMPLETED` when `departureDate > todayUtc()`. Updated `TripActionBar.jsx` to disable Confirm with tooltip when checklist items are incomplete and show settlement notices for unbilled balances. In `CreateFormActionBar.jsx`, added client-side leg sequence and unique airport validation.
+- **Issue #22 & #26 (Itinerary Departure Time, Passenger Count & Email Sync):**
+  - Root cause: Itinerary forms only tracked arrival time, leaving departure time reliant on trip creation defaults. Furthermore, when passenger names were not yet on file, itineraries showed blank or empty passenger cards even when the booking had a passenger count.
+  - Solution: Added `departureTime` to `createItinerarySchema` and `updateItinerarySchema` in `itinerary.dto.ts`; synchronized outbound leg `departureTime` in `itineraries.service.ts`; updated `BuildItineraryDialog.jsx` with outbound departure time input and preview. In `ItineraryPreview.jsx`, added dedicated count card (`X Passengers (Manifest names pending confirmation)`) when individual names are absent.
+- **Issue #25 (Flight Tracking Sync with Trip Status & Future Date Guards):**
+  - Root cause: Flight tracking allowed manual reports of `IN_FLIGHT` and `LANDED` on future departure dates. When flights did update, the linked `Trip.status` was not synchronized.
+  - Solution: In `trips.service.ts` method `updateFlight()`, blocked reporting `IN_FLIGHT` or `LANDED` before the flight's departure date. Automatically synchronized linked `Trip.status` to `IN_FLIGHT` on departure, and to `COMPLETED` once all active legs reach `LANDED`, with audit trails. In `FlightReportForm.jsx`, disabled future in-flight/landed options with pre-submit validation.
+- **Issue #28 & #36 (Operator Sourcing Reference Search & RFQ Audit):**
+  - Root cause: Sourcing search did not match integer references prefixed with `TR-` or unpadded numbers.
+  - Solution: In `trip-requests.service.ts`, wired `referenceFromSearch(query.search, 'TR')` into the search query `OR` array. Added `Backend/src/modules/trips/trips.guardrails.spec.ts` pinning reference parsing, itinerary schemas, and lifecycle guards (5 tests).
+- **Verification:**
+  - Backend: Vitest 65/65 test suites (563 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
   - Frontend: `npm run lint` 0 errors; `npm run build` compiled all 45 routes with 0 errors.

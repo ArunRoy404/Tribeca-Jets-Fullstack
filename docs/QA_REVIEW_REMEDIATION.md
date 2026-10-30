@@ -260,3 +260,25 @@ We will execute in 4 discrete batches by concern, testing and verifying each bat
 * **Verification:**
   - Backend: Vitest suite (64 test files, 558/558 tests passed); `tsc --noEmit` passed with 0 errors; `oxlint src/ test/` passed with 0 errors.
   - Frontend: `npm run lint` passed with 0 errors across the entire codebase; `npm run build` compiled all 45 pages in production mode with 0 errors.
+
+### Batch 3: Operations & Flights Remediation (Completed: 30 Oct 2026)
+* **Issue #9 & #26 (Trip Lifecycle, Confirmation Guardrails & Date Sequence):**
+  - Updated `Backend/src/modules/trips/trips.service.ts`: In `changeStatus()` and `create()`, enforced that moving to `TripStatus.CONFIRMED` strictly requires an assigned operator, valid departure date, and passenger manifest or count (throwing explicit `BadRequestException` if any are missing).
+  - Enforced future departure date guardrails in `changeStatus()`: disallows advancing trip status to `IN_FLIGHT` or `COMPLETED` when `departureDate > todayUtc()`.
+  - Updated `Frontend/src/components/trips/actions/TripActionBar.jsx`: disabled the Confirm button with an explanatory tooltip if operator, departure date, or passengers are missing; surfaced statement settlement status (`trip.clientBilling.state`) when uncollected client balances remain.
+  - Updated `Frontend/src/components/trips/createForm/CreateFormActionBar.jsx`: added client-side form validation verifying that origin and destination airports differ, and that return or subsequent leg departure dates never precede preceding legs.
+* **Issue #22 & #26 (Itinerary Departure Time, Passenger Count & Email Sync):**
+  - Updated `Backend/src/modules/itineraries/dto/itinerary.dto.ts`: added `departureTime` clock time schema (`HH:MM`, 24h) to `createItinerarySchema` and `updateItinerarySchema`.
+  - Updated `Backend/src/modules/itineraries/itineraries.service.ts`: selected `passengerCount: true` from the linked trip; serialized `passengerCount: trip.passengerCount ?? trip.passengers.length`; synchronized the trip's outbound leg `departureTime` on itinerary creation and updates.
+  - Updated `Frontend/src/components/itineraries/BuildItineraryDialog.jsx`: added Outbound Departure Time input alongside Arrival Time in the form grid and live preview.
+  - Updated `Frontend/src/components/itineraries/ItineraryPreview.jsx`: when individual passenger names are absent but passenger count is set, renders a clean `X Passengers (Manifest names pending confirmation)` card rather than a generic empty notice.
+* **Issue #25 (Flight Tracking Sync with Trip Status & Future Date Guards):**
+  - Updated `Backend/src/modules/trips/trips.service.ts` (`updateFlight`): selected `departureDate: true` and `trip.id`; rejected setting flight status to `IN_FLIGHT` or `LANDED` when the flight's departure date is in the future.
+  - Added automatic Trip Status synchronization: updating a flight to `IN_FLIGHT` automatically advances the linked trip to `TripStatus.IN_FLIGHT`; when all active legs reach `FlightStatus.LANDED`, automatically advances the linked trip to `TripStatus.COMPLETED` with an audit record (`trip.status_changed`).
+  - Updated `Frontend/src/components/flight-tracking/FlightReportForm.jsx`: disabled `IN_FLIGHT` and `LANDED` status options for future departures and added pre-submit toast validation.
+* **Issue #28 & #36 (Operator Sourcing Reference Search & RFQ Audit):**
+  - Updated `Backend/src/modules/trip-requests/trip-requests.service.ts`: wired `referenceFromSearch(query.search, 'TR')` into the search query `OR` array, enabling instant searching by `TR-003`, `TR-3`, or `3`.
+  - Added `Backend/src/modules/trips/trips.guardrails.spec.ts` pinning reference extraction, itinerary time formats, future date guards, and confirmation requirements (5 tests).
+* **Verification:**
+  - Backend: Vitest suite (65 test files, 563/563 tests passed 100% green); `tsc --noEmit` passed with 0 errors; `oxlint src/ test/` passed with 0 errors.
+  - Frontend: `npm run lint` passed with 0 errors across the entire codebase; `npm run build` compiled all 45 routes with 0 errors.
