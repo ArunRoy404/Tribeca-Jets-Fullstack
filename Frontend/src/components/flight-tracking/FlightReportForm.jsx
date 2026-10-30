@@ -8,6 +8,7 @@ import FormField from "@/components/trips/FormField";
 import { Button } from "@/components/ui/button";
 import { useUpdateFlight } from "@/hooks/flight-tracking";
 import { FLIGHT_STATUSES, formatFlightStatus } from "@/lib/flight";
+import { toastError } from "@/lib/toast";
 
 const STATUS_OPTIONS = FLIGHT_STATUSES.map((value) => ({ value, label: formatFlightStatus(value) }));
 
@@ -29,6 +30,17 @@ export default function FlightReportForm({ flight, onSuccess }) {
   });
   const set = (key) => (value) => setForm((current) => ({ ...current, [key]: value?.target ? value.target.value : value }));
 
+  const isFuture = Boolean(
+    flight?.rawDepartureDate &&
+      new Date(flight.rawDepartureDate).toISOString().slice(0, 10) >
+        new Date().toISOString().slice(0, 10)
+  );
+
+  const statusOptions = STATUS_OPTIONS.map((opt) => ({
+    ...opt,
+    disabled: isFuture && (opt.value === "IN_FLIGHT" || opt.value === "LANDED"),
+  }));
+
   const payload = {};
   if (form.flightStatus && form.flightStatus !== (flight?.flightStatusRaw ?? "")) payload.flightStatus = form.flightStatus;
   if (form.estimatedArrival !== (flight?.estimatedArrival ?? "")) payload.estimatedArrival = form.estimatedArrival || null;
@@ -38,6 +50,10 @@ export default function FlightReportForm({ flight, onSuccess }) {
   const submit = (event) => {
     event.preventDefault();
     if (!changed) return;
+    if (isFuture && (form.flightStatus === "IN_FLIGHT" || form.flightStatus === "LANDED")) {
+      toastError("Flight date ahead", "Cannot report In-Flight or Landed before the flight departure date.");
+      return;
+    }
     mutate(
       { id: flight?.id, ...payload },
       {
@@ -58,7 +74,7 @@ export default function FlightReportForm({ flight, onSuccess }) {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
         <FormField label="Flight status">
-          <CommonSelect value={form.flightStatus} onChange={set("flightStatus")} options={STATUS_OPTIONS} placeholder="No update yet" />
+          <CommonSelect value={form.flightStatus} onChange={set("flightStatus")} options={statusOptions} placeholder="No update yet" />
         </FormField>
         <FormField label="Estimated arrival (Optional)">
           <TimePicker value={form.estimatedArrival} onChange={set("estimatedArrival")} placeholder="Local at destination" />

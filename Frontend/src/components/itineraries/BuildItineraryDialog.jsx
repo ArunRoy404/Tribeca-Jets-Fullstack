@@ -72,7 +72,7 @@ function previewFromTripDetail(trip, form) {
     originCode: first?.originAirport?.icao ?? "—",
     destinationCode: last?.destinationAirport?.icao ?? "—",
     departureDateLabel: first?.departureDate ? formatCalendarDate(first.departureDate) : "—",
-    departureTime: first?.departureTime ?? "—",
+    departureTime: form.departureTime || first?.departureTime || "—",
     arrivalTimeLabel: form.arrivalTime ? formatTime24(form.arrivalTime) : "—",
     aircraft: aircraftLabel(trip),
     aircraftTail: trip?.aircraft?.tailNumber ?? "—",
@@ -80,6 +80,7 @@ function previewFromTripDetail(trip, form) {
     flightTime: form.flightTime || "—",
     miles: form.miles || "—",
     passengers: trip?.passengers ?? [],
+    passengerCount: trip?.passengerCount ?? trip?.passengers?.length ?? 0,
     catering: form.catering || "—",
     groundTransport: form.groundTransport || "—",
     // An untyped override falls back to the airport's assigned FBO, exactly
@@ -103,7 +104,7 @@ function previewFromItinerary(itinerary, form) {
     originCode: itinerary?.originAirport?.icao ?? "—",
     destinationCode: itinerary?.destinationAirport?.icao ?? "—",
     departureDateLabel: itinerary?.departureDate ? formatCalendarDate(itinerary.departureDate) : "—",
-    departureTime: itinerary?.departureTime ?? "—",
+    departureTime: form.departureTime || itinerary?.departureTime || "—",
     arrivalTimeLabel: form.arrivalTime ? formatTime24(form.arrivalTime) : "—",
     aircraft: aircraftLabel(itinerary),
     aircraftTail: itinerary?.aircraft?.tailNumber ?? "—",
@@ -111,6 +112,7 @@ function previewFromItinerary(itinerary, form) {
     flightTime: form.flightTime || "—",
     miles: form.miles || "—",
     passengers: itinerary?.passengers ?? [],
+    passengerCount: itinerary?.passengerCount ?? itinerary?.passengers?.length ?? 0,
     catering: form.catering || "—",
     groundTransport: form.groundTransport || "—",
     // A blank override falls back to the airport's assigned FBO — the rule
@@ -151,6 +153,7 @@ function initialForm(itinerary) {
   return {
     linkedTripId: itinerary?.tripId ?? "",
     logoUrl: itinerary?.logoUrl || "",
+    departureTime: itinerary?.departureTime || "",
     arrivalTime: itinerary?.arrivalTime || "",
     flightTime: itinerary?.flightTime || "",
     miles: itinerary?.miles || "",
@@ -189,6 +192,7 @@ function ItineraryForm({ itinerary, onDone }) {
 
     const fields = {
       logoUrl: optionalText(form.logoUrl, { editing: isEditing }),
+      departureTime: optionalText(form.departureTime, { editing: isEditing }),
       arrivalTime: optionalText(form.arrivalTime, { editing: isEditing }),
       flightTime: optionalText(form.flightTime, { editing: isEditing }),
       miles: optionalText(form.miles, { editing: isEditing }),
@@ -276,7 +280,8 @@ function ItineraryForm({ itinerary, onDone }) {
             />
           </FieldWrapper>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+            <TimeField label="Outbound Departure Time" value={form.departureTime} onChange={set("departureTime")} />
             <TimeField label="Outbound Arrival Time" value={form.arrivalTime} onChange={set("arrivalTime")} />
             <FieldWrapper label="Flight Time">
               <CommonInput placeholder="2h 45m" value={form.flightTime} onChange={(e) => set("flightTime")(e.target.value)} className="h-11 text-[13px] font-montserrat" />

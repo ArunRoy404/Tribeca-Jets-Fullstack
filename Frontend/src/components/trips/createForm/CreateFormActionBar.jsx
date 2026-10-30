@@ -11,6 +11,7 @@ import { Action, Module, Reach } from "@/lib/access";
 import { isAdministratorRole } from "@/lib/roles";
 import { documentsService } from "@/services/documents.service";
 import { optionalNumber, optionalText } from "@/lib/form";
+import { toastError } from "@/lib/toast";
 
 /**
  * Builds the payload from the draft and saves it. Blank optional fields are
@@ -70,6 +71,46 @@ export default function CreateFormActionBar() {
   };
 
   const save = (status) => {
+    if (!draft.clientId) {
+      toastError("Choose a client", "Select the client this trip is for before saving.");
+      return;
+    }
+
+    const legs = draft.legs ?? [];
+    for (let i = 0; i < legs.length; i++) {
+      const leg = legs[i];
+      if (!leg.originAirportId || !leg.destinationAirportId) {
+        toastError("Incomplete route", `Select origin and destination airports for Leg ${i + 1}.`);
+        return;
+      }
+      if (leg.originAirportId === leg.destinationAirportId) {
+        toastError("Invalid route", `Leg ${i + 1} departs and arrives at the same airport.`);
+        return;
+      }
+      if (i > 0 && leg.departureDate && legs[i - 1].departureDate) {
+        if (leg.departureDate < legs[i - 1].departureDate) {
+          toastError("Invalid schedule", `Leg ${i + 1} departs before the leg ahead of it.`);
+          return;
+        }
+      }
+    }
+
+    if (status === "CONFIRMED") {
+      if (!draft.operatorId) {
+        toastError("Operator required", "An operator must be assigned before confirming a trip.");
+        return;
+      }
+      if (!legs[0]?.departureDate) {
+        toastError("Departure date required", "Departure date must be set before confirming a trip.");
+        return;
+      }
+      const count = Number(draft.passengerCount) || draft.passengers?.filter((p) => p.fullName?.trim())?.length || 0;
+      if (count < 1) {
+        toastError("Passengers required", "Passenger count or named passenger manifest must be provided.");
+        return;
+      }
+    }
+
     const payload = buildPayload(status);
     const done = async (trip) => {
       if (!editing && trip?.id && draft.attachments?.length > 0) {

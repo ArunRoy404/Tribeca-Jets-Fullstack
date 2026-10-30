@@ -33,6 +33,15 @@ export default function TripActionBar({ trip }) {
         {moves.map((status) => {
           const cancel = status === "CANCELLED";
           const back = isStepBack(trip?.rawStatus, status);
+          const isConfirm = status === "CONFIRMED";
+          const hasOperator = Boolean(trip?.operatorId || (trip?.operator && trip.operator !== "—"));
+          const hasDate = Boolean(trip?.rawDepartureDate || (trip?.departureDate && trip.departureDate !== "—"));
+          const hasPax = (trip?.passengerCount != null && trip.passengerCount > 0) || (trip?.passengers?.length > 0);
+          const confirmBlocked = isConfirm && (!hasOperator || !hasDate || !hasPax);
+          const tooltip = confirmBlocked
+            ? "Confirming requires an assigned operator, departure date, and passengers"
+            : undefined;
+
           return (
             <Button
               key={status}
@@ -40,7 +49,8 @@ export default function TripActionBar({ trip }) {
               // are secondary, so the obvious button is always progress.
               variant={cancel || back ? "outline" : "default"}
               className={`gap-2 px-4 ${cancel ? "text-destructive" : ""}`}
-              disabled={isPending}
+              disabled={isPending || confirmBlocked}
+              title={tooltip}
               onClick={() => move?.({ id: trip?.id, status })}
             >
               {cancel ? <XCircle className="size-3.5" /> : back ? <Undo2 className="size-3.5" /> : <ArrowRight className="size-3.5" />}
@@ -59,6 +69,11 @@ export default function TripActionBar({ trip }) {
         <p className="flex items-center gap-1 font-montserrat font-semibold text-[12px] text-success">
           <Check className="size-3.5" />
           Operation completed
+        </p>
+      )}
+      {trip?.rawStatus !== "COMPLETED" && trip?.clientBilling?.rawState && trip.clientBilling.rawState !== "PAID" && (
+        <p className="font-montserrat text-[11px] text-amber-600 font-medium">
+          Client statement: {trip.clientBilling.state}
         </p>
       )}
 

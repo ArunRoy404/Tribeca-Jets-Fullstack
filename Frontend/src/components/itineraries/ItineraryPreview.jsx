@@ -161,6 +161,20 @@ export default function ItineraryPreview({ item }) {
                 </div>
               );
             })
+          ) : item.passengerCount && item.passengerCount > 0 ? (
+            <div className="flex items-center gap-3 p-3 bg-secondary/40 rounded-lg border border-border/50">
+              <div className="size-9 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center font-montserrat font-bold text-[13px] shrink-0">
+                {item.passengerCount}
+              </div>
+              <div className="flex flex-col">
+                <p className="font-montserrat font-bold text-[13px] text-foreground">
+                  {item.passengerCount} {item.passengerCount === 1 ? "Passenger" : "Passengers"}
+                </p>
+                <p className="font-montserrat text-[11px] text-muted-foreground">
+                  Manifest names pending confirmation
+                </p>
+              </div>
+            </div>
           ) : (
             <p className="font-montserrat text-[12px] text-muted-foreground text-center py-2">
               No passengers named on this trip yet.
