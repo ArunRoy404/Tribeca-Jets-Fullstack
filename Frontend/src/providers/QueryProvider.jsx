@@ -5,7 +5,7 @@ import { GooeyToaster } from "goey-toast";
 import "goey-toast/styles.css";
 import { getQueryClient } from "@/lib/queryClient";
 import { setUnauthorizedHandler } from "@/lib/axios";
-import { handleSessionExpiry } from "@/lib/session";
+import { handleSessionExpiry, purgeLegacyStorage } from "@/lib/session";
 import { TOAST_DURATION } from "@/lib/toast";
 
 /**
@@ -15,6 +15,7 @@ import { TOAST_DURATION } from "@/lib/toast";
  * before any component renders, so no request can 401 before it is wired up.
  */
 setUnauthorizedHandler(handleSessionExpiry);
+purgeLegacyStorage();
 
 /**
  * Wraps the app in React Query and mounts the toast outlet.

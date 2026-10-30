@@ -171,9 +171,12 @@ function InvoiceForm({ invoice, draft, onDone }) {
                 </span>
               )}
             </div>
+            {billing?.invoiceCount > 0 && trip.totalPrice && billing.invoiced >= trip.totalPrice && (
+              <span className="font-montserrat text-[12px] font-medium text-emerald-500">Trip fully invoiced</span>
+            )}
             {fullCharge && (
               <Button type="button" variant="outline" size="sm" onClick={billFullTrip}>
-                Bill the full trip
+                {billing?.invoiceCount > 0 ? "Bill remaining balance" : "Bill the full trip"}
               </Button>
             )}
           </div>

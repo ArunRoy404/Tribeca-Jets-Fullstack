@@ -121,4 +121,34 @@ export async function clearSession({ notifyServer = true } = {}) {
   // Leaving one user's clients and financials cached for whoever signs in next
   // on this browser is a data leak, not a stale cache.
   clearAllQueries();
+
+  purgeLegacyStorage();
+}
+
+/**
+ * Purges legacy mock/prototype keys left over in localStorage from early development.
+ *
+ * Auth is strictly httpOnly cookies. No tokens or account credentials belong
+ * in browser storage.
+ */
+export function purgeLegacyStorage() {
+  if (typeof window === "undefined" || !window.localStorage) return;
+
+  const legacyPrefixes = ["tjcc_", "broker_accounts", "mock_", "prototype_"];
+  const toRemove = [];
+
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    if (key && legacyPrefixes.some((prefix) => key.startsWith(prefix))) {
+      toRemove.push(key);
+    }
+  }
+
+  toRemove.forEach((key) => {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Ignore storage access errors
+    }
+  });
 }
