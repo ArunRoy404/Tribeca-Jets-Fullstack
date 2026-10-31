@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 30 October 2026.** Update the "Where we are" section in the
+**Last updated: 31 October 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -323,6 +323,20 @@ the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
 
 
+
+### 31 Oct 2026 — Production Deployment on Dokploy/Hostinger & Executive QA Summary (Antigravity)
+
+- **Production Deployment Verified:**
+  - Code merged and pushed to `main`; deployed automatically to Hostinger VPS (`179.236.239.65`) via Dokploy.
+  - Both `api` and `web` containers compiled and booted cleanly.
+  - Production health endpoint verified at `https://tribecajetscommandcenter.com/api/health` (`status: ok`, `database: up`, `redis: up`, `storage: s3`).
+  - All new routes (`/api/client-portal/*`, `/api/assistant/*`, `/api/reports/export`, and PDF generation streams) verified cleanly mounted at boot.
+- **Full Test Suite Re-verification:**
+  - Ran `prisma generate` and verified full backend Vitest suite: 66/66 test suites (570 tests) passed 100% green.
+- **Non-Technical Executive Guide for QA Issues:**
+  - Authored `docs/QA_ISSUES_EXECUTIVE_SUMMARY.md` in response to `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf` (QA Test Report v2.0).
+  - Translates all 26 audited issues into plain, non-technical business language detailing: What happened, Why it mattered to the brokerage desk, and How it was resolved.
+  - Summarized delivery of the four previously "In Progress" modules (Editorial PDF Generator, Client Portal, Data Import/Export, and AI Command Assistant). Committed by owner.
 
 ### 29 Oct 2026 — Client Portal (#33 / #25) built & verified (ready for owner test)
 
