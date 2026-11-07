@@ -84,8 +84,8 @@ export class ClientPortalService {
         companyName: true,
         email: true,
         phone: true,
-        clientType: true,
-        preferredAircraftCategory: true,
+        type: true,
+        preferences: true,
         homeAirport: AIRPORT_SELECT,
         assignedBroker: BROKER_SELECT,
       },
@@ -158,7 +158,6 @@ export class ClientPortalService {
           reference: true,
           status: true,
           departureDate: true,
-          returnDate: true,
           passengerCount: true,
           aircraftDescription: true,
           aircraft: {
@@ -180,15 +179,14 @@ export class ClientPortalService {
               destinationAirport: AIRPORT_SELECT,
               departureDate: true,
               departureTime: true,
-              arrivalDate: true,
-              arrivalTime: true,
+              estimatedArrival: true,
             },
           },
           itinerary: {
             select: {
               id: true,
               status: true,
-              confirmed: true,
+              confirmedAt: true,
               sentAt: true,
               catering: true,
               groundTransport: true,
@@ -307,16 +305,19 @@ export class ClientPortalService {
         reference: t.reference,
         status: t.status,
         departureDate: t.departureDate,
-        returnDate: t.returnDate,
+        returnDate: lastLeg?.departureDate ?? null,
         passengerCount: t.passengerCount,
         aircraft: t.aircraft,
         aircraftDescription: t.aircraftDescription,
-        legs: t.legs,
+        legs: t.legs.map((leg) => ({
+          ...leg,
+          arrivalTime: leg.estimatedArrival,
+        })),
         itinerary: liveItinerary
           ? {
               id: liveItinerary.id,
               status: liveItinerary.status,
-              confirmed: liveItinerary.confirmed,
+              confirmed: Boolean(liveItinerary.confirmedAt),
               sentAt: liveItinerary.sentAt,
               catering: liveItinerary.catering,
               groundTransport: liveItinerary.groundTransport,
@@ -381,7 +382,10 @@ export class ClientPortalService {
       }));
 
     return {
-      client,
+      client: {
+        ...client,
+        clientType: client.type,
+      },
       credit,
       quotes,
       trips,
@@ -567,7 +571,7 @@ export class ClientPortalService {
       select: {
         id: true,
         status: true,
-        confirmed: true,
+        confirmedAt: true,
         flightTime: true,
         miles: true,
         catering: true,
@@ -602,8 +606,7 @@ export class ClientPortalService {
                 destinationAirport: AIRPORT_SELECT,
                 departureDate: true,
                 departureTime: true,
-                arrivalDate: true,
-                arrivalTime: true,
+                estimatedArrival: true,
               },
             },
             passengers: {
@@ -633,7 +636,7 @@ export class ClientPortalService {
         tripStatus: row.trip.status,
         departureDate: firstLeg?.departureDate ?? row.trip.departureDate,
         departureTime: firstLeg?.departureTime ?? null,
-        arrivalTime: lastLeg?.arrivalTime ?? null,
+        arrivalTime: lastLeg?.estimatedArrival ?? null,
         flightTime: row.flightTime,
         miles: row.miles,
         catering: row.catering,
