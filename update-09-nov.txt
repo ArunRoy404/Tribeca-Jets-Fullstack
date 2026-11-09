@@ -1,0 +1,85 @@
+update - 09 nov
+
+Hello Ari,
+
+I hope you are having a great week.
+
+Here is a full update on the recent CRM enhancements completed based on your feedback list.
+
+Here is a summary of everything completed:
+
+1. Trip Management
+ - 1.1 Passenger Count Auto-Population:
+   - When building an itinerary or converting an approved quote into a trip, the passenger count and passenger names now automatically pull directly from the trip record. Your team no longer needs to re-enter passenger numbers manually.
+
+ - 1.2 Booking Confirmation Pop-Up:
+   - When a trip status moves to "Booked", a celebratory confirmation pop-up appears with an animation to confirm the booking.
+   - The pop-up includes a trip summary, a prominent reminder to invoice the client, and a one-click "Generate Invoice" button so billing is never missed.
+
+ - 1.3 Trip Confirmation Checklist "Go" Buttons:
+   - Each item on the trip confirmation checklist (Flight Times, Operator Confirmed, Passenger Manifest, Contracts, Billing, and Itinerary) now has an active "Go" button.
+   - Clicking "Go" scrolls smoothly and jumps directly to the relevant card or opens the matching section with a single click.
+
+ - 1.4 Operator Payment Statuses:
+   - "Operator Payment Sent": Automatically ticks as completed the moment your team logs an operator bill payment as paid. This ensures your team never has to enter payment information twice.
+   - "Operator Payment Received": Provides a dedicated confirmation button on the trip checklist so your team can verify when the operator's accounting department has confirmed receipt of the wire.
+
+
+2. Broker and Referral Agent Management
+ - 2.1 Trip Approval Workflow:
+   - Trips submitted by brokers now enter a "Pending Approval" state with a clear warning banner.
+   - Trips submitted by brokers cannot be marked as "Confirmed" until an administrator reviews and approves them.
+   - Administrators are provided with "Approve Trip" and "Decline Approval" buttons on the trip action bar.
+   - If an administrator declines a trip, they can enter a reason, and the submitting broker is immediately notified with a high-priority task and an email explaining what needs adjustment.
+
+ - 2.2 Broker Commissions:
+   - "Broker" is now an available recipient type in the Commission section (alongside Referral Agents and Partners).
+   - Administrators can assign a specific commission amount, percentage of profit, or flat fee to any internal broker for a trip.
+
+ - 2.3 Recent Activity User/Broker Filter:
+   - The Recent Activity feed on the dashboard now includes a team member dropdown filter.
+   - You can view combined activity across the entire company or filter to view the specific actions of an individual broker or team member.
+
+
+3. Notifications
+ - 3.1 & 3.2 Trip Assignment Notifications (In-App & Email):
+   - Whenever an administrator assigns a trip to a broker, the broker immediately receives an alert in their CRM notification bell as an urgent task due today.
+   - An automated, branded email notification is also sent to the broker's inbox with the trip reference, client name, departure date, and a direct button to view the trip in Command Center.
+
+
+4. AI Assistant
+ - 4.1 Ask AI Everywhere:
+   - The "Ask AI" assistant has been moved to the main header and is now accessible from every single screen in the CRM, not just the dashboard.
+   - Your team can click the icon or press Cmd+K (Ctrl+K on Windows) anytime to ask questions about trips, clients, quotes, invoices, or workflows.
+
+
+5. Client Management
+ - 5.1 Birthday & Date Picker Year Selector:
+   - The birthday calendar picker now includes interactive dropdown selectors for both the month and the year (spanning 1920 to the present), as well as direct keyboard date entry.
+   - Your team can now select birthdates and passenger dates of birth in two quick clicks without having to scroll through hundreds of individual months.
+
+
+6. Reports
+ - 6.1 Google Sheets Export:
+   - All CRM financial and operational reports can be downloaded in standard CSV and Excel (.xlsx) formats.
+   - Both formats open seamlessly in Google Sheets, Microsoft Excel, and Apple Numbers. Clear labels and quick-import instructions have been added directly inside the export window.
+
+
+7. Invoice Management
+ - 7.1 Bank Wire Instructions on Invoices:
+   - You can now save your company's global bank wire details (Bank Name, Beneficiary Name, Account Number, Routing Number, SWIFT/BIC, and Remittance Notes) in Settings > Company & Branding.
+   - These instructions automatically populate at the bottom of all client invoices, in the Client Portal statement view, and on all downloaded invoice PDFs.
+   - Individual invoices also have an optional override field if custom wire instructions are required for a specific transaction.
+
+
+8. Contract Management
+ - 8.1 Contract Status Tracking:
+   - A dedicated "Contract Management" card has been added to the trip details view, tracking both "Contract Sent" and "Contract Received" statuses with dates and timestamps.
+
+ - 8.2 & 8.3 Avanode & DocuSign Quick Launch:
+   - Two dedicated external action buttons—"Create Contract in Avanode" and "DocuSign"—have been added to the Contract card on every trip.
+   - Clicking either button opens the respective platform in a new browser tab so brokers can quickly prepare, review, and sign agreements without leaving their CRM workflow.
+
+
+Best regards.
+
