@@ -122,10 +122,13 @@ export default function ExportOperationsDialog() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 rounded-sm border border-border bg-secondary p-4">
+        <div className="flex flex-col gap-2 rounded-sm border border-border bg-secondary p-4">
           <p className="font-dm-sans font-normal text-[12px] text-muted-foreground">
             One row per booked or flown trip: reference, departure, status, client, broker, route, aircraft, operator,
             revenue, FET, operator cost, profit and margin. A figure not yet known is left blank, never zero.
+          </p>
+          <p className="font-dm-sans font-normal text-[11px] text-muted-foreground border-t border-border/50 pt-2">
+            <strong className="font-medium text-foreground">Google Sheets:</strong> Export as CSV or Excel (.xlsx), open Google Sheets, and click <span className="font-medium text-foreground">File → Import → Upload</span> for full formatting and formulas.
           </p>
         </div>
 

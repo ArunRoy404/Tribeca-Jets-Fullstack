@@ -6,7 +6,6 @@ import RecentActivityFeed from "@/components/dashboard/recent-activity/RecentAct
 import FollowUpsSection from "@/components/dashboard/follow-ups/FollowUpsSection";
 import UpcomingTripsContainer from "@/components/table/upcoming-trips/UpcomingTripsContainer";
 import FinancialAttention from "@/components/dashboard/financial-attention/FinancialAttention";
-import AskAnythingPopover from "@/components/dashboard/assistant/AskAnythingPopover";
 
 export default function OverviewPage() {
   return (
@@ -28,8 +27,6 @@ export default function OverviewPage() {
         <UpcomingTripsContainer />
         <FinancialAttention />
       </div>
-
-      <AskAnythingPopover />
     </>
   );
 }

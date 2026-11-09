@@ -93,6 +93,18 @@ export function CommonDatePicker({
     return { year: now.getFullYear(), month: now.getMonth() };
   });
 
+  const currentYear = new Date().getFullYear();
+  const minYear = minDate ? (parseIsoDate(minDate)?.year ?? 1920) : 1920;
+  const maxYear = maxDate ? (parseIsoDate(maxDate)?.year ?? currentYear + 15) : currentYear + 15;
+
+  const years = useMemo(() => {
+    const list = [];
+    for (let y = maxYear; y >= minYear; y--) {
+      list.push(y);
+    }
+    return list;
+  }, [minYear, maxYear]);
+
   const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
   const firstDayOfWeek = new Date(view.year, view.month, 1).getDay();
 
@@ -179,14 +191,53 @@ export function CommonDatePicker({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-3 bg-white border border-border shadow-lg rounded-lg">
         {/* Month / Year Nav */}
-        <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/50">
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => step(-1)} className="h-7 w-7">
+        <div className="flex items-center justify-between gap-1 pb-2 mb-2 border-b border-border/50">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => step(-1)}
+            className="h-7 w-7 shrink-0 cursor-pointer"
+            aria-label="Previous month"
+          >
             <ChevronLeft className="size-4" />
           </Button>
-          <span className="font-montserrat font-bold text-[13px] text-foreground">
-            {MONTH_NAMES[view.month]} {view.year}
-          </span>
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => step(1)} className="h-7 w-7">
+
+          <div className="flex items-center gap-1.5 min-w-0">
+            <select
+              value={view.month}
+              onChange={(e) => setView((prev) => ({ ...prev, month: Number(e.target.value) }))}
+              className="h-7 px-1.5 text-[12px] font-montserrat font-semibold bg-secondary/60 hover:bg-secondary text-foreground border border-border/70 rounded cursor-pointer outline-none focus:ring-1 focus:ring-purple"
+              aria-label="Select month"
+            >
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={name} value={idx}>
+                  {name.slice(0, 3)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={view.year}
+              onChange={(e) => setView((prev) => ({ ...prev, year: Number(e.target.value) }))}
+              className="h-7 px-1.5 text-[12px] font-montserrat font-semibold bg-secondary/60 hover:bg-secondary text-foreground border border-border/70 rounded cursor-pointer outline-none focus:ring-1 focus:ring-purple"
+              aria-label="Select year"
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => step(1)}
+            className="h-7 w-7 shrink-0 cursor-pointer"
+            aria-label="Next month"
+          >
             <ChevronRight className="size-4" />
           </Button>
         </div>
@@ -241,33 +292,61 @@ export function CommonDatePicker({
           })}
         </div>
 
-        {/* Quick select */}
-        <div className="pt-2 mt-2 border-t border-border/50 flex justify-between items-center">
-          <button
-            type="button"
-            disabled={isTodayDisabled}
-            onClick={() => !isTodayDisabled && commit(today.getFullYear(), today.getMonth(), today.getDate())}
-            className={cn(
-              "font-montserrat text-[11px] font-semibold transition-colors",
-              isTodayDisabled
-                ? "text-muted-foreground/40 cursor-not-allowed"
-                : "text-purple hover:underline cursor-pointer"
-            )}
-          >
-            {todayLabel}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              // Empty string, not null: callers turn a blank into `undefined`
-              // on create and `null` on update, and both read `""` as "unset".
-              onChange?.("");
-              setOpen(false);
-            }}
-            className="font-montserrat text-[11px] text-muted-foreground hover:underline cursor-pointer"
-          >
-            Clear
-          </button>
+        {/* Quick select & manual entry */}
+        <div className="pt-2 mt-2 border-t border-border/50 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <input
+              type="text"
+              placeholder="YYYY-MM-DD"
+              defaultValue={value || ""}
+              key={value || "empty"}
+              onBlur={(e) => {
+                const val = e.target.value.trim();
+                if (!val) {
+                  onChange?.("");
+                } else if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                  const p = parseIsoDate(val);
+                  if (p) {
+                    commit(p.year, p.month, p.day);
+                    setView({ year: p.year, month: p.month });
+                  }
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.target.blur();
+                }
+              }}
+              className="h-7 px-2 text-[11px] font-montserrat border border-border/80 rounded bg-secondary/30 text-foreground w-28 focus:outline-none focus:ring-1 focus:ring-purple"
+              aria-label="Type date YYYY-MM-DD"
+            />
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                disabled={isTodayDisabled}
+                onClick={() => !isTodayDisabled && commit(today.getFullYear(), today.getMonth(), today.getDate())}
+                className={cn(
+                  "font-montserrat text-[11px] font-semibold transition-colors",
+                  isTodayDisabled
+                    ? "text-muted-foreground/40 cursor-not-allowed"
+                    : "text-purple hover:underline cursor-pointer"
+                )}
+              >
+                {todayLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange?.("");
+                  setOpen(false);
+                }}
+                className="font-montserrat text-[11px] text-muted-foreground hover:underline cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
         </div>
       </PopoverContent>
     </Popover>

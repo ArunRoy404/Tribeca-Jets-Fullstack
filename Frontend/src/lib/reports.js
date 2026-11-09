@@ -219,4 +219,8 @@ export function toRouteRows(rows) {
 
 /** The formats the API can write. PDF waits on a PDF generator (MODULE_FEATURE_STATUS.md). */
 export const EXPORT_FORMATS = ["CSV", "XLSX", "PDF"];
-export const EXPORT_FORMAT_LABELS = { CSV: "CSV", XLSX: "Excel", PDF: "PDF" };
+export const EXPORT_FORMAT_LABELS = {
+  CSV: "CSV / Google Sheets",
+  XLSX: "Excel / Sheets (.xlsx)",
+  PDF: "PDF Document",
+};

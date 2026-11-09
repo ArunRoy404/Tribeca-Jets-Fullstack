@@ -4,6 +4,7 @@ import DashboardTopNav from "@/components/dashboard/nav/DashboardTopNav";
 import IdleLogoutWatcher from "@/components/common/IdleLogoutWatcher";
 import AreaGate from "@/components/common/AreaGate";
 import ModuleGate from "@/components/common/ModuleGate";
+import AskAnythingPopover from "@/components/dashboard/assistant/AskAnythingPopover";
 
 /**
  * Access is gated before this ever renders — `src/proxy.js` redirects requests
@@ -33,6 +34,7 @@ export default function DashboardLayout({ children }) {
           <div className="flex-1 w-full flex flex-col min-w-0">
             <ModuleGate>{children}</ModuleGate>
           </div>
+          <AskAnythingPopover />
         </SidebarInset>
       </SidebarProvider>
     </AreaGate>

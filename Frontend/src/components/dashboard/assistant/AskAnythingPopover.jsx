@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
@@ -28,6 +28,18 @@ export default function AskAnythingPopover() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const contextLabel = useMemo(() => deriveContextLabel(pathname), [pathname]);
+
+  // Global keyboard shortcut: Cmd+K / Ctrl+K opens the Ask AI popover from anywhere
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key?.toLowerCase() === "k") {
+        e.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const message = useAssistantStore((s) => s.message);
   const setMessage = useAssistantStore((s) => s.setMessage);

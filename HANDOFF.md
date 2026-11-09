@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 31 October 2026.** Update the "Where we are" section in the
+**Last updated: 9 November 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -74,18 +74,29 @@ emailed codes are limited (session log below). Committed and pushed to
 `roy`; the owner merges to `main` (auto-deploy applies the migration on the
 API's start). Import / Export (#31) comes after.
 
-### What is next — QA Audit Remediation (docs/QA_REVIEW_REMEDIATION.md) & Owner Testing
+### What is next — CRM Development Tasks Roadmap (9 Nov 2026) & QA Audit Verification
 
-- **QA Audit Analysis Completed (29 Oct 2026):**
-  - Audited `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf` (QA Test Report v2.0).
-  - All reported issues verified against the codebase and cataloged in `docs/QA_REVIEW_REMEDIATION.md` with full architectural designs.
-  - Remediation organized into 4 planned execution batches:
-    1. **Batch 1:** Security & Financial Math (#4 FET profit deduction, #6 upload whitelist, #23 receivables ceiling, #5 auth cleanup) — ✅ COMPLETED 30 Oct 2026.
-    2. **Batch 2:** Sales & CRM Pipeline (#3 follow-up UUID, #29 client auto-advance & header stats, #33 defaults propagation, #27 sourcing-to-quote autofill, #24 date format) — ✅ COMPLETED 30 Oct 2026.
-    3. **Batch 3:** Operations & Flights (#9/#26 trip confirmation checklist & date checks, #22 itinerary departure time & email sync, #25 flight tracking sync, #28 sourcing search) — ✅ COMPLETED 30 Oct 2026.
-    4. **Batch 4:** Polish & Edge Validations (#7 credit overdraw check, #12 duplicate airport block, #13 stage sync, #16 active agent count, #34 broker roles, #35 auth marketing removal, #37 email money formatting, #38 estimate carry-over) — ✅ COMPLETED 30 Oct 2026.
+- **CRM Feedback Analysis & Agreed Architecture (9 Nov 2026):**
+  - Evaluated the 8 CRM feedback items across 4 planned execution batches with agreed design decisions:
+    1. **Batch 1 (Quick Wins & UI Polish) — ✅ COMPLETED 9 Nov 2026:**
+       - **4.1 Global Ask AI:** Moved `<AskAnythingPopover />` to `DashboardLayout.jsx` with global `⌘K` / `Ctrl+K` shortcut listener and badge; Ask AI is now live across all 45 CRM screens.
+       - **5.1 Birthday Year Picker:** Upgraded `CommonDatePicker.jsx` with an interactive month and year dropdown selector (1920–present) and manual keyboard date entry (`YYYY-MM-DD`). Eliminates 500+ click steps for birthdays and passenger DOBs.
+       - **6.1 Google Sheets Export:** Updated format labels (`CSV / Google Sheets`, `Excel / Sheets (.xlsx)`) and added prominent Google Sheets import guidance in `ExportOperationsDialog.jsx`.
+    2. **Batch 2 (Invoicing & Financial Enhancements) — UP NEXT:**
+       - **7.1 Bank Wire Instructions:** Add company wire instruction fields to `Settings` (bank name, routing, account, SWIFT, beneficiary, remittance notes), inherit by default on receivables with per-invoice override, and render a dedicated wire details box in `ReceivableDetailSheet.jsx`, Client Portal, and downloaded PDF invoices (`renderInvoicePdf`).
+       - **2.2 Broker Commissions:** Add `BROKER` to `CommissionRecipientType` in schema, wire `BrokerPicker` into `AddCommissionDialog.jsx`, and allow assigning commissions directly to internal brokers for specific trips.
+    3. **Batch 3 (Trip Operations, Checklist & Contracts):**
+       - **1.1 Passenger Count Auto-Population:** Ensure passenger count automatically reflects and locks from the selected trip in Itinerary composer and related trip-picker flows.
+       - **1.2 Booking Confirmation Modal:** Intercept trip booking from quotes/creator to display a celebratory animation (confetti), booking summary, and clear prompt: *"Trip booked! Don't forget to invoice the client"* with a direct *"Generate Invoice"* button.
+       - **1.3 Checklist "Go" Navigation:** Add a "Go" action button beside each item in `TripConfirmationCard.jsx` navigating/scrolling directly to the relevant card or modal (client, aircraft, operator, manifest, financials, itinerary, payment).
+       - **1.4 Operator Payment Statuses:** Add `Operator Payment Sent` (auto-completed when operator payable is marked `PAID`) and `Operator Payment Received` (desk verification toggle) to `TripConfirmationCard.jsx`.
+       - **8.1, 8.2, 8.3 Contract Management & External Buttons:** Add contract tracking (`Contract Sent`, `Contract Received`) and direct external launch buttons for **Avanode** (`https://www.avanode.com`) and **DocuSign** (`https://app.docusign.com`).
+    4. **Batch 4 (Approvals & Notifications):**
+       - **2.1 Admin Trip Approval Workflow:** Add `approvalStatus: PENDING | APPROVED | REJECTED` to `Trip`. Trips created by brokers default to `PENDING` with an "Approval Required" banner and an admin review/approval button on `TripActionBar` required before moving to `CONFIRMED`.
+       - **2.3 Recent Activity User/Broker Filter:** Add optional `userId` filter to `GET /dashboard/activity` (`DashboardActivityDto`) and add a team member filter dropdown in `RecentActivityFeed.jsx`.
+       - **3.1 & 3.2 Trip Assignment Notifications:** Dispatch in-app task/bell notification and transactional SMTP email via `MailService.send()` to brokers when an admin assigns a trip to them.
 
-- **ALL 26 QA AUDIT ISSUES REMEDIATED & PINNED:** Every issue from `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf` has been audited, designed, implemented, tested, and pinned across all 4 execution batches. Vitest passes 100% (66 test suites, 570 tests), `tsc --noEmit` has 0 errors, `oxlint` has 0 errors, `npm run lint` has 0 errors, and Next.js `npm run build` compiles all 45 routes with 0 errors. Ready for owner acceptance testing.
+- **ALL 26 QA AUDIT ISSUES REMEDIATED & PINNED (30 Oct 2026):** Every issue from `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf` has been audited, designed, implemented, tested, and pinned across all 4 execution batches. Vitest passes 100% (66 test suites, 570 tests), `tsc --noEmit` has 0 errors, `oxlint` has 0 errors, `npm run lint` has 0 errors, and Next.js `npm run build` compiles all 45 routes with 0 errors. Ready for owner acceptance testing.
 
 - **Offline / PWA (#35) — Deferred by decision (documented for future):** Removed from active project per owner instruction (29 Oct 2026). The full architecture, Service Worker caching strategies, manifest configuration, and offline manager specification are preserved in `docs/MODULE_FEATURE_STATUS.md` §35 for future reference if desired.
 
@@ -996,3 +1007,23 @@ this says *what the owner decided*, which nothing else records.
 - **Verification:**
   - Backend: Vitest 66/66 test suites (570 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
   - Frontend: `npm run lint` 0 errors; `npm run build` compiled all 45 routes with 0 errors.
+
+### 9 Nov 2026 — CRM Development Tasks Roadmap & Technical Alignment (Antigravity)
+
+- **Comprehensive Codebase Audit against 8 Feedback Items:**
+  - Analyzed and mapped all 8 user feedback areas across the fullstack repository (PostgreSQL schema, NestJS backend, Next.js frontend).
+  - Categorized items into already implemented, partially implemented, not implemented, and items requiring careful architectural protection.
+- **Architectural Decisions & Technical Alignment:**
+  1. **Trip Approval Workflow (Item 2.1):** Decided on non-breaking sub-state `approvalStatus: PENDING | APPROVED | REJECTED` on `Trip` (default `APPROVED` for admins, `PENDING` for brokers). Blocks moving to `CONFIRMED` until Admin approves via `TripActionBar`. Dispatches in-app task and email to admins. Preserves core `TripStatus` enum.
+  2. **Operator Payment Statuses (Item 1.4):** Decided on automated `Operator Payment Sent` (ticks complete when operator payable is marked `PAID`) and a verified desk toggle `Operator Payment Received` (marked when the operator's accounting team confirms remittance).
+  3. **Bank Wire Instructions (Item 7.1):** Global company defaults added to `Settings › Company & Branding` (`bankName`, `routingNumber`, `accountNumber`, `swiftBic`, `beneficiaryName`, `wireInstructionsText`), inherited by invoices with optional per-invoice override, and rendered in `ReceivableDetailSheet.jsx`, Client Portal statement tab, and downloaded PDF invoices (`renderInvoicePdf`).
+  4. **Broker Commissions (Item 2.2):** Add `BROKER` to `CommissionRecipientType` in schema, wire `BrokerPicker` into `AddCommissionDialog.jsx`, and display broker payee badges.
+  5. **Quick Wins (Items 4.1, 5.1, 6.1):** Move Ask AI to global `DashboardLayout.jsx` for all 45 routes; upgrade `CommonDatePicker.jsx` with year dropdown selector (1920–present) and manual typing; verify Google Sheets export compatibility.
+  6. **Checklist & Booking UX (Items 1.1, 1.2, 1.3, 8.1-8.3):** Build `BookingConfirmationDialog` with celebratory animation and invoice reminder; add "Go" navigation buttons to `TripConfirmationCard.jsx`; add Contract status card with Avanode and DocuSign launch buttons.
+  7. **Notifications & Activity Filtering (Items 2.3, 3.1, 3.2):** Add broker/user filter to Recent Activity API and feed; dispatch in-app bell notification and SMTP email when an admin assigns a trip to a broker.
+- **Batch 1 (Quick Wins & UI Polish) Implemented & Verified (9 Nov 2026):**
+  - **4.1 Global Ask AI:** Moved `<AskAnythingPopover />` from `OverviewPage.jsx` into global `DashboardLayout.jsx` (`Frontend/src/app/dashboard/layout.js`). Added global `⌘K` / `Ctrl+K` keydown toggle listener and accessible trigger badge. Ask AI is now universally active across all 45 CRM screens.
+  - **5.1 Birthday & Date Picker Year Navigation:** Upgraded `CommonDatePicker.jsx` with an interactive month and year dropdown selector (spanning 1920 to current year + 15) and a manual keyboard date input (`YYYY-MM-DD`). Fixes birthday and passenger manifest DOB selection, completely eliminating 500+ single-month step clicks.
+  - **6.1 Google Sheets Export Clarity:** Updated export format labels in `Frontend/src/lib/reports.js` and added Google Sheets import guidance (`File → Import → Upload`) in `ExportOperationsDialog.jsx`.
+  - **Verification:** Frontend ESLint 0 errors / 0 warnings (`npm run lint`), Next.js Turbopack build 100% successful with 0 errors across all 45 routes (`npm run build`), Backend Vitest 66/66 test suites (570 tests) pass 100% green.
+- **Current State:** Working tree clean on branch `roy`. Ready for Batch 2 (Invoicing & Financial Enhancements: Bank Wire Instructions & Broker Commissions).
