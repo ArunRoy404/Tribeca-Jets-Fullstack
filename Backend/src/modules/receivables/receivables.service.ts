@@ -124,6 +124,7 @@ const INVOICE_LIST_SELECT = {
   issuedAt: true,
   dueDate: true,
   notes: true,
+  wireInstructions: true,
   payments: LIVE_PAYMENTS,
   createdAt: true,
   createdById: true,
@@ -342,6 +343,8 @@ export class ReceivablesService {
       select: PAYMENT_SELECT,
     });
 
+    const brand = await this.settings.documentBranding();
+
     return {
       ...this.serialise(row),
       createdBy: row.createdBy,
@@ -349,6 +352,14 @@ export class ReceivablesService {
       payments: payments.filter((p) => p.deletedAt === null).map((p) => this.serialisePayment(p)),
       /** Payments taken off the record, with who withdrew them — never erased. */
       withdrawnPayments: payments.filter((p) => p.deletedAt !== null).map((p) => this.serialisePayment(p)),
+      wireRemittance: {
+        bankName: brand.wireBankName,
+        beneficiaryName: brand.wireBeneficiaryName,
+        routingNumber: brand.wireRoutingNumber,
+        accountNumber: brand.wireAccountNumber,
+        swiftBic: brand.wireSwiftBic,
+        instructions: row.wireInstructions || brand.wireInstructions,
+      },
     };
   }
 
@@ -560,6 +571,7 @@ export class ReceivablesService {
         issuedAt: dto.status === InvoiceStatus.SENT ? (dto.issuedAt ?? todayUtc()) : null,
         dueDate: dto.dueDate ?? null,
         notes: dto.notes ?? null,
+        wireInstructions: dto.wireInstructions ?? null,
         createdById: user.id,
         updatedById: user.id,
       },
@@ -660,6 +672,7 @@ export class ReceivablesService {
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.dueDate !== undefined ? { dueDate: dto.dueDate } : {}),
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+        ...(dto.wireInstructions !== undefined ? { wireInstructions: dto.wireInstructions } : {}),
         issuedAt,
         updatedById: user.id,
       },

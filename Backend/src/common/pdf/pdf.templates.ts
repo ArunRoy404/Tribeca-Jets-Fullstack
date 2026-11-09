@@ -456,6 +456,7 @@ export interface InvoicePdfData {
   issuedAt?: Date | string | null;
   dueDate?: Date | string | null;
   notes?: string | null;
+  wireInstructions?: string | null;
   client?: {
     firstName?: string | null;
     lastName?: string | null;
@@ -588,8 +589,40 @@ export async function renderInvoicePdf(invoice: InvoicePdfData, brand: PdfCompan
     doc.y += 6;
   }
 
+  const wireText = invoice.wireInstructions?.trim() || brand.wireInstructions?.trim();
+  const hasWireFields = Boolean(brand.wireBankName || brand.wireAccountNumber || brand.wireRoutingNumber || brand.wireSwiftBic || wireText);
+
+  if (hasWireFields) {
+    drawSectionHeading(doc, 'Bank Wire Transfer Instructions');
+    ensureSpace(doc, 44);
+
+    const wireRows: Array<{ label: string; value: string | null | undefined }> = [
+      { label: 'Bank Name', value: brand.wireBankName },
+      { label: 'Beneficiary Name', value: brand.wireBeneficiaryName || brand.companyName },
+      { label: 'Routing / ABA #', value: brand.wireRoutingNumber },
+      { label: 'Account Number', value: brand.wireAccountNumber },
+      { label: 'SWIFT / BIC', value: brand.wireSwiftBic },
+      { label: 'Remittance Reference', value: `Invoice ${invoice.number}` },
+    ].filter((r) => Boolean(r.value));
+
+    if (wireRows.length > 0) {
+      drawKeyValueGrid(doc, wireRows, 3);
+      doc.y += 6;
+    }
+
+    if (wireText) {
+      ensureSpace(doc, 20);
+      doc
+        .font('Helvetica-Oblique')
+        .fontSize(8)
+        .fillColor(PDF_THEME.muted)
+        .text(wireText, left, doc.y, { width, lineGap: 1.5 });
+      doc.y += 8;
+    }
+  }
+
   if (invoice.notes?.trim()) {
-    drawSectionHeading(doc, 'Notes & Remittance Instructions');
+    drawSectionHeading(doc, 'Invoice Notes');
     ensureSpace(doc, 36);
     doc
       .font('Helvetica')

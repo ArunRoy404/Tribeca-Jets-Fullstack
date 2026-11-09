@@ -147,6 +147,55 @@ export default function ReceivableDetailSheet() {
             </p>
           </SectionCard>
 
+          {(data?.wireRemittance?.bankName || data?.wireRemittance?.instructions || item.wireInstructions) && (
+            <SectionCard title="Bank Wire Instructions" titleClassName="text-foreground">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full text-[13px]">
+                {data?.wireRemittance?.bankName && (
+                  <div>
+                    <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Bank Name</span>
+                    <span className="font-medium text-foreground">{data.wireRemittance.bankName}</span>
+                  </div>
+                )}
+                {data?.wireRemittance?.beneficiaryName && (
+                  <div>
+                    <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Beneficiary Name</span>
+                    <span className="font-medium text-foreground">{data.wireRemittance.beneficiaryName}</span>
+                  </div>
+                )}
+                {data?.wireRemittance?.routingNumber && (
+                  <div>
+                    <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Routing / ABA</span>
+                    <span className="font-mono font-medium text-foreground">{data.wireRemittance.routingNumber}</span>
+                  </div>
+                )}
+                {data?.wireRemittance?.accountNumber && (
+                  <div>
+                    <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Account Number</span>
+                    <span className="font-mono font-medium text-foreground">{data.wireRemittance.accountNumber}</span>
+                  </div>
+                )}
+                {data?.wireRemittance?.swiftBic && (
+                  <div>
+                    <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">SWIFT / BIC</span>
+                    <span className="font-mono font-medium text-foreground">{data.wireRemittance.swiftBic}</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold">Reference / Memo</span>
+                  <span className="font-mono font-medium text-foreground">Invoice {item.number}</span>
+                </div>
+              </div>
+              {(item.wireInstructions || data?.wireRemittance?.instructions) && (
+                <div className="border-t border-secondary/60 pt-2 mt-2 w-full">
+                  <span className="text-muted-foreground block text-[11px] uppercase tracking-wider font-semibold mb-1">Wire Notes / Instructions</span>
+                  <p className="font-montserrat text-[12px] text-muted-foreground whitespace-pre-line">
+                    {item.wireInstructions || data.wireRemittance.instructions}
+                  </p>
+                </div>
+              )}
+            </SectionCard>
+          )}
+
           {(mayCreate || mayPay || mayArchive) && (
             <div className="border-t border-secondary flex flex-wrap items-center justify-between gap-3 pt-4 w-full mt-auto">
               {item.isArchived ? (

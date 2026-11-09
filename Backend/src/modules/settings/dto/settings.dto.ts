@@ -76,6 +76,12 @@ const companySchema = z
     showContactBlock: z.boolean().optional(),
     logoOnDocuments: z.boolean().optional(),
     showBrokerContact: z.boolean().optional(),
+    wireBankName: clearableText(120),
+    wireBeneficiaryName: clearableText(120),
+    wireRoutingNumber: clearableText(40),
+    wireAccountNumber: clearableText(60),
+    wireSwiftBic: clearableText(40),
+    wireInstructions: clearableText(5000),
   })
   .strict();
 

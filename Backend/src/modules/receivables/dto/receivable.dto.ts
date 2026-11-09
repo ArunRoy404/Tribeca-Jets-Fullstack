@@ -86,6 +86,7 @@ export const createInvoiceSchema = z.object({
   issuedAt: calendarDate.optional(),
   dueDate: calendarDate.optional(),
   notes: notes.optional(),
+  wireInstructions: z.string().trim().max(5000).nullable().optional(),
 });
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
@@ -106,6 +107,7 @@ export const updateInvoiceSchema = z
     issuedAt: calendarDate.nullable().optional(),
     dueDate: calendarDate.nullable().optional(),
     notes: notes.nullable().optional(),
+    wireInstructions: z.string().trim().max(5000).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Provide at least one field to update',

@@ -185,6 +185,12 @@ export class SettingsService implements OnModuleInit {
       showBrokerContact: row.showBrokerContact,
       defaultQuoteTerms: row.defaultQuoteTerms,
       logoBuffer,
+      wireBankName: row.wireBankName,
+      wireBeneficiaryName: row.wireBeneficiaryName,
+      wireRoutingNumber: row.wireRoutingNumber,
+      wireAccountNumber: row.wireAccountNumber,
+      wireSwiftBic: row.wireSwiftBic,
+      wireInstructions: row.wireInstructions,
     };
   }
 

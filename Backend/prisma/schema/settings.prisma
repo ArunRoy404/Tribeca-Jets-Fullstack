@@ -31,6 +31,14 @@ model CompanySettings {
   /// The assigned broker's contact on client-facing documents.
   showBrokerContact   Boolean @default(true)
 
+  // ---- Banking & Wire Remittance -------------------------------------------
+  wireBankName        String? @db.VarChar(120)
+  wireBeneficiaryName String? @db.VarChar(120)
+  wireRoutingNumber   String? @db.VarChar(40)
+  wireAccountNumber   String? @db.VarChar(60)
+  wireSwiftBic        String? @db.VarChar(40)
+  wireInstructions    String? @db.Text
+
   // ---- CRM & quote defaults (new records only) -------------------------------
   defaultMarkupPercent Decimal   @default(15) @db.Decimal(5, 2)
   quoteValidityHours   Int       @default(24)

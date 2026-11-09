@@ -30,7 +30,7 @@ import { useCommissionsStore } from "@/store/useCommissionsStore";
 
 const NONE = "__none__";
 /** The recipient toggle: a label per wire value. */
-const RECIPIENTS = { REFERRAL_AGENT: "Referral Agent", CLIENT: "CRM Client", MANUAL: "Manual Recipient" };
+const RECIPIENTS = { BROKER: "Broker", REFERRAL_AGENT: "Referral Agent", CLIENT: "CRM Client", MANUAL: "Manual Recipient" };
 const RECIPIENT_BY_LABEL = Object.fromEntries(Object.entries(RECIPIENTS).map(([value, label]) => [label, value]));
 /** For a referral agent the basis may be left to their standing structure. */
 const AGENT_DEFAULT = "__agent__";
@@ -105,6 +105,7 @@ function CommissionForm({ commission, draft, onDone }) {
     event.preventDefault();
     const next = {};
     if (!form.tripId) next.tripId = "Choose the trip";
+    if (form.recipientType === "BROKER" && !form.recipientUserId) next.recipientUserId = "Choose the broker";
     if (form.recipientType === "REFERRAL_AGENT" && !form.recipientUserId) next.recipientUserId = "Choose the referral agent";
     if (form.recipientType === "CLIENT" && !form.recipientClientId) next.recipientClientId = "Choose the client";
     if (form.recipientType === "MANUAL" && !form.recipientName.trim()) next.recipientName = "Name who is being paid";
@@ -119,7 +120,7 @@ function CommissionForm({ commission, draft, onDone }) {
     const payload = {
       tripId: form.tripId,
       recipientType: form.recipientType,
-      ...(form.recipientType === "REFERRAL_AGENT" ? { recipientUserId: form.recipientUserId } : {}),
+      ...((form.recipientType === "BROKER" || form.recipientType === "REFERRAL_AGENT") ? { recipientUserId: form.recipientUserId } : {}),
       ...(form.recipientType === "CLIENT" ? { recipientClientId: form.recipientClientId } : {}),
       ...(form.recipientType === "MANUAL"
         ? { recipientName: form.recipientName.trim(), recipientCompany: optionalText(form.recipientCompany, clear) }
@@ -178,6 +179,16 @@ function CommissionForm({ commission, draft, onDone }) {
           />
         </FormField>
 
+        {form.recipientType === "BROKER" && (
+          <FormField label="Broker" error={errors.recipientUserId}>
+            <BrokerPicker
+              value={form.recipientUserId}
+              onChange={set("recipientUserId")}
+              invalid={Boolean(errors.recipientUserId)}
+              placeholder="Choose the broker"
+            />
+          </FormField>
+        )}
         {form.recipientType === "REFERRAL_AGENT" && (
           <FormField label="Referral agent" error={errors.recipientUserId}>
             <ReferralAgentPicker

@@ -165,7 +165,7 @@ export class CommissionsService {
       return { recipientType: CommissionRecipientType.REFERRAL_AGENT, recipientUserId: user.id };
     }
     if (reachOf(user.access, Module.COMMISSIONS) === Reach.OWN) {
-      return { brokerId: user.id };
+      return { OR: [{ brokerId: user.id }, { recipientUserId: user.id }] };
     }
     return { id: '__none__' };
   }
@@ -241,6 +241,7 @@ export class CommissionsService {
   private recipientLabel(row: Row): string | null {
     switch (row.recipientType) {
       case CommissionRecipientType.REFERRAL_AGENT:
+      case CommissionRecipientType.BROKER:
         return nameOf(row.recipientUser);
       case CommissionRecipientType.CLIENT:
         return nameOf(row.recipientClient);
@@ -502,6 +503,20 @@ export class CommissionsService {
         return {
           agent,
           columns: { recipientType: type, recipientUserId: agent.id, recipientClientId: null, recipientName: null, recipientCompany: null },
+        };
+      }
+      case CommissionRecipientType.BROKER: {
+        if (!dto.recipientUserId) throw new BadRequestException('Choose the broker');
+        await this.assertBroker(dto.recipientUserId);
+        return {
+          agent: null,
+          columns: {
+            recipientType: type,
+            recipientUserId: dto.recipientUserId,
+            recipientClientId: null,
+            recipientName: null,
+            recipientCompany: null,
+          },
         };
       }
       case CommissionRecipientType.CLIENT: {

@@ -82,6 +82,8 @@ model Commission {
 enum CommissionRecipientType {
   /// A REFERRAL_AGENT user — visible to them in the portal.
   REFERRAL_AGENT
+  /// An internal staff broker.
+  BROKER
   /// A CRM client, typically a travel agent.
   CLIENT
   /// Anyone else, by name.

@@ -76,6 +76,7 @@ export function toReceivableRow(invoice) {
     lastPaid: last ? formatCalendarDate(last.paidAt) : DASH,
     paymentCount: invoice?.paymentCount ?? 0,
     notes: invoice?.notes ?? null,
+    wireInstructions: invoice?.wireInstructions ?? null,
     raw: invoice,
     ...toArchiveFields(invoice),
   };

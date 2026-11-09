@@ -82,10 +82,10 @@ API's start). Import / Export (#31) comes after.
        - **4.1 Global Ask AI:** Moved `<AskAnythingPopover />` to `DashboardLayout.jsx` with global `⌘K` / `Ctrl+K` shortcut listener and badge; Ask AI is now live across all 45 CRM screens.
        - **5.1 Birthday Year Picker:** Upgraded `CommonDatePicker.jsx` with an interactive month and year dropdown selector (1920–present) and manual keyboard date entry (`YYYY-MM-DD`). Eliminates 500+ click steps for birthdays and passenger DOBs.
        - **6.1 Google Sheets Export:** Updated format labels (`CSV / Google Sheets`, `Excel / Sheets (.xlsx)`) and added prominent Google Sheets import guidance in `ExportOperationsDialog.jsx`.
-    2. **Batch 2 (Invoicing & Financial Enhancements) — UP NEXT:**
-       - **7.1 Bank Wire Instructions:** Add company wire instruction fields to `Settings` (bank name, routing, account, SWIFT, beneficiary, remittance notes), inherit by default on receivables with per-invoice override, and render a dedicated wire details box in `ReceivableDetailSheet.jsx`, Client Portal, and downloaded PDF invoices (`renderInvoicePdf`).
-       - **2.2 Broker Commissions:** Add `BROKER` to `CommissionRecipientType` in schema, wire `BrokerPicker` into `AddCommissionDialog.jsx`, and allow assigning commissions directly to internal brokers for specific trips.
-    3. **Batch 3 (Trip Operations, Checklist & Contracts):**
+    2. **Batch 2 (Invoicing & Financial Enhancements) — ✅ COMPLETED 9 Nov 2026:**
+       - **7.1 Bank Wire Instructions:** Added company wire remittance fields to `CompanySettings` (`wireBankName`, `wireBeneficiaryName`, `wireRoutingNumber`, `wireAccountNumber`, `wireSwiftBic`, `wireInstructions`), created migration `20261109160000_wire_instructions_and_broker_commission`, added `wireInstructions` text column to `Invoice`, updated `CompanyBrandingSection.jsx`, added wire text input in `AddReceivableDialog.jsx`, rendered dedicated "Bank Wire Instructions" card in `ReceivableDetailSheet.jsx` and Client Portal statement tab (`ClientPortalView.jsx`), and updated PDF template (`renderInvoicePdf`) to render wire remittance details at the bottom of downloaded invoices.
+       - **2.2 Broker Commissions:** Added `BROKER` to `CommissionRecipientType` in Prisma schema, updated `CommissionsService` (`recipient()`, `recipientLabel()`, `scope()`), updated `RECIPIENT_TYPES` and `RECIPIENT_LABELS` in `Frontend/src/lib/commission.js`, updated `AddCommissionDialog.jsx` with `BrokerPicker`, and added `"Broker"` tone styling in `StatusBadge.jsx`.
+    3. **Batch 3 (Trip Operations, Checklist & Contracts) — UP NEXT:**
        - **1.1 Passenger Count Auto-Population:** Ensure passenger count automatically reflects and locks from the selected trip in Itinerary composer and related trip-picker flows.
        - **1.2 Booking Confirmation Modal:** Intercept trip booking from quotes/creator to display a celebratory animation (confetti), booking summary, and clear prompt: *"Trip booked! Don't forget to invoice the client"* with a direct *"Generate Invoice"* button.
        - **1.3 Checklist "Go" Navigation:** Add a "Go" action button beside each item in `TripConfirmationCard.jsx` navigating/scrolling directly to the relevant card or modal (client, aircraft, operator, manifest, financials, itinerary, payment).
@@ -1026,4 +1026,16 @@ this says *what the owner decided*, which nothing else records.
   - **5.1 Birthday & Date Picker Year Navigation:** Upgraded `CommonDatePicker.jsx` with an interactive month and year dropdown selector (spanning 1920 to current year + 15) and a manual keyboard date input (`YYYY-MM-DD`). Fixes birthday and passenger manifest DOB selection, completely eliminating 500+ single-month step clicks.
   - **6.1 Google Sheets Export Clarity:** Updated export format labels in `Frontend/src/lib/reports.js` and added Google Sheets import guidance (`File → Import → Upload`) in `ExportOperationsDialog.jsx`.
   - **Verification:** Frontend ESLint 0 errors / 0 warnings (`npm run lint`), Next.js Turbopack build 100% successful with 0 errors across all 45 routes (`npm run build`), Backend Vitest 66/66 test suites (570 tests) pass 100% green.
-- **Current State:** Working tree clean on branch `roy`. Ready for Batch 2 (Invoicing & Financial Enhancements: Bank Wire Instructions & Broker Commissions).
+- **Batch 2 (Invoicing & Financial Enhancements) Implemented & Verified (9 Nov 2026):**
+  - **7.1 Bank Wire Instructions:**
+    - Schema & Migrations: Added `wireBankName`, `wireBeneficiaryName`, `wireRoutingNumber`, `wireAccountNumber`, `wireSwiftBic`, `wireInstructions` to `CompanySettings` and `wireInstructions` text to `Invoice`. Applied Prisma migration `20261109160000_wire_instructions_and_broker_commission`.
+    - Backend: Updated `settings.dto.ts`, `settings.view.ts`, `settings.service.ts` (`documentBranding()`), and `pdf.document.ts` / `pdf.templates.ts` (`renderInvoicePdf`). Updated `receivables.service.ts` to include `wireInstructions` on invoice creation/updates and returned resolved `wireRemittance` in `findOne()` and `client-portal.service.ts` (`overview()`).
+    - Frontend: Added Bank Wire Instructions configuration card to `CompanyBrandingSection.jsx` under Settings › Company & Branding. Added optional per-invoice wire instructions textarea to `AddReceivableDialog.jsx`. Rendered a dedicated "Bank Wire Instructions" card in `ReceivableDetailSheet.jsx` and Client Portal Statement tab in `ClientPortalView.jsx`.
+  - **2.2 Broker Commissions:**
+    - Schema & Migration: Added `BROKER` to `enum CommissionRecipientType` in `commission.prisma`.
+    - Backend: Updated `commissions.service.ts` to handle `CommissionRecipientType.BROKER` in `recipient()`, `recipientLabel()`, and row-level reach scoping (`brokerId === user.id OR recipientUserId === user.id`).
+    - Frontend: Added `BROKER: "Broker"` in `commission.js` (`RECIPIENT_TYPES`, `RECIPIENT_LABELS`), added `"Broker": "info"` tone in `StatusBadge.jsx`, and integrated `BrokerPicker` inside `AddCommissionDialog.jsx` when "Broker" recipient tab is selected.
+  - **Verification:**
+    - Backend: Vitest 66/66 test suites (570 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
+    - Frontend: `npm run build` compiled all 45 routes with 0 errors; ESLint 0 errors.
+- **Current State:** Batch 1 and Batch 2 completed and verified on branch `roy`. Ready to proceed with Batch 3 (Trip Operations, Checklist & Contracts).

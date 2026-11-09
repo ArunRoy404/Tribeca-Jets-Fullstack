@@ -50,6 +50,9 @@ model Invoice {
   /// Desk commentary — payment terms agreed on the phone, a promised wire.
   notes String?
 
+  /// Custom bank wire instructions for this invoice (defaults to CompanySettings wire instructions).
+  wireInstructions String? @db.Text
+
   payments InvoicePayment[] @relation("InvoicePaymentInvoice")
   /// Reminders sent about it (Email Templates, #21).
   emails   EmailMessage[]   @relation("EmailMessageInvoice")

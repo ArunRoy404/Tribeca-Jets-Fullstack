@@ -215,6 +215,7 @@ export class ClientPortalService {
           issuedAt: true,
           dueDate: true,
           notes: true,
+        wireInstructions: true,
           createdAt: true,
           trip: { select: { id: true, reference: true, departureDate: true } },
           payments: {
@@ -346,6 +347,7 @@ export class ClientPortalService {
         issuedAt: inv.issuedAt,
         dueDate: inv.dueDate,
         notes: inv.notes,
+        wireInstructions: inv.wireInstructions ?? null,
         trip: inv.trip,
         payments: inv.payments.map((p) => ({
           id: p.id,
@@ -381,6 +383,8 @@ export class ClientPortalService {
         size: d.upload.size,
       }));
 
+    const brand = await this.settings.documentBranding();
+
     return {
       client: {
         ...client,
@@ -391,6 +395,14 @@ export class ClientPortalService {
       trips,
       invoices,
       documents,
+      wireRemittance: {
+        bankName: brand.wireBankName,
+        beneficiaryName: brand.wireBeneficiaryName,
+        routingNumber: brand.wireRoutingNumber,
+        accountNumber: brand.wireAccountNumber,
+        swiftBic: brand.wireSwiftBic,
+        instructions: brand.wireInstructions,
+      },
     };
   }
 
@@ -686,6 +698,7 @@ export class ClientPortalService {
         issuedAt: true,
         dueDate: true,
         notes: true,
+        wireInstructions: true,
         createdAt: true,
         trip: {
           select: {
@@ -719,6 +732,7 @@ export class ClientPortalService {
         issuedAt: inv.issuedAt,
         dueDate: inv.dueDate,
         notes: inv.notes,
+        wireInstructions: inv.wireInstructions ?? null,
         client,
         trip: inv.trip
           ? {

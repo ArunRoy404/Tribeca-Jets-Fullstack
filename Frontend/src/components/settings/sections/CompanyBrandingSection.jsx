@@ -21,6 +21,14 @@ const PROFILE_FIELDS = [
   { key: "clientServicesLabel", label: "Client Services Label (Optional)", placeholder: "Tribeca Jets Client Services" },
 ];
 
+const BANK_WIRE_FIELDS = [
+  { key: "wireBankName", label: "Bank Name", placeholder: "e.g. JPMorgan Chase Bank, N.A." },
+  { key: "wireBeneficiaryName", label: "Account / Beneficiary Name", placeholder: "e.g. Tribeca Jets LLC" },
+  { key: "wireRoutingNumber", label: "Routing / ABA Number", placeholder: "9-digit ABA routing #" },
+  { key: "wireAccountNumber", label: "Account Number", placeholder: "Account #" },
+  { key: "wireSwiftBic", label: "SWIFT / BIC Code (Optional)", placeholder: "e.g. CHASUS33" },
+];
+
 /**
  * The company's identity — read by every sidebar and the sign-in page through
  * the public branding endpoint, and by the letterhead and generated PDFs (#32).
@@ -123,6 +131,37 @@ export default function CompanyBrandingSection() {
               </div>
             ) : null}
           </div>
+        </div>
+      </SettingsCard>
+
+      <SettingsCard
+        title="Bank wire instructions & remittance"
+        description="Default wire instructions automatically included at the bottom of client invoices and downloadable PDF statements."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+          {BANK_WIRE_FIELDS.map((field) => (
+            <CommonInput
+              key={field.key}
+              name={`wire-${field.key}`}
+              label={field.label}
+              placeholder={field.placeholder}
+              value={values[field.key] || ""}
+              onChange={(e) => set(field.key)(e.target.value)}
+              disabled={!canEdit}
+            />
+          ))}
+        </div>
+        <div className="w-full mt-2">
+          <CommonInput
+            type="textarea"
+            name="wire-instructions"
+            label="Additional Wire Notes / Remittance Instructions (Optional)"
+            placeholder="e.g. Please include invoice number in the wire memo line. International wires may incur intermediary bank fees."
+            value={values.wireInstructions || ""}
+            onChange={(e) => set("wireInstructions")(e.target.value)}
+            disabled={!canEdit}
+            rows={3}
+          />
         </div>
       </SettingsCard>
 

@@ -35,6 +35,7 @@ function initialForm(invoice, draft) {
     issuedAt: toDateInput(invoice?.issuedAt),
     dueDate: toDateInput(invoice?.dueDate),
     notes: invoice?.notes ?? "",
+    wireInstructions: invoice?.wireInstructions ?? "",
   };
 }
 
@@ -121,6 +122,7 @@ function InvoiceForm({ invoice, draft, onDone }) {
       issuedAt: form.status === "SENT" && form.issuedAt ? form.issuedAt : undefined,
       dueDate: form.dueDate || (editing ? null : undefined),
       notes: optionalText(form.notes, clear),
+      wireInstructions: optionalText(form.wireInstructions, clear),
     };
 
     const onError = (error) => setErrors(error?.fieldErrors ?? {});
@@ -226,10 +228,20 @@ function InvoiceForm({ invoice, draft, onDone }) {
         <FormField label="Notes (Optional)" error={errors.notes}>
           <CommonInput
             type="textarea"
-            rows={3}
+            rows={2}
             value={form.notes}
             onChange={(e) => set("notes")(e.target.value)}
             placeholder="Payment terms, a promised wire..."
+          />
+        </FormField>
+
+        <FormField label="Custom Wire Instructions (Optional)" error={errors.wireInstructions}>
+          <CommonInput
+            type="textarea"
+            rows={2}
+            value={form.wireInstructions}
+            onChange={(e) => set("wireInstructions")(e.target.value)}
+            placeholder="Leave blank to use default company wire instructions from Settings, or enter custom bank details..."
           />
         </FormField>
 

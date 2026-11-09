@@ -33,8 +33,13 @@ export const formatCommissionBasis = (v) => (v ? (BASIS_LABELS[v] ?? v) : DASH);
 /** The shared payment methods, under the names this module's callers already use. */
 export { PAYMENT_METHODS as COMMISSION_METHODS, formatPaymentMethod as formatCommissionMethod } from "@/lib/payment";
 
-export const RECIPIENT_TYPES = ["REFERRAL_AGENT", "CLIENT", "MANUAL"];
-const RECIPIENT_LABELS = { REFERRAL_AGENT: "Referral Agent", CLIENT: "CRM Client", MANUAL: "Manual" };
+export const RECIPIENT_TYPES = ["BROKER", "REFERRAL_AGENT", "CLIENT", "MANUAL"];
+const RECIPIENT_LABELS = {
+  BROKER: "Broker",
+  REFERRAL_AGENT: "Referral Agent",
+  CLIENT: "CRM Client",
+  MANUAL: "Manual",
+};
 export const formatRecipientType = (v) => (v ? (RECIPIENT_LABELS[v] ?? v) : DASH);
 
 const money = (value) => (value === null || value === undefined ? null : formatMoneyExact(value));

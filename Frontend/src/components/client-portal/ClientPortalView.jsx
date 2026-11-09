@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Download, FileText, Mail, Phone, X } from "lucide-react";
+import { Building2, Check, Download, FileText, Mail, Phone, X } from "lucide-react";
 import BrandLogo from "@/components/common/BrandLogo";
 import { Button } from "@/components/ui/button";
 import {
@@ -102,7 +102,7 @@ export default function ClientPortalView({ token }) {
     );
   }
 
-  const { client, credit, quotes = [], trips = [], invoices = [], documents = [] } = data;
+  const { client, credit, quotes = [], trips = [], invoices = [], documents = [], wireRemittance } = data;
   const clientDisplayName =
     [client.firstName, client.lastName].filter(Boolean).join(" ") || client.companyName || "Valued Client";
   const advisor = client.assignedBroker;
@@ -492,6 +492,58 @@ export default function ClientPortalView({ token }) {
         {/* 3. INVOICES TAB */}
         {activeTab === "invoices" && (
           <div className="flex flex-col gap-4">
+            {wireRemittance && (wireRemittance.bankName || wireRemittance.instructions) && (
+              <div className="bg-zinc-50 border border-zinc-200 p-6 flex flex-col gap-4">
+                <div className="flex items-center gap-2 border-b border-zinc-200 pb-3">
+                  <Building2 className="size-4 text-zinc-700" />
+                  <h4 className="text-[13px] font-bold uppercase tracking-wider text-zinc-900">
+                    Bank Wire Remittance Instructions
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-[12px]">
+                  {wireRemittance.bankName && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold block">Bank Name</span>
+                      <span className="font-medium text-zinc-900">{wireRemittance.bankName}</span>
+                    </div>
+                  )}
+                  {wireRemittance.beneficiaryName && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold block">Beneficiary</span>
+                      <span className="font-medium text-zinc-900">{wireRemittance.beneficiaryName}</span>
+                    </div>
+                  )}
+                  {wireRemittance.routingNumber && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold block">Routing / ABA</span>
+                      <span className="font-mono font-medium text-zinc-900">{wireRemittance.routingNumber}</span>
+                    </div>
+                  )}
+                  {wireRemittance.accountNumber && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold block">Account Number</span>
+                      <span className="font-mono font-medium text-zinc-900">{wireRemittance.accountNumber}</span>
+                    </div>
+                  )}
+                  {wireRemittance.swiftBic && (
+                    <div>
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold block">SWIFT / BIC</span>
+                      <span className="font-mono font-medium text-zinc-900">{wireRemittance.swiftBic}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold block">Wire Memo</span>
+                    <span className="font-medium text-zinc-900">Client Name / Invoice #</span>
+                  </div>
+                </div>
+                {wireRemittance.instructions && (
+                  <div className="border-t border-zinc-200 pt-3">
+                    <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold block mb-1">Additional Notes</span>
+                    <p className="text-[12px] text-zinc-600 whitespace-pre-line">{wireRemittance.instructions}</p>
+                  </div>
+                )}
+              </div>
+            )}
             {invoices.length === 0 ? (
               <div className="bg-white border border-zinc-200 p-10 text-center text-[13px] text-zinc-500">
                 No statements or invoices have been issued yet.

@@ -17,6 +17,12 @@ export interface PdfCompanyBrand {
   showBrokerContact: boolean;
   defaultQuoteTerms: string | null;
   logoBuffer: Buffer | null;
+  wireBankName?: string | null;
+  wireBeneficiaryName?: string | null;
+  wireRoutingNumber?: string | null;
+  wireAccountNumber?: string | null;
+  wireSwiftBic?: string | null;
+  wireInstructions?: string | null;
 }
 
 export interface PdfBrokerContact {

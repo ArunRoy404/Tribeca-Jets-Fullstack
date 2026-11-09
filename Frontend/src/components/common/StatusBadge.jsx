@@ -95,6 +95,10 @@ const STATUS_TONES = {
   Matched: "purple",
   Expired: "pending",
   // Commissions and portal referrals (#11)
+  Broker: "info",
+  "Referral Agent": "purple",
+  "CRM Client": "cyan",
+  Manual: "neutral",
   Earned: "info",
   Submitted: "cyan",
   Quoting: "purple",

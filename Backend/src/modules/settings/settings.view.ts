@@ -19,6 +19,12 @@ export interface SettingsRow {
   showContactBlock: boolean;
   logoOnDocuments: boolean;
   showBrokerContact: boolean;
+  wireBankName: string | null;
+  wireBeneficiaryName: string | null;
+  wireRoutingNumber: string | null;
+  wireAccountNumber: string | null;
+  wireSwiftBic: string | null;
+  wireInstructions: string | null;
   defaultMarkupPercent: number;
   quoteValidityHours: number;
   defaultFetPercent: number;
@@ -56,6 +62,7 @@ export const SECTIONS = {
   company: [
     'companyName', 'companyEmail', 'website', 'phone', 'address', 'clientServicesLabel',
     'logoUrl', 'showContactBlock', 'logoOnDocuments', 'showBrokerContact',
+    'wireBankName', 'wireBeneficiaryName', 'wireRoutingNumber', 'wireAccountNumber', 'wireSwiftBic', 'wireInstructions',
   ],
   defaults: [
     'defaultMarkupPercent', 'quoteValidityHours', 'defaultFetPercent', 'applyFetByDefault',
