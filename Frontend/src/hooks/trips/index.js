@@ -11,5 +11,7 @@ export { useCreateTrip } from "./useCreateTrip";
 export { useBookQuote } from "./useBookQuote";
 export { useUpdateTrip } from "./useUpdateTrip";
 export { useChangeTripStatus } from "./useChangeTripStatus";
+export { useApproveTrip } from "./useApproveTrip";
+export { useRejectTrip } from "./useRejectTrip";
 export { useRemoveTrip } from "./useRemoveTrip";
 export { useRestoreTrip } from "./useRestoreTrip";

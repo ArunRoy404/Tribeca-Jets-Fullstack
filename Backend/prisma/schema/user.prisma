@@ -95,6 +95,7 @@ model User {
   updatedCharterRates    CharterRate[]   @relation("CharterRateUpdatedBy")
   assignedTrips          Trip[]          @relation("TripAssignedBroker")
   createdTrips           Trip[]          @relation("TripCreatedBy")
+  approvedTrips          Trip[]          @relation("TripApprovedBy")
   updatedTrips           Trip[]          @relation("TripUpdatedBy")
   deletedTrips           Trip[]          @relation("TripDeletedBy")
   restoredTrips          Trip[]          @relation("TripRestoredBy")

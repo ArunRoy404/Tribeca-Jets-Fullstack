@@ -33,6 +33,12 @@ export const tripsService = {
   changeStatus: ({ id, ...payload }) =>
     request({ url: `/trips/${id}/status`, method: "POST", data: payload }),
 
+  /** POST /trips/:id/approve — admin approval for broker-submitted trips. */
+  approve: (id) => request({ url: `/trips/${id}/approve`, method: "POST" }),
+
+  /** POST /trips/:id/reject — admin rejection for broker-submitted trips. */
+  reject: ({ id, ...payload }) => request({ url: `/trips/${id}/reject`, method: "POST", data: payload }),
+
   remove: (id) => request({ url: `/trips/${id}`, method: "DELETE" }),
   removeMany: (ids) => request({ url: "/trips/bulk-delete", method: "POST", data: { ids } }),
   restore: (id) => request({ url: `/trips/${id}/restore`, method: "POST" }),

@@ -48,7 +48,7 @@ export const ACTIVITY_MODULE: Record<string, Module> = {
  * once per record it was about; the trip's copy is dropped here so one email
  * is one line, under the person it went to.
  */
-export function activityWhere(user: AuthenticatedUser): Prisma.AuditLogWhereInput {
+export function activityWhere(user: AuthenticatedUser, filterUserId?: string): Prisma.AuditLogWhereInput {
   const kinds: Prisma.AuditLogWhereInput[] = [];
   const isAdmin = isAdministrator(user.role);
 
@@ -61,6 +61,7 @@ export function activityWhere(user: AuthenticatedUser): Prisma.AuditLogWhereInpu
   return {
     AND: [
       { OR: kinds.length ? kinds : [{ id: { in: [] } }] },
+      filterUserId ? { actorId: filterUserId } : {},
       { NOT: { action: { startsWith: 'auth.' } } },
       { NOT: { AND: [{ action: { startsWith: 'email.' } }, { entityType: 'Trip' }] } },
     ],

@@ -909,6 +909,20 @@ operator bills, where a bill is recorded and paid. Absent for a role without
   - Created `trips.access.spec.ts` testing open staff reads, referral agent refusals (403), and permissions on write endpoints. All 45 vitest test suites (386 tests) pass 100%.
 - **Database reset & test seeding:**
   - Wiped all business tables (preserving the 16 user accounts with `ChangeMe123!`), and seeded consistent linked test records (< 10 per module): 6 airports, 4 charter rates, 4 operators, 5 aircraft, 3 clients, 2 trip requests, 3 operator quotes, 2 quotes, 3 trips (CONFIRMED from accepted quote, DRAFT round-trip, COMPLETED one-way), and 5 email templates.
+- **CRM Feedback Enhancements (Batches 3 & 4 — 9 Nov 2026):**
+  - **1.1 Passenger Count Auto-Population:** Synchronized passenger count and manifest in `BuildItineraryDialog.jsx` with an auto-population badge.
+  - **1.2 Booking Confirmation Pop-Up:** Built `BookingConfirmationDialog.jsx` with celebratory confetti animation, trip summary details, callout reminder to invoice the client, and a one-click "Generate Invoice" action.
+  - **1.3 Checklist "Go" Navigation:** Upgraded `TripConfirmationCard.jsx` with "Go" navigation buttons next to all checklist items for smooth scrolling and deep-linking.
+  - **1.4 Operator Payment Statuses:** Added `Operator Payment Sent` (automatically checked when operator payable is paid) and `Operator Payment Received` (operational verification toggle stored in database via `operatorPaymentReceivedAt`).
+  - **8.1–8.3 Contract Management:** Built `TripContractCard.jsx` tracking `Contract Sent` and `Contract Received` timestamps with toggle actions and direct external links for Avanode (`https://www.avanode.com`) and DocuSign (`https://app.docusign.com`).
+  - **2.1 Admin Trip Approval Workflow:**
+    - Trips submitted by brokers default to `approvalStatus: PENDING` in database migration `20261109180000_trip_approval_workflow`.
+    - Trips cannot be moved to `CONFIRMED` until an administrator approves the trip (`POST /trips/:id/approve`).
+    - Super Admins and Admins are presented with "Approve Trip" and "Decline Approval" actions in `TripActionBar.jsx`.
+    - Declining approval (`POST /trips/:id/reject`) records the reason and generates an urgent review task + email for the submitting broker.
+    - Approval status badges display in trip headers and the trips table.
+  - **3.1 & 3.2 Trip Assignment Notifications:**
+    - When an administrator assigns a trip to a broker, the broker receives an immediate in-app task in their notification bell (`todayUtc()`, `priority: HIGH`) and a branded transactional SMTP email via `MailService.sendTripAssignment()`.
 
 ---
 
@@ -1785,6 +1799,8 @@ it should is the open question in [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md)
   - Reusable components (`TableStatus`, `StaggerContainer`, `CommonCard`, `SectionHeader`, `Reveal`) handle loading, empty states, and errors with honest fallbacks (no invented numbers or dummy fallbacks).
   - Oxlint clean (0 errors, 0 warnings across all 26 dashboard files). Turbopack build clean with 0 errors across all 45 routes.
 - **Pinned by unit tests in `dashboard.access.spec.ts` (15 tests) and `dashboard.period.spec.ts` (7 tests).**
+- **CRM Feedback Enhancements (Batch 4 — 9 Nov 2026):**
+  - **2.3 Recent Activity User/Broker Filter:** Added `userId` query parameter filtering in `dashboardActivitySchema`, `activityWhere`, and `DashboardService.activity()`. Added team member/broker filter dropdown selector in `RecentActivityFeed.jsx` with empty state messaging.
 
 **Waiting on a dependency**
 

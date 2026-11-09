@@ -56,8 +56,18 @@ export default function TripsTableRow({
       ) : (
         <>
           <TableCell className="p-[12px] text-center">
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-1 justify-center">
               <StatusBadge status={item?.status} bordered />
+              {item?.approvalStatus === "PENDING" && (
+                <span className="text-[10px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                  Pending Approval
+                </span>
+              )}
+              {item?.approvalStatus === "REJECTED" && (
+                <span className="text-[10px] font-semibold text-destructive bg-destructive/10 border border-destructive/30 px-1.5 py-0.5 rounded">
+                  Declined
+                </span>
+              )}
             </div>
           </TableCell>
           <TableCell className={`${CELL} text-muted-foreground`}>

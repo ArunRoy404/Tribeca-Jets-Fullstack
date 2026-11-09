@@ -257,7 +257,7 @@ export class DashboardService {
    */
   async activity(user: AuthenticatedUser, query: DashboardActivityInput) {
     const { skip, take } = toPrismaPagination(query);
-    const where = activityWhere(user);
+    const where = activityWhere(user, query.userId);
     const [rows, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,

@@ -47,6 +47,8 @@ export function formatTripType(type) {
   return TYPE_LABELS[type] ?? type;
 }
 
+export const TRIP_APPROVAL_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
+
 export const CONTRACT_STATUSES = ["DRAFT", "SENT", "RECEIVED"];
 const CONTRACT_STATUS_LABELS = {
   DRAFT: "Draft / Not Sent",
@@ -172,6 +174,11 @@ export function toTripRow(trip) {
     operatorBilling: toTripOperatorPayment(trip?.operatorPayment),
     nextStatuses: trip?.nextStatuses ?? [],
     editable: Boolean(trip?.editable),
+    approvalStatus: trip?.approvalStatus ?? "APPROVED",
+    approvedAt: trip?.approvedAt ? formatCalendarDate(trip.approvedAt) : null,
+    approvedBy: trip?.approvedBy ? personName(trip.approvedBy) : null,
+    rejectionReason: trip?.rejectionReason ?? null,
+    requiresApproval: trip?.approvalStatus === "PENDING",
     ...toArchiveFields(trip),
   };
 }

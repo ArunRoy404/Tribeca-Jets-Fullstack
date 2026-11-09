@@ -24,6 +24,11 @@ export const dashboardPrioritiesSchema = z.object({ ...page, on }).strict();
 export type DashboardPrioritiesInput = z.infer<typeof dashboardPrioritiesSchema>;
 export class DashboardPrioritiesDto extends createZodDto(dashboardPrioritiesSchema) {}
 
-export const dashboardActivitySchema = z.object(page).strict();
+export const dashboardActivitySchema = z
+  .object({
+    ...page,
+    userId: z.uuid().optional(),
+  })
+  .strict();
 export type DashboardActivityInput = z.infer<typeof dashboardActivitySchema>;
 export class DashboardActivityDto extends createZodDto(dashboardActivitySchema) {}

@@ -33,7 +33,19 @@ import {
 } from '../../common/authorization/access.catalogue.js';
 import { canDo, reachOf } from '../../common/authorization/access.js';
 import { isAdministrator } from '../../common/authorization/permissions.js';
-import { ClientStatus, FlightStatus, InvoiceStatus, LeadStage, TripStatus, TripType } from '../../generated/prisma/enums.js';
+import {
+  ClientStatus,
+  FlightStatus,
+  InvoiceStatus,
+  LeadStage,
+  TaskPriority,
+  TaskStatus,
+  TripApprovalStatus,
+  TripStatus,
+  TripType,
+  UserRole,
+  UserStatus,
+} from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
 import { tallyTrips, tripFigures } from './trips.figures.js';
@@ -42,6 +54,7 @@ import { QuotesService } from '../quotes/quotes.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
 import { AirportsService } from '../airports/airports.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { MailService } from '../../core/mail/mail.service.js';
 import { TripPaymentState, todayUtc, tripPayment } from '../receivables/receivables.amounts.js';
 import { tripOperatorPayment } from '../operator-payments/operator-payments.amounts.js';
 import {
@@ -59,6 +72,7 @@ import type {
   LegInput,
   PassengerInput,
   QueryTripsInput,
+  RejectTripInput,
   TripWindow,
   UpdateTripInput,
 } from './dto/trip.dto.js';
@@ -181,6 +195,11 @@ const TRIP_LIST_SELECT = {
   contractSentAt: true,
   contractReceivedAt: true,
   operatorPaymentReceivedAt: true,
+  approvalStatus: true,
+  approvedAt: true,
+  approvedById: true,
+  approvedBy: ACTOR_SELECT,
+  rejectionReason: true,
   passengerCount: true,
   departureDate: true,
   basePrice: true,
@@ -346,6 +365,7 @@ export class TripsService {
     private readonly requests: TripRequestsService,
     private readonly airports: AirportsService,
     private readonly settings: SettingsService,
+    private readonly mail: MailService,
   ) {}
 
   // ---- Scope ------------------------------------------------------------
@@ -498,6 +518,11 @@ export class TripsService {
       contractStatus: row.contractReceivedAt ? 'RECEIVED' : row.contractSentAt ? 'SENT' : 'DRAFT',
       operatorPaymentReceived: row.operatorPaymentReceivedAt !== null,
       operatorPaymentReceivedAt: row.operatorPaymentReceivedAt,
+      approvalStatus: row.approvalStatus,
+      approvedAt: row.approvedAt,
+      approvedBy: row.approvedBy,
+      rejectionReason: row.rejectionReason,
+      requiresApproval: row.approvalStatus === TripApprovalStatus.PENDING,
       nextStatuses: allowedNextStatuses(row.status),
       editable: isEditable(row.status) && row.deletedAt === null,
     };
@@ -568,6 +593,128 @@ export class TripsService {
     if (problem) throw new BadRequestException(problem);
   }
 
+  // ---- Notifications (Batch 4 - CRM Feedback 2.1 & 3.1 & 3.2) -----------
+
+  private async notifyBrokerAssigned(
+    actor: AuthenticatedUser,
+    tripId: string,
+    reference: number,
+    brokerId: string,
+    clientId: string,
+    departureDate: Date | null,
+  ): Promise<void> {
+    try {
+      const [client, broker] = await Promise.all([
+        this.prisma.client.findUnique({
+          where: { id: clientId },
+          select: { firstName: true, lastName: true, companyName: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: brokerId },
+          select: { email: true, firstName: true, lastName: true },
+        }),
+      ]);
+      const clientName = client
+        ? `${client.firstName} ${client.lastName}`.trim() || client.companyName || 'Client'
+        : 'Client';
+      const brokerName = broker
+        ? `${broker.firstName} ${broker.lastName}`.trim() || 'Broker'
+        : 'Broker';
+
+      await this.prisma.task.create({
+        data: {
+          title: `Review Assigned Trip TJ-${reference}`,
+          description: `You have been assigned as lead broker for trip TJ-${reference} (${clientName}).`,
+          status: TaskStatus.TODO,
+          priority: TaskPriority.HIGH,
+          dueDate: todayUtc(),
+          assigneeId: brokerId,
+          clientId,
+          tripId,
+          createdById: actor.id,
+          updatedById: actor.id,
+        },
+      });
+
+      if (broker?.email) {
+        await this.mail.sendTripAssignment(
+          broker.email,
+          brokerName,
+          reference,
+          clientName,
+          departureDate ? departureDate.toISOString().slice(0, 10) : null,
+          tripId,
+        ).catch(() => {});
+      }
+    } catch {
+      // Do not let notification dispatch fail the calling operation
+    }
+  }
+
+  private async notifyAdminsTripApprovalRequired(
+    actor: AuthenticatedUser,
+    tripId: string,
+    reference: number,
+    clientId: string,
+  ): Promise<void> {
+    try {
+      const [client, submitter, admins] = await Promise.all([
+        this.prisma.client.findUnique({
+          where: { id: clientId },
+          select: { firstName: true, lastName: true, companyName: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: actor.id },
+          select: { firstName: true, lastName: true },
+        }),
+        this.prisma.user.findMany({
+          where: {
+            role: { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
+            status: UserStatus.ACTIVE,
+            deletedAt: null,
+          },
+          select: { id: true, email: true, firstName: true, lastName: true },
+        }),
+      ]);
+      const clientName = client
+        ? `${client.firstName} ${client.lastName}`.trim() || client.companyName || 'Client'
+        : 'Client';
+      const brokerName = submitter
+        ? `${submitter.firstName} ${submitter.lastName}`.trim() || 'Broker'
+        : 'Broker';
+
+      for (const admin of admins) {
+        await this.prisma.task.create({
+          data: {
+            title: `Approve Trip TJ-${reference}`,
+            description: `Trip TJ-${reference} submitted by ${brokerName} (${clientName}) requires administrator review and approval.`,
+            status: TaskStatus.TODO,
+            priority: TaskPriority.HIGH,
+            dueDate: todayUtc(),
+            assigneeId: admin.id,
+            clientId,
+            tripId,
+            createdById: actor.id,
+            updatedById: actor.id,
+          },
+        });
+
+        if (admin.email) {
+          await this.mail.sendTripApprovalNotification(
+            admin.email,
+            admin.firstName || 'Administrator',
+            brokerName,
+            reference,
+            clientName,
+            tripId,
+          ).catch(() => {});
+        }
+      }
+    } catch {
+      // Do not let notification dispatch fail the calling operation
+    }
+  }
+
   // ---- Reads ------------------------------------------------------------
 
   async findAll(user: AuthenticatedUser, query: QueryTripsInput): Promise<Paginated<unknown>> {
@@ -576,7 +723,7 @@ export class TripsService {
       AND: [
         archiveFilter(query.archived),
         this.visibilityScope(user),
-        equalsAny(query, ['status', 'type', 'clientId', 'assignedBrokerId', 'operatorId', 'aircraftId']),
+        equalsAny(query, ['status', 'approvalStatus', 'type', 'clientId', 'assignedBrokerId', 'operatorId', 'aircraftId']),
         departureFilter(query.departure),
         query.activeOnly ? { status: { in: [...ACTIVE_STATUSES] } } : {},
         query.search ? this.searchWhere(query.search) : {},
@@ -848,6 +995,9 @@ export class TripsService {
     }
 
     const settings = await this.settings.read();
+    const initialApproval = isAdministrator(user.role)
+      ? TripApprovalStatus.APPROVED
+      : TripApprovalStatus.PENDING;
 
     const trip = await this.prisma.$transaction(async (tx) => {
       const created = await tx.trip.create({
@@ -865,6 +1015,9 @@ export class TripsService {
           contractSentAt: dto.contractSent ? new Date() : null,
           contractReceivedAt: dto.contractReceived ? new Date() : null,
           operatorPaymentReceivedAt: dto.operatorPaymentReceived ? new Date() : null,
+          approvalStatus: initialApproval,
+          approvedAt: initialApproval === TripApprovalStatus.APPROVED ? new Date() : null,
+          approvedById: initialApproval === TripApprovalStatus.APPROVED ? user.id : null,
           passengerCount: dto.passengerCount ?? null,
           departureDate: dto.legs[0]?.departureDate ?? null,
           basePrice: dto.basePrice ?? null,
@@ -886,6 +1039,22 @@ export class TripsService {
     });
 
     if (dto.tripRequestId) await this.requests.markConverted(user, dto.tripRequestId);
+
+    if (initialApproval === TripApprovalStatus.PENDING) {
+      await this.notifyAdminsTripApprovalRequired(user, trip.id, trip.reference, dto.clientId);
+    }
+
+    const assignedId = dto.assignedBrokerId === undefined ? user.id : dto.assignedBrokerId;
+    if (assignedId && assignedId !== user.id) {
+      await this.notifyBrokerAssigned(
+        user,
+        trip.id,
+        trip.reference,
+        assignedId,
+        dto.clientId,
+        dto.legs[0]?.departureDate ? new Date(dto.legs[0].departureDate) : null,
+      );
+    }
 
     await this.audit.record({
       actorId: user.id,
@@ -934,6 +1103,10 @@ export class TripsService {
         }]
       : [outbound];
 
+    const initialApproval = isAdministrator(user.role)
+      ? TripApprovalStatus.APPROVED
+      : TripApprovalStatus.PENDING;
+
     const trip = await this.prisma.$transaction(async (tx) => {
       const created = await tx.trip.create({
         data: {
@@ -946,6 +1119,9 @@ export class TripsService {
           aircraftDescription: quote.quotedAircraft,
           type: quote.returnDate ? TripType.ROUND_TRIP : TripType.ONE_WAY,
           status: dto.status,
+          approvalStatus: initialApproval,
+          approvedAt: initialApproval === TripApprovalStatus.APPROVED ? new Date() : null,
+          approvedById: initialApproval === TripApprovalStatus.APPROVED ? user.id : null,
           passengerCount: quote.passengers,
           departureDate: quote.departureDate,
           basePrice: quote.basePrice,
@@ -964,6 +1140,21 @@ export class TripsService {
     });
 
     if (quote.tripRequestId) await this.requests.markConverted(user, quote.tripRequestId);
+
+    if (initialApproval === TripApprovalStatus.PENDING) {
+      await this.notifyAdminsTripApprovalRequired(user, trip.id, trip.reference, quote.clientId);
+    }
+
+    if (quote.assignedBrokerId && quote.assignedBrokerId !== user.id) {
+      await this.notifyBrokerAssigned(
+        user,
+        trip.id,
+        trip.reference,
+        quote.assignedBrokerId,
+        quote.clientId,
+        quote.departureDate ? new Date(quote.departureDate) : null,
+      );
+    }
 
     await this.audit.record({
       actorId: user.id,
@@ -986,7 +1177,10 @@ export class TripsService {
         status: true,
         type: true,
         clientId: true,
+        client: CLIENT_SELECT,
         assignedBrokerId: true,
+        createdById: true,
+        approvalStatus: true,
         tripRequestId: true,
         operatorId: true,
         aircraftId: true,
@@ -1096,6 +1290,22 @@ export class TripsService {
       await this.requests.markConverted(user, dto.tripRequestId);
     }
 
+    if (
+      dto.assignedBrokerId !== undefined &&
+      dto.assignedBrokerId !== current.assignedBrokerId &&
+      dto.assignedBrokerId !== null &&
+      dto.assignedBrokerId !== user.id
+    ) {
+      await this.notifyBrokerAssigned(
+        user,
+        id,
+        current.reference,
+        dto.assignedBrokerId,
+        clientId,
+        current.departureDate,
+      );
+    }
+
     await this.audit.record({
       actorId: user.id,
       action: 'trip.updated',
@@ -1199,6 +1409,11 @@ export class TripsService {
     }
 
     if (dto.status === TripStatus.CONFIRMED) {
+      if (current.approvalStatus === TripApprovalStatus.PENDING) {
+        throw new BadRequestException(
+          'This trip was submitted by a broker and requires administrator approval before it can be confirmed.',
+        );
+      }
       if (!current.operatorId) {
         throw new BadRequestException('Cannot confirm trip: an operator must be assigned before confirming.');
       }
@@ -1231,6 +1446,137 @@ export class TripsService {
       entityId: id,
       metadata: { reference: current.reference, from: current.status, to: dto.status, note: dto.note ?? null },
     });
+
+    return this.findOne(user, id);
+  }
+
+  /**
+   * Approves a broker-submitted trip (Batch 4 - CRM Feedback 2.1).
+   * Super Admins and Admins only.
+   */
+  async approve(user: AuthenticatedUser, id: string) {
+    if (!isAdministrator(user.role)) {
+      throw new ForbiddenException('Only administrators can approve trips');
+    }
+    const current = await this.findLive(user, id);
+    if (current.approvalStatus === TripApprovalStatus.APPROVED) {
+      throw new BadRequestException('This trip is already approved');
+    }
+
+    await this.prisma.trip.update({
+      where: { id },
+      data: {
+        approvalStatus: TripApprovalStatus.APPROVED,
+        approvedAt: new Date(),
+        approvedById: user.id,
+        rejectionReason: null,
+        updatedById: user.id,
+      },
+    });
+
+    await this.audit.record({
+      actorId: user.id,
+      action: 'trip.approved',
+      entityType: 'Trip',
+      entityId: id,
+      metadata: { reference: current.reference },
+    });
+
+    // Close any pending approval tasks for admins
+    await this.prisma.task.updateMany({
+      where: { tripId: id, title: { startsWith: 'Approve Trip' }, status: TaskStatus.TODO },
+      data: { status: TaskStatus.COMPLETED, completedAt: new Date(), updatedById: user.id },
+    });
+
+    // Notify broker
+    const brokerId = current.assignedBrokerId ?? current.createdById;
+    if (brokerId) {
+      const broker = await this.prisma.user.findUnique({
+        where: { id: brokerId },
+        select: { email: true, firstName: true, lastName: true },
+      });
+      if (broker?.email) {
+        await this.mail.sendTripApprovalDecisionNotice(
+          broker.email,
+          `${broker.firstName} ${broker.lastName}`.trim() || 'Broker',
+          current.reference,
+          true,
+          null,
+          id,
+        ).catch(() => {});
+      }
+    }
+
+    return this.findOne(user, id);
+  }
+
+  /**
+   * Rejects a broker-submitted trip with a reason (Batch 4 - CRM Feedback 2.1).
+   * Super Admins and Admins only.
+   */
+  async reject(user: AuthenticatedUser, id: string, dto: RejectTripInput) {
+    if (!isAdministrator(user.role)) {
+      throw new ForbiddenException('Only administrators can reject trips');
+    }
+    const current = await this.findLive(user, id);
+    const reason = dto.reason?.trim() || 'Approval was declined by administrator.';
+
+    await this.prisma.trip.update({
+      where: { id },
+      data: {
+        approvalStatus: TripApprovalStatus.REJECTED,
+        rejectionReason: reason,
+        updatedById: user.id,
+      },
+    });
+
+    await this.audit.record({
+      actorId: user.id,
+      action: 'trip.rejected',
+      entityType: 'Trip',
+      entityId: id,
+      metadata: { reference: current.reference, reason },
+    });
+
+    // Close any pending approval tasks for admins
+    await this.prisma.task.updateMany({
+      where: { tripId: id, title: { startsWith: 'Approve Trip' }, status: TaskStatus.TODO },
+      data: { status: TaskStatus.COMPLETED, completedAt: new Date(), updatedById: user.id },
+    });
+
+    // Create a task for the broker to address the rejection and send decision email
+    const brokerId = current.assignedBrokerId ?? current.createdById;
+    if (brokerId) {
+      await this.prisma.task.create({
+        data: {
+          title: `Trip TJ-${current.reference} Approval Declined`,
+          description: `Trip TJ-${current.reference} was rejected: ${reason}`,
+          status: TaskStatus.TODO,
+          priority: TaskPriority.HIGH,
+          dueDate: todayUtc(),
+          assigneeId: brokerId,
+          clientId: current.clientId,
+          tripId: id,
+          createdById: user.id,
+          updatedById: user.id,
+        },
+      });
+
+      const broker = await this.prisma.user.findUnique({
+        where: { id: brokerId },
+        select: { email: true, firstName: true, lastName: true },
+      });
+      if (broker?.email) {
+        await this.mail.sendTripApprovalDecisionNotice(
+          broker.email,
+          `${broker.firstName} ${broker.lastName}`.trim() || 'Broker',
+          current.reference,
+          false,
+          reason,
+          id,
+        ).catch(() => {});
+      }
+    }
 
     return this.findOne(user, id);
   }

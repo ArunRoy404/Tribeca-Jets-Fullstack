@@ -26,6 +26,7 @@ import {
   ChangeTripStatusDto,
   CreateTripDto,
   QueryTripsDto,
+  RejectTripDto,
   UpdateTripDto,
 } from './dto/trip.dto.js';
 
@@ -147,6 +148,35 @@ export class TripsController {
     @Body() body: ChangeTripStatusDto,
   ) {
     return this.trips.changeStatus(user, id, body);
+  }
+
+  @Post(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  @RequireAccess(Module.TRIPS, Action.EDIT)
+  @ApiOperation({
+    summary: 'Approve a submitted trip',
+    description: 'Requires administrator role. Marks trip as APPROVED so it can proceed to CONFIRMED.',
+  })
+  approve(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.trips.approve(user, id);
+  }
+
+  @Post(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  @RequireAccess(Module.TRIPS, Action.EDIT)
+  @ApiOperation({
+    summary: 'Reject a submitted trip',
+    description: 'Requires administrator role. Records rejection reason and notifies the submitting broker.',
+  })
+  reject(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: RejectTripDto,
+  ) {
+    return this.trips.reject(user, id, body);
   }
 
   @Delete(':id')

@@ -223,6 +223,129 @@ export class MailService {
       }),
     });
   }
+
+  /**
+   * Sent to a broker when an admin or colleague assigns a trip to them
+   * (Batch 4 - CRM Feedback 3.1 & 3.2).
+   */
+  async sendTripAssignment(
+    to: string,
+    brokerName: string,
+    tripReference: number,
+    clientName: string,
+    departureDate: string | null,
+    tripId: string,
+  ): Promise<void> {
+    const brand = await this.brand();
+    const tripUrl = `${this.config.webAppUrl}/dashboard/trips/${tripId}`;
+    await this.send(to, `New Trip Assigned: TJ-${tripReference}`, {
+      text: lines(brand, [
+        `Hi ${brokerName},`,
+        '',
+        `You have been assigned to trip TJ-${tripReference} for client ${clientName}.`,
+        ...(departureDate ? [`Departure Date: ${departureDate}`] : []),
+        '',
+        `View Trip: ${tripUrl}`,
+      ]),
+      html: renderEmail({
+        brand,
+        preheader: `You have been assigned to trip TJ-${tripReference}.`,
+        eyebrow: 'Trip Assignment',
+        heading: `Trip TJ-${tripReference} Assigned`,
+        paragraphs: [
+          `Hi ${brokerName},`,
+          `You have been assigned to manage trip <strong>TJ-${tripReference}</strong> for client <strong>${clientName}</strong>.`,
+          ...(departureDate ? [`Scheduled departure: <strong>${departureDate}</strong>.`] : []),
+        ],
+        button: { label: 'View Trip in Command Center', href: tripUrl },
+      }),
+    });
+  }
+
+  /**
+   * Sent to administrators when a broker submits a trip requiring approval
+   * (Batch 4 - CRM Feedback 2.1).
+   */
+  async sendTripApprovalNotification(
+    to: string,
+    adminName: string,
+    brokerName: string,
+    tripReference: number,
+    clientName: string,
+    tripId: string,
+  ): Promise<void> {
+    const brand = await this.brand();
+    const tripUrl = `${this.config.webAppUrl}/dashboard/trips/${tripId}`;
+    await this.send(to, `Trip Approval Required: TJ-${tripReference}`, {
+      text: lines(brand, [
+        `Hi ${adminName},`,
+        '',
+        `Broker ${brokerName} has submitted trip TJ-${tripReference} for client ${clientName}.`,
+        'Admin review and approval is required.',
+        '',
+        `Review Trip: ${tripUrl}`,
+      ]),
+      html: renderEmail({
+        brand,
+        preheader: `Trip TJ-${tripReference} submitted by ${brokerName} requires approval.`,
+        eyebrow: 'Approval Required',
+        heading: `Trip TJ-${tripReference} Pending Approval`,
+        paragraphs: [
+          `Hi ${adminName},`,
+          `Broker <strong>${brokerName}</strong> has submitted trip <strong>TJ-${tripReference}</strong> for client <strong>${clientName}</strong>.`,
+          'Please review the flight details and approve the trip so operations can proceed.',
+        ],
+        button: { label: 'Review & Approve Trip', href: tripUrl },
+      }),
+    });
+  }
+
+  /**
+   * Sent to the trip's broker when an admin approves or rejects the trip.
+   */
+  async sendTripApprovalDecisionNotice(
+    to: string,
+    brokerName: string,
+    tripReference: number,
+    approved: boolean,
+    reason: string | null,
+    tripId: string,
+  ): Promise<void> {
+    const brand = await this.brand();
+    const tripUrl = `${this.config.webAppUrl}/dashboard/trips/${tripId}`;
+    const subject = approved
+      ? `Trip TJ-${tripReference} Approved`
+      : `Trip TJ-${tripReference} Approval Rejected`;
+
+    await this.send(to, subject, {
+      text: lines(brand, [
+        `Hi ${brokerName},`,
+        '',
+        approved
+          ? `Your trip TJ-${tripReference} has been reviewed and approved by an administrator.`
+          : `Your trip TJ-${tripReference} approval was rejected.`,
+        ...(reason ? [`Reason: ${reason}`] : []),
+        '',
+        `View Trip: ${tripUrl}`,
+      ]),
+      html: renderEmail({
+        brand,
+        preheader: approved
+          ? `Your trip TJ-${tripReference} has been approved.`
+          : `Your trip TJ-${tripReference} approval was rejected.`,
+        eyebrow: 'Trip Approval Status',
+        heading: approved ? 'Trip Approved' : 'Approval Rejected',
+        paragraphs: [
+          `Hi ${brokerName},`,
+          approved
+            ? `Your trip <strong>TJ-${tripReference}</strong> has been reviewed and approved by an administrator.`
+            : `Your trip <strong>TJ-${tripReference}</strong> approval was rejected by an administrator.`,
+          ...(reason ? [`Reason: <em>${reason}</em>`] : []),
+        ],
+        button: { label: 'View Trip in Command Center', href: tripUrl },
+      }),
+    });
+  }
 }
 
 /** A plain-text body from lines, signed the same way every time. */

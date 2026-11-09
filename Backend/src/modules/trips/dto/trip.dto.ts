@@ -10,7 +10,7 @@ import {
   nullableNumber,
   optionalNumber,
 } from '../../../common/dto/numbers.js';
-import { TripStatus, TripType } from '../../../generated/prisma/enums.js';
+import { TripApprovalStatus, TripStatus, TripType } from '../../../generated/prisma/enums.js';
 import { FET_RATE, MONEY, lineItemList } from '../../quotes/dto/quote.dto.js';
 import { CREATABLE_STATUSES } from '../trips.lifecycle.js';
 
@@ -34,6 +34,7 @@ export type TripWindow = (typeof TRIP_WINDOWS)[number];
 export const queryTripsSchema = paginationSchema
   .extend({
     status: z.enum(TripStatus).optional(),
+    approvalStatus: z.enum(TripApprovalStatus).optional(),
     type: z.enum(TripType).optional(),
     clientId: z.uuid().optional(),
     assignedBrokerId: z.uuid().optional(),
@@ -184,3 +185,9 @@ export const bookQuoteSchema = z.object({
 });
 export type BookQuoteInput = z.infer<typeof bookQuoteSchema>;
 export class BookQuoteDto extends createZodDto(bookQuoteSchema) {}
+
+export const rejectTripSchema = z.object({
+  reason: z.string().trim().max(1_000).optional(),
+});
+export type RejectTripInput = z.infer<typeof rejectTripSchema>;
+export class RejectTripDto extends createZodDto(rejectTripSchema) {}

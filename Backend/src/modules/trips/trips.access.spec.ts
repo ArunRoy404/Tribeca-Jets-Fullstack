@@ -43,6 +43,8 @@ describe('trips routes (Trips review, 10 Oct 2026)', () => {
       bookFromQuote: Action.CREATE,
       update: Action.EDIT,
       changeStatus: Action.EDIT,
+      approve: Action.EDIT,
+      reject: Action.EDIT,
       remove: Action.ARCHIVE,
       restore: Action.ARCHIVE,
       removeMany: Action.ARCHIVE,

@@ -35,6 +35,30 @@ export default function TripDetailsView({ trip }) {
         actions={<TripHeaderActions trip={trip} />}
       />
 
+      {trip?.approvalStatus === "PENDING" && (
+        <div className="mx-4 md:mx-6 mt-4 flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-md text-amber-500 text-sm">
+          <span className="text-xl">⚠️</span>
+          <div>
+            <p className="font-semibold text-white">Trip Pending Administrator Approval</p>
+            <p className="text-xs text-amber-300/80">
+              This trip was submitted by a broker and requires administrator approval before it can proceed to Confirmed status.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {trip?.approvalStatus === "REJECTED" && (
+        <div className="mx-4 md:mx-6 mt-4 flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/30 rounded-md text-destructive text-sm">
+          <span className="text-xl">❌</span>
+          <div>
+            <p className="font-semibold text-white">Trip Approval Declined</p>
+            <p className="text-xs text-destructive-foreground/90">
+              Reason: {trip.rejectionReason || "No specific reason provided."}
+            </p>
+          </div>
+        </div>
+      )}
+
       <CommonCard className="m-4 md:m-6">
         <TripSummaryBar trip={trip} />
 

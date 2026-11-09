@@ -66,8 +66,8 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 35 | Offline / PWA | ⏹️ Deferred by owner decision (documented for future) |
 
 **Git:** branch `roy`. Latest migration:
-`20261015120000_sign_in_rate_limits` (run `npm run db:deploy` on any database
-that has not had it — applied to `tribeca_jets` and `tribeca_postman`).
+`20261109180000_trip_approval_workflow` (run `npm run db:deploy` on any database
+that has not had it — applied to `tribeca_jets`).
 
 **15 Oct 2026:** Settings › Rate Limiting — only failed sign-ins and
 emailed codes are limited (session log below). Committed and pushed to
@@ -91,10 +91,10 @@ API's start). Import / Export (#31) comes after.
        - **1.3 Checklist "Go" Navigation:** Upgraded `TripConfirmationCard.jsx` with "Go" navigation buttons next to all checklist items scrolling smoothly to target cards or deep-linking to relevant modules.
        - **1.4 Operator Payment Statuses:** Added `Operator Payment Sent` (auto-completed when operator payable is paid) and `Operator Payment Received` (desk verification toggle) to `TripConfirmationCard.jsx` and Prisma schema migration.
        - **8.1, 8.2, 8.3 Contract Management & External Buttons:** Added `TripContractCard.jsx` tracking `Contract Sent` and `Contract Received` statuses with toggle actions and direct external launch buttons for **Avanode** (`https://www.avanode.com`) and **DocuSign** (`https://app.docusign.com`).
-    4. **Batch 4 (Approvals & Notifications) — UP NEXT:**
-       - **2.1 Admin Trip Approval Workflow:** Add `approvalStatus: PENDING | APPROVED | REJECTED` to `Trip`. Trips created by brokers default to `PENDING` with an "Approval Required" banner and an admin review/approval button on `TripActionBar` required before moving to `CONFIRMED`.
-       - **2.3 Recent Activity User/Broker Filter:** Add optional `userId` filter to `GET /dashboard/activity` (`DashboardActivityDto`) and add a team member filter dropdown in `RecentActivityFeed.jsx`.
-       - **3.1 & 3.2 Trip Assignment Notifications:** Dispatch in-app task/bell notification and transactional SMTP email via `MailService.send()` to brokers when an admin assigns a trip to them.
+    4. **Batch 4 (Approvals & Notifications) — ✅ COMPLETED 9 Nov 2026:**
+       - **2.1 Admin Trip Approval Workflow:** Added `approvalStatus: PENDING | APPROVED | REJECTED` to `Trip` in migration `20261109180000_trip_approval_workflow`. Trips created by brokers default to `PENDING` with an "Approval Required" banner and an admin review/approval button on `TripActionBar` required before moving to `CONFIRMED`. Endpoints `POST /trips/:id/approve` and `POST /trips/:id/reject` added for administrators, generating in-app tasks and email notifications for brokers upon decision.
+       - **2.3 Recent Activity User/Broker Filter:** Added optional `userId` filter to `GET /dashboard/activity` (`DashboardActivityDto`, `dashboard.activity.ts`, `dashboard.service.ts`) and added a team member filter dropdown in `RecentActivityFeed.jsx`.
+       - **3.1 & 3.2 Trip Assignment Notifications:** Dispatch in-app task/bell notification and transactional SMTP email via `MailService.sendTripAssignment()` to brokers when an admin assigns a trip to them.
 
 - **ALL 26 QA AUDIT ISSUES REMEDIATED & PINNED (30 Oct 2026):** Every issue from `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf` has been audited, designed, implemented, tested, and pinned across all 4 execution batches. Vitest passes 100% (66 test suites, 570 tests), `tsc --noEmit` has 0 errors, `oxlint` has 0 errors, `npm run lint` has 0 errors, and Next.js `npm run build` compiles all 45 routes with 0 errors. Ready for owner acceptance testing.
 
@@ -1056,4 +1056,26 @@ this says *what the owner decided*, which nothing else records.
   - **Verification:**
     - Backend: Vitest 66/66 test suites (570 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
     - Frontend: `npm run build` compiled all 45 routes with 0 errors; ESLint 0 errors / 0 warnings.
-- **Current State:** Batches 1, 2, and 3 completed and verified on branch `roy`. Ready to proceed with Batch 4 (Approvals & Notifications).
+- **Batch 4 (Approvals & Notifications) Implemented & Verified (9 Nov 2026):**
+  - **2.1 Admin Trip Approval Workflow:**
+    - Schema & Migrations: Created `TripApprovalStatus` enum (`PENDING`, `APPROVED`, `REJECTED`) and added `approvalStatus`, `approvedAt`, `approvedById`, `approvedBy`, and `rejectionReason` to model `Trip`. Added `approvedTrips` relation to model `User`. Created and applied migration `20261109180000_trip_approval_workflow`.
+    - Backend:
+      - Trips created by administrators default to `APPROVED`; trips created by brokers default to `PENDING`.
+      - Blocked confirming trips while approval is `PENDING` (`BadRequestException` with explanatory message).
+      - Added `POST /trips/:id/approve` and `POST /trips/:id/reject` in `TripsController` guarded with `Action.EDIT` and `isAdministrator` check.
+      - Dispatches review tasks and email notices to all active Admins upon trip submission by a broker.
+      - Dispatches task and transactional decision email to the submitting broker upon approval or rejection.
+    - Frontend:
+      - Added `useApproveTrip` and `useRejectTrip` hooks in `@/hooks/trips`.
+      - Added `RejectTripDialog.jsx` for admins to provide a rejection reason.
+      - Updated `TripActionBar.jsx` with "Approve Trip" and "Decline Approval" actions for admins on pending trips, and blocked "Mark Confirmed" with a helpful tooltip.
+      - Added approval banner in `TripDetailsView.jsx` and approval badges in `TripHeaderTitle.jsx` and `TripsTableRow.jsx`.
+  - **2.3 Recent Activity User/Broker Filter:**
+    - Backend: Extended `dashboardActivitySchema` with optional `userId: z.uuid()` and updated `activityWhere` in `dashboard.activity.ts` to filter by `actorId`.
+    - Frontend: Upgraded `RecentActivityFeed.jsx` with a team member selector dropdown filtering audit logs by user, and added clear empty state feedback.
+  - **3.1 & 3.2 Trip Assignment Notifications:**
+    - Backend: Implemented `sendTripAssignment()` in `MailService` and wired automatic task creation (`TaskPriority.HIGH`, `dueDate: todayUtc()`) + transactional email sending upon trip creation or reassignment to a broker.
+  - **Verification:**
+    - Backend: Vitest 66/66 test suites pass 100% green; `tsc --noEmit` 0 errors; `npm run lint` 0 errors.
+    - Frontend: `npm run lint` 0 errors / 0 warnings; Next.js `npm run build` compiles all 45 routes with 0 errors.
+- **Current State:** All 4 Batches (1, 2, 3, and 4) covering all 8 feedback areas are 100% completed, tested, and verified on branch `roy`. Ready for final review.

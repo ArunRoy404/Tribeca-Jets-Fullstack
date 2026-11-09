@@ -10,7 +10,7 @@ import { Action, Module, Reach } from '../../common/authorization/access.js';
 import { AccessGuard } from '../../common/guards/access.guard.js';
 import { UserRole } from '../../generated/prisma/enums.js';
 import { DashboardController } from './dashboard.controller.js';
-import { activityWhere, ACTIVITY_MODULE } from './dashboard.activity.js';
+import { activityWhere } from './dashboard.activity.js';
 
 const handler = (name: keyof DashboardController) =>
   DashboardController.prototype[name] as unknown as object;

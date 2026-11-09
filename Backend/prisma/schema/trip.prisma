@@ -57,6 +57,13 @@ model Trip {
   /// Operator payment received desk confirmation (Batch 3 - CRM Feedback 1.4)
   operatorPaymentReceivedAt DateTime?
 
+  /// Admin approval workflow (Batch 4 - CRM Feedback 2.1)
+  approvalStatus   TripApprovalStatus @default(APPROVED)
+  approvedAt       DateTime?
+  approvedById     String?            @db.Uuid
+  approvedBy       User?              @relation("TripApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  rejectionReason  String?
+
   /// How many are flying. Kept apart from the named passengers because names
   /// usually arrive days after the booking.
   passengerCount Int?
@@ -232,6 +239,12 @@ enum TripType {
   ONE_WAY
   ROUND_TRIP
   MULTI_LEG
+}
+
+enum TripApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 /// Where the booking stands. `REQUESTED` and `SOURCING` from the old dummy
