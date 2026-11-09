@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { useChangeTripStatus } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
+import { useBookingConfirmationStore } from "@/store/useBookingConfirmationStore";
 import { Action, Module } from "@/lib/access";
 import { isStepBack, moveVerb } from "@/lib/trip";
 
@@ -21,6 +22,7 @@ export default function TripActionBar({ trip }) {
   const { canAccess } = usePermissions();
   const { mutate: move, isPending } = useChangeTripStatus();
   const [composeOpen, setComposeOpen] = useState(false);
+  const openBookingModal = useBookingConfirmationStore((s) => s.openModal);
 
   const mayMove = canAccess(Module.TRIPS, Action.EDIT);
   const maySend = canAccess(Module.EMAIL_TEMPLATES, Action.SEND) && Boolean(trip?.clientId);
@@ -51,7 +53,18 @@ export default function TripActionBar({ trip }) {
               className={`gap-2 px-4 ${cancel ? "text-destructive" : ""}`}
               disabled={isPending || confirmBlocked}
               title={tooltip}
-              onClick={() => move?.({ id: trip?.id, status })}
+              onClick={() =>
+                move?.(
+                  { id: trip?.id, status },
+                  {
+                    onSuccess: (updated) => {
+                      if (status === "BOOKED") {
+                        openBookingModal(updated || trip);
+                      }
+                    },
+                  }
+                )
+              }
             >
               {cancel ? <XCircle className="size-3.5" /> : back ? <Undo2 className="size-3.5" /> : <ArrowRight className="size-3.5" />}
               {moveVerb(status, trip?.rawStatus)}

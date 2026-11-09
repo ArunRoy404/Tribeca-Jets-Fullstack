@@ -85,13 +85,13 @@ API's start). Import / Export (#31) comes after.
     2. **Batch 2 (Invoicing & Financial Enhancements) — ✅ COMPLETED 9 Nov 2026:**
        - **7.1 Bank Wire Instructions:** Added company wire remittance fields to `CompanySettings` (`wireBankName`, `wireBeneficiaryName`, `wireRoutingNumber`, `wireAccountNumber`, `wireSwiftBic`, `wireInstructions`), created migration `20261109160000_wire_instructions_and_broker_commission`, added `wireInstructions` text column to `Invoice`, updated `CompanyBrandingSection.jsx`, added wire text input in `AddReceivableDialog.jsx`, rendered dedicated "Bank Wire Instructions" card in `ReceivableDetailSheet.jsx` and Client Portal statement tab (`ClientPortalView.jsx`), and updated PDF template (`renderInvoicePdf`) to render wire remittance details at the bottom of downloaded invoices.
        - **2.2 Broker Commissions:** Added `BROKER` to `CommissionRecipientType` in Prisma schema, updated `CommissionsService` (`recipient()`, `recipientLabel()`, `scope()`), updated `RECIPIENT_TYPES` and `RECIPIENT_LABELS` in `Frontend/src/lib/commission.js`, updated `AddCommissionDialog.jsx` with `BrokerPicker`, and added `"Broker"` tone styling in `StatusBadge.jsx`.
-    3. **Batch 3 (Trip Operations, Checklist & Contracts) — UP NEXT:**
-       - **1.1 Passenger Count Auto-Population:** Ensure passenger count automatically reflects and locks from the selected trip in Itinerary composer and related trip-picker flows.
-       - **1.2 Booking Confirmation Modal:** Intercept trip booking from quotes/creator to display a celebratory animation (confetti), booking summary, and clear prompt: *"Trip booked! Don't forget to invoice the client"* with a direct *"Generate Invoice"* button.
-       - **1.3 Checklist "Go" Navigation:** Add a "Go" action button beside each item in `TripConfirmationCard.jsx` navigating/scrolling directly to the relevant card or modal (client, aircraft, operator, manifest, financials, itinerary, payment).
-       - **1.4 Operator Payment Statuses:** Add `Operator Payment Sent` (auto-completed when operator payable is marked `PAID`) and `Operator Payment Received` (desk verification toggle) to `TripConfirmationCard.jsx`.
-       - **8.1, 8.2, 8.3 Contract Management & External Buttons:** Add contract tracking (`Contract Sent`, `Contract Received`) and direct external launch buttons for **Avanode** (`https://www.avanode.com`) and **DocuSign** (`https://app.docusign.com`).
-    4. **Batch 4 (Approvals & Notifications):**
+    3. **Batch 3 (Trip Operations, Checklist & Contracts) — ✅ COMPLETED 9 Nov 2026:**
+       - **1.1 Passenger Count Auto-Population:** Added auto-population badge and trip manifest sync in `BuildItineraryDialog.jsx` displaying trip passenger count and named passenger status.
+       - **1.2 Booking Confirmation Modal:** Built `BookingConfirmationDialog.jsx` with celebratory confetti animation, trip details summary, prominent callout reminder to invoice the client, and a quick-action "Generate Invoice" button; wired into `TripActionBar`, `CreateFormActionBar`, and `QuoteStatusActionsCard`.
+       - **1.3 Checklist "Go" Navigation:** Upgraded `TripConfirmationCard.jsx` with "Go" navigation buttons next to all checklist items scrolling smoothly to target cards or deep-linking to relevant modules.
+       - **1.4 Operator Payment Statuses:** Added `Operator Payment Sent` (auto-completed when operator payable is paid) and `Operator Payment Received` (desk verification toggle) to `TripConfirmationCard.jsx` and Prisma schema migration.
+       - **8.1, 8.2, 8.3 Contract Management & External Buttons:** Added `TripContractCard.jsx` tracking `Contract Sent` and `Contract Received` statuses with toggle actions and direct external launch buttons for **Avanode** (`https://www.avanode.com`) and **DocuSign** (`https://app.docusign.com`).
+    4. **Batch 4 (Approvals & Notifications) — UP NEXT:**
        - **2.1 Admin Trip Approval Workflow:** Add `approvalStatus: PENDING | APPROVED | REJECTED` to `Trip`. Trips created by brokers default to `PENDING` with an "Approval Required" banner and an admin review/approval button on `TripActionBar` required before moving to `CONFIRMED`.
        - **2.3 Recent Activity User/Broker Filter:** Add optional `userId` filter to `GET /dashboard/activity` (`DashboardActivityDto`) and add a team member filter dropdown in `RecentActivityFeed.jsx`.
        - **3.1 & 3.2 Trip Assignment Notifications:** Dispatch in-app task/bell notification and transactional SMTP email via `MailService.send()` to brokers when an admin assigns a trip to them.
@@ -1038,4 +1038,22 @@ this says *what the owner decided*, which nothing else records.
   - **Verification:**
     - Backend: Vitest 66/66 test suites (570 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
     - Frontend: `npm run build` compiled all 45 routes with 0 errors; ESLint 0 errors.
-- **Current State:** Batch 1 and Batch 2 completed and verified on branch `roy`. Ready to proceed with Batch 3 (Trip Operations, Checklist & Contracts).
+- **Batch 3 (Trip Operations, Checklist & Contracts) Implemented & Verified (9 Nov 2026):**
+  - **1.1 Passenger Count Auto-Population:**
+    - Frontend: In `BuildItineraryDialog.jsx`, added passenger count sync badge displaying total count (`trip.passengerCount ?? trip.passengers.length`) and manifest passenger names when a trip is selected from `TripPicker`.
+  - **1.2 Booking Confirmation Pop-Up:**
+    - Frontend: Created `useBookingConfirmationStore.js` and `BookingConfirmationDialog.jsx` featuring celebratory confetti animation (pure Framer Motion physics), trip summary, invoice reminder banner, and a direct "Generate Invoice" action button. Wired into `TripActionBar.jsx` (on status move to BOOKED), `CreateFormActionBar.jsx` (on trip creation with BOOKED/CONFIRMED), and `QuoteStatusActionsCard.jsx` (on booking quote). Mounted globally in `DashboardLayout.jsx`.
+  - **1.3 Checklist "Go" Navigation:**
+    - Frontend: Replaced static icons in `TripConfirmationCard.jsx` with active "Go" buttons navigating directly to target cards via smooth anchor scrolling (`#flight-info-card`, `#operator-card`, `#passengers-card`, `#financial-card`, `#contract-card`) or deep linking to linked modules (`/dashboard/receivables`, `/dashboard/operator-payments`, and itinerary builder).
+  - **1.4 Operator Payment Statuses:**
+    - Schema & Migrations: Added `operatorPaymentReceivedAt` timestamp column to `trips` in migration `20261109170000_trip_contracts_and_operator_payment_received`.
+    - Backend: Updated `trip.dto.ts` and `trips.service.ts` to support `operatorPaymentReceived` boolean in creates and updates.
+    - Frontend: Added `Operator payment sent` (auto-completed when operator payable is paid) and `Operator payment received` (with direct "Confirm Receipt" / "Mark Unreceived" toggle button) in `TripConfirmationCard.jsx`.
+  - **8.1, 8.2, 8.3 Contract Management & Launch Buttons:**
+    - Schema & Migrations: Added `contractSentAt` and `contractReceivedAt` timestamp columns to `trips`.
+    - Backend: Updated `trip.dto.ts` and `trips.service.ts` to support `contractSent` and `contractReceived` booleans.
+    - Frontend: Added `TripContractCard.jsx` in `TripDetailsView.jsx` displaying live contract status badges (`Contract Sent`, `Contract Received`), toggle actions, and direct launch buttons for **Avanode** (`https://www.avanode.com`) and **DocuSign** (`https://app.docusign.com`).
+  - **Verification:**
+    - Backend: Vitest 66/66 test suites (570 tests) pass 100% green; `tsc --noEmit` 0 errors; `oxlint` 0 errors.
+    - Frontend: `npm run build` compiled all 45 routes with 0 errors; ESLint 0 errors / 0 warnings.
+- **Current State:** Batches 1, 2, and 3 completed and verified on branch `roy`. Ready to proceed with Batch 4 (Approvals & Notifications).

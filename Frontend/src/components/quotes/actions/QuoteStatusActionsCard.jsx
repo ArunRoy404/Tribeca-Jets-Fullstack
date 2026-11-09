@@ -14,6 +14,7 @@ import {
   useSendQuote,
 } from "@/hooks/quotes";
 import { useBookQuote } from "@/hooks/trips";
+import { useBookingConfirmationStore } from "@/store/useBookingConfirmationStore";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Module, Action } from "@/lib/access";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ export default function QuoteStatusActionsCard({ quote }) {
   const { mutate: restore, isPending: isRestoring } = useRestoreQuote();
   const { mutate: book, isPending: isBooking } = useBookQuote();
   const router = useRouter();
+  const openBookingModal = useBookingConfirmationStore((s) => s.openModal);
 
   const { canAccess } = usePermissions();
   const maySendQuote = canAccess(Module.QUOTES, Action.SEND);
@@ -207,7 +209,17 @@ export default function QuoteStatusActionsCard({ quote }) {
             <Button
               type="button"
               disabled={busy}
-              onClick={() => book({ quoteId: quote.id }, { onSuccess: (trip) => router.push(`/dashboard/trips/${trip?.id}`) })}
+              onClick={() =>
+                book(
+                  { quoteId: quote.id },
+                  {
+                    onSuccess: (trip) => {
+                      if (trip) openBookingModal(trip);
+                      router.push(`/dashboard/trips/${trip?.id}`);
+                    },
+                  }
+                )
+              }
               className={cn(BUTTON, "shadow-button")}
             >
               <Plane className="size-4" />

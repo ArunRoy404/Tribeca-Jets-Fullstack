@@ -15,6 +15,7 @@ import TripFinancialCard from "@/components/trips/financial/TripFinancialCard";
 import TripProgressCard from "@/components/trips/progress/TripProgressCard";
 import TripActionBar from "@/components/trips/actions/TripActionBar";
 import TripConfirmationCard from "@/components/trips/confirmation/TripConfirmationCard";
+import TripContractCard from "@/components/trips/contract/TripContractCard";
 import TripDocumentsCard from "@/components/trips/documents/TripDocumentsCard";
 import TripNotesCard from "@/components/trips/notes/TripNotesCard";
 import TripPassengersCard from "@/components/trips/passengers/TripPassengersCard";
@@ -39,12 +40,22 @@ export default function TripDetailsView({ trip }) {
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start p-4 sm:p-6">
           <div className="flex flex-col gap-6 min-w-0">
-            <TripActionBar trip={trip} />
+            <div id="trip-action-bar">
+              <TripActionBar trip={trip} />
+            </div>
             <TripFlightRouteCard trip={trip} />
-            <TripFlightInfoCard trip={trip} />
-            <TripClientCard trip={trip} />
-            <TripOperatorCard trip={trip} />
-            <TripFinancialCard trip={trip} />
+            <div id="flight-info-card">
+              <TripFlightInfoCard trip={trip} />
+            </div>
+            <div id="client-card">
+              <TripClientCard trip={trip} />
+            </div>
+            <div id="operator-card">
+              <TripOperatorCard trip={trip} />
+            </div>
+            <div id="financial-card">
+              <TripFinancialCard trip={trip} />
+            </div>
             <TripProgressCard trip={trip} />
             {/* Client adjustment #5's trip timeline: notes people write,
                 merged with every recorded change — bookings, status moves,
@@ -56,7 +67,10 @@ export default function TripDetailsView({ trip }) {
 
           <div className="flex flex-col gap-6 min-w-0">
             <TripConfirmationCard trip={trip} />
-            <TripPassengersCard trip={trip} />
+            <TripContractCard trip={trip} />
+            <div id="passengers-card">
+              <TripPassengersCard trip={trip} />
+            </div>
             <TripDocumentsCard trip={trip} />
             <TripNotesCard trip={trip} />
           </div>

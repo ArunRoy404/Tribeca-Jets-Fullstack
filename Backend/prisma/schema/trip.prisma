@@ -50,6 +50,13 @@ model Trip {
   /// confirmed by the operator, and the two happen in either order.
   operatorConfirmedAt DateTime?
 
+  /// Contract management (Batch 3 - CRM Feedback 8.1)
+  contractSentAt     DateTime?
+  contractReceivedAt DateTime?
+
+  /// Operator payment received desk confirmation (Batch 3 - CRM Feedback 1.4)
+  operatorPaymentReceivedAt DateTime?
+
   /// How many are flying. Kept apart from the named passengers because names
   /// usually arrive days after the booking.
   passengerCount Int?

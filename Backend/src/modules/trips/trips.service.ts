@@ -178,6 +178,9 @@ const TRIP_LIST_SELECT = {
   type: true,
   status: true,
   operatorConfirmedAt: true,
+  contractSentAt: true,
+  contractReceivedAt: true,
+  operatorPaymentReceivedAt: true,
   passengerCount: true,
   departureDate: true,
   basePrice: true,
@@ -488,6 +491,13 @@ export class TripsService {
        */
       operatorPayment: this.seesOperatorPayments(user) ? tripOperatorPayment(operatorPayables) : undefined,
       operatorConfirmed: row.operatorConfirmedAt !== null,
+      contractSent: row.contractSentAt !== null,
+      contractSentAt: row.contractSentAt,
+      contractReceived: row.contractReceivedAt !== null,
+      contractReceivedAt: row.contractReceivedAt,
+      contractStatus: row.contractReceivedAt ? 'RECEIVED' : row.contractSentAt ? 'SENT' : 'DRAFT',
+      operatorPaymentReceived: row.operatorPaymentReceivedAt !== null,
+      operatorPaymentReceivedAt: row.operatorPaymentReceivedAt,
       nextStatuses: allowedNextStatuses(row.status),
       editable: isEditable(row.status) && row.deletedAt === null,
     };
@@ -852,6 +862,9 @@ export class TripsService {
           type: dto.type,
           status: dto.status,
           operatorConfirmedAt: dto.operatorConfirmed ? new Date() : null,
+          contractSentAt: dto.contractSent ? new Date() : null,
+          contractReceivedAt: dto.contractReceived ? new Date() : null,
+          operatorPaymentReceivedAt: dto.operatorPaymentReceived ? new Date() : null,
           passengerCount: dto.passengerCount ?? null,
           departureDate: dto.legs[0]?.departureDate ?? null,
           basePrice: dto.basePrice ?? null,
@@ -978,6 +991,9 @@ export class TripsService {
         operatorId: true,
         aircraftId: true,
         operatorConfirmedAt: true,
+        contractSentAt: true,
+        contractReceivedAt: true,
+        operatorPaymentReceivedAt: true,
         departureDate: true,
         passengerCount: true,
         legs: { where: { deletedAt: null }, select: { id: true, originAirportId: true, destinationAirportId: true, departureDate: true } },
@@ -1023,7 +1039,16 @@ export class TripsService {
       this.assertLegs(type, current.legs);
     }
 
-    const { legs, passengers, operatorConfirmed, lineItems, ...fields } = dto;
+    const {
+      legs,
+      passengers,
+      operatorConfirmed,
+      contractSent,
+      contractReceived,
+      operatorPaymentReceived,
+      lineItems,
+      ...fields
+    } = dto;
     await this.prisma.$transaction(async (tx) => {
       await tx.trip.update({
         where: { id },
@@ -1035,6 +1060,27 @@ export class TripsService {
                 // Keep the original confirmation time when it is re-sent as true.
                 operatorConfirmedAt: operatorConfirmed
                   ? (current.operatorConfirmedAt ?? new Date())
+                  : null,
+              }
+            : {}),
+          ...(contractSent !== undefined
+            ? {
+                contractSentAt: contractSent
+                  ? (current.contractSentAt ?? new Date())
+                  : null,
+              }
+            : {}),
+          ...(contractReceived !== undefined
+            ? {
+                contractReceivedAt: contractReceived
+                  ? (current.contractReceivedAt ?? new Date())
+                  : null,
+              }
+            : {}),
+          ...(operatorPaymentReceived !== undefined
+            ? {
+                operatorPaymentReceivedAt: operatorPaymentReceived
+                  ? (current.operatorPaymentReceivedAt ?? new Date())
                   : null,
               }
             : {}),

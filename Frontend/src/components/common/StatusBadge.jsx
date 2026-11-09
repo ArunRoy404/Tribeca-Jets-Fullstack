@@ -35,6 +35,8 @@ const STATUS_TONES = {
   Scheduled: "purple",
   Approved: "success",
   Rejected: "destructive",
+  "Contract Sent": "info",
+  "Contract Received": "success",
   "Vendor Pending": "pending",
   // Operator Sourcing quotes
   "Awaiting Response": "pending",

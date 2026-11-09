@@ -263,6 +263,23 @@ function ItineraryForm({ itinerary, onDone }) {
               <p className="font-montserrat text-[11px] text-muted-foreground">
                 Aircraft, operator, tail, route and the passenger manifest come from the trip and cannot be typed here.
               </p>
+              {selectedTrip && (
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-2 p-2.5 rounded-md bg-secondary/50 border border-border/60 text-[12px]">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-foreground">
+                      Passenger Count: {selectedTrip?.passengerCount ?? selectedTrip?.passengers?.length ?? 0}
+                    </span>
+                    <span className="text-muted-foreground">
+                      ({selectedTrip?.passengers?.length > 0
+                        ? `${selectedTrip.passengers.length} named on manifest`
+                        : "Manifest not yet named"})
+                    </span>
+                  </div>
+                  <span className="text-purple font-medium text-[11px]">
+                    Auto-populated from trip
+                  </span>
+                </div>
+              )}
             </FieldWrapper>
           )}
 

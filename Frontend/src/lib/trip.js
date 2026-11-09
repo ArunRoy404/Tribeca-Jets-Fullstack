@@ -47,6 +47,14 @@ export function formatTripType(type) {
   return TYPE_LABELS[type] ?? type;
 }
 
+export const CONTRACT_STATUSES = ["DRAFT", "SENT", "RECEIVED"];
+const CONTRACT_STATUS_LABELS = {
+  DRAFT: "Draft / Not Sent",
+  SENT: "Contract Sent",
+  RECEIVED: "Contract Received",
+};
+export const formatContractStatus = (status) => (status ? (CONTRACT_STATUS_LABELS[status] ?? status) : DASH);
+
 /** The verb on a button that moves a trip into a status. */
 const MOVE_VERBS = {
   DRAFT: "Back to Draft",
@@ -199,6 +207,13 @@ export function toTripDetail(trip) {
     passengers: trip?.passengers ?? [],
     legs,
     operatorConfirmed: Boolean(trip?.operatorConfirmed),
+    contractSent: Boolean(trip?.contractSent),
+    contractSentAt: formatCalendarDate(trip?.contractSentAt),
+    contractReceived: Boolean(trip?.contractReceived),
+    contractReceivedAt: formatCalendarDate(trip?.contractReceivedAt),
+    contractStatus: trip?.contractStatus ?? (trip?.contractReceivedAt ? "RECEIVED" : trip?.contractSentAt ? "SENT" : "DRAFT"),
+    operatorPaymentReceived: Boolean(trip?.operatorPaymentReceived),
+    operatorPaymentReceivedAt: formatCalendarDate(trip?.operatorPaymentReceivedAt),
     quote: trip?.quote ? { id: trip.quote.id, reference: `Q-${trip.quote.reference}` } : null,
     tripRequest: trip?.tripRequest
       ? { id: trip.tripRequest.id, reference: `TR-${trip.tripRequest.reference}` }

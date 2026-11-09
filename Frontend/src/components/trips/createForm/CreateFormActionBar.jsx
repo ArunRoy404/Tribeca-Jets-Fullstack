@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCreateTripStore } from "@/store/useCreateTripStore";
+import { useBookingConfirmationStore } from "@/store/useBookingConfirmationStore";
 import { useCreateTrip, useUpdateTrip } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { useCurrentUser } from "@/hooks/auth";
@@ -21,6 +22,7 @@ import { toastError } from "@/lib/toast";
 export default function CreateFormActionBar() {
   const router = useRouter();
   const draft = useCreateTripStore();
+  const openBookingModal = useBookingConfirmationStore((s) => s.openModal);
   const { mutate: createTrip, isPending: creating } = useCreateTrip();
   const { mutate: updateTrip, isPending: updating } = useUpdateTrip();
   const { canAccess, reachOf } = usePermissions();
@@ -128,6 +130,9 @@ export default function CreateFormActionBar() {
               .catch(() => null);
           }
         }
+      }
+      if (!editing && (status === "BOOKED" || status === "CONFIRMED")) {
+        openBookingModal(trip);
       }
       draft.reset?.();
       router.push(`/dashboard/trips/${trip?.id}`);

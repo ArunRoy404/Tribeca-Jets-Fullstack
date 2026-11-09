@@ -5,6 +5,7 @@ import IdleLogoutWatcher from "@/components/common/IdleLogoutWatcher";
 import AreaGate from "@/components/common/AreaGate";
 import ModuleGate from "@/components/common/ModuleGate";
 import AskAnythingPopover from "@/components/dashboard/assistant/AskAnythingPopover";
+import BookingConfirmationDialog from "@/components/trips/booking/BookingConfirmationDialog";
 
 /**
  * Access is gated before this ever renders — `src/proxy.js` redirects requests
@@ -35,6 +36,7 @@ export default function DashboardLayout({ children }) {
             <ModuleGate>{children}</ModuleGate>
           </div>
           <AskAnythingPopover />
+          <BookingConfirmationDialog />
         </SidebarInset>
       </SidebarProvider>
     </AreaGate>

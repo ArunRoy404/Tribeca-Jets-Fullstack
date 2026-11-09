@@ -102,6 +102,9 @@ export const createTripSchema = z.object({
   type: z.enum(TripType).default(TripType.ONE_WAY),
   status: z.enum(CREATABLE_STATUSES).default(TripStatus.DRAFT),
   operatorConfirmed: z.boolean().default(false),
+  contractSent: z.boolean().default(false),
+  contractReceived: z.boolean().default(false),
+  operatorPaymentReceived: z.boolean().default(false),
 
   passengerCount: optionalNumber('Passengers must be a whole number', PASSENGERS),
 
@@ -142,6 +145,9 @@ export const updateTripSchema = z
 
     type: z.enum(TripType).optional(),
     operatorConfirmed: z.boolean().optional(),
+    contractSent: z.boolean().optional(),
+    contractReceived: z.boolean().optional(),
+    operatorPaymentReceived: z.boolean().optional(),
 
     passengerCount: nullableNumber('Passengers must be a whole number', PASSENGERS),
 
