@@ -488,7 +488,7 @@ async function main(): Promise<void> {
   });
 
   console.log('--- Seeding client quotes (2 rows) ---');
-  const quote1 = await prisma.quote.create({
+  await prisma.quote.create({
     data: {
       clientId: chenClient.id,
       tripRequestId: req1.id,

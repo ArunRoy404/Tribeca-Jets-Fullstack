@@ -75,7 +75,7 @@ async function main(): Promise<void> {
     data: {
       id: 1,
       companyName: 'Tribeca Jets',
-      companyEmail: 'operations@tribecajets.com',
+      companyEmail: 'operations@example.com',
       website: 'https://tribecajets.com',
       phone: '+1 (212) 555-0100',
       address: 'One World Trade Center, Suite 8500, New York, NY 10007',
@@ -123,10 +123,10 @@ async function main(): Promise<void> {
     },
   });
 
-  // 2) Admin: admin@tribecajets.com / ChangeMe123!
+  // 2) Admin: admin@example.com / ChangeMe123!
   await prisma.user.create({
     data: {
-      email: 'admin@tribecajets.com',
+      email: 'admin@example.com',
       passwordHash: password,
       firstName: 'Alex',
       lastName: 'Admin',
@@ -138,10 +138,10 @@ async function main(): Promise<void> {
     },
   });
 
-  // 3) Broker: broker@tribecajets.com / ChangeMe123!
+  // 3) Broker: broker@example.com / ChangeMe123!
   await prisma.user.create({
     data: {
-      email: 'broker@tribecajets.com',
+      email: 'broker@example.com',
       passwordHash: password,
       firstName: 'Jordan',
       lastName: 'Broker',
@@ -155,10 +155,10 @@ async function main(): Promise<void> {
     },
   });
 
-  // 4) Assistant: assistant@tribecajets.com / ChangeMe123!
+  // 4) Assistant: assistant@example.com / ChangeMe123!
   await prisma.user.create({
     data: {
-      email: 'assistant@tribecajets.com',
+      email: 'assistant@example.com',
       passwordHash: password,
       firstName: 'Avery',
       lastName: 'Assistant',
@@ -170,10 +170,10 @@ async function main(): Promise<void> {
     },
   });
 
-  // 5) Referral Agent: agent@tribecajets.com / ChangeMe123!
+  // 5) Referral Agent: agent@example.com / ChangeMe123!
   await prisma.user.create({
     data: {
-      email: 'agent@tribecajets.com',
+      email: 'agent@example.com',
       passwordHash: password,
       firstName: 'Sam',
       lastName: 'Partner',

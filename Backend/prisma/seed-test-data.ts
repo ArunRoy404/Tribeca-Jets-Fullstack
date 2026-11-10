@@ -34,7 +34,9 @@ const hash = (password: string) =>
 async function main(): Promise<void> {
   console.log('Seeding consistent test data for Notes, Client Credits, and Leads & Agents...');
 
-  // Ensure reference accounts exist (password: ChangeMe123!)
+  // Ensure reference accounts exist (password: ChangeMe123!). New ones are on
+  // example.com, which never delivers (AGENTS.md); the lookups still find a
+  // database seeded before 10 Nov 2026 with the old @tribecajets.com addresses.
   const passwordHash = await hash('ChangeMe123!');
 
   // Super Admin
@@ -54,7 +56,7 @@ async function main(): Promise<void> {
   if (!broker) {
     broker = await prisma.user.create({
       data: {
-        email: 'broker@tribecajets.com',
+        email: 'broker@example.com',
         passwordHash,
         firstName: 'Jordan',
         lastName: 'Broker',
@@ -74,7 +76,7 @@ async function main(): Promise<void> {
   if (!admin) {
     admin = await prisma.user.create({
       data: {
-        email: 'admin@tribecajets.com',
+        email: 'admin@example.com',
         passwordHash,
         firstName: 'Alex',
         lastName: 'Admin',
@@ -92,7 +94,7 @@ async function main(): Promise<void> {
   if (!assistant) {
     assistant = await prisma.user.create({
       data: {
-        email: 'assistant@tribecajets.com',
+        email: 'assistant@example.com',
         passwordHash,
         firstName: 'Avery',
         lastName: 'Assist',
@@ -110,7 +112,7 @@ async function main(): Promise<void> {
   if (!agent) {
     agent = await prisma.user.create({
       data: {
-        email: 'agent@tribecajets.com',
+        email: 'agent@example.com',
         passwordHash,
         firstName: 'Riley',
         lastName: 'Partner',
@@ -287,7 +289,7 @@ async function main(): Promise<void> {
     },
   });
 
-  const lead3 = await prisma.client.create({
+  await prisma.client.create({
     data: {
       type: ClientType.DIRECT,
       status: ClientStatus.LEAD,
@@ -312,7 +314,7 @@ async function main(): Promise<void> {
     },
   });
 
-  const lead4Unassigned = await prisma.client.create({
+  await prisma.client.create({
     data: {
       type: ClientType.DIRECT,
       status: ClientStatus.LEAD,
