@@ -103,7 +103,8 @@ function AirportForm({ editingAirport, onDone }) {
       iata: optionalText(formData.iata.toUpperCase(), { editing }),
       name: formData.name.trim(),
       city: formData.city.trim(),
-      state: optionalText(formData.state.toUpperCase(), { editing }),
+      // Kept as typed: "NY" and "Ontario" are both states (10 Nov 2026).
+      state: optionalText(formData.state, { editing }),
       country: formData.country.trim(),
       latitude: optionalNumber(String(formData.latitude), { editing }),
       longitude: optionalNumber(String(formData.longitude), { editing }),
