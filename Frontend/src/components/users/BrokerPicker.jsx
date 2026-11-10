@@ -2,8 +2,12 @@
 
 import RecordPicker from "@/components/common/record-picker/RecordPicker";
 import { useUser, useUsers } from "@/hooks/users";
+import { BROKER_ROLES } from "@/lib/roles";
 
-const PARAMS = { role: "BROKER", status: "ACTIVE", sortBy: "firstName", sortOrder: "asc" };
+// Everyone who can own a client or a trip — the API's own set (`BROKER_ROLES`).
+// It listed BROKER only until 10 Nov 2026, so an administrator who owns a
+// client could not be picked as its broker.
+const PARAMS = { role: [...BROKER_ROLES].join(","), status: "ACTIVE", sortBy: "firstName", sortOrder: "asc" };
 
 function brokerOption(user) {
   return {
@@ -14,8 +18,8 @@ function brokerOption(user) {
 }
 
 /**
- * The broker picker every staff form uses — `RecordPicker` over the real
- * staff directory filtered to active brokers:
+ * The broker picker every staff form and broker filter uses — `RecordPicker`
+ * over the real staff directory filtered to active brokers and administrators:
  * live search, 10 a page by default, paged by server.
  */
 export default function BrokerPicker({

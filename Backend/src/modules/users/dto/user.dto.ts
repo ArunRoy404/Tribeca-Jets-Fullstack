@@ -71,8 +71,16 @@ export const manageableStatusSchema = z.enum([
 // No `archived` param here, unlike every other module: accounts are never
 // removed, so there is no archived half of this list to ask for.
 export const queryUsersSchema = paginationSchema.extend({
-  /** Filter to one role. Omit for all roles. */
-  role: z.enum(UserRole).optional(),
+  /**
+   * Filter to one role, or several comma-separated (`BROKER,ADMIN,SUPER_ADMIN`
+   * — everyone who can own a client or a trip, the broker pickers' set).
+   * Omit for all roles.
+   */
+  role: z
+    .string()
+    .transform((value) => value.split(',').map((part) => part.trim()).filter(Boolean))
+    .pipe(z.array(z.enum(UserRole)).min(1, 'Name at least one role'))
+    .optional(),
   /** Filter to one status. Omit for all statuses. */
   status: z.enum(UserStatus).optional(),
   sortBy: sortableBy(USER_SORTABLE_FIELDS),

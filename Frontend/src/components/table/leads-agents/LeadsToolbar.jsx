@@ -8,7 +8,7 @@ import FilterDropdown from "@/components/table/common/FilterDropdown";
 import FilterTabs from "@/components/table/common/FilterTabs";
 import PageSizeSelect from "@/components/table/common/PageSizeSelect";
 import { useDebouncedParam } from "@/hooks/common/useTableQueryParams";
-import { useUsers } from "@/hooks/users";
+import BrokerPicker from "@/components/users/BrokerPicker";
 import {
   LEAD_PRIORITIES,
   LEAD_SOURCES,
@@ -16,10 +16,8 @@ import {
   formatLeadSource,
   formatLeadStage,
   formatPriority,
-  personName,
 } from "@/lib/lead";
 import { ARCHIVE_TABS } from "@/lib/archive";
-import { BROKER_ROLES } from "@/lib/roles";
 
 const ALL_STAGES = "All Stages";
 const ALL_SOURCES = "All Sources";
@@ -72,25 +70,6 @@ export default function LeadsToolbar({
   const source = useEnumFilter(LEAD_SOURCES, formatLeadSource, ALL_SOURCES);
   const priority = useEnumFilter(LEAD_PRIORITIES, formatPriority, ALL_PRIORITY);
 
-  // The real desk, not four hardcoded first names.
-  const { data: users } = useUsers({ limit: 100 });
-  const brokers = useMemo(
-    () => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)),
-    [users?.data],
-  );
-  const brokerOptions = useMemo(
-    () => [ALL_BROKERS, ...brokers.map(personName)],
-    [brokers],
-  );
-  const brokerIdByName = useMemo(
-    () => Object.fromEntries(brokers.map((b) => [personName(b), b.id])),
-    [brokers],
-  );
-  const brokerNameById = useMemo(
-    () => Object.fromEntries(brokers.map((b) => [b.id, personName(b)])),
-    [brokers],
-  );
-
   return (
     <div className="relative flex flex-col gap-3 p-4 w-full bg-sidebar border-b border-border">
       <FilterTabs
@@ -125,11 +104,12 @@ export default function LeadsToolbar({
             options={priority.options}
             onChange={(label) => setPriorityFilter?.(priority.valueByLabel[label] ?? "")}
           />
-          <FilterDropdown
-            label={ALL_BROKERS}
-            value={brokerNameById[brokerFilter] ?? ALL_BROKERS}
-            options={brokerOptions}
-            onChange={(label) => setBrokerFilter?.(brokerIdByName[label] ?? "")}
+          <BrokerPicker
+            variant="filter"
+            value={brokerFilter}
+            onChange={(id) => setBrokerFilter?.(id || "")}
+            placeholder={ALL_BROKERS}
+            clearLabel={ALL_BROKERS}
           />
           <PageSizeSelect value={limit} onChange={setLimit} />
         </div>

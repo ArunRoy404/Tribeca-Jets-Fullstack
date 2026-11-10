@@ -273,6 +273,7 @@ export class TripRequestsService {
         'destinationAirportId',
       ]),
       ...departureFilter(query.departure),
+      ...(query.clientIds ? { AND: [{ clientId: { in: query.clientIds } }] } : {}),
       // The working list, not the archive: a converted or lost request is
       // history, and leaving it on the board buries the ones needing a price.
       ...(query.openOnly ? { status: { in: OPEN_STATUSES } } : {}),

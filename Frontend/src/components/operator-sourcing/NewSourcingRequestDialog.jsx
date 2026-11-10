@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { useOperatorSourcingStore } from "@/store/useOperatorSourcingStore";
-import { useCreateTripRequest, useTripRequests } from "@/hooks/trip-requests";
+import { useCreateTripRequest } from "@/hooks/trip-requests";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import FormField from "@/components/trips/FormField";
 import ClientPicker from "@/components/clients/ClientPicker";
 import AirportPicker from "@/components/airports/AirportPicker";
 import CommonSelect from "@/components/common/CommonSelect";
+import TripRequestPicker from "@/components/trip-requests/TripRequestPicker";
 import DatePicker from "@/components/common/DatePicker";
 import {
   FILTERABLE_AIRCRAFT_CATEGORIES,
@@ -42,16 +43,13 @@ const EMPTY_FORM = {
  * - Departure, Budget & Quote deadline
  * - Notes / requirements
  */
+/** Only a live enquiry can be linked. */
+const OPEN_REQUESTS = { openOnly: true };
+
 export default function NewSourcingRequestDialog() {
   const open = useOperatorSourcingStore((s) => s.newRequestOpen);
   const closeNewRequest = useOperatorSourcingStore((s) => s.closeNewRequest);
   const { mutate: createRequest, isPending } = useCreateTripRequest();
-
-  // Load open requests to allow quick linking/pre-filling
-  const { data: openRequestsData } = useTripRequests(
-    { openOnly: true, limit: 100 },
-    { enabled: open },
-  );
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -74,22 +72,11 @@ export default function NewSourcingRequestDialog() {
     [],
   );
 
-  const linkedTripOptions = useMemo(() => {
-    const list = openRequestsData?.data ?? [];
-    return [
-      { value: "", label: "Select an open trip / enquiry (or create new)" },
-      ...list.map((r) => ({
-        value: r.id,
-        label: `TR-${r.reference} · ${r.client?.companyName || r.client?.contactName || "Client"} · ${r.originAirport?.icao || "—"} → ${r.destinationAirport?.icao || "—"}`,
-      })),
-    ];
-  }, [openRequestsData?.data]);
-
-  const handleLinkedTripChange = (tripId) => {
-    setField("linkedTripId")(tripId);
-    if (!tripId) return;
-    const found = openRequestsData?.data?.find((r) => r.id === tripId);
-    if (!found) return;
+  // The picked enquiry arrives with its row (TripRequestPicker — paged and
+  // searched by the server), so the form pre-fills from it.
+  const handleLinkedTripChange = (tripId, found) => {
+    setField("linkedTripId")(tripId || "");
+    if (!tripId || !found) return;
 
     setForm((prev) => ({
       ...prev,
@@ -160,11 +147,13 @@ export default function NewSourcingRequestDialog() {
         <form onSubmit={handleCreate} className="flex flex-col gap-4 w-full pt-1">
           {/* Linked trip */}
           <FormField label="Linked trip" labelClassName={LABEL_CLASS}>
-            <CommonSelect
+            <TripRequestPicker
               value={form.linkedTripId}
               onChange={handleLinkedTripChange}
-              options={linkedTripOptions}
-              placeholder="Select a trip"
+              params={OPEN_REQUESTS}
+              placeholder="Select an open trip / enquiry (or create new)"
+              allowClear
+              clearLabel="Create a new enquiry"
             />
           </FormField>
 

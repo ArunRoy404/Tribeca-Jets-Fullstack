@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import SearchInput from "@/components/table/common/SearchInput";
 import FilterDropdown from "@/components/table/common/FilterDropdown";
 import FilterTabs from "@/components/table/common/FilterTabs";
@@ -8,10 +7,8 @@ import PageSizeSelect from "@/components/table/common/PageSizeSelect";
 import BulkDeleteButton from "@/components/table/common/BulkDeleteButton";
 import { useDebouncedParam } from "@/hooks/common/useTableQueryParams";
 import { useEnumFilter } from "@/hooks/common/useEnumFilter";
-import { useUsers } from "@/hooks/users";
+import ReferralAgentPicker from "@/components/users/ReferralAgentPicker";
 import { REFERRAL_STATUSES, formatReferralStatus } from "@/lib/referral";
-import { personName } from "@/lib/lead";
-import { REFERRAL_AGENT } from "@/lib/roles";
 import { ARCHIVE_TABS } from "@/lib/archive";
 
 const ALL_STATUS = "All Status";
@@ -39,18 +36,6 @@ export default function ReferralsToolbar({
   const [draft, setDraft] = useDebouncedParam(search, setSearch);
   const statusFilter = useEnumFilter(REFERRAL_STATUSES, formatReferralStatus, ALL_STATUS);
 
-  const { data: users } = useUsers({ role: REFERRAL_AGENT, limit: 100 });
-  const agent = useMemo(() => {
-    const idByLabel = {};
-    const labelById = {};
-    for (const u of users?.data ?? []) {
-      const label = personName(u);
-      idByLabel[label] = u.id;
-      labelById[u.id] = label;
-    }
-    return { options: [ALL_AGENTS, ...Object.keys(idByLabel)], idByLabel, labelById };
-  }, [users?.data]);
-
   return (
     <div className="relative flex flex-col gap-3 p-4 w-full bg-sidebar border-b border-border">
       <FilterTabs
@@ -72,11 +57,13 @@ export default function ReferralsToolbar({
             options={statusFilter.options}
             onChange={(label) => setStatus?.(statusFilter.valueByLabel[label] ?? "")}
           />
-          <FilterDropdown
-            label={ALL_AGENTS}
-            value={agent.labelById[agentId] ?? ALL_AGENTS}
-            options={agent.options}
-            onChange={(label) => setAgentId?.(agent.idByLabel[label] ?? "")}
+          <ReferralAgentPicker
+            variant="filter"
+            value={agentId}
+            onChange={(id) => setAgentId?.(id || "")}
+            placeholder={ALL_AGENTS}
+            allowClear
+            clearLabel={ALL_AGENTS}
           />
           <PageSizeSelect value={limit} onChange={setLimit} />
         </div>

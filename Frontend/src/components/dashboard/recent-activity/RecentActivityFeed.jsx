@@ -7,7 +7,7 @@ import Reveal from "@/components/common/Reveal";
 import TableStatus from "@/components/table/common/TableStatus";
 import ActivityItem from "@/components/dashboard/recent-activity/ActivityItem";
 import { useDashboardActivity } from "@/hooks/dashboard";
-import { useUsers } from "@/hooks/users";
+import AssigneePicker from "@/components/users/AssigneePicker";
 import { toActivityItem } from "@/lib/dashboard";
 
 const SHOWN = 6;
@@ -19,18 +19,6 @@ const SHOWN = 6;
  */
 export default function RecentActivityFeed({ revealDelay = 0 }) {
   const [selectedUserId, setSelectedUserId] = useState("");
-  const { data: usersData } = useUsers({ limit: 100 });
-
-  const userOptions = useMemo(() => {
-    return (usersData?.data ?? [])
-      .map((u) => ({
-        id: u.id,
-        name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email,
-        role: u.role,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [usersData?.data]);
-
   const activityParams = useMemo(() => ({
     limit: SHOWN,
     ...(selectedUserId ? { userId: selectedUserId } : {}),
@@ -51,19 +39,14 @@ export default function RecentActivityFeed({ revealDelay = 0 }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <select
+            {/* Every team member, searched and paged by the server. */}
+            <AssigneePicker
+              variant="filter"
               value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="bg-card text-xs text-white border border-border/80 rounded px-2.5 py-1 outline-none focus:border-purple cursor-pointer max-w-[160px] truncate"
-              title="Filter activity by team member"
-            >
-              <option value="">All Team Members</option>
-              {userOptions.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => setSelectedUserId(id || "")}
+              placeholder="All Team Members"
+              clearLabel="All Team Members"
+            />
 
             <button
               type="button"

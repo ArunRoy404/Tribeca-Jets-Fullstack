@@ -8,7 +8,6 @@ import {
   useUpdateQuote,
   useQuotePricePreview,
 } from "@/hooks/quotes";
-import { useTripRequests } from "@/hooks/trip-requests";
 import { useClient } from "@/hooks/clients";
 import { useAirport } from "@/hooks/airports";
 import { useOperator } from "@/hooks/operators";
@@ -38,7 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import FormField from "@/components/trips/FormField";
-import CommonSelect from "@/components/common/CommonSelect";
+import TripRequestPicker from "@/components/trip-requests/TripRequestPicker";
 import ClientPicker from "@/components/clients/ClientPicker";
 import BrokerPicker from "@/components/users/BrokerPicker";
 import AirportPicker from "@/components/airports/AirportPicker";
@@ -89,6 +88,8 @@ import { optionalNumber, optionalText } from "@/lib/form";
  * the real `editing` record (already shaped this way by the table).
  */
 
+/** Only a live enquiry can be linked to a new quote. */
+const OPEN_REQUESTS = { openOnly: true };
 const FIELD_CLASS = "h-11 px-3 rounded-md text-[13px] font-medium";
 const LABEL_CLASS = "text-[13px] text-foreground mb-1.5";
 const READ_ONLY_CLASS =
@@ -152,11 +153,6 @@ export default function AddQuoteDialog() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Load open requests to allow quick linking and pre-filling
-  const { data: openRequestsData } = useTripRequests(
-    { openOnly: true, limit: 100 },
-    { enabled: Boolean(open && !editing) },
-  );
 
   useEffect(() => {
     if (open && !editing && settings?.quoteValidityHours) {
@@ -171,22 +167,11 @@ export default function AddQuoteDialog() {
     }
   }, [open, editing, settings?.quoteValidityHours]);
 
-  const linkedTripOptions = useMemo(() => {
-    const list = openRequestsData?.data ?? [];
-    return [
-      { value: "", label: "Standalone quote (No linked enquiry)" },
-      ...list.map((r) => ({
-        value: r.id,
-        label: `TR-${r.reference} · ${r.client?.companyName || personName(r.client) || "Client"} · ${r.originAirport?.icao || "—"} → ${r.destinationAirport?.icao || "—"}`,
-      })),
-    ];
-  }, [openRequestsData?.data]);
-
-  const handleLinkedTripChange = (tripId) => {
-    setField("tripRequestId")(tripId);
-    if (!tripId) return;
-    const found = openRequestsData?.data?.find((r) => r.id === tripId);
-    if (!found) return;
+  // The picked enquiry arrives with its row (TripRequestPicker), so the form
+  // pre-fills from it without a second list of its own.
+  const handleLinkedTripChange = (tripId, found) => {
+    setField("tripRequestId")(tripId || "");
+    if (!tripId || !found) return;
 
     setForm((prev) => ({
       ...prev,
@@ -576,12 +561,13 @@ export default function AddQuoteDialog() {
 
             {!editing && (
               <FormField label="Linked enquiry" optional labelClassName={LABEL_CLASS}>
-                <CommonSelect
+                <TripRequestPicker
                   value={form.tripRequestId}
                   onChange={handleLinkedTripChange}
-                  options={linkedTripOptions}
+                  params={OPEN_REQUESTS}
                   placeholder="Select an open trip enquiry to pre-fill (or create standalone)"
-                  className={cn(FIELD_CLASS, "w-full")}
+                  allowClear
+                  clearLabel="Standalone quote (No linked enquiry)"
                 />
               </FormField>
             )}

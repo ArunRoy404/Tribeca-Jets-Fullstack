@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,11 +10,9 @@ import PageSizeSelect from "@/components/table/common/PageSizeSelect";
 import BulkDeleteButton from "@/components/table/common/BulkDeleteButton";
 import { useDebouncedParam } from "@/hooks/common/useTableQueryParams";
 import { useEnumFilter } from "@/hooks/common/useEnumFilter";
-import { useUsers } from "@/hooks/users";
+import BrokerPicker from "@/components/users/BrokerPicker";
 import { TRIP_STATUSES, formatTripStatus } from "@/lib/trip";
-import { personName } from "@/lib/lead";
 import { ARCHIVE_TABS } from "@/lib/archive";
-import { BROKER_ROLES } from "@/lib/roles";
 
 const ALL_STATUS = "All Status";
 const ALL_BROKERS = "All Brokers";
@@ -63,18 +60,6 @@ export default function TripsToolbar({
   const statusFilter = useEnumFilter(TRIP_STATUSES, formatTripStatus, ALL_STATUS);
   const windowFilter = useEnumFilter(WINDOWS, formatWindow, ANY_DATE);
 
-  const { data: users } = useUsers({ limit: 100 });
-  const broker = useMemo(() => {
-    const brokers = (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role));
-    const idByLabel = {};
-    const labelById = {};
-    for (const b of brokers) {
-      const label = personName(b);
-      idByLabel[label] = b.id;
-      labelById[b.id] = label;
-    }
-    return { options: [ALL_BROKERS, ...Object.keys(idByLabel)], idByLabel, labelById };
-  }, [users?.data]);
 
   return (
     <div className="relative flex flex-col gap-3 p-4 w-full bg-sidebar border-b border-border">
@@ -104,11 +89,13 @@ export default function TripsToolbar({
             options={windowFilter.options}
             onChange={(label) => setDeparture?.(windowFilter.valueByLabel[label] ?? "")}
           />
-          <FilterDropdown
-            label={ALL_BROKERS}
-            value={broker.labelById[assignedBrokerId] ?? ALL_BROKERS}
-            options={broker.options}
-            onChange={(label) => setAssignedBrokerId?.(broker.idByLabel[label] ?? "")}
+          {/* Every broker, searched and paged by the server — no 100-row cap. */}
+          <BrokerPicker
+            variant="filter"
+            value={assignedBrokerId}
+            onChange={(id) => setAssignedBrokerId?.(id || "")}
+            placeholder={ALL_BROKERS}
+            clearLabel={ALL_BROKERS}
           />
           <PageSizeSelect value={limit} onChange={setLimit} />
         </div>

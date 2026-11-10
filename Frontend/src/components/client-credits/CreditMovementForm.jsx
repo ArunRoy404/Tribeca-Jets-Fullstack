@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import CommonSelect from "@/components/common/CommonSelect";
-import { useTrips } from "@/hooks/trips";
-import { toTripRow } from "@/lib/trip";
+import TripPicker from "@/components/trips/TripPicker";
 import { Button } from "@/components/ui/button";
 import CommonInput from "@/components/common/CommonInput";
 import { CommonDatePicker } from "@/components/common/DatePicker";
@@ -54,15 +52,8 @@ export default function CreditMovementForm({
   // own trips only, the same rule the API enforces.
   const [tripId, setTripId] = useState(initial?.appliedToTripId ?? "");
   const owner = clientId ?? initial?.clientId;
-  const { data: trips } = useTrips({ clientId: owner, limit: 100 }, { enabled: Boolean(owner) && type === "APPLICATION" });
-  const tripOptions = useMemo(
-    () =>
-      (trips?.data ?? []).map((trip) => {
-        const row = toTripRow(trip);
-        return { value: trip.id, label: `${row.reference} · ${row.route} · ${row.departure}` };
-      }),
-    [trips?.data],
-  );
+  // Paged and searched by the server, narrowed to this client.
+  const tripParams = useMemo(() => (owner ? { clientId: owner } : undefined), [owner]);
 
   // Mirrors the API exactly: positive, at most two decimals. A form that
   // promises one contract while the server enforces another is a form that
@@ -153,11 +144,13 @@ export default function CreditMovementForm({
       {type === "APPLICATION" && (
         <div className="flex w-full flex-col gap-2">
           <span className="font-montserrat text-base font-medium text-foreground">Trip it was used towards (Optional)</span>
-          <CommonSelect
+          <TripPicker
             value={tripId}
-            onChange={setTripId}
-            placeholder={tripOptions.length ? "Select one of this client's trips" : "No trips for this client yet"}
-            options={tripOptions}
+            onChange={(id) => setTripId(id || "")}
+            params={tripParams}
+            placeholder="Select one of this client's trips"
+            allowClear
+            clearLabel="Not linked to a trip"
           />
         </div>
       )}

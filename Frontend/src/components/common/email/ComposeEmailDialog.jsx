@@ -12,7 +12,8 @@ import ClientPicker from "@/components/clients/ClientPicker";
 import OperatorPicker from "@/components/operators/OperatorPicker";
 import TripPicker from "@/components/trips/TripPicker";
 import { useEmailTemplates, usePreviewEmail, useSendEmail } from "@/hooks/email-templates";
-import { emailContext, formatEmailCategory } from "@/lib/email";
+import { emailContext } from "@/lib/email";
+import EmailTemplatePicker from "@/components/email-templates/EmailTemplatePicker";
 
 const FIELD_CLASS = "h-13 px-4 rounded-sm text-base font-medium";
 const LABEL_CLASS = "text-[16px] text-foreground mb-2";
@@ -48,13 +49,17 @@ function ComposeForm({ context = {}, category, templateId: initialTemplateId, ti
   const [preview, setPreview] = useState(null);
   const [previewError, setPreviewError] = useState(null);
 
-  const { data: templates } = useEmailTemplates({ active: true, limit: 100, sortBy: "name", sortOrder: "asc" });
   // Open on the screen's own kind of template when one exists — a payment
   // reminder from Receivables, a follow-up from a quote — until the broker
-  // picks another. Derived, not copied into state.
-  const templatesReady = Boolean(templates);
-  const templateId =
-    chosenTemplateId ?? (category ? (templates?.data ?? []).find((t) => t.category === category)?.id : null) ?? NONE;
+  // picks another. Derived, not copied into state; only that one default is
+  // fetched, and the picker pages the rest (10 Nov 2026).
+  const lookForDefault = Boolean(category) && chosenTemplateId === null;
+  const { data: defaults } = useEmailTemplates(
+    { active: true, category, limit: 1, sortBy: "name", sortOrder: "asc" },
+    { enabled: lookForDefault },
+  );
+  const templatesReady = !lookForDefault || Boolean(defaults);
+  const templateId = chosenTemplateId ?? defaults?.data?.[0]?.id ?? NONE;
 
   const clientId = fixedRecipient ? context.clientId : kind === "client" ? pickedClientId : "";
   const operatorId = fixedRecipient ? context.operatorId : kind === "operator" ? pickedOperatorId : "";
@@ -74,14 +79,6 @@ function ComposeForm({ context = {}, category, templateId: initialTemplateId, ti
     [clientId, operatorId, fixedRecipient, context.tripId, context.quoteId, context.invoiceId, context.itineraryId, pickedTripId, templateId],
   );
   const hasRecipient = Boolean(request.clientId || request.operatorId);
-
-  const templateOptions = useMemo(
-    () => [
-      { value: NONE, label: "No template — write it" },
-      ...(templates?.data ?? []).map((t) => ({ value: t.id, label: `${t.name} · ${formatEmailCategory(t.category)}` })),
-    ],
-    [templates?.data],
-  );
 
   // Re-fill whenever the template or what the email is about changes. The
   // draft is replaced only when a template was picked, so switching the trip
@@ -181,12 +178,12 @@ function ComposeForm({ context = {}, category, templateId: initialTemplateId, ti
 
       <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
         <FormField label="Use Template" labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
-          <PickerSelect
-            value={templateId}
-            onChange={setTemplateId}
-            options={templateOptions}
-            placeholder="Select template"
-            className={FIELD_CLASS}
+          <EmailTemplatePicker
+            value={templateId === NONE ? "" : templateId}
+            onChange={(id) => setTemplateId(id || NONE)}
+            placeholder="No template — write it"
+            allowClear
+            clearLabel="No template — write it"
           />
         </FormField>
         {!fixedRecipient && (

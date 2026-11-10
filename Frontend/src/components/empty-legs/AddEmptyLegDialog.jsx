@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Edit, Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,9 @@ import CommonSelect from "@/components/common/CommonSelect";
 import DatePicker from "@/components/common/DatePicker";
 import TimePicker from "@/components/common/TimePicker";
 import FormField from "@/components/trips/FormField";
-import { useAirports } from "@/hooks/airports";
-import { useOperators } from "@/hooks/operators";
-import { useAircraftList } from "@/hooks/aircraft";
+import AirportPicker from "@/components/airports/AirportPicker";
+import OperatorPicker from "@/components/operators/OperatorPicker";
+import AircraftPicker from "@/components/aircraft/AircraftPicker";
 import { useCreateEmptyLeg, useUpdateEmptyLeg } from "@/hooks/empty-legs";
 import { EMPTY_LEG_STATUSES, formatEmptyLegStatus } from "@/lib/emptyLeg";
 import { optionalNumber, optionalText } from "@/lib/form";
@@ -75,29 +75,11 @@ function EmptyLegForm({ leg, onDone }) {
   const [errors, setErrors] = useState({});
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const { data: airports } = useAirports({ limit: 100, sortBy: "icao", sortOrder: "asc" });
-  const { data: operators } = useOperators({ limit: 100 });
-  const { data: aircraft } = useAircraftList({ limit: 100 });
-
-  const airportOptions = useMemo(
-    () => (airports?.data ?? []).map((a) => ({ value: a.id, label: `${a.icao} · ${a.city ?? a.name}` })),
-    [airports?.data],
-  );
-  const operatorOptions = useMemo(
-    () => [{ value: NONE, label: "Not recorded" }, ...(operators?.data ?? []).map((o) => ({ value: o.id, label: o.name }))],
-    [operators?.data],
-  );
-  // The operator's own tails first when one is chosen — the airframe on an
-  // empty leg is almost always theirs.
-  const aircraftOptions = useMemo(() => {
-    const all = aircraft?.data ?? [];
-    const mine = form.operatorId ? all.filter((a) => a.operatorId === form.operatorId) : all;
-    const list = mine.length ? mine : all;
-    return [
-      { value: NONE, label: "Not in the fleet list" },
-      ...list.map((a) => ({ value: a.id, label: [a.tailNumber, a.model].filter(Boolean).join(" · ") })),
-    ];
-  }, [aircraft?.data, form.operatorId]);
+  // Airports, operators and aircraft come from paged, searched pickers — no
+  // 100-row cap. Once an operator is chosen the aircraft list is narrowed to
+  // their fleet: the airframe on an empty leg is almost always theirs.
+  const operatorId = form.operatorId && form.operatorId !== NONE ? form.operatorId : "";
+  const aircraftParams = operatorId ? { operatorId } : undefined;
 
   const { mutate: createLeg, isPending: creating } = useCreateEmptyLeg();
   const { mutate: updateLeg, isPending: updating } = useUpdateEmptyLeg();
@@ -159,10 +141,10 @@ function EmptyLegForm({ leg, onDone }) {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-3 w-full">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <FormField label="Departs from" error={errors.originAirportId}>
-            <CommonSelect value={form.originAirportId} onChange={set("originAirportId")} options={airportOptions} placeholder="Choose airport" />
+            <AirportPicker value={form.originAirportId} onChange={(id) => set("originAirportId")(id || "")} placeholder="Choose airport" invalid={Boolean(errors.originAirportId)} />
           </FormField>
           <FormField label="Arrives at" error={errors.destinationAirportId}>
-            <CommonSelect value={form.destinationAirportId} onChange={set("destinationAirportId")} options={airportOptions} placeholder="Choose airport" />
+            <AirportPicker value={form.destinationAirportId} onChange={(id) => set("destinationAirportId")(id || "")} placeholder="Choose airport" invalid={Boolean(errors.destinationAirportId)} />
           </FormField>
         </div>
 
@@ -186,10 +168,23 @@ function EmptyLegForm({ leg, onDone }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <FormField label="Operator (Optional)" error={errors.operatorId}>
-            <CommonSelect value={form.operatorId || NONE} onChange={set("operatorId")} options={operatorOptions} placeholder="Choose operator" />
+            <OperatorPicker
+              value={operatorId}
+              onChange={(id) => set("operatorId")(id || "")}
+              placeholder="Not recorded"
+              allowClear
+              clearLabel="Not recorded"
+            />
           </FormField>
           <FormField label="Aircraft (Optional)" error={errors.aircraftId}>
-            <CommonSelect value={form.aircraftId || NONE} onChange={set("aircraftId")} options={aircraftOptions} placeholder="Choose aircraft" />
+            <AircraftPicker
+              value={form.aircraftId && form.aircraftId !== NONE ? form.aircraftId : ""}
+              onChange={(id) => set("aircraftId")(id || "")}
+              params={aircraftParams}
+              placeholder="Not in the fleet list"
+              allowClear
+              clearLabel="Not in the fleet list"
+            />
           </FormField>
         </div>
 

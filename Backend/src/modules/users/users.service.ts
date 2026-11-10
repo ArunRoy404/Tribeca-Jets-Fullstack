@@ -176,7 +176,8 @@ export class UsersService {
     const where: Prisma.UserWhereInput = {
       deletedAt: null,
       ...this.visibilityScope(user),
-      ...equalsAny(query, ['role', 'status']),
+      ...equalsAny(query, ['status']),
+      ...(query.role ? { role: { in: query.role } } : {}),
       ...searchAcross(query.search, ['firstName', 'lastName', 'email']),
     };
 

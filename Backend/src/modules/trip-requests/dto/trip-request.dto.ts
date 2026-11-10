@@ -46,6 +46,16 @@ export const queryTripRequestsSchema = paginationSchema
     source: z.enum(LeadSource).optional(),
     aircraftPreference: z.enum(AircraftCategory).optional(),
     clientId: z.uuid().optional(),
+    /**
+     * Several clients, comma-separated, up to 100 — one page of a list keyed
+     * by client (the Leads table's latest enquiry per lead, 10 Nov 2026).
+     * Combines with `clientId` (both must hold).
+     */
+    clientIds: z
+      .string()
+      .transform((value) => value.split(',').map((part) => part.trim()).filter(Boolean))
+      .pipe(z.array(z.uuid()).min(1, 'Name at least one client').max(100, 'At most 100 clients'))
+      .optional(),
     assignedBrokerId: z.uuid().optional(),
     originAirportId: z.uuid().optional(),
     destinationAirportId: z.uuid().optional(),

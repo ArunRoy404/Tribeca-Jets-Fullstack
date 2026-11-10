@@ -1,22 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
 import FilterDropdown from "@/components/table/common/FilterDropdown";
 import SearchInput from "@/components/table/common/SearchInput";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
 import { useDebouncedParam } from "@/hooks/common/useTableQueryParams";
-import { useEnumFilter, useIdFilter } from "@/hooks/common/useEnumFilter";
+import { useEnumFilter } from "@/hooks/common/useEnumFilter";
 import { useScheduleParams } from "@/hooks/schedule";
-import { useUsers } from "@/hooks/users";
-import { useOperators } from "@/hooks/operators";
-import { useAircraftList } from "@/hooks/aircraft";
+import BrokerPicker from "@/components/users/BrokerPicker";
+import OperatorPicker from "@/components/operators/OperatorPicker";
+import AircraftPicker from "@/components/aircraft/AircraftPicker";
 import { TRIP_STATUSES, TRIP_TYPES, formatTripStatus, formatTripType } from "@/lib/trip";
-import { BROKER_ROLES } from "@/lib/roles";
-import { personName } from "@/lib/lead";
-
-const aircraftLabel = (a) => [a?.tailNumber, a?.model].filter(Boolean).join(" · ");
-const operatorLabel = (o) => o?.name;
 
 /**
  * The calendar's filters, all in the URL. Brokers, operators and aircraft are
@@ -32,14 +26,6 @@ export default function ScheduleToolbar() {
   const status = useEnumFilter(TRIP_STATUSES, formatTripStatus, "All Status");
   const type = useEnumFilter(TRIP_TYPES, formatTripType, "All Trip Types");
 
-  const { data: users } = useUsers({ limit: 100 });
-  const { data: operators } = useOperators({ limit: 100, sortBy: "name", sortOrder: "asc" });
-  const { data: aircraft } = useAircraftList({ limit: 100 });
-
-  const brokerRows = useMemo(() => (users?.data ?? []).filter((u) => BROKER_ROLES.has(u?.role)), [users?.data]);
-  const broker = useIdFilter(brokerRows, personName, "All Brokers");
-  const operator = useIdFilter(operators?.data, operatorLabel, "All Operators");
-  const tail = useIdFilter(aircraft?.data, aircraftLabel, "All Aircraft");
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 p-4 w-full bg-sidebar border-b border-border">
@@ -56,23 +42,29 @@ export default function ScheduleToolbar() {
           options={status.options}
           onChange={(label) => params.setStatus(status.valueByLabel[label] ?? "")}
         />
-        <FilterDropdown
-          label="All Brokers"
-          value={broker.labelFor(params.assignedBrokerId)}
-          options={broker.options}
-          onChange={(label) => params.setAssignedBrokerId(broker.idByLabel[label] ?? "")}
+        {/* Brokers, operators and aircraft searched and paged by the server — no 100-row cap. */}
+        <BrokerPicker
+          variant="filter"
+          value={params.assignedBrokerId}
+          onChange={(id) => params.setAssignedBrokerId(id || "")}
+          placeholder="All Brokers"
+          clearLabel="All Brokers"
         />
-        <FilterDropdown
-          label="All Operators"
-          value={operator.labelFor(params.operatorId)}
-          options={operator.options}
-          onChange={(label) => params.setOperatorId(operator.idByLabel[label] ?? "")}
+        <OperatorPicker
+          variant="filter"
+          value={params.operatorId}
+          onChange={(id) => params.setOperatorId(id || "")}
+          placeholder="All Operators"
+          allowClear
+          clearLabel="All Operators"
         />
-        <FilterDropdown
-          label="All Aircraft"
-          value={tail.labelFor(params.aircraftId)}
-          options={tail.options}
-          onChange={(label) => params.setAircraftId(tail.idByLabel[label] ?? "")}
+        <AircraftPicker
+          variant="filter"
+          value={params.aircraftId}
+          onChange={(id) => params.setAircraftId(id || "")}
+          placeholder="All Aircraft"
+          allowClear
+          clearLabel="All Aircraft"
         />
         <FilterDropdown
           label="All Trip Types"

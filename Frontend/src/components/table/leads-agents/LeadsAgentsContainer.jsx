@@ -85,8 +85,11 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
     () => (leadsQuery?.data?.data ?? []).map((c) => c?.id).filter(Boolean),
     [leadsQuery?.data?.data],
   );
+  // Only these leads' enquiries — the newest 100 overall missed any lead
+  // whose latest request was older, and showed it blank (10 Nov 2026). A
+  // lead page holds at most 100, the API's cap on `clientIds`.
   const requestsQuery = useTripRequests(
-    { limit: 100, sortBy: "createdAt", sortOrder: "desc" },
+    { clientIds: clientIds.join(","), limit: 100, sortBy: "createdAt", sortOrder: "desc" },
     { enabled: clientIds.length > 0 },
   );
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Loader2, Search } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, Loader2, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, useDebouncedParam } from "@/hooks/common/useTableQueryParams";
@@ -40,6 +40,11 @@ const useNothing = () => ({ data: undefined });
  *
  * Search, page and page size are the popup's own disposable state, not URL
  * state: a dropdown is not a view anyone links to.
+ *
+ * `variant="filter"` draws the trigger as a table toolbar's compact filter
+ * pill (the `FilterDropdown` look) for a filter over records — "All Brokers"
+ * is `allowClear` with that `clearLabel` and `placeholder` (10 Nov 2026).
+ * A `getOption` that returns null leaves that row out.
  */
 export default function RecordPicker({
   value,
@@ -57,6 +62,7 @@ export default function RecordPicker({
   clearLabel = "None",
   className,
   id,
+  variant = "field",
 }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -83,7 +89,7 @@ export default function RecordPicker({
   const list = useList(query, { enabled: open });
   const rows = list?.data?.data;
   const meta = list?.data?.meta;
-  const options = useMemo(() => (rows ?? []).map(getOption), [rows, getOption]);
+  const options = useMemo(() => (rows ?? []).map(getOption).filter(Boolean), [rows, getOption]);
   const pageCount = Math.max(meta?.totalPages ?? 1, 1);
 
   // A saved id the open pages have not shown: ask for that one record.
@@ -150,16 +156,29 @@ export default function RecordPicker({
         disabled={disabled}
         aria-invalid={invalid || undefined}
         className={cn(
-          "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-white px-3 text-left font-montserrat text-[13px] font-medium outline-none cursor-pointer",
+          variant === "filter"
+            ? "flex h-full items-center gap-1 rounded-sm border border-border bg-secondary px-2 py-1 shrink-0 outline-none cursor-pointer max-w-48"
+            : "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-white px-3 text-left font-montserrat text-[13px] font-medium outline-none cursor-pointer",
           "focus-visible:ring-1 focus-visible:ring-purple data-popup-open:ring-1 data-popup-open:ring-purple",
           "disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-destructive",
           className,
         )}
       >
-        <span className={cn("min-w-0 truncate", !selected && "text-muted-foreground font-normal")}>
-          {selected?.label ?? (value && one?.isPending ? "Loading…" : placeholder)}
-        </span>
-        <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+        {variant === "filter" ? (
+          <>
+            <span className="min-w-0 truncate font-montserrat font-medium text-[10px] text-foreground whitespace-nowrap">
+              {selected?.label ?? (value && one?.isPending ? "Loading…" : placeholder)}
+            </span>
+            <ChevronDown className="size-3.5 shrink-0 text-foreground" />
+          </>
+        ) : (
+          <>
+            <span className={cn("min-w-0 truncate", !selected && "text-muted-foreground font-normal")}>
+              {selected?.label ?? (value && one?.isPending ? "Loading…" : placeholder)}
+            </span>
+            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+          </>
+        )}
       </PopoverTrigger>
 
       <PopoverContent

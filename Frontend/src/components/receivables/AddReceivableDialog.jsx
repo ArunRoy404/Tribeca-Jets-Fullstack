@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Edit, Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,12 @@ import CommonSelect from "@/components/common/CommonSelect";
 import DatePicker from "@/components/common/DatePicker";
 import FormField from "@/components/trips/FormField";
 import { useCreateReceivable, useUpdateReceivable } from "@/hooks/receivables";
-import { useTrip, useTrips } from "@/hooks/trips";
-import { useClients } from "@/hooks/clients";
+import { useTrip } from "@/hooks/trips";
+import TripPicker from "@/components/trips/TripPicker";
+import ClientPicker from "@/components/clients/ClientPicker";
 import { INVOICE_STATUSES, formatInvoiceStatus } from "@/lib/receivable";
 import { displayName } from "@/lib/client";
-import { formatTripReference, formatTripRoute } from "@/lib/trip";
+import { formatTripReference } from "@/lib/trip";
 import { formatMoneyExact } from "@/lib/money";
 import { optionalNumber, optionalText } from "@/lib/form";
 import { toDateInput } from "@/lib/date";
@@ -69,33 +70,14 @@ function InvoiceForm({ invoice, draft, onDone }) {
   const [errors, setErrors] = useState({});
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const { data: trips } = useTrips({ limit: 100, sortBy: "departureDate", sortOrder: "desc" }, { enabled: !editing });
-  const { data: clients } = useClients({ limit: 100 });
-
-  // A trip handed over from its own page may sit outside the picker's first
-  // page; it is fetched on its own so the picker can still name it.
-  const listed = (trips?.data ?? []).some((t) => t.id === form.tripId);
-  const { data: handedOver } = useTrip(!editing && form.tripId && trips && !listed ? form.tripId : null);
-  const tripRows = useMemo(
-    () => [...(handedOver ? [handedOver] : []), ...(trips?.data ?? [])],
-    [handedOver, trips?.data],
-  );
-  const tripOptions = useMemo(
-    () =>
-      tripRows.map((t) => ({
-        value: t.id,
-        label: `${formatTripReference(t.reference)} · ${t.client ? displayName(t.client) : "—"} · ${formatTripRoute(t)}`,
-      })),
-    [tripRows],
-  );
-  const trip = tripRows.find((t) => t.id === form.tripId) ?? null;
+  // Trips and clients come from paged, searched pickers — no 100-row cap.
+  // The chosen trip is read on its own for its client and what is billable,
+  // whether it was picked here or handed over from its own page.
+  const { data: tripRecord } = useTrip(!editing && form.tripId ? form.tripId : null);
+  const trip = tripRecord ?? null;
   const billing = trip?.clientPayment ?? null;
   const fullCharge = billing?.fullCharge ?? null;
-
-  const clientOptions = [
-    { value: TRIP_CLIENT, label: trip?.client ? `The trip's client (${displayName(trip.client)})` : "The trip's client" },
-    ...(clients?.data ?? []).map((c) => ({ value: c.id, label: displayName(c) })),
-  ];
+  const tripClientLabel = trip?.client ? `The trip's client (${displayName(trip.client)})` : "The trip's client";
 
   const { mutate: create, isPending: creating } = useCreateReceivable();
   const { mutate: update, isPending: updating } = useUpdateReceivable();
@@ -149,11 +131,22 @@ function InvoiceForm({ invoice, draft, onDone }) {
                 {invoice?.trip?.reference ? formatTripReference(invoice.trip.reference) : "—"}
               </p>
             ) : (
-              <CommonSelect value={form.tripId} onChange={set("tripId")} options={tripOptions} placeholder="Choose the trip" />
+              <TripPicker
+                value={form.tripId}
+                onChange={(id) => set("tripId")(id || "")}
+                placeholder="Choose the trip"
+                invalid={Boolean(errors.tripId)}
+              />
             )}
           </FormField>
           <FormField label="Billed to" error={errors.clientId}>
-            <CommonSelect value={form.clientId} onChange={set("clientId")} options={clientOptions} />
+            <ClientPicker
+              value={form.clientId === TRIP_CLIENT ? "" : form.clientId}
+              onChange={(id) => set("clientId")(id || TRIP_CLIENT)}
+              placeholder={tripClientLabel}
+              allowClear
+              clearLabel={tripClientLabel}
+            />
           </FormField>
         </div>
 

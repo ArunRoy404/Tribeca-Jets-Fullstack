@@ -9,7 +9,7 @@ import FilterTabs from "@/components/table/common/FilterTabs";
 import PageSizeSelect from "@/components/table/common/PageSizeSelect";
 import BulkDeleteButton from "@/components/table/common/BulkDeleteButton";
 import { useDebouncedParam } from "@/hooks/common/useTableQueryParams";
-import { useUsers } from "@/hooks/users";
+import BrokerPicker from "@/components/users/BrokerPicker";
 import {
   FILTERABLE_CLIENT_STATUSES,
   FILTERABLE_CLIENT_TYPES,
@@ -19,7 +19,6 @@ import {
   formatFollowUpWindow,
 } from "@/lib/client";
 import { ARCHIVE_TABS } from "@/lib/archive";
-import { BROKER_ROLES } from "@/lib/roles";
 
 const ALL_STATUSES = "All Statuses";
 const ALL_TYPES = "All Types";
@@ -62,31 +61,6 @@ export default function ClientsToolbar({
   // one history entry and one request per keystroke.
   const commitSearch = useCallback((value) => setSearch?.(value), [setSearch]);
   const [draft, setDraft] = useDebouncedParam(search, commitSearch);
-
-  // From the real staff directory filtered to active brokers.
-  const { data: users } = useUsers({ role: "BROKER", status: "ACTIVE", limit: 100 });
-  const brokers = useMemo(
-    () => (users?.data ?? []).filter((u) => u?.role === "BROKER"),
-    [users?.data],
-  );
-  const brokerOptions = useMemo(
-    () => [
-      ALL_BROKERS,
-      ...brokers.map((b) => `${b.firstName} ${b.lastName}`.trim()),
-    ],
-    [brokers],
-  );
-  const brokerLabelToId = useMemo(
-    () =>
-      Object.fromEntries(
-        brokers.map((b) => [`${b.firstName} ${b.lastName}`.trim(), b.id]),
-      ),
-    [brokers],
-  );
-  const brokerLabel = useMemo(() => {
-    const match = brokers.find((b) => b.id === brokerFilter);
-    return match ? `${match.firstName} ${match.lastName}`.trim() : ALL_BROKERS;
-  }, [brokers, brokerFilter]);
 
   const statusOptions = useMemo(
     () => [ALL_STATUSES, ...FILTERABLE_CLIENT_STATUSES.map(formatClientStatus)],
@@ -163,11 +137,12 @@ export default function ClientsToolbar({
             setTypeFilter?.(toValue(typeOptions, FILTERABLE_CLIENT_TYPES)(label))
           }
         />
-        <FilterDropdown
-          label={ALL_BROKERS}
-          value={brokerLabel}
-          options={brokerOptions}
-          onChange={(label) => setBrokerFilter?.(brokerLabelToId[label])}
+        <BrokerPicker
+          variant="filter"
+          value={brokerFilter}
+          onChange={(id) => setBrokerFilter?.(id || "")}
+          placeholder={ALL_BROKERS}
+          clearLabel={ALL_BROKERS}
         />
         {/* Nothing to follow up on a client nobody is working any more. */}
         {isArchived ? null : (
