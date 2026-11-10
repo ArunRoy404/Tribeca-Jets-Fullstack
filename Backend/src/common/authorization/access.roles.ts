@@ -42,6 +42,8 @@ const ADMIN_GRANTS: RoleGrants = Object.fromEntries(
 
 const BROKER_GRANTS: RoleGrants = {
   [Module.DASHBOARD]: grant(OWN, [VIEW, VIEW_MONEY]),
+  // APPROVE is locked: a broker's trip is what waits for approval (client
+  // feedback 2.1), so a broker never signs off their own.
   [Module.TRIPS]: grant(OWN, [VIEW, CREATE, EDIT, VIEW_MONEY], [ARCHIVE]),
   [Module.SCHEDULE]: grant(OWN, [VIEW]),
   [Module.OPERATOR_SOURCING]: grant(OWN, [VIEW, CREATE, EDIT], [ARCHIVE]),

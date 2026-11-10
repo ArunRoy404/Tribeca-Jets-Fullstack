@@ -152,10 +152,12 @@ export class TripsController {
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
-  @RequireAccess(Module.TRIPS, Action.EDIT)
+  @RequireAccess(Module.TRIPS, Action.APPROVE)
   @ApiOperation({
-    summary: 'Approve a submitted trip',
-    description: 'Requires administrator role. Marks trip as APPROVED so it can proceed to CONFIRMED.',
+    summary: 'Approve a trip waiting for approval',
+    description:
+      'Needs Trips · Approve trips. Approves a PENDING or declined trip so it can be confirmed, ' +
+      'closes the approvers\' tasks and tells the broker. 400 when it is already approved.',
   })
   approve(
     @CurrentUser() user: AuthenticatedUser,
@@ -166,10 +168,12 @@ export class TripsController {
 
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
-  @RequireAccess(Module.TRIPS, Action.EDIT)
+  @RequireAccess(Module.TRIPS, Action.APPROVE)
   @ApiOperation({
-    summary: 'Reject a submitted trip',
-    description: 'Requires administrator role. Records rejection reason and notifies the submitting broker.',
+    summary: 'Decline a trip waiting for approval',
+    description:
+      'Needs Trips · Approve trips. Only a PENDING trip is declined; it cannot be confirmed until the broker ' +
+      'edits it, which sends it back for approval. Records the reason and tells the broker.',
   })
   reject(
     @CurrentUser() user: AuthenticatedUser,

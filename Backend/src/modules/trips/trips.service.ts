@@ -31,7 +31,7 @@ import {
   Module,
   Reach,
 } from '../../common/authorization/access.catalogue.js';
-import { canDo, reachOf } from '../../common/authorization/access.js';
+import { canDo, reachOf, resolveAccess } from '../../common/authorization/access.js';
 import { isAdministrator } from '../../common/authorization/permissions.js';
 import {
   ClientStatus,
@@ -49,6 +49,14 @@ import {
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
 import { tallyTrips, tripFigures } from './trips.figures.js';
+import {
+  approveBlockedBy,
+  confirmBlockedBy,
+  createBlockedBy,
+  initialApproval,
+  rejectBlockedBy,
+  resubmits,
+} from './trips.approval.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
@@ -407,6 +415,11 @@ export class TripsService {
     }
   }
 
+  /** Whether the caller signs off trips — `TRIPS · APPROVE`, never their role. */
+  private mayApprove(user: AuthenticatedUser): boolean {
+    return canDo(user.access, Module.TRIPS, Action.APPROVE);
+  }
+
   private assertMayArchive(user: AuthenticatedUser): void {
     if (!canDo(user.access, Module.TRIPS, Action.ARCHIVE)) {
       throw new ForbiddenException(
@@ -651,14 +664,19 @@ export class TripsService {
     }
   }
 
-  private async notifyAdminsTripApprovalRequired(
+  /**
+   * Tells everyone who may approve the trip that it is waiting: a task on
+   * their board and an email. "Who may approve" is whoever holds
+   * `TRIPS · APPROVE` in their own set, read the way a session reads it.
+   */
+  private async notifyApprovers(
     actor: AuthenticatedUser,
     tripId: string,
     reference: number,
     clientId: string,
   ): Promise<void> {
     try {
-      const [client, submitter, admins] = await Promise.all([
+      const [client, submitter, staff] = await Promise.all([
         this.prisma.client.findUnique({
           where: { id: clientId },
           select: { firstName: true, lastName: true, companyName: true },
@@ -669,13 +687,17 @@ export class TripsService {
         }),
         this.prisma.user.findMany({
           where: {
-            role: { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] },
+            id: { not: actor.id },
+            role: { not: UserRole.REFERRAL_AGENT },
             status: UserStatus.ACTIVE,
             deletedAt: null,
           },
-          select: { id: true, email: true, firstName: true, lastName: true },
+          select: { id: true, email: true, firstName: true, lastName: true, role: true, permissions: true },
         }),
       ]);
+      const approvers = staff.filter((person) =>
+        canDo(resolveAccess(person.role, person.permissions), Module.TRIPS, Action.APPROVE),
+      );
       const clientName = client
         ? `${client.firstName} ${client.lastName}`.trim() || client.companyName || 'Client'
         : 'Client';
@@ -683,15 +705,15 @@ export class TripsService {
         ? `${submitter.firstName} ${submitter.lastName}`.trim() || 'Broker'
         : 'Broker';
 
-      for (const admin of admins) {
+      for (const approver of approvers) {
         await this.prisma.task.create({
           data: {
             title: `Approve Trip TJ-${reference}`,
-            description: `Trip TJ-${reference} submitted by ${brokerName} (${clientName}) requires administrator review and approval.`,
+            description: `Trip TJ-${reference} submitted by ${brokerName} (${clientName}) is waiting for approval.`,
             status: TaskStatus.TODO,
             priority: TaskPriority.HIGH,
             dueDate: todayUtc(),
-            assigneeId: admin.id,
+            assigneeId: approver.id,
             clientId,
             tripId,
             createdById: actor.id,
@@ -699,10 +721,10 @@ export class TripsService {
           },
         });
 
-        if (admin.email) {
+        if (approver.email) {
           await this.mail.sendTripApprovalNotification(
-            admin.email,
-            admin.firstName || 'Administrator',
+            approver.email,
+            approver.firstName || 'there',
             brokerName,
             reference,
             clientName,
@@ -971,6 +993,9 @@ export class TripsService {
 
   async create(user: AuthenticatedUser, dto: CreateTripInput) {
     if (dto.assignedBrokerId && dto.assignedBrokerId !== user.id) this.assertMayReassign(user);
+    const mayApprove = this.mayApprove(user);
+    const createBlock = createBlockedBy(dto.status, mayApprove);
+    if (createBlock) throw new BadRequestException(createBlock);
     this.assertLegs(dto.type, dto.legs);
     await Promise.all([
       this.assertClient(dto.clientId),
@@ -995,9 +1020,7 @@ export class TripsService {
     }
 
     const settings = await this.settings.read();
-    const initialApproval = isAdministrator(user.role)
-      ? TripApprovalStatus.APPROVED
-      : TripApprovalStatus.PENDING;
+    const approval = initialApproval(mayApprove);
 
     const trip = await this.prisma.$transaction(async (tx) => {
       const created = await tx.trip.create({
@@ -1015,9 +1038,9 @@ export class TripsService {
           contractSentAt: dto.contractSent ? new Date() : null,
           contractReceivedAt: dto.contractReceived ? new Date() : null,
           operatorPaymentReceivedAt: dto.operatorPaymentReceived ? new Date() : null,
-          approvalStatus: initialApproval,
-          approvedAt: initialApproval === TripApprovalStatus.APPROVED ? new Date() : null,
-          approvedById: initialApproval === TripApprovalStatus.APPROVED ? user.id : null,
+          approvalStatus: approval,
+          approvedAt: approval === TripApprovalStatus.APPROVED ? new Date() : null,
+          approvedById: approval === TripApprovalStatus.APPROVED ? user.id : null,
           passengerCount: dto.passengerCount ?? null,
           departureDate: dto.legs[0]?.departureDate ?? null,
           basePrice: dto.basePrice ?? null,
@@ -1040,8 +1063,8 @@ export class TripsService {
 
     if (dto.tripRequestId) await this.requests.markConverted(user, dto.tripRequestId);
 
-    if (initialApproval === TripApprovalStatus.PENDING) {
-      await this.notifyAdminsTripApprovalRequired(user, trip.id, trip.reference, dto.clientId);
+    if (approval === TripApprovalStatus.PENDING) {
+      await this.notifyApprovers(user, trip.id, trip.reference, dto.clientId);
     }
 
     const assignedId = dto.assignedBrokerId === undefined ? user.id : dto.assignedBrokerId;
@@ -1076,6 +1099,9 @@ export class TripsService {
    * one trip: a second attempt is refused by name, pointing at the first.
    */
   async bookFromQuote(user: AuthenticatedUser, quoteId: string, dto: BookQuoteInput) {
+    const mayApprove = this.mayApprove(user);
+    const createBlock = createBlockedBy(dto.status, mayApprove);
+    if (createBlock) throw new BadRequestException(createBlock);
     const quote = await this.quotes.bookingSource(user, quoteId);
     if (quote.trip) {
       throw new ConflictException(
@@ -1103,9 +1129,7 @@ export class TripsService {
         }]
       : [outbound];
 
-    const initialApproval = isAdministrator(user.role)
-      ? TripApprovalStatus.APPROVED
-      : TripApprovalStatus.PENDING;
+    const approval = initialApproval(mayApprove);
 
     const trip = await this.prisma.$transaction(async (tx) => {
       const created = await tx.trip.create({
@@ -1119,9 +1143,9 @@ export class TripsService {
           aircraftDescription: quote.quotedAircraft,
           type: quote.returnDate ? TripType.ROUND_TRIP : TripType.ONE_WAY,
           status: dto.status,
-          approvalStatus: initialApproval,
-          approvedAt: initialApproval === TripApprovalStatus.APPROVED ? new Date() : null,
-          approvedById: initialApproval === TripApprovalStatus.APPROVED ? user.id : null,
+          approvalStatus: approval,
+          approvedAt: approval === TripApprovalStatus.APPROVED ? new Date() : null,
+          approvedById: approval === TripApprovalStatus.APPROVED ? user.id : null,
           passengerCount: quote.passengers,
           departureDate: quote.departureDate,
           basePrice: quote.basePrice,
@@ -1141,8 +1165,8 @@ export class TripsService {
 
     if (quote.tripRequestId) await this.requests.markConverted(user, quote.tripRequestId);
 
-    if (initialApproval === TripApprovalStatus.PENDING) {
-      await this.notifyAdminsTripApprovalRequired(user, trip.id, trip.reference, quote.clientId);
+    if (approval === TripApprovalStatus.PENDING) {
+      await this.notifyApprovers(user, trip.id, trip.reference, quote.clientId);
     }
 
     if (quote.assignedBrokerId && quote.assignedBrokerId !== user.id) {
@@ -1233,6 +1257,10 @@ export class TripsService {
       this.assertLegs(type, current.legs);
     }
 
+    // A declined trip edited by someone who cannot approve it goes back for
+    // approval (client feedback 2.1) — the edit is the broker's answer.
+    const resubmit = resubmits(current.approvalStatus, this.mayApprove(user), Object.keys(dto));
+
     const {
       legs,
       passengers,
@@ -1279,6 +1307,7 @@ export class TripsService {
               }
             : {}),
           ...(legs ? { departureDate: legs[0]?.departureDate ?? null } : {}),
+          ...(resubmit ? { approvalStatus: TripApprovalStatus.PENDING, rejectionReason: null } : {}),
           updatedById: user.id,
         },
       });
@@ -1313,6 +1342,27 @@ export class TripsService {
       entityId: id,
       metadata: { reference: current.reference, fields: Object.keys(dto) },
     });
+
+    if (resubmit) {
+      await this.audit.record({
+        actorId: user.id,
+        action: 'trip.resubmitted',
+        entityType: 'Trip',
+        entityId: id,
+        metadata: { reference: current.reference },
+      });
+      // The "declined" task has been answered by this edit.
+      await this.prisma.task.updateMany({
+        where: {
+          tripId: id,
+          title: `Trip TJ-${current.reference} Approval Declined`,
+          status: TaskStatus.TODO,
+          deletedAt: null,
+        },
+        data: { status: TaskStatus.COMPLETED, completedAt: new Date(), updatedById: user.id },
+      });
+      await this.notifyApprovers(user, id, current.reference, clientId);
+    }
 
     return this.findOne(user, id);
   }
@@ -1409,11 +1459,8 @@ export class TripsService {
     }
 
     if (dto.status === TripStatus.CONFIRMED) {
-      if (current.approvalStatus === TripApprovalStatus.PENDING) {
-        throw new BadRequestException(
-          'This trip was submitted by a broker and requires administrator approval before it can be confirmed.',
-        );
-      }
+      const approvalBlock = confirmBlockedBy(current.approvalStatus);
+      if (approvalBlock) throw new BadRequestException(approvalBlock);
       if (!current.operatorId) {
         throw new BadRequestException('Cannot confirm trip: an operator must be assigned before confirming.');
       }
@@ -1451,17 +1498,13 @@ export class TripsService {
   }
 
   /**
-   * Approves a broker-submitted trip (Batch 4 - CRM Feedback 2.1).
-   * Super Admins and Admins only.
+   * Approves a trip waiting for approval, or one that was declined (client
+   * feedback 2.1). The route needs `TRIPS · APPROVE`.
    */
   async approve(user: AuthenticatedUser, id: string) {
-    if (!isAdministrator(user.role)) {
-      throw new ForbiddenException('Only administrators can approve trips');
-    }
     const current = await this.findLive(user, id);
-    if (current.approvalStatus === TripApprovalStatus.APPROVED) {
-      throw new BadRequestException('This trip is already approved');
-    }
+    const block = approveBlockedBy(current.approvalStatus);
+    if (block) throw new BadRequestException(block);
 
     await this.prisma.trip.update({
       where: { id },
@@ -1482,9 +1525,17 @@ export class TripsService {
       metadata: { reference: current.reference },
     });
 
-    // Close any pending approval tasks for admins
+    // The approvers' tasks are answered, and so is a "declined" task the
+    // broker had not acted on yet.
     await this.prisma.task.updateMany({
-      where: { tripId: id, title: { startsWith: 'Approve Trip' }, status: TaskStatus.TODO },
+      where: {
+        tripId: id,
+        status: TaskStatus.TODO,
+        OR: [
+          { title: { startsWith: 'Approve Trip' } },
+          { title: `Trip TJ-${current.reference} Approval Declined` },
+        ],
+      },
       data: { status: TaskStatus.COMPLETED, completedAt: new Date(), updatedById: user.id },
     });
 
@@ -1511,15 +1562,14 @@ export class TripsService {
   }
 
   /**
-   * Rejects a broker-submitted trip with a reason (Batch 4 - CRM Feedback 2.1).
-   * Super Admins and Admins only.
+   * Declines a trip waiting for approval, with a reason (client feedback
+   * 2.1). The route needs `TRIPS · APPROVE`. Only a PENDING trip is declined.
    */
   async reject(user: AuthenticatedUser, id: string, dto: RejectTripInput) {
-    if (!isAdministrator(user.role)) {
-      throw new ForbiddenException('Only administrators can reject trips');
-    }
     const current = await this.findLive(user, id);
-    const reason = dto.reason?.trim() || 'Approval was declined by administrator.';
+    const block = rejectBlockedBy(current.approvalStatus);
+    if (block) throw new BadRequestException(block);
+    const reason = dto.reason?.trim() || 'No reason was given.';
 
     await this.prisma.trip.update({
       where: { id },
@@ -1538,7 +1588,7 @@ export class TripsService {
       metadata: { reference: current.reference, reason },
     });
 
-    // Close any pending approval tasks for admins
+    // The approvers' tasks are answered.
     await this.prisma.task.updateMany({
       where: { tripId: id, title: { startsWith: 'Approve Trip' }, status: TaskStatus.TODO },
       data: { status: TaskStatus.COMPLETED, completedAt: new Date(), updatedById: user.id },

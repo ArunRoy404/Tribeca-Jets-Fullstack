@@ -49,6 +49,8 @@ export const Action = {
   ARCHIVE: 'ARCHIVE',
   /** Hand a record to another broker. */
   ASSIGN: 'ASSIGN',
+  /** Sign off a record someone else submitted (a broker's trip). */
+  APPROVE: 'APPROVE',
   /** Email it to a client or an operator. */
   SEND: 'SEND',
   /** Record money moving — a payment received, a bill or commission paid. */
@@ -80,6 +82,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   EDIT: 'Edit',
   ARCHIVE: 'Archive / restore',
   ASSIGN: 'Reassign',
+  APPROVE: 'Approve',
   SEND: 'Send',
   PAY: 'Record payments',
   EXPORT: 'Export',
@@ -104,14 +107,23 @@ export interface ModuleDefinition {
   actionLabels?: Partial<Record<Action, string>>;
 }
 
-const { VIEW, CREATE, EDIT, ARCHIVE, ASSIGN, SEND, PAY, EXPORT, VIEW_MONEY, VIEW_SENSITIVE, MANAGE_ACCESS } =
+const { VIEW, CREATE, EDIT, ARCHIVE, ASSIGN, APPROVE, SEND, PAY, EXPORT, VIEW_MONEY, VIEW_SENSITIVE, MANAGE_ACCESS } =
   Action;
 
 /** In sidebar order. */
 export const MODULES: ModuleDefinition[] = [
   { module: Module.DASHBOARD, label: 'Dashboard', section: 'Dashboard', actions: [VIEW, VIEW_MONEY] },
 
-  { module: Module.TRIPS, label: 'Trips', section: 'Operations', actions: [VIEW, CREATE, EDIT, ARCHIVE, VIEW_MONEY], requires: [Module.CLIENTS] },
+  {
+    module: Module.TRIPS,
+    label: 'Trips',
+    section: 'Operations',
+    actions: [VIEW, CREATE, EDIT, APPROVE, ARCHIVE, VIEW_MONEY],
+    requires: [Module.CLIENTS],
+    // A trip created without it waits for someone who holds it before it can
+    // be confirmed (client feedback 2.1, 9 Nov 2026).
+    actionLabels: { APPROVE: 'Approve trips' },
+  },
   { module: Module.SCHEDULE, label: 'Schedule', section: 'Operations', actions: [VIEW], requires: [Module.TRIPS] },
   {
     module: Module.OPERATOR_SOURCING,
