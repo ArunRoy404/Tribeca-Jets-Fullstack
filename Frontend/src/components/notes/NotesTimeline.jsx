@@ -16,10 +16,9 @@ import {
 } from "@/hooks/notes";
 import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Scope } from "@/lib/permissions";
-import { Action, Reach } from "@/lib/access";
+import { Action, Module, Reach } from "@/lib/access";
 import { isAdministratorRole } from "@/lib/roles";
-import { SUBJECT_MODULE, SUBJECT_PERMISSION } from "@/lib/timeline";
+import { SUBJECT_MODULE } from "@/lib/timeline";
 
 const TABS = ["Timeline", "Notes", "Withdrawn"];
 const PAGE_SIZE = 20;
@@ -48,18 +47,19 @@ export default function NotesTimeline({ subjectType, subjectId }) {
   const [page, setPage] = useState(1);
 
   const { data: currentUser } = useCurrentUser();
-  const { canAccess, reachOf, canWrite, scopeFor } = usePermissions();
+  const { canAccess, reachOf } = usePermissions();
   const subjectModule = SUBJECT_MODULE[subjectType];
-  const permission = SUBJECT_PERMISSION[subjectType];
 
-  const mayWrite = canAccess && subjectModule
-    ? canAccess(subjectModule, Action.EDIT)
-    : canWrite(permission);
+  // The API's rule (notes.subjects.ts): Edit on the subject's module, and a
+  // flight's timeline also takes Trips · Edit.
+  const mayWrite =
+    Boolean(subjectModule) &&
+    (canAccess(subjectModule, Action.EDIT) ||
+      (subjectType === "FLIGHT" && canAccess(Module.TRIPS, Action.EDIT)));
 
   const canModerate =
     isAdministratorRole(currentUser?.role) ||
-    (reachOf && subjectModule ? reachOf(subjectModule) === Reach.ALL : false) ||
-    scopeFor(permission) === Scope.ALL;
+    (subjectModule ? reachOf(subjectModule) === Reach.ALL : false);
 
   const isTimeline = tab === "Timeline";
   const archived = tab === "Withdrawn";

@@ -1,5 +1,4 @@
 import { getFullName } from "@/lib/user";
-import { Permission } from "@/lib/permissions";
 import { Module } from "@/lib/access";
 import { formatDocumentCategory } from "@/lib/document";
 
@@ -20,16 +19,6 @@ export const SUBJECT_MODULE = {
   TRIP: Module.TRIPS,
   REFERRAL: Module.REFERRALS,
   FLIGHT: Module.FLIGHT_TRACKING,
-};
-
-/**
- * Which permission governs writing on each kind of subject (legacy matrix).
- */
-export const SUBJECT_PERMISSION = {
-  CLIENT: Permission.MANAGE_CLIENTS,
-  TRIP: Permission.MANAGE_TRIPS,
-  REFERRAL: Permission.MANAGE_REFERRALS,
-  FLIGHT: Permission.MANAGE_TRIPS,
 };
 
 /**

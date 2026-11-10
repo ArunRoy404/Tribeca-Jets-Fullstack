@@ -29,7 +29,6 @@ import { useLeadsTableParams } from "@/hooks/leads";
 import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module, Reach } from "@/lib/access";
-import { Permission, Scope } from "@/lib/permissions";
 import { isAdministratorRole } from "@/lib/roles";
 import { ARCHIVE_TABS } from "@/lib/archive";
 import { OPEN_LEAD_STAGES, toAgentRow, toLeadRow } from "@/lib/lead";
@@ -52,16 +51,14 @@ export default function LeadsAgentsContainer({ revealDelay = 0 }) {
   const openConvertLeadModal = useLeadsAgentsStore((s) => s.openConvertLeadModal);
   const openArchiveLeadModal = useLeadsAgentsStore((s) => s.openArchiveLeadModal);
 
-  const { canWrite, canAccess, reachOf } = usePermissions();
+  const { canAccess, reachOf } = usePermissions();
   const { data: currentUser } = useCurrentUser();
   const mayCreate =
     canAccess(Module.LEADS_AGENTS, Action.CREATE) ||
-    canAccess(Module.CLIENTS, Action.CREATE) ||
-    canWrite(Permission.MANAGE_CLIENTS);
+    canAccess(Module.CLIENTS, Action.CREATE);
   const mayEdit =
     canAccess(Module.LEADS_AGENTS, Action.EDIT) ||
-    canAccess(Module.CLIENTS, Action.EDIT) ||
-    canWrite(Permission.MANAGE_CLIENTS);
+    canAccess(Module.CLIENTS, Action.EDIT);
   const mayAssign =
     canAccess(Module.LEADS_AGENTS, Action.ASSIGN) ||
     canAccess(Module.CLIENTS, Action.ASSIGN) ||

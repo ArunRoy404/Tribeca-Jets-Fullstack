@@ -6,7 +6,7 @@ import { useOperatorsStore } from "@/store/useOperatorsStore";
 import { useCreateOperator, useUpdateOperator } from "@/hooks/operators";
 import { useFileDocuments } from "@/hooks/documents";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import FileUpload from "@/components/common/FileUpload";
 import CommonSelect from "@/components/common/CommonSelect";
 import {
@@ -198,8 +198,8 @@ function OperatorForm({ editingOperator, onDone }) {
   // the operator itself has saved (a new one has no id before that).
   const [documents, setDocuments] = useState([]);
   const [documentType, setDocumentType] = useState("OTHER");
-  const { canWrite } = usePermissions();
-  const mayFileDocuments = canWrite(Permission.MANAGE_DOCUMENTS);
+  const { canAccess } = usePermissions();
+  const mayFileDocuments = canAccess(Module.DOCUMENTS, Action.CREATE);
   const closeAddModal = onDone;
 
   const handleChange = (field, value) => {

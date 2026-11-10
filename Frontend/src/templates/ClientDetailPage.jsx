@@ -27,7 +27,6 @@ import { useClient, useUpdateClient, useRestoreClient } from "@/hooks/clients";
 import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
-import { Permission } from "@/lib/permissions";
 import { toClientRow } from "@/lib/client";
 
 export default function ClientDetailPage({ params }) {
@@ -43,17 +42,19 @@ export default function ClientDetailPage({ params }) {
   // Money on account is financial data. An assistant holds VIEW_FINANCIALS at
   // NONE, and the tab is *hidden* rather than shown and refused — a tab that
   // only ever renders a 403 reads as a broken app, not as a boundary.
-  const { can, canWrite, canAccess } = usePermissions();
+  const { canAccess } = usePermissions();
   const { data: currentUser } = useCurrentUser();
   const isAssistant = currentUser?.role === "ASSISTANT";
   const mayEdit = canAccess(Module.CLIENTS, Action.EDIT);
   const mayArchive = canAccess(Module.CLIENTS, Action.ARCHIVE);
   const mayCreateTrip = canAccess(Module.TRIPS, Action.CREATE);
-  const maySend = canWrite(Permission.SEND_EMAILS);
+  const maySend = canAccess(Module.EMAIL_TEMPLATES, Action.SEND);
   const [composeOpen, setComposeOpen] = useState(false);
-  const maySeeMoney = !isAssistant && can(Permission.VIEW_FINANCIALS);
+  // Money on account: the API reads it for anyone with Clients · View except
+  // an assistant (client-credits.service.ts).
+  const maySeeMoney = !isAssistant && canAccess(Module.CLIENTS, Action.VIEW);
   const maySeeInvoices = canAccess(Module.RECEIVABLES, Action.VIEW);
-  const maySeeDocuments = can(Permission.VIEW_DOCUMENTS);
+  const maySeeDocuments = canAccess(Module.DOCUMENTS, Action.VIEW);
 
   const { data, isPending, error, refetch } = useClient(rawId);
   const client = data ? toClientRow(data) : null;

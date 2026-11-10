@@ -26,7 +26,6 @@ import { ARCHIVE_TABS } from "@/lib/archive";
 import { toOperatorRow } from "@/lib/operator";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
-import { Permission } from "@/lib/permissions";
 
 export default function OperatorsContainer({ revealDelay = 0 }) {
   const router = useRouter();
@@ -58,14 +57,13 @@ export default function OperatorsContainer({ revealDelay = 0 }) {
 
   const isArchived = params?.tab === ARCHIVE_TABS.ARCHIVED;
 
-  // Each control follows the person's own Operators permissions; the API
-  // refuses the same. Requesting a quote is Operator Sourcing's, still on the
-  // old matrix until its review — the same check the sourcing screen makes.
-  const { canAccess, canWrite } = usePermissions();
+  // Each control follows the person's own permissions; the API refuses the
+  // same. Requesting a quote is Operator Sourcing · Ask operators.
+  const { canAccess } = usePermissions();
   const mayCreate = canAccess(Module.OPERATORS, Action.CREATE);
   const mayEdit = canAccess(Module.OPERATORS, Action.EDIT);
   const mayArchive = canAccess(Module.OPERATORS, Action.ARCHIVE);
-  const mayRequestQuote = canWrite(Permission.MANAGE_TRIPS);
+  const mayRequestQuote = canAccess(Module.OPERATOR_SOURCING, Action.CREATE);
 
   // The selection holds ids; the dialog lists the rows behind them. Derived
   // from the current page, so a row removed underneath us simply drops out

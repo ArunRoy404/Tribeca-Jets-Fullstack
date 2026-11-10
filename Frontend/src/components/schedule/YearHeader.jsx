@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useScheduleParams } from "@/hooks/schedule";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { Permission } from "@/lib/permissions";
+import { Action, Module } from "@/lib/access";
 import { cn } from "@/lib/utils";
 import BgPanel from "@/components/common/BgPanel";
 
@@ -22,7 +22,7 @@ const NAV_PILLS = [
  */
 export default function YearHeader() {
   const params = useScheduleParams();
-  const { canWrite } = usePermissions();
+  const { canAccess } = usePermissions();
 
   return (
     <BgPanel
@@ -52,7 +52,7 @@ export default function YearHeader() {
         <div className="bg-primary h-[30px] px-3 py-1.5 rounded-[7px] font-montserrat font-medium text-[11px] text-primary-foreground">
           Year
         </div>
-        {canWrite(Permission.MANAGE_TRIPS) && (
+        {canAccess(Module.TRIPS, Action.CREATE) && (
           <Link
             href="/dashboard/trips/new"
             className={cn(

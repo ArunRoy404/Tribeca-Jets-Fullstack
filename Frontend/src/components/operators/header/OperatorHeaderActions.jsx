@@ -4,21 +4,20 @@ import { Edit, Plus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
-import { Permission } from "@/lib/permissions";
 
 /**
  * Only what this person may do: Edit with Operators · Edit, Restore with
- * Operators · Archive, and Request Quote with Operator Sourcing's own check
- * (still the old matrix until its review) — never for a suspended operator,
+ * Operators · Archive, and Request Quote with Operator Sourcing · Ask
+ * operators — never for a suspended operator,
  * which is "do not book until further notice".
  */
 export default function OperatorHeaderActions({ operator, onEdit, onRequestQuote, onRestore }) {
-  const { canAccess, canWrite } = usePermissions();
+  const { canAccess } = usePermissions();
   if (!operator) return null;
 
   const mayEdit = canAccess(Module.OPERATORS, Action.EDIT);
   const mayArchive = canAccess(Module.OPERATORS, Action.ARCHIVE);
-  const mayRequestQuote = canWrite(Permission.MANAGE_TRIPS) && !operator.isSuspended;
+  const mayRequestQuote = canAccess(Module.OPERATOR_SOURCING, Action.CREATE) && !operator.isSuspended;
 
   if (operator.isArchived) {
     return mayArchive ? (

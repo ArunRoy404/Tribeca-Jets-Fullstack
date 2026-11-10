@@ -20,7 +20,6 @@ import {
 import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
-import { Permission } from "@/lib/permissions";
 
 const TABS = ["Ledger", "Withdrawn"];
 const PAGE_SIZE = 10;
@@ -42,15 +41,13 @@ export default function ClientCreditTab({ client }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const { canWrite, canAccess } = usePermissions();
+  const { canAccess } = usePermissions();
   const { data: currentUser } = useCurrentUser();
   const isAssistant = currentUser?.role === "ASSISTANT";
-  // Money on account is financial data: an assistant holds VIEW_FINANCIALS at
-  // NONE and never sees this tab's figures at all, which is the same line the
-  // API draws.
-  const mayWrite =
-    !isAssistant &&
-    (canAccess(Module.CLIENTS, Action.EDIT) || canWrite(Permission.VIEW_FINANCIALS));
+  // Money on account is financial data: an assistant never sees this tab's
+  // figures at all, and writing needs Clients · Edit — the same line the API
+  // draws (client-credits.service.ts).
+  const mayWrite = !isAssistant && canAccess(Module.CLIENTS, Action.EDIT);
 
   const archived = tab === "Withdrawn";
   const summary = useCreditSummary(clientId);

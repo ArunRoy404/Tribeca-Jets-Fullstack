@@ -22,7 +22,6 @@ import { toLeadRow, toTripRequestRow } from "@/lib/lead";
 import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module, Reach } from "@/lib/access";
-import { Permission } from "@/lib/permissions";
 import { isAdministratorRole } from "@/lib/roles";
 
 /**
@@ -46,13 +45,12 @@ export default function LeadDetailPage({ params }) {
   const openArchiveLeadModal = useLeadsAgentsStore((s) => s.openArchiveLeadModal);
   const openEditLeadModal = useLeadsAgentsStore((s) => s.openEditLeadModal);
 
-  const { canWrite, canAccess, reachOf } = usePermissions();
+  const { canAccess, reachOf } = usePermissions();
   const { data: currentUser } = useCurrentUser();
 
   const mayEdit =
     canAccess(Module.LEADS_AGENTS, Action.EDIT) ||
-    canAccess(Module.CLIENTS, Action.EDIT) ||
-    canWrite(Permission.MANAGE_CLIENTS);
+    canAccess(Module.CLIENTS, Action.EDIT);
   const mayAssign =
     canAccess(Module.LEADS_AGENTS, Action.ASSIGN) ||
     canAccess(Module.CLIENTS, Action.ASSIGN) ||
