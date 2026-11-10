@@ -44,6 +44,12 @@ export default function CreateClientTripCard() {
     reachOf(Module.TRIPS) === Reach.ALL ||
     isAdministratorRole(currentUser?.role);
 
+  // A trip created without Trips · Approve waits for approval, so it cannot
+  // start as Confirmed — the API refuses it the same way.
+  const statusOptions = canAccess(Module.TRIPS, Action.APPROVE)
+    ? CREATE_STATUSES
+    : CREATE_STATUSES.filter((option) => option.value !== "CONFIRMED");
+
   const handleClientChange = (val, rawClient) => {
     setField?.("clientId", val || "");
     if (rawClient) {
@@ -104,7 +110,7 @@ export default function CreateClientTripCard() {
             <CommonSelect
               value={status}
               onChange={(v) => setField?.("status", v)}
-              options={CREATE_STATUSES}
+              options={statusOptions}
             />
           </FormField>
         )}

@@ -26,6 +26,7 @@ export default function TripCard({
   aircraft,
   operator,
   status,
+  approvalLabel,
   clientPmt,
   opPmt,
   fet,
@@ -58,6 +59,7 @@ export default function TripCard({
         <p className="font-montserrat font-semibold text-[13px] text-purple truncate">{displayId}</p>
         <div className="flex items-center gap-1.5 shrink-0">
           {displayStatus && <StatusBadge status={displayStatus} bordered />}
+          {approvalLabel && <StatusBadge status={approvalLabel} bordered />}
           {actions && <RowActionsMenu items={actions} />}
         </div>
       </div>

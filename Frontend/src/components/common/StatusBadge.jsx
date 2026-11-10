@@ -35,6 +35,9 @@ const STATUS_TONES = {
   Scheduled: "purple",
   Approved: "success",
   Rejected: "destructive",
+  // Trip approval (client feedback 2.1): held until someone with Trips · Approve signs off
+  "Pending Approval": "warning",
+  "Approval Declined": "destructive",
   "Contract Sent": "info",
   "Contract Received": "success",
   "Vendor Pending": "pending",

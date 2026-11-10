@@ -18,6 +18,7 @@ export default function TripsCardsContainer({ items, getActions, onItemClick }) 
           aircraft={item?.aircraft !== "—" ? item?.aircraft : undefined}
           operator={item?.operator !== "—" ? item?.operator : undefined}
           status={item?.status}
+          approvalLabel={item?.approvalLabel}
           fet={item?.fet}
           profit={item?.profit}
           actions={getActions?.(item)}

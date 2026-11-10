@@ -45,6 +45,7 @@ export const Action = {
   EDIT: "EDIT",
   ARCHIVE: "ARCHIVE",
   ASSIGN: "ASSIGN",
+  APPROVE: "APPROVE",
   SEND: "SEND",
   PAY: "PAY",
   EXPORT: "EXPORT",

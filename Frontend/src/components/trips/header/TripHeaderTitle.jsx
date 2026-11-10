@@ -14,16 +14,7 @@ export default function TripHeaderTitle({ trip, backUrl = "/dashboard/trips" }) 
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-montserrat font-bold text-[20px] text-purple">{trip?.reference}</p>
           {trip?.status && <StatusBadge status={trip?.status} bordered />}
-          {trip?.approvalStatus === "PENDING" && (
-            <span className="px-2 py-0.5 text-[11px] font-semibold rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">
-              Pending Approval
-            </span>
-          )}
-          {trip?.approvalStatus === "REJECTED" && (
-            <span className="px-2 py-0.5 text-[11px] font-semibold rounded bg-red-500/20 text-red-400 border border-red-500/40">
-              Approval Declined
-            </span>
-          )}
+          {trip?.approvalLabel && <StatusBadge status={trip.approvalLabel} bordered />}
           {trip?.isArchived && <StatusBadge status="Archived" bordered />}
         </div>
         <p className="font-montserrat text-[13px] text-muted-foreground truncate">

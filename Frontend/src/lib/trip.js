@@ -49,6 +49,12 @@ export function formatTripType(type) {
 
 export const TRIP_APPROVAL_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
 
+/** The badge for a trip still held by approval; an approved trip shows none. */
+const APPROVAL_LABELS = {
+  PENDING: "Pending Approval",
+  REJECTED: "Approval Declined",
+};
+
 export const CONTRACT_STATUSES = ["DRAFT", "SENT", "RECEIVED"];
 const CONTRACT_STATUS_LABELS = {
   DRAFT: "Draft / Not Sent",
@@ -174,7 +180,8 @@ export function toTripRow(trip) {
     operatorBilling: toTripOperatorPayment(trip?.operatorPayment),
     nextStatuses: trip?.nextStatuses ?? [],
     editable: Boolean(trip?.editable),
-    approvalStatus: trip?.approvalStatus ?? "APPROVED",
+    approvalStatus: trip?.approvalStatus ?? null,
+    approvalLabel: APPROVAL_LABELS[trip?.approvalStatus] ?? null,
     approvedAt: trip?.approvedAt ? formatCalendarDate(trip.approvedAt) : null,
     approvedBy: trip?.approvedBy ? personName(trip.approvedBy) : null,
     rejectionReason: trip?.rejectionReason ?? null,
