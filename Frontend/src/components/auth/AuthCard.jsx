@@ -37,7 +37,7 @@ export default function AuthCard({ backHref, showLogo = false, children }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1, ease: EASE }}
         >
-          <BrandLogo fallbackSrc="/auth/img/logo-dark.svg" width={168} height={100} className="h-[100px] w-[168px]" />
+          <BrandLogo tone="dark" fallbackSrc="/auth/img/logo-dark.svg" width={168} height={100} className="h-[100px] w-[168px]" />
         </motion.div>
       )}
 

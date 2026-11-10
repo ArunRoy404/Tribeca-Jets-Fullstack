@@ -277,9 +277,18 @@ export const SETTINGS_FIELDS = {
     address: "text",
     clientServicesLabel: "text",
     logoUrl: "upload",
+    logoOnDarkUrl: "upload",
     showContactBlock: "bool",
     logoOnDocuments: "bool",
     showBrokerContact: "bool",
+    // Bank wire details (client feedback 7.1). Missing from this list until
+    // 10 Nov 2026, so the card loaded blank and saved nothing.
+    wireBankName: "text",
+    wireBeneficiaryName: "text",
+    wireRoutingNumber: "text",
+    wireAccountNumber: "text",
+    wireSwiftBic: "text",
+    wireInstructions: "text",
   },
   defaults: {
     defaultMarkupPercent: "number",

@@ -24,6 +24,10 @@ model CompanySettings {
   /// An image upload URL (`/api/uploads/<id>`). Served publicly — only this
   /// one file — at `GET /settings/branding/logo`.
   logoUrl             String? @db.VarChar(80)
+  /// The same logo drawn for dark backgrounds — the sidebar (10 Nov 2026).
+  /// Optional; without it the dark places show `logoUrl`. Served publicly —
+  /// only this one file — at `GET /settings/branding/logo-on-dark`.
+  logoOnDarkUrl       String? @db.VarChar(80)
   /// Email, website, phone and address in the app's branding and documents.
   showContactBlock    Boolean @default(true)
   /// The logo on client-facing documents (the app itself always shows it).

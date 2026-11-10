@@ -16,6 +16,7 @@ export interface SettingsRow {
   address: string | null;
   clientServicesLabel: string | null;
   logoUrl: string | null;
+  logoOnDarkUrl: string | null;
   showContactBlock: boolean;
   logoOnDocuments: boolean;
   showBrokerContact: boolean;
@@ -61,7 +62,7 @@ export interface SettingsRow {
 export const SECTIONS = {
   company: [
     'companyName', 'companyEmail', 'website', 'phone', 'address', 'clientServicesLabel',
-    'logoUrl', 'showContactBlock', 'logoOnDocuments', 'showBrokerContact',
+    'logoUrl', 'logoOnDarkUrl', 'showContactBlock', 'logoOnDocuments', 'showBrokerContact',
     'wireBankName', 'wireBeneficiaryName', 'wireRoutingNumber', 'wireAccountNumber', 'wireSwiftBic', 'wireInstructions',
   ],
   defaults: [
@@ -100,6 +101,9 @@ export function settingsView(row: SettingsRow) {
 /** The public address of the logo, versioned by its upload so a new logo is a new URL. */
 export const LOGO_PATH = '/api/settings/branding/logo';
 
+/** The logo for dark backgrounds, served the same way. */
+export const LOGO_ON_DARK_PATH = '/api/settings/branding/logo-on-dark';
+
 /**
  * `GET /settings/branding` — read with no session, by the sign-in page and
  * every sidebar, so it carries only what the company shows the world.
@@ -117,9 +121,12 @@ export const LOGO_PATH = '/api/settings/branding/logo';
  */
 export function brandingView(row: SettingsRow) {
   const logoId = uploadIdFrom(row.logoUrl);
+  const onDarkId = uploadIdFrom(row.logoOnDarkUrl);
   return {
     companyName: row.companyName,
     logoUrl: logoId ? `${LOGO_PATH}?v=${logoId}` : null,
+    // Null when none is uploaded; the app then draws `logoUrl` there too.
+    logoOnDarkUrl: onDarkId ? `${LOGO_ON_DARK_PATH}?v=${onDarkId}` : null,
     contact: row.showContactBlock
       ? {
           email: row.companyEmail,

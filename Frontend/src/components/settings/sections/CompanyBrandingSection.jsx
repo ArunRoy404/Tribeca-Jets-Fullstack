@@ -132,6 +132,58 @@ export default function CompanyBrandingSection() {
             ) : null}
           </div>
         </div>
+
+        {/* A second logo for dark backgrounds — the sidebar (10 Nov 2026).
+            Optional: without one, the main logo is drawn there too. */}
+        <div className="flex flex-col md:flex-row gap-5 items-start w-full">
+          <div className="flex flex-col items-center justify-center gap-2.5 h-[130px] w-full md:w-[260px] shrink-0 bg-sidebar border border-border rounded-lg p-[18px]">
+            <div className="relative h-14 w-40">
+              {values.logoOnDarkUrl || values.logoUrl ? (
+                <Image
+                  src={uploadUrl(values.logoOnDarkUrl || values.logoUrl)}
+                  alt="Company logo on a dark background"
+                  fill
+                  className="object-contain"
+                  loader={passthroughImageLoader}
+                />
+              ) : (
+                <BrandLogo tone="light" width={160} height={56} className="h-14 w-40" />
+              )}
+            </div>
+            <p className="font-montserrat text-[11px] leading-normal text-white/70">
+              {values.logoOnDarkUrl
+                ? "Logo for dark backgrounds"
+                : values.logoUrl
+                  ? "Using the main logo"
+                  : "Built-in logo — none uploaded"}
+            </p>
+          </div>
+
+          <div className="flex flex-1 flex-col gap-2.5 min-w-0 w-full">
+            <p className="font-montserrat font-semibold text-[14px] leading-normal text-foreground">
+              Logo for dark backgrounds (Optional)
+            </p>
+            <p className="font-montserrat text-[12px] leading-normal text-muted-foreground">
+              The sidebar is dark. If your logo is dark too, upload a light version here and the sidebar uses it;
+              everywhere else keeps the main logo.
+            </p>
+            {canEdit ? (
+              <div className="flex flex-wrap items-start gap-2.5">
+                <FileUpload
+                  kind="image"
+                  visibility="PUBLIC"
+                  accept={ACCEPT.image}
+                  buttonLabel={values.logoOnDarkUrl ? "Replace Dark-Background Logo" : "Upload Dark-Background Logo"}
+                  onUploaded={(data) => set("logoOnDarkUrl")(data?.url ?? "")}
+                  className="[&_[data-slot=button]]:h-auto [&_[data-slot=button]]:py-2.5 [&_[data-slot=button]]:text-[14px]"
+                />
+                {values.logoOnDarkUrl ? (
+                  <SettingsButton onClick={() => set("logoOnDarkUrl")("")}>Use the Main Logo</SettingsButton>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
       </SettingsCard>
 
       <SettingsCard

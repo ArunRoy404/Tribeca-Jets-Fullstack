@@ -210,4 +210,24 @@ export class SettingsController {
     response.setHeader('Content-Disposition', contentDisposition(file));
     return new StreamableFile(file.stream);
   }
+
+  @Public()
+  @RateLimit({ limit: 120, windowSeconds: 60 })
+  @Get('branding/logo-on-dark')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @Header('Cache-Control', 'public, max-age=3600')
+  @ApiOperation({
+    summary: 'Company logo for dark backgrounds (public)',
+    description:
+      'The optional second logo the app draws on dark backgrounds (the sidebar), with no session. ' +
+      '404 when none is set — the app then draws the main logo there.',
+  })
+  @ApiResponse({ status: 200, description: 'The logo image.' })
+  async logoOnDark(@Res({ passthrough: true }) response: Response): Promise<StreamableFile> {
+    const file = await this.settings.openLogoOnDark();
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Content-Length', String(file.size));
+    response.setHeader('Content-Disposition', contentDisposition(file));
+    return new StreamableFile(file.stream);
+  }
 }

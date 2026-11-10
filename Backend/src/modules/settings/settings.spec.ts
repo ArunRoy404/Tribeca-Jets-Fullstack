@@ -4,6 +4,7 @@ import { updateSettingsSchema } from './dto/settings.dto.js';
 import { brandingView, settingsDiff, settingsView, type SettingsRow } from './settings.view.js';
 
 const LOGO_ID = '3f2b8c1e-9a4d-4e6f-8b2a-1c3d5e7f9a0b';
+const ON_DARK_ID = '7a1c9e3b-2d4f-4a6b-9c8e-0f1a2b3c4d5e';
 
 const row: SettingsRow = {
   companyName: 'Tribeca Jets',
@@ -13,6 +14,7 @@ const row: SettingsRow = {
   address: 'New York, NY',
   clientServicesLabel: 'Client Services',
   logoUrl: `/api/uploads/${LOGO_ID}`,
+  logoOnDarkUrl: `/api/uploads/${ON_DARK_ID}`,
   showContactBlock: true,
   logoOnDocuments: true,
   showBrokerContact: false,
@@ -63,6 +65,11 @@ describe('public branding', () => {
 
   it('has no logo address when none is set', () => {
     expect(brandingView({ ...row, logoUrl: null }).logoUrl).toBeNull();
+  });
+
+  it('carries the logo for dark backgrounds by its own public address, or null (10 Nov 2026)', () => {
+    expect(brandingView(row).logoOnDarkUrl).toBe(`/api/settings/branding/logo-on-dark?v=${ON_DARK_ID}`);
+    expect(brandingView({ ...row, logoOnDarkUrl: null }).logoOnDarkUrl).toBeNull();
   });
 
   it('shows contact details only while the contact block is on', () => {

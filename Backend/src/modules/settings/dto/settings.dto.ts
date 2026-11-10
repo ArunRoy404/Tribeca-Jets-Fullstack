@@ -73,6 +73,7 @@ const companySchema = z
     address: clearableText(300),
     clientServicesLabel: clearableText(120),
     logoUrl: uploadUrl.nullable().optional(),
+    logoOnDarkUrl: uploadUrl.nullable().optional(),
     showContactBlock: z.boolean().optional(),
     logoOnDocuments: z.boolean().optional(),
     showBrokerContact: z.boolean().optional(),

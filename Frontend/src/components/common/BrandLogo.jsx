@@ -24,6 +24,10 @@ const BUILT_IN = {
  * sidebar's icon; `fallbackSrc` names a different built-in mark for a screen
  * drawn with its own (the sign-in card). While the branding loads, the box keeps its size and shows
  * nothing, so the built-in mark never flashes before the uploaded one.
+ *
+ * On a dark background (`tone="light"`) an uploaded "logo for dark
+ * backgrounds" is drawn when the company set one, and the main logo
+ * otherwise (10 Nov 2026) — so `tone` must say what the logo sits on.
  */
 export default function BrandLogo({
   tone = "light",
@@ -40,10 +44,12 @@ export default function BrandLogo({
     return <span aria-hidden className={cn("inline-block", className)} style={{ aspectRatio: `${width} / ${height}` }} />;
   }
 
-  if (branding?.logoUrl) {
+  const uploaded = tone === "light" ? (branding?.logoOnDarkUrl ?? branding?.logoUrl) : branding?.logoUrl;
+
+  if (uploaded) {
     return (
       <Image
-        src={uploadUrl(branding.logoUrl)}
+        src={uploadUrl(uploaded)}
         alt={name}
         width={width}
         height={height}

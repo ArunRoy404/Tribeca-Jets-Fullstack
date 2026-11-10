@@ -139,6 +139,13 @@ export class SettingsService implements OnModuleInit {
     return this.uploads.openVouched(id);
   }
 
+  /** The logo for dark backgrounds — the same rule: only the upload it names. */
+  async openLogoOnDark() {
+    const id = uploadIdFrom((await this.read()).logoOnDarkUrl);
+    if (!id) throw new NotFoundException('No logo for dark backgrounds has been set.');
+    return this.uploads.openVouched(id);
+  }
+
   /**
    * Reads a PNG or JPEG upload into a Buffer for embedding in a generated PDF.
    * Returns null when absent, unsupported by PDFKit (WebP/AVIF/GIF), or missing
@@ -225,6 +232,10 @@ export class SettingsService implements OnModuleInit {
     const logoUrl = input.company?.logoUrl;
     if (logoUrl && logoUrl !== before.logoUrl) {
       await this.uploads.assertUsableImage(actor, uploadIdFrom(logoUrl)!, 'logoUrl');
+    }
+    const logoOnDarkUrl = input.company?.logoOnDarkUrl;
+    if (logoOnDarkUrl && logoOnDarkUrl !== before.logoOnDarkUrl) {
+      await this.uploads.assertUsableImage(actor, uploadIdFrom(logoOnDarkUrl)!, 'logoOnDarkUrl');
     }
 
     const changes = settingsDiff(before, input as Parameters<typeof settingsDiff>[1]);
