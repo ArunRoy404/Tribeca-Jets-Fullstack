@@ -712,6 +712,8 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 |---|---|---|---|
 | Company name, email, website, phone, address, client-services label (Company) | Public branding ✅; Email Templates (sender, merge fields), Quotes/Itineraries letterhead ⬜ | `TribecaLetterhead.jsx`; `MAIL_FROM` env default | 🟡 stored; branding reads it |
 | Logo (Company) | Every sidebar and the sign-in page ✅; letterhead, PDF generator ⬜ | built-in marks until one is uploaded | 🟡 app ✅, documents ⬜ |
+| Logo for dark backgrounds (Company, 10 Nov) | `BrandLogo` wherever it sits on a dark background (`tone="light"` — the sidebar); public at `GET /settings/branding/logo-on-dark` | the main logo | ✅ |
+| Bank wire details (Company, 9 Nov) | Receivables detail, Client Portal statement, invoice PDF | none — the card is left out | ✅ (the Settings form saved nothing until 10 Nov) |
 | Show contact block / logo on PDFs / broker contact (Company) | PDF generator, Itinerary preview | always shown | ⬜ waits on PDF generator |
 | Default markup + presets (Defaults) | Quotes — new-quote form | none (blank) | ⬜ |
 | Quote validity (Defaults) | Quotes — new quote's expiry | — | ⬜ |

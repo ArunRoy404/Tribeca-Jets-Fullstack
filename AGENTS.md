@@ -45,34 +45,27 @@ This is absolute. Not when a batch "feels done", not when tests pass, not when t
 
 Leaving finished work uncommitted in the tree is the correct resting state. Say what is uncommitted and why; do not fix it by committing.
 
-## Role restrictions are on again (since 7 Oct 2026)
+## The old role matrix is gone (deleted 10 Nov 2026)
 
-From 4 to 7 Oct 2026 the owner had every user act as SUPER_ADMIN while the
-CRM was finished. **That is over: the old role matrix is enforced again,**
-on both sides, while modules move to per-user permissions one review at a
-time.
+Until 10 Nov 2026 two permission systems ran side by side: the old role
+matrix (`Permission` + `Scope` in `permissions.ts`, `@RequirePermissions` /
+`PermissionsGuard`, `can` / `canWrite` / `scopeFor`, `/auth/me`'s `matrix`,
+and the `ROLE_RESTRICTIONS_ENABLED` switch) and the per-person permissions
+below. Every route and screen moved to the second, and the first was
+deleted on both sides. **Never bring any of it back.**
 
-- **The switch still exists, and is `true`:** `ROLE_RESTRICTIONS_ENABLED`
-  in `Backend/src/common/authorization/permissions.ts` and in
-  `Frontend/src/lib/permissions.js`. It governs only the old matrix, and
-  goes away with it. Do not turn it off to get past a 403 — fix the module.
-- **Authority goes through `actsAs(role)`** (the matrix, `scopeFor`, the
-  broker-only lines in Clients and Trip Requests, the owner-account guard),
-  so the switch can still govern it.
-- **Identity never does.** Who is an administrator (`isAdministrator`) and
-  who is a partner (`isPartner`) read the stored role directly, like "the
-  agent on a commission must be an agent" and "you cannot change your own
-  role". A rule that keeps desk files from an outsider, or decides who sees
-  every stored file, must not be switchable. While the switch was off,
-  uploads asked the *matrix* who was an administrator, so every broker and
-  assistant could open every private file — that is why.
-- **Until a module is reviewed, its routes follow the old matrix** and its
-  sidebar entry follows the person's own set. Where the two disagree (a
-  broker whose set drops Receivables still passes the matrix's OWN scope),
-  the module's review moves it to `@RequireAccess` and settles it.
-- **Tests that assert a refusal run.** The `it.skipIf(!ROLE_RESTRICTIONS_ENABLED)`
-  guards stay valid for the old-matrix tests; a rule moved to identity drops
-  its guard, as the uploads tests did.
+- **What a person may do** is their own set — `@RequireAccess` on the
+  route, `canDo` / `reachOf` in a service, `canAccess` / `reachOf` on a
+  screen. Nothing else.
+- **Who someone is** stays: `isAdministrator`, `isPartner`, the role list
+  and labels, in `Backend/src/common/authorization/roles.ts` (it replaced
+  `permissions.ts`). Identity reads the stored role directly — "the agent on
+  a commission must be an agent", "you cannot change your own role", "an
+  administrator reads every stored file", `@StaffOnly()`. Never use it for
+  authority (see "Authority is never a role check in a service" below).
+- **The temporary everyone-is-owner period (4–7 Oct 2026)** ran through
+  that switch. Do not rebuild a switch to get past a 403 — fix the
+  permission.
 
 ## Permissions are per person, module by module (since 7 Oct 2026)
 
@@ -103,8 +96,8 @@ permission is a **module** — one per sidebar screen — and an **action** in i
   defaults. Changing role or permissions needs `USERS · MANAGE_ACCESS`.
 - **Every request loads the set** with the user (`JwtStrategy` →
   `user.access`), so a change applies on the next click. `/auth/me` returns it
-  as `permissions: { MODULE: { reach, actions } }`; the old matrix moved to
-  `matrix`.
+  as `permissions: { MODULE: { reach, actions } }` (there is no `matrix`
+  any more).
 - **Backend:** a moved route carries `@RequireAccess(Module.X, Action.Y)`
   (`AccessGuard`); a service reads `canDo(user.access, …)` and
   `reachOf(user.access, …)`. **Frontend:** `usePermissions().canAccess(module,
@@ -125,14 +118,9 @@ permission is a **module** — one per sidebar screen — and an **action** in i
     calls are still refused — and a session without it is let through.
   - **`ModuleGate`, live**, from `/auth/me` — for a permission removed since
     the cookie was written.
-- **Moving a module over is part of reviewing it:** swap its
-  `@RequirePermissions` for `@RequireAccess`, its `scopeFor` for `reachOf`,
-  and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
-  Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators, Aircraft, Clients, Notes, Client Credits, Leads & Agents, Trip Requests, Operator Sourcing, Quotes, Trips, Itineraries, Schedule, Flight Tracking, Empty Legs, Receivables, Operator Payments, Commissions, Referrals, Transactions, Tasks Board, Email Templates, Document Vault, Reports, Dashboard.** Uploads needs no move — its
-  routes carry no permission by design and its rules are identity-based.
-  **What is left on the old matrix (10 Nov 2026):** on the API, only the
-  two `VIEW_TEAM` routes in `users.controller.ts`; on the frontend, no
-  screen. Move those, then delete the old matrix and the switch.
+- **Every module is on it** (the last, the staff directory's two routes,
+  moved on 10 Nov 2026 to open staff reads with `@StaffOnly()`). Uploads
+  carries no permission by design; its rules are identity-based.
 - **A new action or module** is a line in the catalogue, a decision per role
   in `access.roles.ts`, and the check on its route — never a route that
   checks something the catalogue does not list.
@@ -142,7 +130,9 @@ permission is a **module** — one per sidebar screen — and an **action** in i
   behind some other permission. `TRIPS · APPROVE` ("Approve trips", 10 Nov
   2026) is the example: the 9 Nov approval feature hard-coded
   `isAdministrator`, so the owner could neither give approval to a senior
-  broker nor take it from an admin. **A new action that takes over an
+  broker nor take it from an admin. `TRIPS · ASSIGN` ("Reassign trips",
+  same day) is the second: the route checked it, but it was never in the
+  catalogue, so only the role ever passed. **A new action that takes over an
   existing power ships with a migration that grants it to everyone who
   held that power**, or adding it silently takes it away (stored sets are
   never rewritten by a change of role defaults).
@@ -448,6 +438,20 @@ Tracking (#14), which read the same trip facts a third and fourth time.
   2026): only failures are counted, so a run's correct sign-ins never
   trip it. Never raise the limits themselves, and never the multiplier
   outside a developer machine.
+- **A create body omits an optional field; it never sends `null`.** Create
+  schemas refuse `null` (only an edit uses it, to clear). Document such a
+  field as a comment line in the body — `// "aircraftId": optional · … —
+  omit it rather than send null` — or Newman's own request 400s while the
+  builder, whose Python payload omits it, captured a green example
+  (10 Nov 2026: six folders).
+- **`data` is a sandbox global** (iteration data): `const data = …` in a
+  Postman script is a SyntaxError and the request never runs. Name it for
+  what it holds. Likewise two snippets joined into one script must not both
+  declare `const base`.
+- **A builder anchors on what the seed writes** — `broker@example.com`, any
+  live operator, two distinct airports — never on a named demo record
+  ("Mark", "Barry", "NetJets"). Five builders failed on the wiped database
+  for exactly that (10 Nov 2026).
 - **A script reads `pm.variables.get('baseUrl')`, never
   `pm.collectionVariables.get('baseUrl')`** (10 Nov 2026). Newman's
   `--env-var baseUrl=…` sets the environment, and only `pm.variables`
@@ -668,8 +672,8 @@ Users is the exception, because it has no archive/restore at all.
 Keep them separate. Collapsing them is how row-level leaks happen.
 
 1. **Authentication** — `JwtAuthGuard` is global. Routes are private by default; `@Public()` opts out. Failing closed is deliberate.
-2. **Coarse capability** — `@RequirePermissions(Permission.X)` + `PermissionsGuard`, driven by the role→permission matrix in `src/common/authorization/permissions.ts`. That matrix is the single source of truth and mirrors the Roles & Permissions tab in the UI. Add a permission there, not as an ad-hoc role list on a controller.
-3. **Row-level scope** — **always in the service layer**, never in a guard. A guard cannot scope a `findMany`. Use `scopeFor(user, permission)` to decide between `ALL`, `OWN` and `ASSIGNED` and build the `where` clause from it.
+2. **Capability** — `@RequireAccess(Module.X, Action.Y)` + `AccessGuard`, against the person's own set (the catalogue in `access.catalogue.ts`, role limits in `access.roles.ts`), and `@StaffOnly()` by stored role. Add an action to the catalogue, never an ad-hoc role list on a controller.
+3. **Row-level scope** — **always in the service layer**, never in a guard. A guard cannot scope a `findMany`. Use `reachOf(user.access, Module.X)` to decide between `ALL`, `OWN` and `ASSIGNED` and build the `where` clause from it.
 
 **Return 404, never 403, for a record the caller may not see.** A 403 confirms the row exists and turns any ID into an oracle. 403 is only for "this action is not available to your role at all" — a capability failure, not a row failure.
 
@@ -797,11 +801,11 @@ any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
   Expect to do this whenever a dependency lands after its dependant — and check
   the row exists in the service, so the form gets a named 400 rather than a
   bare P2003.
-- **Never an ad-hoc `@Roles(...)` list on a controller.** The permission matrix
-  is the source of truth. Where a rule is finer than a permission — clients may
-  be created by a broker but removed only by an administrator — enforce it in
-  the service with `scopeFor(...) !== Scope.ALL`, which keeps the bulk routes
-  and the single route on one rule instead of two.
+- **Never an ad-hoc `@Roles(...)` list on a controller.** The permission
+  catalogue is the source of truth. Where a rule is finer than a route — a
+  broker reaches only their own records — enforce it in the service with
+  `reachOf(user.access, …)`, which keeps the bulk routes and the single route
+  on one rule instead of two.
 - **Validate a foreign key only when it is actually changing.** Edit forms
   resend every field, so re-checking unconditionally means a record whose
   dependency was archived later can no longer be edited at all — changing an
@@ -866,19 +870,19 @@ SUPER_ADMIN and refuses an email that already exists rather than resetting it.
 Production runs on Dokploy on the Hostinger VPS — one domain, Traefik routing
 `/api` to the API — guide in `docs/DEPLOYMENT-VPS.md`.
 
-## The permission matrix ships with the session
+## The permissions ship with the session
 
-`GET /auth/me` returns `matrix` — the caller's row of the old matrix, as
-`{ PERMISSION: Scope }` — and `permissions`, their own per-user set (see
-"Permissions are per person"), so the frontend can stop offering actions the
-guard will refuse. A role seeing Edit and Remove on every row and collecting a 403
-toast reads as a broken app rather than a permission boundary.
+`GET /auth/me` returns `permissions`, the person's own set (see "Permissions
+are per person"), so the frontend can stop offering actions the guard will
+refuse. A role seeing Edit and Remove on every row and collecting a 403 toast
+reads as a broken app rather than a permission boundary. (It also returned the
+old role matrix as `matrix` until that was deleted on 10 Nov 2026.)
 
 **This is not an enforcement point and never can be.** It travels to a browser,
-where anyone can edit it. Every route still checks the same matrix server-side.
+where anyone can edit it. Every route still checks the same set server-side.
 Shipping it from here rather than letting the frontend re-derive it from `role`
-is the whole point: a second copy of the matrix in JavaScript drifts the first
-time a scope changes, and it drifts silently.
+is the whole point: a second copy in JavaScript drifts the first time a
+default changes, and it drifts silently.
 
 ## Numbers that a form can leave blank
 
@@ -925,8 +929,8 @@ required-ness, all from the one schema that also validates.
 output would tell everyone to post a JavaScript `Date`.
 
 Responses are derived too, in `common/openapi/describe-responses.ts`, which
-reads the **same `@Public()` and `@RequirePermissions()` metadata the guards
-read**. So the documented 401s and 403s cannot drift from what is enforced, and
+reads the **same `@Public()`, `@RequireAccess()` and `@StaffOnly()` metadata
+the guards read**. So the documented 401s and 403s cannot drift from what is enforced, and
 95 routes cost no `@ApiResponse` decorators at all. Add a route and its error
 catalogue appears with it.
 
@@ -1075,8 +1079,7 @@ removing a document and removing the file are one act, with no join row to keep
 in step.
 
 **"An administrator" is SUPER_ADMIN or ADMIN by stored role**
-(`isAdministrator`), never the matrix switch and never a per-person
-permission. Both read every file, private or not.
+(`isAdministrator`, in `roles.ts`), never a per-person permission. Both read every file, private or not.
 
 **Removing or restoring is narrower than reading** (`mayManage`): the
 uploader or an administrator. Reading is wide — anyone signed in opens a
@@ -1150,7 +1153,7 @@ Three rules follow, and they generalise to anything polymorphic:
   everywhere else: a 403 confirms the record exists.
 - **The capability check moves one layer in, and the controller says so.**
   Which permission applies depends on `subjectType`, which is a value in the
-  query string — a `@RequirePermissions` decorator cannot see it. So these
+  query string — a `@RequireAccess` decorator cannot see it. So these
   routes carry none, exactly as the upload routes do, and both record why at
   the top of the controller. This is the only sanctioned reason to omit one.
 
@@ -1257,19 +1260,18 @@ The only subject an agent reaches is `REFERRAL`, resolved through
 
 ## The referral agent is a partner, not staff
 
-`REFERRAL_AGENT` (`isPartner(role)` in `permissions.ts`) holds **NONE on every
-permission except its own referrals and commissions** (`VIEW_REFERRALS` /
-`MANAGE_REFERRALS` / `VIEW_COMMISSIONS` at `OWN`) and `MANAGE_AIRPORTS` at
-`READ` for the submit form's airport picker. Four rules hang off that, and each
-closes a leak that the permission matrix alone would not:
+`REFERRAL_AGENT` (`isPartner(role)` in `roles.ts`) can hold **nothing but
+its own referrals and commissions** (`access.roles.ts`: Referrals VIEW /
+CREATE and Commissions VIEW, both at OWN). Four rules hang off that, and each
+closes a leak that permissions alone would not:
 
-- **The staff directory is its own permission, `VIEW_TEAM`** — ALL for every
-  staff role, NONE for the agent — on `GET /users`, `/users/stats`,
-  `/users/roles` and `/users/:id`. Those routes used to need only a session,
-  which was fine while every session was staff.
+- **The staff directory is desk data** — `GET /users` and `/users/:id` are
+  open to every staff member and refused to the agent by `@StaffOnly()`
+  (10 Nov 2026; it was the old matrix's `VIEW_TEAM`), and `/users/stats` and
+  `/users/roles` need `USERS · VIEW`, which the agent can never hold.
 - **A partner's upload is forced `PRIVATE` with no owner**, and a partner's
   `GET /uploads` lists only their own files. `isPartner` reads the stored
-  role, so this holds whatever the matrix switch says. An agent must never be able to
+  role, so this holds whatever a permission set says. An agent must never be able to
   publish into the photo library or file something into a broker's folder.
 - **Referral attachments are streamed through the referral, not the upload.**
   `GET /referrals/:id/attachments/:uploadId` resolves the referral in scope
@@ -1545,8 +1547,13 @@ This project uses shadcn/ui (the `base-nova` style, built on Base UI — `@base-
   saved id), fixed `params` and a `getOption(record) → { value, label,
   description }`. Each module gets a thin wrapper (`AirportPicker` is the
   first) and forms use the wrapper. A plain `PickerSelect` / `CommonSelect`
-  is for a fixed set of options (an enum), never for records. Forms move to
-  it as their module is reviewed; the Instant Estimate is the first.
+  is for a fixed set of options (an enum), never for records — and never a
+  `useX({ limit: 100 })` list feeding one, which silently drops record 101.
+  Since 10 Nov 2026 every form and every table filter is on it (filters with
+  `variant="filter"`); wrappers: Airport, Operator, Aircraft, Client, Broker,
+  Assignee, ReferralAgent, Trip, TripRequest, EmailTemplate. `BrokerPicker`
+  lists everyone who can own a record (`BROKER_ROLES`, via `?role=` with
+  several roles); a `getOption` returning null leaves that row out.
 - **Forms**: use `CommonInput` (`src/components/common/CommonInput.jsx`) for every text/email/password/textarea field — pass `type`. Password show/hide state lives inside `CommonInput`, not in the parent. Use `CommonOTPInput` for any digit-code input.
 - **Icons**: prefer the Figma-exported SVGs under `public/dashboard/icons/` and `public/auth/icons/`. Only reach for `lucide-react` when Figma didn't export the icon you need (e.g. the password-hidden `EyeOff` state, or icons shadcn primitives require internally like sidebar/dropdown chevrons) — and when mixing is unavoidable for a matched pair (e.g. show/hide eye), use the same icon family for both states rather than mixing Figma + lucide within one control.
 - **Images**: always `next/image`, never `<img>`, never the `unoptimized` prop. Local assets under `public/` need no remote-pattern config. Use `fill` + a sized `relative` parent for background/cover photos, explicit `width`/`height` for everything else.
@@ -1695,7 +1702,7 @@ copy is the bug this section exists to prevent.
 | the restored marker | `<RestoredBadge at by />` |
 | archive field labels | `toArchiveFields(record)` from `@/lib/archive` |
 | page numbers with collapsed gaps | `<TablePagination onPageChange />`, windowed by `buildPageItems` |
-| a dropdown over records (brokers, operators, aircraft) | `useIdFilter(rows, labelOf, allLabel)` beside `useEnumFilter` — id in the URL, name in the list |
+| a filter over records (brokers, operators, aircraft…) | the module's picker with `variant="filter"`, `allowClear` and an "All …" `clearLabel` — `RecordPicker`, searched and paged by the server; id in the URL (10 Nov 2026 — `useIdFilter`, which built one from the first 100 rows, is deleted) |
 
 - **Mark view-only fields `local: true`.** A tab id belongs in the URL but must
   never reach the API — it is not part of the query key, and including it
@@ -1756,11 +1763,9 @@ copy is the bug this section exists to prevent.
 ## Do not offer an action the caller's role cannot perform
 
 `usePermissions()` (`src/hooks/common/usePermissions.js`) reads what the API
-ships with `/auth/me`. In a module moved to per-user permissions, use
-`canAccess(Module.X, Action.Y)`; in one still on the old matrix,
-`canWrite(Permission.X)`. Either decides whether to render a write control —
-Add, Edit, Remove, Restore, bulk actions and the checkbox column that feeds
-them.
+ships with `/auth/me`: `canAccess(Module.X, Action.Y)` and `reachOf(Module.X)`.
+They decide whether to render a write control — Add, Edit, Remove, Restore,
+bulk actions and the checkbox column that feeds them.
 
 - **Hide, do not disable.** A greyed-out button invites a click and explains
   nothing. An assistant should see the record and the View action, not four
@@ -1768,33 +1773,28 @@ them.
 - **A checkbox column goes with its bulk action.** If the role cannot act on a
   selection, the column is not rendered at all — selection with no button is a
   control that does nothing, the same bug the Archived tab had.
-- **Never re-derive the matrix from `role`.** The server owns it and sends it;
-  a second copy in JavaScript drifts silently the first time a scope changes.
-  `src/lib/permissions.js` holds the permission *names* and nothing else.
+- **Never re-derive permissions from `role`.** The server owns them and sends
+  them; a second copy in JavaScript drifts silently the first time a default
+  changes. `src/lib/access.js` holds the module and action *names* and nothing
+  else.
 - **This is never the security boundary.** It renders buttons. Every route
-  re-checks the same matrix server-side, because anything sent to a browser can
+  re-checks the same set server-side, because anything sent to a browser can
   be edited in one.
 - While the session is loading every answer is `false`, so a control appears a
   moment late rather than appearing and being taken away.
 
-Per "fix a module when we reach it", only the module being worked on gets
-wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
-Leads & Agents (table and detail page), Client Credits, Notes, the client
-detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault, Reports, Airports, Operators and the Clients table (per-person: `canAccess(Module.X, …)`).
-**Since 10 Nov 2026 no screen calls `canWrite`, `can` or `scopeFor`** — the
-last 14 (client and lead detail, Leads table, Operators, Schedule, credits,
-notes) moved to `canAccess`. Never add one back: a button on the old matrix
-and a route on per-person permissions disagree for anyone whose set differs
-from their role's defaults.
+Every screen is wired this way. The old matrix's `canWrite` / `can` /
+`scopeFor` were deleted on 10 Nov 2026 after the last 14 callers moved; a
+button decided by anything else would disagree with its route for anyone whose
+set differs from their role's defaults.
 
-**A control narrower than a permission is gated by scope, not by
-`canWrite`.** A broker may edit a client (`MANAGE_CLIENTS` at `ASSIGNED`) but
-not reassign one, which the service enforces with `scopeFor(...) !==
-Scope.ALL`. The form mirrors the same test —
-`scopeFor(Permission.MANAGE_CLIENTS) === Scope.ALL` — and leaves the broker
-picker out entirely, *and omits the field from the payload*. Hiding the
-control but still posting its value is how every broker edit came back 403.
+**A control narrower than editing is its own action, mirrored exactly.** A
+broker may edit a client (`CLIENTS · EDIT`) but not hand it to another broker
+(`CLIENTS · ASSIGN`, locked for brokers) — and the same for trips
+(`TRIPS · ASSIGN`, 10 Nov 2026). The form tests the same action —
+`canAccess(Module.CLIENTS, Action.ASSIGN)` — and leaves the broker picker out
+entirely, *and omits the field from the payload*. Hiding the control but still
+posting its value is how every broker edit came back 403.
 
 ## A control's value is the wire format; its label is for reading
 

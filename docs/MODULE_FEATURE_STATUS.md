@@ -2437,12 +2437,58 @@ Where each item landed (the client's update is `update-09-nov.txt`):
 | 4.1 | Ask AI on every screen, `⌘K` | AI Assistant (#27) |
 | 5.1 | `CommonDatePicker` month and year dropdowns (1920 on) and typed `YYYY-MM-DD` entry | shared — every date field |
 | 6.1 | Export labels "CSV / Google Sheets" and "Excel / Sheets (.xlsx)" with import guidance | Reports (#23) |
-| 7.1 | Company wire details (`wireBankName` … `wireInstructions`) in Settings › Company & Branding, an optional per-invoice override (`invoices.wireInstructions`), shown on the receivable, the Client Portal statement and the invoice PDF | Settings (#26) → Receivables (#16), Client Portal (#25), PDF generator |
+| 7.1 | Company wire details (`wireBankName` … `wireInstructions`) in Settings › Company & Branding, an optional per-invoice override (`invoices.wireInstructions`), shown on the receivable, the Client Portal statement and the invoice PDF. **The Settings card saved nothing until 10 Nov** — the fields were missing from `SETTINGS_FIELDS` | Settings (#26) → Receivables (#16), Client Portal (#25), PDF generator |
 
 **Who reads the wire details:** they are in `GET /settings` (company
 section), which needs `SETTINGS · VIEW` — administrators only — and never in
 the public branding. They reach a broker only resolved onto an invoice they
 may read, and a client only on their own portal statement and invoice PDF.
+
+### 10 November 2026 — permissions finished, pickers everywhere, Postman complete
+
+**Working now**
+
+- **The old role matrix is deleted**, API and web: `permissions.ts` (now
+  `roles.ts`, identity only), `PermissionsGuard`, `@RequirePermissions`,
+  `/auth/me`'s `matrix`, `lib/permissions.js`, `can` / `canWrite` /
+  `scopeFor`, `ROLE_RESTRICTIONS_ENABLED`. The staff directory (`GET /users`,
+  `/users/:id`) is an open staff read with `@StaffOnly()`; client credits,
+  notes and operator totals read the per-person set only.
+- **Trips · Reassign trips (`TRIPS · ASSIGN`)** joined the catalogue: the
+  trip service checked it, but it did not exist, so reassigning was really
+  "administrator only". Admin default, locked for broker and assistant;
+  migration `20261110110000_trips_assign_permission` grants it to every Admin
+  who held `TRIPS · EDIT`. The trip forms show the broker picker by it.
+- **No dropdown loads only the first 100 rows.** Every record picker and
+  table filter is a `RecordPicker` (searched, paged by the server): the
+  Trips, Quotes, Sourcing, Leads, Clients, Referrals and Schedule filters,
+  Recent Activity's team filter (a raw `<select>` before), Add Empty Leg,
+  Add Receivable, the credit movement's trip, Add Quote and New Sourcing
+  Request's enquiry (new `TripRequestPicker`) and the compose form's
+  template (new `EmailTemplatePicker`). `BrokerPicker` now lists brokers
+  and administrators, the API's own owner set — `GET /users?role=` takes
+  several roles. The Leads table reads its leads' enquiries by
+  `GET /trip-requests?clientIds=` instead of the newest 100 overall.
+  `useIdFilter` and the dead `useTripFormOptions` are deleted.
+- **`AssigneePicker` no longer crashes** on a page that holds a referral
+  agent (its `getOption` returns null for one; `RecordPicker` now skips it).
+- **Settings › Company & Branding:** the bank wire card saves (above); an
+  optional **logo for dark backgrounds** (`logoOnDarkUrl`, migration
+  `20261110120000_logo_on_dark`, public at
+  `/settings/branding/logo-on-dark`) is drawn wherever `BrandLogo` sits on
+  a dark background — the sidebar — and the main logo otherwise.
+- **Airports:** "State" is stored as typed ("Ontario", not "ONTARIO").
+- **Postman:** all 30 folders are in the collection (16–26 and 28 rebuilt,
+  27 the day before), every builder on the shared overridable `BASE`; full
+  run green twice on the 4100 API.
+
+**Waiting on a decision**
+
+- Archiving a trip leaves its open system tasks ("Approve Trip …",
+  "Review Assigned Trip …", "… Approval Declined") on the board. Each
+  Postman run leaves a few in `tribeca_postman`; on the desk it is a task
+  about a trip nobody is working. Closing them on archive is a product
+  choice, not made.
 
 ### `CommonDatePicker` emitted a display string — fixed 19 September 2026
 

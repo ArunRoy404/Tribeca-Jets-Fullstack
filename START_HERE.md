@@ -5,7 +5,9 @@ sections 4–6 matter. (For the AI: the project state is in `HANDOFF.md`, the
 rules in `AGENTS.md`, the procedure in `docs/REVIEW_PLAYBOOK.md`.)
 
 Checked on 11 Oct 2026: the database backup restores cleanly into a fresh
-database, backend 512 tests pass, frontend builds (all 45 routes).
+database. Last verified 10 Nov 2026: backend 599 tests pass, frontend builds,
+the Postman collection is green on the test API. Where the project stands and
+what is next: `HANDOFF.md`, "Read this first".
 
 ---
 

@@ -15,6 +15,49 @@ for a review, and how the owner likes to work, is in
 
 ## Part 1 — Where we are
 
+### Read this first — the state on 10 Nov 2026
+
+- **The build is complete; acceptance is what is left.** Every module is
+  built. Rows 1–30 are owner-signed-off; #31–#34 (Import/Export, PDF
+  generator, Client Portal, AI Assistant) and the client's 9 Nov feedback
+  batch are built and verified but **not yet owner tested**.
+- **On hold by the developer's choice (10 Nov):** the owner's click-through,
+  and deploying to production. Production runs `8127edd` (9 Nov). Everything
+  after it is on `roy` — the 10 Nov fixes and three migrations, which the API
+  applies on start when it is next deployed. Do not deploy or touch `main`
+  unless the developer asks (see "Git" below).
+- **10 Nov 2026 was a hardening day** (two session-log entries below):
+  trip approval made to actually hold and moved to a per-person permission
+  (`TRIPS · APPROVE`), reassigning trips likewise (`TRIPS · ASSIGN`); the
+  old role matrix deleted on both sides; every record dropdown and filter on
+  the server-paged `RecordPicker`; the Settings bank-wire card fixed (it
+  saved nothing); a logo for dark backgrounds; airport State kept as typed;
+  seed accounts on `example.com`; the Postman collection complete (30
+  folders, 779 examples) and green on the test API.
+- **Verified state:** backend Vitest 69 files / 599 tests, `tsc`, oxlint 0;
+  frontend ESLint and `next build` clean; Newman, the whole collection twice
+  on the 4100 test API — 451 requests, 303 assertions, 0 failures.
+- **Where the rules are:** `AGENTS.md` (the whole rulebook — read part one
+  first). Per-module detail: `docs/MODULE_FEATURE_STATUS.md`. The owner's
+  review procedure: `docs/REVIEW_PLAYBOOK.md`.
+
+### What is next
+
+1. **The owner's acceptance test, when the developer resumes it** — the 9 Nov
+   batch (`update-09-nov.txt` is what the client was told) and #31–#34. Tell
+   the owner what changed on 10 Nov, since it differs from the 9 Nov message:
+   a broker can no longer create or book a trip straight into Confirmed;
+   only a trip waiting for approval can be declined; a broker editing a
+   declined trip sends it back for approval; "Approve trips" and "Reassign
+   trips" are per-person permissions in Users & Roles; broker pickers now
+   list administrators too.
+2. **A decision for the owner:** archiving a trip leaves its open system
+   tasks on the Tasks Board (see Known findings).
+3. **Deploy when the developer says** — `git push deploy roy:main` is theirs
+   to run.
+4. Small, optional: move the five older Postman builders onto
+   `builder_common`; the Leads table's 100-enquiry window (Known findings).
+
 ### The stage: module-by-module review
 
 Every module in the build table in `docs/MODULES.md` is **built**, along with
@@ -67,8 +110,9 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 35 | Offline / PWA | ⏹️ Deferred by owner decision (documented for future) |
 
 **Git:** branch `roy`. Latest migration:
-`20261110100000_trips_approve_permission` (data only; run `npm run db:deploy`
-on any database that has not had it — applied to `tribeca_jets` and
+`20261110120000_logo_on_dark` (after `…100000_trips_approve_permission` and
+`…110000_trips_assign_permission`, both data only; run `npm run db:deploy` on
+any database that has not had them — applied to `tribeca_jets` and
 `tribeca_postman` on 10 Nov).
 
 **Agents commit and push only on `roy` → `origin/roy`, never `main` on any
@@ -80,61 +124,11 @@ fast-forwarded from `roy`; the API applies migrations on start. Local `main`
 is stale (pushing it is refused as non-fast-forward), and `origin/main` lags
 `roy` — bring it up to date when the owner merges.
 
-### What is next — CRM Development Tasks Roadmap (9 Nov 2026) & QA Audit Verification
+### Standing rules worth repeating here
 
-- **CRM Feedback Analysis & Agreed Architecture (9 Nov 2026):**
-  - Evaluated the 8 CRM feedback items across 4 planned execution batches with agreed design decisions:
-    1. **Batch 1 (Quick Wins & UI Polish) — ✅ COMPLETED 9 Nov 2026:**
-       - **4.1 Global Ask AI:** Moved `<AskAnythingPopover />` to `DashboardLayout.jsx` with global `⌘K` / `Ctrl+K` shortcut listener and badge; Ask AI is now live across all 45 CRM screens.
-       - **5.1 Birthday Year Picker:** Upgraded `CommonDatePicker.jsx` with an interactive month and year dropdown selector (1920–present) and manual keyboard date entry (`YYYY-MM-DD`). Eliminates 500+ click steps for birthdays and passenger DOBs.
-       - **6.1 Google Sheets Export:** Updated format labels (`CSV / Google Sheets`, `Excel / Sheets (.xlsx)`) and added prominent Google Sheets import guidance in `ExportOperationsDialog.jsx`.
-    2. **Batch 2 (Invoicing & Financial Enhancements) — ✅ COMPLETED 9 Nov 2026:**
-       - **7.1 Bank Wire Instructions:** Added company wire remittance fields to `CompanySettings` (`wireBankName`, `wireBeneficiaryName`, `wireRoutingNumber`, `wireAccountNumber`, `wireSwiftBic`, `wireInstructions`), created migration `20261109160000_wire_instructions_and_broker_commission`, added `wireInstructions` text column to `Invoice`, updated `CompanyBrandingSection.jsx`, added wire text input in `AddReceivableDialog.jsx`, rendered dedicated "Bank Wire Instructions" card in `ReceivableDetailSheet.jsx` and Client Portal statement tab (`ClientPortalView.jsx`), and updated PDF template (`renderInvoicePdf`) to render wire remittance details at the bottom of downloaded invoices.
-       - **2.2 Broker Commissions:** Added `BROKER` to `CommissionRecipientType` in Prisma schema, updated `CommissionsService` (`recipient()`, `recipientLabel()`, `scope()`), updated `RECIPIENT_TYPES` and `RECIPIENT_LABELS` in `Frontend/src/lib/commission.js`, updated `AddCommissionDialog.jsx` with `BrokerPicker`, and added `"Broker"` tone styling in `StatusBadge.jsx`.
-    3. **Batch 3 (Trip Operations, Checklist & Contracts) — ✅ COMPLETED 9 Nov 2026:**
-       - **1.1 Passenger Count Auto-Population:** Added auto-population badge and trip manifest sync in `BuildItineraryDialog.jsx` displaying trip passenger count and named passenger status.
-       - **1.2 Booking Confirmation Modal:** Built `BookingConfirmationDialog.jsx` with celebratory confetti animation, trip details summary, prominent callout reminder to invoice the client, and a quick-action "Generate Invoice" button; wired into `TripActionBar`, `CreateFormActionBar`, and `QuoteStatusActionsCard`.
-       - **1.3 Checklist "Go" Navigation:** Upgraded `TripConfirmationCard.jsx` with "Go" navigation buttons next to all checklist items scrolling smoothly to target cards or deep-linking to relevant modules.
-       - **1.4 Operator Payment Statuses:** Added `Operator Payment Sent` (auto-completed when operator payable is paid) and `Operator Payment Received` (desk verification toggle) to `TripConfirmationCard.jsx` and Prisma schema migration.
-       - **8.1, 8.2, 8.3 Contract Management & External Buttons:** Added `TripContractCard.jsx` tracking `Contract Sent` and `Contract Received` statuses with toggle actions and direct external launch buttons for **Avanode** (`https://www.avanode.com`) and **DocuSign** (`https://app.docusign.com`).
-    4. **Batch 4 (Approvals & Notifications) — ✅ COMPLETED 9 Nov 2026:**
-       - **2.1 Trip Approval Workflow:** Added `approvalStatus: PENDING | APPROVED | REJECTED` to `Trip` in migration `20261109180000_trip_approval_workflow`. Trips created without approval rights start `PENDING` and cannot be confirmed until approved via `POST /trips/:id/approve` / `reject`. **Reworked 10 Nov** (session log): approving is the permission `TRIPS · APPROVE`, a declined trip is held too and goes back for approval when edited, and nobody without the permission can create or book a trip straight into `CONFIRMED`.
-       - **2.3 Recent Activity User/Broker Filter:** Added optional `userId` filter to `GET /dashboard/activity` (`DashboardActivityDto`, `dashboard.activity.ts`, `dashboard.service.ts`) and added a team member filter dropdown in `RecentActivityFeed.jsx`.
-       - **3.1 & 3.2 Trip Assignment Notifications:** Dispatch in-app task/bell notification and transactional SMTP email via `MailService.sendTripAssignment()` to brokers when an admin assigns a trip to them.
-
-- **ALL 26 QA AUDIT ISSUES REMEDIATED & PINNED (30 Oct 2026):** Every issue from `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf` has been audited, designed, implemented, tested, and pinned across all 4 execution batches. Vitest passes 100% (66 test suites, 570 tests), `tsc --noEmit` has 0 errors, `oxlint` has 0 errors, `npm run lint` has 0 errors, and Next.js `npm run build` compiles all 45 routes with 0 errors. Ready for owner acceptance testing.
-
-- **Offline / PWA (#35) — Deferred by decision (documented for future):** Removed from active project per owner instruction (29 Oct 2026). The full architecture, Service Worker caching strategies, manifest configuration, and offline manager specification are preserved in `docs/MODULE_FEATURE_STATUS.md` §35 for future reference if desired.
-
-- **AI Assistant (#34 / #27) built & verified:**
-  - **Permission-Scoped Command Center Assistant (`Backend/src/modules/assistant/`):** Guarded by `@UseGuards(AccessGuard)` and `@StaffOnly()` (pinned by `assistant.spec.ts` — 3 tests).
-  - **Dynamic Suggestions (`GET /assistant/suggestions`) & Live Q&A (`POST /assistant/ask`):** Answers live desk queries across Trips, Quotes, Receivables, Clients, Trip Requests, Empty Legs, and Tasks strictly within the caller's row-level reach (`Reach.OWN` vs `Reach.ALL`) and `VIEW_MONEY` permissions, plus built-in Command Center workflow guidance (`assistant.knowledge.ts`).
-  - **Frontend (`AskAnythingPopover.jsx`, `AssistantHeader.jsx`, `useAssistantStore.js`):** Wired top-bar **Ask Anything** popover (`⌘K` / `Ctrl+K`) with multi-turn thread history, clickable deep-link record cards, follow-up prompt pills, and `Clear` button; deleted `Frontend/src/dummyData/assistant.js`.
-
-- **Client Portal (#33 / #25) built & verified:**
-  - **Separate Token Authentication Surface (`Backend/src/modules/client-portal/`):** Stateless HMAC-SHA256 signed portal links (`client-portal.token.ts`, pinned by `client-portal.spec.ts` — 4 tests) verified in constant time against the live `Client` row (`deletedAt: null`), completely separate from the staff `tj_access` session cookie.
-  - **Desk Action (`GET /client-portal/link/:clientId`):** Staff can open or copy a client's portal link directly from `ClientHeaderActions.jsx` (**Client Portal** button + **Copy Client Portal Link** in the More menu).
-  - **Public Client Portal Endpoints (`/client-portal/:token`) & UI (`/client-portal/[token]`):**
-    - Displays company branding (`BrandLogo` + contact block), client profile, dedicated Charter Advisor contact card, and executive summary strip (Open Proposals, Active & Upcoming Trips, Open Statement Balance, Credit on Account).
-    - **Charter Proposals tab:** Lists sent/answered quotes (never `DRAFT` quotes, never `operatorCost`, `grossProfit`, or `marginPercentage`), with **Download PDF Proposal** (`GET /client-portal/:token/quotes/:quoteId/pdf`) and **Approve Proposal** / **Decline** (`POST /client-portal/:token/quotes/:quoteId/respond`).
-    - **Trips & Itineraries tab:** Lists live trips with multi-leg schedule, FBO handling, and **Download Itinerary PDF** (`GET /client-portal/:token/itineraries/:itineraryId/pdf`).
-    - **Statements & Invoices tab:** Lists sent invoices with balance due and **Download Invoice PDF** (`GET /client-portal/:token/invoices/:invoiceId/pdf`).
-    - **Documents tab:** Lists non-sensitive client/trip documents (`PASSPORT` and `ID` excluded) with direct download (`GET /client-portal/:token/documents/:documentId/file`).
-
-- **PDF generator (#32) built & verified:**
-  - **Shared Editorial PDF Engine (`Backend/src/common/pdf/`):** Built on `pdfkit` (`pdf.document.ts`, `pdf.templates.ts`, pinned by `pdf.spec.ts` — 5 tests). Uses a clean monochrome & warm-stone typography hierarchy, hairline rules, native vector rendering of the built-in Tribeca Jets logo (`logo_black.svg`), uploaded raster logo/photo support, `Page X of Y` footers, and honors all 3 Settings › Company & Branding document identity toggles (`showContactBlock`, `logoOnDocuments`, `showBrokerContact`).
-  - **5 PDF Endpoints & Email Attachments:**
-    1. **Quotes (`GET /quotes/:id/pdf`):** Client-facing charter quotation (never exposes `operatorCost` or `grossProfit`), plus `Download PDF` button in `QuoteHeaderActions.jsx`.
-    2. **Itineraries (`GET /itineraries/:id/pdf`):** Passenger itinerary briefing with route, FBO handling, catering, ground transport, multi-leg schedule, passenger manifest, and optional aircraft exterior/interior photos; `Download PDF` button in `ItineraryDetailSheet.jsx`.
-    3. **Receivables (`GET /receivables/:id/pdf`):** Client invoice & payment statement with `Download PDF` button in `ReceivableDetailSheet.jsx` and row menu in `ReceivablesContainer.jsx`.
-    4. **Reports (`GET /reports/export?format=PDF`):** Landscape Operations & Financial Ledger PDF added alongside CSV and XLSX (`EXPORT_FORMATS = ["CSV", "XLSX", "PDF"]`).
-    5. **Settings › Company & Branding (`GET /settings/pdf-preview`):** `Preview PDF Header` button in `CompanyBrandingSection.jsx`, plus `TribecaLetterhead.jsx` and `ItineraryPreview.jsx` honoring `logoOnDocuments` and `showBrokerContact`.
-    6. **Email PDF Attachments (`POST /emails`):** Automatically attaches the corresponding Quote, Itinerary, or Invoice PDF when emailing a client (`SmtpMailDriver` & `LogMailDriver` updated with `MailAttachment` support).
-
-- **Import / Export (#31) built & verified:**
-  - **Export (`GET /settings/export`, `SETTINGS · VIEW`):** Supports `ALL` (multi-sheet XLSX workbook with `Clients`, `Trips`, `Quotes`, `Receivables`, `Operator Payments`, `Commissions`) and individual scopes in `XLSX` or `CSV` (with `ALL` + `CSV` disabled in UI and refused with 400 on API). Supports `from`/`to` date filtering and `includeArchived` toggle (adds `Archived` column).
-  - **Import (`POST /settings/import/validate` & `/commit`, `SETTINGS · EDIT`):** Unhidden in `DataSection.jsx`; accepts `.csv` and `.xlsx` (sniffed via `readTabular` in `common/export/tabular.ts`); uses shared `CommonSelect` for column mapping; two-step Validate → Commit flow previews valid rows, duplicates (skipped), and invalid rows (skipped) before transactional insert + audit logging.
-  - Pinned by unit tests in `tabular.spec.ts` (6 tests) and `settings.data.spec.ts` (9 tests). All 61 backend test suites (545 tests) pass.
+The 9 Nov feedback batch and #31–#34 are described in the session log and in
+`docs/MODULE_FEATURE_STATUS.md` (cross-cutting section "Client feedback, 8
+items"), not repeated here.
 
 **Postman runs on its own database** — `tribeca_postman`, a copy of the
 dev one; the 4100 API is started with `DATABASE_URL` pointing at it.
@@ -181,32 +175,25 @@ For clean testing, the database was wiped and seeded with standard baseline data
 - **Do not run `npm run db:seed`** — it would bring the old demo data back.
 - **Postman runs on its own database** — `tribeca_postman`, a copy of the dev one; the 4100 API is started with `DATABASE_URL` pointing at it. Refresh the copy after a migration (commands in REVIEW_PLAYBOOK §6). Teardowns are their own last request.
 
-### Known findings, not yet fixed (each on its module's turn)
+### Known findings, not yet fixed
 
-- Postman folders **16–26 and 28** are missing from the collection JSON
-  (their builders exist in `Backend/postman/`; `27 · Dashboard` was rebuilt
-  10 Nov). Every module is reviewed, so these are overdue: one pass. Builders
-  that still carry a private `BASE = 'http://localhost:4000/api'` capture
-  against the API that sends real mail — move each to `builder_common`
-  (`POSTMAN_BASE`) as it is rebuilt.
+- **Archiving a trip leaves its open system tasks** ("Approve Trip …",
+  "Review Assigned Trip …", "… Approval Declined") on the Tasks Board —
+  a task about a trip nobody is working. Each Postman run leaves a few in
+  `tribeca_postman`. Closing them on archive is a product choice for the
+  owner; not made.
 - `01 · Auth`'s reset flow sends two codes per run and the limit is three per
   address per 15 minutes, so two back-to-back runs pass and a third inside
-  the window fails with 429 — the limit working, not a fault.
-- `RecordPicker` (8 Oct): the shared searchable, paged picker. Wrappers in use:
-  - `AirportPicker` (Instant Estimate, Add Aircraft, Add Client, Schedule Follow-Up)
-  - `OperatorPicker` (Add Aircraft)
-  - `BrokerPicker` (Add Client, Schedule Follow-Up)
-  - `AircraftPicker` (created for Quotes, Trips, Empty Legs, Flight Tracking)
-  Every other picker still loads the first 100 — **18 dropdowns** as of 10 Nov
-  (Add Quote, Add Empty Leg, Add Receivable, Credit Movement, the three
-  Operator Sourcing dialogs, Compose Email, the trip form, and the Clients,
-  Quotes, Sourcing, Leads, Referrals and Trips toolbars, Schedule, Recent
-  Activity). Every module has been reviewed, so these are overdue: one pass.
-- The old role matrix (`ROLE_RESTRICTIONS_ENABLED`, `permissions.ts`) is now
-  used by no screen (10 Nov) and on the API only by `users.controller.ts`.
-  Move Users to `@RequireAccess`, then delete the matrix and the switch.
-- Airport form upper-cases "State" (fine for NY, wrong for "Ontario") — offered, not decided.
-- An uploaded logo is shown on the dark sidebar and on light pages alike; a dark-only logo may lack contrast in the sidebar. A second "logo for dark backgrounds" field was offered, not built.
+  the window fails with 429 — the limit working, not a fault. Clear the test
+  Redis (`redis-cli -n 1 FLUSHDB` on `tribeca_redis`) to run again at once.
+- Five older builders (08, 09, 10, 12, 13) still carry private copies of
+  `Session` / `example()` (they now take the shared `BASE`). Move each onto
+  `builder_common` when its folder is next rebuilt. Every folder now
+  regenerates from its own script — see `Backend/postman/README.md`,
+  "Regenerating".
+- The Leads table reads the newest 100 enquiries of the leads on the page;
+  a lead with a very long enquiry history could crowd others out of that
+  window (each lead's latest is what is shown).
 
 ---
 
@@ -319,13 +306,15 @@ Paste this as the first message of a new session.
 > 5. `docs/MODULE_FEATURE_STATUS.md` — per module, what works and what is
 >    waiting or hidden (read the section of the module we are on).
 >
-> We are **reviewing modules one at a time**. For each one: tell me in a
-> short list what it does and what needs doing, wait for my decisions, then
-> fix it in professional grade and tell me what to test. I test it myself;
-> it is done when I say so.
+> Every module is built; what is left is acceptance and whatever I ask for
+> next ("Read this first" and "What is next" in `HANDOFF.md`). When we review
+> a module: tell me in a short list what it does and what needs doing, wait
+> for my decisions, then fix it in professional grade and tell me what to
+> test. I test it myself; it is done when I say so.
 >
 > Absolute rules: never commit or push unless I say so in that message (then
-> in batches by concern); stay inside the module under review — other modules
+> in batches by concern, **on `roy`, pushed to `origin roy` — never `main`,
+> on any remote**); stay inside the module under review — other modules
 > are adjusted when we reach them; never remove a UI feature without asking,
 > and log anything hidden; never show a number the data did not supply;
 > never email a real person from Postman or the seed; no destructive database
@@ -348,6 +337,63 @@ the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
 
 
+
+### 10 Nov 2026 (last) — Postman scripts cleaned up, handoff refreshed, all committed (Claude Code)
+
+- **Postman directory trimmed to what regenerates the collection.** Twelve
+  one-off patch scripts deleted (their effects were already in the
+  collection or in a builder): `add_clients_teardown`, `add_folder_teardowns`,
+  `add_restore_requests`, `attach_uploads_session`, `fix_reset_password_rerun`,
+  `fix_sourcing_rerun`, `fix_auth_reset_account`, `fix_sourcing_probe_operator`,
+  `recapture_auth_rate_limits`, `recapture_auth_session`,
+  `update_session_example`, `reorganize`. The sourcing probe-operator fix was
+  folded into `build_operator_sourcing_folder.py`, whose own capture now
+  makes a probe operator too when none is free — 09 rebuilt from it and
+  green twice. `recapture_clients_examples.py` takes the shared `BASE`.
+  `Backend/postman/README.md` "Regenerating" says which script owns which
+  folder.
+- **HANDOFF Part 1 restructured** — "Read this first" and "What is next" at
+  the top; the 9 Nov roadmap detail left to the session log and status doc.
+- Committed in batches on `roy` and pushed to `origin/roy` at the
+  developer's request; `main` untouched.
+
+### 10 Nov 2026 (later) — Trips reassign permission, old matrix deleted, pickers everywhere, Postman complete (Claude Code)
+
+The developer asked for the list's items 3–5 (owner testing and deploy are
+on hold, by the developer's choice):
+
+- **#4 — Trips reassign was a hidden role check.** The service asked
+  "administrator, or `TRIPS · ASSIGN`", but ASSIGN was never a Trips action.
+  Now it is (`Reassign trips`): Admin default, locked for broker and
+  assistant, `@RequireAccess`-style check only, forms gated by it. Migration
+  `20261110110000_trips_assign_permission` keeps every Admin able.
+- **#5 — airport State** is stored as typed; **logo for dark backgrounds**
+  built (`logoOnDarkUrl`, migration `20261110120000_logo_on_dark`, public
+  route, Settings tile on the sidebar colour, `BrandLogo` picks it on a dark
+  background; the sign-in card now says it is light). Found on the way:
+  **the bank wire card in Settings never saved** (its fields were missing
+  from `SETTINGS_FIELDS`) — fixed.
+- **#3c — the old role matrix is deleted** on both sides (`roles.ts` keeps
+  identity). The staff directory is an open staff read with `@StaffOnly()`.
+  32 spec assertions that only checked "no old decorator" were removed.
+- **#3b — no dropdown or filter loads only the first 100 rows.** All forms
+  and filters are on `RecordPicker` (filter variant added; new
+  `TripRequestPicker`, `EmailTemplatePicker`). `BrokerPicker` now lists
+  administrators too (the API's owner set) via a multi-role `?role=`. The
+  Leads table reads its own leads' enquiries (`?clientIds=`). Found:
+  `AssigneePicker` crashed on a page holding a referral agent — fixed.
+- **#3a — Postman complete:** folders 16–26 and 28 built (30 folders, 779
+  examples, 0 mislabelled); 01 · Auth sessions re-captured without
+  `matrix`; Trips, Users, Settings (new logo route) rebuilt. Builders fixed
+  for the wiped data (no "Mark", "Barry", "NetJets"), the 30 Oct guardrails
+  (flights depart today; a cancelled probe trip that can actually be
+  cancelled; room under the over-invoicing guard) and the open-reads rule
+  (assistant reads are 200s). Create bodies no longer send `null`.
+- **Verification:** backend Vitest 69 files / 599 tests, `tsc`, oxlint 0;
+  frontend ESLint and `next build` clean; Newman full collection twice on
+  4100 — 451 requests, 303 assertions, 0 failures, nothing to :4000, no
+  probe left live except the system tasks above.
+- Committed and pushed to `origin/roy` with the cleanup pass (entry above).
 
 ### 10 Nov 2026 — Trip approval fixed, old-matrix buttons moved, seed and docs (Claude Code)
 
@@ -402,7 +448,8 @@ Claude's recommendation, with the developer's approval:
     now read `pm.variables.get('baseUrl')` (AGENTS.md rule added).
   - `01 · Auth`: `reset-demo@example.com` did not exist after the 9 Oct
     wipe; `Request reset code` now invites it once when missing
-    (`fix_auth_reset_account.py`). Green on two back-to-back runs.
+    (a one-off patch script, since deleted — the change lives in the
+    collection). Green on two back-to-back runs.
   - `15 · Trips` rebuilt with `12 · Approve` and `13 · Decline a broker's
     trip` (pre-requests book a trip as the broker), plus 400 examples for
     creating CONFIRMED without approval and confirming a declined trip, and
@@ -412,7 +459,7 @@ Claude's recommendation, with the developer's approval:
   - `09 · Operator Sourcing` failed on any database with one live operator
     (409) and archived its ask with a `pm.sendRequest` in its last test
     script. It now asks a probe operator of its own and ends with two
-    teardown requests (`fix_sourcing_probe_operator.py`).
+    teardown requests (since folded into `build_operator_sourcing_folder.py`).
   - Verified on 4100: `01 · Auth` 19/19 on two back-to-back runs; every
     other folder in one run, 196 requests and 145 assertions, 0 failures,
     none sent to 4000, and no probe left live. 499 examples, 0 mislabelled.
