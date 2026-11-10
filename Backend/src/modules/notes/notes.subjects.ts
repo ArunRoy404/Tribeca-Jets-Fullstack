@@ -1,11 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  Permission,
-  Scope,
-  canWrite,
-  isAdministrator,
-  scopeFor,
-} from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/roles.js';
 import {
   Action,
   Module,
@@ -39,12 +33,8 @@ interface SubjectDefinition {
   noun: string;
   /** The `AuditLog.entityType` value for this kind of record. */
   entityType: string;
-  /** The per-person permission module governance. */
+  /** The module whose permissions govern its timeline. */
   module: Module;
-  /** Reading the subject's timeline needs this (legacy matrix). */
-  view: Permission;
-  /** Writing on it needs this, at a scope that is not READ (legacy matrix). */
-  manage: Permission;
 }
 
 const SUBJECTS: Record<NoteSubjectType, SubjectDefinition> = {
@@ -52,8 +42,6 @@ const SUBJECTS: Record<NoteSubjectType, SubjectDefinition> = {
     noun: 'client',
     entityType: 'Client',
     module: Module.CLIENTS,
-    view: Permission.VIEW_CLIENTS,
-    manage: Permission.MANAGE_CLIENTS,
   },
   [NoteSubjectType.TRIP]: {
     noun: 'trip',
@@ -61,17 +49,13 @@ const SUBJECTS: Record<NoteSubjectType, SubjectDefinition> = {
     // a trip's timeline merges its status changes with its notes.
     entityType: 'Trip',
     module: Module.TRIPS,
-    view: Permission.VIEW_TRIPS,
-    manage: Permission.MANAGE_TRIPS,
   },
   [NoteSubjectType.REFERRAL]: {
     noun: 'referral',
     entityType: 'Referral',
+    // A referral agent may view referrals (their own); `NotesService`
+    // narrows them to reading SHARED notes and writing nothing.
     module: Module.REFERRALS,
-    // A referral agent holds both at OWN; `NotesService` narrows them to
-    // reading SHARED notes on their own referrals and writing nothing.
-    view: Permission.VIEW_REFERRALS,
-    manage: Permission.MANAGE_REFERRALS,
   },
   [NoteSubjectType.FLIGHT]: {
     noun: 'flight',
@@ -80,8 +64,6 @@ const SUBJECTS: Record<NoteSubjectType, SubjectDefinition> = {
     // updates and its status changes read as one feed.
     entityType: 'TripLeg',
     module: Module.FLIGHT_TRACKING,
-    view: Permission.VIEW_TRIPS,
-    manage: Permission.MANAGE_TRIPS,
   },
 };
 
@@ -138,16 +120,13 @@ export class NoteSubjectsService {
 
   /** Whether this caller may read timelines of this kind at all. */
   mayRead(user: AuthenticatedUser, type: NoteSubjectType): boolean {
-    if (user.access) {
-      if (type === NoteSubjectType.FLIGHT) {
-        return (
-          canDo(user.access, Module.FLIGHT_TRACKING, Action.VIEW) ||
-          canDo(user.access, Module.TRIPS, Action.VIEW)
-        );
-      }
-      return canDo(user.access, subjectDefinition(type).module, Action.VIEW);
+    if (type === NoteSubjectType.FLIGHT) {
+      return (
+        canDo(user.access, Module.FLIGHT_TRACKING, Action.VIEW) ||
+        canDo(user.access, Module.TRIPS, Action.VIEW)
+      );
     }
-    return scopeFor(user.role, subjectDefinition(type).view) !== Scope.NONE;
+    return canDo(user.access, subjectDefinition(type).module, Action.VIEW);
   }
 
   /**
@@ -156,26 +135,17 @@ export class NoteSubjectsService {
    * Coarse, not row-level — `resolve` handles the row.
    */
   mayWrite(user: AuthenticatedUser, type: NoteSubjectType): boolean {
-    if (user.access) {
-      if (type === NoteSubjectType.FLIGHT) {
-        return (
-          canDo(user.access, Module.FLIGHT_TRACKING, Action.EDIT) ||
-          canDo(user.access, Module.TRIPS, Action.EDIT)
-        );
-      }
-      return canDo(user.access, subjectDefinition(type).module, Action.EDIT);
+    if (type === NoteSubjectType.FLIGHT) {
+      return (
+        canDo(user.access, Module.FLIGHT_TRACKING, Action.EDIT) ||
+        canDo(user.access, Module.TRIPS, Action.EDIT)
+      );
     }
-    return canWrite(user.role, subjectDefinition(type).manage);
+    return canDo(user.access, subjectDefinition(type).module, Action.EDIT);
   }
 
   /** Whether this caller reaches every row of this kind — an administrator. */
   administers(user: AuthenticatedUser, type: NoteSubjectType): boolean {
-    if (user.access) {
-      return (
-        reachOf(user.access, subjectDefinition(type).module) === Reach.ALL ||
-        isAdministrator(user.role)
-      );
-    }
-    return scopeFor(user.role, subjectDefinition(type).manage) === Scope.ALL;
+    return reachOf(user.access, subjectDefinition(type).module) === Reach.ALL || isAdministrator(user.role);
   }
 }

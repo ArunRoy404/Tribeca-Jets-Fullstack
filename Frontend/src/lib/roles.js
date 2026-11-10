@@ -36,10 +36,10 @@ export const CRM_HOME = "/dashboard";
 /**
  * Where a signed-in user belongs: the portal for a partner, the CRM for staff.
  *
- * Decided by the real role, whatever ROLE_RESTRICTIONS_ENABLED says (7 Oct
- * 2026): which half of the app someone uses is not a permission. With the
- * switch overriding it, a referral agent landed on the staff CRM's own
- * Referrals and Commissions screens.
+ * Decided by the real role (7 Oct 2026): which half of the app someone uses
+ * is not a permission. When a temporary switch let it follow permissions, a
+ * referral agent landed on the staff CRM's own Referrals and Commissions
+ * screens.
  */
 export function homeFor(role) {
   return isPartnerRole(role) ? PORTAL_HOME : CRM_HOME;

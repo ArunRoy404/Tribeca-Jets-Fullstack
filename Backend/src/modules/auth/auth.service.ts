@@ -22,7 +22,7 @@ import type {
 import type { SessionContext } from './token.service.js';
 import { VerificationService } from './verification.service.js';
 import { SettingsService } from '../settings/settings.service.js';
-import { isAdministrator } from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/roles.js';
 import { SignInThrottleService, pausedError } from './sign-in-throttle.service.js';
 import { invalidMessage } from './sign-in-throttle.js';
 

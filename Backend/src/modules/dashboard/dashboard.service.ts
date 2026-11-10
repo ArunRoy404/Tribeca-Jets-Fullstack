@@ -3,7 +3,7 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { paginate, type AuthenticatedUser, type Paginated } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import { Action, Module, canDo } from '../../common/authorization/access.js';
-import { isAdministrator } from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/roles.js';
 import { mergePages } from '../../common/database/merge-pages.js';
 import { todayUtc } from '../../common/money/settlement.js';
 import { TripsService } from '../trips/trips.service.js';

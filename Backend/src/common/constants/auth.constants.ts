@@ -30,9 +30,6 @@ export const IS_PUBLIC_KEY = 'isPublic';
 export const ROLES_KEY = 'roles';
 export const RATE_LIMIT_KEY = 'rateLimit';
 
-/** Metadata key for @RequirePermissions, read by PermissionsGuard. */
-export const PERMISSIONS_KEY = 'permissions';
-
 /** Metadata key for `@RequireAccess` — a module and an action. */
 export const ACCESS_KEY = 'requiredAccess';
 

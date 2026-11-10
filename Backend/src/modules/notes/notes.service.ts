@@ -21,7 +21,7 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import { NoteVisibility, NoteSubjectType } from '../../generated/prisma/enums.js';
-import { isPartner } from '../../common/authorization/permissions.js';
+import { isPartner } from '../../common/authorization/roles.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import {
   NoteSubjectsService,

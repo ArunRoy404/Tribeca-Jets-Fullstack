@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
 import {
   ACCESS_KEY,
-  PERMISSIONS_KEY,
   STAFF_ONLY_KEY,
 } from '../../common/constants/auth.constants.js';
 import { Action, Module } from '../../common/authorization/access.js';
@@ -27,13 +26,9 @@ const contextFor = (name: keyof EmptyLegsController, role: UserRole) =>
   }) as never;
 
 describe('empty legs routes (Empty Legs review, 11 Oct 2026)', () => {
-  it('reads need only a session, nothing from the old matrix', () => {
+  it('reads need only a session', () => {
     for (const name of ['findAll', 'stats', 'findOne'] as const) {
       expect(Reflect.getMetadata(ACCESS_KEY, handler(name)), name).toBeUndefined();
-      expect(
-        Reflect.getMetadata(PERMISSIONS_KEY, handler(name)),
-        name,
-      ).toBeUndefined();
     }
   });
 
@@ -59,13 +54,6 @@ describe('empty legs routes (Empty Legs review, 11 Oct 2026)', () => {
         action,
         altModule: undefined,
       });
-      expect(
-        Reflect.getMetadata(
-          PERMISSIONS_KEY,
-          handler(name as keyof EmptyLegsController),
-        ),
-        name,
-      ).toBeUndefined();
     }
   });
 

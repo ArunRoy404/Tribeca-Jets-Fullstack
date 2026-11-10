@@ -7,7 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ACCESS_KEY, STAFF_ONLY_KEY } from '../constants/auth.constants.js';
-import { isPartner } from '../authorization/permissions.js';
+import { isPartner } from '../authorization/roles.js';
 import type { AccessRequirement } from '../decorators/access.decorator.js';
 import { MODULE_BY_KEY, actionLabel } from '../authorization/access.catalogue.js';
 import { canDo } from '../authorization/access.js';
@@ -18,8 +18,8 @@ import type { AuthenticatedUser } from '../types/api.types.js';
  * permissions, which `JwtStrategy` loads with the user on every request — so
  * a change an administrator saves applies on the person's next click.
  *
- * Runs after JwtAuthGuard. A route without `@RequireAccess` passes through;
- * modules not yet moved over are still guarded by `PermissionsGuard`.
+ * Runs after JwtAuthGuard. A route without `@RequireAccess` passes through
+ * (a read open to every signed-in user, or a rule the service states).
  */
 @Injectable()
 export class AccessGuard implements CanActivate {

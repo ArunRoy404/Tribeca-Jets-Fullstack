@@ -13,9 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator.js';
-import { RequireAccess } from '../../common/decorators/access.decorator.js';
-import { Permission } from '../../common/authorization/permissions.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
 import { Action, Module } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UsersService } from './users.service.js';
@@ -38,13 +36,14 @@ export class UsersController {
    * service narrows *what* is returned by role: without MANAGE_USERS the
    * response carries names and roles only, no status or login history.
    *
-   * VIEW_TEAM is what keeps a referral agent (#11) out: every desk role holds
-   * it, the partner role does not. It stays on the old matrix while the
-   * pickers' own modules are, and the per-user Users & Roles permission
-   * decides only how much each row shows (see `projectFor`).
+   * `@StaffOnly()` is what keeps a referral agent (#11) out — by stored role,
+   * the same line the old VIEW_TEAM permission drew (every desk role, never
+   * the partner) before the old matrix was deleted on 10 Nov 2026. The
+   * per-person Users & Roles permission decides only how much each row
+   * shows (see `projectFor`).
    */
   @Get()
-  @RequirePermissions(Permission.VIEW_TEAM)
+  @StaffOnly()
   @ApiOperation({
     summary: 'List team members',
     description:
@@ -68,7 +67,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_TEAM)
+  @StaffOnly()
   @ApiOperation({ summary: 'Get one team member' })
   findOne(
     @CurrentUser() user: AuthenticatedUser,

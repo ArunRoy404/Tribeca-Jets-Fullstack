@@ -26,7 +26,7 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import { type Prisma, TripStatus } from '../../generated/prisma/client.js';
-import { isPartner } from '../../common/authorization/permissions.js';
+import { isPartner } from '../../common/authorization/roles.js';
 import type {
   CreateAirportInput,
   QueryAirportsInput,

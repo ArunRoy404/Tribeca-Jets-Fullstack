@@ -25,7 +25,7 @@ import {
 /**
  * Dated entries on a record's timeline (client adjustment #5).
  *
- * **No `@RequirePermissions` decorator, deliberately**, and this is the same
+ * **No `@RequireAccess` decorator, deliberately**, and this is the same
  * reasoning the uploads module records. A note carries no permission of its
  * own: the right to read or write one is the right to read or write the record
  * it hangs on, and which permission that is depends on `subjectType` — a value
@@ -33,7 +33,7 @@ import {
  * cannot see.
  *
  * So the capability check moves one layer in, to `NoteSubjectsService`, which
- * reads the same matrix `PermissionsGuard` reads, and the row-level check goes
+ * reads the caller's own permissions for that module, and the row-level check goes
  * to the module that owns the subject. A caller who may not see a client gets
  * 404 on its notes by the rule that already hides the client, rather than by a
  * second copy of it here.

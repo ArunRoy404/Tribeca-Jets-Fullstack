@@ -26,7 +26,7 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import { isPartner } from '../../common/authorization/permissions.js';
+import { isPartner } from '../../common/authorization/roles.js';
 import { Action, Module, Reach, canDo, reachOf } from '../../common/authorization/access.js';
 import { fromCents, toCents } from '../../common/money/cents.js';
 import {

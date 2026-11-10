@@ -7,9 +7,7 @@ import { useCreateTripStore } from "@/store/useCreateTripStore";
 import { useBookingConfirmationStore } from "@/store/useBookingConfirmationStore";
 import { useCreateTrip, useUpdateTrip } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { useCurrentUser } from "@/hooks/auth";
-import { Action, Module, Reach } from "@/lib/access";
-import { isAdministratorRole } from "@/lib/roles";
+import { Action, Module } from "@/lib/access";
 import { documentsService } from "@/services/documents.service";
 import { optionalNumber, optionalText } from "@/lib/form";
 import { toastError } from "@/lib/toast";
@@ -25,12 +23,9 @@ export default function CreateFormActionBar() {
   const openBookingModal = useBookingConfirmationStore((s) => s.openModal);
   const { mutate: createTrip, isPending: creating } = useCreateTrip();
   const { mutate: updateTrip, isPending: updating } = useUpdateTrip();
-  const { canAccess, reachOf } = usePermissions();
-  const { data: currentUser } = useCurrentUser();
-  const mayAssign =
-    canAccess(Module.TRIPS, Action.ASSIGN) ||
-    reachOf(Module.TRIPS) === Reach.ALL ||
-    isAdministratorRole(currentUser?.role);
+  const { canAccess } = usePermissions();
+  // The API's rule: Trips · Reassign trips, held per person.
+  const mayAssign = canAccess(Module.TRIPS, Action.ASSIGN);
   const editing = Boolean(draft.editingId);
   const busy = creating || updating;
   const opts = { editing };

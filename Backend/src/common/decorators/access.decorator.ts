@@ -10,8 +10,8 @@ export interface AccessRequirement {
 
 /**
  * Requires the caller to hold `action` in `module` (or optionally `altModule`) — the per-user
- * permissions (7 Oct 2026). Replaces `@RequirePermissions` module by module
- * as each one is reviewed.
+ * permissions (7 Oct 2026). It replaced the old role matrix's
+ * `@RequirePermissions` module by module; the last moved on 10 Nov 2026.
  *
  * A capability check only, like the old one: *which* rows the action reaches
  * is the role's reach, applied in the service with `reachOf`.

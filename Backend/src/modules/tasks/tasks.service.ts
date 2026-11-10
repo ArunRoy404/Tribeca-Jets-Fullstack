@@ -18,7 +18,7 @@ import {
 } from '../../common/database/archive.js';
 import { referenceFromSearch } from '../../common/database/document-number.js';
 import { todayUtc } from '../../common/money/settlement.js';
-import { isPartner } from '../../common/authorization/permissions.js';
+import { isPartner } from '../../common/authorization/roles.js';
 import { canDo, reachOf } from '../../common/authorization/access.js';
 import { Action, Module, Reach } from '../../common/authorization/access.catalogue.js';
 import { TaskPriority, TaskStatus, UserStatus } from '../../generated/prisma/enums.js';

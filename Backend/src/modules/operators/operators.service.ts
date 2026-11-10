@@ -5,7 +5,6 @@ import { AircraftService } from '../aircraft/aircraft.service.js';
 import { OperatorQuotesService } from '../operator-quotes/operator-quotes.service.js';
 import { TripsService } from '../trips/trips.service.js';
 import { OperatorPaymentsService } from '../operator-payments/operator-payments.service.js';
-import { Permission, Scope, scopeFor } from '../../common/authorization/permissions.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -26,6 +25,7 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import { OperatorStatus } from '../../generated/prisma/enums.js';
+import { Module, Reach, reachOf } from '../../common/authorization/access.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type {
   CreateOperatorInput,
@@ -106,7 +106,7 @@ export class OperatorsService {
    */
   private async withTrips<T extends { id: string }>(user: AuthenticatedUser, rows: T[]) {
     const ids = rows.map((row) => row.id);
-    const seesTotals = scopeFor(user.role, Permission.VIEW_OPERATOR_PAYMENTS) === Scope.ALL;
+    const seesTotals = reachOf(user.access, Module.OPERATOR_PAYMENTS) === Reach.ALL;
     const [counts, paid] = await Promise.all([
       this.trips.countByOperator(ids),
       seesTotals ? this.payables.paidByOperator(ids) : Promise.resolve(null),

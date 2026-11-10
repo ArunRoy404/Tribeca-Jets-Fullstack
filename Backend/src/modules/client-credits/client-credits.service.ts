@@ -20,11 +20,6 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import {
-  Permission,
-  can,
-  canWrite,
-} from '../../common/authorization/permissions.js';
 import { Action, Module, canDo } from '../../common/authorization/access.js';
 import { CreditEntryType, UserRole } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -129,39 +124,18 @@ export class ClientCreditsService {
    * permission whose row would be identical is a row nobody maintains.
    */
   private async client(user: AuthenticatedUser, clientId: string) {
-    if (user.access) {
-      if (!canDo(user.access, Module.CLIENTS, Action.VIEW)) {
-        throw new ForbiddenException(
-          'Your permissions do not allow viewing clients',
-        );
-      }
-      if (user.role === UserRole.ASSISTANT) {
-        throw new ForbiddenException(
-          'Your role cannot see what a client has on account',
-        );
-      }
-    } else if (!can(user.role, Permission.VIEW_FINANCIALS)) {
-      throw new ForbiddenException(
-        'Your role cannot see what a client has on account',
-      );
+    if (!canDo(user.access, Module.CLIENTS, Action.VIEW)) {
+      throw new ForbiddenException('Your permissions do not allow viewing clients');
+    }
+    if (user.role === UserRole.ASSISTANT) {
+      throw new ForbiddenException('Your role cannot see what a client has on account');
     }
     return this.clients.subjectRef(user, clientId);
   }
 
   private assertMayWrite(user: AuthenticatedUser): void {
-    if (user.access) {
-      if (
-        !canDo(user.access, Module.CLIENTS, Action.EDIT) ||
-        user.role === UserRole.ASSISTANT
-      ) {
-        throw new ForbiddenException(
-          "Your role cannot change a client's money on account",
-        );
-      }
-    } else if (!canWrite(user.role, Permission.VIEW_FINANCIALS)) {
-      throw new ForbiddenException(
-        "Your role cannot change a client's money on account",
-      );
+    if (!canDo(user.access, Module.CLIENTS, Action.EDIT) || user.role === UserRole.ASSISTANT) {
+      throw new ForbiddenException("Your role cannot change a client's money on account");
     }
   }
 

@@ -21,7 +21,7 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import { searchAcross, orderByField } from '../../common/database/filters.js';
-import { isPartner } from '../../common/authorization/permissions.js';
+import { isPartner } from '../../common/authorization/roles.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import { paginate, type AuthenticatedUser } from '../../common/types/api.types.js';
 import { UploadKind, UploadVisibility } from '../../generated/prisma/enums.js';

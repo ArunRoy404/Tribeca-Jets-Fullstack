@@ -25,7 +25,7 @@ import {
   isAdministrator,
   ROLE_DESCRIPTIONS,
   ROLE_PERMISSION_LEVEL,
-} from '../../common/authorization/permissions.js';
+} from '../../common/authorization/roles.js';
 import {
   Action,
   Module,

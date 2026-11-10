@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
 import {
   ACCESS_KEY,
-  PERMISSIONS_KEY,
   STAFF_ONLY_KEY,
 } from '../../common/constants/auth.constants.js';
 import { Action, Module, Reach } from '../../common/authorization/access.js';
@@ -66,7 +65,6 @@ describe('Dashboard routes access (Dashboard review, Module #30)', () => {
           module: Module.DASHBOARD,
           action: Action.VIEW,
         });
-        expect(Reflect.getMetadata(PERMISSIONS_KEY, handler(name))).toBeUndefined();
       });
 
       it(`${name} refuses staff member lacking Action.VIEW`, () => {

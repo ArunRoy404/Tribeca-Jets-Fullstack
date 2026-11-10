@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
 import {
   ACCESS_KEY,
-  PERMISSIONS_KEY,
   STAFF_ONLY_KEY,
 } from '../../common/constants/auth.constants.js';
 import { Action, Module, Reach } from '../../common/authorization/access.js';
@@ -37,14 +36,13 @@ describe('transactions routes access (Transactions review, 11 Oct 2026)', () => 
     expect(Reflect.getMetadata(STAFF_ONLY_KEY, TransactionsController)).toBe(true);
   });
 
-  it('routes require TRANSACTIONS · VIEW, nothing from the old matrix', () => {
+  it('routes require TRANSACTIONS · VIEW', () => {
     for (const name of ['findAll', 'stats'] as const) {
       expect(Reflect.getMetadata(ACCESS_KEY, handler(name))).toEqual({
         module: Module.TRANSACTIONS,
         action: Action.VIEW,
         altModule: undefined,
       });
-      expect(Reflect.getMetadata(PERMISSIONS_KEY, handler(name))).toBeUndefined();
     }
   });
 

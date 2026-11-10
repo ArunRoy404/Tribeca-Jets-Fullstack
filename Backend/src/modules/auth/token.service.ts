@@ -39,8 +39,7 @@ const ACTIVITY_SLACK_MS = 5 * 60_000;
 const PORTAL_MARKER = 'PORTAL';
 
 /**
- * The real role, never `actsAs`: which half of the app a person uses is not
- * a permission, so the temporary everyone-is-owner switch does not move it.
+ * The real role: which half of the app a person uses is not a permission.
  */
 const isPartner = (role: UserRole) => role === UserRole.REFERRAL_AGENT;
 import type { JwtPayload } from './strategies/jwt.strategy.js';

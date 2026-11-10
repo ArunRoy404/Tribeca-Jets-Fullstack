@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACCESS_KEY, PERMISSIONS_KEY } from '../../common/constants/auth.constants.js';
+import { ACCESS_KEY } from '../../common/constants/auth.constants.js';
 import { Action, Module } from '../../common/authorization/access.js';
 import { AirportsController } from './airports.controller.js';
 
@@ -16,7 +16,6 @@ describe('airports routes', () => {
   it('reads need only a session', () => {
     for (const name of ['findAll', 'stats', 'countries', 'findOne'] as const) {
       expect(Reflect.getMetadata(ACCESS_KEY, handler(name)), name).toBeUndefined();
-      expect(Reflect.getMetadata(PERMISSIONS_KEY, handler(name)), name).toBeUndefined();
     }
   });
 

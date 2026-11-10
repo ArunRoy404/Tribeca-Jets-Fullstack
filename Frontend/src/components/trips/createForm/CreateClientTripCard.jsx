@@ -8,10 +8,8 @@ import BrokerPicker from "@/components/users/BrokerPicker";
 import CommonSelect from "@/components/common/CommonSelect";
 import { useCreateTripStore } from "@/store/useCreateTripStore";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { useCurrentUser } from "@/hooks/auth";
 import { useClient } from "@/hooks/clients";
-import { Action, Module, Reach } from "@/lib/access";
-import { isAdministratorRole } from "@/lib/roles";
+import { Action, Module } from "@/lib/access";
 import { formatTripStatus } from "@/lib/trip";
 import { formatLeadSource } from "@/lib/lead";
 
@@ -34,15 +32,12 @@ export default function CreateClientTripCard() {
     updateLeg,
   } = useCreateTripStore();
 
-  const { canAccess, reachOf } = usePermissions();
-  const { data: currentUser } = useCurrentUser();
+  const { canAccess } = usePermissions();
   const { data: client } = useClient(clientId);
 
-  // Assigning a trip to someone else needs TRIPS · ASSIGN, ALL reach, or Super Admin/Admin.
-  const mayAssign =
-    canAccess(Module.TRIPS, Action.ASSIGN) ||
-    reachOf(Module.TRIPS) === Reach.ALL ||
-    isAdministratorRole(currentUser?.role);
+  // Assigning a trip to someone else needs Trips · Reassign trips — the
+  // API's rule, held per person.
+  const mayAssign = canAccess(Module.TRIPS, Action.ASSIGN);
 
   // A trip created without Trips · Approve waits for approval, so it cannot
   // start as Confirmed — the API refuses it the same way.

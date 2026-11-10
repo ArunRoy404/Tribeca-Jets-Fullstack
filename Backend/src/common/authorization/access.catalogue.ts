@@ -7,9 +7,9 @@
  * reaches (their own records, the ones assigned to them, or all) is fixed by
  * the role and never edited per person. See `access.roles.ts`.
  *
- * This replaces the coarse `Permission` matrix in `permissions.ts` module by
- * module, as each one is reviewed. Until a module is moved over it is still
- * guarded by the old matrix; a moved module is guarded by `@RequireAccess`.
+ * It replaced the coarse role matrix (`permissions.ts`) module by module;
+ * the last route moved and the matrix was deleted on 10 Nov 2026. Every
+ * write route is guarded by `@RequireAccess`.
  */
 
 export const Module = {
@@ -118,11 +118,13 @@ export const MODULES: ModuleDefinition[] = [
     module: Module.TRIPS,
     label: 'Trips',
     section: 'Operations',
-    actions: [VIEW, CREATE, EDIT, APPROVE, ARCHIVE, VIEW_MONEY],
+    actions: [VIEW, CREATE, EDIT, ASSIGN, APPROVE, ARCHIVE, VIEW_MONEY],
     requires: [Module.CLIENTS],
-    // A trip created without it waits for someone who holds it before it can
-    // be confirmed (client feedback 2.1, 9 Nov 2026).
-    actionLabels: { APPROVE: 'Approve trips' },
+    // APPROVE: a trip created without it waits for someone who holds it
+    // before it can be confirmed (client feedback 2.1, 9 Nov 2026).
+    // ASSIGN: handing a trip to another broker (10 Nov 2026 — it had been
+    // checked on the route but never listed here).
+    actionLabels: { ASSIGN: 'Reassign trips', APPROVE: 'Approve trips' },
   },
   { module: Module.SCHEDULE, label: 'Schedule', section: 'Operations', actions: [VIEW], requires: [Module.TRIPS] },
   {

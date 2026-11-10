@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { ACCESS_KEY, PERMISSIONS_KEY } from '../../common/constants/auth.constants.js';
+import { ACCESS_KEY } from '../../common/constants/auth.constants.js';
 import { Action, Module } from '../../common/authorization/access.js';
 import { AircraftCategory, UserRole } from '../../generated/prisma/enums.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
@@ -16,14 +16,13 @@ const user = (role: UserRole): AuthenticatedUser => ({ id: 'u1', email: 'x@examp
  * rate is for an administrator.
  */
 describe('charter rates access', () => {
-  it('every route needs Quotes · View money, and nothing from the old matrix', () => {
+  it('every route needs Quotes · View money', () => {
     for (const name of ['findAll', 'estimate', 'set'] as const) {
       const handler = CharterRatesController.prototype[name] as unknown as object;
       expect(Reflect.getMetadata(ACCESS_KEY, handler), name).toEqual({
         module: Module.QUOTES,
         action: Action.VIEW_MONEY,
       });
-      expect(Reflect.getMetadata(PERMISSIONS_KEY, handler), name).toBeUndefined();
     }
   });
 

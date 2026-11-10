@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
 import {
   ACCESS_KEY,
-  PERMISSIONS_KEY,
   STAFF_ONLY_KEY,
 } from '../../common/constants/auth.constants.js';
 import { Action, Module, Reach } from '../../common/authorization/access.js';
@@ -49,10 +48,6 @@ describe('tasks routes access (Tasks Board review, 11 Oct 2026)', () => {
   it('reads need only a staff session, nothing on the handler', () => {
     for (const name of ['findAll', 'findOne'] as const) {
       expect(Reflect.getMetadata(ACCESS_KEY, handler(name)), name).toBeUndefined();
-      expect(
-        Reflect.getMetadata(PERMISSIONS_KEY, handler(name)),
-        name,
-      ).toBeUndefined();
     }
   });
 

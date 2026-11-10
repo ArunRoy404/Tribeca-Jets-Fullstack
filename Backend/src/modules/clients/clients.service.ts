@@ -26,7 +26,6 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import { bulkResult, type BulkResult } from '../../common/dto/bulk.dto.js';
-import { actsAs } from '../../common/authorization/permissions.js';
 import {
   Action,
   Module,
@@ -184,7 +183,7 @@ export class ClientsService {
     if (
       reach === Reach.ASSIGNED ||
       reach === Reach.OWN ||
-      actsAs(user.role) === UserRole.BROKER
+      user.role === UserRole.BROKER
     ) {
       return { assignedBrokerId: user.id };
     }
@@ -418,7 +417,7 @@ export class ClientsService {
 
     // A broker may only create clients owned by themselves.
     const assignedBrokerId =
-      actsAs(user.role) === UserRole.BROKER
+      user.role === UserRole.BROKER
         ? user.id
         : (input.assignedBrokerId ?? null);
 

@@ -1,5 +1,5 @@
 import { Action, Module, Reach, canDo, reachOf } from '../../common/authorization/access.js';
-import { isAdministrator } from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/roles.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 

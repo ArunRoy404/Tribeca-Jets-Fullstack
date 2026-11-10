@@ -11,7 +11,7 @@ import { MailService } from '../../core/mail/mail.service.js';
 import { paginate, type AuthenticatedUser, type Paginated } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import { equalsAny, orderByField, searchAcross } from '../../common/database/filters.js';
-import { isAdministrator } from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/roles.js';
 import { Action, Module, canDo } from '../../common/authorization/access.js';
 import { EmailMessageStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';

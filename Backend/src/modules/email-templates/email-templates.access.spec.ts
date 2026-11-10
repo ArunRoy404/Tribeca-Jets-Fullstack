@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
 import {
   ACCESS_KEY,
-  PERMISSIONS_KEY,
   STAFF_ONLY_KEY,
 } from '../../common/constants/auth.constants.js';
 import { Action, Module, Reach } from '../../common/authorization/access.js';
@@ -69,7 +68,6 @@ describe('email templates and sending access (Module #27 review)', () => {
     it('reads need only a staff session, nothing on the handler', () => {
       for (const name of ['findAll', 'stats', 'fields', 'findOne'] as const) {
         expect(Reflect.getMetadata(ACCESS_KEY, templateHandler(name)), name).toBeUndefined();
-        expect(Reflect.getMetadata(PERMISSIONS_KEY, templateHandler(name)), name).toBeUndefined();
       }
     });
 
@@ -130,7 +128,6 @@ describe('email templates and sending access (Module #27 review)', () => {
     it('reads and preview need only a staff session, nothing on handler', () => {
       for (const name of ['findAll', 'findOne', 'preview'] as const) {
         expect(Reflect.getMetadata(ACCESS_KEY, emailHandler(name)), name).toBeUndefined();
-        expect(Reflect.getMetadata(PERMISSIONS_KEY, emailHandler(name)), name).toBeUndefined();
       }
     });
 

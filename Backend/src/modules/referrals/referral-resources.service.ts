@@ -20,7 +20,7 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import { isPartner } from '../../common/authorization/permissions.js';
+import { isPartner } from '../../common/authorization/roles.js';
 import { Module, Reach, reachOf } from '../../common/authorization/access.js';
 import { UploadVisibility } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';

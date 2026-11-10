@@ -19,7 +19,7 @@ import {
 } from '../../common/database/archive.js';
 import { todayUtc } from '../../common/money/settlement.js';
 import { Action, Module, Reach, canDo, reachOf } from '../../common/authorization/access.js';
-import { isAdministrator } from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/roles.js';
 import type { DocumentCategory } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { ClientsService } from '../clients/clients.service.js';

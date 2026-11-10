@@ -1,4 +1,4 @@
-import { isAdministrator } from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/roles.js';
 import { UploadVisibility } from '../../generated/prisma/enums.js';
 import type { UserRole } from '../../generated/prisma/enums.js';
 

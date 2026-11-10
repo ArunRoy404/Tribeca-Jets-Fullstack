@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
-import { isAdministrator } from '../../common/authorization/permissions.js';
+import { isAdministrator } from '../../common/authorization/roles.js';
 import { paginate } from '../../common/types/api.types.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { AircraftCategory } from '../../generated/prisma/enums.js';

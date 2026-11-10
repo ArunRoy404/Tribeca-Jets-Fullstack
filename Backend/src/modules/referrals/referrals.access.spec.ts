@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
 import {
   ACCESS_KEY,
-  PERMISSIONS_KEY,
   STAFF_ONLY_KEY,
 } from '../../common/constants/auth.constants.js';
 import { Action, Module, Reach } from '../../common/authorization/access.js';
@@ -52,13 +51,9 @@ const resourceContextFor = (
   }) as never;
 
 describe('referrals routes access (Referrals review, 11 Oct 2026)', () => {
-  it('reads need only a session, nothing from the old matrix', () => {
+  it('reads need only a session', () => {
     for (const name of ['findAll', 'stats', 'findOne', 'attachment'] as const) {
       expect(Reflect.getMetadata(ACCESS_KEY, referralHandler(name)), name).toBeUndefined();
-      expect(
-        Reflect.getMetadata(PERMISSIONS_KEY, referralHandler(name)),
-        name,
-      ).toBeUndefined();
     }
   });
 
@@ -85,13 +80,6 @@ describe('referrals routes access (Referrals review, 11 Oct 2026)', () => {
         action,
         altModule: undefined,
       });
-      expect(
-        Reflect.getMetadata(
-          PERMISSIONS_KEY,
-          referralHandler(name as keyof ReferralsController),
-        ),
-        name,
-      ).toBeUndefined();
     }
   });
 
@@ -145,7 +133,6 @@ describe('referrals routes access (Referrals review, 11 Oct 2026)', () => {
 describe('referral resources routes access', () => {
   it('reads need only a session', () => {
     expect(Reflect.getMetadata(ACCESS_KEY, resourceHandler('findAll'))).toBeUndefined();
-    expect(Reflect.getMetadata(PERMISSIONS_KEY, resourceHandler('findAll'))).toBeUndefined();
   });
 
   it('each write needs its granular REFERRALS permission', () => {
@@ -168,13 +155,6 @@ describe('referral resources routes access', () => {
         action,
         altModule: undefined,
       });
-      expect(
-        Reflect.getMetadata(
-          PERMISSIONS_KEY,
-          resourceHandler(name as keyof ReferralResourcesController),
-        ),
-        name,
-      ).toBeUndefined();
     }
   });
 

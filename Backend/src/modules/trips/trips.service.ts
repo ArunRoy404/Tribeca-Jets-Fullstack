@@ -32,7 +32,6 @@ import {
   Reach,
 } from '../../common/authorization/access.catalogue.js';
 import { canDo, reachOf, resolveAccess } from '../../common/authorization/access.js';
-import { isAdministrator } from '../../common/authorization/permissions.js';
 import {
   ClientStatus,
   FlightStatus,
@@ -403,15 +402,10 @@ export class TripsService {
     return canDo(user.access, Module.RECEIVABLES, Action.VIEW);
   }
 
-  /** Reassigning a trip is an administrator's call, or requires TRIPS ASSIGN. */
+  /** Handing a trip to another broker needs `TRIPS · ASSIGN` — never the role. */
   private assertMayReassign(user: AuthenticatedUser): void {
-    if (
-      !isAdministrator(user.role) &&
-      !canDo(user.access, Module.TRIPS, Action.ASSIGN)
-    ) {
-      throw new ForbiddenException(
-        'Only an administrator can reassign a trip.',
-      );
+    if (!canDo(user.access, Module.TRIPS, Action.ASSIGN)) {
+      throw new ForbiddenException('Reassigning a trip needs Trips · Reassign trips.');
     }
   }
 
