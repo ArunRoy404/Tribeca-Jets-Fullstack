@@ -130,11 +130,22 @@ permission is a **module** — one per sidebar screen — and an **action** in i
   and its `canWrite(Permission.X)` buttons for `canAccess(Module.X,
   Action.Y)`. **Moved so far: Users & Roles, Settings, Airports, Charter Rates, Operators, Aircraft, Clients, Notes, Client Credits, Leads & Agents, Trip Requests, Operator Sourcing, Quotes, Trips, Itineraries, Schedule, Flight Tracking, Empty Legs, Receivables, Operator Payments, Commissions, Referrals, Transactions, Tasks Board, Email Templates, Document Vault, Reports, Dashboard.** Uploads needs no move — its
   routes carry no permission by design and its rules are identity-based.
-  Every other module's API is still on the old matrix, enforced by role.
-  When the last one moves, delete the old matrix and the switch.
+  **What is left on the old matrix (10 Nov 2026):** on the API, only the
+  two `VIEW_TEAM` routes in `users.controller.ts`; on the frontend, no
+  screen. Move those, then delete the old matrix and the switch.
 - **A new action or module** is a line in the catalogue, a decision per role
   in `access.roles.ts`, and the check on its route — never a route that
   checks something the catalogue does not list.
+- **Authority is never a role check in a service.** "Only an administrator
+  can X" is an action in the catalogue that the Admin role holds by default
+  and the owner can grant or withhold per person — not `isAdministrator`
+  behind some other permission. `TRIPS · APPROVE` ("Approve trips", 10 Nov
+  2026) is the example: the 9 Nov approval feature hard-coded
+  `isAdministrator`, so the owner could neither give approval to a senior
+  broker nor take it from an admin. **A new action that takes over an
+  existing power ships with a migration that grants it to everyone who
+  held that power**, or adding it silently takes it away (stored sets are
+  never rewritten by a change of role defaults).
 
 ## Reads are open to every signed-in user; writes need the permission (since 8 Oct 2026)
 
@@ -437,6 +448,13 @@ Tracking (#14), which read the same trip facts a third and fourth time.
   2026): only failures are counted, so a run's correct sign-ins never
   trip it. Never raise the limits themselves, and never the multiplier
   outside a developer machine.
+- **A script reads `pm.variables.get('baseUrl')`, never
+  `pm.collectionVariables.get('baseUrl')`** (10 Nov 2026). Newman's
+  `--env-var baseUrl=…` sets the environment, and only `pm.variables`
+  resolves it; the collection variable is still `localhost:4000`. Fifty
+  pre-request scripts read the collection variable, so every run "against
+  4100" did its sign-ins, lookups and setup on the dev API and database —
+  and looked green, because both hold the same accounts.
 - **A Postman failure is made on a fresh probe address** (`probe-<random>@example.com`,
   no account), never on a seeded account — failures count towards a pause,
   and pausing `broker@` breaks every folder signed in as them for the next
@@ -1763,8 +1781,12 @@ Per "fix a module when we reach it", only the module being worked on gets
 wired up. Wired so far: Aircraft, Trip Requests, Operator Sourcing, Quotes,
 Leads & Agents (table and detail page), Client Credits, Notes, the client
 detail page and the client/lead dialogs, Trips, Empty Legs, Commissions,
-Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault, Reports, Airports and Operators (per-person: `canAccess(Module.X, …)`). Not
-yet: the Clients table — on its own turn.
+Referrals, Receivables, Operator Payments, Transactions, Schedule, Flight Tracking, the Tasks Board and the notification bell, Email Templates and the shared compose form, the Dashboard, the Document Vault, Reports, Airports, Operators and the Clients table (per-person: `canAccess(Module.X, …)`).
+**Since 10 Nov 2026 no screen calls `canWrite`, `can` or `scopeFor`** — the
+last 14 (client and lead detail, Leads table, Operators, Schedule, credits,
+notes) moved to `canAccess`. Never add one back: a button on the old matrix
+and a route on per-person permissions disagree for anyone whose set differs
+from their role's defaults.
 
 **A control narrower than a permission is gated by scope, not by
 `canWrite`.** A broker may edit a client (`MANAGE_CLIENTS` at `ASSIGNED`) but

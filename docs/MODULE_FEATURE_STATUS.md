@@ -915,12 +915,15 @@ operator bills, where a bill is recorded and paid. Absent for a role without
   - **1.3 Checklist "Go" Navigation:** Upgraded `TripConfirmationCard.jsx` with "Go" navigation buttons next to all checklist items for smooth scrolling and deep-linking.
   - **1.4 Operator Payment Statuses:** Added `Operator Payment Sent` (automatically checked when operator payable is paid) and `Operator Payment Received` (operational verification toggle stored in database via `operatorPaymentReceivedAt`).
   - **8.1–8.3 Contract Management:** Built `TripContractCard.jsx` tracking `Contract Sent` and `Contract Received` timestamps with toggle actions and direct external links for Avanode (`https://www.avanode.com`) and DocuSign (`https://app.docusign.com`).
-  - **2.1 Admin Trip Approval Workflow:**
-    - Trips submitted by brokers default to `approvalStatus: PENDING` in database migration `20261109180000_trip_approval_workflow`.
-    - Trips cannot be moved to `CONFIRMED` until an administrator approves the trip (`POST /trips/:id/approve`).
-    - Super Admins and Admins are presented with "Approve Trip" and "Decline Approval" actions in `TripActionBar.jsx`.
-    - Declining approval (`POST /trips/:id/reject`) records the reason and generates an urgent review task + email for the submitting broker.
-    - Approval status badges display in trip headers and the trips table.
+  - **2.1 Trip Approval Workflow** *(built 9 Nov, reworked 10 Nov 2026)*:
+    - **Who approves is a permission, `TRIPS · APPROVE`** ("Approve trips"): a default for Super Admin and Admin, locked for every other role. `POST /trips/:id/approve` and `/reject` carry `@RequireAccess(Module.TRIPS, Action.APPROVE)`; the 9 Nov build hard-coded `isAdministrator` behind `TRIPS · EDIT`. Migration `20261110100000_trips_approve_permission` gives it to every existing Admin who held `TRIPS · EDIT`.
+    - A trip created or booked by someone without it starts `PENDING` (`20261109180000_trip_approval_workflow`); with it, `APPROVED`. Without it, a trip cannot be **created or booked as `CONFIRMED`** (400) and the create form does not offer it.
+    - `PENDING` **and `REJECTED`** trips cannot be confirmed (the 9 Nov gate checked only `PENDING`, so "Decline" blocked nothing). Rules are pure functions in `trips/trips.approval.ts`, tested with the service in `trips.approval.spec.ts`.
+    - Declining needs a `PENDING` trip, records the reason and gives the broker a task and an email. Approving works on `PENDING` or `REJECTED` and closes the approvers' tasks and any open "declined" task.
+    - **A broker editing a declined trip sends it back** to `PENDING`, clears the reason, closes their "declined" task and notifies the approvers again (`trip.resubmitted`). Ticking the trip checklist alone does not.
+    - The "waiting for approval" task and email go to everyone holding `TRIPS · APPROVE`, never the submitter.
+    - UI: `TripApprovalBanner` (theme tokens — the 9 Nov banners were white text on the light theme), `StatusBadge` "Pending Approval" / "Approval Declined" on the header, table rows and mobile cards, Approve / Decline buttons by `canAccess(Module.TRIPS, Action.APPROVE)`, timeline phrases for approve / decline / resubmit.
+    - Postman: `15 · Trips` → `12 · Approve` / `13 · Decline a broker's trip`, with the refusals; `27 · Dashboard` → `03 · Recent activity` documents `?userId=` (10 Nov).
   - **3.1 & 3.2 Trip Assignment Notifications:**
     - When an administrator assigns a trip to a broker, the broker receives an immediate in-app task in their notification bell (`todayUtc()`, `priority: HIGH`) and a branded transactional SMTP email via `MailService.sendTripAssignment()`.
 
@@ -1956,11 +1959,16 @@ has five sections, the open one in the URL (`?section=`).
 
 ---
 
-## 27. AI Assistant ⬜
+## 27. AI Assistant 🟡 *(built 29 Oct 2026 as review row #34 — ready for owner test)*
 
-Currently four hardcoded suggestion strings. The scope describes an in-app
-assistant answering questions about the desk's own data — so in practice it
-waits on the data being there, which means most of the queue above.
+Built on 29 Oct: `GET /assistant/suggestions` and `POST /assistant/ask`
+(`Backend/src/modules/assistant/`, `@StaffOnly()`), answering within the
+caller's reach and money permission; the header's **Ask Anything** popover
+(`AskAnythingPopover.jsx`). HANDOFF.md, Part 1, has the detail.
+
+- **9 Nov 2026 (client feedback 4.1):** the popover moved from the
+  Dashboard into `app/dashboard/layout.js`, so it is on every CRM screen,
+  with a global `⌘K` / `Ctrl+K` shortcut.
 
 ---
 
@@ -2416,6 +2424,25 @@ three optional fields as the update. The seed adds `agent@tribecajets.com`
 Things repaired in one place that changed behaviour in several modules. They
 have no single module's section, and they are the ones a later agent is most
 likely to trip over if they are not written down.
+
+### Client feedback, 8 items — built 9 Nov 2026, not yet owner tested
+
+Where each item landed (the client's update is `update-09-nov.txt`):
+
+| Item | What | Where |
+|---|---|---|
+| 1.1–1.4, 2.1, 3.1–3.2, 8.1–8.3 | Passenger sync, booking pop-up, checklist "Go", operator payment ticks, approval, assignment notices, contracts | **Trips (#11)**, above |
+| 2.2 | `BROKER` as a commission recipient (`CommissionRecipientType`, `BrokerPicker` in `AddCommissionDialog`) | Commissions (#18) |
+| 2.3 | Recent Activity filtered by team member (`GET /dashboard/activity?userId=`) | Dashboard (#24) |
+| 4.1 | Ask AI on every screen, `⌘K` | AI Assistant (#27) |
+| 5.1 | `CommonDatePicker` month and year dropdowns (1920 on) and typed `YYYY-MM-DD` entry | shared — every date field |
+| 6.1 | Export labels "CSV / Google Sheets" and "Excel / Sheets (.xlsx)" with import guidance | Reports (#23) |
+| 7.1 | Company wire details (`wireBankName` … `wireInstructions`) in Settings › Company & Branding, an optional per-invoice override (`invoices.wireInstructions`), shown on the receivable, the Client Portal statement and the invoice PDF | Settings (#26) → Receivables (#16), Client Portal (#25), PDF generator |
+
+**Who reads the wire details:** they are in `GET /settings` (company
+section), which needs `SETTINGS · VIEW` — administrators only — and never in
+the public branding. They reach a broker only resolved onto an invoice they
+may read, and a client only on their own portal statement and invoice PDF.
 
 ### `CommonDatePicker` emitted a display string — fixed 19 September 2026
 

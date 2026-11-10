@@ -1,3 +1,7 @@
+OUTDATED (10 Nov 2026): written before Reports, Settings, Import/Export, the PDF
+generator, the Client Portal, the AI Assistant and the 9 Nov feedback were built.
+For what is done today, read HANDOFF.md, Part 1.
+
 Testing checklist - admin user
 
 Everything in the sidebar is ready to test except Reports and Settings (not built yet).

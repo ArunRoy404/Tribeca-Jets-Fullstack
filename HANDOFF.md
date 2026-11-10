@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 9 November 2026.** Update the "Where we are" section in the
+**Last updated: 10 November 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -18,8 +18,9 @@ for a review, and how the owner likes to work, is in
 ### The stage: module-by-module review
 
 Every module in the build table in `docs/MODULES.md` is **built**, along with
-all 11 client adjustments, except the Client Portal (#25), the AI Assistant
-(#27, a stub), Import/Export and the PDF generator. Since 6 Oct 2026 the owner has been
+all 11 client adjustments and the client's 8 feedback items of 9 Nov. Rows
+1–30 are signed off; #31–#34 and the 9 Nov feedback batch are built and wait
+for the owner's test; #35 (Offline / PWA) is deferred. Since 6 Oct 2026 the owner has been
 **reviewing them one at a time**: for each module the agent explains what it
 does and what needs doing, the owner decides, the agent fixes it, and the
 owner clicks through it. **A module is done when the owner has tested it, not
@@ -66,13 +67,18 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 35 | Offline / PWA | ⏹️ Deferred by owner decision (documented for future) |
 
 **Git:** branch `roy`. Latest migration:
-`20261109180000_trip_approval_workflow` (run `npm run db:deploy` on any database
-that has not had it — applied to `tribeca_jets`).
+`20261110100000_trips_approve_permission` (data only; run `npm run db:deploy`
+on any database that has not had it — applied to `tribeca_jets` and
+`tribeca_postman` on 10 Nov).
 
-**15 Oct 2026:** Settings › Rate Limiting — only failed sign-ins and
-emailed codes are limited (session log below). Committed and pushed to
-`roy`; the owner merges to `main` (auto-deploy applies the migration on the
-API's start). Import / Export (#31) comes after.
+**Agents commit and push only on `roy` → `origin/roy`, never `main` on any
+remote (developer's rule, 10 Nov 2026).** Deploying is the developer's own step:
+
+**Deploying (since 10 Nov 2026):** `git push deploy roy:main` — the `deploy`
+remote (`ROY-0404/Tribeca-Jets`) is what Dokploy builds, and its `main` is
+fast-forwarded from `roy`; the API applies migrations on start. Local `main`
+is stale (pushing it is refused as non-fast-forward), and `origin/main` lags
+`roy` — bring it up to date when the owner merges.
 
 ### What is next — CRM Development Tasks Roadmap (9 Nov 2026) & QA Audit Verification
 
@@ -92,7 +98,7 @@ API's start). Import / Export (#31) comes after.
        - **1.4 Operator Payment Statuses:** Added `Operator Payment Sent` (auto-completed when operator payable is paid) and `Operator Payment Received` (desk verification toggle) to `TripConfirmationCard.jsx` and Prisma schema migration.
        - **8.1, 8.2, 8.3 Contract Management & External Buttons:** Added `TripContractCard.jsx` tracking `Contract Sent` and `Contract Received` statuses with toggle actions and direct external launch buttons for **Avanode** (`https://www.avanode.com`) and **DocuSign** (`https://app.docusign.com`).
     4. **Batch 4 (Approvals & Notifications) — ✅ COMPLETED 9 Nov 2026:**
-       - **2.1 Admin Trip Approval Workflow:** Added `approvalStatus: PENDING | APPROVED | REJECTED` to `Trip` in migration `20261109180000_trip_approval_workflow`. Trips created by brokers default to `PENDING` with an "Approval Required" banner and an admin review/approval button on `TripActionBar` required before moving to `CONFIRMED`. Endpoints `POST /trips/:id/approve` and `POST /trips/:id/reject` added for administrators, generating in-app tasks and email notifications for brokers upon decision.
+       - **2.1 Trip Approval Workflow:** Added `approvalStatus: PENDING | APPROVED | REJECTED` to `Trip` in migration `20261109180000_trip_approval_workflow`. Trips created without approval rights start `PENDING` and cannot be confirmed until approved via `POST /trips/:id/approve` / `reject`. **Reworked 10 Nov** (session log): approving is the permission `TRIPS · APPROVE`, a declined trip is held too and goes back for approval when edited, and nobody without the permission can create or book a trip straight into `CONFIRMED`.
        - **2.3 Recent Activity User/Broker Filter:** Added optional `userId` filter to `GET /dashboard/activity` (`DashboardActivityDto`, `dashboard.activity.ts`, `dashboard.service.ts`) and added a team member filter dropdown in `RecentActivityFeed.jsx`.
        - **3.1 & 3.2 Trip Assignment Notifications:** Dispatch in-app task/bell notification and transactional SMTP email via `MailService.sendTripAssignment()` to brokers when an admin assigns a trip to them.
 
@@ -144,13 +150,6 @@ data a referral agent must not see, ask the owner.
 
 ### Promises to keep
 
-- **When the review reaches Import / Export (row 31), tell the owner:**
-  Import is hidden (with a highlighted "later" note) and Export is not
-  connected. Build Export there, on `common/export/tabular.ts`.
-- **Itineraries (row 17):** the operator's itinerary file is uploaded
-  PRIVATE, so other brokers get a 404 opening it. Serve it through the
-  itinerary (`openVouched`, as referral attachments do). Deferred from the
-  Uploads review.
 - **Each module's settings rows** (MODULES.md §26 map) are wired during that
   module's review — Clients, Leads, Quotes, Trips, Itineraries, Flight
   Tracking, Receivables, Operator Payments, Tasks, Email Templates.
@@ -158,12 +157,17 @@ data a referral agent must not see, ask the owner.
 ### The local database was wiped and seeded on 9 Oct 2026 (owner's request)
 
 For clean testing, the database was wiped and seeded with standard baseline data:
-- **Users (one per role, all password `ChangeMe123!`):**
-  - **Super Admin:** `roy.techreion@gmail.com`
-  - **Admin:** `admin@tribecajets.com`
-  - **Broker:** `broker@tribecajets.com` (max 20 leads, phone follow-up)
-  - **Assistant:** `assistant@tribecajets.com`
-  - **Referral Agent:** `agent@tribecajets.com` (10% profit basis, lands in `/portal`)
+- **Users — what `tribeca_jets` actually holds (checked 10 Nov 2026), all
+  password `ChangeMe123!`:** `roy.techreion@gmail.com` and `admin@example.com`
+  (SUPER_ADMIN), `security@example.com` (ADMIN, two-factor), `broker@example.com`,
+  `assistant@example.com`, `agent@example.com` and `roy2.techreion@gmail.com`
+  (REFERRAL_AGENT). The `@tribecajets.com` addresses this section used to list
+  are not in it; the Postman collection signs in with the `@example.com` ones.
+- **The seed scripts write `@example.com` too since 10 Nov** (they wrote
+  `@tribecajets.com`; AGENTS.md: every seeded account is on `example.com`,
+  which never delivers — trip assignment and approval now email people).
+  `seed-test-data.ts` finds either. The Super Admin stays the developer's
+  own address.
 - **Settings:** Tribeca Jets default company settings record seeded.
 - **Airports (6 curated):** `KTEB` (Teterboro), `KPBI` (Palm Beach), `KMIA` (Miami), `KVNY` (Van Nuys), `KLAS` (Las Vegas), `EGLL` (London Heathrow).
 - **Operators (4 curated):** NetJets, FlexJet, VistaJet, ExecuJet.
@@ -179,18 +183,28 @@ For clean testing, the database was wiped and seeded with standard baseline data
 
 ### Known findings, not yet fixed (each on its module's turn)
 
-- Postman `01 · Auth` fails 3 assertions on the 4100 API, all from before
-  15 Oct: two pre-request scripts call `localhost:4000` instead of
-  `{{baseUrl}}` (Sign out one other device), and `reset-demo@example.com`
-  does not exist in `tribeca_postman` (Verify reset code, Set new password).
-- Postman folders **16–28** are missing from the collection JSON (their builders exist in `Backend/postman/`). Rebuild each with its module's review.
-- Frontend lint: one pre-existing error, `react-hooks/set-state-in-effect` in `TripRequestDialog.jsx` — Trip Requests (#13).
+- Postman folders **16–26 and 28** are missing from the collection JSON
+  (their builders exist in `Backend/postman/`; `27 · Dashboard` was rebuilt
+  10 Nov). Every module is reviewed, so these are overdue: one pass. Builders
+  that still carry a private `BASE = 'http://localhost:4000/api'` capture
+  against the API that sends real mail — move each to `builder_common`
+  (`POSTMAN_BASE`) as it is rebuilt.
+- `01 · Auth`'s reset flow sends two codes per run and the limit is three per
+  address per 15 minutes, so two back-to-back runs pass and a third inside
+  the window fails with 429 — the limit working, not a fault.
 - `RecordPicker` (8 Oct): the shared searchable, paged picker. Wrappers in use:
   - `AirportPicker` (Instant Estimate, Add Aircraft, Add Client, Schedule Follow-Up)
   - `OperatorPicker` (Add Aircraft)
   - `BrokerPicker` (Add Client, Schedule Follow-Up)
   - `AircraftPicker` (created for Quotes, Trips, Empty Legs, Flight Tracking)
-  Every other picker still loads the first 100 — switch each form on its module's review.
+  Every other picker still loads the first 100 — **18 dropdowns** as of 10 Nov
+  (Add Quote, Add Empty Leg, Add Receivable, Credit Movement, the three
+  Operator Sourcing dialogs, Compose Email, the trip form, and the Clients,
+  Quotes, Sourcing, Leads, Referrals and Trips toolbars, Schedule, Recent
+  Activity). Every module has been reviewed, so these are overdue: one pass.
+- The old role matrix (`ROLE_RESTRICTIONS_ENABLED`, `permissions.ts`) is now
+  used by no screen (10 Nov) and on the API only by `users.controller.ts`.
+  Move Users to `@RequireAccess`, then delete the matrix and the switch.
 - Airport form upper-cases "State" (fine for NY, wrong for "Ontario") — offered, not decided.
 - An uploaded logo is shown on the dark sidebar and on light pages alike; a dark-only logo may lack contrast in the sidebar. A second "logo for dark backgrounds" field was offered, not built.
 
@@ -238,12 +252,12 @@ For clean testing, the database was wiped and seeded with standard baseline data
 
 4. **Sign in to test:**
    - Staff Dashboard: `http://localhost:3000/login` -> `roy.techreion@gmail.com` / `ChangeMe123!` (Super Admin)
-   - Other staff accounts: `admin@tribecajets.com`, `broker@tribecajets.com`, `assistant@tribecajets.com` (all `ChangeMe123!`)
-   - Partner Portal: `http://localhost:3000/portal` -> `agent@tribecajets.com` / `ChangeMe123!`
+   - Other staff accounts: `admin@example.com` (Super Admin), `security@example.com` (Admin, two-factor), `broker@example.com`, `assistant@example.com` (all `ChangeMe123!`)
+   - Partner Portal: `http://localhost:3000/portal` -> `agent@example.com` / `ChangeMe123!`
 
-- **Accounts in the seeded database**, all `ChangeMe123!`:
-  `roy.techreion@gmail.com` (SUPER_ADMIN), `admin@tribecajets.com` (ADMIN), `broker@tribecajets.com` (BROKER),
-  `assistant@tribecajets.com` (ASSISTANT), `agent@tribecajets.com` (REFERRAL_AGENT, signs in to `/portal`).
+- **Accounts in the dev database**, all `ChangeMe123!`: see Part 1, "The
+  local database" — every staff and partner account is on `@example.com`
+  except the developer's own Gmail addresses.
 - **Storage:** `STORAGE_DRIVER=auto` with the three S3/R2 keys **empty** uses
   local disk (`Backend/storage/`). Never put production R2 keys in the local
   `.env`; a partial set refuses to boot.
@@ -334,6 +348,77 @@ the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
 
 
+
+### 10 Nov 2026 — Trip approval fixed, old-matrix buttons moved, seed and docs (Claude Code)
+
+An audit of the project after the 9 Nov batch found the approval feature
+(client feedback 2.1) did not hold. Owner-level decisions were taken on
+Claude's recommendation, with the developer's approval:
+
+- **A declined trip could still be confirmed.** The confirm gate checked only
+  `PENDING`. Now a `REJECTED` trip is held as well (`confirmBlockedBy` in the
+  new `trips/trips.approval.ts`, pure functions with tests).
+- **A broker could skip approval** by creating a trip, or booking a quote,
+  straight into `CONFIRMED`. Now refused (400) for anyone who cannot approve;
+  the create form no longer offers "Confirmed" to them.
+- **Resubmit (decision):** a broker editing a declined trip sends it back to
+  `PENDING`, clears the reason, closes their "declined" task and notifies the
+  approvers again (audited `trip.resubmitted`). Ticking the trip checklist
+  alone does not resubmit.
+- **Who approves (decision):** a new action, **`TRIPS · APPROVE`** ("Approve
+  trips"), replaces the hard-coded `isAdministrator` check. Default for
+  Super Admin and Admin, locked for Broker, Assistant and Referral Agent; the
+  routes carry `@RequireAccess(Module.TRIPS, Action.APPROVE)`, the buttons
+  `canAccess`. A trip is auto-approved for anyone holding it, and the
+  "waiting for approval" task and email go to whoever holds it. Migration
+  `20261110100000_trips_approve_permission` gives it to every existing Admin
+  whose stored set held `TRIPS · EDIT`, so nobody loses the power.
+- **Decline only a pending trip.** `reject` had no state check — an admin
+  could "decline" a trip already in the air. Approve still works on a
+  declined trip (an admin changing their mind).
+- **UI:** the approval banners rendered `text-white` on the light theme
+  (titles invisible) and hard-coded amber/red; replaced by one
+  `TripApprovalBanner` on theme tokens. Badges use `StatusBadge`
+  ("Pending Approval", "Approval Declined"), now on the mobile cards too.
+  Timeline phrases added for approve / decline / resubmit.
+- **Old matrix off every screen:** 14 checks still read the old role matrix
+  in modules already moved to per-person permissions (client and lead
+  detail, Leads table, Operators' Request Quote and document filing,
+  operator and client Documents tabs, client Credit tab, Schedule's New
+  Trip, the notes timeline). Each now mirrors its API rule through
+  `canAccess`; `SUBJECT_PERMISSION` was deleted from `lib/timeline.js`.
+- **Seed accounts** moved to `@example.com` (see Part 1); three unused seed
+  variables removed (oxlint clean).
+- **Verification:** backend Vitest 67 files / 590 tests green (21 new in
+  `trips.approval.spec.ts`), `tsc --noEmit` clean, oxlint 0 warnings;
+  frontend ESLint clean and `next build` green. Migration applied to
+  `tribeca_jets`. Not done: the owner's click-through.
+- **Postman** (once Postgres was back):
+  - **Every pre-request script ignored `--env-var baseUrl`** — 50 read
+    `pm.collectionVariables.get('baseUrl')`, so a run against the 4100 test
+    API did its lookups, sign-ins and setup on the **dev API (4000)** and dev
+    database, and only the requests themselves went to 4100. Runs looked
+    green because both hold the same accounts. All 50, and 28 builders,
+    now read `pm.variables.get('baseUrl')` (AGENTS.md rule added).
+  - `01 · Auth`: `reset-demo@example.com` did not exist after the 9 Oct
+    wipe; `Request reset code` now invites it once when missing
+    (`fix_auth_reset_account.py`). Green on two back-to-back runs.
+  - `15 · Trips` rebuilt with `12 · Approve` and `13 · Decline a broker's
+    trip` (pre-requests book a trip as the broker), plus 400 examples for
+    creating CONFIRMED without approval and confirming a declined trip, and
+    the resubmit edit. `27 · Dashboard` rebuilt with `?userId=` — the folder
+    was missing from the collection; its stale "403 · An assistant does not
+    read operator payments" is now the 200 the open-reads rule gives.
+  - `09 · Operator Sourcing` failed on any database with one live operator
+    (409) and archived its ask with a `pm.sendRequest` in its last test
+    script. It now asks a probe operator of its own and ends with two
+    teardown requests (`fix_sourcing_probe_operator.py`).
+  - Verified on 4100: `01 · Auth` 19/19 on two back-to-back runs; every
+    other folder in one run, 196 requests and 145 assertions, 0 failures,
+    none sent to 4000, and no probe left live. 499 examples, 0 mislabelled.
+- **Committed in six batches on `roy` and pushed to `origin/roy`** at the
+  developer's request (approval backend, approval UI, old-matrix checks,
+  seed, Postman, docs). `main` untouched, on every remote.
 
 ### 31 Oct 2026 — Production Deployment on Dokploy/Hostinger & Executive QA Summary (Antigravity)
 
