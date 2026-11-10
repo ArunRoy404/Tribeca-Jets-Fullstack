@@ -605,7 +605,7 @@ def build(owner, broker, assistant):
                 "const id = pm.collectionVariables.get('newOperatorQuoteId');",
                 'if (id) {',
                 '    pm.sendRequest({',
-                "        url: pm.collectionVariables.get('baseUrl') + '/operator-quotes/' + id,",
+                "        url: pm.variables.get('baseUrl') + '/operator-quotes/' + id,",
                 "        method: 'DELETE',",
                 "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
                 '    }, function (err) {',

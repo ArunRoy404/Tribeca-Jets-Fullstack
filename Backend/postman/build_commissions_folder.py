@@ -60,7 +60,7 @@ UPDATE_BODY = """{
 # A priced trip of this folder's own, and the seeded agent's id, per run — so
 # the folder passes alone and percent-of-profit has a real value.
 SETUP = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "pm.sendRequest({ url: base + '/users?role=REFERRAL_AGENT&limit=1', method: 'GET' }, function (err, res) {",
     "    if (!err && res.code === 200 && res.json().data.length) { pm.collectionVariables.set('agentUserId', res.json().data[0].id); }",
@@ -86,7 +86,7 @@ SETUP = [
 
 TEARDOWN = [
     '// Archive what this folder created. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "const commission = pm.collectionVariables.get('newCommissionId');",
     "if (commission) { pm.sendRequest({ url: base + '/commissions/' + commission, method: 'DELETE', header: headers }, function () {}); }",

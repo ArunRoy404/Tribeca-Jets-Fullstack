@@ -270,7 +270,7 @@ def build(cap: dict) -> dict:
                     script('prerequest', [
                         "const tail = 'T' + Date.now().toString(36).toUpperCase().slice(-8);",
                         "pm.collectionVariables.set('newAircraftTail', tail);",
-                        "const base = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
+                        "const base = pm.variables.get('baseUrl') || pm.variables.get('baseUrl');",
                         "pm.sendRequest({ url: base + '/operators?limit=1', method: 'GET' }, function (err, res) {",
                         "    if (!err && res.code === 200 && res.json().data.length) {",
                         "        pm.collectionVariables.set('operatorId', res.json().data[0].id);",

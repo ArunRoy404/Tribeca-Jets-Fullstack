@@ -48,7 +48,7 @@ UPDATE_BODY = """{
 
 SETUP = [
     '// A probe client on example.com and a PRIVATE upload, so the folder runs alone.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const csrf = pm.collectionVariables.get('csrfToken');",
     "pm.sendRequest({ url: base + '/clients', method: 'POST',",
     "    header: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },",
@@ -70,7 +70,7 @@ SAVE_UPLOAD = script('test', [
 
 TEARDOWN = [
     '// Archive the document and the probe client this folder wrote. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const csrf = { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "pm.sendRequest({ url: base + '/documents/' + pm.collectionVariables.get('newDocumentId'),",
     "    method: 'DELETE', header: csrf }, function () {});",

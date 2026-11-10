@@ -57,7 +57,7 @@ SEND_BODY = """{
 
 SETUP = [
     '// A probe client on example.com — reserved, never delivered — so a run never emails a real client.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/clients', method: 'POST',",
     "    header: { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
     "    body: { mode: 'raw', raw: JSON.stringify({ firstName: 'Postman', lastName: 'Email Probe',",
@@ -78,7 +78,7 @@ SAVE_EMAIL = script('test', [
 
 TEARDOWN = [
     '// Archive the template and the probe client this folder wrote. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const csrf = { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "pm.sendRequest({ url: base + '/email-templates/' + pm.collectionVariables.get('newEmailTemplateId'),",
     "    method: 'DELETE', header: csrf }, function () {});",

@@ -59,7 +59,7 @@ UPDATE_BODY = """{
 # in asynchronously, and a lookup queued beside that login would fire before
 # the session cookie exists.
 SETUP_TRIP = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (err, cRes) {",
     '    if (err || cRes.code !== 200 || !cRes.json().data.length) { return; }',
@@ -83,7 +83,7 @@ SETUP_TRIP = [
 TEARDOWN = [
     '// Archive what this folder created — the run is a demonstration, not data',
     '// entry. Nothing is deleted: the rows sit in the Archived tabs.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "['newItineraryId'].forEach(function (key) {",
     '    const id = pm.collectionVariables.get(key);',

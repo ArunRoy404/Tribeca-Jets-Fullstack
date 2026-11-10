@@ -55,7 +55,7 @@ CHECKLIST_BODY = """{
 
 SETUP = [
     '// Find the seeded broker and a client, for the task this folder writes.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/users?limit=100', method: 'GET' }, function (e1, users) {",
     "    pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (e2, clients) {",
     '        if (e1 || e2) { return; }',
@@ -73,7 +73,7 @@ SAVE_TASK = script('test', [
 
 TEARDOWN = [
     '// Archive the task this folder wrote. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/tasks/' + pm.collectionVariables.get('newTaskId'), method: 'DELETE',",
     "    header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') } }, function () {});",
 ]

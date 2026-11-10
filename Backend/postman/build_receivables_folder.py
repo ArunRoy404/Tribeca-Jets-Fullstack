@@ -58,7 +58,7 @@ PAYMENT_UPDATE_BODY = """{
 
 # A priced trip of this folder's own, per run — so the folder passes alone.
 SETUP = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (err, clients) {",
     '    if (err || clients.code !== 200 || !clients.json().data.length) { return; }',
@@ -84,7 +84,7 @@ SETUP = [
 DRAFT_SETUP = [
     '// A payment-free draft for the archive requests: an invoice with a live',
     '// payment cannot be archived, which is the point of that rule.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     'pm.sendRequest({',
     "    url: base + '/receivables', method: 'POST',",
     "    header: { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
@@ -96,7 +96,7 @@ DRAFT_SETUP = [
 
 TEARDOWN = [
     '// Withdraw the payment, then archive what this folder created. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "const invoice = pm.collectionVariables.get('newInvoiceId');",
     "const payment = pm.collectionVariables.get('newPaymentId');",

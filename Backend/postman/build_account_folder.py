@@ -109,7 +109,7 @@ def folder_login(collection: dict) -> list:
 SECOND_DEVICE_SCRIPT = [
     '// Signs in once more, as a second device, then picks whichever live',
     '// session is not the one this request will be sent from.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     'pm.sendRequest({',
     "    url: base + '/auth/login', method: 'POST',",
     "    header: { 'Content-Type': 'application/json' },",
@@ -165,7 +165,7 @@ def build(cap: dict) -> dict:
             'event': [
                 script('prerequest', [
                     '// Saves the account\'s own values back, so a run changes nothing.',
-                    "pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/auth/me', method: 'GET' },",
+                    "pm.sendRequest({ url: pm.variables.get('baseUrl') + '/auth/me', method: 'GET' },",
                     '    function (err, res) {',
                     '        const me = (res && res.json().data) || {};',
                     "        pm.variables.set('acctFirstName', me.firstName || 'Assistant');",

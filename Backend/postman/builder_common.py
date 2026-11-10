@@ -179,7 +179,7 @@ def sign_in_as(email_variable: str, tag: str) -> list[str]:
         '// signs the owner back in on the next request.',
         f"if (pm.variables.get('_sessionAs') !== '{tag}') {{",
         '    pm.sendRequest({',
-        "        url: pm.collectionVariables.get('baseUrl') + '/auth/login', method: 'POST',",
+        "        url: pm.variables.get('baseUrl') + '/auth/login', method: 'POST',",
         "        header: { 'Content-Type': 'application/json' },",
         "        body: { mode: 'raw', raw: JSON.stringify({",
         f"            email: pm.collectionVariables.get('{email_variable}'),",

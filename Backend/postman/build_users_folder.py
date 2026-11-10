@@ -419,7 +419,7 @@ def build(cap: dict) -> dict:
                         "// Invites a fresh example.com address to withdraw, so a run never",
                         "// deletes anyone it did not create.",
                         "pm.sendRequest({",
-                        "    url: pm.collectionVariables.get('baseUrl') + '/users/invite', method: 'POST',",
+                        "    url: pm.variables.get('baseUrl') + '/users/invite', method: 'POST',",
                         "    header: { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
                         "    body: { mode: 'raw', raw: JSON.stringify({",
                         "        email: `avery.withdraw+${Date.now()}@example.com`, password: 'Welcome-Aboard-26',",

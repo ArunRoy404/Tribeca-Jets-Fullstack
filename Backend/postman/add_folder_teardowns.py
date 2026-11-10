@@ -66,7 +66,7 @@ def teardown_lines(cfg: dict) -> list[str]:
         f"const id = pm.collectionVariables.get('{cfg['var']}');",
         'if (id) {',
         '    pm.sendRequest({',
-        f"        url: pm.collectionVariables.get('baseUrl') + '{cfg['path']}' + id,",
+        f"        url: pm.variables.get('baseUrl') + '{cfg['path']}' + id,",
         "        method: 'DELETE',",
         "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
         '    }, function (err) {',

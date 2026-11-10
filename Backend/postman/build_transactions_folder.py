@@ -27,7 +27,7 @@ KINDS = 'CLIENT_PAYMENT | OPERATOR_PAYMENT | COMMISSION'
 # One movement of each kind, made by chained requests so the folder runs alone.
 SETUP = [
     '// Make one movement of each kind for this folder to list.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     'function post(path, body, done) {',
     "    pm.sendRequest({ url: base + path, method: 'POST', header: headers, body: { mode: 'raw', raw: JSON.stringify(body) } },",
@@ -70,7 +70,7 @@ SETUP = [
 
 TEARDOWN = [
     '// Withdraw the payments, then archive what this folder created. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "const v = (k) => pm.collectionVariables.get(k);",
     "function del(path, done) { pm.sendRequest({ url: base + path, method: 'DELETE', header: headers }, function () { if (done) { done(); } }); }",

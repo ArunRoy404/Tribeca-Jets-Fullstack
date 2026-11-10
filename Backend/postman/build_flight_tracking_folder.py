@@ -28,7 +28,7 @@ DAY = '2026-12-18'
 # A one-way trip of the folder's own, so it runs alone and never reports on the desk's flights.
 SETUP = [
     '// Book a one-way trip whose flight this folder reports on.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (e1, clients) {",
     "    pm.sendRequest({ url: base + '/airports?limit=2', method: 'GET' }, function (e2, airports) {",
@@ -52,7 +52,7 @@ SETUP = [
 
 TEARDOWN = [
     '// Archive the trip this folder booked. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/trips/' + pm.collectionVariables.get('flightTripId'), method: 'DELETE',",
     "    header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') } }, function () {});",
 ]

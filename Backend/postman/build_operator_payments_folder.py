@@ -56,7 +56,7 @@ PAYMENT_UPDATE_BODY = """{
 
 # A trip of this folder's own with an operator, per run — so it passes alone.
 SETUP = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (err, clients) {",
     '    if (err || clients.code !== 200 || !clients.json().data.length) { return; }',
@@ -86,7 +86,7 @@ SETUP = [
 SPARE_SETUP = [
     '// A payment-free bill for the archive requests: a bill with a live payment',
     '// cannot be archived, which is the point of that rule.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     'pm.sendRequest({',
     "    url: base + '/operator-payments', method: 'POST',",
     "    header: { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
@@ -98,7 +98,7 @@ SPARE_SETUP = [
 
 TEARDOWN = [
     '// Withdraw the payment, then archive what this folder created. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "const payable = pm.collectionVariables.get('newPayableId');",
     "const payment = pm.collectionVariables.get('newOperatorPaymentId');",

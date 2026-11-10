@@ -26,7 +26,7 @@ OWN_BROKER = [
     ' */',
     "if (!pm.collectionVariables.get('userId')) {",
     '    pm.sendRequest({',
-    "        url: pm.collectionVariables.get('baseUrl') + '/users?search=mark&limit=1',",
+    "        url: pm.variables.get('baseUrl') + '/users?search=mark&limit=1',",
     "        method: 'GET',",
     '    }, function (err, res) {',
     "        if (err) { console.error('could not resolve a broker', err); return; }",

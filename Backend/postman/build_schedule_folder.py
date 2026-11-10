@@ -30,7 +30,7 @@ WINDOW = ('2026-12-14', '2026-12-27')
 # A round trip of the folder's own, so it runs alone and never reads the desk's.
 SETUP = [
     '// Book a round trip for this folder to show on the calendar.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     "pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (e1, clients) {",
     "    pm.sendRequest({ url: base + '/airports?limit=2', method: 'GET' }, function (e2, airports) {",
@@ -56,7 +56,7 @@ SETUP = [
 
 TEARDOWN = [
     '// Archive the round trip this folder booked. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/trips/' + pm.collectionVariables.get('scheduleTripId'), method: 'DELETE',",
     "    header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') } }, function () {});",
 ]

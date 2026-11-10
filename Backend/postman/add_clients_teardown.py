@@ -46,7 +46,7 @@ TEARDOWN = [
     '// actually works.',
     "const id = pm.collectionVariables.get('newClientId');",
     'if (id) {',
-    "    const baseUrl = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
+    "    const baseUrl = pm.variables.get('baseUrl') || pm.variables.get('baseUrl');",
     '    pm.sendRequest({',
     "        url: baseUrl + '/clients/' + id,",
     "        method: 'DELETE',",

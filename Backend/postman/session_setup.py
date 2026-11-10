@@ -54,7 +54,7 @@ def session_script(account: str) -> dict:
                 f"const NEEDED = '{account}';",
                 "",
                 "if (pm.variables.get('_sessionAs') !== NEEDED) {",
-                "    const baseUrl = pm.variables.get('baseUrl') || pm.collectionVariables.get('baseUrl');",
+                "    const baseUrl = pm.variables.get('baseUrl') || pm.variables.get('baseUrl');",
                 "    pm.sendRequest({",
                 "        url: baseUrl + '/auth/login',",
                 "        method: 'POST',",

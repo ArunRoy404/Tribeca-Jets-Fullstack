@@ -336,7 +336,7 @@ def build(owner: Session, mark: Session, barry: Session, agent: Session, mark_id
                 '// A broker to file the document about, fetched here rather than',
                 '// trusting {{userId}}, which `04 · Users` sets. Without this the',
                 '// folder passed inside a full run and answered 400 run on its own.',
-                "const base = pm.collectionVariables.get('baseUrl');",
+                "const base = pm.variables.get('baseUrl');",
                 "pm.sendRequest({ url: base + '/users?limit=1&role=BROKER&status=ACTIVE', method: 'GET' }, function (err, res) {",
                 '    if (!err && res.code === 200 && res.json().data.length) {',
                 "        pm.collectionVariables.set('userId', res.json().data[0].id);",

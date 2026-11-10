@@ -14,8 +14,8 @@ import json
 import pathlib
 
 from builder_common import (
-    MISSING, WRITE_HEADERS, Session, copy_folder_login, example, script,
-    status_test, url,
+    MISSING, WRITE_HEADERS, Session, copy_folder_login, ensure_variables, example,
+    script, status_test, url,
 )
 from collection_order import place_folder
 
@@ -79,7 +79,7 @@ def legs_for(a, b):
 # signs in asynchronously, and a lookup queued beside that login would fire
 # before the session cookie exists.
 LOOKUPS = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (err, res) {",
     "    if (!err && res.code === 200 && res.json().data.length) { pm.collectionVariables.set('clientId', res.json().data[0].id); }",
     '});',
@@ -96,7 +96,7 @@ LOOKUPS = [
 # Creates, sends and approves a quote on the same client and route, so 07 has
 # an approved offer to book — every run, on any database.
 APPROVED_QUOTE = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     'pm.sendRequest({',
     "    url: base + '/quotes', method: 'POST', header: headers,",
@@ -115,12 +115,55 @@ APPROVED_QUOTE = [
     '});',
 ]
 
+
+def broker_trip(variable: str) -> list[str]:
+    """
+    Pre-request lines that book a trip *as the broker* — who cannot approve, so
+    it starts PENDING — store its id in `variable`, then sign the owner back in
+    for the request itself (client feedback 2.1, 10 Nov 2026).
+    """
+    return [
+        '// A broker cannot approve trips, so a trip they book waits for approval.',
+        '// Book one as the broker, then sign the owner back in to decide it.',
+        '// The client and airports are the ones 01 looked up.',
+        "const base = pm.variables.get('baseUrl');",
+        'function login(email, then) {',
+        '    pm.sendRequest({',
+        "        url: base + '/auth/login', method: 'POST',",
+        "        header: { 'Content-Type': 'application/json' },",
+        "        body: { mode: 'raw', raw: JSON.stringify({ email: email, password: pm.collectionVariables.get('password') }) },",
+        '    }, function (err, res) {',
+        '        if (err || !res) { return; }',
+        "        res.headers.all().filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+        '            .forEach(function (h) {',
+        '                const match = /tj_csrf=([^;]+)/.exec(h.value);',
+        "                if (match) { pm.collectionVariables.set('csrfToken', match[1]); }",
+        '            });',
+        '        then();',
+        '    });',
+        '}',
+        "login(pm.collectionVariables.get('brokerEmail'), function () {",
+        '    pm.sendRequest({',
+        "        url: base + '/trips', method: 'POST',",
+        "        header: { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
+        "        body: { mode: 'raw', raw: JSON.stringify({",
+        "            clientId: pm.collectionVariables.get('clientId'), status: 'BOOKED', type: 'ONE_WAY', passengerCount: 2,",
+        "            legs: [{ originAirportId: pm.collectionVariables.get('airportId'), destinationAirportId: pm.collectionVariables.get('airportId2'), departureDate: '2026-12-10' }],",
+        '        }) },',
+        '    }, function (err, res) {',
+        f"        if (!err && res.code === 201) {{ pm.collectionVariables.set('{variable}', res.json().data.id); }}",
+        "        login(pm.collectionVariables.get('ownerEmail'), function () { pm.variables.set('_sessionAs', 'owner'); });",
+        '    });',
+        '});',
+    ]
+
+
 TEARDOWN = [
     '// Archive what this folder created — the run is a demonstration, not data',
     '// entry. Nothing is deleted: the rows sit in the Archived tabs.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
-    "['newTripId', 'bookedTripId'].forEach(function (key) {",
+    "['newTripId', 'bookedTripId', 'pendingTripId', 'declinedTripId'].forEach(function (key) {",
     '    const id = pm.collectionVariables.get(key);',
     "    if (id) { pm.sendRequest({ url: base + '/trips/' + id, method: 'DELETE', header: headers }, function () {}); }",
     '});',
@@ -154,6 +197,7 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         cap['create_400_dates'] = owner.request('POST', '/trips', {
             **payload, 'legs': [{**payload['legs'][0], 'departureDate': '2026-11-20'}, payload['legs'][1]]})
         cap['create_403_reassign'] = broker.request('POST', '/trips', {**payload, 'assignedBrokerId': trip['createdById']})
+        cap['create_400_confirmed'] = broker.request('POST', '/trips', {**payload, 'status': 'CONFIRMED'})
         cap['create_403'] = assistant.request('POST', '/trips', payload)
 
         cap['list'] = owner.request('GET', '/trips?page=1&limit=10')
@@ -189,6 +233,24 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         created.append(('trip', cap['book'][1]['data']['id']))
         cap['book_400'] = owner.request('POST', f"/trips/from-quote/{draft['id']}", {})
         cap['book_409'] = owner.request('POST', f"/trips/from-quote/{approved['id']}", {})
+
+        # Approval (client feedback 2.1): a broker's trip waits for someone
+        # holding Trips · Approve.
+        broker_payload = {'clientId': client_id, 'status': 'BOOKED', 'type': 'ONE_WAY', 'passengerCount': 2,
+                          'legs': [{'originAirportId': a, 'destinationAirportId': b, 'departureDate': '2026-12-10'}]}
+        pending = broker.request('POST', '/trips', broker_payload)[1]['data']
+        created.append(('trip', pending['id']))
+        declined = broker.request('POST', '/trips', broker_payload)[1]['data']
+        created.append(('trip', declined['id']))
+        cap['pending_id'], cap['declined_id'] = pending['id'], declined['id']
+        cap['approve_403'] = broker.request('POST', f"/trips/{pending['id']}/approve")
+        cap['approve'] = owner.request('POST', f"/trips/{pending['id']}/approve")
+        cap['approve_400'] = owner.request('POST', f"/trips/{pending['id']}/approve")
+        reason = {'reason': 'The client asked for a midsize, not a heavy jet.'}
+        cap['reject'] = owner.request('POST', f"/trips/{declined['id']}/reject", reason)
+        cap['reject_400'] = owner.request('POST', f"/trips/{declined['id']}/reject", reason)
+        cap['confirm_declined_400'] = owner.request('POST', f"/trips/{declined['id']}/status", {'status': 'CONFIRMED'})
+        cap['resubmit'] = broker.request('PATCH', f"/trips/{declined['id']}", {'internalNotes': 'Moved to a midsize as asked.'})
 
         cap['remove_403'] = broker.request('DELETE', f"/trips/{trip['id']}")
         cap['remove'] = owner.request('DELETE', f"/trips/{trip['id']}")
@@ -239,7 +301,9 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                     'Most trips are booked from an approved quote (`07`); this is the by-hand path.\n\n'
                     'Legs must fit the type (one-way 1, round trip 2, multi-leg 2+), no leg may start and end at '
                     'the same airport, and days may not go backwards. Created as DRAFT, BOOKED or CONFIRMED only. '
-                    'A broker may only assign the trip to themselves.\n\nMoney: only what a person typed is stored; '
+                    'A broker may only assign the trip to themselves.\n\n**Approval:** a trip booked by someone '
+                    'without `TRIPS · APPROVE` starts `approvalStatus: PENDING` and cannot be confirmed until it is '
+                    'approved (`12`), so they cannot create it as CONFIRMED either (400).\n\nMoney: only what a person typed is stored; '
                     '`fetAmount`, `totalPrice`, `grossProfit` and `marginPercentage` come from the same pricing '
                     'engine as quotes on every read, and the last three are absent without VIEW_FINANCIALS.'),
             },
@@ -248,6 +312,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                 example('400 · Legs do not fit the type', 'POST', '/trips', *cap['create_400_legs']),
                 example('400 · Days go backwards', 'POST', '/trips', *cap['create_400_dates']),
                 example('403 · A broker cannot assign someone else', 'POST', '/trips', *cap['create_403_reassign']),
+                example('400 · Confirmed needs Trips · Approve', 'POST', '/trips', *cap['create_400_confirmed'],
+                        req_body={'status': 'CONFIRMED'}),
                 example('403 · Assistant cannot book trips', 'POST', '/trips', *cap['create_403']),
             ],
         },
@@ -304,11 +370,17 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                 'description': (
                     '`legs` and `passengers` are complete lists: an existing row\'s `id` keeps it, a row left '
                     'out is archived. A completed or cancelled trip is history — move it back a step first. '
-                    'Only links that change are re-validated, so archiving an airport later never locks a trip.'),
+                    'Only links that change are re-validated, so archiving an airport later never locks a trip. '
+                    'A **declined** trip edited by someone without `TRIPS · APPROVE` goes back to `PENDING` and the '
+                    'approvers are told again; ticking only the checklist (`operatorConfirmed`, `contractSent`, '
+                    '`contractReceived`, `operatorPaymentReceived`) does not count.'),
             },
             'response': [
                 example('200 · Round trip made one-way', 'PATCH', f'/trips/{trip_id}', *cap['update']),
                 example('400 · Empty body', 'PATCH', f'/trips/{trip_id}', *cap['update_400'], req_body={}),
+                example('200 · A declined trip edited by its broker goes back for approval', 'PATCH',
+                        f"/trips/{cap['declined_id']}", *cap['resubmit'],
+                        req_body={'internalNotes': 'Moved to a midsize as asked.'}),
             ],
         },
         {
@@ -322,13 +394,16 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                 'description': (
                     'DRAFT → BOOKED → CONFIRMED → IN_FLIGHT → COMPLETED, each undoable one step; CANCELLED from '
                     'anywhere before departure; a cancelled trip reopens as DRAFT. A disallowed move is a 400 '
-                    'that names the allowed ones.'),
+                    'that names the allowed ones. CONFIRMED also needs `approvalStatus: APPROVED` — a PENDING or '
+                    'declined trip is refused.'),
             },
             'response': [
                 example('200 · Confirmed', 'POST', f'/trips/{trip_id}/status', *cap['status'],
                         req_body={'status': 'CONFIRMED', 'note': 'Operator confirmed the tail.'}),
                 example('400 · Not a move from here', 'POST', f'/trips/{trip_id}/status', *cap['status_400'],
                         req_body={'status': 'COMPLETED'}),
+                example('400 · A declined trip cannot be confirmed', 'POST', f"/trips/{cap['declined_id']}/status",
+                        *cap['confirm_declined_400'], req_body={'status': 'CONFIRMED'}),
             ],
         },
         {
@@ -408,7 +483,43 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
             'response': [example('200 · Restored', 'POST', '/trips/bulk-restore', *cap['bulk_restore'], req_body={'ids': [trip_id]})],
         },
         {
-            'name': '12 · Teardown',
+            'name': '12 · Approve a broker\'s trip',
+            'event': [script('prerequest', broker_trip('pendingTripId')), status_test(200, '200 OK')],
+            'request': {
+                'method': 'POST', 'header': WRITE_HEADERS, 'url': url('/trips/{{pendingTripId}}/approve'),
+                'description': (
+                    'Needs **Trips · Approve trips** (`TRIPS · APPROVE`) — a default for Super Admin and Admin, '
+                    'never held by a broker, assistant or referral agent. Approves a PENDING or declined trip so it '
+                    'can be confirmed, closes the approvers\' tasks and emails the broker. The pre-request script '
+                    'books a trip as the broker so there is one waiting.'),
+            },
+            'response': [
+                example('200 · Approved', 'POST', '/trips/{{pendingTripId}}/approve', *cap['approve']),
+                example('400 · Already approved', 'POST', '/trips/{{pendingTripId}}/approve', *cap['approve_400']),
+                example('403 · A broker cannot approve', 'POST', '/trips/{{pendingTripId}}/approve', *cap['approve_403']),
+            ],
+        },
+        {
+            'name': '13 · Decline a broker\'s trip',
+            'event': [script('prerequest', broker_trip('declinedTripId')), status_test(200, '200 OK')],
+            'request': {
+                'method': 'POST', 'header': WRITE_HEADERS,
+                'body': {'mode': 'raw', 'raw': '{\n  "reason": "The client asked for a midsize, not a heavy jet."  // optional · max 1000, shown to the broker\n}',
+                         'options': {'raw': {'language': 'json'}}},
+                'url': url('/trips/{{declinedTripId}}/reject'),
+                'description': (
+                    'Needs `TRIPS · APPROVE`. Only a PENDING trip is declined. It then cannot be confirmed until the '
+                    'broker edits it (back to PENDING, `05`) and it is approved. The broker gets a task and an email '
+                    'with the reason.'),
+            },
+            'response': [
+                example('200 · Declined', 'POST', '/trips/{{declinedTripId}}/reject', *cap['reject'], req_body=reason),
+                example('400 · Already declined', 'POST', '/trips/{{declinedTripId}}/reject', *cap['reject_400'],
+                        req_body=reason),
+            ],
+        },
+        {
+            'name': '14 · Teardown',
             'event': [script('prerequest', TEARDOWN), status_test(200, 'probe rows archived')],
             'request': {
                 'method': 'GET', 'header': [], 'url': url('/trips/stats'),
@@ -423,9 +534,10 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         'description': (
             'The booked flight (#11, scope §6.5) — client, broker, operator, aircraft, legs, passengers and the '
             'money — and what every later module hangs off. Usually born from an approved quote (`07`).\n\n'
-            'VIEW_TRIPS reads, MANAGE_TRIPS writes, archiving is an administrator\'s call. Runs alone: it signs '
-            'itself in, finds its own client, operator and airports, approves its own quote, and archives '
-            'everything it created.'),
+            'Reads need a session; writes need the Trips permission for the action, and approving or declining a '
+            'broker\'s trip needs `TRIPS · APPROVE`. Runs alone: it signs itself in, finds its own client, operator '
+            'and airports, approves its own quote, books two trips as the broker to decide, and archives everything '
+            'it created.'),
         'item': items,
     }
 
@@ -441,10 +553,10 @@ def main() -> None:
     copy_folder_login(collection, folder)
     place_folder(collection, folder)
 
-    existing = {v['key'] for v in collection['variable']}
-    for key in ('newTripId', 'tripLegId', 'bookQuoteId', 'bookedTripId', 'airportId2'):
-        if key not in existing:
-            collection['variable'].append({'key': key, 'value': '', 'type': 'string'})
+    ensure_variables(collection, {
+        'newTripId': '', 'tripLegId': '', 'bookQuoteId': '', 'bookedTripId': '', 'airportId2': '',
+        'pendingTripId': '', 'declinedTripId': '', 'brokerEmail': 'broker@example.com',
+    })
 
     COLLECTION.write_text(json.dumps(collection, indent=2) + '\n')
     print(f"wrote {folder['name']}: {len(folder['item'])} requests, "

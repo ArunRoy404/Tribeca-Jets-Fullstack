@@ -31,7 +31,7 @@ PREREQUEST = [
     ' * this request fail on every run when it used whatever operator the',
     ' * Operators folder happened to capture.',
     ' */',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const requestId = pm.collectionVariables.get('tripRequestId');",
     '',
     'pm.sendRequest({',

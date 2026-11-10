@@ -49,7 +49,7 @@ UPDATE_BODY = """{
 # Everything the create body needs, fetched per run so the folder passes alone:
 # the route of an existing trip request (so matches appear) and an operator.
 LOOKUPS = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/trip-requests?limit=1', method: 'GET' }, function (err, res) {",
     '    if (err || res.code !== 200 || !res.json().data.length) { return; }',
     '    const request = res.json().data[0];',
@@ -65,7 +65,7 @@ TEARDOWN = [
     '// Archive the leg this folder created — the run is a demonstration, not',
     '// data entry. Nothing is deleted: it sits in the Archived tab.',
     "const id = pm.collectionVariables.get('newEmptyLegId');",
-    "if (id) { pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/empty-legs/' + id, method: 'DELETE', header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') } }, function () {}); }",
+    "if (id) { pm.sendRequest({ url: pm.variables.get('baseUrl') + '/empty-legs/' + id, method: 'DELETE', header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') } }, function () {}); }",
 ]
 
 

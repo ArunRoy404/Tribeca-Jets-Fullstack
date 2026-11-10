@@ -58,6 +58,12 @@ def build(owner: Session, broker: Session, assistant: Session, agent: Session, a
     cap['activity_broker'] = broker.request('GET', activity)
     cap['activity_400'] = owner.request('GET', '/dashboard/activity?search=Citation')
     cap['activity_403'] = agent.request('GET', activity)
+    # One person's activity (client feedback 2.3, 9 Nov 2026).
+    me = broker.request('GET', '/auth/me')[1]['data']
+    broker_id = me.get('id') or me['user']['id']
+    activity_by = f'/dashboard/activity?limit=6&userId={broker_id}'
+    cap['activity_by'] = owner.request('GET', activity_by)
+    cap['activity_by_400'] = owner.request('GET', '/dashboard/activity?userId=broker')
 
     cap['trips'] = owner.request('GET', trips)
     cap['trips_400'] = owner.request('GET', '/trips?departure=SOON')
@@ -65,7 +71,7 @@ def build(owner: Session, broker: Session, assistant: Session, agent: Session, a
     cap['invoices'] = owner.request('GET', invoices)
     cap['invoices_403'] = agent.request('GET', invoices)
     cap['bills'] = owner.request('GET', bills)
-    cap['bills_403'] = assistant.request('GET', bills)
+    cap['bills_assistant'] = assistant.request('GET', bills)
 
     items = [
         {
@@ -121,19 +127,26 @@ def build(owner: Session, broker: Session, assistant: Session, agent: Session, a
             'name': '03 · Recent activity',
             'event': [status_test(200, '200 OK')],
             'request': {
-                'method': 'GET', 'header': [], 'url': url('/dashboard/activity', page_params()),
+                'method': 'GET', 'header': [], 'url': url('/dashboard/activity', page_params([
+                    {'key': 'userId', 'value': None, 'disabled': True,
+                     'description': 'optional · uuid. Only this person\'s actions — the feed\'s team member '
+                                    'filter. Still within what the caller may see; omitted, everyone\'s.'},
+                ])),
                 'description': (
                     "The audit trail, newest first: everybody's activity on the kinds of record you can see all "
                     'of, and your own on the rest. `subject` names the record — `type` is where it opens, '
                     '`label` how it reads ("TJ-1048", a client\'s name) — or is null for a kind with no label. '
-                    'Sign-ins are never listed, and no raw metadata is returned. Page and limit only.'),
+                    'Sign-ins are never listed, and no raw metadata is returned. Page, limit and `userId` only.'),
             },
             'response': [
                 example('200 · An administrator\'s — the whole desk', 'GET', activity, *cap['activity']),
                 example('200 · A broker\'s — their own actions on scoped records', 'GET', activity,
                         *cap['activity_broker']),
+                example('200 · One person\'s actions (userId)', 'GET', activity_by, *cap['activity_by']),
                 example('400 · Search is not offered here', 'GET', '/dashboard/activity?search=Citation',
                         *cap['activity_400']),
+                example('400 · userId is not a uuid', 'GET', '/dashboard/activity?userId=broker',
+                        *cap['activity_by_400']),
                 example('403 · A referral agent', 'GET', activity, *cap['activity_403']),
             ],
         },
@@ -208,7 +221,9 @@ def build(owner: Session, broker: Session, assistant: Session, agent: Session, a
             },
             'response': [
                 example('200 · Still owed', 'GET', bills, *cap['bills']),
-                example('403 · An assistant does not read operator payments', 'GET', bills, *cap['bills_403']),
+                # Reads are open to staff since the 8 Oct rule; reach still filters them.
+                example('200 · An assistant — an open read, filtered by their reach', 'GET', bills,
+                        *cap['bills_assistant']),
             ],
         },
     ]

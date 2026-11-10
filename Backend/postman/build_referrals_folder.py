@@ -60,7 +60,7 @@ RESOURCE_BODY = """{
 }"""
 
 AIRPORTS = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/airports?limit=2', method: 'GET' }, function (err, res) {",
     '    if (err || res.code !== 200) { return; }',
     '    const rows = res.json().data;',
@@ -70,7 +70,7 @@ AIRPORTS = [
 
 # A trip on the converted client, for `12` to link.
 BOOKED_TRIP = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     'pm.sendRequest({',
     "    url: base + '/trips', method: 'POST', header: headers,",
@@ -88,7 +88,7 @@ TEARDOWN = [
     '// Archive everything this folder created — referral, the client and trip',
     '// request its conversion made, the trip it booked, the commission that',
     '// raised, the published resource. Nothing is deleted.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     'const archive = function (path) { pm.sendRequest({ url: base + path, method: \'DELETE\', header: headers }, function () {}); };',
     "const referral = pm.collectionVariables.get('newReferralId');",

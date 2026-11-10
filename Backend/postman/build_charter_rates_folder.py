@@ -44,7 +44,7 @@ ESTIMATE_BODY = """{
 # Resolves two airports that have coordinates, rather than trusting ids an
 # earlier folder happened to set — so the folder passes run on its own.
 AIRPORTS_SCRIPT = [
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/airports?limit=100', method: 'GET' }, function (err, res) {",
     '    if (err || res.code !== 200) { return; }',
     '    const located = res.json().data.filter(function (a) { return a.latitude !== null && a.longitude !== null; });',
@@ -59,7 +59,7 @@ AIRPORTS_SCRIPT = [
 SAVE_RATE_SCRIPT = [
     '// Remember the real rate before changing it, so the teardown can put it',
     '// back exactly. Running the collection must never alter the desk\'s rates.',
-    "const base = pm.collectionVariables.get('baseUrl');",
+    "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/charter-rates?limit=20', method: 'GET' }, function (err, res) {",
     '    if (err || res.code !== 200) { return; }',
     f"    const row = res.json().data.find(function (r) {{ return r.category === '{CATEGORY}'; }});",
