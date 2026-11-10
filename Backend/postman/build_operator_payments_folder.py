@@ -28,7 +28,7 @@ METHODS = 'WIRE_TRANSFER | ACH | CHECK | ZELLE | CREDIT_CARD | OTHER'
 
 CREATE_BODY = """{
   "tripId": "{{payableTripId}}",                       // required · uuid, a live trip you may see
-  "operatorId": null,                                  // optional · uuid, who billed it. Defaults to the trip's operator.
+  // "operatorId": optional · uuid, who billed it. Defaults to the trip's operator. — omit it rather than send null, which is refused here
   "amount": 48000,                                     // required · 0.01-100000000, 2 decimals. What the operator billed.
   "dueDate": "2026-12-01",                             // optional · YYYY-MM-DD. No due date, never overdue.
   "operatorReference": "FJ-INV-20931",                 // optional · max 100. The operator's own invoice number.
@@ -133,7 +133,9 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
     client_id = owner.request('GET', '/clients?limit=1')[1]['data'][0]['id']
     operator_id = owner.request('GET', '/operators?limit=1')[1]['data'][0]['id']
     airports = owner.request('GET', '/airports?limit=2')[1]['data']
-    mark_id = user_id(owner, 'mark')
+    # Someone other than the broker, so the broker cannot see their trip —
+    # the Admin account; the old demo broker "Mark" is gone since the 9 Oct wipe.
+    mark_id = user_id(owner, 'security@example.com')
 
     def book(assigned=None, operator=operator_id):
         body = {
@@ -172,7 +174,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         cap['list'] = owner.request('GET', '/operator-payments?page=1&limit=10')
         cap['list_400'] = owner.request('GET', '/operator-payments?state=LATE')
         cap['list_401'] = anonymous.request('GET', '/operator-payments')
-        cap['list_403'] = assistant.request('GET', '/operator-payments')
+        # Reads are open to staff since the 8 Oct rule; reach filters them.
+        cap['list_assistant'] = assistant.request('GET', '/operator-payments')
         cap['stats'] = owner.request('GET', '/operator-payments/stats')
         cap['stats_400'] = owner.request('GET', '/operator-payments/stats?page=1')
         cap['detail'] = owner.request('GET', f"/operator-payments/{bill['id']}")
@@ -278,7 +281,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                 example('200 · A page of bills', 'GET', '/operator-payments?page=1&limit=10', *cap['list']),
                 example('400 · Unknown state', 'GET', '/operator-payments?state=LATE', *cap['list_400']),
                 example('401 · Not signed in', 'GET', '/operator-payments', *cap['list_401']),
-                example('403 · An assistant cannot read operator payments', 'GET', '/operator-payments', *cap['list_403']),
+                example('200 · An assistant — an open read, filtered by their reach', 'GET', '/operator-payments',
+                        *cap['list_assistant']),
             ],
         },
         {

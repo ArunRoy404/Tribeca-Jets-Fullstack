@@ -41,11 +41,11 @@ UPDATE_BODY = """{
 
 PREVIEW_BODY = """{
   "templateId": "{{newEmailTemplateId}}",   // optional · uuid of an active template; absent starts from a blank email
-  "clientId": "{{emailProbeClientId}}",     // one of clientId / operatorId · the recipient
-  "operatorId": null,
-  "tripId": null,                           // optional · a trip of this recipient's
-  "quoteId": null,                          // optional · a quote of this client's
-  "invoiceId": null                         // optional · an invoice of this client's
+  "clientId": "{{emailProbeClientId}}"     // one of clientId / operatorId · the recipient
+  // "operatorId": omit it rather than send null, which is refused here
+  // "tripId": optional · a trip of this recipient's — omit it rather than send null, which is refused here
+  // "quoteId": optional · a quote of this client's — omit it rather than send null, which is refused here
+  // "invoiceId": optional · an invoice of this client's — omit it rather than send null, which is refused here
 }"""
 
 SEND_BODY = """{

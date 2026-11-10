@@ -29,7 +29,8 @@ import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
 
-BASE = 'http://localhost:4000/api'
+# The shared, overridable address (POSTMAN_BASE) — never the mail-sending :4000 by default.
+from builder_common import BASE  # noqa: E402
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 PASSWORD = 'ChangeMe123!'
 UNKNOWN_ID = '00000000-0000-4000-8000-000000000000'

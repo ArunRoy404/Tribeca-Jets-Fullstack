@@ -26,22 +26,22 @@ COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collecti
 CREATE_BODY = """{
   "tripId": "{{itineraryTripId}}",                     // required · uuid, a live trip within your scope. One document per trip — a second attempt is a 409.
 
-  "logoUrl": null,                                     // optional · an uploaded image's relative URL, e.g. /api/uploads/<id>
+  // "logoUrl": optional · an uploaded image's relative URL, e.g. /api/uploads/<id> — omit it rather than send null, which is refused here
   "arrivalTime": "11:45",                              // optional · "HH:MM", 24-hour, local at the destination — nothing else tracks this
   "flightTime": "2h 15m",                              // optional · free text, max 20
   "miles": "620 nm",                                   // optional · free text, max 20
 
   "departureFbo": "Signature Flight Support — TEB",    // optional · overrides the origin airport's own assigned FBO, max 200
-  "arrivalFbo": null,                                  // optional · overrides the destination airport's own assigned FBO, max 200
+  // "arrivalFbo": optional · overrides the destination airport's own assigned FBO, max 200 — omit it rather than send null, which is refused here
 
   "catering": "Continental breakfast",                 // optional · max 300
   "groundTransport": "Cadillac Escalade",              // optional · max 300
 
-  "operatorItineraryUrl": null,                        // optional · an uploaded document's relative URL, for reference — never parsed
-  "operatorItineraryText": null,                       // optional · max 5000
+  // "operatorItineraryUrl": optional · an uploaded document's relative URL, for reference — never parsed — omit it rather than send null, which is refused here
+  // "operatorItineraryText": optional · max 5000 — omit it rather than send null, which is refused here
 
-  "exteriorImageUrl": null,                            // optional · overrides the aircraft's own fleet photo
-  "interiorImageUrl": null,                            // optional · overrides the aircraft's own fleet photo
+  // "exteriorImageUrl": optional · overrides the aircraft's own fleet photo — omit it rather than send null, which is refused here
+  // "interiorImageUrl": optional · overrides the aircraft's own fleet photo — omit it rather than send null, which is refused here
 
   "notes": "VIP handling requested at FBO."            // optional · max 5000
 }"""

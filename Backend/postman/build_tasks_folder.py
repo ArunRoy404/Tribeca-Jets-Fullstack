@@ -34,11 +34,11 @@ CREATE_BODY = """{
   "dueDate": "2026-12-15",                         // optional · YYYY-MM-DD
   "assigneeId": "{{taskAssigneeId}}",              // optional · uuid of a staff member who is not suspended
   "clientId": "{{taskClientId}}",                  // optional · uuid of a client you may see
-  "tripId": null,                                  // optional · uuid of a trip you may see
   "checklist": [                                   // optional · up to 50 items, in order
     { "id": "c1", "text": "Ask about allergies", "done": false }
-  ],
-  "notes": null                                    // optional · max 5000
+  ]
+  // Also optional: "tripId" (uuid of a trip you may see) and "notes" (max 5000).
+  // Omit them on create rather than sending null — create refuses null.
 }"""
 
 MOVE_BODY = """{
@@ -86,7 +86,8 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
     payload = json.loads(json.dumps({
         'title': 'Confirm catering with the client', 'description': 'Vegetarian options for four',
         'status': 'TODO', 'priority': 'HIGH', 'dueDate': DUE, 'assigneeId': broker_id, 'clientId': client_id,
-        'tripId': None, 'checklist': [{'id': 'c1', 'text': 'Ask about allergies', 'done': False}], 'notes': None,
+        # tripId and notes are optional on create and refuse null there.
+        'checklist': [{'id': 'c1', 'text': 'Ask about allergies', 'done': False}],
     }))
     checklist = {'status': 'IN_PROGRESS', 'checklist': [
         {'id': 'c1', 'text': 'Ask about allergies', 'done': True},

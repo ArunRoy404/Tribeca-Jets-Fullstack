@@ -28,11 +28,11 @@ METHODS = 'WIRE_TRANSFER | ACH | CHECK | ZELLE | CREDIT_CARD | OTHER'
 
 CREATE_BODY = """{
   "tripId": "{{receivableTripId}}",                    // required · uuid, a live trip you may see
-  "clientId": null,                                    // optional · uuid, who is billed. Defaults to the trip's client.
+  // "clientId": optional · uuid, who is billed. Defaults to the trip's client. — omit it rather than send null, which is refused here
   "amount": 60000,                                     // required · 0.01-100000000, 2 decimals. The charge before FET.
   "fetAmount": 4500,                                   // optional · 0-100000000, 2 decimals. Default 0.
   "status": "DRAFT",                                   // optional · DRAFT | SENT (default DRAFT)
-  "issuedAt": null,                                    // optional · YYYY-MM-DD. Defaults to today when SENT.
+  // "issuedAt": optional · YYYY-MM-DD. Defaults to today when SENT. — omit it rather than send null, which is refused here
   "dueDate": "2026-12-01",                             // optional · YYYY-MM-DD. No due date, never overdue.
   "notes": "Balance due 14 days before departure."     // optional · max 5000
 }"""
@@ -70,7 +70,7 @@ SETUP = [
     '            body: { mode: \'raw\', raw: JSON.stringify({',
     "                clientId: clients.json().data[0].id, type: 'ONE_WAY', status: 'BOOKED',",
     "                legs: [{ originAirportId: a[0].id, destinationAirportId: a[1].id, departureDate: '2026-12-18' }],",
-    '                basePrice: 60000, operatorCost: 48000,',
+    '                basePrice: 80000, operatorCost: 64000,',
     '            }) },',
     '        }, function (x, trip) {',
     "            if (!x && trip.code === 201) { pm.collectionVariables.set('receivableTripId', trip.json().data.id); }",
@@ -130,14 +130,18 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
     trips, invoices, payments = [], [], []
     client_id = owner.request('GET', '/clients?limit=1')[1]['data'][0]['id']
     airports = owner.request('GET', '/airports?limit=2')[1]['data']
-    mark_id = user_id(owner, 'mark')
+    # Someone other than the broker, so the broker cannot see their trip —
+    # the Admin account; the old demo broker "Mark" is gone since the 9 Oct wipe.
+    mark_id = user_id(owner, 'security@example.com')
 
     def book(assigned=None):
         body = {
             'clientId': client_id, 'type': 'ONE_WAY', 'status': 'BOOKED',
             'legs': [{'originAirportId': airports[0]['id'], 'destinationAirportId': airports[1]['id'],
                       'departureDate': '2026-12-18'}],
-            'basePrice': 60000, 'operatorCost': 48000,
+            # Room for the 60,000 invoice and the 1,500 draft under the
+            # over-invoicing guard (30 Oct 2026).
+            'basePrice': 80000, 'operatorCost': 64000,
         }
         if assigned:
             body['assignedBrokerId'] = assigned
@@ -165,7 +169,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         cap['list'] = owner.request('GET', '/receivables?page=1&limit=10')
         cap['list_400'] = owner.request('GET', '/receivables?state=LATE')
         cap['list_401'] = anonymous.request('GET', '/receivables')
-        cap['list_403'] = assistant.request('GET', '/receivables')
+        # Reads are open to staff since the 8 Oct rule; reach filters them.
+        cap['list_assistant'] = assistant.request('GET', '/receivables')
         cap['stats'] = owner.request('GET', '/receivables/stats')
         cap['stats_400'] = owner.request('GET', '/receivables/stats?page=1')
         cap['detail'] = owner.request('GET', f"/receivables/{invoice['id']}")
@@ -272,7 +277,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                 example('200 · A page of invoices', 'GET', '/receivables?page=1&limit=10', *cap['list']),
                 example('400 · Unknown state', 'GET', '/receivables?state=LATE', *cap['list_400']),
                 example('401 · Not signed in', 'GET', '/receivables', *cap['list_401']),
-                example('403 · An assistant cannot read receivables', 'GET', '/receivables', *cap['list_403']),
+                example('200 · An assistant — an open read, filtered by their reach', 'GET', '/receivables',
+                        *cap['list_assistant']),
             ],
         },
         {

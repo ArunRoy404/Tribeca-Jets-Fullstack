@@ -94,6 +94,7 @@ def capture() -> dict:
     broker = Session(BROKER)
     admin = two_factor_session(ADMIN_2FA)
     anon = Session(None)
+    agent = Session('agent@example.com')
     cap: dict[str, list] = {k: [] for k in ('list', 'stats', 'roles', 'defaults', 'detail', 'invite', 'update', 'withdraw')}
 
     def add(key, name, method, path, result, req_body=None):
@@ -103,8 +104,11 @@ def capture() -> dict:
     for name, path, who in (
         ('200 · Page of team members', '/users?page=1&limit=5&sortBy=createdAt&sortOrder=desc', owner),
         ('200 · Filtered by role and status', '/users?role=BROKER&status=ACTIVE&limit=20', owner),
-        ('200 · Search by name or email', '/users?search=walsh', owner),
+        ('200 · Several roles — everyone who can own a client', '/users?role=BROKER,ADMIN,SUPER_ADMIN&limit=20', owner),
+        ('200 · Search by name or email', '/users?search=broker', owner),
         ('200 · Reduced projection (caller without Users & Roles)', '/users?limit=3', broker),
+        ('400 · Not a role', '/users?role=BROKER,CAPTAIN', owner),
+        ('403 · A referral agent — the staff directory is desk data', '/users', agent),
         ('400 · sortBy not in the allowed list', '/users?sortBy=passwordHash', owner),
         ('400 · page/limit out of bounds', '/users?page=0&limit=500', owner),
         ('401 · Not signed in', '/users', anon),
@@ -129,11 +133,17 @@ def capture() -> dict:
         broker.request('GET', '/roles/BROKER/defaults'))
 
     # --- detail -----------------------------------------------------------
-    _, listing = owner.request('GET', '/users?search=barry&limit=1')
+    # The seeded broker (the old demo "Barry" went with the 9 Oct wipe).
+    _, listing = owner.request('GET', f'/users?search={BROKER}&limit=1')
     barry = listing['data'][0]['id']
     add('detail', '200 · One team member, with their own permissions', 'GET', '/users/:id',
         owner.request('GET', f'/users/{barry}'))
-    add('detail', '403 · No Users & Roles permission', 'GET', '/users/:id', broker.request('GET', f'/users/{barry}'))
+    # Open to every staff member since the old matrix went (10 Nov 2026): a
+    # colleague reads the reduced projection; a referral agent is refused.
+    add('detail', '200 · A colleague without Users & Roles — the reduced projection', 'GET', '/users/:id',
+        broker.request('GET', f'/users/{barry}'))
+    add('detail', '403 · A referral agent — the staff directory is desk data', 'GET', '/users/:id',
+        agent.request('GET', f'/users/{barry}'))
     add('detail', '404 · No such user', 'GET', '/users/:id', owner.request('GET', f'/users/{MISSING}'))
     add('detail', '400 · Malformed id', 'GET', '/users/:id', owner.request('GET', '/users/not-a-uuid'))
 
@@ -271,7 +281,7 @@ def build(cap: dict) -> dict:
                         {'key': 'sortBy', 'value': 'createdAt', 'description': f'Allowed (case-sensitive): {SORT_VALUES}. Default createdAt; anything else → 400.'},
                         {'key': 'sortOrder', 'value': 'desc', 'description': 'Allowed (case-sensitive): asc | desc. Default desc.'},
                         {'key': 'search', 'value': 'walsh', 'disabled': True, 'description': 'Case-insensitive match on first name, last name or email.'},
-                        {'key': 'role', 'value': 'BROKER', 'disabled': True, 'description': f'Allowed (case-sensitive): {ROLE_VALUES}. Omit for all roles.'},
+                        {'key': 'role', 'value': 'BROKER', 'disabled': True, 'description': f'One role, or several comma-separated (BROKER,ADMIN,SUPER_ADMIN — the broker pickers\' set). Allowed (case-sensitive): {ROLE_VALUES}. Omit for all roles.'},
                         {'key': 'status', 'value': 'ACTIVE', 'disabled': True, 'description': f'Allowed (case-sensitive): {STATUS_VALUES}. Without Users & Roles · View, ACTIVE only whatever is sent.'},
                     ]),
                     'description': (

@@ -13,6 +13,7 @@ reads the flight's timeline, and archives the trip at the end, in the builder
 and in the folder's own teardown.
 """
 
+import datetime
 import json
 import pathlib
 
@@ -23,7 +24,10 @@ from collection_order import place_folder
 
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 FLIGHT_STATUSES = 'NOT_DEPARTED | DELAYED | IN_FLIGHT | LANDED | DIVERTED'
-DAY = '2026-12-18'
+# The probe flight departs today: a flight cannot be reported in flight before
+# its departure day (30 Oct 2026 guardrail), so a future date 400s. A date
+# baked into the folder is in the past on later runs, which the rule allows.
+DAY = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
 
 # A one-way trip of the folder's own, so it runs alone and never reports on the desk's flights.
 SETUP = [
@@ -117,7 +121,9 @@ def build(owner: Session, broker: Session, assistant: Session, agent: Session, a
         cap['delay'] = owner.request('PATCH', f'/flight-tracking/{leg}', delayed)
         cap['delay_400_same'] = owner.request('PATCH', f'/flight-tracking/{leg}', {'flightStatus': 'DELAYED'})
         cap['delay_400_time'] = owner.request('PATCH', f'/flight-tracking/{leg}', {'estimatedArrival': '1:40 AM'})
-        cap['delay_403'] = assistant.request('PATCH', f'/flight-tracking/{leg}', in_flight)
+        # An assistant holds Flight Tracking · Edit by default; the desk-only
+        # refusal is a referral agent's (staff-only, 403 before any lookup).
+        cap['delay_403'] = agent.request('PATCH', f'/flight-tracking/{leg}', in_flight)
         cap['delay_404'] = owner.request('PATCH', f'/flight-tracking/{MISSING}', in_flight)
         cap['depart'] = owner.request('PATCH', f'/flight-tracking/{leg}', in_flight)
 
@@ -126,10 +132,23 @@ def build(owner: Session, broker: Session, assistant: Session, agent: Session, a
         cap['stats_400'] = owner.request('GET', '/flight-tracking/stats?on=18-12-2026')
         cap['timeline'] = owner.request('GET', f'/notes/timeline?subjectType=FLIGHT&subjectId={leg}')
 
-        owner.request('POST', f"/trips/{trip['id']}/status", {'status': 'CANCELLED', 'note': 'Postman probe'})
-        cap['cancelled_400'] = owner.request('PATCH', f'/flight-tracking/{leg}', {'flightStatus': 'LANDED'})
+        # A second probe, cancelled before it flies: the first is in flight by
+        # now, and a trip in the air cannot be cancelled, so cancelling it
+        # failed silently and the "cancelled" report answered 200.
+        cancelled = owner.request('POST', '/trips', {
+            'clientId': client_id, 'type': 'ONE_WAY', 'status': 'BOOKED',
+            'legs': [{'originAirportId': airports[0]['id'], 'destinationAirportId': airports[1]['id'],
+                      'departureDate': DAY, 'departureTime': '23:00'}],
+        })[1]['data']
+        status, body = owner.request('POST', f"/trips/{cancelled['id']}/status", {'status': 'CANCELLED', 'note': 'Postman probe'})
+        if status != 200:
+            raise SystemExit(f'could not cancel the second probe trip: {status} {body}')
+        cap['cancelled_400'] = owner.request(
+            'PATCH', f"/flight-tracking/{cancelled['legs'][0]['id']}", {'flightStatus': 'LANDED'})
     finally:
         owner.request('DELETE', f"/trips/{trip['id']}")
+        if 'cancelled' in locals():
+            owner.request('DELETE', f"/trips/{cancelled['id']}")
 
     path = f'/flight-tracking/{leg}'
     items = [
@@ -191,7 +210,7 @@ def build(owner: Session, broker: Session, assistant: Session, agent: Session, a
                 example('200 · Reported delayed, with an estimate and a link', 'PATCH', path, *cap['delay'], req_body=delayed),
                 example('400 · Nothing would change', 'PATCH', path, *cap['delay_400_same'], req_body={'flightStatus': 'DELAYED'}),
                 example('400 · A 12-hour time', 'PATCH', path, *cap['delay_400_time'], req_body={'estimatedArrival': '1:40 AM'}),
-                example('403 · An assistant cannot report', 'PATCH', path, *cap['delay_403'], req_body=in_flight),
+                example('403 · A referral agent cannot report', 'PATCH', path, *cap['delay_403'], req_body=in_flight),
                 example('404 · No such flight', 'PATCH', f'/flight-tracking/{MISSING}', *cap['delay_404'], req_body=in_flight),
                 example('400 · The trip is cancelled', 'PATCH', path, *cap['cancelled_400'], req_body={'flightStatus': 'LANDED'}),
             ],

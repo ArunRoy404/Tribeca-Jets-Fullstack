@@ -31,7 +31,7 @@ CREATE_BODY = """{
   "departureTime": "14:00",                            // optional · "HH:MM", 24-hour, local at the origin
   "expiresAt": "2026-12-10T18:00:00.000Z",             // optional · ISO timestamp. After it, the leg reads EXPIRED.
   "operatorId": "{{operatorId}}",                      // optional · uuid, a live operator
-  "aircraftId": null,                                  // optional · uuid, a fleet aircraft…
+  // "aircraftId": optional · uuid, a fleet aircraft… — omit it rather than send null, which is refused here
   "aircraftDescription": "Citation XLS",               // optional · …or free text. Max 200.
   "seats": 8,                                          // optional · integer 1-500
   "price": 18500,                                      // optional · number, 2 decimals max
@@ -50,11 +50,21 @@ UPDATE_BODY = """{
 # the route of an existing trip request (so matches appear) and an operator.
 LOOKUPS = [
     "const base = pm.variables.get('baseUrl');",
-    "pm.sendRequest({ url: base + '/trip-requests?limit=1', method: 'GET' }, function (err, res) {",
-    '    if (err || res.code !== 200 || !res.json().data.length) { return; }',
-    '    const request = res.json().data[0];',
-    "    pm.collectionVariables.set('legOriginId', request.originAirportId);",
-    "    pm.collectionVariables.set('legDestinationId', request.destinationAirportId);",
+    "// A real enquiry's route when one has two different airports (so matches",
+    "// appear); otherwise any two live airports — an empty leg may not depart",
+    "// and arrive at the same airport, and some enquiries on file do.",
+    "pm.sendRequest({ url: base + '/trip-requests?limit=20', method: 'GET' }, function (err, res) {",
+    "    const rows = !err && res.code === 200 ? res.json().data : [];",
+    "    const request = rows.find(function (r) { return r.originAirportId && r.destinationAirportId && r.originAirportId !== r.destinationAirportId; });",
+    '    if (request) {',
+    "        pm.collectionVariables.set('legOriginId', request.originAirportId);",
+    "        pm.collectionVariables.set('legDestinationId', request.destinationAirportId);",
+    '        return;',
+    '    }',
+    "    pm.sendRequest({ url: base + '/airports?limit=2', method: 'GET' }, function (e, airports) {",
+    "        const two = !e && airports.code === 200 ? airports.json().data : [];",
+    "        if (two.length >= 2) { pm.collectionVariables.set('legOriginId', two[0].id); pm.collectionVariables.set('legDestinationId', two[1].id); }",
+    '    });',
     '});',
     "pm.sendRequest({ url: base + '/operators?limit=1', method: 'GET' }, function (err, res) {",
     "    if (!err && res.code === 200 && res.json().data.length) { pm.collectionVariables.set('operatorId', res.json().data[0].id); }",
@@ -71,8 +81,10 @@ TEARDOWN = [
 
 def build(owner: Session, assistant: Session, anonymous: Session):
     cap, created = {}, []
-    request = owner.request('GET', '/trip-requests?limit=1')[1]['data'][0]
-    origin, destination = request['originAirportId'], request['destinationAirportId']
+    # Two distinct live airports. It used to borrow the first trip request's
+    # route, which on the dev data departs and arrives at the same airport.
+    airports = owner.request('GET', '/airports?limit=2')[1]['data']
+    origin, destination = airports[0]['id'], airports[1]['id']
     operator_id = owner.request('GET', '/operators?limit=1')[1]['data'][0]['id']
 
     payload = {

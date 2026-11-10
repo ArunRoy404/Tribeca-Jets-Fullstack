@@ -24,7 +24,9 @@ import urllib.request
 from http.cookiejar import CookieJar
 from collection_order import place_folder
 
-BASE = 'http://localhost:4000/api'
+# The shared, overridable address (POSTMAN_BASE): this builder captured
+# against :4000, the API that sends real mail, until 10 Nov 2026.
+from builder_common import BASE  # noqa: E402
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 PASSWORD = 'ChangeMe123!'
 MISSING = '00000000-0000-4000-8000-000000000000'

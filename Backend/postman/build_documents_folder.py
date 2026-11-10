@@ -109,8 +109,8 @@ def build(owner: Session, assistant: Session, anonymous: Session):
         })
         assert status == 201, f'probe client: {status} {body}'
         client_id = body['data']['id']
-        status, body = owner.request('GET', '/operators?search=NetJets&limit=1')
-        assert status == 200 and body['data'], f'seeded operator: {status} {body}'
+        status, body = owner.request('GET', '/operators?limit=1')
+        assert status == 200 and body['data'], f'a live operator: {status} {body}'
         operator_id = body['data'][0]['id']
 
         cap['upload'] = owner.upload('/uploads/document', DOCUMENT, {'visibility': 'PRIVATE'})

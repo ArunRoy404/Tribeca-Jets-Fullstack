@@ -69,8 +69,9 @@ AIRPORTS = [
 ]
 
 # A trip on the converted client, for `12` to link.
+# Always run after AIRPORTS, which declares `base` — a second const of the
+# same name in one script is a SyntaxError and the request never ran.
 BOOKED_TRIP = [
-    "const base = pm.variables.get('baseUrl');",
     "const headers = { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') };",
     'pm.sendRequest({',
     "    url: base + '/trips', method: 'POST', header: headers,",
@@ -371,13 +372,16 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
             'name': '10 · Convert into a client and trip request',
             'event': [script('test', [
                 "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                'const data = pm.response.json().data;',
-                "pm.collectionVariables.set('referralClientId', data.clientId);",
-                "pm.collectionVariables.set('referralTripRequestId', data.tripRequestId);",
+                # `data` is a sandbox global (iteration data); a const of that name never compiles.
+                'const converted = pm.response.json().data;',
+                "pm.collectionVariables.set('referralClientId', converted.clientId);",
+                "pm.collectionVariables.set('referralTripRequestId', converted.tripRequestId);",
             ])],
             'request': {
                 'method': 'POST', 'header': WRITE_HEADERS,
-                'body': body('{\n  "clientId": null  // optional · uuid. Link an existing client instead of creating one.\n}'),
+                # An empty body creates the client; "clientId" (uuid) links an existing
+                # one instead. Omit it rather than send null, which is refused.
+                'body': body('{\n  // "clientId": optional · uuid. Link an existing client instead of creating one.\n}'),
                 'url': url('/referrals/{{newReferralId}}/convert'),
                 'description': (
                     'Creates the client (lead source REFERRAL) — or links an existing one — and an open trip '

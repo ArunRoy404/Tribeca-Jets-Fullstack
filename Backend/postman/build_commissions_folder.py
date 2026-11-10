@@ -32,21 +32,21 @@ CREATE_BODY = """{
   "tripId": "{{commissionTripId}}",                    // required · uuid, a live trip
   "recipientType": "REFERRAL_AGENT",                   // required · REFERRAL_AGENT | CLIENT | MANUAL
   "recipientUserId": "{{agentUserId}}",                // REFERRAL_AGENT · a referral agent's user id
-  "recipientClientId": null,                           // CLIENT · a live client (e.g. a travel agent)
-  "recipientName": null,                               // MANUAL · who is paid. Max 200.
-  "recipientCompany": null,                            // MANUAL · optional. Max 200.
-  "referralId": null,                                  // optional · uuid, a referral by the same agent
-  "brokerId": null,                                    // optional · uuid. Defaults to the trip's broker.
+  // "recipientClientId": CLIENT · a live client (e.g. a travel agent) — omit it rather than send null, which is refused here
+  // "recipientName": MANUAL · who is paid. Max 200. — omit it rather than send null, which is refused here
+  // "recipientCompany": MANUAL · optional. Max 200. — omit it rather than send null, which is refused here
+  // "referralId": optional · uuid, a referral by the same agent — omit it rather than send null, which is refused here
+  // "brokerId": optional · uuid. Defaults to the trip's broker. — omit it rather than send null, which is refused here
 
   // Omit basis for a referral agent to copy their standard terms.
-  "basis": null,                                       // optional · PERCENT_OF_PROFIT | FLAT_FEE | CUSTOM
-  "percentage": null,                                  // PERCENT_OF_PROFIT · 0.01-100, 2 decimals
-  "amount": null,                                      // FLAT_FEE · 0.01-10000000, 2 decimals
-  "finalAmount": null,                                 // optional · the settled figure, once agreed
+  // "basis": optional · PERCENT_OF_PROFIT | FLAT_FEE | CUSTOM — omit it rather than send null, which is refused here
+  // "percentage": PERCENT_OF_PROFIT · 0.01-100, 2 decimals — omit it rather than send null, which is refused here
+  // "amount": FLAT_FEE · 0.01-10000000, 2 decimals — omit it rather than send null, which is refused here
+  // "finalAmount": optional · the settled figure, once agreed — omit it rather than send null, which is refused here
 
   "status": "PENDING",                                 // optional · PENDING | EARNED | PAID | CANCELLED (default PENDING)
-  "method": null,                                      // optional · WIRE_TRANSFER | ACH | CHECK | ZELLE | CREDIT_CARD | OTHER
-  "paidAt": null,                                      // optional · YYYY-MM-DD. Defaults to today when PAID.
+  // "method": optional · WIRE_TRANSFER | ACH | CHECK | ZELLE | CREDIT_CARD | OTHER — omit it rather than send null, which is refused here
+  // "paidAt": optional · YYYY-MM-DD. Defaults to today when PAID. — omit it rather than send null, which is refused here
   "notes": "Standard terms."                           // optional · max 5000. Never shown to the agent.
 }"""
 

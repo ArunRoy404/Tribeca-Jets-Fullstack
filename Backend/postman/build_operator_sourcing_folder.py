@@ -17,12 +17,15 @@ does not grow the sourcing board.
 
 import json
 import pathlib
+import time
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
 from collection_order import place_folder
 
-BASE = 'http://localhost:4000/api'
+# The shared, overridable address (POSTMAN_BASE): this builder captured
+# against :4000, the API that sends real mail, until 10 Nov 2026.
+from builder_common import BASE  # noqa: E402
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 PASSWORD = 'ChangeMe123!'
 MISSING = '00000000-0000-4000-8000-000000000000'
@@ -182,7 +185,18 @@ def build(owner, broker, assistant):
         for q in owner.request(
             'GET', f'/operator-quotes?tripRequestId={request_id}&limit=50')[1]['data']
     }
-    free = next(o for o in operators if o['id'] not in asked)
+    free = next((o for o in operators if o['id'] not in asked), None)
+    # None free — a database with one live operator already asked (the dev
+    # data since the 9 Oct wipe): ask a probe operator of our own instead,
+    # archived again at the end, as the folder's own 04 does.
+    probe_operator = None
+    if free is None:
+        status, body = owner.request('POST', '/operators', {
+            'name': f'Postman Sourcing Probe {int(time.time()) % 1_000_000}', 'homeBase': 'Teterboro, NJ',
+            'primaryContact': 'Probe Desk', 'contactEmail': 'probe-sourcing@example.com'})
+        if status != 201:
+            raise SystemExit(f'could not create a probe operator: {status} {body}')
+        free = probe_operator = body['data']
 
     payload = {
         'tripRequestId': request_id,
@@ -269,6 +283,8 @@ def build(owner, broker, assistant):
 
     # Leave the probe archived rather than on the working board.
     owner.request('DELETE', f'/operator-quotes/{new_id}')
+    if probe_operator:
+        owner.request('DELETE', f"/operators/{probe_operator['id']}")
 
     query = [
         {'key': 'page', 'value': '1',
@@ -634,6 +650,120 @@ def build(owner, broker, assistant):
     }
 
 
+# ---------------------------------------------------------------------------
+# The probe operator and the teardown (10 Nov 2026; was
+# fix_sourcing_probe_operator.py, folded in so a rebuild keeps it).
+#
+# `04 · Ask an operator to quote` used to pick "an operator nobody has asked
+# yet", which ran out on a database with one live operator — every run 409'd.
+# It now asks a probe operator of its own, made in its pre-request, and two
+# last requests archive the ask and then the probe (each a request of its
+# own, never a pm.sendRequest in a last test script — AGENTS.md).
+
+from builder_common import (  # noqa: E402
+    Session as CommonSession,
+    WRITE_HEADERS as COMMON_WRITE_HEADERS,
+    ensure_variables,
+    example as common_example,
+    script as common_script,
+    url as common_url,
+)
+
+FOLDER = '09 · Operator Sourcing'
+
+PREREQUEST = [
+    '/*',
+    ' * Ask a probe operator of our own. "Whichever operator nobody has asked',
+    ' * yet" ran out on a database with one live operator, and one live ask per',
+    ' * operator per enquiry is the API\'s rule — so every run 409\'d. The probe',
+    ' * is archived by the folder\'s teardown (15, 16).',
+    ' */',
+    "const base = pm.variables.get('baseUrl');",
+    'pm.sendRequest({',
+    "    url: base + '/operators', method: 'POST',",
+    "    header: { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
+    "    body: { mode: 'raw', raw: JSON.stringify({",
+    "        name: 'Postman Sourcing Probe ' + Date.now().toString().slice(-6),",
+    "        homeBase: 'Teterboro, NJ', primaryContact: 'Probe Desk',",
+    "        contactEmail: 'probe-sourcing@example.com',",
+    '    }) },',
+    '}, function (err, res) {',
+    '    if (err || res.code !== 201) { return; }',
+    "    pm.collectionVariables.set('operatorId', res.json().data.id);",
+    "    pm.collectionVariables.set('sourcingProbeOperatorId', res.json().data.id);",
+    '});',
+]
+
+
+def find(items, name):
+    return next(item for item in items if item['name'] == name)
+
+
+def capture():
+    """The two teardown answers, from a live API, on a probe of their own."""
+    owner = CommonSession('admin@example.com')
+    request = owner.request('GET', '/trip-requests?limit=1')[1]['data'][0]
+    stamp = str(int(time.time()))[-6:]
+    status, body = owner.request('POST', '/operators', {
+        'name': f'Postman Sourcing Probe {stamp}', 'homeBase': 'Teterboro, NJ',
+        'primaryContact': 'Probe Desk', 'contactEmail': 'probe-sourcing@example.com'})
+    if status != 201:
+        raise SystemExit(f'could not create the probe operator: {status} {body}')
+    operator = body['data']['id']
+    status, body = owner.request('POST', '/operator-quotes', {'tripRequestId': request['id'], 'operatorId': operator})
+    if status != 201:
+        raise SystemExit(f'could not ask the probe operator: {status} {body}')
+    ask = body['data']['id']
+    return (owner.request('DELETE', f'/operator-quotes/{ask}'),
+            owner.request('DELETE', f'/operators/{operator}'))
+
+
+def teardown(name, path, variable, captured, description):
+    return {
+        'name': name,
+        'event': [common_script('test', [
+            "pm.test('archived', () => pm.response.to.have.status(204));",
+            f"pm.collectionVariables.set('{variable}', '');",
+        ])],
+        'request': {
+            'method': 'DELETE', 'header': COMMON_WRITE_HEADERS, 'url': common_url(path.replace(':id', '{{' + variable + '}}')),
+            'description': description,
+        },
+        'response': [common_example('204 · Archived', 'DELETE', path, *captured)],
+    }
+
+
+def add_probe_operator(collection: dict) -> None:
+    ask_archived, probe_archived = capture()
+    folder = find(collection['item'], FOLDER)
+
+    ask = find(folder['item'], '04 · Ask an operator to quote')
+    ask['event'] = [e for e in ask['event'] if e['listen'] != 'prerequest']
+    ask['event'].insert(0, common_script('prerequest', PREREQUEST))
+
+    # 14 archived the ask with a pm.sendRequest in its test script, which a
+    # run can finish before; 15 does it as a request of its own instead.
+    restore = find(folder['item'], '14 · Restore several')
+    restore['event'] = [e for e in restore['event'] if e['listen'] != 'test']
+    restore['event'].append(common_script('test', [
+        "pm.test('restored', function () {",
+        '    pm.response.to.have.status(200);',
+        '});',
+    ]))
+
+    folder['item'] = [i for i in folder['item'] if 'Teardown' not in i['name']]
+    folder['item'] += [
+        teardown('15 · Teardown — archive the ask', '/operator-quotes/:id', 'newOperatorQuoteId', ask_archived,
+                 'Archives the ask `04` created. The folder ends by restoring it (`12`, `14`), so without this '
+                 'every run left one more live ask on a real enquiry. A request of its own so it always runs.'),
+        teardown('16 · Teardown — archive the probe operator', '/operators/:id', 'sourcingProbeOperatorId',
+                 probe_archived,
+                 'Archives the probe operator `04` asked, after its ask. It ends in the Operators\' Archived tab, '
+                 'never in a picker.'),
+    ]
+    ensure_variables(collection, {'sourcingProbeOperatorId': '', 'newOperatorQuoteId': ''})
+
+
 def main() -> None:
     owner = Session('admin@example.com')
     broker = Session('broker@example.com')
@@ -647,6 +777,7 @@ def main() -> None:
     folder['event'] = json.loads(json.dumps(requests_folder['event']))
 
     place_folder(collection, folder)
+    add_probe_operator(collection)
 
     existing = {v['key'] for v in collection['variable']}
     for key in ('operatorQuoteId', 'newOperatorQuoteId'):

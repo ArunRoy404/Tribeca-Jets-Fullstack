@@ -11,7 +11,7 @@ sends a code.
 
 The settings are the company's real ones, so the folder **restores them
 exactly**: the builder puts back every value it changed, and the Newman run
-saves the whole set in `01` and sends it back in `05 · Teardown`.
+saves the whole set in `01` and sends it back in `06 · Teardown`.
 """
 
 from __future__ import annotations
@@ -110,6 +110,15 @@ def capture() -> dict:
     cap['logo_path'] = branding['data']['logoUrl'].removeprefix('/api')
     cap['logo_fetch'] = fetch_bytes(cap['logo_path'])
 
+    # The logo for dark backgrounds (10 Nov 2026): none, then one — the same
+    # probe image, filed for the dark places.
+    owner.request('PATCH', '/settings', {'company': {'logoOnDarkUrl': None}})
+    cap['on_dark_none'] = anonymous.request('GET', '/settings/branding/logo-on-dark')
+    owner.request('PATCH', '/settings', {'company': {'logoOnDarkUrl': photo['data']['url']}})
+    _, branding = anonymous.request('GET', '/settings/branding')
+    cap['on_dark_path'] = branding['data']['logoOnDarkUrl'].removeprefix('/api')
+    cap['on_dark_fetch'] = fetch_bytes(cap['on_dark_path'])
+
     # Require 2FA for administrators, then sign the owner in.
     owner.request('PATCH', '/settings', {'security': {'requireAdminTwoFactor': True}})
     cap['admin_2fa'] = Session(None).request('POST', '/auth/login', {'email': OWNER, 'password': 'ChangeMe123!'})
@@ -142,7 +151,7 @@ def build(cap: dict) -> dict:
                     "const current = pm.response.json().data;",
                     "pm.test('one object per screen', () =>",
                     "  pm.expect(current).to.include.keys('company', 'defaults', 'security', 'rateLimits', 'notifications'));",
-                    "// Saved whole, so 05 · Teardown can put every value back.",
+                    "// Saved whole, so 06 · Teardown can put every value back.",
                     "const { updatedAt, ...sections } = current;",
                     "pm.collectionVariables.set('settingsBefore', JSON.stringify(sections));",
                     "pm.collectionVariables.set('probeValidity', current.defaults.quoteValidityHours === 48 ? 72 : 48);",
@@ -253,7 +262,32 @@ def build(cap: dict) -> dict:
                 ],
             },
             {
-                'name': '05 · Teardown — put the settings back',
+                'name': '05 · Company logo for dark backgrounds (public)',
+                'event': [script('test', [
+                    "// 200 with the image when one is set, 404 when none is.",
+                    "pm.test('200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));",
+                    "if (pm.response.code === 200) {",
+                    "  pm.test('an image', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('image/'));",
+                    "}",
+                ])],
+                'request': {
+                    'method': 'GET', 'header': [], 'url': url('/settings/branding/logo-on-dark'),
+                    'description': (
+                        '**Public — no session.** The optional second logo the app draws on dark backgrounds — '
+                        'the sidebar (Settings › Company & Branding › "Logo for dark backgrounds", 10 Nov 2026). '
+                        'Only the one upload `logoOnDarkUrl` names is served here. 404 when none is set — the app '
+                        'then draws the main logo there too.'
+                    ),
+                },
+                'response': [
+                    example('200 · The logo for dark backgrounds', 'GET', cap['on_dark_path'], cap['on_dark_fetch'][0],
+                            {'_': f"The body is the image itself — {cap['on_dark_fetch'][1]} bytes of "
+                                  f"{cap['on_dark_fetch'][2].get('Content-Type', 'image')}."}, preview='text'),
+                    example('404 · None set', 'GET', '/settings/branding/logo-on-dark', *cap['on_dark_none']),
+                ],
+            },
+            {
+                'name': '06 · Teardown — put the settings back',
                 'event': [
                     script('prerequest', [
                         "// Every value as 01 read it, so the run changes nothing the desk set.",
