@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 10 November 2026.** Update the "Where we are" section in the
+**Last updated: 16 November 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -57,6 +57,12 @@ for a review, and how the owner likes to work, is in
    to run.
 4. Small, optional: move the five older Postman builders onto
    `builder_common`; the Leads table's 100-enquiry window (Known findings).
+5. **WhatsApp AI Integration (Super Admin Executive Copilot)** — 2-day sprint
+   planned; see [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md).
+   Meta Cloud API + OpenAI tool-calling loop locked strictly to the Super Admin's
+   phone number (`SUPER_ADMIN_WHATSAPP_PHONE`) with HMAC-SHA256 signature
+   verification. Covers Trips (status, approval/rejection, in-chat PDF itinerary),
+   Financials/KPIs, Lead capture, Tasks, and Quotes.
 
 ### The stage: module-by-module review
 
@@ -338,7 +344,16 @@ this says *what the owner decided*, which nothing else records.
 
 
 
-### 10 Nov 2026 (last) — Postman scripts cleaned up, handoff refreshed, all committed (Claude Code)
+### 16 Nov 2026 — WhatsApp AI Integration (Super Admin Executive Copilot) planned & scoped (Gemini)
+
+- **Feasibility & architecture confirmed:** Discussed and architected a dedicated WhatsApp AI assistant for the Super Admin to run desk operations via natural language.
+- **Security model:** Strictly single-user. Restricted to `SUPER_ADMIN_WHATSAPP_PHONE` with incoming Meta webhook payloads validated cryptographically via HMAC-SHA256 (`WHATSAPP_APP_SECRET`). Operates under the live `SUPER_ADMIN` user context with full access rights and audit logging.
+- **2-Day implementation roadmap scoped:**
+  - **Day 1 (Infrastructure & Read Engine):** Meta Cloud API webhook handler (`GET /api/webhooks/whatsapp` challenge and `POST` events), Meta HMAC signature validator, Super Admin phone lock, OpenAI tool-calling loop with Redis session memory, and read tools (Dashboard KPIs, Upcoming Flights/Trips, Overdue Receivables, Client Lookup, Open Tasks).
+  - **Day 2 (Executive Writes, PDF Delivery & Safety Gates):** High-value write operations (`TripsService.approve`, `TripsService.reject`, Quick Lead creation, Task completion), In-chat PDF generation & delivery (Itinerary & Quote PDFs sent directly as downloadable `.pdf` documents in chat), and a 2-step confirmation gate for sensitive write actions.
+- **Credentials & docs:** Detailed setup guide and specifications documented in `docs/WHATSAPP_AI_INTEGRATION.md`, including Meta Cloud API credentials (Phone Number ID, WABA ID, Access Token, App Secret, Verify Token) and OpenAI API configuration.
+
+### 10 Nov 2026 — Postman scripts cleaned up, handoff refreshed, all committed (Claude Code)
 
 - **Postman directory trimmed to what regenerates the collection.** Twelve
   one-off patch scripts deleted (their effects were already in the
