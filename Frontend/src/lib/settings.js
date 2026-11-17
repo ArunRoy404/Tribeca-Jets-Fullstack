@@ -305,6 +305,7 @@ export const SETTINGS_FIELDS = {
     idleWarningMinutes: "number",
     showIdleWarning: "bool",
     requireAdminTwoFactor: "bool",
+    whatsappAssistantEnabled: "bool",
   },
   rateLimits: {
     failedSignInLimit: "limit",
