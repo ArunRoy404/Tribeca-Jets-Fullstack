@@ -80,9 +80,37 @@ WHATSAPP_GRAPH_VERSION=v21.0      # optional, defaults to v21.0
 SUPER_ADMIN_WHATSAPP_PHONE="+1…"  # E.164
 SUPER_ADMIN_WHATSAPP_EMAIL=""     # sign-in email of an ACTIVE SUPER_ADMIN
 
-# AI provider (already in the env before this feature)
+# AI provider (OPENAI_API_KEY existed before this feature; the model is step 2's)
 OPENAI_API_KEY=""
+OPENAI_MODEL=gpt-6.1-sol          # no default in code — the developer chooses
 ```
+
+### Getting the Meta values (walkthrough, 17 Nov 2026)
+
+Meta moves its menus; take the nearest label if one differs.
+
+**Setup**
+1. **business.facebook.com** — a business portfolio (skip if one exists).
+2. **developers.facebook.com → My Apps → Create App**, use case "Connect
+   with customers through WhatsApp", linked to that portfolio.
+3. **WhatsApp → API Setup**: Meta has created a free **test number**
+   ("From"). Under "To" → *Manage phone number list* → add the Super
+   Admin's own WhatsApp number and confirm the code. *Send message* there
+   should deliver "Hello World" to the phone.
+
+**The values**
+| Variable | Where |
+|---|---|
+| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp → API Setup → "Phone number ID" (the id, not the number) |
+| `WHATSAPP_APP_SECRET` | App settings → Basic → App secret → Show |
+| `WHATSAPP_ACCESS_TOKEN` | Quick: API Setup → temporary token (expires in 24 h). Permanent: Business settings → Users → System users → Add (Admin) → assign the app and the WhatsApp account (full control) → Generate token, expiry Never, permissions `whatsapp_business_messaging` + `whatsapp_business_management` — copy at once, it is shown once |
+| `WHATSAPP_VERIFY_TOKEN` | Made up — any long random string, typed into Meta's webhook form later |
+| `SUPER_ADMIN_WHATSAPP_PHONE` | The Super Admin's WhatsApp number, E.164 (`+8801…`, no spaces) |
+| `SUPER_ADMIN_WHATSAPP_EMAIL` | An active SUPER_ADMIN's sign-in email |
+
+Into `Backend/.env` only, never into a chat or a commit. A real business
+number for production cannot stay logged into the ordinary WhatsApp app —
+use one that is on nobody's phone; the test number is enough for step 3.
 
 The WABA id is not needed: sending uses the phone number id.
 
@@ -137,7 +165,7 @@ building → 🔍 in review → ✅ reviewed and committed.
 |---|---|---|
 | 1 | **Secure entry point** — env (six variables, all or none), Settings › Security switch (off by default), webhook (`GET` verify, `POST` signed events), gates: configured, switched on, one phone, redelivery dropped, ≤10 min old, active Super Admin re-read per message | ✅ 16 Nov — 53 tests + live curl run on a test API; committed 17 Nov (`210d87a`, `b1f8cdc`, `1c48031`) |
 | 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | 🔍 17 Nov — built by Codex, code-reviewed by Claude (two fixes: `--as` works without the Meta env, and `handle()` asks `agent.ready` rather than re-reading config). 51 new mocked tests; backend total 72 files / 673 tests, tsc and oxlint clean; compiled script boots and refuses without a key. **Live check passed 17 Nov** on the dev database (seed data) with the developer's own key and `gpt-6.1-sol`: no flights tomorrow answered as not on file, this week's KPIs as the service computed them, a client card matching the database field by field, a follow-up answered from memory, and "approve" declined as coming. It found three things, fixed: the script hung after answering (now exits), the model sent full names to a search that matches one column at a time (tool description now says one name), and money had no thousands separators. **Left: commit** |
-| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ⬜ needs the Meta credentials (setup started 17 Nov) |
+| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ⬜ 17 Nov — decided: build and Meta setup run in parallel. **Next: write the Codex brief** (sending against a faked Graph API, as step 2 faked OpenAI); the credentials are needed only for the live check. Developer doing the Meta setup (walkthrough in §4) |
 | 4 | **Actions with CONFIRM** — approve/decline trip, create lead, complete task, record payment; 2-step confirmation held in Redis for 5 minutes | ⬜ |
 | 5 | **PDFs in the chat** — itinerary, quote, invoice via the existing PDF generator, uploaded to Meta media and sent as documents | ⬜ |
 | 6 | **More tools, module by module** — until the bot covers the CRM (bulk operations, permissions and Settings stay out on purpose) | ⬜ |
@@ -149,7 +177,7 @@ building → 🔍 in review → ✅ reviewed and committed.
 |---|---|---|
 | `OPENAI_API_KEY` in `Backend/.env` | step 2 live check | ✅ 17 Nov — the developer's own key, for local testing on seed data |
 | `OPENAI_MODEL` in `Backend/.env` | step 2 live check | ✅ 17 Nov — `gpt-6.1-sol` (balance of tool-calling reliability and cost; `gpt-6.1-terra` is the cheaper one to compare) |
-| Meta credentials (§4): permanent system-user token, phone number id, app secret, verify token, Super Admin phone and email | step 3 | ⏳ Meta setup in progress (17 Nov) |
+| Meta credentials (§4, with the walkthrough): permanent system-user token, phone number id, app secret, verify token, Super Admin phone and email | step 3 live check | ⏳ Meta setup in progress (17 Nov) — not needed to start building |
 | Owner's OK to send client data (names, routes, figures) to OpenAI — passports, IDs and sensitive documents stay out regardless | first live call | ⏳ to ask |
 
 Secrets go straight into `Backend/.env` (git-ignored), never into a chat.
