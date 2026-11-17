@@ -36,6 +36,7 @@ const row: SettingsRow = {
   idleWarningMinutes: 1,
   showIdleWarning: true,
   requireAdminTwoFactor: false,
+  whatsappAssistantEnabled: false,
   failedSignInLimit: 5,
   failedSignInWindowMinutes: 15,
   signInLockoutMinutes: 15,
@@ -80,7 +81,7 @@ describe('public branding', () => {
   /** The public route is read with no session: nothing internal may leak. */
   it('carries nothing but branding', () => {
     const text = JSON.stringify(brandingView(row));
-    for (const internal of ['idleTimeout', 'requireAdminTwoFactor', 'Markup', 'Fet', 'Reminder', 'Terms', 'SignIn', 'code']) {
+    for (const internal of ['idleTimeout', 'requireAdminTwoFactor', 'whatsapp', 'Markup', 'Fet', 'Reminder', 'Terms', 'SignIn', 'code']) {
       expect(text).not.toContain(internal);
     }
   });

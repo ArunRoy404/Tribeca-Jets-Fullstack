@@ -33,4 +33,5 @@ export class AppConfigService {
   get storage() { return this.get('storage'); }
   get mail() { return this.get('mail'); }
   get ai() { return this.get('ai'); }
+  get whatsapp() { return this.get('whatsapp'); }
 }

@@ -39,6 +39,7 @@ import { ReportsModule } from './modules/reports/reports.module.js';
 import { DocumentsModule } from './modules/documents/documents.module.js';
 import { ClientPortalModule } from './modules/client-portal/client-portal.module.js';
 import { AssistantModule } from './modules/assistant/assistant.module.js';
+import { WhatsappModule } from './modules/whatsapp/whatsapp.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -100,6 +101,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     DocumentsModule,
     ClientPortalModule,
     AssistantModule,
+    WhatsappModule,
   ],
   providers: [
     /**

@@ -64,6 +64,11 @@ model CompanySettings {
   /// Administrators sign in with an emailed code whether or not they turned
   /// two-factor on themselves. Off until the owner switches it on.
   requireAdminTwoFactor Boolean @default(false)
+  /// The Super Admin's WhatsApp assistant (16 Nov 2026). Off by default: the
+  /// bot acts with a Super Admin's authority, so it answers only once the
+  /// server is configured for it (WHATSAPP_* env) *and* this is switched on.
+  /// Switching it off stops it at the next message — the lost-phone switch.
+  whatsappAssistantEnabled Boolean @default(false)
 
   // ---- Rate limiting (owner's decision, 15 Oct 2026) -------------------------
   /// Only failures are counted: a correct password is never limited, and it

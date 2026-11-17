@@ -75,6 +75,43 @@ export interface AppConfig {
     anthropicApiKey?: string;
     enabled: boolean;
   };
+
+  /** Null unless every WhatsApp variable is set (the env refuses a partial set). */
+  whatsapp: {
+    accessToken: string;
+    phoneNumberId: string;
+    appSecret: string;
+    verifyToken: string;
+    graphVersion: string;
+    /** Digits only, as Meta writes `from`: `15551234567`. */
+    adminPhone: string;
+    adminEmail: string;
+  } | null;
+}
+
+/** Digits only — Meta sends `from` without the plus. */
+export const phoneDigits = (phone: string) => phone.replace(/\D/g, '');
+
+function resolveWhatsapp(env: Env): AppConfig['whatsapp'] {
+  if (
+    !env.WHATSAPP_ACCESS_TOKEN ||
+    !env.WHATSAPP_PHONE_NUMBER_ID ||
+    !env.WHATSAPP_APP_SECRET ||
+    !env.WHATSAPP_VERIFY_TOKEN ||
+    !env.SUPER_ADMIN_WHATSAPP_PHONE ||
+    !env.SUPER_ADMIN_WHATSAPP_EMAIL
+  ) {
+    return null;
+  }
+  return {
+    accessToken: env.WHATSAPP_ACCESS_TOKEN,
+    phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
+    appSecret: env.WHATSAPP_APP_SECRET,
+    verifyToken: env.WHATSAPP_VERIFY_TOKEN,
+    graphVersion: env.WHATSAPP_GRAPH_VERSION,
+    adminPhone: phoneDigits(env.SUPER_ADMIN_WHATSAPP_PHONE),
+    adminEmail: env.SUPER_ADMIN_WHATSAPP_EMAIL.toLowerCase(),
+  };
 }
 
 /**
@@ -183,5 +220,7 @@ export function buildConfig(env: Env): AppConfig {
         env.AI_PROVIDER === 'openai' ? env.OPENAI_API_KEY : env.ANTHROPIC_API_KEY,
       ),
     },
+
+    whatsapp: resolveWhatsapp(env),
   };
 }

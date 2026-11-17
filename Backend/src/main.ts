@@ -11,6 +11,9 @@ import { AppConfigService } from './config/config.service.js';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
+    // Keeps the request's bytes beside the parsed body (`req.rawBody`): the
+    // WhatsApp webhook's signature is an HMAC of exactly those bytes.
+    rawBody: true,
   });
 
   const config = app.get(AppConfigService);

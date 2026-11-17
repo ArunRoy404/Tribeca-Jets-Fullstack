@@ -105,6 +105,7 @@ const securitySchema = z
     idleWarningMinutes: oneOf(IDLE_WARNING_MINUTES, 'Warning before logout').optional(),
     showIdleWarning: z.boolean().optional(),
     requireAdminTwoFactor: z.boolean().optional(),
+    whatsappAssistantEnabled: z.boolean().optional(),
   })
   .strict();
 

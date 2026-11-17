@@ -59,6 +59,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.set(key, '1', 'EX', ttlSeconds);
   }
 
+  /**
+   * Sets `key` only if it is absent. True for the first caller, false for
+   * every later one until it expires — "handle this event exactly once".
+   */
+  async claimOnce(key: string, ttlSeconds: number): Promise<boolean> {
+    return (await this.client.set(key, '1', 'EX', ttlSeconds, 'NX')) === 'OK';
+  }
+
   async del(...keys: string[]): Promise<void> {
     if (keys.length) await this.client.del(...keys);
   }

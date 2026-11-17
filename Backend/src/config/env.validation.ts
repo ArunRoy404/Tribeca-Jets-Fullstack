@@ -116,6 +116,28 @@ export const envSchema = z
     OPENAI_API_KEY: z.string().optional(),
     ANTHROPIC_API_KEY: z.string().optional(),
     AI_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
+
+    // ---- WhatsApp assistant (Super Admin only; all or none) ----------------
+    /** Meta Cloud API: the permanent access token of the system user. */
+    WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+    /** Meta Cloud API: the id of the business number the bot sends from. */
+    WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+    /** The Meta app's secret — signs every webhook (`X-Hub-Signature-256`). */
+    WHATSAPP_APP_SECRET: z.string().optional(),
+    /** Made up by us, typed into Meta's webhook form; Meta echoes it once. */
+    WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+    WHATSAPP_GRAPH_VERSION: z.string().default('v21.0'),
+    /**
+     * The one phone allowed to talk to the bot, E.164 (`+15551234567`).
+     * In the env, never the database, so nobody signed in to the web app can
+     * point the bot at their own phone.
+     */
+    SUPER_ADMIN_WHATSAPP_PHONE: z
+      .string()
+      .regex(/^\+?\d{8,15}$/, 'Use an E.164 number, e.g. +15551234567')
+      .optional(),
+    /** The Super Admin account the bot acts as, by sign-in email. */
+    SUPER_ADMIN_WHATSAPP_EMAIL: z.email().optional(),
   })
   .superRefine((env, ctx) => {
     // A production deployment must never fall back to insecure cookies.
@@ -169,6 +191,27 @@ export const envSchema = z
             message: `${key} is required when STORAGE_DRIVER=s3`,
           });
         }
+      }
+    }
+
+    // The bot runs with a Super Admin's authority, so it is configured
+    // completely or not at all — a partial set is a typo, never a mode.
+    const whatsappKeys = [
+      'WHATSAPP_ACCESS_TOKEN',
+      'WHATSAPP_PHONE_NUMBER_ID',
+      'WHATSAPP_APP_SECRET',
+      'WHATSAPP_VERIFY_TOKEN',
+      'SUPER_ADMIN_WHATSAPP_PHONE',
+      'SUPER_ADMIN_WHATSAPP_EMAIL',
+    ] as const;
+    const whatsappSet = whatsappKeys.filter((key) => Boolean(env[key]));
+    if (whatsappSet.length > 0 && whatsappSet.length < whatsappKeys.length) {
+      for (const key of whatsappKeys.filter((k) => !env[k])) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} is missing while other WHATSAPP settings are set. Complete them all, or remove them all to turn the WhatsApp assistant off.`,
+        });
       }
     }
 
