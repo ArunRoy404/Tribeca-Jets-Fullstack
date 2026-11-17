@@ -119,23 +119,40 @@ port 4000 through a tunnel (ngrok, cloudflared).
 
 ## 6. Progress
 
-The plan in seven steps (agreed 16 Nov 2026). Update this table in the same
-pass as each step.
+The plan in seven steps (agreed 16 Nov 2026). **Update this section in the
+same pass as every change of state** — a step started, built, reviewed,
+committed, or a credential arriving.
+
+**How the work is split (from 17 Nov 2026):** Claude writes each step's
+blueprint as a self-contained Codex prompt; Codex (GPT-6.1 Sol, high effort)
+builds it in a fresh chat and does **not** commit; Claude reviews the result
+against `AGENTS.md`, fixes or sends it back, runs the live check, and commits
+on the developer's word. One step at a time — the next prompt is written only
+after the previous step passes review.
+
+Each step moves through: ⬜ not started → ✍️ prompt written → 🔨 Codex
+building → 🔍 in review → ✅ reviewed and committed.
 
 | Step | What | State |
 |---|---|---|
-| 1 | **Secure entry point** — env (six variables, all or none), Settings › Security switch (off by default), webhook (`GET` verify, `POST` signed events), gates: configured, switched on, one phone, redelivery dropped, ≤10 min old, active Super Admin re-read per message | ✅ 16 Nov — 53 tests + live curl run on a test API; committed 17 Nov |
-| 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | ⬜ next — needs `OPENAI_API_KEY` |
-| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ⬜ needs the Meta credentials |
+| 1 | **Secure entry point** — env (six variables, all or none), Settings › Security switch (off by default), webhook (`GET` verify, `POST` signed events), gates: configured, switched on, one phone, redelivery dropped, ≤10 min old, active Super Admin re-read per message | ✅ 16 Nov — 53 tests + live curl run on a test API; committed 17 Nov (`210d87a`, `b1f8cdc`, `1c48031`) |
+| 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | ✍️ 17 Nov — Codex prompt written (`docs/codex-prompts/step-2-ai-brain.md`, launcher at its top). First Codex run stopped before writing code: the old machine's nvm blocked npm (NVM4306, an environment fault — npm itself was unmodified). **Not started; re-run on the new machine.** Built and unit-tested without a key (mocked OpenAI); the key is needed only for the live check at review |
+| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ⬜ needs the Meta credentials (setup started 17 Nov) |
 | 4 | **Actions with CONFIRM** — approve/decline trip, create lead, complete task, record payment; 2-step confirmation held in Redis for 5 minutes | ⬜ |
 | 5 | **PDFs in the chat** — itinerary, quote, invoice via the existing PDF generator, uploaded to Meta media and sent as documents | ⬜ |
 | 6 | **More tools, module by module** — until the bot covers the CRM (bulk operations, permissions and Settings stay out on purpose) | ⬜ |
 | 7 | **Finish** — Postman folder for the two webhook routes (signed in a pre-request script), docs, deploy when the developer says | ⬜ |
 
-**Needed from the developer / owner:** the OpenAI key (step 2), the Meta
-credentials listed in §4 (step 3), and the owner's OK to send client data
-(names, routes, figures) to OpenAI — passports, IDs and sensitive documents
-stay out regardless.
+**Needed from the developer / owner:**
+
+| Item | For | State |
+|---|---|---|
+| `OPENAI_API_KEY` in `Backend/.env` | step 2 live check | ⏳ developer locating it (17 Nov) |
+| `OPENAI_MODEL` in `Backend/.env` | step 2 live check | ⏳ set with the key |
+| Meta credentials (§4): permanent system-user token, phone number id, app secret, verify token, Super Admin phone and email | step 3 | ⏳ Meta setup in progress (17 Nov) |
+| Owner's OK to send client data (names, routes, figures) to OpenAI — passports, IDs and sensitive documents stay out regardless | first live call | ⏳ to ask |
+
+Secrets go straight into `Backend/.env` (git-ignored), never into a chat.
 
 **Where the code is:** `Backend/src/modules/whatsapp/` — `whatsapp.controller.ts`
 (routes), `whatsapp.signature.ts` (HMAC), `whatsapp.payload.ts` (Meta payload

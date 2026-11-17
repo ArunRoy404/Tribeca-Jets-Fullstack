@@ -19,8 +19,14 @@ for a review, and how the owner likes to work, is in
 
 - **New work in progress: the Super Admin's WhatsApp assistant** — step 1
   of 7 (the secure entry point) built, verified and committed on `roy`
-  (16–17 Nov). Steps 2–3 wait on the developer's OpenAI key and Meta
-  credentials. Plan, steps and progress:
+  (16–17 Nov). **Step 2 (AI brain): Codex prompt written 17 Nov, not yet
+  built** — the first Codex run was blocked by the old machine's nvm
+  (npm refused, NVM4306), so work moves to another machine: there, check
+  `npm test` runs, then start Codex with the launcher at the top of
+  `docs/codex-prompts/step-2-ai-brain.md`. From
+  now on Claude writes each step as a Codex prompt, Codex builds without
+  committing, Claude reviews and commits (§6 has the split and the state
+  of every step and credential). Plan, steps and progress:
   [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6;
   the rules: AGENTS.md, "The WhatsApp assistant is one phone, one Super
   Admin, signed by Meta".
@@ -77,10 +83,14 @@ for a review, and how the owner likes to work, is in
 4. Small, optional: move the five older Postman builders onto
    `builder_common`; the Leads table's 100-enquiry window (Known findings).
 5. **WhatsApp AI Integration (Super Admin Executive Copilot)** — in progress,
-   the developer's current focus. Step 1 of 7 done (committed 17 Nov); next
-   is step 2, the OpenAI loop with the first read tools. Needed from the
-   developer: the OpenAI key (step 2), the Meta credentials (step 3), and
-   the owner's OK to send client data to OpenAI. Steps and progress table in
+   the developer's current focus. Step 1 of 7 done (committed 17 Nov); step
+   2, the OpenAI loop with the first read tools, has its Codex prompt
+   written (17 Nov) and is to be built against a mocked OpenAI — not
+   started yet (the first run hit an npm block on the old machine). Needed
+   from the
+   developer: the OpenAI key and model (step 2's live check — being
+   located), the Meta credentials (step 3 — setup started 17 Nov), and the
+   owner's OK to send client data to OpenAI. Steps and progress table in
    [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6.
    Meta Cloud API + OpenAI tool-calling loop locked strictly to the Super Admin's
    phone number (`SUPER_ADMIN_WHATSAPP_PHONE`) with HMAC-SHA256 signature
