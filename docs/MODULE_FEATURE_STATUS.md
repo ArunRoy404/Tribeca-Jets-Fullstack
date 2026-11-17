@@ -1972,6 +1972,34 @@ caller's reach and money permission; the header's **Ask Anything** popover
 
 ---
 
+## WhatsApp assistant (Super Admin) 🟡 *(step 1 of 7 built 16 Nov 2026)*
+
+Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
+"The WhatsApp assistant is one phone, one Super Admin, signed by Meta".
+
+**Working**
+- `GET /api/webhooks/whatsapp` — Meta's verification, echoes the challenge
+  as plain text when the verify token matches.
+- `POST /api/webhooks/whatsapp` — refused (401) unless signed by the app
+  secret; reads messages leniently; answers at once.
+- The gates in `WhatsappService`: configured, Settings switch on, the one
+  phone, redelivery dropped, at most 10 minutes old, the env's account still
+  an active Super Admin (with its own permission set).
+- Settings › Security › "WhatsApp assistant (Super Admin)"
+  (`company_settings.whatsappAssistantEnabled`, off by default).
+
+**Waiting**
+| What | Waits on |
+|---|---|
+| Answering a message (the OpenAI loop and its tools) | Step 2 |
+| Sending a reply | Step 3 — the Meta credentials |
+| Approve / decline, leads, tasks, payments over chat | Step 4 |
+| PDFs in the chat | Step 5 |
+| More tools, module by module | Step 6 |
+| Postman entries for the two routes | Step 7 |
+
+---
+
 ## 28. Uploads ✅
 
 **Not in the original queue.** Built out of order because four separate client

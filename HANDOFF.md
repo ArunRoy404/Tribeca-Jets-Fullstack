@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 16 November 2026.** Update the "Where we are" section in the
+**Last updated: 17 November 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -15,7 +15,26 @@ for a review, and how the owner likes to work, is in
 
 ## Part 1 — Where we are
 
-### Read this first — the state on 10 Nov 2026
+### Read this first — the state on 17 Nov 2026
+
+- **New work in progress: the Super Admin's WhatsApp assistant** — step 1
+  of 7 (the secure entry point) built, verified and committed on `roy`
+  (16–17 Nov). Steps 2–3 wait on the developer's OpenAI key and Meta
+  credentials. Plan, steps and progress:
+  [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6;
+  the rules: AGENTS.md, "The WhatsApp assistant is one phone, one Super
+  Admin, signed by Meta".
+- **On a new machine after pulling:** `cd Backend && npm install && npm run
+  db:generate && npm run db:deploy` — the new migration
+  `20261116120000_whatsapp_assistant_switch` adds one settings column. The
+  six WhatsApp env variables stay empty until the credentials arrive (all
+  six or none; empty means the assistant is off and its routes 404).
+- **Verified 17 Nov:** backend Vitest 70 files / 622 tests, `tsc`, oxlint
+  0; frontend `next build` clean. Newman was not re-run (no Postman folder
+  for the webhook yet).
+- Everything below from 10 Nov still holds.
+
+#### The state on 10 Nov 2026
 
 - **The build is complete; acceptance is what is left.** Every module is
   built. Rows 1–30 are owner-signed-off; #31–#34 (Import/Export, PDF
@@ -57,8 +76,12 @@ for a review, and how the owner likes to work, is in
    to run.
 4. Small, optional: move the five older Postman builders onto
    `builder_common`; the Leads table's 100-enquiry window (Known findings).
-5. **WhatsApp AI Integration (Super Admin Executive Copilot)** — 2-day sprint
-   planned; see [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md).
+5. **WhatsApp AI Integration (Super Admin Executive Copilot)** — in progress,
+   the developer's current focus. Step 1 of 7 done (committed 17 Nov); next
+   is step 2, the OpenAI loop with the first read tools. Needed from the
+   developer: the OpenAI key (step 2), the Meta credentials (step 3), and
+   the owner's OK to send client data to OpenAI. Steps and progress table in
+   [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6.
    Meta Cloud API + OpenAI tool-calling loop locked strictly to the Super Admin's
    phone number (`SUPER_ADMIN_WHATSAPP_PHONE`) with HMAC-SHA256 signature
    verification. Covers Trips (status, approval/rejection, in-chat PDF itinerary),
@@ -116,7 +139,8 @@ that module in [docs/MODULE_FEATURE_STATUS.md](docs/MODULE_FEATURE_STATUS.md).
 | 35 | Offline / PWA | ⏹️ Deferred by owner decision (documented for future) |
 
 **Git:** branch `roy`. Latest migration:
-`20261110120000_logo_on_dark` (after `…100000_trips_approve_permission` and
+`20261116120000_whatsapp_assistant_switch` (16 Nov; applied to
+`tribeca_jets` and `tribeca_postman`), before it `20261110120000_logo_on_dark` (after `…100000_trips_approve_permission` and
 `…110000_trips_assign_permission`, both data only; run `npm run db:deploy` on
 any database that has not had them — applied to `tribeca_jets` and
 `tribeca_postman` on 10 Nov).
@@ -343,6 +367,31 @@ the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
 
 
+
+### 16 Nov 2026 — WhatsApp assistant, step 1: the secure entry point (Claude Code)
+
+- **Built** `Backend/src/modules/whatsapp/`: Meta's verification `GET` and
+  the signed events `POST` at `/api/webhooks/whatsapp` (`@Public()`, HMAC of
+  the raw body — `rawBody: true` in `main.ts`), a lenient payload reader,
+  and the gates (env configured, Settings switch, one phone, redelivery via
+  the new `RedisService.claimOnce`, 10-minute age limit, active Super Admin
+  re-read per message). Accepted messages are only logged until step 2.
+- **Env:** six variables, all or none (`.env.example`). The phone and the
+  acting account are env-only by design. `OPENAI_API_KEY` already existed.
+- **Setting:** `whatsappAssistantEnabled` (Security), off by default;
+  migration `20261116120000_whatsapp_assistant_switch` applied to
+  `tribeca_jets` and `tribeca_postman`; the toggle is on Settings › Security.
+- **Verified:** `tsc`, oxlint 0, `whatsapp.spec.ts` + settings specs (53
+  tests); a live run on a test API (port 4200, `tribeca_postman`, test
+  Redis): challenge echoed as plain text, bad token 403, unsigned 401,
+  switch off → dropped, on → accepted, redelivery and a stranger dropped;
+  the switch was put back off.
+- **Not done:** the Postman folder for the two routes (step 7).
+- **17 Nov:** docs brought up to date (seven-step plan below), `next build`
+  re-run clean, full backend suite 70 files / 622 tests green; committed in
+  batches and pushed to `origin/roy` at the developer's request.
+- **Known limit:** any administrator with Settings · Edit can flip the
+  switch; nobody but the server operator can change which phone it answers.
 
 ### 16 Nov 2026 — WhatsApp AI Integration (Super Admin Executive Copilot) planned & scoped (Gemini)
 

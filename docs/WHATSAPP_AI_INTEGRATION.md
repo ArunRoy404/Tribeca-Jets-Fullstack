@@ -65,22 +65,34 @@ To ensure production-grade stability, the 2-day implementation focuses on the to
 
 ## 4. Credentials & Environment Configuration
 
-The following keys will be configured in `Backend/.env`:
+As built (16 Nov 2026) — `Backend/.env`, **all six or none** (a partial set
+refuses to boot):
 
 ```bash
 # Meta WhatsApp Cloud API
-WHATSAPP_PHONE_NUMBER_ID=""         # Meta App -> WhatsApp -> API Setup -> Phone number ID
-WHATSAPP_WABA_ID=""                 # Meta App -> WhatsApp -> API Setup -> WhatsApp Business Account ID
-WHATSAPP_ACCESS_TOKEN=""            # Permanent System User token with whatsapp_business_messaging
-WHATSAPP_APP_SECRET=""               # Meta App -> App settings -> Basic -> App secret
-WHATSAPP_VERIFY_TOKEN=""             # Custom secret handshake string (configured in Meta Webhooks)
+WHATSAPP_ACCESS_TOKEN=""          # Permanent System User token with whatsapp_business_messaging
+WHATSAPP_PHONE_NUMBER_ID=""       # Meta App -> WhatsApp -> API Setup -> Phone number ID
+WHATSAPP_APP_SECRET=""            # Meta App -> App settings -> Basic -> App secret
+WHATSAPP_VERIFY_TOKEN=""          # Any string we choose; typed into Meta's webhook form
+WHATSAPP_GRAPH_VERSION=v21.0      # optional, defaults to v21.0
 
-# AI Provider
-OPENAI_API_KEY=""                    # OpenAI API key (gpt-4o / gpt-4o-mini)
+# The one phone the bot answers, and the account it acts as
+SUPER_ADMIN_WHATSAPP_PHONE="+1…"  # E.164
+SUPER_ADMIN_WHATSAPP_EMAIL=""     # sign-in email of an ACTIVE SUPER_ADMIN
 
-# Super Admin Whitelisted Phone Number
-SUPER_ADMIN_WHATSAPP_PHONE="+1..."   # International E.164 format without spaces or dashes
+# AI provider (already in the env before this feature)
+OPENAI_API_KEY=""
 ```
+
+The WABA id is not needed: sending uses the phone number id.
+
+**And Settings › Security › "WhatsApp assistant (Super Admin)"** must be on.
+It is off by default, and switching it off stops the bot at the next message
+— the switch for a lost phone.
+
+**Webhook URL for Meta:** `https://<domain>/api/webhooks/whatsapp`, verify
+token = `WHATSAPP_VERIFY_TOKEN`, subscribed field `messages`. Locally, expose
+port 4000 through a tunnel (ngrok, cloudflared).
 
 ---
 
@@ -102,3 +114,30 @@ SUPER_ADMIN_WHATSAPP_PHONE="+1..."   # International E.164 format without spaces
 2. **Verification & Testing:**
    - Unit tests for signature verification, phone whitelisting, and tool routing.
    - Live end-to-end testing with WhatsApp test number.
+
+---
+
+## 6. Progress
+
+The plan in seven steps (agreed 16 Nov 2026). Update this table in the same
+pass as each step.
+
+| Step | What | State |
+|---|---|---|
+| 1 | **Secure entry point** — env (six variables, all or none), Settings › Security switch (off by default), webhook (`GET` verify, `POST` signed events), gates: configured, switched on, one phone, redelivery dropped, ≤10 min old, active Super Admin re-read per message | ✅ 16 Nov — 53 tests + live curl run on a test API; committed 17 Nov |
+| 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | ⬜ next — needs `OPENAI_API_KEY` |
+| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ⬜ needs the Meta credentials |
+| 4 | **Actions with CONFIRM** — approve/decline trip, create lead, complete task, record payment; 2-step confirmation held in Redis for 5 minutes | ⬜ |
+| 5 | **PDFs in the chat** — itinerary, quote, invoice via the existing PDF generator, uploaded to Meta media and sent as documents | ⬜ |
+| 6 | **More tools, module by module** — until the bot covers the CRM (bulk operations, permissions and Settings stay out on purpose) | ⬜ |
+| 7 | **Finish** — Postman folder for the two webhook routes (signed in a pre-request script), docs, deploy when the developer says | ⬜ |
+
+**Needed from the developer / owner:** the OpenAI key (step 2), the Meta
+credentials listed in §4 (step 3), and the owner's OK to send client data
+(names, routes, figures) to OpenAI — passports, IDs and sensitive documents
+stay out regardless.
+
+**Where the code is:** `Backend/src/modules/whatsapp/` — `whatsapp.controller.ts`
+(routes), `whatsapp.signature.ts` (HMAC), `whatsapp.payload.ts` (Meta payload
+reader), `whatsapp.service.ts` (gates and acting user; `handle()` is where
+step 2 plugs in), `whatsapp.spec.ts`.

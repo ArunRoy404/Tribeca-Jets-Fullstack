@@ -1155,7 +1155,38 @@ Three rules follow, and they generalise to anything polymorphic:
   Which permission applies depends on `subjectType`, which is a value in the
   query string — a `@RequireAccess` decorator cannot see it. So these
   routes carry none, exactly as the upload routes do, and both record why at
-  the top of the controller. This is the only sanctioned reason to omit one.
+  the top of the controller. This is the only sanctioned reason to omit one
+  on a signed-in route; the WhatsApp webhook (below) has no session at all.
+
+## The WhatsApp assistant is one phone, one Super Admin, signed by Meta
+
+The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
+`docs/WHATSAPP_AI_INTEGRATION.md`). `POST /api/webhooks/whatsapp` is
+`@Public()` because Meta has no session; what stands in for one:
+
+- **Every post is refused (401) unless `X-Hub-Signature-256` is the app
+  secret's HMAC of the raw bytes** (`rawBody: true` in `main.ts`). Never
+  verify against a re-serialised body — it fails on real traffic and passes
+  every hand-made test.
+- **The phone and the account it acts as live in the env**
+  (`SUPER_ADMIN_WHATSAPP_PHONE`, `SUPER_ADMIN_WHATSAPP_EMAIL`), never in the
+  database: nobody signed in to the web app can point the bot at their own
+  phone. All six `WHATSAPP_*`/`SUPER_ADMIN_WHATSAPP_*` variables or none — a
+  partial set refuses to boot.
+- **Every message passes the gates in `WhatsappService` first**: configured,
+  Settings › Security › "WhatsApp assistant" on (off by default — the
+  lost-phone switch), from that phone, not already handled (Meta redelivers;
+  `RedisService.claimOnce`), at most ten minutes old (a queued "approve it"
+  must not run after an outage), and the account still an active
+  SUPER_ADMIN, re-read per message. A message failing any gate gets **no
+  reply** — an answer confirms to a stranger that the number is a bot.
+- **It acts as that user, through the owning services**, with their own
+  permission set (`resolveAccess`, as `JwtStrategy`), so every permission,
+  reach, check and audit row applies exactly as in the web app. Never a
+  raw Prisma write from the bot.
+- **The route answers Meta at once** and handles messages after; it reads
+  the payload leniently and never 400s — Meta retries, then disables a
+  webhook that refuses it. Message text is never logged.
 
 ## A timeline is two sources merged, and the merge is a pure function
 

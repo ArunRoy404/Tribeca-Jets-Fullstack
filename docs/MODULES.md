@@ -726,6 +726,7 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 | Inactivity timeout (Security) | Auth — `/auth/me` and the refresh check | — (env var removed 7 Oct) | ✅ |
 | Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` via `/auth/me` → `session` | — | ✅ |
 | Require 2FA for admins (Security) | Auth — sign-in (SUPER_ADMIN and ADMIN) | — | ✅ |
+| WhatsApp assistant on/off (Security, 16 Nov) | WhatsApp — `WhatsappService`, on every incoming message | — (new; off by default) | ✅ |
 | Failed sign-ins allowed, counting window, pause length, whose failures count (Rate Limiting, 15 Oct) | Auth — `SignInThrottleService` on sign-in and on My Account's password re-check | `@RateLimit` 5 requests / 15 min per IP on `/auth/login` (counted correct sign-ins too) — removed | ✅ |
 | Codes per address + window, wrong guesses per code (Rate Limiting, 15 Oct) | Auth — reset codes and two-factor resends; code verification | `@RateLimit` 3 / 15 min per IP on resends; `VERIFICATION_MAX_ATTEMPTS` env var — both removed | ✅ |
 | Email / in-app channels (Notifications) | Tasks Board notifications, Email sending | both always on | ⬜ |
