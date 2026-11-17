@@ -136,7 +136,7 @@ building → 🔍 in review → ✅ reviewed and committed.
 | Step | What | State |
 |---|---|---|
 | 1 | **Secure entry point** — env (six variables, all or none), Settings › Security switch (off by default), webhook (`GET` verify, `POST` signed events), gates: configured, switched on, one phone, redelivery dropped, ≤10 min old, active Super Admin re-read per message | ✅ 16 Nov — 53 tests + live curl run on a test API; committed 17 Nov (`210d87a`, `b1f8cdc`, `1c48031`) |
-| 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | ✍️ 17 Nov — Codex prompt written (`docs/codex-prompts/step-2-ai-brain.md`, launcher at its top). First Codex run stopped before writing code: the old machine's nvm blocked npm (NVM4306, an environment fault — npm itself was unmodified). **Not started; re-run on the new machine.** Built and unit-tested without a key (mocked OpenAI); the key is needed only for the live check at review |
+| 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | 🔍 17 Nov — built by Codex, code-reviewed by Claude (two fixes: `--as` works without the Meta env, and `handle()` asks `agent.ready` rather than re-reading config). 51 new mocked tests; backend total 72 files / 673 tests, tsc and oxlint clean; compiled script boots and refuses without a key. **Live check passed 17 Nov** on the dev database (seed data) with the developer's own key and `gpt-6.1-sol`: no flights tomorrow answered as not on file, this week's KPIs as the service computed them, a client card matching the database field by field, a follow-up answered from memory, and "approve" declined as coming. It found three things, fixed: the script hung after answering (now exits), the model sent full names to a search that matches one column at a time (tool description now says one name), and money had no thousands separators. **Left: commit** |
 | 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ⬜ needs the Meta credentials (setup started 17 Nov) |
 | 4 | **Actions with CONFIRM** — approve/decline trip, create lead, complete task, record payment; 2-step confirmation held in Redis for 5 minutes | ⬜ |
 | 5 | **PDFs in the chat** — itinerary, quote, invoice via the existing PDF generator, uploaded to Meta media and sent as documents | ⬜ |
@@ -147,8 +147,8 @@ building → 🔍 in review → ✅ reviewed and committed.
 
 | Item | For | State |
 |---|---|---|
-| `OPENAI_API_KEY` in `Backend/.env` | step 2 live check | ⏳ developer locating it (17 Nov) |
-| `OPENAI_MODEL` in `Backend/.env` | step 2 live check | ⏳ set with the key |
+| `OPENAI_API_KEY` in `Backend/.env` | step 2 live check | ✅ 17 Nov — the developer's own key, for local testing on seed data |
+| `OPENAI_MODEL` in `Backend/.env` | step 2 live check | ✅ 17 Nov — `gpt-6.1-sol` (balance of tool-calling reliability and cost; `gpt-6.1-terra` is the cheaper one to compare) |
 | Meta credentials (§4): permanent system-user token, phone number id, app secret, verify token, Super Admin phone and email | step 3 | ⏳ Meta setup in progress (17 Nov) |
 | Owner's OK to send client data (names, routes, figures) to OpenAI — passports, IDs and sensitive documents stay out regardless | first live call | ⏳ to ask |
 
@@ -156,5 +156,17 @@ Secrets go straight into `Backend/.env` (git-ignored), never into a chat.
 
 **Where the code is:** `Backend/src/modules/whatsapp/` — `whatsapp.controller.ts`
 (routes), `whatsapp.signature.ts` (HMAC), `whatsapp.payload.ts` (Meta payload
-reader), `whatsapp.service.ts` (gates and acting user; `handle()` is where
-step 2 plugs in), `whatsapp.spec.ts`.
+reader), `whatsapp.service.ts` (gates, shared live Super Admin lookup and reply
+preparation), `whatsapp.ai-client.ts` (Responses API adapter and nullable
+provider), `whatsapp.agent.ts` (bounded tool loop), `whatsapp.memory.ts`
+(Redis text history), `whatsapp.tools.ts` (permission checks and three read
+tools), `whatsapp.spec.ts`, `whatsapp.agent.spec.ts`, `whatsapp.tools.spec.ts`.
+The terminal entry point is `Backend/src/scripts/whatsapp-ask.ts` —
+`npm run whatsapp:ask -- [--as <email>] "question"` compiles with Nest first.
+It needs `OPENAI_API_KEY` and a developer-chosen `OPENAI_MODEL`. With the six
+WhatsApp variables set it acts as `SUPER_ADMIN_WHATSAPP_EMAIL` and shares the
+phone's memory; without them, `--as <email>` is required and the conversation
+is kept under the key `0`, which no phone number reduces to — so the brain can
+be tried before Meta's credentials arrive. `--as` uses the webhook's own
+active, non-deleted Super Admin query, and the all-or-none env rule is untouched.
+It skips webhook gates and is a development tool that sends CRM data to OpenAI.

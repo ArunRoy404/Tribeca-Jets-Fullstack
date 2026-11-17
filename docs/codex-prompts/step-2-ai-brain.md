@@ -14,7 +14,8 @@ file in Backend/src/modules/whatsapp/.
 Non-negotiable:
 - Never run git commit, push, stash, reset, or anything else that changes git
   history or the index. Leave all changes uncommitted.
-- No live calls to OpenAI, Meta or any external service.
+- No live calls to OpenAI, Meta or any external service. (The openai
+  package is already installed; no npm install is needed.)
 - Don't run nvm commands. If npm or npx is blocked, stop and report.
 - If anything in the brief doesn't match the code, stop and report it rather
   than guessing or inventing a value.
@@ -76,9 +77,9 @@ over WhatsApp is step 3. Do not build any sending.
 
 ## 2. Configuration
 
-- Add the official **`openai`** npm package to `Backend/package.json`
-  (`npm install openai` inside `Backend/`). Use the **Responses API** with
-  function tools.
+- The official **`openai`** npm package (`^7.57.0`) is **already installed**
+  in `Backend/package.json` and `node_modules` — do not run `npm install`.
+  Use the **Responses API** with function tools.
 - Add `OPENAI_MODEL: z.string().optional()` to `src/config/env.validation.ts`
   beside `OPENAI_API_KEY`, with a one-line doc comment, and `openaiModel` to the
   `ai` block in `src/config/configuration.ts`. **No default value** — the
@@ -248,10 +249,22 @@ company-specific figures.
 
 ## 4. The developer script
 
-`Backend/scripts/whatsapp-ask.ts` (the folder is new; run it with `tsx`, the
-way `db:bootstrap-admin` runs `prisma/bootstrap-admin.ts` — read that file and
-follow its style for env loading and exit codes), plus an npm script
-`whatsapp:ask`:
+`Backend/src/scripts/whatsapp-ask.ts` (the folder is new), plus an npm script
+`whatsapp:ask` that **compiles first and runs the compiled file**:
+
+```
+"whatsapp:ask": "nest build && node dist/scripts/whatsapp-ask.js"
+```
+
+**Not `tsx`** (corrected 17 Nov): `tsx` compiles with esbuild, which emits no
+`emitDecoratorMetadata`, so Nest cannot inject constructor dependencies and
+the context fails (`RedisService constructor metadata: undefined`).
+`bootstrap-admin.ts` gets away with `tsx` only because it builds Prisma by
+hand and never boots Nest. Under `src/`, `nest build` compiles the script with
+`tsc` and the full metadata, and `tsconfig.build.json` already picks it up.
+Follow `bootstrap-admin.ts` for style and exit codes; env loading is Nest's
+own `ConfigModule`, as in `main.ts`. The script ships in `dist/` and is inert
+there — nothing imports it, and it only runs when invoked by hand.
 
 ```
 npm run whatsapp:ask -- "What flights are going out tomorrow?"

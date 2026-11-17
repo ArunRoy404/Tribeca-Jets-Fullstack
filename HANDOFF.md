@@ -17,16 +17,17 @@ for a review, and how the owner likes to work, is in
 
 ### Read this first — the state on 17 Nov 2026
 
-- **New work in progress: the Super Admin's WhatsApp assistant** — step 1
-  of 7 (the secure entry point) built, verified and committed on `roy`
-  (16–17 Nov). **Step 2 (AI brain): Codex prompt written 17 Nov, not yet
-  built** — the first Codex run was blocked by the old machine's nvm
-  (npm refused, NVM4306), so work moves to another machine: there, check
-  `npm test` runs, then start Codex with the launcher at the top of
-  `docs/codex-prompts/step-2-ai-brain.md`. From
-  now on Claude writes each step as a Codex prompt, Codex builds without
-  committing, Claude reviews and commits (§6 has the split and the state
-  of every step and credential). Plan, steps and progress:
+- **New work in progress: the Super Admin's WhatsApp assistant** — steps
+  1 and 2 of 7 done and committed on `roy`. **Step 2 (AI brain), 17 Nov:**
+  built by Codex, reviewed and fixed by Claude, live-checked with the
+  developer's own OpenAI key (`gpt-6.1-sol`) on seed data — try it with
+  `npm run whatsapp:ask -- --as admin@example.com "question"` from
+  `Backend/`. **Next is step 3 (send replies over WhatsApp), which waits
+  on the Meta credentials.** Claude writes each step as a Codex prompt,
+  Codex builds without committing, Claude reviews and commits (§6 has the
+  split and the state of every step and credential). The owner's OK to
+  send real client data to OpenAI is still to ask — needed before it runs
+  on production data, not for local testing. Plan, steps and progress:
   [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6;
   the rules: AGENTS.md, "The WhatsApp assistant is one phone, one Super
   Admin, signed by Meta".
@@ -35,8 +36,9 @@ for a review, and how the owner likes to work, is in
   `20261116120000_whatsapp_assistant_switch` adds one settings column. The
   six WhatsApp env variables stay empty until the credentials arrive (all
   six or none; empty means the assistant is off and its routes 404).
-- **Verified 17 Nov:** backend Vitest 70 files / 622 tests, `tsc`, oxlint
-  0; frontend `next build` clean. Newman was not re-run (no Postman folder
+- **Verified 17 Nov (after step 2):** backend Vitest 72 files / 673 tests,
+  `tsc`, oxlint 0; step 2 live-checked from the terminal. Frontend
+  untouched by step 2 (`next build` clean after step 1). Newman was not re-run (no Postman folder
   for the webhook yet).
 - Everything below from 10 Nov still holds.
 
@@ -83,14 +85,12 @@ for a review, and how the owner likes to work, is in
 4. Small, optional: move the five older Postman builders onto
    `builder_common`; the Leads table's 100-enquiry window (Known findings).
 5. **WhatsApp AI Integration (Super Admin Executive Copilot)** — in progress,
-   the developer's current focus. Step 1 of 7 done (committed 17 Nov); step
-   2, the OpenAI loop with the first read tools, has its Codex prompt
-   written (17 Nov) and is to be built against a mocked OpenAI — not
-   started yet (the first run hit an npm block on the old machine). Needed
-   from the
-   developer: the OpenAI key and model (step 2's live check — being
-   located), the Meta credentials (step 3 — setup started 17 Nov), and the
-   owner's OK to send client data to OpenAI. Steps and progress table in
+   the developer's current focus. Steps 1–2 of 7 done (committed 17 Nov); step
+   2, the OpenAI loop with the first read tools, was live-checked on seed
+   data with the developer's own key. Next is step 3, sending replies.
+   Needed from the developer: the Meta credentials (step 3 — setup started
+   17 Nov), and the owner's OK to send real client data to OpenAI. Steps and
+   progress table in
    [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6.
    Meta Cloud API + OpenAI tool-calling loop locked strictly to the Super Admin's
    phone number (`SUPER_ADMIN_WHATSAPP_PHONE`) with HMAC-SHA256 signature
@@ -231,6 +231,18 @@ For clean testing, the database was wiped and seeded with standard baseline data
   `builder_common` when its folder is next rebuilt. Every folder now
   regenerates from its own script — see `Backend/postman/README.md`,
   "Regenerating".
+- **A full name finds nobody in the clients search** (found 17 Nov by the
+  WhatsApp live check): `searchAcross` matches the whole string against one
+  column at a time, so "Elena Rostova" matches neither `firstName` nor
+  `lastName` — in the web app's search too. The bot works round it (its
+  tool tells the model to send one name); fixing the shared helper changes
+  every module's search, so it waits for the owner's word. **Deferred by the
+  developer, 17 Nov — fix later.** The plan: split the term into words, each
+  word must match some field, **and keep the whole phrase as an extra match**
+  so nothing that matched before stops matching (additive — the screens are
+  signed off). Unit tests for the helper (it has none), a pass over its 19
+  callers (trip references, emails, phones with spaces), a live check and a
+  Newman run (31 requests send `search`). About 1–1.5 hours, its own commit.
 - The Leads table reads the newest 100 enquiries of the leads on the page;
   a lead with a very long enquiry history could crowd others out of that
   window (each lead's latest is what is shown).

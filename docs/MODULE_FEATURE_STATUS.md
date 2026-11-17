@@ -1972,7 +1972,7 @@ caller's reach and money permission; the header's **Ask Anything** popover
 
 ---
 
-## WhatsApp assistant (Super Admin) 🟡 *(step 1 of 7 built 16 Nov 2026)*
+## WhatsApp assistant (Super Admin) 🟡 *(steps 1–2 of 7 built; step 2 awaiting review, 17 Nov 2026)*
 
 Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
 "The WhatsApp assistant is one phone, one Super Admin, signed by Meta".
@@ -1987,11 +1987,21 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
   an active Super Admin (with its own permission set).
 - Settings › Security › "WhatsApp assistant (Super Admin)"
   (`company_settings.whatsappAssistantEnabled`, off by default).
+- Step 2 prepares text replies through a bounded OpenAI Responses tool loop:
+  flight legs (at most 14 days / 25 legs), dashboard KPIs and client search
+  (five results). Every tool validates its arguments, checks VIEW and calls
+  the owning service as the acting Super Admin, returning only allowed fields.
+- Redis memory holds six exchanges for 30 minutes; `reset` / `new` clears
+  it. Tool rows stay out of memory; OpenAI requests use `store: false`.
+- The compiled development command `npm run whatsapp:ask -- "question"`
+  (optional `--as <email>`) shares the webhook's live Super Admin lookup.
+  It needs `OPENAI_API_KEY` and `OPENAI_MODEL`; without the WhatsApp env set,
+  `--as` is required. No live AI or Meta call has been tested. Webhook handling prepares the
+  reply and logs only its length; delivery remains step 3.
 
 **Waiting**
 | What | Waits on |
 |---|---|
-| Answering a message (the OpenAI loop and its tools) | Step 2 |
 | Sending a reply | Step 3 — the Meta credentials |
 | Approve / decline, leads, tasks, payments over chat | Step 4 |
 | PDFs in the chat | Step 5 |

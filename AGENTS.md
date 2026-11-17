@@ -1187,6 +1187,17 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
 - **The route answers Meta at once** and handles messages after; it reads
   the payload leniently and never 400s — Meta retries, then disables a
   webhook that refuses it. Message text is never logged.
+- **Every tool call re-checks its permission with `canDo` before calling
+  a service.** The webhook has no `AccessGuard`; the dispatcher is that
+  boundary. An open picker read still needs the screen's VIEW in the bot.
+- **Tools return an explicit field allowlist, never a spread service row.**
+  Only the fields needed to answer the question go to OpenAI.
+- **Memory holds only user text and final replies** — at most six exchanges,
+  expiring 30 minutes after the last write. Tool calls and results never
+  survive the question; every OpenAI request uses `store: false`.
+- **The model answers only from tool results**, never an estimated figure
+  or an earlier reply treated as current CRM data. A missing fact is not on
+  file; a failed tool is not an empty result.
 
 ## A timeline is two sources merged, and the merge is a pure function
 
