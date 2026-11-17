@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UserRole, UserStatus } from '../../generated/prisma/enums.js';
 import { SettingsService } from '../settings/settings.service.js';
 import type { IncomingMessage } from './whatsapp.payload.js';
+import { WhatsappAgent } from './whatsapp.agent.js';
 
 /** Meta redelivers until it gets a 200; a day covers every retry it makes. */
 const SEEN_TTL_SECONDS = 24 * 60 * 60;
@@ -46,6 +47,7 @@ export class WhatsappService {
     private readonly settings: SettingsService,
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
+    private readonly agent: WhatsappAgent,
   ) {}
 
   /** Runs each message through the gates; returns what became of each. */
@@ -101,9 +103,14 @@ export class WhatsappService {
   async actingAdmin(): Promise<AuthenticatedUser | null> {
     const email = this.config.whatsapp?.adminEmail;
     if (!email) return null;
+    return this.adminForEmail(email);
+  }
+
+  /** The terminal's optional --as uses exactly the webhook's identity query. */
+  async adminForEmail(email: string): Promise<AuthenticatedUser | null> {
     const user = await this.prisma.user.findFirst({
       where: {
-        email: { equals: email, mode: 'insensitive' },
+        email: { equals: email.trim(), mode: 'insensitive' },
         deletedAt: null,
         status: UserStatus.ACTIVE,
         role: UserRole.SUPER_ADMIN,
@@ -121,12 +128,24 @@ export class WhatsappService {
   }
 
   /**
-   * What the assistant does with an accepted message. Step 1 of the plan
-   * (docs/WHATSAPP_AI_INTEGRATION.md) stops at the gates: the OpenAI loop and
-   * the reply arrive in steps 2 and 3. Logged without its text — a message to
-   * the bot can carry client names and figures.
+   * Step 2 prepares a reply; step 3 sends it. Neither the message nor the
+   * reply is logged — either can carry client names and figures. The webhook
+   * has already answered Meta, so a failure here must never escape.
    */
   private async handle(admin: AuthenticatedUser, message: IncomingMessage): Promise<void> {
-    this.logger.log(`Accepted WhatsApp message ${message.id} (${message.type}) for ${admin.email}`);
+    try {
+      if (message.type !== 'text' || !message.text?.trim()) {
+        this.logger.log(`Ignored non-text WhatsApp message ${message.id} (${message.type})`);
+        return;
+      }
+      if (!this.agent.ready) {
+        this.logger.warn('WhatsApp assistant accepted a message but OPENAI_API_KEY / OPENAI_MODEL are not set');
+        return;
+      }
+      const reply = await this.agent.reply(admin, message.from, message.text);
+      this.logger.log(`Prepared a reply to ${message.id} (${reply.length} chars)`);
+    } catch (error: unknown) {
+      this.logger.error(`WhatsApp reply preparation failed (${error instanceof Error ? error.name : 'UnknownError'})`);
+    }
   }
 }

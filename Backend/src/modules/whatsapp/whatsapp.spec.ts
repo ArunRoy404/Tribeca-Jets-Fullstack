@@ -137,10 +137,11 @@ describe('WhatsappService gates', () => {
     admin = { id: 'u1', email: 'owner@example.com', role: 'SUPER_ADMIN', permissions: null };
     findFirst.mockReset().mockImplementation(async () => admin);
     service = new WhatsappService(
-      { get whatsapp() { return configured; } } as never,
+      { get whatsapp() { return configured; }, ai: {} } as never,
       { read: async () => ({ whatsappAssistantEnabled: enabled }) } as never,
       { claimOnce: async (key: string) => !claimed.has(key) && Boolean(claimed.add(key)) } as never,
       { user: { findFirst } } as never,
+      { reply: vi.fn() } as never,
     );
   });
 

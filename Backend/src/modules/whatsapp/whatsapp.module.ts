@@ -1,9 +1,17 @@
 import { Module } from '@nestjs/common';
 import { WhatsappController } from './whatsapp.controller.js';
 import { WhatsappService } from './whatsapp.service.js';
+import { ClientsModule } from '../clients/clients.module.js';
+import { DashboardModule } from '../dashboard/dashboard.module.js';
+import { ScheduleModule } from '../schedule/schedule.module.js';
+import { WhatsappAgent } from './whatsapp.agent.js';
+import { WhatsappMemory } from './whatsapp.memory.js';
+import { WhatsappTools } from './whatsapp.tools.js';
+import { whatsappAiClientProvider } from './whatsapp.ai-client.js';
 
 @Module({
+  imports: [ClientsModule, DashboardModule, ScheduleModule],
   controllers: [WhatsappController],
-  providers: [WhatsappService],
+  providers: [WhatsappService, WhatsappAgent, WhatsappMemory, WhatsappTools, whatsappAiClientProvider],
 })
 export class WhatsappModule {}
