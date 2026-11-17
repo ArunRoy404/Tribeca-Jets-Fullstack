@@ -114,6 +114,8 @@ export const envSchema = z
 
     // ---- Integrations (all optional; features degrade gracefully) ----------
     OPENAI_API_KEY: z.string().optional(),
+    /** WhatsApp needs a model chosen by the developer, alongside the key. */
+    OPENAI_MODEL: z.string().optional(),
     ANTHROPIC_API_KEY: z.string().optional(),
     AI_PROVIDER: z.enum(['openai', 'anthropic']).default('openai'),
 

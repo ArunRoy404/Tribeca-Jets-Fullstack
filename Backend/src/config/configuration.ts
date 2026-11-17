@@ -72,6 +72,7 @@ export interface AppConfig {
   ai: {
     provider: Env['AI_PROVIDER'];
     openaiApiKey?: string;
+    openaiModel?: string;
     anthropicApiKey?: string;
     enabled: boolean;
   };
@@ -215,6 +216,7 @@ export function buildConfig(env: Env): AppConfig {
     ai: {
       provider: env.AI_PROVIDER,
       openaiApiKey: env.OPENAI_API_KEY,
+      openaiModel: env.OPENAI_MODEL,
       anthropicApiKey: env.ANTHROPIC_API_KEY,
       enabled: Boolean(
         env.AI_PROVIDER === 'openai' ? env.OPENAI_API_KEY : env.ANTHROPIC_API_KEY,

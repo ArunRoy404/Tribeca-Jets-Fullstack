@@ -12,7 +12,7 @@ import { DashboardService } from './dashboard.service.js';
 
 /**
  * Dashboard (#24): reads every figure through the module that owns it.
- * Nothing imports this module, so it adds no cycle.
+ * The WhatsApp assistant imports this view; none of its dependencies imports it back.
  */
 @Module({
   imports: [
@@ -27,5 +27,6 @@ import { DashboardService } from './dashboard.service.js';
   ],
   controllers: [DashboardController],
   providers: [DashboardService],
+  exports: [DashboardService],
 })
 export class DashboardModule {}

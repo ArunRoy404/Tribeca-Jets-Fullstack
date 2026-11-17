@@ -70,4 +70,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async del(...keys: string[]): Promise<void> {
     if (keys.length) await this.client.del(...keys);
   }
+
+  /** Reads a stored string, or null after it expires. */
+  async getString(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  /** Replaces a stored string and refreshes its expiry on every write. */
+  async setString(key: string, value: string, ttlSeconds: number): Promise<void> {
+    await this.client.set(key, value, 'EX', ttlSeconds);
+  }
 }
