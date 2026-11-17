@@ -32,10 +32,23 @@ for a review, and how the owner likes to work, is in
   the rules: AGENTS.md, "The WhatsApp assistant is one phone, one Super
   Admin, signed by Meta".
 - **On a new machine after pulling:** `cd Backend && npm install && npm run
-  db:generate && npm run db:deploy` — the new migration
-  `20261116120000_whatsapp_assistant_switch` adds one settings column. The
+  db:generate && npm run db:deploy` — `npm install` brings the `openai`
+  package (step 2); the migration `20261116120000_whatsapp_assistant_switch`
+  adds one settings column. **`.env` is not in git:** copy
+  `OPENAI_API_KEY` across by hand and set `OPENAI_MODEL=gpt-6.1-sol`. The
   six WhatsApp env variables stay empty until the credentials arrive (all
   six or none; empty means the assistant is off and its routes 404).
+  Then check `npm test` (72 files / 673) and try
+  `npm run whatsapp:ask -- --as admin@example.com "What flights go out tomorrow?"`.
+- **Step 3 — where it stands (17 Nov, end of day):** the developer is
+  doing Meta's setup (walkthrough in
+  [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §4:
+  business account, app with WhatsApp, the free test number, their own
+  number as recipient, then the six values into `.env`). The step 3 Codex
+  brief is **not written yet** — that is the first thing to do: Codex
+  builds the sending against a faked Graph API in parallel with the Meta
+  setup; the credentials are needed only for the live check (tunnel →
+  Meta webhook form → a real message on the phone).
 - **Verified 17 Nov (after step 2):** backend Vitest 72 files / 673 tests,
   `tsc`, oxlint 0; step 2 live-checked from the terminal. Frontend
   untouched by step 2 (`next build` clean after step 1). Newman was not re-run (no Postman folder
@@ -389,6 +402,30 @@ the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
 
 
+
+### 17 Nov 2026 — WhatsApp assistant, step 2: the AI brain (Claude Code + Codex)
+
+- **First use of the Claude/Codex split.** Claude wrote the brief, Codex
+  built, Claude reviewed. Two Codex stops were the brief's fault and were
+  corrected in it: Codex read "no external calls" as "no npm install"
+  (Claude installed `openai@^7.57.0` itself), and `tsx` cannot boot Nest
+  (esbuild emits no decorator metadata) — the script moved to
+  `src/scripts/` and runs compiled.
+- **Review fixes:** `--as` works without the Meta env (memory key `0`);
+  `handle()` asks `agent.ready`. **Live-check fixes:** the script hung after
+  answering (now exits); the model sent full names to the one-column search
+  (tool description now says one name); money got thousands separators.
+- **Live check** on the dev database (seed data), the developer's own key,
+  `gpt-6.1-sol` (chosen by Claude at the developer's request: tool-calling
+  reliability at ~1–2¢ a question; `gpt-6.1-terra` is the cheaper one to
+  compare). Five questions, each checked against the database.
+- **Decided by the developer:** a personal key on seed data needs no owner
+  approval; the owner's OK to send *real* client data to OpenAI is still to
+  ask, before production. The full-name search fix is deferred (Known
+  findings, with the plan).
+- **Step 3:** do the Meta setup and the build in parallel; the developer
+  starts Meta's setup, work moves to another machine. Committed in batches
+  and pushed to `origin/roy`.
 
 ### 16 Nov 2026 — WhatsApp assistant, step 1: the secure entry point (Claude Code)
 
