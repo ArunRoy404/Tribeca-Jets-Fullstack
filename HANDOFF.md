@@ -15,7 +15,42 @@ for a review, and how the owner likes to work, is in
 
 ## Part 1 — Where we are
 
-### Read this first — the state on 18 Nov 2026
+### Read this first — the state on 18 Nov 2026 (end of day)
+
+- **WhatsApp step 3 is built, reviewed and committed — only the live check
+  is left.** Codex built it, Claude reviewed and fixed one thing (a reply
+  that throws now sends "Something went wrong…" rather than silence after
+  "typing…"). Backend 73 files / 688 tests, tsc and oxlint clean. Nothing
+  has been sent to Meta yet: every Graph call so far is a stubbed `fetch`.
+- **Moving machines again (18 Nov, afternoon):** on the second machine
+  Homebrew needs `sudo chown` and cloudflared could not be installed, so
+  the live check moves to the next machine. Checked there and true of the
+  dev database: migrations up to date, `roy.techreion@gmail.com` is an
+  active SUPER_ADMIN, the Settings switch "WhatsApp assistant" is **off**.
+  The local webhook answered correctly (right verify token → challenge,
+  wrong → 403, unsigned post → 401).
+- **The live check, on the next machine:**
+  1. Docker Desktop running (Postgres and Redis are its containers — the
+     API cannot reach either otherwise), then the usual pull, `npm install`,
+     `npm run db:generate`, `npm run db:deploy`, `npm test` (73 / 688).
+  2. `Backend/.env` copied across by hand (list below, unchanged), with a
+     **fresh 24-hour** `WHATSAPP_ACCESS_TOKEN` (Meta → app → Use cases →
+     Customize → Step 1 → Generate new token).
+  3. A tunnel: `brew install cloudflared`, then
+     `cloudflared tunnel --url http://localhost:4000`.
+  4. `npm run start:dev`; in Meta's webhook form: callback
+     `https://<tunnel>/api/webhooks/whatsapp`, the `.env` verify token,
+     subscribe to `messages`.
+  5. Settings › Security › "WhatsApp assistant" on; send a text from the
+     admin phone. Expect blue ticks, "typing…", then the answer quoting the
+     question. An image should get "I can only read text messages for now."
+  6. If it passes: step 3 → ✅ in `docs/WHATSAPP_AI_INTEGRATION.md` §6,
+     then the step 4 brief (actions with CONFIRM). If the reply never
+     arrives, the API log names it: `code 190` = token expired; a
+     `failed at Meta (codes: …)` line = Meta refused delivery (131047 is
+     the 24-hour window; 131030 a number not on the test recipient list).
+
+#### Earlier on 18 Nov 2026
 
 - **Moving machines (18 Nov):** the developer's previous machine has a broken
   npm, so work continues on another one. **Nothing of step 3 is built yet** —
@@ -137,8 +172,9 @@ for a review, and how the owner likes to work, is in
 5. **WhatsApp AI Integration (Super Admin Executive Copilot)** — in progress,
    the developer's current focus. Steps 1–2 of 7 done (committed 17 Nov); step
    2, the OpenAI loop with the first read tools, was live-checked on seed
-   data with the developer's own key. Next is step 3, sending replies.
-   Meta setup done 18 Nov: test number, "Hello World" delivered, all six
+   data with the developer's own key. Step 3, sending replies, is built,
+   reviewed and committed (18 Nov); **next is its live check on the phone**
+   (Part 1, top), then step 4. Meta setup done 18 Nov: test number, "Hello World" delivered, all six
    values in the developer's `.env` (the token is the 24-hour one). Still
    needed: the permanent token, and the owner's OK to send real client data
    to OpenAI. Steps and progress table in
@@ -441,6 +477,28 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 18 Nov 2026 — WhatsApp assistant, step 3 built and reviewed (Claude Code + Codex)
+
+- **New machine set up:** Docker Desktop was not running (so Postgres and
+  Redis were down); started, migrations already applied, baseline 72 / 673.
+  The open check from the morning is closed: `roy.techreion@gmail.com` is
+  an active SUPER_ADMIN in that database.
+- **Codex stopped once before building**, worried that `npm test`'s
+  `prisma generate` broke "never edit `src/generated/`" and that Vitest
+  reads `.env`. Neither holds (the folder is gitignored and regenerated
+  identically; Vite exposes only `VITE_` keys). Answered, and written into
+  the brief's rule 5 so the next step does not stop on it.
+- **Review:** matched the brief line by line — recipient always the gated
+  `message.from`, retry once only on network/timeout/429/5xx, code 190 named,
+  logs carry status and Meta codes only (tests assert with marker strings),
+  failed receipts by code, Graph v25.0 validated. **Fixed by Claude:** a
+  reply that throws now sends `FAILED_REPLY`; AGENTS.md's two new bullets
+  used curly apostrophes; the module map still put sending in the service.
+- **Live check not done:** cloudflared could not be installed (Homebrew
+  needs `sudo chown`; downloading the binary was refused to the agent). The
+  developer moves to another machine; steps are in Part 1. Committed in
+  batches and pushed to `origin/roy`.
 
 
 

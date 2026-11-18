@@ -74,7 +74,7 @@ WHATSAPP_ACCESS_TOKEN=""          # Permanent System User token with whatsapp_bu
 WHATSAPP_PHONE_NUMBER_ID=""       # Meta App -> WhatsApp -> API Setup -> Phone number ID
 WHATSAPP_APP_SECRET=""            # Meta App -> App settings -> Basic -> App secret
 WHATSAPP_VERIFY_TOKEN=""          # Any string we choose; typed into Meta's webhook form
-WHATSAPP_GRAPH_VERSION=v21.0      # optional, defaults to v21.0
+WHATSAPP_GRAPH_VERSION=v25.0      # optional, defaults to v25.0
 
 # The one phone the bot answers, and the account it acts as
 SUPER_ADMIN_WHATSAPP_PHONE="+1…"  # E.164
@@ -130,8 +130,9 @@ port 4000 through a tunnel (ngrok, cloudflared).
    - `whatsapp.controller.ts`: 
      - `GET /api/webhooks/whatsapp` (Meta verification challenge).
      - `POST /api/webhooks/whatsapp` (Inbound message processing).
+   - `whatsapp.sender.ts`:
+     - Outbound text message sending via Meta Graph API (`v25.0`).
    - `whatsapp.service.ts`:
-     - Outbound text message sending via Meta Graph API (`v21.0`).
      - Media / PDF document upload & dispatch.
      - Signature verification helper (`verifyMetaSignature`).
    - `whatsapp.agent.ts`:
@@ -165,7 +166,7 @@ building → 🔍 in review → ✅ reviewed and committed.
 |---|---|---|
 | 1 | **Secure entry point** — env (six variables, all or none), Settings › Security switch (off by default), webhook (`GET` verify, `POST` signed events), gates: configured, switched on, one phone, redelivery dropped, ≤10 min old, active Super Admin re-read per message | ✅ 16 Nov — 53 tests + live curl run on a test API; committed 17 Nov (`210d87a`, `b1f8cdc`, `1c48031`) |
 | 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | ✅ 17 Nov — built by Codex, code-reviewed by Claude (two fixes: `--as` works without the Meta env, and `handle()` asks `agent.ready` rather than re-reading config). 51 new mocked tests; backend total 72 files / 673 tests, tsc and oxlint clean; compiled script boots and refuses without a key. **Live check passed 17 Nov** on the dev database (seed data) with the developer's own key and `gpt-6.1-sol`: no flights tomorrow answered as not on file, this week's KPIs as the service computed them, a client card matching the database field by field, a follow-up answered from memory, and "approve" declined as coming. It found three things, fixed: the script hung after answering (now exits), the model sent full names to a search that matches one column at a time (tool description now says one name), and money had no thousands separators. Committed 17 Nov (`98acbb4`, `efbf3f3`) |
-| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ✍️ 18 Nov — prompt written: `docs/codex-prompts/step-3-connect-whatsapp.md` (sender with one retry on 429/5xx, read receipt + typing, fixed replies for non-text and AI-not-set-up, failed delivery receipts logged by code, Graph default v25.0). Meta setup done 18 Nov (test number, Hello World on the phone, six values in `.env`). **Next: Codex builds, then review, then the live check** |
+| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | 🔍 18 Nov — built by Codex (`whatsapp.sender.ts`: text with one retry on 429/5xx/network, read receipt + typing; fixed replies for non-text and AI-not-set-up; failed delivery receipts logged by code; Graph default v25.0), code-reviewed by Claude (one fix: a reply that throws now sends a short "something went wrong" instead of silence after "typing…"). 15 new tests; backend 73 files / 688, tsc and oxlint clean. **Next: the live check** (tunnel → Meta webhook form → Settings switch on → a message from the phone) |
 | 4 | **Actions with CONFIRM** — approve/decline trip, create lead, complete task, record payment; 2-step confirmation held in Redis for 5 minutes | ⬜ |
 | 5 | **PDFs in the chat** — itinerary, quote, invoice via the existing PDF generator, uploaded to Meta media and sent as documents | ⬜ |
 | 6 | **More tools, module by module** — until the bot covers the CRM (bulk operations, permissions and Settings stay out on purpose) | ⬜ |
@@ -185,11 +186,11 @@ Secrets go straight into `Backend/.env` (git-ignored), never into a chat.
 
 **Where the code is:** `Backend/src/modules/whatsapp/` — `whatsapp.controller.ts`
 (routes), `whatsapp.signature.ts` (HMAC), `whatsapp.payload.ts` (Meta payload
-reader), `whatsapp.service.ts` (gates, shared live Super Admin lookup and reply
-preparation), `whatsapp.ai-client.ts` (Responses API adapter and nullable
+reader), `whatsapp.service.ts` (gates, shared live Super Admin lookup and replies),
+`whatsapp.sender.ts` (Graph text replies, read receipts and typing indicator), `whatsapp.ai-client.ts` (Responses API adapter and nullable
 provider), `whatsapp.agent.ts` (bounded tool loop), `whatsapp.memory.ts`
 (Redis text history), `whatsapp.tools.ts` (permission checks and three read
-tools), `whatsapp.spec.ts`, `whatsapp.agent.spec.ts`, `whatsapp.tools.spec.ts`.
+tools), `whatsapp.sender.spec.ts`, `whatsapp.spec.ts`, `whatsapp.agent.spec.ts`, `whatsapp.tools.spec.ts`.
 The terminal entry point is `Backend/src/scripts/whatsapp-ask.ts` —
 `npm run whatsapp:ask -- [--as <email>] "question"` compiles with Nest first.
 It needs `OPENAI_API_KEY` and a developer-chosen `OPENAI_MODEL`. With the six

@@ -45,8 +45,12 @@ speed.
    token and app secret. Never open, print or copy it. Every Graph API call in
    tests goes to a stubbed `fetch` (`vi.stubGlobal('fetch', …)`).
 5. Backend is **NestJS 12, TypeScript, ESM**: every relative import ends in
-   `.js`; tests are **vitest**; lint is **oxlint**; Zod 4. Never edit
-   `src/generated/`.
+   `.js`; tests are **vitest**; lint is **oxlint**; Zod 4. Never hand-edit
+   `src/generated/`. `npm test` runs `prisma generate` first: that is fine
+   (the schema is unchanged, the folder is gitignored), and so is Vitest
+   reading `Backend/.env` — Vite exposes only `VITE_` keys and there are none.
+   Rule 4 is about you opening the file, not the test runner. Run §7's
+   commands as written, from `Backend/`.
 6. Do **not** touch the frontend, the Postman collection, migrations or the
    Prisma schema.
 
