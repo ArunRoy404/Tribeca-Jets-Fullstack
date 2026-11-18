@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UserRole, UserStatus } from '../../generated/prisma/enums.js';
 import { SettingsService } from '../settings/settings.service.js';
 import type { IncomingMessage } from './whatsapp.payload.js';
+import { WhatsappSender } from './whatsapp.sender.js';
 import { WhatsappAgent } from './whatsapp.agent.js';
 
 /** Meta redelivers until it gets a 200; a day covers every retry it makes. */
@@ -18,6 +19,11 @@ const SEEN_TTL_SECONDS = 24 * 60 * 60;
  * moved on since, must not run now.
  */
 export const MAX_MESSAGE_AGE_MS = 10 * 60 * 1000;
+
+export const NON_TEXT_REPLY = 'I can only read text messages for now.';
+export const NOT_READY_REPLY = "The assistant isn't set up on the server yet.";
+/** After the read receipt and "typing…", silence would look like a lost message. */
+export const FAILED_REPLY = 'Something went wrong answering that — please try again.';
 
 export type Outcome =
   | 'accepted'
@@ -48,6 +54,7 @@ export class WhatsappService {
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
     private readonly agent: WhatsappAgent,
+    private readonly sender: WhatsappSender,
   ) {}
 
   /** Runs each message through the gates; returns what became of each. */
@@ -128,24 +135,32 @@ export class WhatsappService {
   }
 
   /**
-   * Step 2 prepares a reply; step 3 sends it. Neither the message nor the
+   * Sends the reply to the phone that passed the gates. Neither the message nor the
    * reply is logged — either can carry client names and figures. The webhook
    * has already answered Meta, so a failure here must never escape.
    */
   private async handle(admin: AuthenticatedUser, message: IncomingMessage): Promise<void> {
     try {
+      await this.sender.markRead(message.id);
+      let reply: string;
       if (message.type !== 'text' || !message.text?.trim()) {
         this.logger.log(`Ignored non-text WhatsApp message ${message.id} (${message.type})`);
-        return;
-      }
-      if (!this.agent.ready) {
+        reply = NON_TEXT_REPLY;
+      } else if (!this.agent.ready) {
         this.logger.warn('WhatsApp assistant accepted a message but OPENAI_API_KEY / OPENAI_MODEL are not set');
-        return;
+        reply = NOT_READY_REPLY;
+      } else {
+        reply = await this.agent.reply(admin, message.from, message.text);
       }
-      const reply = await this.agent.reply(admin, message.from, message.text);
-      this.logger.log(`Prepared a reply to ${message.id} (${reply.length} chars)`);
+      if (await this.sender.sendText(message.from, reply, message.id)) {
+        this.logger.log(`Sent a reply to ${message.id} (${reply.length} chars)`);
+      } else {
+        this.logger.warn(`Reply to ${message.id} was not delivered`);
+      }
     } catch (error: unknown) {
       this.logger.error(`WhatsApp reply preparation failed (${error instanceof Error ? error.name : 'UnknownError'})`);
+      // sendText never throws, so nothing was sent yet and this cannot double up.
+      await this.sender.sendText(message.from, FAILED_REPLY, message.id);
     }
   }
 }

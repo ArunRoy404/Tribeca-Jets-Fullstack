@@ -128,7 +128,7 @@ export const envSchema = z
     WHATSAPP_APP_SECRET: z.string().optional(),
     /** Made up by us, typed into Meta's webhook form; Meta echoes it once. */
     WHATSAPP_VERIFY_TOKEN: z.string().optional(),
-    WHATSAPP_GRAPH_VERSION: z.string().default('v21.0'),
+    WHATSAPP_GRAPH_VERSION: z.string().regex(/^v\d+\.\d+$/, 'Use a Graph API version, e.g. v25.0').default('v25.0'),
     /**
      * The one phone allowed to talk to the bot, E.164 (`+15551234567`).
      * In the env, never the database, so nobody signed in to the web app can

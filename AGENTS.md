@@ -1180,6 +1180,10 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
   must not run after an outage), and the account still an active
   SUPER_ADMIN, re-read per message. A message failing any gate gets **no
   reply** — an answer confirms to a stranger that the number is a bot.
+- **Every reply goes to the number the message came from**, the Super Admin
+  phone that passed the gates. Neither the model nor a tool chooses a recipient.
+- **The sender logs Meta's HTTP status and error codes.** Never log the text,
+  the access token or Meta's error message, which can echo what was sent.
 - **It acts as that user, through the owning services**, with their own
   permission set (`resolveAccess`, as `JwtStrategy`), so every permission,
   reach, check and audit row applies exactly as in the web app. Never a

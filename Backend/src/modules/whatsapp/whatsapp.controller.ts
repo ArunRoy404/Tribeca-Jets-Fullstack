@@ -23,7 +23,7 @@ import { Public } from '../../common/decorators/public.decorator.js';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
 import { AppConfigService } from '../../config/config.service.js';
 import { VerifyWebhookQueryDto } from './dto/whatsapp.dto.js';
-import { readIncomingMessages } from './whatsapp.payload.js';
+import { readFailedStatuses, readIncomingMessages } from './whatsapp.payload.js';
 import { verifyMetaSignature } from './whatsapp.signature.js';
 import { WhatsappService } from './whatsapp.service.js';
 
@@ -100,6 +100,10 @@ export class WhatsappController {
 
     if (!verifyMetaSignature(request.rawBody, signature, config.appSecret)) {
       throw new UnauthorizedException('Invalid webhook signature');
+    }
+
+    for (const { id, codes } of readFailedStatuses(body)) {
+      this.logger.warn(`WhatsApp message ${id} failed at Meta (codes: ${codes.join(', ')})`);
     }
 
     const messages = readIncomingMessages(body);

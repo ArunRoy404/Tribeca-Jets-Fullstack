@@ -6,7 +6,8 @@ import { UserRole } from '../../generated/prisma/enums.js';
 import { WhatsappAgent, AI_UNAVAILABLE_REPLY, NARROW_QUESTION_REPLY } from './whatsapp.agent.js';
 import { OpenAiClient, whatsappAiClientProvider, type AiClient, type AiTurn } from './whatsapp.ai-client.js';
 import { WhatsappMemory } from './whatsapp.memory.js';
-import { WhatsappService } from './whatsapp.service.js';
+import { WhatsappSender } from './whatsapp.sender.js';
+import { FAILED_REPLY, NON_TEXT_REPLY, NOT_READY_REPLY, WhatsappService } from './whatsapp.service.js';
 import type { IncomingMessage } from './whatsapp.payload.js';
 
 // Even adapter tests have no network-capable SDK instance.
@@ -229,9 +230,10 @@ describe('OpenAI adapter and readiness', () => {
   });
 });
 
-describe('WhatsappService prepares replies without logging content', () => {
+describe('WhatsappService sends replies without logging content', () => {
   const message: IncomingMessage = { id: 'wamid.test', from: PHONE, type: 'text', text: 'PRIVATE MESSAGE TEXT', sentAt: new Date() };
   const replyText = 'PRIVATE REPLY TEXT';
+  const sender = { markRead: vi.fn(), sendText: vi.fn() };
   let ai: { openaiApiKey?: string; openaiModel?: string };
   let reply: ReturnType<typeof vi.fn>;
   let findFirst: ReturnType<typeof vi.fn>;
@@ -240,6 +242,8 @@ describe('WhatsappService prepares replies without logging content', () => {
 
   beforeEach(() => {
     logs = (['log', 'warn', 'error', 'debug', 'verbose', 'fatal'] as const).map((method) => vi.spyOn(Logger.prototype, method).mockImplementation(() => {}));
+    sender.markRead.mockReset().mockResolvedValue(undefined);
+    sender.sendText.mockReset().mockResolvedValue(true);
     ai = { openaiApiKey: 'test-key', openaiModel: 'chosen-model' };
     reply = vi.fn().mockResolvedValue(replyText);
     findFirst = vi.fn().mockResolvedValue({ id: user.id, email: user.email, role: user.role, permissions: null });
@@ -250,13 +254,18 @@ describe('WhatsappService prepares replies without logging content', () => {
       { user: { findFirst } } as never,
       // Ready exactly when the provider factory would build a client.
       { get ready() { return Boolean(ai.openaiApiKey && ai.openaiModel); }, reply } as never,
+      sender as never,
     );
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it.each([{ type: 'image', text: null }, { type: 'text', text: null }, { type: 'text', text: '  ' }])('ignores a message with no text body: %j', async (over) => {
     await service.receive([{ ...message, ...over }]);
     expect(reply).not.toHaveBeenCalled();
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, NON_TEXT_REPLY, message.id);
     expect(logs[0]).toHaveBeenCalledWith(`Ignored non-text WhatsApp message wamid.test (${over.type})`);
   });
 
@@ -264,6 +273,7 @@ describe('WhatsappService prepares replies without logging content', () => {
     delete ai[key];
     await service.receive([message]);
     expect(reply).not.toHaveBeenCalled();
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, NOT_READY_REPLY, message.id);
     expect(logs[1]).toHaveBeenCalledExactlyOnceWith('WhatsApp assistant accepted a message but OPENAI_API_KEY / OPENAI_MODEL are not set');
   });
 
@@ -271,6 +281,7 @@ describe('WhatsappService prepares replies without logging content', () => {
     reply.mockRejectedValue(new Error(`${message.text} ${replyText}`));
     await expect(service.receive([message])).resolves.toEqual(['accepted']);
     expect(logs[2]).toHaveBeenCalledExactlyOnceWith('WhatsApp reply preparation failed (Error)');
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, FAILED_REPLY, message.id);
     const logged = JSON.stringify(logs.map((log) => log.mock.calls));
     expect(logged).not.toContain(message.text);
     expect(logged).not.toContain(replyText);
@@ -282,10 +293,36 @@ describe('WhatsappService prepares replies without logging content', () => {
     reply.mockImplementation((actingUser, phone, text) => agent.reply(actingUser, phone, text));
     await service.receive([message]);
     expect(reply).toHaveBeenCalledExactlyOnceWith(user, PHONE, message.text);
-    expect(logs[0]).toHaveBeenCalledExactlyOnceWith(`Prepared a reply to wamid.test (${replyText.length} chars)`);
+    expect(sender.markRead).toHaveBeenCalledExactlyOnceWith(message.id);
+    expect(sender.markRead).toHaveBeenCalledBefore(reply);
+    expect(reply).toHaveBeenCalledBefore(sender.sendText);
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id);
+    expect(logs[0]).toHaveBeenCalledExactlyOnceWith(`Sent a reply to wamid.test (${replyText.length} chars)`);
     const logged = JSON.stringify(logs.map((log) => log.mock.calls));
     expect(logged).not.toContain(message.text);
     expect(logged).not.toContain(replyText);
+  });
+
+  it('still sends the answer when Meta refuses the read receipt', async () => {
+    const post = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ error: { code: 12 } }, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    vi.stubGlobal('fetch', post);
+    const transport = new WhatsappSender({ whatsapp: {
+      graphVersion: 'v25.0', phoneNumberId: '4321', accessToken: 'test-token',
+    } } as never);
+    sender.markRead.mockImplementation(transport.markRead.bind(transport));
+    sender.sendText.mockImplementation(transport.sendText.bind(transport));
+    await expect(service.receive([message])).resolves.toEqual(['accepted']);
+    expect(logs[1]).toHaveBeenCalledWith('WhatsApp mark read failed (HTTP 503, code 12)');
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id);
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves and logs the message id when sending fails', async () => {
+    sender.sendText.mockResolvedValue(false);
+    await expect(service.receive([message])).resolves.toEqual(['accepted']);
+    expect(logs[1]).toHaveBeenCalledWith('Reply to wamid.test was not delivered');
   });
 
   it('shares the active, non-deleted SUPER_ADMIN identity query with --as', async () => {

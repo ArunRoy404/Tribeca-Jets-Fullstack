@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { HTTP_CODE_METADATA } from '@nestjs/common/constants.js';
 import { validateEnv } from '../../config/env.validation.js';
 import { metaSignature, verifyMetaSignature } from './whatsapp.signature.js';
-import { readIncomingMessages, type IncomingMessage } from './whatsapp.payload.js';
+import { readFailedStatuses, readIncomingMessages, type IncomingMessage } from './whatsapp.payload.js';
 import { MAX_MESSAGE_AGE_MS, WhatsappService } from './whatsapp.service.js';
 import { WhatsappController } from './whatsapp.controller.js';
 
@@ -14,7 +15,7 @@ const config = {
   phoneNumberId: '1234',
   appSecret: SECRET,
   verifyToken: 'verify-me',
-  graphVersion: 'v21.0',
+  graphVersion: 'v25.0',
   adminPhone: ADMIN_PHONE,
   adminEmail: 'owner@example.com',
 };
@@ -25,6 +26,10 @@ function payload(messages: unknown[]) {
     object: 'whatsapp_business_account',
     entry: [{ id: 'WABA', changes: [{ field: 'messages', value: { messaging_product: 'whatsapp', messages } }] }],
   };
+}
+
+function receipts(statuses: unknown[]) {
+  return { object: 'whatsapp_business_account', entry: [{ changes: [{ value: { statuses } }] }] };
 }
 
 const textMessage = (over: Record<string, unknown> = {}) => ({
@@ -74,6 +79,17 @@ describe('reading Meta payloads', () => {
     expect(messages).toEqual([expect.objectContaining({ id: 'wamid.2', type: 'image', text: null })]);
   });
 
+  it('reads only failed receipt ids and numeric codes', () => {
+    const statuses = [
+      ...['sent', 'delivered', 'read'].map((status) => ({ id: 'other', status })),
+      { id: 'a', status: 'failed', errors: [{ code: 131047 }, null, { code: 12 }] },
+      null, { status: 'failed' }, { id: 'b', status: 'failed' },
+    ];
+    expect(readFailedStatuses(receipts(statuses))).toEqual([{ id: 'a', codes: [131047, 12] }, { id: 'b', codes: [] }]);
+    expect(readFailedStatuses(null)).toEqual([]);
+    expect(readFailedStatuses({ ...receipts(statuses), object: 'page' })).toEqual([]);
+  });
+
   /** A delivery receipt, another object, or garbage is nothing — never a 400. */
   it('returns nothing for receipts, other objects and garbage', () => {
     expect(readIncomingMessages({ object: 'whatsapp_business_account', entry: [{ changes: [{ value: { statuses: [{}] } }] }] })).toEqual([]);
@@ -103,6 +119,12 @@ describe('WhatsApp env', () => {
     expect(() => validateEnv({ ...base, ...full })).not.toThrow();
   });
 
+  it('defaults to v25.0 and requires a version number with a major and minor', () => {
+    expect(validateEnv(base).WHATSAPP_GRAPH_VERSION).toBe('v25.0');
+    expect(validateEnv({ ...base, WHATSAPP_GRAPH_VERSION: 'v26.1' }).WHATSAPP_GRAPH_VERSION).toBe('v26.1');
+    expect(() => validateEnv({ ...base, WHATSAPP_GRAPH_VERSION: '25.0' })).toThrow(/Use a Graph API version/);
+  });
+
   it('refuses a partial set, naming what is missing', () => {
     const { WHATSAPP_APP_SECRET: _omitted, ...partial } = full;
     expect(() => validateEnv({ ...base, ...partial })).toThrow(/WHATSAPP_APP_SECRET is missing/);
@@ -120,6 +142,12 @@ describe('WhatsappService gates', () => {
   let admin: { id: string; email: string; role: string; permissions: null } | null;
   let service: WhatsappService;
   const findFirst = vi.fn();
+  const sender = { markRead: vi.fn(), sendText: vi.fn() };
+
+  function expectNoSend() {
+    expect(sender.markRead).not.toHaveBeenCalled();
+    expect(sender.sendText).not.toHaveBeenCalled();
+  }
 
   const message = (over: Partial<IncomingMessage> = {}): IncomingMessage => ({
     id: `wamid.${Math.random()}`,
@@ -131,6 +159,8 @@ describe('WhatsappService gates', () => {
   });
 
   beforeEach(() => {
+    sender.markRead.mockReset().mockResolvedValue(undefined);
+    sender.sendText.mockReset().mockResolvedValue(true);
     enabled = true;
     configured = config;
     claimed = new Set();
@@ -142,6 +172,7 @@ describe('WhatsappService gates', () => {
       { claimOnce: async (key: string) => !claimed.has(key) && Boolean(claimed.add(key)) } as never,
       { user: { findFirst } } as never,
       { reply: vi.fn() } as never,
+      sender as never,
     );
   });
 
@@ -152,34 +183,43 @@ describe('WhatsappService gates', () => {
   it('drops everything while the server is not configured', async () => {
     configured = null;
     expect(await service.receive([message()])).toEqual(['not_configured']);
+    expectNoSend();
   });
 
   it('drops everything while Settings has it switched off', async () => {
     enabled = false;
     expect(await service.receive([message()])).toEqual(['switched_off']);
+    expectNoSend();
   });
 
   it('drops any other number, without looking up the admin', async () => {
     expect(await service.receive([message({ from: '15550000000' })])).toEqual(['unknown_sender']);
+    expectNoSend();
     expect(findFirst).not.toHaveBeenCalled();
   });
 
   /** Meta redelivers until it sees a 200; an approval must run once. */
   it('handles a redelivered message once', async () => {
     const once = message({ id: 'wamid.same' });
-    expect(await service.receive([once, once])).toEqual(['accepted', 'duplicate']);
+    expect(await service.receive([once])).toEqual(['accepted']);
+    sender.markRead.mockClear();
+    sender.sendText.mockClear();
+    expect(await service.receive([once])).toEqual(['duplicate']);
+    expectNoSend();
   });
 
   it('does not act on a message older than the limit', async () => {
     const now = new Date();
     const old = message({ sentAt: new Date(now.getTime() - MAX_MESSAGE_AGE_MS - 1) });
     expect(await service.receive([old], now)).toEqual(['stale']);
+    expectNoSend();
   });
 
   /** Suspended, archived or demoted in the web app: the bot stops at once. */
   it('answers nobody when the env names no active Super Admin', async () => {
     admin = null;
     expect(await service.receive([message()])).toEqual(['no_admin']);
+    expectNoSend();
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ role: 'SUPER_ADMIN', status: 'ACTIVE', deletedAt: null }),
@@ -237,6 +277,21 @@ describe('WhatsappController', () => {
         UnauthorizedException,
       );
       expect(receive).not.toHaveBeenCalled();
+    });
+
+    it('acknowledges signed receipts with 200 and logs only the failed id and codes', () => {
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+      try {
+        const statuses = receipts([{ id: 'wamid.failed', status: 'failed', recipient_id: ADMIN_PHONE,
+          errors: [{ code: 131047, title: 'PRIVATE TITLE' }] }]);
+        const bytes = Buffer.from(JSON.stringify(statuses));
+        expect(Reflect.getMetadata(HTTP_CODE_METADATA, Reflect.get(WhatsappController.prototype, 'receive'))).toBe(200);
+        expect(controller().receive({ rawBody: bytes } as never, metaSignature(bytes, SECRET), statuses)).toEqual({ received: 0 });
+        expect(warn).toHaveBeenCalledExactlyOnceWith('WhatsApp message wamid.failed failed at Meta (codes: 131047)');
+        expect(receive).not.toHaveBeenCalled();
+      } finally {
+        warn.mockRestore();
+      }
     });
 
     it('answers a signed post and hands its messages on', () => {
