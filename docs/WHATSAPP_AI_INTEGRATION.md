@@ -164,12 +164,13 @@ building → 🔍 in review → ✅ reviewed and committed.
 | Step | What | State |
 |---|---|---|
 | 1 | **Secure entry point** — env (six variables, all or none), Settings › Security switch (off by default), webhook (`GET` verify, `POST` signed events), gates: configured, switched on, one phone, redelivery dropped, ≤10 min old, active Super Admin re-read per message | ✅ 16 Nov — 53 tests + live curl run on a test API; committed 17 Nov (`210d87a`, `b1f8cdc`, `1c48031`) |
-| 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | 🔍 17 Nov — built by Codex, code-reviewed by Claude (two fixes: `--as` works without the Meta env, and `handle()` asks `agent.ready` rather than re-reading config). 51 new mocked tests; backend total 72 files / 673 tests, tsc and oxlint clean; compiled script boots and refuses without a key. **Live check passed 17 Nov** on the dev database (seed data) with the developer's own key and `gpt-6.1-sol`: no flights tomorrow answered as not on file, this week's KPIs as the service computed them, a client card matching the database field by field, a follow-up answered from memory, and "approve" declined as coming. It found three things, fixed: the script hung after answering (now exits), the model sent full names to a search that matches one column at a time (tool description now says one name), and money had no thousands separators. **Left: commit** |
-| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ⬜ 17 Nov — decided: build and Meta setup run in parallel. **Next: write the Codex brief** (sending against a faked Graph API, as step 2 faked OpenAI); the credentials are needed only for the live check. Developer doing the Meta setup (walkthrough in §4) |
+| 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | ✅ 17 Nov — built by Codex, code-reviewed by Claude (two fixes: `--as` works without the Meta env, and `handle()` asks `agent.ready` rather than re-reading config). 51 new mocked tests; backend total 72 files / 673 tests, tsc and oxlint clean; compiled script boots and refuses without a key. **Live check passed 17 Nov** on the dev database (seed data) with the developer's own key and `gpt-6.1-sol`: no flights tomorrow answered as not on file, this week's KPIs as the service computed them, a client card matching the database field by field, a follow-up answered from memory, and "approve" declined as coming. It found three things, fixed: the script hung after answering (now exits), the model sent full names to a search that matches one column at a time (tool description now says one name), and money had no thousands separators. Committed 17 Nov (`98acbb4`, `efbf3f3`) |
+| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ✍️ 18 Nov — prompt written: `docs/codex-prompts/step-3-connect-whatsapp.md` (sender with one retry on 429/5xx, read receipt + typing, fixed replies for non-text and AI-not-set-up, failed delivery receipts logged by code, Graph default v25.0). Meta setup done 18 Nov (test number, Hello World on the phone, six values in `.env`). **Next: Codex builds, then review, then the live check** |
 | 4 | **Actions with CONFIRM** — approve/decline trip, create lead, complete task, record payment; 2-step confirmation held in Redis for 5 minutes | ⬜ |
 | 5 | **PDFs in the chat** — itinerary, quote, invoice via the existing PDF generator, uploaded to Meta media and sent as documents | ⬜ |
 | 6 | **More tools, module by module** — until the bot covers the CRM (bulk operations, permissions and Settings stay out on purpose) | ⬜ |
 | 7 | **Finish** — Postman folder for the two webhook routes (signed in a pre-request script), docs, deploy when the developer says | ⬜ |
+| 8 | **The phone linked in Settings** — Super Admin links their own number by sending a code to the bot; own Settings tab; the two `SUPER_ADMIN_WHATSAPP_*` env variables removed (§7) | ⬜ agreed 18 Nov, straight after step 7 |
 
 **Needed from the developer / owner:**
 
@@ -177,7 +178,7 @@ building → 🔍 in review → ✅ reviewed and committed.
 |---|---|---|
 | `OPENAI_API_KEY` in `Backend/.env` | step 2 live check | ✅ 17 Nov — the developer's own key, for local testing on seed data |
 | `OPENAI_MODEL` in `Backend/.env` | step 2 live check | ✅ 17 Nov — `gpt-6.1-sol` (balance of tool-calling reliability and cost; `gpt-6.1-terra` is the cheaper one to compare) |
-| Meta credentials (§4, with the walkthrough): permanent system-user token, phone number id, app secret, verify token, Super Admin phone and email | step 3 live check | ⏳ Meta setup in progress (17 Nov) — not needed to start building |
+| Meta credentials (§4, with the walkthrough): permanent system-user token, phone number id, app secret, verify token, Super Admin phone and email | step 3 live check | 🟡 18 Nov — Meta app "Tribeca Jets Assistant" (portfolio Fedson), test number +1 555 138 2534, "Hello World" delivered to the developer's phone; all six values in the developer's `Backend/.env` with `WHATSAPP_GRAPH_VERSION=v25.0`. The token is the **temporary 24-hour** one — the permanent system-user token is still to make |
 | Owner's OK to send client data (names, routes, figures) to OpenAI — passports, IDs and sensitive documents stay out regardless | first live call | ⏳ to ask |
 
 Secrets go straight into `Backend/.env` (git-ignored), never into a chat.
@@ -198,3 +199,44 @@ is kept under the key `0`, which no phone number reduces to — so the brain can
 be tried before Meta's credentials arrive. `--as` uses the webhook's own
 active, non-deleted Super Admin query, and the all-or-none env rule is untouched.
 It skips webhook gates and is a development tool that sends CRM data to OpenAI.
+
+---
+
+## 7. After the seven steps: the phone is linked in Settings (agreed 18 Nov 2026)
+
+Until the assistant is finished, the phone and the account stay in `.env`
+(`SUPER_ADMIN_WHATSAPP_PHONE`, `SUPER_ADMIN_WHATSAPP_EMAIL`). **Straight after
+step 7 they move into Settings**, the developer's decision. Not started.
+
+**There is one Super Admin, and one phone.** The bot answers exactly one
+number, and it acts as the one Super Admin.
+
+**What was agreed:**
+
+1. **No email field.** The Super Admin links *their own* WhatsApp number from
+   their own session; the bot acts as whoever linked it. Nobody can point the
+   bot at another account.
+2. **The number is proven, not typed.** The screen shows a one-time code
+   (`LINK 482913`); the Super Admin sends it *to* the bot on WhatsApp, and the
+   webhook links the number only when the code arrives from it. Inbound on
+   purpose: a business may message someone who has not written first only
+   with a Meta-approved template, so a code sent *from* us would need one.
+3. **Guards:** the password is re-entered to link or change the number; an
+   audit row and an email to the account on every link and unlink; an
+   **Unlink** button. The existing on/off switch stays the lost-phone switch.
+4. **"Send test message"** once a number is linked. With Meta's test number it
+   reaches only the (at most five) numbers on Meta's recipient list; in
+   production a free-text message reaches the phone only within 24 hours of
+   its last message, otherwise an approved template is needed.
+
+**Where:** its own Settings tab, **"WhatsApp assistant"**, shown to the Super
+Admin only. The on/off switch moves there from Settings › Security, so
+everything about the assistant is in one place.
+
+**What stays in `.env` regardless:** the access token, the app secret, the
+verify token, the phone number id and the Graph version. They are server
+secrets; settings travel to the browser and these never may.
+
+**This reverses a rule.** AGENTS.md says the phone and account "live in the
+env, never in the database". The pass that builds this rewrites that rule,
+and removes the two env variables (one source for one number).

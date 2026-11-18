@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 17 November 2026.** Update the "Where we are" section in the
+**Last updated: 18 November 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -15,7 +15,38 @@ for a review, and how the owner likes to work, is in
 
 ## Part 1 — Where we are
 
-### Read this first — the state on 17 Nov 2026
+### Read this first — the state on 18 Nov 2026
+
+- **Moving machines (18 Nov):** the developer's previous machine has a broken
+  npm, so work continues on another one. **Nothing of step 3 is built yet** —
+  the Codex brief is written and committed, Codex has not run it.
+  **On the new machine, before launching Codex:**
+  1. Pull `roy`, then `cd Backend && npm install && npm run db:generate &&
+     npm run db:deploy`, and check `npm test` passes (72 files / 673).
+  2. **`Backend/.env` is not in git — copy these across by hand:**
+     `OPENAI_API_KEY`, `OPENAI_MODEL=gpt-6.1-sol`, and the WhatsApp block:
+     `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID=1439684012572049`,
+     `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`,
+     `WHATSAPP_GRAPH_VERSION=v25.0`,
+     `SUPER_ADMIN_WHATSAPP_PHONE` (the developer's own number, E.164),
+     `SUPER_ADMIN_WHATSAPP_EMAIL=roy.techreion@gmail.com` (all six or none).
+     The access token is Meta's **24-hour temporary** one: make a new one at
+     developers.facebook.com → app "Tribeca Jets Assistant" → Use cases →
+     Customize → Step 1. Try it out → Generate new token, right before the
+     live check.
+  3. That `roy.techreion@gmail.com` is an active SUPER_ADMIN in that
+     machine's database was **not checked** (Postgres was down on the old
+     machine).
+  4. Launch Codex with the launcher at the top of
+     [docs/codex-prompts/step-3-connect-whatsapp.md](docs/codex-prompts/step-3-connect-whatsapp.md);
+     bring its report to Claude for review.
+- **Agreed 18 Nov — after step 7:** the Super Admin's phone moves from
+  `.env` into its own Settings tab ("WhatsApp assistant"), linked by sending
+  a code to the bot. One Super Admin, one phone. Design in
+  [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §7, step 8 in §6.
+
+#### The state on 17 Nov 2026
+
 
 - **New work in progress: the Super Admin's WhatsApp assistant** — steps
   1 and 2 of 7 done and committed on `roy`. **Step 2 (AI brain), 17 Nov:**
@@ -40,7 +71,13 @@ for a review, and how the owner likes to work, is in
   six or none; empty means the assistant is off and its routes 404).
   Then check `npm test` (72 files / 673) and try
   `npm run whatsapp:ask -- --as admin@example.com "What flights go out tomorrow?"`.
-- **Step 3 — where it stands (17 Nov, end of day):** the developer is
+- **Step 3 — 18 Nov:** Meta setup done (app "Tribeca Jets Assistant",
+  test number, Hello World delivered, six values in `.env`, 24-hour token).
+  The Codex brief is written:
+  [docs/codex-prompts/step-3-connect-whatsapp.md](docs/codex-prompts/step-3-connect-whatsapp.md).
+  Next: Codex builds, Claude reviews, then the live check (tunnel → Meta
+  webhook form → Settings switch on → a message from the phone).
+- **Step 3 — where it stood (17 Nov, end of day):** the developer is
   doing Meta's setup (walkthrough in
   [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §4:
   business account, app with WhatsApp, the free test number, their own
@@ -101,10 +138,14 @@ for a review, and how the owner likes to work, is in
    the developer's current focus. Steps 1–2 of 7 done (committed 17 Nov); step
    2, the OpenAI loop with the first read tools, was live-checked on seed
    data with the developer's own key. Next is step 3, sending replies.
-   Needed from the developer: the Meta credentials (step 3 — setup started
-   17 Nov), and the owner's OK to send real client data to OpenAI. Steps and
-   progress table in
+   Meta setup done 18 Nov: test number, "Hello World" delivered, all six
+   values in the developer's `.env` (the token is the 24-hour one). Still
+   needed: the permanent token, and the owner's OK to send real client data
+   to OpenAI. Steps and progress table in
    [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6.
+   **Agreed 18 Nov, straight after step 7:** the Super Admin's phone moves
+   from `.env` into its own Settings tab, linked by sending a code to the
+   bot — one Super Admin, one phone (§7 of that file).
    Meta Cloud API + OpenAI tool-calling loop locked strictly to the Super Admin's
    phone number (`SUPER_ADMIN_WHATSAPP_PHONE`) with HMAC-SHA256 signature
    verification. Covers Trips (status, approval/rejection, in-chat PDF itinerary),
