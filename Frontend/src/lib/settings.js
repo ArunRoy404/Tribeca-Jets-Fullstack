@@ -57,6 +57,14 @@ export const SETTINGS_SECTIONS = [
     subtitle: "Control alerts, reminders, automated messages and who receives them.",
   },
   {
+    id: "whatsapp",
+    label: "WhatsApp & AI",
+    description: "Assistant credentials and linked phone",
+    title: "WhatsApp & AI",
+    subtitle: "Configure the WhatsApp assistant and verify the phone it answers.",
+    superAdminOnly: true,
+  },
+  {
     id: "data",
     label: "Data Import & Export",
     description: "CRM migration, exports and backups",

@@ -30,6 +30,7 @@ export const queryKeys = {
     all: ["settings"],
     detail: ["settings", "detail"],
     branding: ["settings", "branding"],
+    whatsapp: ["settings", "whatsapp"],
   },
 
   uploads: {

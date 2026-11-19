@@ -8,13 +8,13 @@ import { cn } from "@/lib/utils";
  * row of the same cards that scrolls sideways, so the content keeps the full
  * width of a phone.
  */
-export default function SettingsNav({ value, onChange }) {
+export default function SettingsNav({ value, onChange, isSuperAdmin = false }) {
   return (
     <nav
       aria-label="Settings sections"
       className="flex lg:flex-col gap-2 w-full lg:w-[250px] shrink-0 overflow-x-auto lg:overflow-visible -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 lg:pb-0"
     >
-      {SETTINGS_SECTIONS.map((section) => {
+      {SETTINGS_SECTIONS.filter((section) => !section.superAdminOnly || isSuperAdmin).map((section) => {
         const active = section.id === value;
         return (
           <button

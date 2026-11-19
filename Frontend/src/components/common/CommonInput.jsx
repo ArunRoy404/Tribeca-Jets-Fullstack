@@ -14,6 +14,7 @@ export default function CommonInput({
   placeholder,
   className,
   error,
+  showPasswordToggle = true,
   ...props
 }) {
   const [visible, setVisible] = useState(false);
@@ -47,21 +48,21 @@ export default function CommonInput({
           <Input
             id={name}
             name={name}
-            type={visible ? "text" : "password"}
+            type={visible && showPasswordToggle ? "text" : "password"}
             placeholder={placeholder}
-            className={cn("pr-11", className)}
+            className={cn(showPasswordToggle && "pr-11", className)}
             aria-invalid={hasError || undefined}
             aria-describedby={errorId}
             {...props}
           />
-          <button
+          {showPasswordToggle && <button
             type="button"
             onClick={() => setVisible((v) => !v)}
             aria-label={visible ? "Hide password" : "Show password"}
             className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground"
           >
             {visible ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-          </button>
+          </button>}
         </div>
       ) : (
         <Input

@@ -1,7 +1,8 @@
 "use client";
 
 import { useSettingsParams } from "@/hooks/settings";
-import { sectionById } from "@/lib/settings";
+import { useCurrentUser } from "@/hooks/auth";
+import { DEFAULT_SETTINGS_SECTION, sectionById } from "@/lib/settings";
 import SettingsNav from "@/components/settings/SettingsNav";
 import CompanyBrandingSection from "@/components/settings/sections/CompanyBrandingSection";
 import QuoteDefaultsSection from "@/components/settings/sections/QuoteDefaultsSection";
@@ -9,6 +10,7 @@ import SecuritySection from "@/components/settings/sections/SecuritySection";
 import RateLimitsSection from "@/components/settings/sections/RateLimitsSection";
 import NotificationsSection from "@/components/settings/sections/NotificationsSection";
 import DataSection from "@/components/settings/sections/DataSection";
+import WhatsappSettingsSection from "@/components/settings/sections/WhatsappSettingsSection";
 
 const SECTIONS = {
   company: CompanyBrandingSection,
@@ -18,11 +20,15 @@ const SECTIONS = {
   notifications: NotificationsSection,
   // Integrations is hidden (7 Oct 2026) — see SETTINGS_SECTIONS.
   data: DataSection,
+  whatsapp: WhatsappSettingsSection,
 };
 
 export default function SettingsPage() {
   const { section, setSection } = useSettingsParams();
-  const current = sectionById(section);
+  const { data: me } = useCurrentUser();
+  const isSuperAdmin = me?.role === "SUPER_ADMIN";
+  const requested = sectionById(section);
+  const current = requested.superAdminOnly && !isSuperAdmin ? sectionById(DEFAULT_SETTINGS_SECTION) : requested;
   const Section = SECTIONS[current.id];
 
   return (
@@ -35,7 +41,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start w-full">
-        <SettingsNav value={current.id} onChange={setSection} />
+        <SettingsNav value={current.id} onChange={setSection} isSuperAdmin={isSuperAdmin} />
         <div key={current.id} className="flex flex-1 flex-col gap-5 min-w-0 w-full">
           <Section />
         </div>

@@ -10,6 +10,7 @@ export default function CommonSelect({
   placeholder = "Select...",
   className,
   disabled = false,
+  ariaLabel,
 }) {
   const normalizedOptions = options.map((opt) =>
     typeof opt === "string" ? { label: opt, value: opt } : opt
@@ -33,6 +34,7 @@ export default function CommonSelect({
       disabled={disabled}
     >
       <SelectTrigger
+        aria-label={ariaLabel}
         className={cn(
           // The primitive's own base classes set the height behind a
           // `data-[size=default]:` variant; a plain `h-11` here shares no
