@@ -3,7 +3,10 @@ import { Logger, NotFoundException } from '@nestjs/common';
 import { Action, Module, Reach, resolveAccess } from '../../common/authorization/access.js';
 import { DEFAULT_TIME_ZONE } from '../../common/dates/time-zone.js';
 import { paginate, type AuthenticatedUser } from '../../common/types/api.types.js';
-import { InvoiceStatus, PaymentMethod, TaskStatus, TripApprovalStatus, UserRole } from '../../generated/prisma/enums.js';
+import {
+  AircraftCategory, ClientPriority, ClientStatus, FollowUpMethod, InvoiceStatus, LeadSource, LeadStage,
+  NoteSubjectType, NoteVisibility, PaymentMethod, QuoteStatus, TaskStatus, TripApprovalStatus, TripRequestStatus, UserRole,
+} from '../../generated/prisma/enums.js';
 import { ONE_ACTION_REPLY, WhatsappTools, type ToolContext } from './whatsapp.tools.js';
 
 const PHONE = '15551234567';
@@ -74,6 +77,25 @@ const documentCases = [
 ] as const;
 const leadArgs = { firstName: 'Jamie', lastName: 'Client', email: 'jamie@example.com' };
 const paymentArgs = { invoice: invoice.number, amount: 12500, method: PaymentMethod.WIRE_TRANSFER, paidAt: '2026-11-27' };
+const secretMarker = 'PRIVATE SALES DESK FIELD';
+const salesClient = {
+  ...client, id: CLIENT_ID, leadStage: LeadStage.QUALIFIED, leadSource: LeadSource.REFERRAL, priority: ClientPriority.HIGH,
+  nextFollowUpAt: new Date('2026-11-19T18:10:00Z'), followUpMethod: FollowUpMethod.CALL, followUpNote: 'Confirm the dates',
+  secretMarker,
+};
+const salesRoute = {
+  client: salesClient, assignedBroker: salesClient.assignedBroker, departureDate: new Date('2026-11-27'),
+  originAirport: { id: ORIGIN_ID, icao: 'KTEB' }, destinationAirport: { id: DESTINATION_ID, icao: 'KMIA' },
+  secretMarker,
+};
+const salesRequest = {
+  ...salesRoute, id: TRIP_ID, reference: 1051, status: TripRequestStatus.QUOTED,
+  passengers: 4, aircraftPreference: AircraftCategory.LIGHT_JET, estimatedValue: 392838.12,
+};
+const salesQuote = {
+  ...salesRoute, ...quote, status: QuoteStatus.SENT, validUntil: new Date('2026-11-28'), totalPrice: 45823.17,
+  operatorCost: 29822.11, grossProfit: 16001.06, marginPercentage: 34.92,
+};
 
 describe('WhatsappTools dispatcher', () => {
   let schedule: { findAll: ReturnType<typeof vi.fn> };
@@ -86,6 +108,8 @@ describe('WhatsappTools dispatcher', () => {
   const receivables = { findAll: vi.fn(), recordPayment: vi.fn(), renderPdf: vi.fn() };
   const itineraries = { renderPdfForTrip: vi.fn() };
   const quotes = { findAll: vi.fn(), renderPdf: vi.fn() };
+  const tripRequests = { findAll: vi.fn() };
+  const notes = { findAll: vi.fn(), timeline: vi.fn() };
   const lookup = { send_itinerary: trips.findAll, send_quote: quotes.findAll, send_invoice: receivables.findAll };
   const render = { send_itinerary: itineraries.renderPdfForTrip, send_quote: quotes.renderPdf, send_invoice: receivables.renderPdf };
   const pending = { put: vi.fn() };
@@ -112,10 +136,13 @@ describe('WhatsappTools dispatcher', () => {
     itineraries.renderPdfForTrip.mockReset().mockResolvedValue(itineraryPdf);
     quotes.findAll.mockReset().mockResolvedValue(paginate([quote], 1, 1, 100));
     quotes.renderPdf.mockReset().mockResolvedValue(quotePdf);
+    tripRequests.findAll.mockReset().mockResolvedValue(paginate([salesRequest], 12, 1, 10));
+    notes.findAll.mockReset();
     companyTimeZone.mockClear();
     context = { timeZone: 'Asia/Dhaka', companyTimeZone, phone: PHONE, documents: [] };
     tools = new WhatsappTools(schedule as never, dashboard as never, clients as never, auth as never,
-      trips as never, tasks as never, airports as never, receivables as never, pending as never, itineraries as never, quotes as never);
+      trips as never, tasks as never, airports as never, receivables as never, pending as never, itineraries as never, quotes as never,
+      tripRequests as never, notes as never);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -137,6 +164,9 @@ describe('WhatsappTools dispatcher', () => {
     expect(airports.findAll).not.toHaveBeenCalled();
     expect(receivables.findAll).not.toHaveBeenCalled();
     expect(quotes.findAll).not.toHaveBeenCalled();
+    expect(tripRequests.findAll).not.toHaveBeenCalled();
+    expect(notes.findAll).not.toHaveBeenCalled();
+    expect(notes.timeline).not.toHaveBeenCalled();
     for (const pdfRender of Object.values(render)) expect(pdfRender).not.toHaveBeenCalled();
     expect(pending.put).not.toHaveBeenCalled();
   }
@@ -178,6 +208,8 @@ describe('WhatsappTools dispatcher', () => {
     const args = {
       list_flights: windowArgs, dashboard_kpis: {}, find_client: { query: 'Alex' },
       list_pending_approvals: {}, list_open_tasks: {},
+      list_trip_requests: {}, list_quotes: {}, client_follow_ups: { window: 'TODAY' },
+      lead_pipeline: {}, client_notes: { clientId: CLIENT_ID },
       send_itinerary: { trip: 'TJ-1048' }, send_quote: { quote: 'Q-1042' }, send_invoice: { invoice: invoice.number },
       approve_trip: { reference: 'TJ-1048' }, decline_trip: { reference: '1048' },
       create_lead: leadArgs, complete_task: { taskId: TASK_ID }, record_payment: paymentArgs,
@@ -335,6 +367,7 @@ describe('WhatsappTools dispatcher', () => {
     const specs = tools.specs();
     expect(specs.map((spec) => spec.name)).toEqual([
       'list_flights', 'dashboard_kpis', 'find_client', 'set_my_timezone', 'list_pending_approvals', 'list_open_tasks',
+      'list_trip_requests', 'list_quotes', 'client_follow_ups', 'lead_pipeline', 'client_notes',
       'send_itinerary', 'send_quote', 'send_invoice',
       'approve_trip', 'decline_trip', 'create_lead', 'complete_task', 'record_payment',
     ]);
@@ -365,6 +398,161 @@ describe('WhatsappTools dispatcher', () => {
     expect(tasks.findAll).toHaveBeenCalledExactlyOnceWith(user, expect.objectContaining({
       view: 'OPEN', search: 'broker', archived: false, page: 1, limit: 10, sortBy: 'dueDate', sortOrder: 'asc',
     }));
+  });
+
+  it('lists open trip requests with the CRM departure window and keeps budget and private fields out', async () => {
+    context.timeZone = 'America/New_York';
+    const result = await dispatch(user, 'list_trip_requests', '{"departure":"UPCOMING","search":" KTEB "}');
+    expect(tripRequests.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      departure: 'UPCOMING', search: 'KTEB', status: undefined, openOnly: true,
+      archived: false, page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+    expect(result).toEqual({ total: 12, requests: [{
+      reference: 'TR-1051', client: 'Alex Vance', origin: 'KTEB', destination: 'KMIA',
+      departureDate: '2026-11-27', passengers: 4, aircraftPreference: AircraftCategory.LIGHT_JET,
+      status: TripRequestStatus.QUOTED, assignedBroker: 'Sam Broker',
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+    expect(JSON.stringify(result)).not.toContain(String(salesRequest.estimatedValue));
+  });
+
+  it('includes closed requests when a status is given and preserves missing trip details', async () => {
+    tripRequests.findAll.mockResolvedValueOnce(paginate([{
+      ...salesRequest, status: TripRequestStatus.LOST, originAirport: null, destinationAirport: null,
+      departureDate: null, passengers: null, aircraftPreference: null, assignedBroker: null,
+    }], 1, 1, 10));
+    expect(await dispatch(user, 'list_trip_requests', '{"status":"LOST"}')).toEqual({ total: 1, requests: [{
+      reference: 'TR-1051', client: 'Alex Vance', origin: null, destination: null, departureDate: null, passengers: null,
+      aircraftPreference: null, status: TripRequestStatus.LOST, assignedBroker: null,
+    }] });
+    expect(tripRequests.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      status: TripRequestStatus.LOST, departure: undefined, search: undefined, openOnly: false,
+      archived: false, page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+  });
+
+  it('lists open quotes with the offer as returned by the service for a caller with QUOTES VIEW', async () => {
+    quotes.findAll.mockResolvedValueOnce(paginate([salesQuote], 13, 1, 10));
+    context.timeZone = 'America/New_York';
+    const actor = { ...user, access: { [Module.QUOTES]: { reach: Reach.ALL, actions: [Action.VIEW] } } };
+    const result = await dispatch(actor, 'list_quotes', '{}');
+    expect(quotes.findAll).toHaveBeenCalledExactlyOnceWith(actor, {
+      status: undefined, search: undefined, expired: false, openOnly: true,
+      archived: false, page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+    expect(result).toEqual({ total: 13, quotes: [{
+      reference: 'Q-1042', client: 'Alex Vance', origin: 'KTEB', destination: 'KMIA', departureDate: '2026-11-27',
+      status: QuoteStatus.SENT, validUntil: '2026-11-28', totalPrice: '$45,823.17', assignedBroker: 'Sam Broker',
+    }] });
+    const json = JSON.stringify(result);
+    for (const field of ['operatorCost', 'grossProfit', 'marginPercentage', secretMarker]) expect(json).not.toContain(field);
+  });
+
+  it.each([
+    [{ sort: 'EXPIRING', search: ' Vance ' }, { search: 'Vance', status: undefined, expired: false, openOnly: true, sortBy: 'validUntil', sortOrder: 'asc' }],
+    [{ status: QuoteStatus.APPROVED }, { search: undefined, status: QuoteStatus.APPROVED, expired: false, openOnly: false, sortBy: 'createdAt', sortOrder: 'desc' }],
+    [{ expired: true }, { search: undefined, status: undefined, expired: true, openOnly: false, sortBy: 'createdAt', sortOrder: 'desc' }],
+    [{ expired: false }, { search: undefined, status: undefined, expired: false, openOnly: false, sortBy: 'createdAt', sortOrder: 'desc' }],
+  ])('passes the quote filters and sorting for %j', async (args, query) => {
+    quotes.findAll.mockResolvedValueOnce(paginate([], 0, 1, 10));
+    expect(await dispatch(user, 'list_quotes', JSON.stringify(args))).toEqual({ total: 0, quotes: [] });
+    expect(quotes.findAll).toHaveBeenCalledExactlyOnceWith(user, { archived: false, page: 1, limit: 10, ...query });
+  });
+
+  it.each([true, false])('refuses status together with expired=%s before calling Quotes', async (expired) => {
+    expect(await dispatch(user, 'list_quotes', JSON.stringify({ status: QuoteStatus.SENT, expired })))
+      .toEqual({ error: expect.stringContaining('Use either status or expired.') });
+    expectNoServiceCalls();
+  });
+
+  it('lists client follow-ups in the requested CRM window with local 24-hour times', async () => {
+    clients.findAll.mockResolvedValueOnce(paginate([salesClient], 11, 1, 10));
+    const result = await dispatch(user, 'client_follow_ups', '{"window":"TODAY"}');
+    expect(clients.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      followUp: 'TODAY', archived: false, page: 1, limit: 10, sortBy: 'nextFollowUpAt', sortOrder: 'asc',
+    });
+    expect(result).toEqual({ window: 'TODAY', total: 11, followUps: [{
+      id: CLIENT_ID, displayName: 'Alex Vance', status: ClientStatus.LEAD, leadStage: LeadStage.QUALIFIED,
+      nextFollowUpAt: 'Fri 20 Nov 2026, 00:10', followUpMethod: FollowUpMethod.CALL,
+      followUpNote: 'Confirm the dates', assignedBroker: 'Sam Broker',
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('counts each lead stage in enum order using only the service totals', async () => {
+    const stages = Object.values(LeadStage);
+    stages.forEach((_, count) => clients.findAll.mockResolvedValueOnce(paginate([{ secretMarker }], count, 1, 1)));
+    const result = await dispatch(user, 'lead_pipeline', '{}');
+    expect(clients.findAll.mock.calls).toEqual(stages.map((leadStage) => [user, {
+      status: ClientStatus.LEAD, leadStage, archived: false, page: 1, limit: 1, sortBy: 'createdAt', sortOrder: 'desc',
+    }]));
+    expect(result).toEqual({ stages: stages.map((stage, count) => ({ stage, count })) });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('lists only the requested lead stage newest first with local 24-hour follow-up times', async () => {
+    clients.findAll.mockResolvedValueOnce(paginate([salesClient], 14, 1, 10));
+    context.timeZone = 'America/New_York';
+    const result = await dispatch(user, 'lead_pipeline', '{"stage":"QUALIFIED"}');
+    expect(clients.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      status: ClientStatus.LEAD, leadStage: LeadStage.QUALIFIED, archived: false,
+      page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+    expect(result).toEqual({ total: 14, leads: [{
+      id: CLIENT_ID, displayName: 'Alex Vance', company: 'Vance Ltd', leadSource: LeadSource.REFERRAL,
+      priority: ClientPriority.HIGH, nextFollowUpAt: 'Thu 19 Nov 2026, 13:10', assignedBroker: 'Sam Broker',
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('reads live client notes only, formats the date locally and caps the body at 500 characters', async () => {
+    const createdAt = new Date('2026-11-19T12:45:00Z');
+    const prefix = `${'a'.repeat(498)}😀`;
+    const body = 'b'.repeat(500);
+    notes.findAll.mockResolvedValueOnce(paginate([
+      { createdAt, createdBy: salesClient.assignedBroker, visibility: NoteVisibility.INTERNAL, body: `${prefix}longer text`, secretMarker },
+      { createdAt, createdBy: null, visibility: NoteVisibility.SHARED, body, secretMarker },
+    ], 15, 1, 10));
+    const result = await dispatch(user, 'client_notes', JSON.stringify({ clientId: CLIENT_ID }));
+    expect(notes.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      subjectType: NoteSubjectType.CLIENT, subjectId: CLIENT_ID, archived: false,
+      page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+    expect(notes.timeline).not.toHaveBeenCalled();
+    expect(result).toEqual({ total: 15, notes: [
+      { date: 'Thu 19 Nov 2026, 18:45', author: 'Sam Broker', visibility: NoteVisibility.INTERNAL, body: `${prefix}…` },
+      { date: 'Thu 19 Nov 2026, 18:45', author: null, visibility: NoteVisibility.SHARED, body },
+    ] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('surfaces a client notes 404 as a tool error', async () => {
+    notes.findAll.mockRejectedValueOnce(new NotFoundException('Client not found'));
+    expect(await dispatch(user, 'client_notes', JSON.stringify({ clientId: CLIENT_ID }))).toEqual({ error: 'Client not found' });
+  });
+
+  it.each([
+    ['list_trip_requests', Module.TRIP_REQUESTS, {}],
+    ['list_quotes', Module.QUOTES, {}],
+    ['client_follow_ups', Module.CLIENTS, { window: 'TODAY' }],
+    ['lead_pipeline', Module.LEADS_AGENTS, {}],
+    ['lead_pipeline', Module.CLIENTS, { stage: LeadStage.NEW }],
+    ['client_notes', Module.CLIENTS, { clientId: CLIENT_ID }],
+  ] as const)('refuses %s without %s VIEW before calling any service', async (name, module, args) => {
+    const access = { ...user.access, [module]: { reach: Reach.ALL, actions: [] } };
+    expect(await dispatch({ ...user, access }, name, JSON.stringify(args))).toEqual({ error: 'Not permitted for this account' });
+    expectNoServiceCalls();
+  });
+
+  it.each([
+    ['list_trip_requests', { search: 'x' }, '2 characters'],
+    ['list_quotes', { search: 'x'.repeat(101) }, '100 characters'],
+    ['client_follow_ups', { window: 'SCHEDULED' }, 'Invalid option'],
+    ['lead_pipeline', { limit: 20 }, 'Unrecognized key'],
+    ['client_notes', { clientId: 'TR-1051' }, 'Invalid UUID'],
+  ])('refuses invalid sales-desk arguments for %s', async (name, args, problem) => {
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error: expect.stringContaining(problem) });
+    expectNoServiceCalls();
   });
 
   it.each([

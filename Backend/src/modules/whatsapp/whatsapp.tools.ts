@@ -8,15 +8,21 @@ import { createPaymentSchema } from '../../common/dto/payments.js';
 import { toCents } from '../../common/money/cents.js';
 import { formatDollars } from '../../common/money/settlement.js';
 import type { AuthenticatedUser, Paginated } from '../../common/types/api.types.js';
-import { InvoiceStatus, PaymentMethod, TaskPriority, TaskStatus, TripApprovalStatus, TripStatus } from '../../generated/prisma/enums.js';
+import {
+  AircraftCategory, ClientPriority, ClientStatus, FollowUpMethod, InvoiceStatus, LeadSource, LeadStage,
+  NoteSubjectType, NoteVisibility, PaymentMethod, QuoteStatus, TaskPriority, TaskStatus, TripApprovalStatus,
+  TripRequestStatus, TripStatus,
+} from '../../generated/prisma/enums.js';
 import { AirportsService } from '../airports/airports.service.js';
 import { createAirportSchema, queryAirportsSchema } from '../airports/dto/airport.dto.js';
 import { AuthService } from '../auth/auth.service.js';
 import { ClientsService } from '../clients/clients.service.js';
-import { createClientSchema, queryClientsSchema } from '../clients/dto/client.dto.js';
+import { createClientSchema, FOLLOW_UP_WINDOWS, queryClientsSchema } from '../clients/dto/client.dto.js';
 import { DashboardService } from '../dashboard/dashboard.service.js';
 import { dashboardSummarySchema } from '../dashboard/dto/dashboard.dto.js';
 import { ItinerariesService } from '../itineraries/itineraries.service.js';
+import { queryNotesSchema } from '../notes/dto/note.dto.js';
+import { NotesService } from '../notes/notes.service.js';
 import { queryQuotesSchema } from '../quotes/dto/quote.dto.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { queryInvoicesSchema } from '../receivables/dto/receivable.dto.js';
@@ -26,6 +32,8 @@ import { ScheduleService } from '../schedule/schedule.service.js';
 import { windowDays } from '../schedule/schedule.calendar.js';
 import { queryTasksSchema } from '../tasks/dto/task.dto.js';
 import { TasksService } from '../tasks/tasks.service.js';
+import { queryTripRequestsSchema, REQUEST_WINDOWS } from '../trip-requests/dto/trip-request.dto.js';
+import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
 import { queryTripsSchema, rejectTripSchema } from '../trips/dto/trip.dto.js';
 import { approveBlockedBy, rejectBlockedBy } from '../trips/trips.approval.js';
 import { TripsService } from '../trips/trips.service.js';
@@ -53,6 +61,23 @@ const flightsArgs = z.object({
 // Reuse the DTO's enum and WEEK default rather than keeping another default.
 const dashboardArgs = dashboardSummarySchema.pick({ period: true });
 const clientArgs = z.object({ query: z.string().trim().min(2).max(100) }).strict();
+const salesSearch = z.string().trim().min(2).max(100).optional();
+const tripRequestsArgs = z.object({
+  status: z.enum(TripRequestStatus).optional(),
+  departure: z.enum(REQUEST_WINDOWS).optional(),
+  search: salesSearch,
+}).strict();
+const listQuotesArgs = z.object({
+  status: z.enum(QuoteStatus).optional(),
+  expired: z.boolean().optional(),
+  sort: z.enum(['NEWEST', 'EXPIRING']).default('NEWEST'),
+  search: salesSearch,
+}).strict().refine(({ status, expired }) => status === undefined || expired === undefined, {
+  path: ['expired'], message: 'Use either status or expired.',
+});
+const followUpsArgs = z.object({ window: z.enum(FOLLOW_UP_WINDOWS).exclude(['SCHEDULED']) }).strict();
+const pipelineArgs = z.object({ stage: z.enum(LeadStage).optional() }).strict();
+const notesArgs = z.object({ clientId: z.uuid() }).strict();
 const timeZoneArgs = z.object({ timeZone: timeZoneSchema.nullable() }).strict();
 const tripReference = z.string().trim().regex(/^(?:TJ-)?\d{1,9}$/i, 'Use a trip reference such as TJ-1048')
   .transform((reference) => Number(reference.replace(/^TJ-/i, '')));
@@ -103,6 +128,21 @@ const clientRow = clientName.extend({
 });
 const airportCode = z.object({ icao: z.string() });
 const airportRow = airportCode.extend({ id: z.uuid() });
+const salesRouteRow = z.object({
+  reference: z.number(), client: clientName, assignedBroker: person.nullable(),
+  originAirport: airportCode.nullable(), destinationAirport: airportCode.nullable(), departureDate: z.date().nullable(),
+});
+const tripRequestRow = salesRouteRow.extend({
+  passengers: z.number().nullable(), aircraftPreference: z.enum(AircraftCategory).nullable(), status: z.enum(TripRequestStatus),
+});
+const quoteListRow = salesRouteRow.extend({ status: z.enum(QuoteStatus), validUntil: z.date().nullable(), totalPrice: z.number() });
+const salesClientRow = clientName.extend({ id: z.uuid(), assignedBroker: person.nullable(), nextFollowUpAt: z.date().nullable() });
+const followUpRow = salesClientRow.extend({
+  status: z.enum(ClientStatus), leadStage: z.enum(LeadStage),
+  followUpMethod: z.enum(FollowUpMethod).nullable(), followUpNote: z.string().nullable(),
+});
+const leadRow = salesClientRow.extend({ leadSource: z.enum(LeadSource), priority: z.enum(ClientPriority) });
+const noteRow = z.object({ createdAt: z.date(), createdBy: person.nullable(), visibility: z.enum(NoteVisibility), body: z.string() });
 const tripRow = z.object({
   id: z.uuid(), reference: z.number(), client: clientName, assignedBroker: person.nullable(),
   approvalStatus: z.enum(TripApprovalStatus),
@@ -222,6 +262,7 @@ export class WhatsappTools {
     schedule: ScheduleService, dashboard: DashboardService, clients: ClientsService, auth: AuthService,
     trips: TripsService, tasks: TasksService, airports: AirportsService, receivables: ReceivablesService,
     pending: WhatsappPending, itineraries: ItinerariesService, quotes: QuotesService,
+    tripRequests: TripRequestsService, notes: NotesService,
   ) {
     const resolveTrip = async (user: AuthenticatedUser, reference: number) => {
       const label = tripLabel(reference);
@@ -350,7 +391,7 @@ export class WhatsappTools {
         name: 'find_client',
         // The clients search matches the whole string against one column at a
         // time, so "Elena Rostova" matches nobody; the model must send one name.
-        description: 'Find up to five live clients by name, company, email or phone using a search string of 2–100 characters. The search matches one field at a time, so send a single name (the surname is best), a company, an email or a phone — never a full name. If a surname finds nobody, try the first name. Returns only contact, assignment and follow-up details. Total may exceed the returned clients; narrow the search when it does.',
+        description: 'Find up to five live clients by name, company, email or phone using a search string of 2–100 characters. The search matches one field at a time, so send a single name (the surname is best), a company, an email or a phone — never a full name. If a surname finds nobody, try the first name. Returns only contact, assignment and follow-up details. Total may exceed the returned clients; narrow the search when it does. Use the client id with client_notes to read their notes.',
         schema: clientArgs,
         permission: { module: Module.CLIENTS, action: Action.VIEW },
         async run(user, args, { timeZone }) {
@@ -422,6 +463,128 @@ export class WhatsappTools {
                 id: row.id, title: row.title, status: row.status, priority: row.priority,
                 dueDate: isoDay(row.dueDate), assignee: row.assignee && nameOf(row.assignee),
                 client: row.client && displayName(row.client),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'list_trip_requests',
+        description: 'List up to ten live trip requests with their client, route, departure date, passengers, aircraft preference, status and assigned broker. Defaults to open requests. Filter by status or the CRM’s departure window, or search by reference, client or route using 2–100 characters.',
+        schema: tripRequestsArgs,
+        permission: { module: Module.TRIP_REQUESTS, action: Action.VIEW },
+        async run(user, { status, departure, search }) {
+          const page = await tripRequests.findAll(user, queryTripRequestsSchema.parse({
+            status, departure, search, openOnly: String(status === undefined), limit: 10,
+          }));
+          return {
+            total: page.meta.total,
+            requests: page.items.map((item) => {
+              const row = tripRequestRow.parse(item);
+              return {
+                reference: `TR-${row.reference}`, client: displayName(row.client),
+                origin: row.originAirport?.icao ?? null, destination: row.destinationAirport?.icao ?? null,
+                departureDate: isoDay(row.departureDate), passengers: row.passengers,
+                aircraftPreference: row.aircraftPreference, status: row.status,
+                assignedBroker: row.assignedBroker && nameOf(row.assignedBroker),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'list_quotes',
+        description: 'List up to ten live quotes with their client, route, departure date, status, valid-until date, client offer total and assigned broker. Defaults to open quotes, newest first. Use sort EXPIRING for the earliest valid-until dates. Use either status or expired. Optional search of 2–100 characters.',
+        schema: listQuotesArgs,
+        permission: { module: Module.QUOTES, action: Action.VIEW },
+        async run(user, { status, expired, sort, search }) {
+          const page = await quotes.findAll(user, queryQuotesSchema.parse({
+            status, expired: expired === undefined ? undefined : String(expired), search,
+            openOnly: String(status === undefined && expired === undefined), limit: 10,
+            ...(sort === 'EXPIRING' ? { sortBy: 'validUntil', sortOrder: 'asc' } : {}),
+          }));
+          return {
+            total: page.meta.total,
+            quotes: page.items.map((item) => {
+              const row = quoteListRow.parse(item);
+              return {
+                reference: `Q-${row.reference}`, client: displayName(row.client),
+                origin: row.originAirport?.icao ?? null, destination: row.destinationAirport?.icao ?? null,
+                departureDate: isoDay(row.departureDate), status: row.status, validUntil: isoDay(row.validUntil),
+                // Formatted here: the model reads 35935.1 back as "35,935.1".
+                totalPrice: formatDollars(toCents(row.totalPrice)), assignedBroker: row.assignedBroker && nameOf(row.assignedBroker),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'client_follow_ups',
+        description: 'List up to ten client follow-ups in the CRM’s OVERDUE, TODAY or UPCOMING window, soonest first. Returns the client, lead stage, follow-up time in your time zone, method, note and assigned broker. The returned client id can be used with client_notes.',
+        schema: followUpsArgs,
+        permission: { module: Module.CLIENTS, action: Action.VIEW },
+        async run(user, { window }, { timeZone }) {
+          const page = await clients.findAll(user, queryClientsSchema.parse({
+            followUp: window, sortBy: 'nextFollowUpAt', sortOrder: 'asc', limit: 10,
+          }));
+          return {
+            window, total: page.meta.total,
+            followUps: page.items.map((item) => {
+              const row = followUpRow.parse(item);
+              return {
+                id: row.id, displayName: displayName(row), status: row.status, leadStage: row.leadStage,
+                nextFollowUpAt: formatMomentIn(row.nextFollowUpAt, timeZone),
+                followUpMethod: row.followUpMethod, followUpNote: row.followUpNote,
+                assignedBroker: row.assignedBroker && nameOf(row.assignedBroker),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'lead_pipeline',
+        description: 'Count live leads in every pipeline stage when no stage is given. Give a stage to list up to ten leads in it, newest first, with their name, company, source, priority, next follow-up and assigned broker. Use a returned client id with client_notes.',
+        schema: pipelineArgs,
+        permission: { module: Module.LEADS_AGENTS, action: Action.VIEW },
+        async run(user, { stage }, { timeZone }) {
+          if (!canDo(user.access, Module.CLIENTS, Action.VIEW)) return { error: NOT_PERMITTED };
+          if (stage === undefined) {
+            const stages = await Promise.all(Object.values(LeadStage).map(async (leadStage) => {
+              const { meta } = await clients.findAll(user, queryClientsSchema.parse({ status: ClientStatus.LEAD, leadStage, limit: 1 }));
+              return { stage: leadStage, count: meta.total };
+            }));
+            return { stages };
+          }
+          const page = await clients.findAll(user, queryClientsSchema.parse({ status: ClientStatus.LEAD, leadStage: stage, limit: 10 }));
+          return {
+            total: page.meta.total,
+            leads: page.items.map((item) => {
+              const row = leadRow.parse(item);
+              return {
+                id: row.id, displayName: displayName(row), company: row.companyName,
+                leadSource: row.leadSource, priority: row.priority, nextFollowUpAt: formatMomentIn(row.nextFollowUpAt, timeZone),
+                assignedBroker: row.assignedBroker && nameOf(row.assignedBroker),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'client_notes',
+        description: 'List up to ten live notes for one client, newest first, with date in your time zone, author, visibility and body up to 500 characters. Use the client id from find_client, client_follow_ups or lead_pipeline. A Client not found error means there is no client you can see with that id.',
+        schema: notesArgs,
+        permission: { module: Module.CLIENTS, action: Action.VIEW },
+        async run(user, { clientId }, { timeZone }) {
+          const page = await notes.findAll(user, queryNotesSchema.parse({ subjectType: NoteSubjectType.CLIENT, subjectId: clientId, limit: 10 }));
+          return {
+            total: page.meta.total,
+            notes: page.items.map((item) => {
+              const row = noteRow.parse(item);
+              const characters = Array.from(row.body);
+              return {
+                date: formatMomentIn(row.createdAt, timeZone), author: row.createdBy && nameOf(row.createdBy),
+                visibility: row.visibility,
+                body: characters.length > 500 ? `${characters.slice(0, 499).join('')}…` : row.body,
               };
             }),
           };
