@@ -1972,7 +1972,7 @@ caller's reach and money permission; the header's **Ask Anything** popover
 
 ---
 
-## WhatsApp assistant (Super Admin) 🟡 *(steps 1–2 of 7 built; step 2 awaiting review, 17 Nov 2026)*
+## WhatsApp assistant (Super Admin) 🟡 *(steps 1–3 of 7 built and reviewed; step 3 live-checked on a real phone 19 Nov 2026)*
 
 Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
 "The WhatsApp assistant is one phone, one Super Admin, signed by Meta".
@@ -1996,13 +1996,19 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
 - The compiled development command `npm run whatsapp:ask -- "question"`
   (optional `--as <email>`) shares the webhook's live Super Admin lookup.
   It needs `OPENAI_API_KEY` and `OPENAI_MODEL`; without the WhatsApp env set,
-  `--as` is required. No live AI or Meta call has been tested. Webhook handling prepares the
-  reply and logs only its length; delivery remains step 3.
+  `--as` is required. Live-checked with a real OpenAI key on 17 Nov.
+- Step 3 sends the reply over Meta's Graph API (`whatsapp.sender.ts`): read
+  receipt and "typing…", one retry on 429/5xx/network, fixed replies for a
+  non-text message and for the AI not being set up, "something went wrong"
+  when a reply throws, Meta's refusal codes logged. **Live-checked 19 Nov**
+  from the admin phone through a cloudflared tunnel on the dev database;
+  needed the app subscribed to the WABA (plan §4).
 
 **Waiting**
 | What | Waits on |
 |---|---|
-| Sending a reply | Step 3 — the Meta credentials |
+| **"Today" / "tomorrow" in the desk's timezone** — today the UTC date, a day off for the US desk or the Dhaka developers every day (crucial) | A company timezone setting (`MODULES.md` §26 map) — the developer, before step 4 |
+| Running in production | Deploy of `roy`, the permanent Meta token, the owner's OK on client data to OpenAI, and the timezone fix (plan §4, "Going to production") |
 | Approve / decline, leads, tasks, payments over chat | Step 4 |
 | PDFs in the chat | Step 5 |
 | More tools, module by module | Step 6 |

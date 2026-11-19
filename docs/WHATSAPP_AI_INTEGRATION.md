@@ -112,7 +112,56 @@ Into `Backend/.env` only, never into a chat or a commit. A real business
 number for production cannot stay logged into the ordinary WhatsApp app —
 use one that is on nobody's phone; the test number is enough for step 3.
 
-The WABA id is not needed: sending uses the phone number id.
+Sending uses the phone number id, not the WABA id — but the WABA id is
+needed **once**: Meta delivers a phone's messages only to apps subscribed to
+its WhatsApp Business Account, and saving the webhook form does not do
+that. On 19 Nov the webhook verified, `messages` showed Subscribed, and
+four messages from the phone reached nobody — only Meta's own "WA DevX
+Webhook Events" app was on the account. One call fixed it (the WABA id is
+"Messaging account ID" under Step 1 · Try it out):
+
+```
+curl -X POST -H "Authorization: Bearer $WHATSAPP_ACCESS_TOKEN" \
+  https://graph.facebook.com/v25.0/<WABA_ID>/subscribed_apps
+```
+
+A `GET` on the same URL lists what is subscribed; our app must be on it.
+Messages sent before the subscription are not redelivered.
+
+### Going to production (checklist, 19 Nov 2026)
+
+What worked locally works on Dokploy for the same reasons — production
+already has HTTPS, Traefik sends `/api/*` straight to the API (so the
+signature sees the raw body), and Redis. But nothing carries over by
+itself:
+
+1. **Deploy `roy`.** Production runs `8127edd` (9 Nov), with no WhatsApp
+   code; `20261116120000_whatsapp_assistant_switch` applies on start.
+2. **Dokploy env:** all six `WHATSAPP_*` / `SUPER_ADMIN_WHATSAPP_*` (all or
+   none — a partial set refuses to boot), `OPENAI_API_KEY`, `OPENAI_MODEL`.
+3. **The permanent system-user token** (table above). The 24-hour token
+   goes silent with code 190.
+4. **`SUPER_ADMIN_WHATSAPP_EMAIL` an active SUPER_ADMIN in the production
+   database**, not only in dev.
+5. **Meta webhook** → `https://tribecajetscommandcenter.com/api/webhooks/whatsapp`,
+   Verify and save. The WABA subscription above is per account, not per
+   URL — it stays.
+6. **Settings › Security › "WhatsApp assistant" on in production** — each
+   database has its own switch, off by default.
+
+Two things that catch people out:
+
+- **One webhook URL per Meta app.** Pointing it at production stops local
+  delivery. Either swap it back and forth, or make a second Meta app for
+  development.
+- **The test number reaches at most five hand-added numbers.** The
+  client's real use needs a registered business number, business
+  verification, a payment method and a published app (Meta's "Step 2 /
+  Step 3"). None of it is done.
+
+**Hold the deploy until** the timezone fix is in and the owner has said
+yes to client data going to OpenAI (§6, "Needed from the developer /
+owner"). Production holds real clients.
 
 **And Settings › Security › "WhatsApp assistant (Super Admin)"** must be on.
 It is off by default, and switching it off stops the bot at the next message
@@ -166,7 +215,7 @@ building → 🔍 in review → ✅ reviewed and committed.
 |---|---|---|
 | 1 | **Secure entry point** — env (six variables, all or none), Settings › Security switch (off by default), webhook (`GET` verify, `POST` signed events), gates: configured, switched on, one phone, redelivery dropped, ≤10 min old, active Super Admin re-read per message | ✅ 16 Nov — 53 tests + live curl run on a test API; committed 17 Nov (`210d87a`, `b1f8cdc`, `1c48031`) |
 | 2 | **AI brain** — OpenAI tool-calling loop, Redis conversation memory, first read tools (trips today/upcoming, dashboard KPIs, client lookup), tested from a script before WhatsApp is wired | ✅ 17 Nov — built by Codex, code-reviewed by Claude (two fixes: `--as` works without the Meta env, and `handle()` asks `agent.ready` rather than re-reading config). 51 new mocked tests; backend total 72 files / 673 tests, tsc and oxlint clean; compiled script boots and refuses without a key. **Live check passed 17 Nov** on the dev database (seed data) with the developer's own key and `gpt-6.1-sol`: no flights tomorrow answered as not on file, this week's KPIs as the service computed them, a client card matching the database field by field, a follow-up answered from memory, and "approve" declined as coming. It found three things, fixed: the script hung after answering (now exits), the model sent full names to a search that matches one column at a time (tool description now says one name), and money had no thousands separators. Committed 17 Nov (`98acbb4`, `efbf3f3`) |
-| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | 🔍 18 Nov — built by Codex (`whatsapp.sender.ts`: text with one retry on 429/5xx/network, read receipt + typing; fixed replies for non-text and AI-not-set-up; failed delivery receipts logged by code; Graph default v25.0), code-reviewed by Claude (one fix: a reply that throws now sends a short "something went wrong" instead of silence after "typing…"). 15 new tests; backend 73 files / 688, tsc and oxlint clean. **Next: the live check** (tunnel → Meta webhook form → Settings switch on → a message from the phone) |
+| 3 | **Connect WhatsApp** — replies sent through Meta's Graph API; webhook pointed at the API (tunnel locally); first real message on the phone | ✅ 19 Nov — 18 Nov — built by Codex (`whatsapp.sender.ts`: text with one retry on 429/5xx/network, read receipt + typing; fixed replies for non-text and AI-not-set-up; failed delivery receipts logged by code; Graph default v25.0), code-reviewed by Claude (one fix: a reply that throws now sends a short "something went wrong" instead of silence after "typing…"). 15 new tests; backend 73 files / 688, tsc and oxlint clean. **Live check passed 19 Nov** (Windows machine, cloudflared tunnel, dev database): "What flights go out tomorrow?" from the admin phone → read receipt, typing, a reply quoting the question ("No flights are on file departing tomorrow, Thu 19 Nov"). It needed the app subscribed to the WABA (§4) — the webhook form alone delivered nothing. Found: "tomorrow" is reckoned from the **UTC** date (`whatsapp.agent.ts`), so after 18:00 in Dhaka it is a day behind the phone — to settle with the owner which timezone the desk uses, before step 4 |
 | 4 | **Actions with CONFIRM** — approve/decline trip, create lead, complete task, record payment; 2-step confirmation held in Redis for 5 minutes | ⬜ |
 | 5 | **PDFs in the chat** — itinerary, quote, invoice via the existing PDF generator, uploaded to Meta media and sent as documents | ⬜ |
 | 6 | **More tools, module by module** — until the bot covers the CRM (bulk operations, permissions and Settings stay out on purpose) | ⬜ |
@@ -181,6 +230,7 @@ building → 🔍 in review → ✅ reviewed and committed.
 | `OPENAI_MODEL` in `Backend/.env` | step 2 live check | ✅ 17 Nov — `gpt-6.1-sol` (balance of tool-calling reliability and cost; `gpt-6.1-terra` is the cheaper one to compare) |
 | Meta credentials (§4, with the walkthrough): permanent system-user token, phone number id, app secret, verify token, Super Admin phone and email | step 3 live check | 🟡 18 Nov — Meta app "Tribeca Jets Assistant" (portfolio Fedson), test number +1 555 138 2534, "Hello World" delivered to the developer's phone; all six values in the developer's `Backend/.env` with `WHATSAPP_GRAPH_VERSION=v25.0`. The token is the **temporary 24-hour** one — the permanent system-user token is still to make |
 | Owner's OK to send client data (names, routes, figures) to OpenAI — passports, IDs and sensitive documents stay out regardless | first live call | ⏳ to ask |
+| **Timezone fix — crucial** (found 19 Nov). The bot's "today" is the UTC date (`whatsapp.agent.ts`, `Today's date (UTC)`), so "tomorrow" is a day off whenever UTC and the reader's day differ. The fix is a **company timezone setting** (the desk is in the US, the developers in Dhaka — opposite sides of the earth), read when the agent builds its instructions, with the date and weekday given in that zone. Meta's webhook carries no timezone — only a UTC Unix `timestamp` and the sender's number — so the zone cannot come from the message. Row in `docs/MODULES.md` §26's settings map | before step 4 | ⏳ the developer will fix it — not on 19 Nov |
 
 Secrets go straight into `Backend/.env` (git-ignored), never into a chat.
 
