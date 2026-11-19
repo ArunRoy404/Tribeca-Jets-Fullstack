@@ -2025,13 +2025,17 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
 - Step 6b reads trip details, flight status and empty legs, and finds
   operators and aircraft. Flight times stay local to their airports, and
   trip details include the passenger count and names.
+- Step 6c lists invoices, operator bills and commissions, reads a client's
+  credit balance, lists recent transactions and reports financial summaries.
+  The owning services supply the figures and states. Transaction dates default
+  to seven days ending today in the asker's time zone.
 
 **Waiting**
 | What | Waits on |
 |---|---|
 | Desk rules such as due dates, flights today and report windows | Migrate the modules that use `todayUtc()` to the company time zone (`MODULES.md` §26 map) |
 | Running in production | Deploy of `roy`, the permanent Meta token, the owner's OK on client data to OpenAI, (the time zone fix passed its Meta live check on 19 Nov; plan §4, "Going to production") |
-| More tools, module by module | Steps 6c–6d |
+| More tools, module by module | Step 6d |
 | Postman entries for the two routes | Step 7 |
 
 ---
