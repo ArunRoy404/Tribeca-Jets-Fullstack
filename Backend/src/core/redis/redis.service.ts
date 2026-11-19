@@ -76,6 +76,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.get(key);
   }
 
+  /** Reads and deletes atomically, so a double CONFIRM takes the action once. */
+  async takeString(key: string): Promise<string | null> {
+    return this.client.getdel(key);
+  }
+
   /** Replaces a stored string and refreshes its expiry on every write. */
   async setString(key: string, value: string, ttlSeconds: number): Promise<void> {
     await this.client.set(key, value, 'EX', ttlSeconds);
