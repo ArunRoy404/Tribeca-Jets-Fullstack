@@ -4,9 +4,11 @@ import { Action, Module, Reach, resolveAccess } from '../../common/authorization
 import { DEFAULT_TIME_ZONE } from '../../common/dates/time-zone.js';
 import { paginate, type AuthenticatedUser } from '../../common/types/api.types.js';
 import {
-  AircraftCategory, ClientPriority, ClientStatus, FollowUpMethod, InvoiceStatus, LeadSource, LeadStage,
-  NoteSubjectType, NoteVisibility, PaymentMethod, QuoteStatus, TaskStatus, TripApprovalStatus, TripRequestStatus, UserRole,
+  AircraftCategory, AircraftStatus, ClientPriority, ClientStatus, EmptyLegStatus, FlightStatus, FollowUpMethod,
+  InvoiceStatus, LeadSource, LeadStage, NoteSubjectType, NoteVisibility, OperatorStatus, PaymentMethod, PaymentTerms,
+  QuoteStatus, ResponseSpeed, TaskStatus, TripApprovalStatus, TripRequestStatus, TripStatus, TripType, UserRole,
 } from '../../generated/prisma/enums.js';
+import { TripPaymentState } from '../receivables/receivables.amounts.js';
 import { ONE_ACTION_REPLY, WhatsappTools, type ToolContext } from './whatsapp.tools.js';
 
 const PHONE = '15551234567';
@@ -96,13 +98,32 @@ const salesQuote = {
   ...salesRoute, ...quote, status: QuoteStatus.SENT, validUntil: new Date('2026-11-28'), totalPrice: 45823.17,
   operatorCost: 29822.11, grossProfit: 16001.06, marginPercentage: 34.92,
 };
+const operatorRecord = { id: 'operator-id', name: 'Example Air', secretMarker };
+const aircraftRecord = {
+  id: 'aircraft-id', tailNumber: 'N123AB', model: 'Citation XLS', category: AircraftCategory.MIDSIZE_JET,
+  status: AircraftStatus.AVAILABLE, maxPassengers: 9, operator: operatorRecord,
+  homeBase: { id: ORIGIN_ID, icao: 'KTEB' }, secretMarker,
+};
+const outboundLeg = { ...trip.legs[0]!, sequence: 1, departureTime: '06:05', secretMarker };
+const passengerRecord = {
+  fullName: 'Test Passenger', sequence: 1, passportNumber: 'PRIVATE PASSPORT', dateOfBirth: new Date('1987-04-03'), secretMarker,
+};
+const tripDetail = {
+  ...trip, status: TripStatus.CONFIRMED, type: TripType.ROUND_TRIP, operator: operatorRecord, aircraft: aircraftRecord,
+  legs: [outboundLeg, {
+    sequence: 2, originAirport: { icao: 'KMIA' }, destinationAirport: { icao: 'KTEB' },
+    departureDate: new Date('2026-11-30'), departureTime: null,
+  }],
+  passengerCount: 2, passengers: [passengerRecord], totalPrice: 35935.1,
+  operatorCost: undefined, grossProfit: undefined, marginPercentage: undefined, clientPayment: undefined, secretMarker,
+};
 
 describe('WhatsappTools dispatcher', () => {
   let schedule: { findAll: ReturnType<typeof vi.fn> };
   let dashboard: { summary: ReturnType<typeof vi.fn> };
   let clients: { findAll: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
   let auth: { updateProfile: ReturnType<typeof vi.fn> };
-  const trips = { findAll: vi.fn(), approve: vi.fn(), reject: vi.fn() };
+  const trips = { findAll: vi.fn(), findOne: vi.fn(), approve: vi.fn(), reject: vi.fn() };
   const tasks = { findAll: vi.fn(), findOne: vi.fn(), update: vi.fn() };
   const airports = { findAll: vi.fn(), usable: vi.fn() };
   const receivables = { findAll: vi.fn(), recordPayment: vi.fn(), renderPdf: vi.fn() };
@@ -110,6 +131,10 @@ describe('WhatsappTools dispatcher', () => {
   const quotes = { findAll: vi.fn(), renderPdf: vi.fn() };
   const tripRequests = { findAll: vi.fn() };
   const notes = { findAll: vi.fn(), timeline: vi.fn() };
+  const flightTracking = { findAll: vi.fn() };
+  const emptyLegs = { findAll: vi.fn() };
+  const operators = { findAll: vi.fn() };
+  const aircraft = { findAll: vi.fn() };
   const lookup = { send_itinerary: trips.findAll, send_quote: quotes.findAll, send_invoice: receivables.findAll };
   const render = { send_itinerary: itineraries.renderPdfForTrip, send_quote: quotes.renderPdf, send_invoice: receivables.renderPdf };
   const pending = { put: vi.fn() };
@@ -124,6 +149,7 @@ describe('WhatsappTools dispatcher', () => {
     auth = { updateProfile: vi.fn().mockResolvedValue(undefined) };
     vi.clearAllMocks();
     trips.findAll.mockReset().mockResolvedValue(paginate([trip], 1, 1, 100));
+    trips.findOne.mockReset().mockResolvedValue(tripDetail);
     tasks.findAll.mockReset().mockResolvedValue(paginate([task], 1, 1, 10));
     tasks.findOne.mockReset().mockResolvedValue(task);
     airports.findAll.mockReset().mockImplementation(async ({ search }: { search: string }) => {
@@ -138,11 +164,12 @@ describe('WhatsappTools dispatcher', () => {
     quotes.renderPdf.mockReset().mockResolvedValue(quotePdf);
     tripRequests.findAll.mockReset().mockResolvedValue(paginate([salesRequest], 12, 1, 10));
     notes.findAll.mockReset();
+    for (const service of [flightTracking, emptyLegs, operators, aircraft]) service.findAll.mockReset();
     companyTimeZone.mockClear();
     context = { timeZone: 'Asia/Dhaka', companyTimeZone, phone: PHONE, documents: [] };
     tools = new WhatsappTools(schedule as never, dashboard as never, clients as never, auth as never,
       trips as never, tasks as never, airports as never, receivables as never, pending as never, itineraries as never, quotes as never,
-      tripRequests as never, notes as never);
+      tripRequests as never, notes as never, flightTracking as never, emptyLegs as never, operators as never, aircraft as never);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -159,6 +186,7 @@ describe('WhatsappTools dispatcher', () => {
     expect(clients.findAll).not.toHaveBeenCalled();
     expect(auth.updateProfile).not.toHaveBeenCalled();
     expect(trips.findAll).not.toHaveBeenCalled();
+    expect(trips.findOne).not.toHaveBeenCalled();
     expect(tasks.findAll).not.toHaveBeenCalled();
     expect(tasks.findOne).not.toHaveBeenCalled();
     expect(airports.findAll).not.toHaveBeenCalled();
@@ -167,6 +195,7 @@ describe('WhatsappTools dispatcher', () => {
     expect(tripRequests.findAll).not.toHaveBeenCalled();
     expect(notes.findAll).not.toHaveBeenCalled();
     expect(notes.timeline).not.toHaveBeenCalled();
+    for (const service of [flightTracking, emptyLegs, operators, aircraft]) expect(service.findAll).not.toHaveBeenCalled();
     for (const pdfRender of Object.values(render)) expect(pdfRender).not.toHaveBeenCalled();
     expect(pending.put).not.toHaveBeenCalled();
   }
@@ -210,6 +239,8 @@ describe('WhatsappTools dispatcher', () => {
       list_pending_approvals: {}, list_open_tasks: {},
       list_trip_requests: {}, list_quotes: {}, client_follow_ups: { window: 'TODAY' },
       lead_pipeline: {}, client_notes: { clientId: CLIENT_ID },
+      trip_details: { trip: 'TJ-1048' }, list_flight_status: {}, list_empty_legs: {},
+      find_operator: { query: 'Example Air' }, find_aircraft: { minPassengers: 9 },
       send_itinerary: { trip: 'TJ-1048' }, send_quote: { quote: 'Q-1042' }, send_invoice: { invoice: invoice.number },
       approve_trip: { reference: 'TJ-1048' }, decline_trip: { reference: '1048' },
       create_lead: leadArgs, complete_task: { taskId: TASK_ID }, record_payment: paymentArgs,
@@ -368,6 +399,7 @@ describe('WhatsappTools dispatcher', () => {
     expect(specs.map((spec) => spec.name)).toEqual([
       'list_flights', 'dashboard_kpis', 'find_client', 'set_my_timezone', 'list_pending_approvals', 'list_open_tasks',
       'list_trip_requests', 'list_quotes', 'client_follow_ups', 'lead_pipeline', 'client_notes',
+      'trip_details', 'list_flight_status', 'list_empty_legs', 'find_operator', 'find_aircraft',
       'send_itinerary', 'send_quote', 'send_invoice',
       'approve_trip', 'decline_trip', 'create_lead', 'complete_task', 'record_payment',
     ]);
@@ -552,6 +584,183 @@ describe('WhatsappTools dispatcher', () => {
     ['client_notes', { clientId: 'TR-1051' }, 'Invalid UUID'],
   ])('refuses invalid sales-desk arguments for %s', async (name, args, problem) => {
     expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error: expect.stringContaining(problem) });
+    expectNoServiceCalls();
+  });
+
+  it('resolves a trip within scope and returns every leg and passenger names with no gated fields', async () => {
+    const actor = { ...user, access: { [Module.TRIPS]: { reach: Reach.OWN, actions: [Action.VIEW] } } };
+    context.timeZone = 'America/New_York';
+    const result = await dispatch(actor, 'trip_details', '{"trip":"TJ-1048"}');
+    expect(trips.findAll).toHaveBeenCalledExactlyOnceWith(actor, {
+      search: 'TJ-1048', archived: false, activeOnly: false, page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+    expect(trips.findOne).toHaveBeenCalledExactlyOnceWith(actor, TRIP_ID);
+    expect(trips.findAll).toHaveBeenCalledBefore(trips.findOne);
+    expect(result).toStrictEqual({
+      reference: 'TJ-1048', status: TripStatus.CONFIRMED, approvalStatus: TripApprovalStatus.PENDING, type: TripType.ROUND_TRIP,
+      client: 'Alex Vance', assignedBroker: 'Sam Broker', operator: 'Example Air', aircraft: { tail: 'N123AB', model: 'Citation XLS' },
+      legs: [
+        { sequence: 1, origin: 'KTEB', destination: 'KMIA', departureDate: '2026-11-27', departureTimeLocal: '06:05' },
+        { sequence: 2, origin: 'KMIA', destination: 'KTEB', departureDate: '2026-11-30', departureTimeLocal: null },
+      ],
+      passengerCount: 2, passengers: ['Test Passenger'], totalPrice: '$35,935.10',
+    });
+    const json = JSON.stringify(result);
+    for (const privateValue of [secretMarker, passengerRecord.passportNumber, '1987-04-03', 'dateOfBirth', 'passportNumber']) {
+      expect(json).not.toContain(privateValue);
+    }
+    expect(tools.specs(false).find(({ name }) => name === 'trip_details')?.description).toContain('list_flight_status');
+  });
+
+  it('preserves the service’s trip money and payment summary with formatted values', async () => {
+    trips.findOne.mockResolvedValueOnce({
+      ...tripDetail, operatorCost: 21000, grossProfit: 14935.10, marginPercentage: 41.56,
+      clientPayment: {
+        state: TripPaymentState.PARTIALLY_PAID, invoiced: 35935.10, paid: 10000, balance: 25935.10, invoiceCount: 2,
+        fullCharge: { amount: 1200, fetAmount: 90 }, secretMarker,
+      },
+    });
+    const result = await dispatch(user, 'trip_details', '{"trip":"1048"}');
+    expect(trips.findAll).toHaveBeenCalledExactlyOnceWith(user, expect.objectContaining({ search: 'TJ-1048' }));
+    expect(trips.findOne).toHaveBeenCalledExactlyOnceWith(user, TRIP_ID);
+    expect(result).toMatchObject({
+      totalPrice: '$35,935.10', operatorCost: '$21,000.00', grossProfit: '$14,935.10', marginPercentage: '41.56%',
+    });
+    expect(result).toHaveProperty('clientPayment', {
+      state: TripPaymentState.PARTIALLY_PAID, invoiced: '$35,935.10', paid: '$10,000.00', balance: '$25,935.10', invoiceCount: 2,
+    });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('keeps null trip prices and permitted null financial figures', async () => {
+    trips.findOne.mockResolvedValueOnce({ ...tripDetail, totalPrice: null, operatorCost: null, grossProfit: null, marginPercentage: null });
+    expect(await dispatch(user, 'trip_details', '{"trip":"1048"}')).toMatchObject({
+      totalPrice: null, operatorCost: null, grossProfit: null, marginPercentage: null,
+    });
+  });
+
+  it('returns an error for an unknown trip reference without asking for its details', async () => {
+    trips.findAll.mockResolvedValueOnce(paginate([trip], 1, 1, 100));
+    expect(await dispatch(user, 'trip_details', '{"trip":"TJ-9999"}')).toEqual({ error: 'No trip TJ-9999 you can see' });
+    expect(trips.findOne).not.toHaveBeenCalled();
+  });
+
+  it('asks for flights on the context zone’s day and preserves airport-local departure and arrival times', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-19T18:15:00Z'));
+    flightTracking.findAll.mockResolvedValueOnce(paginate([{
+      ...outboundLeg, departureDate: new Date('2026-11-20'), legCount: 2, flightStatus: FlightStatus.DELAYED,
+      estimatedArrival: '00:40', flightStatusAt: new Date('2026-11-19T18:01:00Z'), trackingUrl: 'PRIVATE TRACKING LINK',
+      trip: { ...trip, aircraft: aircraftRecord, operator: operatorRecord, secretMarker },
+    }], 17, 1, 10));
+    const result = await dispatch(user, 'list_flight_status', '{"window":"TODAY","flightStatus":"DELAYED","search":" TJ-1048 "}');
+    expect(flightTracking.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      window: 'TODAY', flightStatus: FlightStatus.DELAYED, search: 'TJ-1048', on: new Date('2026-11-20'), page: 1, limit: 10,
+    });
+    expect(result).toStrictEqual({ total: 17, flights: [{
+      reference: 'TJ-1048', sequence: 1, legCount: 2, origin: 'KTEB', destination: 'KMIA', departureDate: '2026-11-20',
+      departureTimeLocal: '06:05', flightStatus: FlightStatus.DELAYED, estimatedArrivalLocal: '00:40',
+      flightStatusAt: 'Fri 20 Nov 2026, 00:01', tailNumber: 'N123AB', operator: 'Example Air',
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('defaults to ACTIVE and accepts NONE as the flight status filter', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-19T18:15:00Z'));
+    flightTracking.findAll.mockResolvedValueOnce(paginate([], 0, 1, 10));
+    expect(await dispatch(user, 'list_flight_status', '{"flightStatus":"NONE"}')).toEqual({ total: 0, flights: [] });
+    expect(flightTracking.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      window: 'ACTIVE', flightStatus: 'NONE', search: undefined, on: new Date('2026-11-20'), page: 1, limit: 10,
+    });
+  });
+
+  it('lists available empty legs with the service price, local departure and localized expiry', async () => {
+    emptyLegs.findAll.mockResolvedValueOnce(paginate([{
+      ...outboundLeg, aircraft: aircraftRecord, aircraftDescription: 'Unused description', operator: operatorRecord,
+      seats: 7, price: 35935.1, status: EmptyLegStatus.AVAILABLE, expiresAt: new Date('2026-11-20T12:00:00Z'),
+    }], 11, 1, 10));
+    const result = await dispatch(user, 'list_empty_legs', '{"search":" KTEB "}');
+    expect(emptyLegs.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      status: EmptyLegStatus.AVAILABLE, search: 'KTEB', archived: false, page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+    expect(result).toStrictEqual({ total: 11, emptyLegs: [{
+      origin: 'KTEB', destination: 'KMIA', departureDate: '2026-11-27', departureTimeLocal: '06:05',
+      aircraft: { tail: 'N123AB', model: 'Citation XLS' }, operator: 'Example Air', seats: 7,
+      price: '$35,935.10', status: EmptyLegStatus.AVAILABLE, expiresAt: 'Fri 20 Nov 2026, 18:00',
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('uses the empty-leg service’s effective status and preserves missing price and seats', async () => {
+    emptyLegs.findAll.mockResolvedValueOnce(paginate([{
+      ...outboundLeg, departureTime: null, aircraft: null, aircraftDescription: 'Light jet', operator: null, seats: null,
+      price: null, status: EmptyLegStatus.EXPIRED, storedStatus: EmptyLegStatus.AVAILABLE, expiresAt: new Date('2026-11-19T12:00:00Z'),
+    }], 1, 1, 10));
+    expect(await dispatch(user, 'list_empty_legs', '{"status":"EXPIRED"}')).toStrictEqual({ total: 1, emptyLegs: [{
+      origin: 'KTEB', destination: 'KMIA', departureDate: '2026-11-27', departureTimeLocal: null,
+      aircraft: 'Light jet', operator: null, price: null, status: EmptyLegStatus.EXPIRED, expiresAt: 'Thu 19 Nov 2026, 18:00',
+    }] });
+    expect(emptyLegs.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      status: EmptyLegStatus.EXPIRED, search: undefined, archived: false, page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+  });
+
+  it('finds operators with contacts and ratings on file, excluding policy text and unknown fleet size', async () => {
+    const record = {
+      ...operatorRecord, status: OperatorStatus.ACTIVE, primaryContact: 'Sam Operator', contactEmail: 'sam@example.com',
+      contactPhone: '+15550000001', generalPhone: '+15550000002', reliabilityRating: null, safetyRating: 4.2,
+      responseSpeed: ResponseSpeed.FAST, paymentTerms: PaymentTerms.NET_15,
+      sourcingNotes: 'PRIVATE SOURCING NOTES', cancellationPolicy: 'PRIVATE CANCELLATION POLICY',
+    };
+    operators.findAll.mockResolvedValueOnce(paginate([record, { ...record, name: 'Example Charter', fleetSize: 0 }], 6, 1, 5));
+    const result = await dispatch(user, 'find_operator', '{"query":" Example ","status":"ACTIVE"}');
+    expect(operators.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      search: 'Example', status: OperatorStatus.ACTIVE, archived: false, page: 1, limit: 5, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+    const expected = {
+      name: 'Example Air', status: OperatorStatus.ACTIVE, primaryContact: 'Sam Operator', contactEmail: 'sam@example.com',
+      contactPhone: '+15550000001', generalPhone: '+15550000002', reliabilityRating: null, safetyRating: 4.2,
+      responseSpeed: ResponseSpeed.FAST, paymentTerms: PaymentTerms.NET_15,
+    };
+    expect(result).toStrictEqual({ total: 6, operators: [expected, { ...expected, name: 'Example Charter', fleetSize: 0 }] });
+    const json = JSON.stringify(result);
+    for (const privateValue of [secretMarker, record.sourcingNotes, record.cancellationPolicy]) expect(json).not.toContain(privateValue);
+  });
+
+  it('finds aircraft with the requested minimum capacity and returns only fleet lookup fields', async () => {
+    aircraft.findAll.mockResolvedValueOnce(paginate([aircraftRecord], 16, 1, 10));
+    const result = await dispatch(user, 'find_aircraft', '{"query":" Citation ","category":"MIDSIZE_JET","minPassengers":9,"status":"AVAILABLE"}');
+    expect(aircraft.findAll).toHaveBeenCalledExactlyOnceWith({
+      search: 'Citation', category: AircraftCategory.MIDSIZE_JET, minPassengers: 9, status: AircraftStatus.AVAILABLE,
+      archived: false, page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+    });
+    expect(result).toStrictEqual({ total: 16, aircraft: [{
+      tailNumber: 'N123AB', model: 'Citation XLS', category: AircraftCategory.MIDSIZE_JET, status: AircraftStatus.AVAILABLE,
+      maxPassengers: 9, operator: 'Example Air', homeBase: 'KTEB',
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it.each([
+    [{}, 'Give a search, category, minimum passenger count or status.'],
+    [{ minPassengers: 0 }, '>=1'],
+    [{ minPassengers: 201 }, '<=200'],
+    [{ minPassengers: 9.5 }, 'expected int'],
+  ])('refuses invalid aircraft filters %j before calling the service', async (args, problem) => {
+    expect(await dispatch(user, 'find_aircraft', JSON.stringify(args))).toEqual({ error: expect.stringContaining(problem) });
+    expectNoServiceCalls();
+  });
+
+  it.each([
+    ['trip_details', Module.TRIPS, { trip: 'TJ-1048' }],
+    ['list_flight_status', Module.FLIGHT_TRACKING, {}],
+    ['list_empty_legs', Module.EMPTY_LEGS, {}],
+    ['find_operator', Module.OPERATORS, { query: 'Example Air' }],
+    ['find_aircraft', Module.AIRCRAFT, { minPassengers: 9 }],
+  ] as const)('refuses %s without %s VIEW before calling any service', async (name, module, args) => {
+    const access = { ...user.access, [module]: { reach: Reach.ALL, actions: [] } };
+    expect(await dispatch({ ...user, access }, name, JSON.stringify(args))).toEqual({ error: 'Not permitted for this account' });
     expectNoServiceCalls();
   });
 

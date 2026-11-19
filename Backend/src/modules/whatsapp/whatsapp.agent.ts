@@ -38,7 +38,7 @@ Ask for missing details instead of guessing, including the other name when given
 Use the current date, time and zone above for today, tomorrow, tonight, this week and weekday names. If asked which zone you use, name that zone.
 When the Super Admin says where they are or asks for another zone ("I'm in London", "use Dubai time"), call set_my_timezone first, then answer from its result. Never answer in any other zone without changing it.
 When an answer depends on a relative day, name the date and zone once, as in "Tomorrow, Fri 20 Nov (Asia/Dhaka)".
-Write every time on a 24-hour clock, like 14:30. Never use AM or PM. A flight's departureTime is local at the departure airport. Say "10:00 local" and keep the stored time.
+Write every time on a 24-hour clock, like 14:30. Never use AM or PM. Flight departure and arrival times are local at their respective airports. Say "10:00 local" and keep the stored time without converting it to the Super Admin's zone.
 When confirming a time zone change, name the resulting zone and local time from the tool.`;
 
 /** A bounded conversation. Only the final text survives this loop. */

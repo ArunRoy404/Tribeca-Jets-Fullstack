@@ -9,10 +9,12 @@ import { toCents } from '../../common/money/cents.js';
 import { formatDollars } from '../../common/money/settlement.js';
 import type { AuthenticatedUser, Paginated } from '../../common/types/api.types.js';
 import {
-  AircraftCategory, ClientPriority, ClientStatus, FollowUpMethod, InvoiceStatus, LeadSource, LeadStage,
-  NoteSubjectType, NoteVisibility, PaymentMethod, QuoteStatus, TaskPriority, TaskStatus, TripApprovalStatus,
-  TripRequestStatus, TripStatus,
+  AircraftCategory, AircraftStatus, ClientPriority, ClientStatus, EmptyLegStatus, FlightStatus, FollowUpMethod,
+  InvoiceStatus, LeadSource, LeadStage, NoteSubjectType, NoteVisibility, OperatorStatus, PaymentMethod, PaymentTerms,
+  QuoteStatus, ResponseSpeed, TaskPriority, TaskStatus, TripApprovalStatus, TripRequestStatus, TripStatus, TripType,
 } from '../../generated/prisma/enums.js';
+import { AircraftService } from '../aircraft/aircraft.service.js';
+import { queryAircraftSchema } from '../aircraft/dto/aircraft.dto.js';
 import { AirportsService } from '../airports/airports.service.js';
 import { createAirportSchema, queryAirportsSchema } from '../airports/dto/airport.dto.js';
 import { AuthService } from '../auth/auth.service.js';
@@ -20,13 +22,19 @@ import { ClientsService } from '../clients/clients.service.js';
 import { createClientSchema, FOLLOW_UP_WINDOWS, queryClientsSchema } from '../clients/dto/client.dto.js';
 import { DashboardService } from '../dashboard/dashboard.service.js';
 import { dashboardSummarySchema } from '../dashboard/dto/dashboard.dto.js';
+import { queryEmptyLegsSchema } from '../empty-legs/dto/empty-leg.dto.js';
+import { EmptyLegsService } from '../empty-legs/empty-legs.service.js';
+import { FLIGHT_WINDOWS, queryFlightsSchema } from '../flight-tracking/dto/flight-tracking.dto.js';
+import { FlightTrackingService } from '../flight-tracking/flight-tracking.service.js';
 import { ItinerariesService } from '../itineraries/itineraries.service.js';
 import { queryNotesSchema } from '../notes/dto/note.dto.js';
 import { NotesService } from '../notes/notes.service.js';
+import { queryOperatorsSchema } from '../operators/dto/operator.dto.js';
+import { OperatorsService } from '../operators/operators.service.js';
 import { queryQuotesSchema } from '../quotes/dto/quote.dto.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { queryInvoicesSchema } from '../receivables/dto/receivable.dto.js';
-import { paymentProblem } from '../receivables/receivables.amounts.js';
+import { paymentProblem, TripPaymentState } from '../receivables/receivables.amounts.js';
 import { ReceivablesService } from '../receivables/receivables.service.js';
 import { ScheduleService } from '../schedule/schedule.service.js';
 import { windowDays } from '../schedule/schedule.calendar.js';
@@ -61,23 +69,38 @@ const flightsArgs = z.object({
 // Reuse the DTO's enum and WEEK default rather than keeping another default.
 const dashboardArgs = dashboardSummarySchema.pick({ period: true });
 const clientArgs = z.object({ query: z.string().trim().min(2).max(100) }).strict();
-const salesSearch = z.string().trim().min(2).max(100).optional();
+const toolSearch = z.string().trim().min(2).max(100);
 const tripRequestsArgs = z.object({
   status: z.enum(TripRequestStatus).optional(),
   departure: z.enum(REQUEST_WINDOWS).optional(),
-  search: salesSearch,
+  search: toolSearch.optional(),
 }).strict();
 const listQuotesArgs = z.object({
   status: z.enum(QuoteStatus).optional(),
   expired: z.boolean().optional(),
   sort: z.enum(['NEWEST', 'EXPIRING']).default('NEWEST'),
-  search: salesSearch,
+  search: toolSearch.optional(),
 }).strict().refine(({ status, expired }) => status === undefined || expired === undefined, {
   path: ['expired'], message: 'Use either status or expired.',
 });
 const followUpsArgs = z.object({ window: z.enum(FOLLOW_UP_WINDOWS).exclude(['SCHEDULED']) }).strict();
 const pipelineArgs = z.object({ stage: z.enum(LeadStage).optional() }).strict();
 const notesArgs = z.object({ clientId: z.uuid() }).strict();
+const flightStatusArgs = z.object({
+  window: z.enum(FLIGHT_WINDOWS).default('ACTIVE'),
+  flightStatus: queryFlightsSchema.shape.flightStatus,
+  search: toolSearch.optional(),
+}).strict();
+const emptyLegsArgs = z.object({ status: z.enum(EmptyLegStatus).default(EmptyLegStatus.AVAILABLE), search: toolSearch.optional() }).strict();
+const operatorArgs = z.object({ query: toolSearch, status: z.enum(OperatorStatus).optional() }).strict();
+const aircraftArgs = z.object({
+  query: toolSearch.optional(), category: z.enum(AircraftCategory).optional(),
+  minPassengers: z.number().int().min(1).max(200).optional(), status: z.enum(AircraftStatus).optional(),
+}).strict().refine(
+  ({ query, category, minPassengers, status }) =>
+    query !== undefined || category !== undefined || minPassengers !== undefined || status !== undefined,
+  { message: 'Give a search, category, minimum passenger count or status.' },
+);
 const timeZoneArgs = z.object({ timeZone: timeZoneSchema.nullable() }).strict();
 const tripReference = z.string().trim().regex(/^(?:TJ-)?\d{1,9}$/i, 'Use a trip reference such as TJ-1048')
   .transform((reference) => Number(reference.replace(/^TJ-/i, '')));
@@ -97,7 +120,7 @@ const invoiceArgs = z.object({
   invoice: z.string().trim().toUpperCase().regex(/^INV-\d{4}-\d{4,10}$/, 'Use the full invoice number, such as INV-2026-0042'),
 }).strict();
 const paymentArgs = paymentPayload.extend(invoiceArgs.shape).strict();
-const itineraryArgs = z.object({ trip: tripReference }).strict();
+const tripLookupArgs = z.object({ trip: tripReference }).strict();
 const quoteArgs = z.object({
   quote: z.string().trim().regex(/^(?:Q-?)?\d{1,9}$/i, 'Use a quote reference such as Q-1042')
     .transform((reference) => Number(reference.replace(/^Q-?/i, ''))),
@@ -148,6 +171,43 @@ const tripRow = z.object({
   approvalStatus: z.enum(TripApprovalStatus),
   legs: z.array(z.object({ originAirport: airportCode, destinationAirport: airportCode, departureDate: z.date().nullable() })),
 });
+const operatorName = z.object({ name: z.string() });
+const aircraftIdentity = z.object({ tailNumber: z.string(), model: z.string() });
+const legRouteRow = z.object({
+  originAirport: airportCode, destinationAirport: airportCode, departureDate: z.date().nullable(), departureTime: z.string().nullable(),
+});
+const tripDetailRow = tripRow.pick({ reference: true, client: true, assignedBroker: true, approvalStatus: true }).extend({
+  status: z.enum(TripStatus), type: z.enum(TripType), operator: operatorName.nullable(), aircraft: aircraftIdentity.nullable(),
+  legs: z.array(legRouteRow.extend({ sequence: z.number() })),
+  passengerCount: z.number().nullable(), passengers: z.array(z.object({ fullName: z.string() })),
+  totalPrice: z.number().nullable(), operatorCost: z.number().nullable().optional(),
+  grossProfit: z.number().nullable().optional(), marginPercentage: z.number().nullable().optional(),
+  clientPayment: z.object({
+    state: z.enum(TripPaymentState), invoiced: z.number(), paid: z.number(), balance: z.number(), invoiceCount: z.number(),
+  }).optional(),
+});
+const flightStatusRow = legRouteRow.extend({
+  sequence: z.number(), legCount: z.number(), flightStatus: z.enum(FlightStatus).nullable(),
+  estimatedArrival: z.string().nullable(), flightStatusAt: z.date().nullable(),
+  trip: z.object({
+    reference: z.number(), aircraft: aircraftIdentity.pick({ tailNumber: true }).nullable(), operator: operatorName.nullable(),
+  }),
+});
+const emptyLegRow = legRouteRow.extend({
+  departureDate: z.date(), aircraft: aircraftIdentity.nullable(), aircraftDescription: z.string().nullable(),
+  operator: operatorName.nullable(), seats: z.number().nullable(), price: z.number().nullable(),
+  status: z.enum(EmptyLegStatus), expiresAt: z.date().nullable(),
+});
+const operatorRow = operatorName.extend({
+  status: z.enum(OperatorStatus), primaryContact: z.string().nullable(), contactEmail: z.string().nullable(),
+  contactPhone: z.string().nullable(), generalPhone: z.string().nullable(), reliabilityRating: z.number().nullable(),
+  safetyRating: z.number().nullable(), responseSpeed: z.enum(ResponseSpeed).nullable(), paymentTerms: z.enum(PaymentTerms).nullable(),
+  fleetSize: z.number().optional(),
+});
+const aircraftRow = aircraftIdentity.extend({
+  category: z.enum(AircraftCategory), status: z.enum(AircraftStatus), maxPassengers: z.number().nullable(),
+  operator: operatorName.nullable(), homeBase: airportCode.nullable(),
+});
 const taskRow = z.object({
   id: z.uuid(), title: z.string(), status: z.enum(TaskStatus), priority: z.enum(TaskPriority),
   dueDate: z.date().nullable(), assignee: person.nullable(), client: clientName.nullable(),
@@ -164,6 +224,7 @@ const dayFormat = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'num
 const briefDay = (date: Date) => dayFormat.format(date).replace(',', '');
 const displayName = (client: z.infer<typeof clientName>) => nameOf(client) || client.companyName || '—';
 const tripLabel = (reference: number) => `TJ-${reference}`;
+const formatPrice = (amount: number | null) => amount === null ? null : formatDollars(toCents(amount));
 const paymentLabels: Record<PaymentMethod, string> = {
   WIRE_TRANSFER: 'wire', ACH: 'ACH', CHECK: 'check', ZELLE: 'Zelle', CREDIT_CARD: 'credit card', OTHER: 'other',
 };
@@ -263,6 +324,7 @@ export class WhatsappTools {
     trips: TripsService, tasks: TasksService, airports: AirportsService, receivables: ReceivablesService,
     pending: WhatsappPending, itineraries: ItinerariesService, quotes: QuotesService,
     tripRequests: TripRequestsService, notes: NotesService,
+    flightTracking: FlightTrackingService, emptyLegs: EmptyLegsService, operators: OperatorsService, aircraft: AircraftService,
   ) {
     const resolveTrip = async (user: AuthenticatedUser, reference: number) => {
       const label = tripLabel(reference);
@@ -591,9 +653,127 @@ export class WhatsappTools {
         },
       }),
       defineTool({
+        name: 'trip_details',
+        description: 'Read one trip by reference, such as TJ-1048 or 1048. Returns the trip and approval status, client, assignment, aircraft, operator, legs, passenger count and names, price and any permitted payment or margin figures. Use list_flight_status to see whether a leg has departed, is delayed or has landed.',
+        schema: tripLookupArgs,
+        permission: { module: Module.TRIPS, action: Action.VIEW },
+        async run(user, { trip: reference }) {
+          const trip = await resolveTrip(user, reference);
+          const row = tripDetailRow.parse(await trips.findOne(user, trip.id));
+          const { operatorCost, grossProfit, marginPercentage, clientPayment } = row;
+          return {
+            reference: tripLabel(row.reference), status: row.status, approvalStatus: row.approvalStatus, type: row.type,
+            client: displayName(row.client), assignedBroker: row.assignedBroker && nameOf(row.assignedBroker),
+            operator: row.operator?.name ?? null,
+            aircraft: row.aircraft && { tail: row.aircraft.tailNumber, model: row.aircraft.model },
+            legs: row.legs.map((leg) => ({
+              sequence: leg.sequence, origin: leg.originAirport.icao, destination: leg.destinationAirport.icao,
+              departureDate: isoDay(leg.departureDate), departureTimeLocal: leg.departureTime,
+            })),
+            passengerCount: row.passengerCount, passengers: row.passengers.map((passenger) => passenger.fullName),
+            totalPrice: formatPrice(row.totalPrice),
+            ...(operatorCost === undefined ? {} : { operatorCost: formatPrice(operatorCost) }),
+            ...(grossProfit === undefined ? {} : { grossProfit: formatPrice(grossProfit) }),
+            ...(marginPercentage === undefined ? {} : { marginPercentage: marginPercentage === null ? null : `${marginPercentage}%` }),
+            ...(clientPayment === undefined ? {} : { clientPayment: {
+              state: clientPayment.state, invoiced: formatDollars(toCents(clientPayment.invoiced)),
+              paid: formatDollars(toCents(clientPayment.paid)), balance: formatDollars(toCents(clientPayment.balance)),
+              invoiceCount: clientPayment.invoiceCount,
+            } }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'list_flight_status',
+        description: 'List up to ten flight legs and their reported status, local departure and estimated arrival times, status-update time, aircraft tail and operator. The ACTIVE window includes upcoming flights and those still reported in flight or delayed. Use TODAY or PAST for another window, NONE for an unreported status, or search by trip reference, client, aircraft or operator.',
+        schema: flightStatusArgs,
+        permission: { module: Module.FLIGHT_TRACKING, action: Action.VIEW },
+        async run(user, { window, flightStatus, search }, { timeZone }) {
+          const page = await flightTracking.findAll(user, queryFlightsSchema.parse({
+            window, flightStatus, search, on: nowIn(timeZone).date, limit: 10,
+          }));
+          return {
+            total: page.meta.total,
+            flights: page.items.map((item) => {
+              const row = flightStatusRow.parse(item);
+              return {
+                reference: tripLabel(row.trip.reference), sequence: row.sequence, legCount: row.legCount,
+                origin: row.originAirport.icao, destination: row.destinationAirport.icao,
+                departureDate: isoDay(row.departureDate), departureTimeLocal: row.departureTime,
+                flightStatus: row.flightStatus, estimatedArrivalLocal: row.estimatedArrival,
+                flightStatusAt: formatMomentIn(row.flightStatusAt, timeZone),
+                tailNumber: row.trip.aircraft?.tailNumber ?? null, operator: row.trip.operator?.name ?? null,
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'list_empty_legs',
+        description: 'List up to ten live empty legs, defaulting to AVAILABLE. Returns route, local departure time, aircraft, operator, seats on file, asking price, status and offer expiry. Use a status or search by route, tail or operator to narrow the list.',
+        schema: emptyLegsArgs,
+        permission: { module: Module.EMPTY_LEGS, action: Action.VIEW },
+        async run(user, { status, search }, { timeZone }) {
+          const page = await emptyLegs.findAll(user, queryEmptyLegsSchema.parse({ status, search, limit: 10 }));
+          return {
+            total: page.meta.total,
+            emptyLegs: page.items.map((item) => {
+              const row = emptyLegRow.parse(item);
+              return {
+                origin: row.originAirport.icao, destination: row.destinationAirport.icao,
+                departureDate: isoDay(row.departureDate), departureTimeLocal: row.departureTime,
+                aircraft: row.aircraft ? { tail: row.aircraft.tailNumber, model: row.aircraft.model } : row.aircraftDescription,
+                operator: row.operator?.name ?? null, ...(row.seats === null ? {} : { seats: row.seats }),
+                price: formatPrice(row.price), status: row.status, expiresAt: formatMomentIn(row.expiresAt, timeZone),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'find_operator',
+        description: 'Find up to five live operators by name, home base, contact or email using a search of 2–100 characters. Optionally filter by status. Returns contacts, ratings on file, response speed, payment terms and fleet size when provided.',
+        schema: operatorArgs,
+        permission: { module: Module.OPERATORS, action: Action.VIEW },
+        async run(user, { query, status }) {
+          const page = await operators.findAll(user, queryOperatorsSchema.parse({ search: query, status, limit: 5 }));
+          return {
+            total: page.meta.total,
+            operators: page.items.map((item) => {
+              const row = operatorRow.parse(item);
+              return {
+                name: row.name, status: row.status, primaryContact: row.primaryContact, contactEmail: row.contactEmail,
+                contactPhone: row.contactPhone, generalPhone: row.generalPhone, reliabilityRating: row.reliabilityRating,
+                safetyRating: row.safetyRating, responseSpeed: row.responseSpeed, paymentTerms: row.paymentTerms,
+                ...(row.fleetSize === undefined ? {} : { fleetSize: row.fleetSize }),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'find_aircraft',
+        description: 'Find up to ten live aircraft by tail, model, operator or home base, or by category, minimum passenger count or status. Give at least one filter. Use minPassengers for the seats needed, such as 9. Returns tail, model, category, status, capacity, operator and home base ICAO.',
+        schema: aircraftArgs,
+        permission: { module: Module.AIRCRAFT, action: Action.VIEW },
+        async run(_user, { query, category, minPassengers, status }) {
+          const page = await aircraft.findAll(queryAircraftSchema.parse({ search: query, category, minPassengers, status, limit: 10 }));
+          return {
+            total: page.meta.total,
+            aircraft: page.items.map((item) => {
+              const row = aircraftRow.parse(item);
+              return {
+                tailNumber: row.tailNumber, model: row.model, category: row.category, status: row.status,
+                maxPassengers: row.maxPassengers, operator: row.operator?.name ?? null, homeBase: row.homeBase?.icao ?? null,
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
         name: 'send_itinerary',
         description: 'Send the itinerary PDF to the Super Admin’s WhatsApp. Give a trip reference such as TJ-1048. Say in one short line what was attached and never repeat the document’s contents.',
-        schema: itineraryArgs,
+        schema: tripLookupArgs,
         permission: { module: Module.ITINERARIES, action: Action.VIEW },
         async run(user, { trip: reference }, context) {
           if (!canDo(user.access, Module.TRIPS, Action.VIEW)) return { error: NOT_PERMITTED };

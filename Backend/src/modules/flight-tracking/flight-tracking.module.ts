@@ -5,11 +5,12 @@ import { FlightTrackingService } from './flight-tracking.service.js';
 
 /**
  * Flights read and reported through `TripsService`, which owns the legs.
- * Nothing imports this module, so it adds no cycle.
+ * The WhatsApp assistant reads flight status through this service.
  */
 @Module({
   imports: [TripsModule],
   controllers: [FlightTrackingController],
   providers: [FlightTrackingService],
+  exports: [FlightTrackingService],
 })
 export class FlightTrackingModule {}
