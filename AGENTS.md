@@ -467,7 +467,10 @@ calendar rail, timestamp, email, merge field, PDF and WhatsApp reply.
 - **`data` is a sandbox global** (iteration data): `const data = …` in a
   Postman script is a SyntaxError and the request never runs. Name it for
   what it holds. Likewise two snippets joined into one script must not both
-  declare `const base`.
+  declare `const base`, and `CryptoJS` is a sandbox global too —
+  `const CryptoJS = require('crypto-js')` broke the WhatsApp folder's
+  signing script (19 Nov 2026); use it as is, or require it under another
+  name. A mocked Postman runtime does not catch this; only Newman does.
 - **A builder anchors on what the seed writes** — `broker@example.com`, any
   live operator, two distinct airports — never on a named demo record
   ("Mark", "Barry", "NetJets"). Five builders failed on the wiped database

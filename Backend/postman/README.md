@@ -32,8 +32,8 @@ response that sets one, and the write requests reference `{{csrfToken}}` — so
 run a Login request first and the rest works.
 
 > **Variable scoping matters here.** Runtime values (`csrfToken`, `otpCode`,
-> `clientId`) are *collection* variables, and the environments deliberately
-> contain only `baseUrl`. If you add a `csrfToken` key to an environment it
+> `clientId`) are *collection* variables. The environments carry `baseUrl`
+> and the two WhatsApp test settings. If you add a `csrfToken` key to an environment it
 > will shadow the collection value — environment scope wins — and every write
 > will 403 with `{{csrfToken}}` silently resolving to empty.
 
@@ -106,9 +106,7 @@ Two ordering rules the folders encode, both learned the hard way:
 dedicated `reset-demo@example.com` account so nothing else breaks; run
 `npm run db:seed` afterwards to restore it.
 
-```bash
-npm run test:api        # requires newman: npm i -g newman
-```
+Use the 4100 test API and Newman command in the startup section below.
 
 Every request carries saved examples for its success case and each error case,
 all captured from the live API rather than hand-written.
@@ -148,16 +146,32 @@ sign in as it for the requests marked "(as the agent)" — see below.
 
 ## Running the whole collection
 
-Run it against an API that **does not send email** — inviting, two-factor
-and password reset all email, and the two-factor requests read the code an
-API without a mail server returns. If your `.env` has a mail server, start a
-second API for the run (every seeded address is on example.com, but a run
-should send nothing at all):
+Start the isolated test API on port 4100 with the `tribeca_postman` database
+copy and its own Redis database. The log mail driver exposes the codes the
+two-factor and password-reset requests need. Set the WhatsApp values in the
+API's process environment so they override any local `.env` values. Run
+these commands from `Backend/`, replacing `<password>` with the test
+database password. Seed the test database before a full collection run.
 
 ```bash
-npx prisma db seed                       # restores known passwords and fixtures
+postman_database_url='postgresql://tribeca:<password>@localhost:5432/tribeca_postman?schema=public'
+DATABASE_URL="$postman_database_url" npx prisma db seed  # full collection only
 npm run build && PORT=4100 MAIL_DRIVER=log RATE_LIMIT_MULTIPLIER=20 \
-  REDIS_URL=redis://localhost:6380/1 node dist/main.js &
+  REDIS_URL=redis://localhost:6380/1 DATABASE_URL="$postman_database_url" \
+  WHATSAPP_ACCESS_TOKEN=postman-not-a-token \
+  WHATSAPP_PHONE_NUMBER_ID=100000000000000 \
+  WHATSAPP_APP_SECRET=postman-app-secret \
+  WHATSAPP_VERIFY_TOKEN=postman-verify-token \
+  WHATSAPP_GRAPH_VERSION=v25.0 \
+  SUPER_ADMIN_WHATSAPP_PHONE=15550000001 \
+  SUPER_ADMIN_WHATSAPP_EMAIL=admin@example.com \
+  OPENAI_API_KEY= OPENAI_MODEL= \
+  node dist/main.js &
+```
+
+After the test API is listening, run the collection against port 4100.
+
+```bash
 npx newman run postman/Tribeca-Jets-API.postman_collection.json \
   -e postman/Local.postman_environment.json --env-var baseUrl=http://localhost:4100/api
 ```
@@ -184,6 +198,39 @@ and emailed codes are limited, by Settings › Rate Limiting — so a failure in
 a builder is always made on a fresh `probe-…@example.com` address, never on a
 seeded account. The multiplier is pinned to 1 in production — the app
 refuses to boot otherwise — so this relaxes nothing that ships.
+
+## 31 · WhatsApp Webhook
+
+Both webhook routes are public. GET verifies the token and echoes the
+challenge as plain text. POST verifies the HMAC of the raw body and returns
+the count in the API's JSON success envelope. Use the 4100 test API above for
+both capture and Newman, even when running just this folder.
+
+- The test process overrides the WhatsApp config with dummy values and
+  leaves `OPENAI_API_KEY` and `OPENAI_MODEL` empty.
+- Every message uses `15550000999`. The configured Super Admin phone is
+  `15550000001`, so the sender gate drops the probe silently, even if the
+  assistant is switched on in the database copy. The API acknowledges it
+  without calling Meta or OpenAI.
+- `whatsappAppSecret` and `whatsappVerifyToken` carry only test API values
+  in Local and in the collection defaults. Leave both fields blank in the
+  Production environment. Use the test API's values only and keep production
+  secrets out of the collection and environments.
+
+With the test API up, regenerate the folder and run it twice from `Backend/`.
+
+```bash
+(cd postman && POSTMAN_BASE=http://localhost:4100/api python build_whatsapp_webhook_folder.py && \
+  python rewrite_body_comments.py)
+npx newman run postman/Tribeca-Jets-API.postman_collection.json \
+  --folder "31 · WhatsApp Webhook" -e postman/Local.postman_environment.json \
+  --env-var baseUrl=http://localhost:4100/api
+```
+
+The webhook bodies contain no comments, so the rewriter leaves the signed
+bytes alone. The request descriptions explain the fields. The builder
+asserts each captured status against its example label. Run the collection-wide
+label audit after capture.
 
 ## Structure
 
@@ -245,9 +292,8 @@ that documents it.
 ## Bodies
 
 Every raw body is marked `language: json`, so Postman renders it with
-highlighting and the inline field comments stay readable. A raw body without
-that option renders as plain text and the documentation in it becomes a wall of
-grey.
+highlighting. For the signed webhook bodies, the field documentation is in
+the request descriptions so Postman sends the exact JSON that was signed.
 
 ## What is deliberately not here
 
@@ -274,6 +320,7 @@ or deleted on 10 Nov 2026; git history keeps them).
 | `01 · Auth / 05 · My Account` | `build_account_folder.py` |
 | `03 · Clients` examples | `recapture_clients_examples.py` |
 | `04 · Users` … `30 · Settings` | `build_<module>_folder.py`, one per folder (`build_users_folder.py` for 04, `build_airports_folder.py` for 05, … `build_settings_folder.py` for 30) |
+| `31 · WhatsApp Webhook` | `build_whatsapp_webhook_folder.py` |
 
 Shared by the builders: `builder_common.py` (session, `example()` with its
 label check, `url()`, `script()`, `BASE` from `POSTMAN_BASE`),
@@ -309,7 +356,7 @@ and sets `_sessionAs`, so the folder's own login signs the owner back in on
 the next request. A correct sign-in is never limited, so switching accounts
 costs nothing.
 
-Two things every live builder does, and a new one must copy:
+Conventions for live builders:
 
 - **`example()` raises when a captured status disagrees with its label.** A
   captured example is not an assertion; this is the only place the lie can be
@@ -317,7 +364,7 @@ Two things every live builder does, and a new one must copy:
 - **`collection_order.place_folder()` puts the folder back by its serial
   number.** Appending it moved each rebuilt folder to the end of the
   collection.
-- **It writes its own folder login**, copied from an existing folder. A login
+- **An authenticated folder writes its own login**, copied from an existing folder. A login
   patched in by hand is lost on the next rebuild, and the folder then 401s
   when run alone.
 - **Fixture paths use forward slashes**, whatever machine runs it.
@@ -331,4 +378,4 @@ python3 rewrite_body_comments.py     # moves JSON body comments to the right
 Always last — the rewriter operates on the whole collection, so a builder run
 after it would leave its folder in the old top-comment style.
 
-Then verify: `npx newman run postman/Tribeca-Jets-API.postman_collection.json -e postman/Local.postman_environment.json`
+Then verify with the Newman command above, including the 4100 `baseUrl` override.
