@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import type { CookieOptions, Response } from 'express';
+import type { CookieOptions, Request, Response } from 'express';
 import {
   ACCESS_TOKEN_COOKIE,
   CSRF_COOKIE,
@@ -10,6 +10,8 @@ import {
   REFRESH_COOKIE_PATH,
   REFRESH_TOKEN_COOKIE,
   TWO_FACTOR_COOKIE,
+  WHATSAPP_LINK_COOKIE,
+  WHATSAPP_LINK_COOKIE_PATH,
 } from '../../common/constants/auth.constants.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { AppConfigService } from '../../config/config.service.js';
@@ -49,12 +51,17 @@ export interface SessionContext {
   userAgent?: string | null;
 }
 
+export function sessionContextOf(req: Request): SessionContext {
+  return { ipAddress: req.ip ?? null, userAgent: req.headers['user-agent'] ?? null };
+}
+
 /** Which flow cookie a challenge belongs to. */
-export type ChallengeKind = 'twoFactor' | 'passwordReset';
+export type ChallengeKind = 'twoFactor' | 'passwordReset' | 'whatsappLink';
 
 const CHALLENGE_COOKIES: Record<ChallengeKind, string> = {
   twoFactor: TWO_FACTOR_COOKIE,
   passwordReset: PASSWORD_RESET_COOKIE,
+  whatsappLink: WHATSAPP_LINK_COOKIE,
 };
 
 /**
@@ -493,7 +500,7 @@ export class TokenService {
 
   /**
    * Stores an in-flight challenge token. httpOnly, short-lived and scoped to
-   * the auth routes: it authorises a step in a flow, not a session.
+   * the flow's routes: it authorises a step in a flow, not a session.
    */
   setChallenge(
     res: Response,
@@ -503,7 +510,7 @@ export class TokenService {
   ): void {
     res.cookie(CHALLENGE_COOKIES[kind], token, {
       ...this.baseCookieOptions(),
-      path: REFRESH_COOKIE_PATH,
+      path: kind === 'whatsappLink' ? WHATSAPP_LINK_COOKIE_PATH : REFRESH_COOKIE_PATH,
       maxAge: ttlMs,
     });
   }
@@ -511,7 +518,7 @@ export class TokenService {
   clearChallenge(res: Response, kind: ChallengeKind): void {
     res.clearCookie(CHALLENGE_COOKIES[kind], {
       ...this.baseCookieOptions(),
-      path: REFRESH_COOKIE_PATH,
+      path: kind === 'whatsappLink' ? WHATSAPP_LINK_COOKIE_PATH : REFRESH_COOKIE_PATH,
     });
   }
 

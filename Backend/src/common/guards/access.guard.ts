@@ -6,12 +6,13 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { ACCESS_KEY, STAFF_ONLY_KEY } from '../constants/auth.constants.js';
+import { ACCESS_KEY, STAFF_ONLY_KEY, SUPER_ADMIN_ONLY_KEY } from '../constants/auth.constants.js';
 import { isPartner } from '../authorization/roles.js';
 import type { AccessRequirement } from '../decorators/access.decorator.js';
 import { MODULE_BY_KEY, actionLabel } from '../authorization/access.catalogue.js';
 import { canDo } from '../authorization/access.js';
 import type { AuthenticatedUser } from '../types/api.types.js';
+import { UserRole } from '../../generated/prisma/enums.js';
 
 /**
  * Enforces `@RequireAccess(module, action)` against the caller's own
@@ -27,20 +28,22 @@ export class AccessGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const targets = [context.getHandler(), context.getClass()];
+    const user = context.switchToHttp().getRequest<Request>().user as AuthenticatedUser | undefined;
+    if (
+      this.reflector.getAllAndOverride<boolean>(SUPER_ADMIN_ONLY_KEY, targets) &&
+      user?.role !== UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException('These settings belong to the Super Admin.');
+    }
     if (this.reflector.getAllAndOverride<boolean>(STAFF_ONLY_KEY, targets)) {
-      const caller = context.switchToHttp().getRequest<Request>().user as AuthenticatedUser | undefined;
-      if (caller && isPartner(caller.role)) {
+      if (user && isPartner(user.role)) {
         throw new ForbiddenException('This is desk data; the referral portal cannot read it.');
       }
     }
 
-    const requirement = this.reflector.getAllAndOverride<AccessRequirement>(ACCESS_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requirement = this.reflector.getAllAndOverride<AccessRequirement>(ACCESS_KEY, targets);
     if (!requirement) return true;
 
-    const user = context.switchToHttp().getRequest<Request>().user as AuthenticatedUser | undefined;
     if (
       user &&
       (canDo(user.access, requirement.module, requirement.action) ||

@@ -8,7 +8,7 @@ import { SettingsService } from '../settings/settings.service.js';
 export interface IssuedChallenge {
   /** Opaque token for the httpOnly flow cookie. */
   challengeToken: string;
-  /** Plaintext code, for delivery by email only — never returned to a client. */
+  /** Plaintext code for delivery to its target. Never returned to the browser. */
   code: string;
   expiresAt: Date;
 }
@@ -18,7 +18,10 @@ export interface VerifiedChallenge {
   userId: string;
   /** Two-factor: the "Remember me" chosen at sign-in. */
   rememberMe: boolean;
+  target: string | null;
 }
+
+const expiredChallenge = () => new BadRequestException('This verification session has expired. Please start again.');
 
 /**
  * Issues and verifies the 6-digit codes behind two-factor sign-in and
@@ -54,7 +57,7 @@ export class VerificationService {
   }
 
   private ttlMinutesFor(purpose: VerificationPurpose): number {
-    return purpose === VerificationPurpose.TWO_FACTOR
+    return purpose === VerificationPurpose.TWO_FACTOR || purpose === VerificationPurpose.WHATSAPP_LINK
       ? this.config.verification.twoFactorTtlMinutes
       : this.config.verification.passwordResetTtlMinutes;
   }
@@ -67,7 +70,7 @@ export class VerificationService {
   async issue(
     userId: string,
     purpose: VerificationPurpose,
-    context: { ipAddress?: string | null; userAgent?: string | null } = {},
+    context: { ipAddress?: string | null; userAgent?: string | null; target?: string } = {},
     rememberMe = false,
   ): Promise<IssuedChallenge> {
     const ttlMinutes = this.ttlMinutesFor(purpose);
@@ -89,6 +92,7 @@ export class VerificationService {
           expiresAt,
           ipAddress: context.ipAddress ?? null,
           userAgent: context.userAgent ?? null,
+          target: purpose === VerificationPurpose.WHATSAPP_LINK ? context.target ?? null : null,
           rememberMe,
         },
       }),
@@ -130,12 +134,11 @@ export class VerificationService {
   private async loadActive(
     challengeToken: string | undefined,
     purpose: VerificationPurpose,
+    ownerId?: string,
   ) {
     // Same error for missing, unknown, expired and consumed: none of these
     // should tell a caller which of them happened.
-    const expired = new BadRequestException(
-      'This verification session has expired. Please start again.',
-    );
+    const expired = expiredChallenge();
 
     if (!challengeToken) throw expired;
 
@@ -149,6 +152,7 @@ export class VerificationService {
     if (
       !record ||
       record.purpose !== purpose ||
+      (ownerId !== undefined && record.userId !== ownerId) ||
       record.consumedAt ||
       record.expiresAt.getTime() < Date.now() ||
       !record.user ||
@@ -163,15 +167,16 @@ export class VerificationService {
   /**
    * Checks a submitted code against an in-flight challenge.
    *
-   * On success the record is consumed (two-factor) or marked verified
-   * (password reset, which still needs a second step to set the password).
+   * Password reset marks the challenge verified until the password is set.
+   * The other flows consume it on success.
    */
   async verify(
     challengeToken: string | undefined,
     code: string,
     purpose: VerificationPurpose,
+    ownerId?: string,
   ): Promise<VerifiedChallenge> {
-    const record = await this.loadActive(challengeToken, purpose);
+    const record = await this.loadActive(challengeToken, purpose, ownerId);
     // Settings › Rate Limiting — null is "Never": a code is not burned by
     // wrong guesses, and only its expiry ends it.
     const maxAttempts = (await this.settings.read()).codeAttemptLimit ?? Infinity;
@@ -211,12 +216,7 @@ export class VerificationService {
       );
     }
 
-    if (purpose === VerificationPurpose.TWO_FACTOR) {
-      await this.prisma.verificationCode.update({
-        where: { id: record.id },
-        data: { consumedAt: new Date() },
-      });
-    } else {
+    if (purpose === VerificationPurpose.PASSWORD_RESET) {
       // Reset still needs the new password, so the record stays open but is
       // re-stamped with the shorter post-verification window.
       await this.prisma.verificationCode.update({
@@ -229,9 +229,27 @@ export class VerificationService {
           ),
         },
       });
+    } else if (purpose === VerificationPurpose.WHATSAPP_LINK) {
+      // Claim the link once, even when the browser submits two requests.
+      const now = new Date();
+      const { count } = await this.prisma.verificationCode.updateMany({
+        where: {
+          id: record.id,
+          consumedAt: null,
+          expiresAt: { gte: now },
+          ...(Number.isFinite(maxAttempts) ? { attempts: { lt: maxAttempts } } : {}),
+        },
+        data: { consumedAt: now },
+      });
+      if (!count) throw expiredChallenge();
+    } else {
+      await this.prisma.verificationCode.update({
+        where: { id: record.id },
+        data: { consumedAt: new Date() },
+      });
     }
 
-    return { id: record.id, userId: record.userId, rememberMe: record.rememberMe };
+    return { id: record.id, userId: record.userId, rememberMe: record.rememberMe, target: record.target };
   }
 
   /**
@@ -250,12 +268,19 @@ export class VerificationService {
       );
     }
 
-    return { id: record.id, userId: record.userId, rememberMe: record.rememberMe };
+    return { id: record.id, userId: record.userId, rememberMe: record.rememberMe, target: record.target };
   }
 
   async consume(id: string): Promise<void> {
     await this.prisma.verificationCode.update({
       where: { id },
+      data: { consumedAt: new Date() },
+    });
+  }
+
+  async cancel(challengeToken: string, purpose: VerificationPurpose): Promise<void> {
+    await this.prisma.verificationCode.updateMany({
+      where: { challengeHash: this.hash(challengeToken), purpose, consumedAt: null },
       data: { consumedAt: new Date() },
     });
   }

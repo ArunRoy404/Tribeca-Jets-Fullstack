@@ -94,17 +94,17 @@ export class SignInThrottleService {
   }
 
   /**
-   * One emailed code for `email` — a two-factor resend or a password-reset
-   * code. Counted per address whether or not it has an account, so the
+   * One code sent to an email address or a WhatsApp phone. Counted per
+   * address whether or not it has an account, so the
    * answer never says which addresses exist. The code a correct sign-in sends
    * is not counted: a correct sign-in is never limited.
    */
-  async assertMaySendCode(email: string): Promise<void> {
+  async assertMaySendCode(address: string): Promise<void> {
     const settings = await this.settings.read();
     const limit = settings.codeSendLimit;
     if (limit === null) return;
 
-    const key = `throttle:codes:${email.trim().toLowerCase()}`;
+    const key = `throttle:codes:${address.trim().toLowerCase()}`;
     const sent = await this.redis.incrementWithTtl(key, settings.codeSendWindowMinutes * 60);
     if (sent > limit) {
       const seconds = await this.redis.ttl(key);

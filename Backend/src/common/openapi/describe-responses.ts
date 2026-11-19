@@ -11,6 +11,7 @@ import {
   ACCESS_KEY,
   IS_PUBLIC_KEY,
   STAFF_ONLY_KEY,
+  SUPER_ADMIN_ONLY_KEY,
 } from '../constants/auth.constants.js';
 import type { AccessRequirement } from '../decorators/access.decorator.js';
 import { SHARED_SCHEMAS } from './schemas.js';
@@ -29,6 +30,7 @@ type RouteFacts = {
   access?: string;
   /** `@StaffOnly`, on the route or its controller. */
   staffOnly?: boolean;
+  superAdminOnly?: boolean;
   /**
    * The status an explicit `@HttpCode` sets, if any.
    *
@@ -103,6 +105,7 @@ function collectRouteFacts(app: INestApplication): Map<string, RouteFacts> {
             reflector.get<boolean | undefined>(IS_PUBLIC_KEY, handler) === true,
           access: access ? `${access.module} · ${access.action}` : undefined,
           staffOnly: reflector.getAllAndOverride<boolean>(STAFF_ONLY_KEY, [handler, metatype]) === true,
+          superAdminOnly: reflector.getAllAndOverride<boolean>(SUPER_ADMIN_ONLY_KEY, [handler, metatype]) === true,
           httpCode: Reflect.getMetadata(HTTP_CODE_METADATA, handler) as
             | number
             | undefined,
@@ -126,7 +129,7 @@ function collectRouteFacts(app: INestApplication): Map<string, RouteFacts> {
  * - **400** — whenever the route accepts a body or a query parameter.
  * - **401** — every route the global `JwtAuthGuard` protects, which is all of
  *   them except `@Public()` ones.
- * - **403** — every route carrying `@RequireAccess` or `@StaffOnly`,
+ * - **403** — every route carrying `@RequireAccess`, `@StaffOnly` or `@SuperAdminOnly`,
  *   named so the reader can see *which* permission.
  * - **404** — every route with a path parameter. This API returns 404 rather
  *   than 403 for a record outside the caller's scope, because a 403 confirms
@@ -250,10 +253,11 @@ export function describeResponses(
         );
       }
 
-      if ((route.access || route.staffOnly) && !op.responses['403']) {
+      if ((route.access || route.staffOnly || route.superAdminOnly) && !op.responses['403']) {
         const reasons = [
           route.access && `you do not hold ${route.access} in your own permissions (Users & Roles › Permissions)`,
           route.staffOnly && 'you are a referral agent — this is desk data',
+          route.superAdminOnly && 'you hold a role other than Super Admin',
         ].filter(Boolean);
         op.responses['403'] = errorResponse(
           `Refused when ${reasons.join(', or ')}. A record you merely cannot see returns 404 instead.`,

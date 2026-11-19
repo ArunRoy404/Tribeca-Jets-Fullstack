@@ -22,9 +22,11 @@ export const CSRF_HEADER = 'x-csrf-token';
  */
 export const TWO_FACTOR_COOKIE = 'tj_2fa';
 export const PASSWORD_RESET_COOKIE = 'tj_pwreset';
+export const WHATSAPP_LINK_COOKIE = 'tj_whatsapp_link';
 
 /** Refresh and flow cookies are scoped to the auth routes only. */
 export const REFRESH_COOKIE_PATH = '/api/auth';
+export const WHATSAPP_LINK_COOKIE_PATH = '/api/settings/whatsapp/phone';
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const ROLES_KEY = 'roles';
@@ -35,6 +37,9 @@ export const ACCESS_KEY = 'requiredAccess';
 
 /** Metadata key for `@StaffOnly` — refused to a referral agent (a partner). */
 export const STAFF_ONLY_KEY = 'staffOnly';
+
+/** Metadata for settings belonging exclusively to the stored Super Admin role. */
+export const SUPER_ADMIN_ONLY_KEY = 'superAdminOnly';
 
 /**
  * The modules the signed-in person may view, `DASHBOARD.TRIPS.QUOTES` —

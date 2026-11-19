@@ -568,7 +568,7 @@ export class AuthService {
    * password at leisure, and a right password is never refused for being
    * frequent.
    */
-  private async assertPassword(userId: string, password: string) {
+  async assertPassword(userId: string, password: string) {
     const throttleKey = this.throttle.reauthKey(userId);
     await this.throttle.assertOpen(throttleKey);
 

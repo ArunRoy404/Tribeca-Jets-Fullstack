@@ -29,7 +29,7 @@ import {
 import { StorageService } from '../../core/storage/storage.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { AuthService } from './auth.service.js';
-import { TokenService, type SessionContext } from './token.service.js';
+import { sessionContextOf, TokenService } from './token.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import {
   ChangePasswordDto,
@@ -69,13 +69,6 @@ export class AuthController {
     private readonly settingsService: SettingsService,
   ) {}
 
-  private contextOf(req: Request): SessionContext {
-    return {
-      ipAddress: req.ip ?? null,
-      userAgent: req.headers['user-agent'] ?? null,
-    };
-  }
-
   // ---------------------------------------------------------------------------
   // Sign in
   // ---------------------------------------------------------------------------
@@ -102,7 +95,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const context = this.contextOf(req);
+    const context = sessionContextOf(req);
     const user = await this.auth.validateCredentials(dto, context);
 
     if (user.twoFactorRequired) {
@@ -144,7 +137,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const context = this.contextOf(req);
+    const context = sessionContextOf(req);
     const challengeToken = req.cookies?.[TWO_FACTOR_COOKIE] as string | undefined;
 
     const { user, rememberMe } = await this.auth.verifyTwoFactor(challengeToken, dto.code, context);
@@ -198,7 +191,7 @@ export class AuthController {
     const user = await this.tokens.rotateSession(
       res,
       presented,
-      this.contextOf(req),
+      sessionContextOf(req),
     );
     return this.session(await this.auth.getProfile(user.id));
   }
@@ -328,7 +321,7 @@ export class AuthController {
     @Body() dto: UpdateProfileDto,
     @Req() req: Request,
   ) {
-    return this.session(await this.auth.updateProfile(userId, dto, this.contextOf(req)));
+    return this.session(await this.auth.updateProfile(userId, dto, sessionContextOf(req)));
   }
 
   // A wrong current password follows the failed sign-in limit (AuthService).
@@ -345,7 +338,7 @@ export class AuthController {
     @Req() req: Request,
   ) {
     const keep = await this.tokens.currentSessionId(userId, this.refreshCookie(req));
-    const result = await this.auth.changePassword(userId, dto, keep, this.contextOf(req));
+    const result = await this.auth.changePassword(userId, dto, keep, sessionContextOf(req));
     return { message: 'Your password has been changed.', ...result };
   }
 
@@ -360,7 +353,7 @@ export class AuthController {
     @Body() dto: SetTwoFactorDto,
     @Req() req: Request,
   ) {
-    return this.session(await this.auth.setTwoFactor(userId, dto, this.contextOf(req)));
+    return this.session(await this.auth.setTwoFactor(userId, dto, sessionContextOf(req)));
   }
 
   @Get('sessions')
@@ -444,7 +437,7 @@ export class AuthController {
   ) {
     const challenge = await this.auth.startPasswordReset(
       dto.email,
-      this.contextOf(req),
+      sessionContextOf(req),
     );
 
     this.tokens.setChallenge(
@@ -533,7 +526,7 @@ export class AuthController {
     await this.auth.completePasswordReset(
       challengeToken,
       dto.newPassword,
-      this.contextOf(req),
+      sessionContextOf(req),
     );
 
     this.tokens.clearChallenge(res, 'passwordReset');

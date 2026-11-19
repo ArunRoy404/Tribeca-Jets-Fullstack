@@ -28,9 +28,11 @@ export const updateProfileSchema = z
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export class UpdateProfileDto extends createZodDto(updateProfileSchema) {}
 
+export const currentPasswordSchema = z.string().min(1, 'Enter your current password');
+
 export const changePasswordSchema = z
   .object({
-    currentPassword: z.string().min(1, 'Enter your current password'),
+    currentPassword: currentPasswordSchema,
     newPassword: passwordSchema,
     confirmPassword: z.string(),
   })
@@ -47,7 +49,7 @@ export class ChangePasswordDto extends createZodDto(changePasswordSchema) {}
 export const setTwoFactorSchema = z
   .object({
     enabled: z.boolean(),
-    currentPassword: z.string().min(1, 'Enter your current password'),
+    currentPassword: currentPasswordSchema,
   })
   .strict();
 

@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { ACCESS_KEY, STAFF_ONLY_KEY } from '../constants/auth.constants.js';
+import { ACCESS_KEY, STAFF_ONLY_KEY, SUPER_ADMIN_ONLY_KEY } from '../constants/auth.constants.js';
 import { Action, type Module } from '../authorization/access.js';
 
 export interface AccessRequirement {
@@ -37,3 +37,6 @@ export const RequireAccess = (
  * On a controller it covers every route; on a handler, that route.
  */
 export const StaffOnly = () => SetMetadata(STAFF_ONLY_KEY, true);
+
+/** The assistant's secrets and linked phone belong to the Super Admin. */
+export const SuperAdminOnly = () => SetMetadata(SUPER_ADMIN_ONLY_KEY, true);

@@ -17,6 +17,6 @@ import { SignInThrottleService } from './sign-in-throttle.service.js';
   ],
   controllers: [AuthController],
   providers: [AuthService, TokenService, JwtStrategy, VerificationService, SignInThrottleService],
-  exports: [AuthService, TokenService],
+  exports: [AuthService, TokenService, VerificationService, SignInThrottleService],
 })
 export class AuthModule {}
