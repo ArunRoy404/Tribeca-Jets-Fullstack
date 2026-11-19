@@ -148,6 +148,8 @@ export class TasksService {
     const open = { status: { not: TaskStatus.COMPLETED } };
     const tomorrow = new Date(today.getTime() + DAY_MS);
     switch (view) {
+      case 'OPEN':
+        return open;
       case 'MINE':
         return { assigneeId: user.id };
       case 'DUE_TODAY':

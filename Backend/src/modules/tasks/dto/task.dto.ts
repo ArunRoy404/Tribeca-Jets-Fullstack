@@ -53,12 +53,13 @@ export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export class UpdateTaskDto extends createZodDto(updateTaskSchema) {}
 
 /**
- * The board's quick views. MINE is assigned to the caller; DUE_TODAY and
+ * The board's quick views. OPEN includes every non-completed task, even
+ * without a due date. MINE is assigned to the caller; DUE_TODAY and
  * OVERDUE are worked out from the due date and exclude completed work;
  * HIGH_PRIORITY is HIGH or URGENT; ATTENTION — the notification bell's — is
  * due today or overdue. Absent: everything the caller may see.
  */
-export const TASK_VIEWS = ['MINE', 'DUE_TODAY', 'OVERDUE', 'HIGH_PRIORITY', 'ATTENTION'] as const;
+export const TASK_VIEWS = ['MINE', 'DUE_TODAY', 'OVERDUE', 'HIGH_PRIORITY', 'ATTENTION', 'OPEN'] as const;
 export type TaskView = (typeof TASK_VIEWS)[number];
 
 export const TASK_SORTABLE_FIELDS = ['dueDate', 'createdAt', 'updatedAt', 'priority', 'reference'] as const;

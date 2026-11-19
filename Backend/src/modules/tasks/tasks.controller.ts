@@ -38,7 +38,7 @@ export class TasksController {
   @ApiOperation({
     summary: 'List tasks',
     description:
-      'Soonest due first, undated last — a board reads that way, a stated exception to newest-first. `view` narrows to MINE, DUE_TODAY, OVERDUE, HIGH_PRIORITY or ATTENTION (due today or overdue). `attention` on each row is worked out from the due date and status on this read, never stored. `archived=true` lists the archived half.',
+      'Soonest due first, undated last — a board reads that way, a stated exception to newest-first. `view` narrows to MINE, DUE_TODAY, OVERDUE, HIGH_PRIORITY, ATTENTION (due today or overdue), or OPEN (all non-completed tasks). `attention` on each row is worked out from the due date and status on this read, never stored. `archived=true` lists the archived half.',
   })
   findAll(@CurrentUser() user: AuthenticatedUser, @Query() query: QueryTasksDto) {
     return this.tasks.findAll(user, query);
