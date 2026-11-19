@@ -6,6 +6,7 @@ import { NOTHING_PENDING_REPLY, WhatsappAgent } from './whatsapp.agent.js';
 import type { AiClient } from './whatsapp.ai-client.js';
 import { WhatsappMemory } from './whatsapp.memory.js';
 import { WhatsappPending, type PendingAction } from './whatsapp.pending.js';
+import type { ToolContext } from './whatsapp.tools.js';
 
 const PHONE = '15551234567';
 const KEY = `whatsapp:pending:${PHONE}`;
@@ -24,6 +25,8 @@ const completion: PendingAction = {
 };
 const askToConfirm = (summary: string) =>
   `⚠️ ${summary}\n\nReply *CONFIRM* to proceed or *CANCEL* to abort (expires in 5 minutes).`;
+const textReply = (text: string) => ({ text, documents: [] });
+const itinerary = { body: Buffer.from('%PDF private'), filename: 'Itinerary-TJ-1048.pdf', contentType: 'application/pdf' };
 
 /** The map expires entries, and a take removes its entry before it can yield. */
 function fixture() {
@@ -145,7 +148,7 @@ describe('WhatsappAgent confirmations', () => {
 
   it('returns the fixed proposal immediately and remembers only the exchange', async () => {
     modelProposes(approval);
-    expect(await agent.reply(user, PHONE, question, true)).toBe(askToConfirm(approval.summary));
+    expect(await agent.reply(user, PHONE, question, true)).toEqual(textReply(askToConfirm(approval.summary)));
     expect(respond).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledExactlyOnceWith(user, 'approve_trip', '{"reference":"1048"}', expect.objectContaining({ phone: PHONE }));
     expect(run).not.toHaveBeenCalled();
@@ -155,9 +158,25 @@ describe('WhatsappAgent confirmations', () => {
     ]);
   });
 
+  it('does not return a document prepared earlier in the same reply as a proposal', async () => {
+    respond.mockResolvedValueOnce({ kind: 'tools', calls: [
+      { id: 'document', name: 'send_itinerary', argumentsJson: '{"trip":"TJ-1048"}' },
+      { id: 'proposal', name: 'approve_trip', argumentsJson: '{"reference":"1048"}' },
+    ] });
+    dispatch.mockImplementationOnce(async (_user, _name, _args, context: ToolContext) => {
+      context.documents.push(itinerary);
+      return { attached: itinerary.filename };
+    }).mockImplementationOnce(async () => {
+      await store.pending.put(PHONE, approval);
+      return { proposed: true, summary: approval.summary };
+    });
+    expect(await agent.reply(user, PHONE, 'Send the itinerary and approve it', true)).toEqual(textReply(askToConfirm(approval.summary)));
+    expect(await store.pending.take(PHONE)).toEqual(approval);
+  });
+
   it.each(['CONFIRM', 'confirm.', ' Confirm! '])('runs %j without asking the model', async (text) => {
     await store.pending.put(PHONE, approval);
-    expect(await agent.reply(user, PHONE, text, true)).toBe(success);
+    expect(await agent.reply(user, PHONE, text, true)).toEqual(textReply(success));
     expect(run).toHaveBeenCalledExactlyOnceWith(user, approval);
     expect(respond).not.toHaveBeenCalled();
     expect(await store.memory.load(PHONE)).toEqual([
@@ -170,7 +189,7 @@ describe('WhatsappAgent confirmations', () => {
     expect(await Promise.all([
       agent.reply(user, PHONE, 'CONFIRM', true),
       agent.reply(user, PHONE, 'CONFIRM', true),
-    ])).toEqual([success, NOTHING_PENDING_REPLY]);
+    ])).toEqual([textReply(success), textReply(NOTHING_PENDING_REPLY)]);
     expect(run).toHaveBeenCalledTimes(1);
     expect(respond).not.toHaveBeenCalled();
   });
@@ -178,15 +197,15 @@ describe('WhatsappAgent confirmations', () => {
   it('returns the empty reply after expiry', async () => {
     await store.pending.put(PHONE, approval);
     await vi.advanceTimersByTimeAsync(300_000);
-    expect(await agent.reply(user, PHONE, 'CONFIRM', true)).toBe(NOTHING_PENDING_REPLY);
+    expect(await agent.reply(user, PHONE, 'CONFIRM', true)).toEqual(textReply(NOTHING_PENDING_REPLY));
     expect(run).not.toHaveBeenCalled();
     expect(respond).not.toHaveBeenCalled();
   });
 
   it('cancels with or without punctuation without running anything', async () => {
     await store.pending.put(PHONE, approval);
-    expect(await agent.reply(user, PHONE, ' cancel. ', true)).toBe('Cancelled — nothing was changed.');
-    expect(await agent.reply(user, PHONE, 'CANCEL', true)).toBe(NOTHING_PENDING_REPLY);
+    expect(await agent.reply(user, PHONE, ' cancel. ', true)).toEqual(textReply('Cancelled — nothing was changed.'));
+    expect(await agent.reply(user, PHONE, 'CANCEL', true)).toEqual(textReply(NOTHING_PENDING_REPLY));
     expect(run).not.toHaveBeenCalled();
     expect(respond).not.toHaveBeenCalled();
   });
@@ -197,18 +216,36 @@ describe('WhatsappAgent confirmations', () => {
       expect(await store.redis.getString(KEY)).toBeNull();
       return { kind: 'text', text: 'What else would you like to know?' };
     });
-    expect(await agent.reply(user, PHONE, 'Okay', true)).toBe(
+    expect(await agent.reply(user, PHONE, 'Okay', true)).toEqual(textReply(
       `(Not done: ${approval.summary} — cancelled.)\n\nWhat else would you like to know?`,
-    );
+    ));
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('cancels the pending action before fulfilling a document request', async () => {
+    await store.pending.put(PHONE, approval);
+    respond.mockImplementationOnce(async () => {
+      expect(await store.redis.getString(KEY)).toBeNull();
+      return { kind: 'tools', calls: [{ id: 'document', name: 'send_itinerary', argumentsJson: '{"trip":"TJ-1048"}' }] };
+    }).mockResolvedValueOnce({ kind: 'text', text: 'Attached the itinerary.' });
+    dispatch.mockImplementationOnce(async (_user, _name, _args, context: ToolContext) => {
+      context.documents.push(itinerary);
+      return { attached: itinerary.filename };
+    });
+
+    expect(await agent.reply(user, PHONE, 'Send the itinerary', true)).toEqual({
+      text: `(Not done: ${approval.summary} — cancelled.)\n\nAttached the itinerary.`, documents: [itinerary],
+    });
+    expect(await store.pending.take(PHONE)).toBeNull();
     expect(run).not.toHaveBeenCalled();
   });
 
   it('shows the cancellation then the new fixed proposal, leaving only the new one', async () => {
     await store.pending.put(PHONE, approval);
     modelProposes(completion);
-    expect(await agent.reply(user, PHONE, 'Complete the task', true)).toBe(
+    expect(await agent.reply(user, PHONE, 'Complete the task', true)).toEqual(textReply(
       `(Not done: ${approval.summary} — cancelled.)\n\n${askToConfirm(completion.summary)}`,
-    );
+    ));
     expect(await store.pending.take(PHONE)).toEqual(completion);
     expect(await store.pending.take(PHONE)).toBeNull();
     expect(run).not.toHaveBeenCalled();
@@ -217,7 +254,7 @@ describe('WhatsappAgent confirmations', () => {
   it('keeps direct development questions separate from the phone’s pending action', async () => {
     await store.pending.put(PHONE, approval);
     respond.mockResolvedValue({ kind: 'text', text: 'Read-only reply.' });
-    expect(await agent.reply(user, PHONE, 'CONFIRM')).toBe('Read-only reply.');
+    expect(await agent.reply(user, PHONE, 'CONFIRM')).toEqual(textReply('Read-only reply.'));
     expect(specs).toHaveBeenCalledWith(false);
     expect(run).not.toHaveBeenCalled();
     expect(await store.pending.take(PHONE)).toEqual(approval);

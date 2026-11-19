@@ -10,6 +10,7 @@ import { WhatsappMemory } from './whatsapp.memory.js';
 import { WhatsappSender } from './whatsapp.sender.js';
 import { FAILED_REPLY, NON_TEXT_REPLY, NOT_READY_REPLY, WhatsappService } from './whatsapp.service.js';
 import type { IncomingMessage } from './whatsapp.payload.js';
+import type { ToolContext } from './whatsapp.tools.js';
 
 // Even adapter tests have no network-capable SDK instance.
 const sdk = vi.hoisted(() => ({ construct: vi.fn(), create: vi.fn() }));
@@ -26,6 +27,9 @@ const user: AuthenticatedUser = {
   access: resolveAccess(UserRole.SUPER_ADMIN, null),
 };
 const final = (text: string): AiTurn => ({ kind: 'text', text });
+const textReply = (text: string) => ({ text, documents: [] });
+const itinerary = { body: Buffer.from('%PDF PRIVATE MANIFEST'), filename: 'Itinerary-TJ-1048.pdf', contentType: 'application/pdf' };
+const quote = { body: Buffer.from('%PDF PRIVATE QUOTE'), filename: 'Quote-Q-1042.pdf', contentType: 'application/pdf' };
 const calls = (count = 1): AiTurn => ({
   kind: 'tools',
   calls: Array.from({ length: count }, (_, index) => ({
@@ -63,7 +67,7 @@ describe('WhatsappAgent loop and memory', () => {
 
   it('returns a plain reply and saves only user text and the final reply', async () => {
     respond.mockResolvedValue(final('Not on file.'));
-    expect(await agent.reply(user, PHONE, 'A question')).toBe('Not on file.');
+    expect(await agent.reply(user, PHONE, 'A question')).toEqual(textReply('Not on file.'));
     expect(await fixture.memory.load(PHONE)).toEqual([
       { kind: 'text', role: 'user', text: 'A question' },
       { kind: 'text', role: 'assistant', text: 'Not on file.' },
@@ -72,9 +76,9 @@ describe('WhatsappAgent loop and memory', () => {
 
   it('dispatches a tool with the acting user and feeds its result to the next call', async () => {
     respond.mockResolvedValueOnce(calls()).mockResolvedValueOnce(final('Alex is on file.'));
-    expect(await agent.reply(user, PHONE, 'Find Alex')).toBe('Alex is on file.');
+    expect(await agent.reply(user, PHONE, 'Find Alex')).toEqual(textReply('Alex is on file.'));
     expect(dispatch).toHaveBeenCalledExactlyOnceWith(user, 'find_client', '{"query":"Alex"}', {
-      timeZone: DEFAULT_TIME_ZONE, companyTimeZone: expect.any(Function),
+      timeZone: DEFAULT_TIME_ZONE, companyTimeZone: expect.any(Function), documents: [],
     });
     expect(respond.mock.calls[1]?.[0].messages).toEqual([
       { kind: 'text', role: 'user', text: 'Find Alex' },
@@ -95,10 +99,31 @@ describe('WhatsappAgent loop and memory', () => {
     ]);
   });
 
+  it('returns documents to the caller and keeps only text in memory and attachment markers in the model turn', async () => {
+    const question = 'Send the itinerary';
+    const answer = 'Attached the itinerary.';
+    respond.mockResolvedValueOnce({ kind: 'tools', calls: [
+      { id: 'document', name: 'send_itinerary', argumentsJson: '{"trip":"TJ-1048"}' },
+    ] }).mockResolvedValueOnce(final(answer));
+    dispatch.mockImplementationOnce(async (_user, _name, _args, context: ToolContext) => {
+      context.documents.push(itinerary);
+      return { attached: itinerary.filename };
+    });
+
+    expect(await agent.reply(user, PHONE, question)).toEqual({ text: answer, documents: [itinerary] });
+    expect(respond.mock.calls[1]?.[0].messages.at(-1)).toEqual({
+      kind: 'tool_result', id: 'document', resultJson: JSON.stringify({ attached: itinerary.filename }),
+    });
+    expect(JSON.stringify(respond.mock.calls)).not.toContain(JSON.stringify(itinerary.body));
+    expect(fixture.strings.get(`whatsapp:memory:${PHONE}`)).toBe(JSON.stringify([
+      { kind: 'text', role: 'user', text: question }, { kind: 'text', role: 'assistant', text: answer },
+    ]));
+  });
+
   it('caps the loop at five AI requests; no sixth request or unused CRM read', async () => {
     for (let round = 0; round < 5; round++) respond.mockResolvedValueOnce(calls());
     respond.mockResolvedValueOnce(final('A sixth request must not happen'));
-    expect(await agent.reply(user, PHONE, 'Too broad')).toBe(NARROW_QUESTION_REPLY);
+    expect(await agent.reply(user, PHONE, 'Too broad')).toEqual(textReply(NARROW_QUESTION_REPLY));
     expect(respond).toHaveBeenCalledTimes(5);
     expect(dispatch).toHaveBeenCalledTimes(4);
     expect(await fixture.memory.load(PHONE)).toEqual([]);
@@ -111,7 +136,7 @@ describe('WhatsappAgent loop and memory', () => {
     error.name = name;
     const log = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
     respond.mockRejectedValue(error);
-    expect(await agent.reply(user, PHONE, 'New question')).toBe(AI_UNAVAILABLE_REPLY);
+    expect(await agent.reply(user, PHONE, 'New question')).toEqual(textReply(AI_UNAVAILABLE_REPLY));
     expect(fixture.strings.get(`whatsapp:memory:${PHONE}`)).toBe(before);
     expect(fixture.redis.setString).toHaveBeenCalledTimes(1);
     expect(log).toHaveBeenCalledExactlyOnceWith(`WhatsApp AI failed (${name})`);
@@ -120,19 +145,19 @@ describe('WhatsappAgent loop and memory', () => {
   it('does not save a question when AI fails after a tool call', async () => {
     vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
     respond.mockResolvedValueOnce(calls()).mockRejectedValueOnce(new Error('Failed'));
-    expect(await agent.reply(user, PHONE, 'Find Alex')).toBe(AI_UNAVAILABLE_REPLY);
+    expect(await agent.reply(user, PHONE, 'Find Alex')).toEqual(textReply(AI_UNAVAILABLE_REPLY));
     expect(fixture.redis.setString).not.toHaveBeenCalled();
   });
 
   it('clamps the returned and stored reply to 3,500 characters', async () => {
     respond.mockResolvedValue(final('x'.repeat(4000)));
-    expect(await agent.reply(user, PHONE, 'Question')).toHaveLength(3500);
+    expect(await agent.reply(user, PHONE, 'Question')).toEqual(textReply('x'.repeat(3500)));
     expect((await fixture.memory.load(PHONE))[1]?.text).toHaveLength(3500);
   });
 
   it.each(['reset', 'NEW '])('clears memory for %j without calling AI', async (text) => {
     await fixture.memory.save(PHONE, [], 'Old', 'Old answer');
-    expect(await agent.reply(user, PHONE, text)).toBe('Conversation cleared. Ready for a new question.');
+    expect(await agent.reply(user, PHONE, text)).toEqual(textReply('Conversation cleared. Ready for a new question.'));
     expect(fixture.redis.del).toHaveBeenCalledExactlyOnceWith(`whatsapp:memory:${PHONE}`);
     expect(await fixture.memory.load(PHONE)).toEqual([]);
     expect(respond).not.toHaveBeenCalled();
@@ -207,7 +232,7 @@ describe('WhatsappAgent loop and memory', () => {
   it('is not ready with a null client and makes no memory write', async () => {
     agent = new WhatsappAgent(null, fixture.memory, { specs: () => [], dispatch } as never, settings as never, {} as never, {} as never);
     expect(agent.ready).toBe(false);
-    expect(await agent.reply(user, PHONE, 'Question')).toBe(AI_UNAVAILABLE_REPLY);
+    expect(await agent.reply(user, PHONE, 'Question')).toEqual(textReply(AI_UNAVAILABLE_REPLY));
     expect(fixture.redis.setString).not.toHaveBeenCalled();
   });
 });
@@ -257,7 +282,7 @@ describe('OpenAI adapter and readiness', () => {
 describe('WhatsappService sends replies without logging content', () => {
   const message: IncomingMessage = { id: 'wamid.test', from: PHONE, type: 'text', text: 'PRIVATE MESSAGE TEXT', sentAt: new Date() };
   const replyText = 'PRIVATE REPLY TEXT';
-  const sender = { markRead: vi.fn(), sendText: vi.fn() };
+  const sender = { markRead: vi.fn(), sendText: vi.fn(), sendDocument: vi.fn() };
   const cancelPending = vi.fn();
   let ai: { openaiApiKey?: string; openaiModel?: string };
   let reply: ReturnType<typeof vi.fn>;
@@ -269,9 +294,10 @@ describe('WhatsappService sends replies without logging content', () => {
     logs = (['log', 'warn', 'error', 'debug', 'verbose', 'fatal'] as const).map((method) => vi.spyOn(Logger.prototype, method).mockImplementation(() => {}));
     sender.markRead.mockReset().mockResolvedValue(undefined);
     sender.sendText.mockReset().mockResolvedValue(true);
+    sender.sendDocument.mockReset().mockResolvedValue(true);
     cancelPending.mockReset().mockResolvedValue('');
     ai = { openaiApiKey: 'test-key', openaiModel: 'chosen-model' };
-    reply = vi.fn().mockResolvedValue(replyText);
+    reply = vi.fn().mockResolvedValue(textReply(replyText));
     findFirst = vi.fn().mockResolvedValue({ id: user.id, email: user.email, role: user.role, permissions: null });
     service = new WhatsappService(
       { get ai() { return ai; }, whatsapp: { adminPhone: PHONE, adminEmail: user.email } } as never,
@@ -327,10 +353,35 @@ describe('WhatsappService sends replies without logging content', () => {
     expect(sender.markRead).toHaveBeenCalledBefore(reply);
     expect(reply).toHaveBeenCalledBefore(sender.sendText);
     expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id);
+    expect(sender.sendDocument).not.toHaveBeenCalled();
     expect(logs[0]).toHaveBeenCalledExactlyOnceWith(`Sent a reply to wamid.test (${replyText.length} chars)`);
     const logged = JSON.stringify(logs.map((log) => log.mock.calls));
     expect(logged).not.toContain(message.text);
     expect(logged).not.toContain(replyText);
+  });
+
+  it('sends the text first and each document in order to the gated sender', async () => {
+    reply.mockResolvedValueOnce({ text: replyText, documents: [itinerary, quote] });
+    await expect(service.receive([message])).resolves.toEqual(['accepted']);
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id);
+    expect(sender.sendDocument).toHaveBeenNthCalledWith(1, message.from, itinerary, undefined, message.id);
+    expect(sender.sendDocument).toHaveBeenNthCalledWith(2, message.from, quote, undefined, message.id);
+    expect(sender.sendText).toHaveBeenCalledBefore(sender.sendDocument);
+  });
+
+  it('reports a failed document without cancelling anything or skipping the next document', async () => {
+    reply.mockResolvedValueOnce({ text: replyText, documents: [itinerary, quote] });
+    sender.sendDocument.mockResolvedValueOnce(false);
+    await expect(service.receive([message])).resolves.toEqual(['accepted']);
+    expect(sender.sendText).toHaveBeenCalledTimes(2);
+    expect(sender.sendText).toHaveBeenNthCalledWith(2, message.from,
+      `I couldn't send ${itinerary.filename} — please ask again.`, message.id);
+    expect(sender.sendDocument).toHaveBeenNthCalledWith(2, message.from, quote, undefined, message.id);
+    expect(cancelPending).not.toHaveBeenCalled();
+    const logged = JSON.stringify(logs.flatMap((log) => log.mock.calls));
+    for (const value of [itinerary.filename, quote.filename, itinerary.body.toString(), replyText]) {
+      expect(logged).not.toContain(value);
+    }
   });
 
   it('still sends the answer when Meta refuses the read receipt', async () => {

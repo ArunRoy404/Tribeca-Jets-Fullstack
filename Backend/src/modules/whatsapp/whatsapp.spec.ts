@@ -142,12 +142,13 @@ describe('WhatsappService gates', () => {
   let admin: { id: string; email: string; role: string; permissions: null } | null;
   let service: WhatsappService;
   const findFirst = vi.fn();
-  const sender = { markRead: vi.fn(), sendText: vi.fn() };
+  const sender = { markRead: vi.fn(), sendText: vi.fn(), sendDocument: vi.fn() };
   const agent = { ready: true, reply: vi.fn(), cancelPending: vi.fn() };
 
   function expectNoSend() {
     expect(sender.markRead).not.toHaveBeenCalled();
     expect(sender.sendText).not.toHaveBeenCalled();
+    expect(sender.sendDocument).not.toHaveBeenCalled();
     expect(agent.reply).not.toHaveBeenCalled();
     expect(agent.cancelPending).not.toHaveBeenCalled();
   }
@@ -164,7 +165,8 @@ describe('WhatsappService gates', () => {
   beforeEach(() => {
     sender.markRead.mockReset().mockResolvedValue(undefined);
     sender.sendText.mockReset().mockResolvedValue(true);
-    agent.reply.mockReset().mockResolvedValue('A reply.');
+    sender.sendDocument.mockReset().mockResolvedValue(true);
+    agent.reply.mockReset().mockResolvedValue({ text: 'A reply.', documents: [] });
     agent.cancelPending.mockReset().mockResolvedValue('');
     enabled = true;
     configured = config;

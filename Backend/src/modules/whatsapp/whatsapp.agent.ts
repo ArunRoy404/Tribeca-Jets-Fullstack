@@ -4,6 +4,7 @@ import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { WhatsappActions } from './whatsapp.actions.js';
 import { WHATSAPP_AI_CLIENT, type AiClient, type AiMessage } from './whatsapp.ai-client.js';
+import type { WhatsappDocument } from './whatsapp.document.js';
 import { WhatsappMemory, type MemoryMessage } from './whatsapp.memory.js';
 import { WhatsappPending } from './whatsapp.pending.js';
 import { isProposal, WhatsappTools, type ToolContext } from './whatsapp.tools.js';
@@ -12,6 +13,11 @@ export const AI_UNAVAILABLE_REPLY = "I couldn't reach the AI service just now �
 export const NARROW_QUESTION_REPLY = 'Please narrow it down — that question needs more steps than I can take in one reply.';
 export const NOTHING_PENDING_REPLY = 'Nothing is waiting for confirmation — it may have expired after 5 minutes.';
 const CONFIRM_PROMPT = 'Reply *CONFIRM* to proceed or *CANCEL* to abort (expires in 5 minutes).';
+
+export interface WhatsappReply {
+  text: string;
+  documents: WhatsappDocument[];
+}
 
 const normaliseCommand = (text: string) => text.trim().replace(/[.!]$/, '').toUpperCase();
 export function isConfirmationCommand(text: string): boolean {
@@ -65,25 +71,26 @@ export class WhatsappAgent {
   }
 
   /** Only a message that passed the webhook gates can propose or confirm. */
-  async reply(user: AuthenticatedUser, phone: string, text: string, allowActions = false): Promise<string> {
+  async reply(user: AuthenticatedUser, phone: string, text: string, allowActions = false): Promise<WhatsappReply> {
     if (allowActions) {
       const command = normaliseCommand(text);
       if (command === 'CONFIRM') {
         const action = await this.pending.take(phone);
         const reply = action ? await this.actions.run(user, action) : NOTHING_PENDING_REPLY;
         await this.rememberAction(phone, text, reply);
-        return reply;
+        return { text: reply, documents: [] };
       }
       if (command === 'CANCEL') {
-        return await this.pending.drop(phone) ? 'Cancelled — nothing was changed.' : NOTHING_PENDING_REPLY;
+        const reply = await this.pending.drop(phone) ? 'Cancelled — nothing was changed.' : NOTHING_PENDING_REPLY;
+        return { text: reply, documents: [] };
       }
     }
     const prefix = allowActions ? await this.cancelPending(phone) : '';
     if (['reset', 'new'].includes(text.trim().toLowerCase())) {
       await this.memory.reset(phone);
-      return prefix + 'Conversation cleared. Ready for a new question.';
+      return { text: prefix + 'Conversation cleared. Ready for a new question.', documents: [] };
     }
-    if (!this.client) return prefix + AI_UNAVAILABLE_REPLY;
+    if (!this.client) return { text: prefix + AI_UNAVAILABLE_REPLY, documents: [] };
 
     const history = await this.memory.load(phone);
     const messages: AiMessage[] = [...history, { kind: 'text', role: 'user', text }];
@@ -93,6 +100,7 @@ export class WhatsappAgent {
     const context: ToolContext = {
       timeZone: user.timeZone ?? await readCompanyTimeZone(),
       companyTimeZone: readCompanyTimeZone,
+      documents: [],
       ...(allowActions ? { phone, replyPrefix: prefix } : {}),
     };
     const now = new Date();
@@ -108,27 +116,27 @@ export class WhatsappAgent {
         // A provider's message may quote the request. Class only is enough
         // to diagnose a timeout without recording the conversation.
         this.logger.error(`WhatsApp AI failed (${error instanceof Error ? error.name : 'UnknownError'})`);
-        return prefix + AI_UNAVAILABLE_REPLY;
+        return { text: prefix + AI_UNAVAILABLE_REPLY, documents: [] };
       }
       if (turn.kind === 'text') {
         const reply = (prefix + turn.text).slice(0, 3500);
         await this.memory.save(phone, history, text, reply);
-        return reply;
+        return { text: reply, documents: context.documents };
       }
       // The fifth request used the budget; do not read more CRM rows for
       // results that no sixth AI request will ever consume.
-      if (round === 4) return prefix + NARROW_QUESTION_REPLY;
+      if (round === 4) break;
       for (const call of turn.calls) messages.push({ kind: 'tool_call', ...call });
       for (const call of turn.calls) {
         const result = await this.tools.dispatch(user, call.name, call.argumentsJson, context);
         if (isProposal(result)) {
           const reply = `${prefix}⚠️ ${result.summary}\n\n${CONFIRM_PROMPT}`;
           await this.rememberAction(phone, text, reply, history);
-          return reply;
+          return { text: reply, documents: [] };
         }
         messages.push({ kind: 'tool_result', id: call.id, resultJson: JSON.stringify(result) });
       }
     }
-    return prefix + NARROW_QUESTION_REPLY;
+    return { text: prefix + NARROW_QUESTION_REPLY, documents: [] };
   }
 }

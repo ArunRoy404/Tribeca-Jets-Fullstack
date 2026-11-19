@@ -6,6 +6,7 @@ import { resolveAccess } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UserRole, UserStatus } from '../../generated/prisma/enums.js';
 import { SettingsService } from '../settings/settings.service.js';
+import type { WhatsappDocument } from './whatsapp.document.js';
 import type { IncomingMessage } from './whatsapp.payload.js';
 import { WhatsappSender } from './whatsapp.sender.js';
 import { isConfirmationCommand, WhatsappAgent } from './whatsapp.agent.js';
@@ -149,6 +150,7 @@ export class WhatsappService {
    * has already answered Meta, so a failure here must never escape.
    */
   private async handle(admin: AuthenticatedUser, message: IncomingMessage): Promise<void> {
+    let documents: WhatsappDocument[] = [];
     try {
       await this.sender.markRead(message.id);
       let reply: string;
@@ -159,7 +161,9 @@ export class WhatsappService {
         this.logger.warn('WhatsApp assistant accepted a message but OPENAI_API_KEY / OPENAI_MODEL are not set');
         reply = await this.agent.cancelPending(message.from) + NOT_READY_REPLY;
       } else {
-        reply = await this.agent.reply(admin, message.from, message.text, true);
+        const answer = await this.agent.reply(admin, message.from, message.text, true);
+        reply = answer.text;
+        documents = answer.documents;
       }
       if (await this.sender.sendText(message.from, reply, message.id)) {
         this.logger.log(`Sent a reply to ${message.id} (${reply.length} chars)`);
@@ -174,6 +178,12 @@ export class WhatsappService {
       await this.sender.sendText(message.from, FAILED_REPLY, message.id);
       // Nor may a proposal stay confirmable when its summary was never shown.
       await this.agent.cancelPending(message.from).catch(() => undefined);
+      return;
+    }
+    for (const document of documents) {
+      if (!await this.sender.sendDocument(message.from, document, undefined, message.id)) {
+        await this.sender.sendText(message.from, `I couldn't send ${document.filename} — please ask again.`, message.id);
+      }
     }
   }
 }

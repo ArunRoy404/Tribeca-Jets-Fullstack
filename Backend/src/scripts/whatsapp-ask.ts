@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
 import { AppConfigService } from '../config/config.service.js';
 import { WhatsappAgent } from '../modules/whatsapp/whatsapp.agent.js';
+import { documentSizeKb } from '../modules/whatsapp/whatsapp.document.js';
 import { WhatsappService } from '../modules/whatsapp/whatsapp.service.js';
 
 /**
@@ -54,7 +55,10 @@ async function main(): Promise<void> {
     }
     const phone = config.whatsapp?.adminPhone ?? '0';
     const reply = await app.get(WhatsappAgent).reply(user, phone, text);
-    console.log(reply);
+    console.log(reply.text);
+    for (const { filename, body } of reply.documents) {
+      console.log(`[document: ${filename}, ${documentSizeKb(body.length)} KB]`);
+    }
   } finally {
     await app.close();
   }

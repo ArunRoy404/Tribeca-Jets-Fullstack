@@ -16,6 +16,9 @@ import { ClientsService } from '../clients/clients.service.js';
 import { createClientSchema, queryClientsSchema } from '../clients/dto/client.dto.js';
 import { DashboardService } from '../dashboard/dashboard.service.js';
 import { dashboardSummarySchema } from '../dashboard/dto/dashboard.dto.js';
+import { ItinerariesService } from '../itineraries/itineraries.service.js';
+import { queryQuotesSchema } from '../quotes/dto/quote.dto.js';
+import { QuotesService } from '../quotes/quotes.service.js';
 import { queryInvoicesSchema } from '../receivables/dto/receivable.dto.js';
 import { paymentProblem } from '../receivables/receivables.amounts.js';
 import { ReceivablesService } from '../receivables/receivables.service.js';
@@ -28,6 +31,7 @@ import { approveBlockedBy, rejectBlockedBy } from '../trips/trips.approval.js';
 import { TripsService } from '../trips/trips.service.js';
 import { ACTION_ACCESS, canCreate, parseLeadRequest } from './whatsapp.actions.js';
 import type { AiToolSpec } from './whatsapp.ai-client.js';
+import type { WhatsappDocument } from './whatsapp.document.js';
 import { leadClientPayload, paymentPayload, WhatsappPending, type PendingAction } from './whatsapp.pending.js';
 
 // A tool takes a date string, not the timestamp compatibility input accepted
@@ -64,8 +68,14 @@ const leadArgs = leadClientPayload.extend({
   departureDate: z.iso.date().optional(),
   passengers: z.number().int().optional(),
 }).strict().refine(({ email, phone }) => Boolean(email || phone), 'Give an email or phone number');
-const paymentArgs = paymentPayload.extend({
+const invoiceArgs = z.object({
   invoice: z.string().trim().toUpperCase().regex(/^INV-\d{4}-\d{4,10}$/, 'Use the full invoice number, such as INV-2026-0042'),
+}).strict();
+const paymentArgs = paymentPayload.extend(invoiceArgs.shape).strict();
+const itineraryArgs = z.object({ trip: tripReference }).strict();
+const quoteArgs = z.object({
+  quote: z.string().trim().regex(/^(?:Q-?)?\d{1,9}$/i, 'Use a quote reference such as Q-1042')
+    .transform((reference) => Number(reference.replace(/^Q-?/i, ''))),
 }).strict();
 
 const person = z.object({ firstName: z.string(), lastName: z.string() });
@@ -106,6 +116,7 @@ const invoiceRow = z.object({
   id: z.uuid(), number: z.string(), client: clientName, status: z.enum(InvoiceStatus),
   total: z.number(), paid: z.number(), balance: z.number(),
 });
+const quoteRow = z.object({ id: z.uuid(), reference: z.number() });
 const matchedClientRow = clientName.extend({ id: z.uuid(), email: z.string().nullable() });
 
 const isoDay = (date: Date | null | undefined) => date?.toISOString().slice(0, 10) ?? null;
@@ -151,10 +162,23 @@ export function isProposal(result: unknown): result is Proposal {
 export interface ToolContext {
   timeZone: string;
   companyTimeZone(): Promise<string>;
+  documents: WhatsappDocument[];
+  attachedNames?: Map<string, string>;
   /** Only the gated webhook gives the dispatcher a phone for proposals. */
   phone?: string;
   proposed?: boolean;
   replyPrefix?: string;
+}
+
+async function attachDocument(context: ToolContext, key: string, render: () => Promise<WhatsappDocument>) {
+  const attached = context.attachedNames?.get(key);
+  if (attached !== undefined) return { attached };
+  if (context.documents.length >= 3) return { error: 'Three documents per message — ask for the rest next' };
+
+  const file = await render();
+  context.documents.push(file);
+  (context.attachedNames ??= new Map()).set(key, file.filename);
+  return { attached: file.filename };
 }
 
 interface ToolDefinition<S extends z.ZodType> {
@@ -197,7 +221,7 @@ export class WhatsappTools {
   constructor(
     schedule: ScheduleService, dashboard: DashboardService, clients: ClientsService, auth: AuthService,
     trips: TripsService, tasks: TasksService, airports: AirportsService, receivables: ReceivablesService,
-    pending: WhatsappPending,
+    pending: WhatsappPending, itineraries: ItinerariesService, quotes: QuotesService,
   ) {
     const resolveTrip = async (user: AuthenticatedUser, reference: number) => {
       const label = tripLabel(reference);
@@ -207,6 +231,14 @@ export class WhatsappTools {
       );
       if (!trip || duplicate) throw new BadRequestException(`No trip ${label} you can see`);
       return trip;
+    };
+    const resolveInvoice = async (user: AuthenticatedUser, invoice: string) => {
+      const [row, duplicate] = await exactMatches(
+        (page) => receivables.findAll(user, queryInvoicesSchema.parse({ search: invoice, page, limit: MAX_PAGE_SIZE })),
+        invoiceRow, (item) => item.number === invoice,
+      );
+      if (!row || duplicate) throw new BadRequestException(`No invoice ${invoice} you can see`);
+      return row;
     };
     const resolveAirport = async (icao: string, label: string) => {
       const [airport, duplicate] = await exactMatches(
@@ -396,6 +428,46 @@ export class WhatsappTools {
         },
       }),
       defineTool({
+        name: 'send_itinerary',
+        description: 'Send the itinerary PDF to the Super Admin’s WhatsApp. Give a trip reference such as TJ-1048. Say in one short line what was attached and never repeat the document’s contents.',
+        schema: itineraryArgs,
+        permission: { module: Module.ITINERARIES, action: Action.VIEW },
+        async run(user, { trip: reference }, context) {
+          if (!canDo(user.access, Module.TRIPS, Action.VIEW)) return { error: NOT_PERMITTED };
+          const trip = await resolveTrip(user, reference);
+          return attachDocument(context, `itinerary:${trip.id}`, async () => {
+            const file = await itineraries.renderPdfForTrip(user, trip.id);
+            if (!file) throw new BadRequestException(`No itinerary on file for ${tripLabel(trip.reference)}`);
+            return file;
+          });
+        },
+      }),
+      defineTool({
+        name: 'send_quote',
+        description: 'Send the quote PDF to the Super Admin’s WhatsApp. Give a quote reference such as Q-1042. Say in one short line what was attached and never repeat the document’s contents.',
+        schema: quoteArgs,
+        permission: { module: Module.QUOTES, action: Action.VIEW },
+        async run(user, { quote: reference }, context) {
+          const label = `Q-${reference}`;
+          const [quote, duplicate] = await exactMatches(
+            (page) => quotes.findAll(user, queryQuotesSchema.parse({ search: label, page, limit: MAX_PAGE_SIZE })),
+            quoteRow, (row) => row.reference === reference,
+          );
+          if (!quote || duplicate) return { error: `No quote ${label} you can see` };
+          return attachDocument(context, `quote:${quote.id}`, () => quotes.renderPdf(user, quote.id));
+        },
+      }),
+      defineTool({
+        name: 'send_invoice',
+        description: 'Send the invoice PDF to the Super Admin’s WhatsApp. Give the full invoice number such as INV-2026-0042. Say in one short line what was attached and never repeat the document’s contents.',
+        schema: invoiceArgs,
+        permission: { module: Module.RECEIVABLES, action: Action.VIEW },
+        async run(user, { invoice }, context) {
+          const row = await resolveInvoice(user, invoice);
+          return attachDocument(context, `invoice:${row.id}`, () => receivables.renderPdf(user, row.id));
+        },
+      }),
+      defineTool({
         name: 'approve_trip',
         description: 'Only proposes approving one trip. Use its reference, such as TJ-1048. Nothing changes until the Super Admin replies CONFIRM.',
         schema: tripArgs,
@@ -492,11 +564,7 @@ export class WhatsappTools {
           const payload = { ...payment, paidAt: payment.paidAt ?? nowIn(context.timeZone).date };
           const parsed = createPaymentSchema.safeParse(payload);
           if (!parsed.success) return { error: parsed.error.message };
-          const [row, duplicate] = await exactMatches(
-            (page) => receivables.findAll(user, queryInvoicesSchema.parse({ search: invoice, page, limit: MAX_PAGE_SIZE })),
-            invoiceRow, (item) => item.number === invoice,
-          );
-          if (!row || duplicate) return { error: `No invoice ${invoice} you can see` };
+          const row = await resolveInvoice(user, invoice);
           if (row.status !== InvoiceStatus.SENT) return { error: 'Only sent invoices can take payments.' };
           const amount = toCents(parsed.data.amount);
           const problem = paymentProblem(toCents(row.total), toCents(row.paid), amount);

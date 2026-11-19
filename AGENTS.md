@@ -1219,6 +1219,10 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
   updates the caller's own time zone through `AuthService.updateProfile`.
 - **Tools return an explicit field allowlist, never a spread service row.**
   Only the fields needed to answer the question go to OpenAI.
+- **The owning service renders each document.** The tool attaches it through
+  the agent's context and `WhatsappService` sends it to the phone that passed
+  the gates. The PDF bytes never reach OpenAI and the filename never reaches
+  a server log.
 - **A desk action is proposed first.** The tool stores its frozen payload
   and summary in Redis. CONFIRM is handled before the model and takes the
   action once, within five minutes, for the user it was proposed to. Check

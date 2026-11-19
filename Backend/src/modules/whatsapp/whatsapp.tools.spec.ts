@@ -13,6 +13,8 @@ const CLIENT_ID = '00000000-0000-4000-8000-000000000003';
 const INVOICE_ID = '00000000-0000-4000-8000-000000000004';
 const ORIGIN_ID = '00000000-0000-4000-8000-000000000005';
 const DESTINATION_ID = '00000000-0000-4000-8000-000000000006';
+const QUOTE_ID = '00000000-0000-4000-8000-000000000007';
+const OTHER_QUOTE_ID = '00000000-0000-4000-8000-000000000008';
 const user: AuthenticatedUser = {
   id: 'owner-id', email: 'owner@example.com', role: UserRole.SUPER_ADMIN,
   access: resolveAccess(UserRole.SUPER_ADMIN, null),
@@ -60,6 +62,16 @@ const invoice = {
   id: INVOICE_ID, number: 'INV-2026-0042', status: InvoiceStatus.SENT,
   client, total: 13000, paid: 500, balance: 12500,
 };
+const quote = { id: QUOTE_ID, reference: 1042 };
+const pdf = (filename: string) => ({ body: Buffer.from('%PDF PRIVATE BYTES'), contentType: 'application/pdf', filename });
+const itineraryPdf = pdf('Itinerary-TJ-1048.pdf');
+const quotePdf = pdf('Quote-Q-1042.pdf');
+const invoicePdf = pdf('Invoice-INV-2026-0042.pdf');
+const documentCases = [
+  ['send_itinerary', { trip: 'TJ-1048' }, Module.ITINERARIES, trip, itineraryPdf],
+  ['send_quote', { quote: 'Q-1042' }, Module.QUOTES, quote, quotePdf],
+  ['send_invoice', { invoice: invoice.number }, Module.RECEIVABLES, invoice, invoicePdf],
+] as const;
 const leadArgs = { firstName: 'Jamie', lastName: 'Client', email: 'jamie@example.com' };
 const paymentArgs = { invoice: invoice.number, amount: 12500, method: PaymentMethod.WIRE_TRANSFER, paidAt: '2026-11-27' };
 
@@ -71,7 +83,11 @@ describe('WhatsappTools dispatcher', () => {
   const trips = { findAll: vi.fn(), approve: vi.fn(), reject: vi.fn() };
   const tasks = { findAll: vi.fn(), findOne: vi.fn(), update: vi.fn() };
   const airports = { findAll: vi.fn(), usable: vi.fn() };
-  const receivables = { findAll: vi.fn(), recordPayment: vi.fn() };
+  const receivables = { findAll: vi.fn(), recordPayment: vi.fn(), renderPdf: vi.fn() };
+  const itineraries = { renderPdfForTrip: vi.fn() };
+  const quotes = { findAll: vi.fn(), renderPdf: vi.fn() };
+  const lookup = { send_itinerary: trips.findAll, send_quote: quotes.findAll, send_invoice: receivables.findAll };
+  const render = { send_itinerary: itineraries.renderPdfForTrip, send_quote: quotes.renderPdf, send_invoice: receivables.renderPdf };
   const pending = { put: vi.fn() };
   let context: ToolContext;
   let tools: WhatsappTools;
@@ -92,10 +108,14 @@ describe('WhatsappTools dispatcher', () => {
     });
     airports.usable.mockReset().mockImplementation(async (id: string) => ({ id, icao: id === ORIGIN_ID ? 'KTEB' : 'KMIA' }));
     receivables.findAll.mockReset().mockResolvedValue(paginate([invoice], 1, 1, 100));
+    receivables.renderPdf.mockReset().mockResolvedValue(invoicePdf);
+    itineraries.renderPdfForTrip.mockReset().mockResolvedValue(itineraryPdf);
+    quotes.findAll.mockReset().mockResolvedValue(paginate([quote], 1, 1, 100));
+    quotes.renderPdf.mockReset().mockResolvedValue(quotePdf);
     companyTimeZone.mockClear();
-    context = { timeZone: 'Asia/Dhaka', companyTimeZone, phone: PHONE };
+    context = { timeZone: 'Asia/Dhaka', companyTimeZone, phone: PHONE, documents: [] };
     tools = new WhatsappTools(schedule as never, dashboard as never, clients as never, auth as never,
-      trips as never, tasks as never, airports as never, receivables as never, pending as never);
+      trips as never, tasks as never, airports as never, receivables as never, pending as never, itineraries as never, quotes as never);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -116,6 +136,8 @@ describe('WhatsappTools dispatcher', () => {
     expect(tasks.findOne).not.toHaveBeenCalled();
     expect(airports.findAll).not.toHaveBeenCalled();
     expect(receivables.findAll).not.toHaveBeenCalled();
+    expect(quotes.findAll).not.toHaveBeenCalled();
+    for (const pdfRender of Object.values(render)) expect(pdfRender).not.toHaveBeenCalled();
     expect(pending.put).not.toHaveBeenCalled();
   }
 
@@ -156,6 +178,7 @@ describe('WhatsappTools dispatcher', () => {
     const args = {
       list_flights: windowArgs, dashboard_kpis: {}, find_client: { query: 'Alex' },
       list_pending_approvals: {}, list_open_tasks: {},
+      send_itinerary: { trip: 'TJ-1048' }, send_quote: { quote: 'Q-1042' }, send_invoice: { invoice: invoice.number },
       approve_trip: { reference: 'TJ-1048' }, decline_trip: { reference: '1048' },
       create_lead: leadArgs, complete_task: { taskId: TASK_ID }, record_payment: paymentArgs,
     };
@@ -312,6 +335,7 @@ describe('WhatsappTools dispatcher', () => {
     const specs = tools.specs();
     expect(specs.map((spec) => spec.name)).toEqual([
       'list_flights', 'dashboard_kpis', 'find_client', 'set_my_timezone', 'list_pending_approvals', 'list_open_tasks',
+      'send_itinerary', 'send_quote', 'send_invoice',
       'approve_trip', 'decline_trip', 'create_lead', 'complete_task', 'record_payment',
     ]);
     expect(specs[0]?.parameters).toMatchObject({ type: 'object', required: ['from', 'to'], properties: { from: { type: 'string', format: 'date' }, to: { type: 'string', format: 'date' } } });
@@ -470,5 +494,67 @@ describe('WhatsappTools dispatcher', () => {
     expect(tools.specs(false).some(({ name }) => name === 'approve_trip')).toBe(false);
     expect(await dispatch(user, 'approve_trip', '{"reference":"1048"}')).toEqual({ error: 'Not permitted for this account' });
     expectNoServiceCalls();
+  });
+
+  it.each(documentCases)('%s renders the resolved record and returns only the attachment marker', async (name, args, _module, row, file) => {
+    delete context.phone;
+    expect(tools.specs(false)).toContainEqual(expect.objectContaining({ name }));
+    const result = await dispatch(user, name, JSON.stringify(args));
+    expect(lookup[name]).toHaveBeenCalledExactlyOnceWith(user, expect.objectContaining({
+      search: Object.values(args)[0], page: 1, limit: 100, archived: false,
+    }));
+    expect(render[name]).toHaveBeenCalledExactlyOnceWith(user, row.id);
+    expect(context.documents).toEqual([file]);
+    expect(result).toEqual({ attached: file.filename });
+    expect(JSON.stringify(result)).toBe(JSON.stringify({ attached: file.filename }));
+    expect(pending.put).not.toHaveBeenCalled();
+  });
+
+  it.each(documentCases)('%s refuses an unknown or duplicate match before rendering', async (name, args, _module, row) => {
+    lookup[name].mockResolvedValueOnce(paginate([], 0, 1, 100));
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error: expect.stringMatching(/^No (trip|quote|invoice)/) });
+    lookup[name].mockResolvedValueOnce(paginate([row, row], 2, 1, 100));
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error: expect.stringMatching(/^No (trip|quote|invoice)/) });
+    expect(render[name]).not.toHaveBeenCalled();
+    expect(context.documents).toEqual([]);
+  });
+
+  it.each(documentCases)('%s needs its own VIEW permission', async (name, args, module) => {
+    const access = { ...user.access, [module]: { reach: Reach.ALL, actions: [] } };
+    expect(await dispatch({ ...user, access }, name, JSON.stringify(args))).toEqual({ error: 'Not permitted for this account' });
+    expectNoServiceCalls();
+    expect(context.documents).toEqual([]);
+  });
+
+  it('requires TRIPS VIEW for the itinerary lookup', async () => {
+    const access = { ...user.access, [Module.TRIPS]: { reach: Reach.ALL, actions: [] } };
+    expect(await dispatch({ ...user, access }, 'send_itinerary', '{"trip":"TJ-1048"}')).toEqual({ error: 'Not permitted for this account' });
+    expectNoServiceCalls();
+    expect(context.documents).toEqual([]);
+  });
+
+  it('names the trip when no live itinerary is on file', async () => {
+    itineraries.renderPdfForTrip.mockResolvedValueOnce(null);
+    expect(await dispatch(user, 'send_itinerary', '{"trip":"1048"}')).toEqual({ error: 'No itinerary on file for TJ-1048' });
+    expect(context.documents).toEqual([]);
+  });
+
+  it('checks later pages for the exact quote when a different record matches the search text', async () => {
+    quotes.findAll.mockResolvedValueOnce(paginate([{ id: OTHER_QUOTE_ID, reference: 9999 }], 101, 1, 100))
+      .mockResolvedValueOnce(paginate([quote], 101, 2, 100));
+    expect(await dispatch(user, 'send_quote', '{"quote":"1042"}')).toEqual({ attached: quotePdf.filename });
+    expect(quotes.findAll).toHaveBeenNthCalledWith(2, user, expect.objectContaining({ page: 2 }));
+    expect(quotes.renderPdf).toHaveBeenCalledExactlyOnceWith(user, QUOTE_ID);
+  });
+
+  it('attaches each record once and refuses a fourth document before rendering it', async () => {
+    for (const [name, args, , , file] of documentCases) {
+      expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ attached: file.filename });
+    }
+    expect(await dispatch(user, 'send_quote', '{"quote":"q1042"}')).toEqual({ attached: quotePdf.filename });
+    quotes.findAll.mockResolvedValueOnce(paginate([{ id: OTHER_QUOTE_ID, reference: 1043 }], 1, 1, 100));
+    expect(await dispatch(user, 'send_quote', '{"quote":"Q-1043"}')).toEqual({ error: 'Three documents per message — ask for the rest next' });
+    expect(quotes.renderPdf).toHaveBeenCalledExactlyOnceWith(user, QUOTE_ID);
+    expect(context.documents).toEqual([itineraryPdf, quotePdf, invoicePdf]);
   });
 });

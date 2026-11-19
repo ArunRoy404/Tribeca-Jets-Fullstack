@@ -86,4 +86,93 @@ describe('WhatsappSender', () => {
     });
     expect(logs[1]).toHaveBeenCalledExactlyOnceWith('WhatsApp mark read failed (HTTP 503, code 190)');
   });
+
+  const uploadUrl = 'https://graph.facebook.com/v25.0/4321/media';
+  const file = { body: Buffer.from('%PDF PRIVATE BYTES'), filename: 'PRIVATE-REF.pdf', contentType: 'application/pdf' };
+  const caption = 'PRIVATE CAPTION';
+  const uploaded = () => Response.json({ id: 'media-id' });
+
+  it.each([undefined, 'wamid.question'])('uploads the PDF and sends a document with reply context %s', async (id) => {
+    post.mockResolvedValueOnce(uploaded()).mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    expect(await sender.sendDocument(phone, file, id ? caption : undefined, id)).toBe(true);
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post).toHaveBeenNthCalledWith(1, uploadUrl, {
+      method: 'POST', headers: { Authorization: `Bearer ${config.accessToken}` },
+      body: expect.any(FormData), signal: expect.any(AbortSignal),
+    });
+    const form = post.mock.calls[0]?.[1]?.body as FormData;
+    expect(form.get('messaging_product')).toBe('whatsapp');
+    expect(form.get('type')).toBe(file.contentType);
+    const part = form.get('file') as File;
+    expect(part).toBeInstanceOf(Blob);
+    expect(part.name).toBe(file.filename);
+    expect(part.type).toBe(file.contentType);
+    expect(Buffer.from(await part.arrayBuffer())).toEqual(file.body);
+    expect(post).toHaveBeenNthCalledWith(2, url, {
+      method: 'POST', headers: { Authorization: `Bearer ${config.accessToken}`, 'Content-Type': 'application/json' },
+      body: expect.any(String), signal: expect.any(AbortSignal),
+    });
+    expect(JSON.parse(post.mock.calls[1]?.[1]?.body as string)).toEqual({
+      messaging_product: 'whatsapp', recipient_type: 'individual', to: phone, type: 'document',
+      document: { id: 'media-id', filename: file.filename, ...(id ? { caption } : {}) },
+      ...(id ? { context: { message_id: id } } : {}),
+    });
+    expect(timeout.mock.calls).toEqual([[30_000], [10_000]]);
+  });
+
+  it('retries an upload returning 500 and sends once it succeeds', async () => {
+    post.mockResolvedValueOnce(new Response(null, { status: 500 })).mockResolvedValueOnce(uploaded())
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const sending = sender.sendDocument(phone, file);
+    await vi.runAllTimersAsync();
+    expect(await sending).toBe(true);
+    expect(post.mock.calls.map(([endpoint]) => endpoint)).toEqual([uploadUrl, uploadUrl, url]);
+  });
+
+  it('retries a document send returning 429 without uploading again', async () => {
+    post.mockResolvedValueOnce(uploaded()).mockResolvedValueOnce(new Response(null, { status: 429 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const sending = sender.sendDocument(phone, file);
+    await vi.runAllTimersAsync();
+    expect(await sending).toBe(true);
+    expect(post.mock.calls.map(([endpoint]) => endpoint)).toEqual([uploadUrl, url, url]);
+  });
+
+  it.each([false, true])('returns false after two network failures (upload succeeded: %s)', async (uploadSucceeded) => {
+    if (uploadSucceeded) post.mockResolvedValueOnce(uploaded());
+    post.mockRejectedValue(new TypeError(`Failed to send ${file.filename}`));
+    const sending = sender.sendDocument(phone, file);
+    await vi.runAllTimersAsync();
+    expect(await sending).toBe(false);
+    expect(post.mock.calls.map(([endpoint]) => endpoint)).toEqual(uploadSucceeded ? [uploadUrl, url, url] : [uploadUrl, uploadUrl]);
+    expect(JSON.stringify(logs.flatMap((log) => log.mock.calls))).not.toContain(file.filename);
+  });
+
+  it.each([false, true])('does not retry HTTP 400 and logs only safe fields (upload succeeded: %s)', async (uploadSucceeded) => {
+    if (uploadSucceeded) post.mockResolvedValueOnce(uploaded());
+    post.mockResolvedValueOnce(Response.json({ error: { ...meta, type: file.filename, fbtrace_id: phone } }, { status: 400 }));
+    expect(await sender.sendDocument(phone, file, caption)).toBe(false);
+    expect(post.mock.calls.map(([endpoint]) => endpoint)).toEqual(uploadSucceeded ? [uploadUrl, url] : [uploadUrl]);
+    expect(logs[2]).toHaveBeenCalledWith('WhatsApp access token rejected (code 190): renew WHATSAPP_ACCESS_TOKEN');
+    const logged = JSON.stringify(logs.flatMap((log) => log.mock.calls));
+    for (const value of [file.filename, caption, config.accessToken, meta.message, phone, file.body.toString()]) {
+      expect(logged).not.toContain(value);
+    }
+    for (const value of ['HTTP 400', '190', '463', '1 KB']) expect(logged).toContain(value);
+  });
+
+  it('refuses an upload response without a media id', async () => {
+    post.mockResolvedValueOnce(Response.json({ id: '' }));
+    expect(await sender.sendDocument(phone, file)).toBe(false);
+    expect(post.mock.calls.map(([endpoint]) => endpoint)).toEqual([uploadUrl]);
+  });
+
+  it('refuses an oversized PDF or missing configuration before fetching', async () => {
+    const disabled = new WhatsappSender({ whatsapp: null } as never);
+    expect(await disabled.sendDocument(phone, file)).toBe(false);
+    expect(await sender.sendDocument(phone, { ...file, body: Buffer.alloc(10 * 1024 * 1024 + 1) }, caption)).toBe(false);
+    expect(post).not.toHaveBeenCalled();
+    expect(logs[1]).toHaveBeenCalledExactlyOnceWith('WhatsApp document exceeds the upload limit (10241 KB)');
+  });
 });
