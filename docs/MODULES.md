@@ -727,6 +727,7 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 | Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` via `/auth/me` → `session` | — | ✅ |
 | Require 2FA for admins (Security) | Auth — sign-in (SUPER_ADMIN and ADMIN) | — | ✅ |
 | WhatsApp assistant on/off (Security, 16 Nov) | WhatsApp — `WhatsappService`, on every incoming message | — (new; off by default) | ✅ |
+| **Company timezone** (Company or Defaults — planned 19 Nov, developer's call) | WhatsApp assistant's "today"/"tomorrow" (`whatsapp.agent.ts`) first; then every other place that decides what "today" is | UTC — the server's date | ⬜ **crucial**: the desk (US) and the developers (Dhaka) are on opposite sides of the earth, so a UTC "today" is wrong for one of them every day. Not a column yet — added with its first reader |
 | Failed sign-ins allowed, counting window, pause length, whose failures count (Rate Limiting, 15 Oct) | Auth — `SignInThrottleService` on sign-in and on My Account's password re-check | `@RateLimit` 5 requests / 15 min per IP on `/auth/login` (counted correct sign-ins too) — removed | ✅ |
 | Codes per address + window, wrong guesses per code (Rate Limiting, 15 Oct) | Auth — reset codes and two-factor resends; code verification | `@RateLimit` 3 / 15 min per IP on resends; `VERIFICATION_MAX_ATTEMPTS` env var — both removed | ✅ |
 | Email / in-app channels (Notifications) | Tasks Board notifications, Email sending | both always on | ⬜ |
