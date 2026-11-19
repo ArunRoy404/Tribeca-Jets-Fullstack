@@ -2,13 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Logger, NotFoundException } from '@nestjs/common';
 import { Action, Module, Reach, resolveAccess } from '../../common/authorization/access.js';
 import { DEFAULT_TIME_ZONE } from '../../common/dates/time-zone.js';
+import { MovementDirection, MovementKind } from '../../common/money/movements.js';
 import { paginate, type AuthenticatedUser } from '../../common/types/api.types.js';
 import {
-  AircraftCategory, AircraftStatus, ClientPriority, ClientStatus, EmptyLegStatus, FlightStatus, FollowUpMethod,
+  AircraftCategory, AircraftStatus, ClientPriority, ClientStatus, CommissionRecipientType, CommissionStatus,
+  EmptyLegStatus, FlightStatus, FollowUpMethod,
   InvoiceStatus, LeadSource, LeadStage, NoteSubjectType, NoteVisibility, OperatorStatus, PaymentMethod, PaymentTerms,
   QuoteStatus, ResponseSpeed, TaskStatus, TripApprovalStatus, TripRequestStatus, TripStatus, TripType, UserRole,
 } from '../../generated/prisma/enums.js';
-import { TripPaymentState } from '../receivables/receivables.amounts.js';
+import { PayableState } from '../operator-payments/operator-payments.amounts.js';
+import { InvoiceState, TripPaymentState } from '../receivables/receivables.amounts.js';
 import { ONE_ACTION_REPLY, WhatsappTools, type ToolContext } from './whatsapp.tools.js';
 
 const PHONE = '15551234567';
@@ -117,6 +120,16 @@ const tripDetail = {
   passengerCount: 2, passengers: [passengerRecord], totalPrice: 35935.1,
   operatorCost: undefined, grossProfit: undefined, marginPercentage: undefined, clientPayment: undefined, secretMarker,
 };
+const moneyCases = [
+  ['list_invoices', Module.RECEIVABLES, {}],
+  ['list_operator_bills', Module.OPERATOR_PAYMENTS, {}],
+  ['client_credit', Module.CLIENTS, { clientId: CLIENT_ID }],
+  ['list_commissions', Module.COMMISSIONS, {}],
+  ['recent_transactions', Module.TRANSACTIONS, {}],
+  ['financial_summary', Module.REPORTS, windowArgs],
+] as const;
+const newestListQuery = { page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc', archived: false };
+const ledgerQuery = { page: 1, limit: 10, sortBy: 'date', sortOrder: 'desc' };
 
 describe('WhatsappTools dispatcher', () => {
   let schedule: { findAll: ReturnType<typeof vi.fn> };
@@ -135,6 +148,12 @@ describe('WhatsappTools dispatcher', () => {
   const emptyLegs = { findAll: vi.fn() };
   const operators = { findAll: vi.fn() };
   const aircraft = { findAll: vi.fn() };
+  const operatorPayments = { findAll: vi.fn() };
+  const clientCredits = { summary: vi.fn() };
+  const commissions = { findAll: vi.fn() };
+  const transactions = { findAll: vi.fn() };
+  const reports = { summary: vi.fn() };
+  const newMoneyReads = [operatorPayments.findAll, clientCredits.summary, commissions.findAll, transactions.findAll, reports.summary];
   const lookup = { send_itinerary: trips.findAll, send_quote: quotes.findAll, send_invoice: receivables.findAll };
   const render = { send_itinerary: itineraries.renderPdfForTrip, send_quote: quotes.renderPdf, send_invoice: receivables.renderPdf };
   const pending = { put: vi.fn() };
@@ -165,11 +184,13 @@ describe('WhatsappTools dispatcher', () => {
     tripRequests.findAll.mockReset().mockResolvedValue(paginate([salesRequest], 12, 1, 10));
     notes.findAll.mockReset();
     for (const service of [flightTracking, emptyLegs, operators, aircraft]) service.findAll.mockReset();
+    for (const read of newMoneyReads) read.mockReset();
     companyTimeZone.mockClear();
     context = { timeZone: 'Asia/Dhaka', companyTimeZone, phone: PHONE, documents: [] };
     tools = new WhatsappTools(schedule as never, dashboard as never, clients as never, auth as never,
       trips as never, tasks as never, airports as never, receivables as never, pending as never, itineraries as never, quotes as never,
-      tripRequests as never, notes as never, flightTracking as never, emptyLegs as never, operators as never, aircraft as never);
+      tripRequests as never, notes as never, flightTracking as never, emptyLegs as never, operators as never, aircraft as never,
+      operatorPayments as never, clientCredits as never, commissions as never, transactions as never, reports as never);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -196,6 +217,7 @@ describe('WhatsappTools dispatcher', () => {
     expect(notes.findAll).not.toHaveBeenCalled();
     expect(notes.timeline).not.toHaveBeenCalled();
     for (const service of [flightTracking, emptyLegs, operators, aircraft]) expect(service.findAll).not.toHaveBeenCalled();
+    for (const read of newMoneyReads) expect(read).not.toHaveBeenCalled();
     for (const pdfRender of Object.values(render)) expect(pdfRender).not.toHaveBeenCalled();
     expect(pending.put).not.toHaveBeenCalled();
   }
@@ -241,6 +263,8 @@ describe('WhatsappTools dispatcher', () => {
       lead_pipeline: {}, client_notes: { clientId: CLIENT_ID },
       trip_details: { trip: 'TJ-1048' }, list_flight_status: {}, list_empty_legs: {},
       find_operator: { query: 'Example Air' }, find_aircraft: { minPassengers: 9 },
+      list_invoices: {}, list_operator_bills: {}, client_credit: { clientId: CLIENT_ID },
+      list_commissions: {}, recent_transactions: {}, financial_summary: windowArgs,
       send_itinerary: { trip: 'TJ-1048' }, send_quote: { quote: 'Q-1042' }, send_invoice: { invoice: invoice.number },
       approve_trip: { reference: 'TJ-1048' }, decline_trip: { reference: '1048' },
       create_lead: leadArgs, complete_task: { taskId: TASK_ID }, record_payment: paymentArgs,
@@ -400,6 +424,7 @@ describe('WhatsappTools dispatcher', () => {
       'list_flights', 'dashboard_kpis', 'find_client', 'set_my_timezone', 'list_pending_approvals', 'list_open_tasks',
       'list_trip_requests', 'list_quotes', 'client_follow_ups', 'lead_pipeline', 'client_notes',
       'trip_details', 'list_flight_status', 'list_empty_legs', 'find_operator', 'find_aircraft',
+      ...moneyCases.map(([name]) => name),
       'send_itinerary', 'send_quote', 'send_invoice',
       'approve_trip', 'decline_trip', 'create_lead', 'complete_task', 'record_payment',
     ]);
@@ -759,6 +784,176 @@ describe('WhatsappTools dispatcher', () => {
     ['find_operator', Module.OPERATORS, { query: 'Example Air' }],
     ['find_aircraft', Module.AIRCRAFT, { minPassengers: 9 }],
   ] as const)('refuses %s without %s VIEW before calling any service', async (name, module, args) => {
+    const access = { ...user.access, [module]: { reach: Reach.ALL, actions: [] } };
+    expect(await dispatch({ ...user, access }, name, JSON.stringify(args))).toEqual({ error: 'Not permitted for this account' });
+    expectNoServiceCalls();
+  });
+
+  it('defaults to open invoices and returns their service number, computed state and formatted figures', async () => {
+    receivables.findAll.mockResolvedValueOnce(paginate([{
+      ...invoice, client: salesClient, trip: { ...trip, secretMarker }, total: 35935.1, paid: 1000, balance: 34935.1,
+      state: InvoiceState.OVERDUE, dueDate: new Date('2026-11-27'), secretMarker,
+    }], 14, 1, 10));
+    const result = await dispatch(user, 'list_invoices', '{}');
+    expect(receivables.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      ...newestListQuery, state: undefined, open: true, search: undefined,
+    });
+    expect(result).toStrictEqual({ total: 14, invoices: [{
+      number: invoice.number, client: 'Alex Vance', tripReference: 'TJ-1048', state: InvoiceState.OVERDUE,
+      total: '$35,935.10', paid: '$1,000.00', balance: '$34,935.10', dueDate: '2026-11-27',
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('defaults to open operator bills and keeps null amounts and omitted figures as supplied', async () => {
+    operatorPayments.findAll.mockResolvedValueOnce(paginate([{
+      id: 'bill-id', number: 'OP-2026-0045', operator: operatorRecord, trip: { ...trip, secretMarker },
+      state: PayableState.OVERDUE, amount: 35935.1, paid: undefined, balance: null, dueDate: null, secretMarker,
+    }], 11, 1, 10));
+    const result = await dispatch(user, 'list_operator_bills', '{}');
+    expect(operatorPayments.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      ...newestListQuery, state: undefined, open: true, search: undefined,
+    });
+    expect(result).toStrictEqual({ total: 11, bills: [{
+      number: 'OP-2026-0045', operator: 'Example Air', tripReference: 'TJ-1048', state: PayableState.OVERDUE,
+      amount: '$35,935.10', balance: null, dueDate: null,
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it.each([
+    [{ state: 'PAID' }, { state: 'PAID', open: undefined }],
+    [{ open: false }, { state: undefined, open: false }],
+    [{ open: true, state: 'OVERDUE' }, { state: 'OVERDUE', open: true }],
+  ] as const)('passes state, open and trimmed search together for %j', async (args, filters) => {
+    for (const [name, service] of [['list_invoices', receivables], ['list_operator_bills', operatorPayments]] as const) {
+      service.findAll.mockResolvedValueOnce(paginate([], 0, 1, 10));
+      await dispatch(user, name, JSON.stringify({ ...args, search: '  TJ-1048  ' }));
+      expect(service.findAll).toHaveBeenCalledExactlyOnceWith(user, { ...newestListQuery, ...filters, search: 'TJ-1048' });
+    }
+  });
+
+  it('reads the credit summary for the picked client and keeps only ledger totals and movement facts', async () => {
+    context.timeZone = 'America/New_York';
+    clientCredits.summary.mockResolvedValueOnce({
+      credited: 35935.1, applied: 6000, balance: 29935.1, entries: 3,
+      lastMovementAt: new Date('2026-11-27'), secretMarker,
+    });
+    const result = await dispatch(user, 'client_credit', JSON.stringify({ clientId: CLIENT_ID }));
+    expect(clientCredits.summary).toHaveBeenCalledExactlyOnceWith(user, CLIENT_ID);
+    expect(result).toStrictEqual({
+      balance: '$29,935.10', credited: '$35,935.10', applied: '$6,000.00', entries: 3, lastMovementAt: '2026-11-27',
+    });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('surfaces a client credit 404 as a tool error', async () => {
+    clientCredits.summary.mockRejectedValueOnce(new NotFoundException('Client not found'));
+    expect(await dispatch(user, 'client_credit', JSON.stringify({ clientId: CLIENT_ID }))).toEqual({ error: 'Client not found' });
+    expect(clientCredits.summary).toHaveBeenCalledExactlyOnceWith(user, CLIENT_ID);
+  });
+
+  it('defaults to earned commissions and passes through the service’s recipient label and working amount', async () => {
+    commissions.findAll.mockResolvedValueOnce(paginate([{
+      recipientLabel: 'Example Agency · Example Ltd', recipientType: CommissionRecipientType.MANUAL,
+      trip: { ...trip, grossProfit: 45500, secretMarker }, status: CommissionStatus.EARNED, amount: 5000,
+      value: 6450.25, paidAt: null, secretMarker,
+    }], 12, 1, 10));
+    const result = await dispatch(user, 'list_commissions', '{}');
+    expect(commissions.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      ...newestListQuery, status: CommissionStatus.EARNED, search: undefined,
+    });
+    expect(result).toStrictEqual({ total: 12, commissions: [{
+      recipient: 'Example Agency · Example Ltd', recipientType: CommissionRecipientType.MANUAL,
+      tripReference: 'TJ-1048', status: CommissionStatus.EARNED, amount: '$6,450.25', paidAt: null,
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it('passes the requested commission status and search and preserves a paid calendar day', async () => {
+    commissions.findAll.mockResolvedValueOnce(paginate([{
+      recipientLabel: 'Alex Vance', recipientType: CommissionRecipientType.CLIENT, trip,
+      status: CommissionStatus.PAID, value: null, paidAt: new Date('2026-11-27'),
+    }], 1, 1, 10));
+    expect(await dispatch(user, 'list_commissions', '{"status":"PAID","search":" Vance "}')).toStrictEqual({
+      total: 1, commissions: [{
+        recipient: 'Alex Vance', recipientType: CommissionRecipientType.CLIENT, tripReference: 'TJ-1048',
+        status: CommissionStatus.PAID, amount: null, paidAt: '2026-11-27',
+      }],
+    });
+    expect(commissions.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      ...newestListQuery, status: CommissionStatus.PAID, search: 'Vance',
+    });
+  });
+
+  it('defaults to seven days ending today in the asker’s zone and returns only the ledger facts', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-19T18:15:00Z'));
+    transactions.findAll.mockResolvedValueOnce(paginate([{
+      id: 'movement-id', date: new Date('2026-11-20'), kind: MovementKind.CLIENT_PAYMENT, direction: MovementDirection.IN,
+      amount: 35935.1, counterparty: { id: CLIENT_ID, name: 'Alex Vance', type: 'CLIENT', secretMarker },
+      document: { id: INVOICE_ID, number: invoice.number, secretMarker }, trip: { ...trip, secretMarker },
+      reference: 'WIRE-123', broker: client.assignedBroker, secretMarker,
+    }], 13, 1, 10));
+    const result = await dispatch(user, 'recent_transactions', '{}');
+    expect(transactions.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      ...ledgerQuery, from: new Date('2026-11-14'), to: new Date('2026-11-20'), direction: undefined, kind: undefined,
+    });
+    expect(result).toStrictEqual({ total: 13, transactions: [{
+      date: '2026-11-20', kind: MovementKind.CLIENT_PAYMENT, direction: MovementDirection.IN, amount: '$35,935.10',
+      counterparty: 'Alex Vance', reference: 'WIRE-123', document: { number: invoice.number }, trip: { reference: 'TJ-1048' },
+    }] });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it.each([
+    [{ from: '2026-10-20', to: '2026-11-20' }, '2026-10-20', '2026-11-20'],
+    [{ from: '2026-11-17' }, '2026-11-17', '2026-11-23'],
+    [{ to: '2026-11-17' }, '2026-11-11', '2026-11-17'],
+  ] as const)('passes the ledger window and filters for %j', async (dates, from, to) => {
+    transactions.findAll.mockResolvedValueOnce(paginate([], 0, 1, 10));
+    expect(await dispatch(user, 'recent_transactions', JSON.stringify({
+      ...dates, direction: MovementDirection.OUT, kind: MovementKind.OPERATOR_PAYMENT,
+    }))).toStrictEqual({ total: 0, transactions: [] });
+    expect(transactions.findAll).toHaveBeenCalledExactlyOnceWith(user, {
+      ...ledgerQuery, from: new Date(from), to: new Date(to), direction: MovementDirection.OUT, kind: MovementKind.OPERATOR_PAYMENT,
+    });
+  });
+
+  it('passes the parsed report window and returns only the requested financial summary fields', async () => {
+    reports.summary.mockResolvedValueOnce({
+      ...windowArgs, revenue: 35935.1, profit: 12045.1, marginPercentage: 33.5, fetCharged: 2200, tripCount: 2,
+      averageRevenue: 17967.55, averageProfit: null, pricedCount: 2, profitTripCount: 1,
+      collected: { cash: 20000, fet: 1250, paymentCount: 3, secretMarker },
+      outstanding: { receivables: 15935.1, payables: 800, secretMarker },
+      operations: { window: 2, allTime: 12 }, secretMarker,
+    });
+    const result = await dispatch(user, 'financial_summary', JSON.stringify(windowArgs));
+    expect(reports.summary).toHaveBeenCalledExactlyOnceWith(user, { from: new Date(windowArgs.from), to: new Date(windowArgs.to) });
+    expect(result).toStrictEqual({
+      ...windowArgs, tripCount: 2, revenue: '$35,935.10', profit: '$12,045.10', marginPercentage: '33.5%',
+      fetCharged: '$2,200.00', averageRevenue: '$17,967.55', averageProfit: null,
+      collected: { cash: '$20,000.00', fet: '$1,250.00' }, outstanding: { receivables: '$15,935.10', payables: '$800.00' },
+    });
+    expect(JSON.stringify(result)).not.toContain(secretMarker);
+  });
+
+  it.each([
+    ['recent_transactions', { from: '2026-10-19', to: '2026-11-20' }, 'at most 31 days apart'],
+    ['recent_transactions', { from: '2026-11-20', to: '2026-11-19' }, 'on or before'],
+    ['financial_summary', { from: '2025-11-18', to: '2026-11-20' }, 'at most 366 days apart'],
+    ['financial_summary', { from: '2026-11-20', to: '2026-11-19' }, 'on or before'],
+    ['financial_summary', { from: '2026-11-19' }, 'Use a YYYY-MM-DD date'],
+    ['recent_transactions', { from: '2026-02-30', to: '2026-03-01' }, 'YYYY-MM-DD'],
+    ['list_invoices', { open: 'true' }, 'expected boolean'],
+    ['list_operator_bills', { search: 'x' }, '2 characters'],
+    ['list_commissions', { limit: 20 }, 'Unrecognized key'],
+  ])('refuses invalid money arguments for %s %j', async (name, args, problem) => {
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error: expect.stringContaining(problem) });
+    expectNoServiceCalls();
+  });
+
+  it.each(moneyCases)('refuses %s without %s VIEW before calling any service', async (name, module, args) => {
     const access = { ...user.access, [module]: { reach: Reach.ALL, actions: [] } };
     expect(await dispatch({ ...user, access }, name, JSON.stringify(args))).toEqual({ error: 'Not permitted for this account' });
     expectNoServiceCalls();

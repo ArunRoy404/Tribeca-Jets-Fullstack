@@ -7,11 +7,12 @@ import { ReportsService } from './reports.service.js';
 
 /**
  * Reports (#23): reads every figure through the module that owns it.
- * Nothing imports this module, so it adds no cycle.
+ * Exported for the WhatsApp financial summary.
  */
 @Module({
   imports: [TripsModule, ReceivablesModule, OperatorPaymentsModule],
   controllers: [ReportsController],
   providers: [ReportsService],
+  exports: [ReportsService],
 })
 export class ReportsModule {}

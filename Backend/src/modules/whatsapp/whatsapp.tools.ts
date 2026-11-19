@@ -6,10 +6,12 @@ import { calendarDate } from '../../common/dto/dates.js';
 import { MAX_PAGE_SIZE } from '../../common/dto/pagination.dto.js';
 import { createPaymentSchema } from '../../common/dto/payments.js';
 import { toCents } from '../../common/money/cents.js';
+import { MovementDirection, MovementKind } from '../../common/money/movements.js';
 import { formatDollars } from '../../common/money/settlement.js';
 import type { AuthenticatedUser, Paginated } from '../../common/types/api.types.js';
 import {
-  AircraftCategory, AircraftStatus, ClientPriority, ClientStatus, EmptyLegStatus, FlightStatus, FollowUpMethod,
+  AircraftCategory, AircraftStatus, ClientPriority, ClientStatus, CommissionRecipientType, CommissionStatus,
+  EmptyLegStatus, FlightStatus, FollowUpMethod,
   InvoiceStatus, LeadSource, LeadStage, NoteSubjectType, NoteVisibility, OperatorStatus, PaymentMethod, PaymentTerms,
   QuoteStatus, ResponseSpeed, TaskPriority, TaskStatus, TripApprovalStatus, TripRequestStatus, TripStatus, TripType,
 } from '../../generated/prisma/enums.js';
@@ -18,8 +20,12 @@ import { queryAircraftSchema } from '../aircraft/dto/aircraft.dto.js';
 import { AirportsService } from '../airports/airports.service.js';
 import { createAirportSchema, queryAirportsSchema } from '../airports/dto/airport.dto.js';
 import { AuthService } from '../auth/auth.service.js';
+import { ClientCreditsService } from '../client-credits/client-credits.service.js';
+import { clientCreditSummarySchema } from '../client-credits/dto/client-credit.dto.js';
 import { ClientsService } from '../clients/clients.service.js';
 import { createClientSchema, FOLLOW_UP_WINDOWS, queryClientsSchema } from '../clients/dto/client.dto.js';
+import { CommissionsService } from '../commissions/commissions.service.js';
+import { queryCommissionsSchema } from '../commissions/dto/commission.dto.js';
 import { DashboardService } from '../dashboard/dashboard.service.js';
 import { dashboardSummarySchema } from '../dashboard/dto/dashboard.dto.js';
 import { queryEmptyLegsSchema } from '../empty-legs/dto/empty-leg.dto.js';
@@ -29,17 +35,24 @@ import { FlightTrackingService } from '../flight-tracking/flight-tracking.servic
 import { ItinerariesService } from '../itineraries/itineraries.service.js';
 import { queryNotesSchema } from '../notes/dto/note.dto.js';
 import { NotesService } from '../notes/notes.service.js';
+import { queryPayablesSchema } from '../operator-payments/dto/operator-payment.dto.js';
+import { PayableState } from '../operator-payments/operator-payments.amounts.js';
+import { OperatorPaymentsService } from '../operator-payments/operator-payments.service.js';
 import { queryOperatorsSchema } from '../operators/dto/operator.dto.js';
 import { OperatorsService } from '../operators/operators.service.js';
 import { queryQuotesSchema } from '../quotes/dto/quote.dto.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { queryInvoicesSchema } from '../receivables/dto/receivable.dto.js';
-import { paymentProblem, TripPaymentState } from '../receivables/receivables.amounts.js';
+import { InvoiceState, paymentProblem, TripPaymentState } from '../receivables/receivables.amounts.js';
 import { ReceivablesService } from '../receivables/receivables.service.js';
+import { reportWindowSchema } from '../reports/dto/reports.dto.js';
+import { ReportsService } from '../reports/reports.service.js';
 import { ScheduleService } from '../schedule/schedule.service.js';
-import { windowDays } from '../schedule/schedule.calendar.js';
+import { addDays, windowDays } from '../schedule/schedule.calendar.js';
 import { queryTasksSchema } from '../tasks/dto/task.dto.js';
 import { TasksService } from '../tasks/tasks.service.js';
+import { queryTransactionsSchema } from '../transactions/dto/transaction.dto.js';
+import { TransactionsService } from '../transactions/transactions.service.js';
 import { queryTripRequestsSchema, REQUEST_WINDOWS } from '../trip-requests/dto/trip-request.dto.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
 import { queryTripsSchema, rejectTripSchema } from '../trips/dto/trip.dto.js';
@@ -101,6 +114,32 @@ const aircraftArgs = z.object({
     query !== undefined || category !== undefined || minPassengers !== undefined || status !== undefined,
   { message: 'Give a search, category, minimum passenger count or status.' },
 );
+const billsArgs = { open: z.boolean().optional(), search: toolSearch.optional() };
+const listInvoicesArgs = z.object({ ...billsArgs, state: queryInvoicesSchema.shape.state }).strict();
+const listOperatorBillsArgs = z.object({ ...billsArgs, state: queryPayablesSchema.shape.state }).strict();
+const commissionsArgs = z.object({
+  status: z.enum(CommissionStatus).default(CommissionStatus.EARNED), search: toolSearch.optional(),
+}).strict();
+
+const moneyDate = z.iso.date('Use a YYYY-MM-DD date');
+function checkMoneyWindow(maxDaysApart: number) {
+  return ({ from, to }: { from?: string; to?: string }, context: z.RefinementCtx) => {
+    // Zod can run refinements even after a date fails its field check.
+    const start = moneyDate.safeParse(from);
+    const end = moneyDate.safeParse(to);
+    if (!start.success || !end.success) return;
+    if (start.data > end.data) context.addIssue({ code: 'custom', message: '`from` must be on or before `to`', path: ['to'] });
+    if (windowDays(calendarDate.parse(start.data), calendarDate.parse(end.data)) - 1 > maxDaysApart) {
+      context.addIssue({ code: 'custom', message: `Dates must be at most ${maxDaysApart} days apart`, path: ['to'] });
+    }
+  };
+}
+const transactionsArgs = z.object({
+  from: moneyDate.optional(), to: moneyDate.optional(), direction: z.enum(MovementDirection).optional(),
+  kind: z.enum(MovementKind).optional(),
+}).strict().superRefine(checkMoneyWindow(31));
+const financialSummaryArgs = z.object({ from: moneyDate, to: moneyDate }).strict().superRefine(checkMoneyWindow(366));
+
 const timeZoneArgs = z.object({ timeZone: timeZoneSchema.nullable() }).strict();
 const tripReference = z.string().trim().regex(/^(?:TJ-)?\d{1,9}$/i, 'Use a trip reference such as TJ-1048')
   .transform((reference) => Number(reference.replace(/^TJ-/i, '')));
@@ -216,6 +255,31 @@ const invoiceRow = z.object({
   id: z.uuid(), number: z.string(), client: clientName, status: z.enum(InvoiceStatus),
   total: z.number(), paid: z.number(), balance: z.number(),
 });
+const amountOnFile = z.number().nullish();
+const tripReferenceRow = z.object({ reference: z.number() });
+const billRow = z.object({
+  number: z.string(), trip: tripReferenceRow, paid: amountOnFile, balance: amountOnFile, dueDate: z.date().nullable(),
+});
+const invoiceListRow = billRow.extend({ client: clientName, state: z.enum(InvoiceState), total: amountOnFile });
+const operatorBillRow = billRow.extend({ operator: operatorName, state: z.enum(PayableState), amount: amountOnFile });
+const creditSummaryRow = z.object({
+  balance: amountOnFile, credited: amountOnFile, applied: amountOnFile, entries: z.number(), lastMovementAt: z.date().nullable(),
+});
+const commissionRow = z.object({
+  recipientLabel: z.string().nullable(), recipientType: z.enum(CommissionRecipientType), trip: tripReferenceRow,
+  status: z.enum(CommissionStatus), value: amountOnFile, paidAt: z.date().nullable(),
+});
+const transactionRow = z.object({
+  date: z.date(), kind: z.enum(MovementKind), direction: z.enum(MovementDirection), amount: amountOnFile,
+  counterparty: z.object({ name: z.string() }), reference: z.string().nullable(),
+  document: z.object({ number: z.string() }), trip: tripReferenceRow.nullable(),
+});
+const financialSummaryRow = z.object({
+  from: moneyDate, to: moneyDate, tripCount: z.number(), marginPercentage: z.number().nullish(),
+  revenue: amountOnFile, profit: amountOnFile, fetCharged: amountOnFile, averageRevenue: amountOnFile, averageProfit: amountOnFile,
+  collected: z.object({ cash: amountOnFile, fet: amountOnFile }),
+  outstanding: z.object({ receivables: amountOnFile, payables: amountOnFile }),
+});
 const quoteRow = z.object({ id: z.uuid(), reference: z.number() });
 const matchedClientRow = clientName.extend({ id: z.uuid(), email: z.string().nullable() });
 
@@ -225,6 +289,25 @@ const briefDay = (date: Date) => dayFormat.format(date).replace(',', '');
 const displayName = (client: z.infer<typeof clientName>) => nameOf(client) || client.companyName || '—';
 const tripLabel = (reference: number) => `TJ-${reference}`;
 const formatPrice = (amount: number | null) => amount === null ? null : formatDollars(toCents(amount));
+function formatAmounts(amounts: Record<string, number | null | undefined>) {
+  return Object.fromEntries(Object.entries(amounts).flatMap(([field, amount]) =>
+    amount === undefined ? [] : [[field, formatPrice(amount)] as const],
+  ));
+}
+
+function openFilter(open: boolean | undefined, state: string | undefined) {
+  if (open !== undefined) return String(open);
+  return state === undefined ? 'true' : undefined;
+}
+
+function transactionWindow(from: string | undefined, to: string | undefined, timeZone: string) {
+  if (from !== undefined && to !== undefined) return { from, to };
+  // An inclusive seven-day window has six days between its endpoints.
+  if (from !== undefined) return { from, to: isoDay(addDays(calendarDate.parse(from), 6)) };
+  const last = to ?? nowIn(timeZone).date;
+  return { from: isoDay(addDays(calendarDate.parse(last), -6)), to: last };
+}
+
 const paymentLabels: Record<PaymentMethod, string> = {
   WIRE_TRANSFER: 'wire', ACH: 'ACH', CHECK: 'check', ZELLE: 'Zelle', CREDIT_CARD: 'credit card', OTHER: 'other',
 };
@@ -325,6 +408,8 @@ export class WhatsappTools {
     pending: WhatsappPending, itineraries: ItinerariesService, quotes: QuotesService,
     tripRequests: TripRequestsService, notes: NotesService,
     flightTracking: FlightTrackingService, emptyLegs: EmptyLegsService, operators: OperatorsService, aircraft: AircraftService,
+    operatorPayments: OperatorPaymentsService, clientCredits: ClientCreditsService, commissions: CommissionsService,
+    transactions: TransactionsService, reports: ReportsService,
   ) {
     const resolveTrip = async (user: AuthenticatedUser, reference: number) => {
       const label = tripLabel(reference);
@@ -767,6 +852,119 @@ export class WhatsappTools {
                 maxPassengers: row.maxPassengers, operator: row.operator?.name ?? null, homeBase: row.homeBase?.icao ?? null,
               };
             }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'list_invoices',
+        description: 'List up to ten live invoices with client, trip reference, state, total, paid, balance and due date. Open means still owed by the client: DUE, PARTIALLY_PAID or OVERDUE. Default to open if neither state nor open is given. If open is true and a state is given, both must hold. False disables the open filter. Optional search of 2–100 characters.',
+        schema: listInvoicesArgs,
+        permission: { module: Module.RECEIVABLES, action: Action.VIEW },
+        async run(user, { state, open, search }) {
+          const page = await receivables.findAll(user, queryInvoicesSchema.parse({ state, open: openFilter(open, state), search, limit: 10 }));
+          return {
+            total: page.meta.total,
+            invoices: page.items.map((item) => {
+              const row = invoiceListRow.parse(item);
+              return {
+                number: row.number, client: displayName(row.client), tripReference: tripLabel(row.trip.reference),
+                state: row.state, ...formatAmounts({ total: row.total, paid: row.paid, balance: row.balance }),
+                dueDate: isoDay(row.dueDate),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'list_operator_bills',
+        description: 'List up to ten live operator bills with operator, trip reference, state, amount, paid, balance and due date. Open means still owed to the operator: DUE, PARTIALLY_PAID or OVERDUE. Default to open if neither state nor open is given. If open is true and a state is given, both must hold. False disables the open filter. Optional search of 2–100 characters.',
+        schema: listOperatorBillsArgs,
+        permission: { module: Module.OPERATOR_PAYMENTS, action: Action.VIEW },
+        async run(user, { state, open, search }) {
+          const page = await operatorPayments.findAll(user, queryPayablesSchema.parse({ state, open: openFilter(open, state), search, limit: 10 }));
+          return {
+            total: page.meta.total,
+            bills: page.items.map((item) => {
+              const row = operatorBillRow.parse(item);
+              return {
+                number: row.number, operator: row.operator.name, tripReference: tripLabel(row.trip.reference),
+                state: row.state, ...formatAmounts({ amount: row.amount, paid: row.paid, balance: row.balance }),
+                dueDate: isoDay(row.dueDate),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'client_credit',
+        description: 'Read one client’s credit balance, total credited, total applied, entry count and last movement day. Get the client id from find_client first. A Client not found error means there is no client you can see with that id.',
+        schema: clientCreditSummarySchema,
+        permission: { module: Module.CLIENTS, action: Action.VIEW },
+        async run(user, { clientId }) {
+          const row = creditSummaryRow.parse(await clientCredits.summary(user, clientId));
+          return {
+            ...formatAmounts({ balance: row.balance, credited: row.credited, applied: row.applied }),
+            entries: row.entries, lastMovementAt: isoDay(row.lastMovementAt),
+          };
+        },
+      }),
+      defineTool({
+        name: 'list_commissions',
+        description: 'List up to ten live commissions with the recipient name or company, recipient type, trip reference, status, amount and payment day. Default to EARNED commissions, which are owed and unpaid. Optional search of 2–100 characters.',
+        schema: commissionsArgs,
+        permission: { module: Module.COMMISSIONS, action: Action.VIEW },
+        async run(user, { status, search }) {
+          const page = await commissions.findAll(user, queryCommissionsSchema.parse({ status, search, limit: 10 }));
+          return {
+            total: page.meta.total,
+            commissions: page.items.map((item) => {
+              const row = commissionRow.parse(item);
+              return {
+                recipient: row.recipientLabel, recipientType: row.recipientType, tripReference: tripLabel(row.trip.reference),
+                status: row.status, ...formatAmounts({ amount: row.value }), paidAt: isoDay(row.paidAt),
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'recent_transactions',
+        description: 'List up to ten money movements, newest payment day first, with kind, direction, amount, counterparty and ledger references. Dates are inclusive YYYY-MM-DD, at most 31 days apart. The default is seven days ending today in your time zone. Give one date to start or end a seven-day window. Optionally filter by kind or direction.',
+        schema: transactionsArgs,
+        permission: { module: Module.TRANSACTIONS, action: Action.VIEW },
+        async run(user, { from, to, direction, kind }, { timeZone }) {
+          const page = await transactions.findAll(user, queryTransactionsSchema.parse({
+            ...transactionWindow(from, to, timeZone), direction, kind, sortBy: 'date', sortOrder: 'desc', limit: 10,
+          }));
+          return {
+            total: page.meta.total,
+            transactions: page.items.map((item) => {
+              const row = transactionRow.parse(item);
+              return {
+                date: isoDay(row.date), kind: row.kind, direction: row.direction, ...formatAmounts({ amount: row.amount }),
+                counterparty: row.counterparty.name, reference: row.reference,
+                document: { number: row.document.number }, trip: row.trip && { reference: tripLabel(row.trip.reference) },
+              };
+            }),
+          };
+        },
+      }),
+      defineTool({
+        name: 'financial_summary',
+        description: 'Read one financial summary for from and to, inclusive YYYY-MM-DD dates at most 366 days apart. Work out relative periods from the Now line. Revenue, profit, margin, FET charged, trip count and averages count by trip departure day. Cash and FET collected count by payment day in the window. Outstanding receivables and payables are as of today.',
+        schema: financialSummaryArgs,
+        permission: { module: Module.REPORTS, action: Action.VIEW },
+        async run(user, args) {
+          const row = financialSummaryRow.parse(await reports.summary(user, reportWindowSchema.parse(args)));
+          return {
+            from: row.from, to: row.to, tripCount: row.tripCount,
+            ...formatAmounts({
+              revenue: row.revenue, profit: row.profit, fetCharged: row.fetCharged,
+              averageRevenue: row.averageRevenue, averageProfit: row.averageProfit,
+            }),
+            ...(row.marginPercentage === undefined ? {} : { marginPercentage: row.marginPercentage === null ? null : `${row.marginPercentage}%` }),
+            collected: formatAmounts({ cash: row.collected.cash, fet: row.collected.fet }),
+            outstanding: formatAmounts({ receivables: row.outstanding.receivables, payables: row.outstanding.payables }),
           };
         },
       }),

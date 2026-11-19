@@ -7,11 +7,12 @@ import { TransactionsService } from './transactions.service.js';
 
 /**
  * A view over the three money modules, reading each through its own service.
- * Nothing imports this module, so it adds no cycle.
+ * Exported for the WhatsApp ledger read.
  */
 @Module({
   imports: [ReceivablesModule, OperatorPaymentsModule, CommissionsModule],
   controllers: [TransactionsController],
   providers: [TransactionsService],
+  exports: [TransactionsService],
 })
 export class TransactionsModule {}
