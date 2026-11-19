@@ -1219,6 +1219,12 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
   updates the caller's own time zone through `AuthService.updateProfile`.
 - **Tools return an explicit field allowlist, never a spread service row.**
   Only the fields needed to answer the question go to OpenAI.
+- **A desk action is proposed first.** The tool stores its frozen payload
+  and summary in Redis. CONFIRM is handled before the model and takes the
+  action once, within five minutes, for the user it was proposed to. Check
+  their current permission again and let the owning service enforce its rules.
+- **Anything other than CONFIRM cancels the pending action.** Drop it before
+  answering the next message, even when that message proposes a new action.
 - **Memory holds only user text and final replies** — at most six exchanges,
   expiring 30 minutes after the last write. Tool calls and results never
   survive the question; every OpenAI request uses `store: false`.

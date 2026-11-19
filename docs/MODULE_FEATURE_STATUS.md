@@ -1976,7 +1976,7 @@ caller's reach and money permission; the header's **Ask Anything** popover
 
 ---
 
-## WhatsApp assistant (Super Admin) 🟡 *(steps 1–3 of 7 built and reviewed; step 3 live-checked on a real phone 19 Nov 2026)*
+## WhatsApp assistant (Super Admin) 🟡 *(steps 1–3 reviewed, step 4 built and awaiting review)*
 
 Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
 "The WhatsApp assistant is one phone, one Super Admin, signed by Meta".
@@ -2011,13 +2011,16 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
   when a reply throws, Meta's refusal codes logged. **Live-checked 19 Nov**
   from the admin phone through a cloudflared tunnel on the dev database;
   needed the app subscribed to the WABA (plan §4).
+- Step 4 proposes trip approval or decline, lead capture, task completion and
+  payment recording. CONFIRM runs the frozen proposal once through the owning
+  service within five minutes. Any other message cancels it. Two read tools
+  list pending approvals and open tasks.
 
 **Waiting**
 | What | Waits on |
 |---|---|
 | Desk rules such as due dates, flights today and report windows | Migrate the modules that use `todayUtc()` to the company time zone (`MODULES.md` §26 map) |
-| Running in production | Deploy of `roy`, the permanent Meta token, the owner's OK on client data to OpenAI, and the Meta live check of the time zone fix (plan §4, "Going to production") |
-| Approve / decline, leads, tasks, payments over chat | Step 4 |
+| Running in production | Deploy of `roy`, the permanent Meta token, the owner's OK on client data to OpenAI, (the time zone fix passed its Meta live check on 19 Nov; plan §4, "Going to production") |
 | PDFs in the chat | Step 5 |
 | More tools, module by module | Step 6 |
 | Postman entries for the two routes | Step 7 |

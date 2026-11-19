@@ -17,6 +17,17 @@ for a review, and how the owner likes to work, is in
 
 ### Read this first — the state on 19 Nov 2026
 
+- **WhatsApp step 4 (actions with CONFIRM) built, reviewed and live-checked
+  (19 Nov, evening).** Approve/decline a trip, create a lead, complete a
+  task, record a payment — each proposed with a fixed summary and run only
+  on CONFIRM (5 minutes, once, re-checked; anything else cancels). Live:
+  a task completed and a lead cancelled from the phone. Approve, decline
+  and payment were not tried live — the dev database has no pending trip
+  or sent invoice. Details in `docs/WHATSAPP_AI_INTEGRATION.md` §6.
+  **Next: step 5 (PDFs in the chat).** Still open: the permanent Meta
+  token (steps in the WhatsApp plan §4), the owner's OK on client data to
+  OpenAI.
+
 - **Built, reviewed and committed (19 Nov, afternoon): time zones and
   the 24-hour clock.** Codex built it from
   `docs/codex-prompts/timezone-and-24-hour-clock.md`; Claude reviewed,
@@ -24,9 +35,10 @@ for a review, and how the owner likes to work, is in
   `docs/WHATSAPP_AI_INTEGRATION.md` §6, the "Timezone fix" row).
   Migration `20261119120000_time_zones` is applied to this machine's dev
   database; run `npm run db:deploy` elsewhere. Postman entries done
-  (5 examples, Newman green twice). Still to do: a real-browser
-  click-through of the prompt and the pickers (no browser was available to
-  the agent), and a message through Meta. **Next after that: the step 4
+  (5 examples, Newman green twice). Live-checked by the
+  developer on 19 Nov: the browser prompt, the pickers and 24-hour Trips
+  in the browser, and three WhatsApp messages through Meta (Dhaka →
+  London → company time), all correct. Nothing left open. **Next after that: the step 4
   brief.** The desk rules (`todayUtc()`, 14 modules) stay on UTC until
   their own pass.
 
