@@ -122,7 +122,7 @@ export class WhatsappService {
         status: UserStatus.ACTIVE,
         role: UserRole.SUPER_ADMIN,
       },
-      select: { id: true, email: true, role: true, permissions: true },
+      select: { id: true, email: true, role: true, permissions: true, timeZone: true },
     });
     if (!user) {
       this.logger.error(

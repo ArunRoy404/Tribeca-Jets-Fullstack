@@ -1,9 +1,11 @@
 import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { Action, canDo, Module } from '../../common/authorization/access.js';
+import { formatMomentIn, nowIn, timeZoneSchema } from '../../common/dates/time-zone.js';
 import { calendarDate } from '../../common/dto/dates.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { TripStatus } from '../../generated/prisma/enums.js';
+import { AuthService } from '../auth/auth.service.js';
 import { ClientsService } from '../clients/clients.service.js';
 import { queryClientsSchema } from '../clients/dto/client.dto.js';
 import { DashboardService } from '../dashboard/dashboard.service.js';
@@ -31,6 +33,7 @@ const flightsArgs = z.object({
 // Reuse the DTO's enum and WEEK default rather than keeping another default.
 const dashboardArgs = dashboardSummarySchema.pick({ period: true });
 const clientArgs = z.object({ query: z.string().trim().min(2).max(100) }).strict();
+const timeZoneArgs = z.object({ timeZone: timeZoneSchema.nullable() }).strict();
 
 const person = z.object({ firstName: z.string(), lastName: z.string() });
 const clientName = person.extend({ companyName: z.string().nullable() });
@@ -56,24 +59,32 @@ const clientRow = clientName.extend({
   homeAirport: z.object({ icao: z.string() }).nullable(), nextFollowUpAt: z.date().nullable(),
 });
 
+export interface ToolContext {
+  timeZone: string;
+  companyTimeZone(): Promise<string>;
+}
+
 interface ToolDefinition<S extends z.ZodType> {
   name: string;
   description: string;
   schema: S;
-  permission: { module: Module; action: Action };
-  run(user: AuthenticatedUser, args: z.output<S>): Promise<unknown>;
+  permission: { module: Module; action: Action } | 'own-account';
+  run(user: AuthenticatedUser, args: z.output<S>, context: ToolContext): Promise<unknown>;
 }
 
 /** Validation and capability travel with the tool, so no dispatch can skip them. */
 function defineTool<S extends z.ZodType>(definition: ToolDefinition<S>) {
   return {
     ...definition,
-    async dispatch(user: AuthenticatedUser, raw: unknown): Promise<unknown> {
+    async dispatch(user: AuthenticatedUser, raw: unknown, context: ToolContext): Promise<unknown> {
       const args = definition.schema.safeParse(raw);
       if (!args.success) return { error: args.error.message };
-      const { module, action } = definition.permission;
-      if (!canDo(user.access, module, action)) return { error: 'Not permitted for this account' };
-      return definition.run(user, args.data);
+      // Like PATCH /auth/me, the own-account tool can edit only the caller's row.
+      const permission = definition.permission;
+      if (permission !== 'own-account' && !canDo(user.access, permission.module, permission.action)) {
+        return { error: 'Not permitted for this account' };
+      }
+      return definition.run(user, args.data, context);
     },
   };
 }
@@ -87,7 +98,7 @@ export class WhatsappTools {
   private readonly logger = new Logger(WhatsappTools.name);
   private readonly definitions;
 
-  constructor(schedule: ScheduleService, dashboard: DashboardService, clients: ClientsService) {
+  constructor(schedule: ScheduleService, dashboard: DashboardService, clients: ClientsService, auth: AuthService) {
     this.definitions = [
       defineTool({
         name: 'list_flights',
@@ -174,7 +185,7 @@ export class WhatsappTools {
         description: 'Find up to five live clients by name, company, email or phone using a search string of 2–100 characters. The search matches one field at a time, so send a single name (the surname is best), a company, an email or a phone — never a full name. If a surname finds nobody, try the first name. Returns only contact, assignment and follow-up details. Total may exceed the returned clients; narrow the search when it does.',
         schema: clientArgs,
         permission: { module: Module.CLIENTS, action: Action.VIEW },
-        async run(user, args) {
+        async run(user, args, { timeZone }) {
           const page = await clients.findAll(user, queryClientsSchema.parse({ search: args.query, page: 1, limit: 5 }));
           return {
             total: page.meta.total,
@@ -186,10 +197,24 @@ export class WhatsappTools {
                 status: row.status, leadStage: row.leadStage,
                 assignedBroker: row.assignedBroker ? nameOf(row.assignedBroker) : null,
                 homeAirport: row.homeAirport?.icao ?? null,
-                nextFollowUpAt: row.nextFollowUpAt?.toISOString() ?? null,
+                nextFollowUpAt: formatMomentIn(row.nextFollowUpAt, timeZone),
+                timeZone,
               };
             }),
           };
+        },
+      }),
+      defineTool({
+        name: 'set_my_timezone',
+        description: 'Set the Super Admin’s own time zone whenever they say where they are or ask for another zone ("I\'m in London", "use Dubai time"). Send the IANA name for the place they named (London → Europe/London), or null when they ask to use the company time. Do not call it otherwise.',
+        schema: timeZoneArgs,
+        permission: 'own-account',
+        async run(user, { timeZone }, context) {
+          const effective = timeZone ?? await context.companyTimeZone();
+          await auth.updateProfile(user.id, { timeZone }, { ipAddress: null, userAgent: 'WhatsApp assistant' });
+          // Later calls in this reply use the same clock as the confirmation.
+          context.timeZone = effective;
+          return { timeZone: effective, usingCompanyDefault: timeZone === null, now: nowIn(effective) };
         },
       }),
     ];
@@ -201,7 +226,7 @@ export class WhatsappTools {
     }));
   }
 
-  async dispatch(user: AuthenticatedUser, name: string, argumentsJson: string): Promise<unknown> {
+  async dispatch(user: AuthenticatedUser, name: string, argumentsJson: string, context: ToolContext): Promise<unknown> {
     const tool = this.definitions.find((definition) => definition.name === name);
     if (!tool) return { error: 'Unknown tool' };
     let raw: unknown;
@@ -211,7 +236,7 @@ export class WhatsappTools {
       return { error: 'Arguments must be valid JSON' };
     }
     try {
-      return await tool.dispatch(user, raw);
+      return await tool.dispatch(user, raw, context);
     } catch (error: unknown) {
       if (error instanceof HttpException) return { error: error.message };
       // Even error messages can echo SQL or client data. Record the class

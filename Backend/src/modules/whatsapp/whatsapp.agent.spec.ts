@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Logger } from '@nestjs/common';
 import { resolveAccess } from '../../common/authorization/access.js';
+import { DEFAULT_TIME_ZONE } from '../../common/dates/time-zone.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UserRole } from '../../generated/prisma/enums.js';
 import { WhatsappAgent, AI_UNAVAILABLE_REPLY, NARROW_QUESTION_REPLY } from './whatsapp.agent.js';
@@ -47,13 +48,15 @@ describe('WhatsappAgent loop and memory', () => {
   let fixture: ReturnType<typeof memoryFixture>;
   let respond: ReturnType<typeof vi.fn<AiClient['respond']>>;
   let dispatch: ReturnType<typeof vi.fn>;
+  const settings = { read: vi.fn(async () => ({ companyTimeZone: DEFAULT_TIME_ZONE })) };
   let agent: WhatsappAgent;
 
   beforeEach(() => {
     fixture = memoryFixture();
     respond = vi.fn<AiClient['respond']>();
     dispatch = vi.fn().mockResolvedValue({ clients: [{ displayName: 'Alex' }] });
-    agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => [], dispatch } as never);
+    settings.read.mockClear();
+    agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => [], dispatch } as never, settings as never);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -70,7 +73,9 @@ describe('WhatsappAgent loop and memory', () => {
   it('dispatches a tool with the acting user and feeds its result to the next call', async () => {
     respond.mockResolvedValueOnce(calls()).mockResolvedValueOnce(final('Alex is on file.'));
     expect(await agent.reply(user, PHONE, 'Find Alex')).toBe('Alex is on file.');
-    expect(dispatch).toHaveBeenCalledExactlyOnceWith(user, 'find_client', '{"query":"Alex"}');
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith(user, 'find_client', '{"query":"Alex"}', {
+      timeZone: DEFAULT_TIME_ZONE, companyTimeZone: expect.any(Function),
+    });
     expect(respond.mock.calls[1]?.[0].messages).toEqual([
       { kind: 'text', role: 'user', text: 'Find Alex' },
       { kind: 'tool_call', id: 'call-0', name: 'find_client', argumentsJson: '{"query":"Alex"}' },
@@ -133,17 +138,36 @@ describe('WhatsappAgent loop and memory', () => {
     expect(respond).not.toHaveBeenCalled();
   });
 
-  it('injects the current UTC date and supplies the tool specifications', async () => {
+  it.each([
+    ['Asia/Dhaka', 'Fri 20 Nov 2026, 00:00 in Asia/Dhaka'],
+    [null, 'Thu 19 Nov 2026, 13:00 in America/New_York'],
+  ])('injects the effective clock and tool specifications for a preference of %s', async (timeZone, expected) => {
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(new Date('2026-11-17T23:59:00Z'));
+      vi.setSystemTime(new Date('2026-11-19T18:00:00Z'));
       const specs = [{ name: 'find_client', description: 'Find a client', parameters: {} }];
-      agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => specs, dispatch } as never);
+      agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => specs, dispatch } as never, settings as never);
       respond.mockResolvedValue(final('Not on file.'));
-      await agent.reply(user, PHONE, 'Question');
-      expect(respond.mock.calls[0]?.[0].instructions).toContain("Today's date (UTC): 2026-11-17");
+      await agent.reply({ ...user, timeZone }, PHONE, 'Question');
+      expect(respond.mock.calls[0]?.[0].instructions).toContain(`Now: ${expected} — the Super Admin's time zone.`);
+      expect(respond.mock.calls[0]?.[0].instructions).not.toContain('UTC');
       expect(respond.mock.calls[0]?.[0].tools).toEqual(specs);
+      expect(settings.read).toHaveBeenCalledTimes(timeZone === null ? 1 : 0);
     } finally { vi.useRealTimers(); }
+  });
+
+  it('uses the new clock in the AI round after a successful time zone change', async () => {
+    respond.mockResolvedValueOnce({
+      kind: 'tools', calls: [{ id: 'zone', name: 'set_my_timezone', argumentsJson: '{"timeZone":"Asia/Dhaka"}' }],
+    }).mockResolvedValueOnce(final('Using Asia/Dhaka.'));
+    dispatch.mockImplementationOnce(async (_user, _name, _args, context) => {
+      context.timeZone = 'Asia/Dhaka';
+      return { timeZone: 'Asia/Dhaka' };
+    });
+    await agent.reply({ ...user, timeZone: null }, PHONE, 'Use Dhaka time');
+    expect(respond.mock.calls[0]?.[0].instructions).toContain(' in America/New_York —');
+    expect(respond.mock.calls[1]?.[0].instructions).toContain(' in Asia/Dhaka —');
+    expect(settings.read).toHaveBeenCalledTimes(1);
   });
 
   it('trims oldest exchanges to 12 messages and refreshes the 30-minute TTL each write', async () => {
@@ -181,7 +205,7 @@ describe('WhatsappAgent loop and memory', () => {
   });
 
   it('is not ready with a null client and makes no memory write', async () => {
-    agent = new WhatsappAgent(null, fixture.memory, { specs: () => [], dispatch } as never);
+    agent = new WhatsappAgent(null, fixture.memory, { specs: () => [], dispatch } as never, settings as never);
     expect(agent.ready).toBe(false);
     expect(await agent.reply(user, PHONE, 'Question')).toBe(AI_UNAVAILABLE_REPLY);
     expect(fixture.redis.setString).not.toHaveBeenCalled();
@@ -289,7 +313,10 @@ describe('WhatsappService sends replies without logging content', () => {
 
   it('runs all gates and the real agent/memory; logs only the reply length', async () => {
     const fixture = memoryFixture();
-    const agent = new WhatsappAgent({ respond: async () => final(replyText) }, fixture.memory, { specs: () => [] } as never);
+    const agent = new WhatsappAgent(
+      { respond: async () => final(replyText) }, fixture.memory, { specs: () => [] } as never,
+      { read: async () => ({ companyTimeZone: DEFAULT_TIME_ZONE }) } as never,
+    );
     reply.mockImplementation((actingUser, phone, text) => agent.reply(actingUser, phone, text));
     await service.receive([message]);
     expect(reply).toHaveBeenCalledExactlyOnceWith(user, PHONE, message.text);
@@ -332,7 +359,7 @@ describe('WhatsappService sends replies without logging content', () => {
     expect(findFirst.mock.calls[1]?.[0]).toEqual(webhookQuery);
     expect(webhookQuery).toEqual({
       where: { email: { equals: user.email, mode: 'insensitive' }, deletedAt: null, status: 'ACTIVE', role: 'SUPER_ADMIN' },
-      select: { id: true, email: true, role: true, permissions: true },
+      select: { id: true, email: true, role: true, permissions: true, timeZone: true },
     });
     findFirst.mockResolvedValueOnce(null);
     expect(await service.adminForEmail('missing@example.com')).toBeNull();
