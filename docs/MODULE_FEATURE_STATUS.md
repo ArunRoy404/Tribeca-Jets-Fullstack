@@ -59,13 +59,15 @@ Legend: ✅ done · ◐ partly done · ⬅ next · ⬜ not started
   "success" means a session exists; the profile menus' Account and Settings
   items now go somewhere.
 - **My Account** (`/dashboard/account`, profile menu → My Account): own name,
-  phone and photo (`PATCH /auth/me`), password change (`POST
+  phone, photo and **Your time zone** (`PATCH /auth/me`), password change (`POST
   /auth/change-password` — signs out every other device), own two-factor on
   and off (`PATCH /auth/two-factor`, password required), and the signed-in
   devices list with Revoke and "sign out all other devices"
   (`/auth/sessions`). The same list and password dialog sit in Settings ›
   Security. Postman: `01 · Auth › 05 · My Account`, run as the assistant and
   self-restoring.
+- **Your time zone** can follow the company default. The dashboard and portal
+  ask before saving a different browser zone.
 - **Fixed 7 Oct 2026: signed out on reload after "Stay signed in".** The
   server measured idleness by the refresh token's age, which real activity
   never moved. Sessions now carry `lastActiveAt`, moved by `POST
@@ -1885,6 +1887,8 @@ has five sections, the open one in the URL (`?section=`).
 - **Company & Branding** — profile, logo upload / replace / back to built-in
   (checked to be a live image), contact-block preview that follows its
   toggle, three document toggles.
+- **Company time zone** (Company & Branding) — defaults to `America/New_York`
+  and supplies the WhatsApp assistant's clock for users without their own zone.
 - **Security & Session — read by Auth now:** the inactivity timeout (the
   server's idle limit and `/auth/me` → `session`; the
   `AUTH_IDLE_TIMEOUT_MINUTES` env var is gone), the warning length and
@@ -1989,8 +1993,12 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
   (`company_settings.whatsappAssistantEnabled`, off by default).
 - Step 2 prepares text replies through a bounded OpenAI Responses tool loop:
   flight legs (at most 14 days / 25 legs), dashboard KPIs and client search
-  (five results). Every tool validates its arguments, checks VIEW and calls
+  (five results). Each read tool validates its arguments, checks VIEW and calls
   the owning service as the acting Super Admin, returning only allowed fields.
+- **"Today" and "tomorrow"** follow the Super Admin's time zone or the company
+  default. Replies name the date and zone, use a 24-hour clock, and keep
+  departures airport-local. `set_my_timezone` updates the caller's own
+  preference, including clearing it to follow the company.
 - Redis memory holds six exchanges for 30 minutes; `reset` / `new` clears
   it. Tool rows stay out of memory; OpenAI requests use `store: false`.
 - The compiled development command `npm run whatsapp:ask -- "question"`
@@ -2007,8 +2015,8 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
 **Waiting**
 | What | Waits on |
 |---|---|
-| **"Today" / "tomorrow" in the desk's timezone** — today the UTC date, a day off for the US desk or the Dhaka developers every day (crucial) | A company timezone setting (`MODULES.md` §26 map) — the developer, before step 4 |
-| Running in production | Deploy of `roy`, the permanent Meta token, the owner's OK on client data to OpenAI, and the timezone fix (plan §4, "Going to production") |
+| Desk rules such as due dates, flights today and report windows | Migrate the modules that use `todayUtc()` to the company time zone (`MODULES.md` §26 map) |
+| Running in production | Deploy of `roy`, the permanent Meta token, the owner's OK on client data to OpenAI, and the Meta live check of the time zone fix (plan §4, "Going to production") |
 | Approve / decline, leads, tasks, payments over chat | Step 4 |
 | PDFs in the chat | Step 5 |
 | More tools, module by module | Step 6 |

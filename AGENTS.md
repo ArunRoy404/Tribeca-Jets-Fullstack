@@ -361,6 +361,26 @@ Tracking (#14), which read the same trip facts a third and fourth time.
 - **Soft delete everywhere** (`deletedAt`). Historical data is never destroyed.
 - **Auth is httpOnly cookies only.** No token is ever returned to, stored by, or read by the frontend.
 
+## Every time is shown on a 24-hour clock — no exceptions (client's rule)
+
+**The client works in military time throughout** — asked at the start,
+forgotten until 19 Nov 2026, when the developer decided the format:
+**`14:30`, with a colon**, never `2:30 PM`, never `1430`. It holds for
+everything a person reads, with no exception: every screen, picker,
+calendar rail, timestamp, email, merge field, PDF and WhatsApp reply.
+
+- **Use `formatTime` in `lib/time.js` for times of day, `formatTimestamp` in
+  `lib/archive.js` for timestamps, and `formatTime` in the backend's
+  `email.merge.ts` for merge fields.** Nothing passes `undefined` as the
+  locale and lets the browser pick: a US computer shows `2:30 PM`, and the same page then disagrees
+  with itself across the desk.
+- **A picker shows and accepts `14:30`.** The wire format was already
+  `"HH:MM"`; now the label matches it.
+- **The WhatsApp assistant is told to write times as `14:30`**, so the
+  model does not reword a correct time into AM/PM.
+- **AM/PM appearing anywhere is a bug.** Grep for `AM`, `PM`, `hour12`
+  and `toLocale…(undefined` before calling a screen done.
+
 ## Postman collection
 
 `Backend/postman/` is a deliverable, not a scratch file. Every endpoint that ships gets its entry in the same pass as the code.
@@ -1191,9 +1211,12 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
 - **The route answers Meta at once** and handles messages after; it reads
   the payload leniently and never 400s — Meta retries, then disables a
   webhook that refuses it. Message text is never logged.
-- **Every tool call re-checks its permission with `canDo` before calling
+- **Every tool with a module permission re-checks it with `canDo` before calling
   a service.** The webhook has no `AccessGuard`; the dispatcher is that
   boundary. An open picker read still needs the screen's VIEW in the bot.
+- **The bot reads "today" in the asker's zone**, using the company's when
+  their own is unset. `set_my_timezone` is the only `'own-account'` tool and
+  updates the caller's own time zone through `AuthService.updateProfile`.
 - **Tools return an explicit field allowlist, never a spread service row.**
   Only the fields needed to answer the question go to OpenAI.
 - **Memory holds only user text and final replies** — at most six exchanges,
@@ -1859,7 +1882,8 @@ translating it back, and they will not all remember.
 **Times of day are `"HH:MM"`, 24-hour, on the wire** — `parseTime` /
 formatting in `src/lib/time.js`. `TimePicker` used to emit `"08:00 AM"`, so a
 client follow-up scheduled with a time was refused by the API and the dialog
-closed as if it had saved. The 12-hour text is produced at render time only.
+closed as if it had saved. What a person reads is 24-hour too — see
+"Every time is shown on a 24-hour clock" in part one.
 
 **A calendar date (`@db.Date`) is rendered with `formatCalendarDate`**, which
 formats in UTC, and loaded into an input with `toDateInput` (both in

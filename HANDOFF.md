@@ -17,6 +17,28 @@ for a review, and how the owner likes to work, is in
 
 ### Read this first — the state on 19 Nov 2026
 
+- **Built, reviewed and committed (19 Nov, afternoon): time zones and
+  the 24-hour clock.** Codex built it from
+  `docs/codex-prompts/timezone-and-24-hour-clock.md`; Claude reviewed,
+  fixed three things and live-checked through `whatsapp:ask` (details in
+  `docs/WHATSAPP_AI_INTEGRATION.md` §6, the "Timezone fix" row).
+  Migration `20261119120000_time_zones` is applied to this machine's dev
+  database; run `npm run db:deploy` elsewhere. Postman entries done
+  (5 examples, Newman green twice). Still to do: a real-browser
+  click-through of the prompt and the pickers (no browser was available to
+  the agent), and a message through Meta. **Next after that: the step 4
+  brief.** The desk rules (`todayUtc()`, 14 modules) stay on UTC until
+  their own pass.
+
+- **New, client's rule, not built yet: every time shown on a 24-hour clock
+  as `14:30`, everywhere, no exceptions** (the client asked for military
+  time at the start; recalled 19 Nov; format decided by the developer).
+  Rule in AGENTS.md part one. Where AM/PM shows today: Schedule
+  (`formatTime12`, the week-grid rail), `TimePicker` / `formatTime24` in
+  `lib/time.js` (which returns 12-hour despite its name), `formatTimestamp`
+  in `lib/archive.js` (browser locale), email merge times
+  (`email.merge.ts`). PDFs already print 24-hour.
+
 - **WhatsApp step 3 passed its live check (19 Nov, 00:20, Windows
   machine).** A question from the admin phone got a read receipt,
   "typing…" and the CRM's answer quoting it. The fix that made it work:
