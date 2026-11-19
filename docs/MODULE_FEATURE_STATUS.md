@@ -1976,7 +1976,7 @@ caller's reach and money permission; the header's **Ask Anything** popover
 
 ---
 
-## WhatsApp assistant (Super Admin) 🟡 *(steps 1–3 reviewed, step 4 built and awaiting review)*
+## WhatsApp assistant (Super Admin) 🟡 *(steps 1–5 reviewed and live)*
 
 Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
 "The WhatsApp assistant is one phone, one Super Admin, signed by Meta".
@@ -2015,13 +2015,16 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
   payment recording. CONFIRM runs the frozen proposal once through the owning
   service within five minutes. Any other message cancels it. Two read tools
   list pending approvals and open tasks.
+- Step 5 sends existing itinerary, quote and invoice PDFs in the chat. The
+  assistant checks the relevant VIEW permissions and sends up to three unique
+  documents to the phone that passed the gates. OpenAI receives the attachment
+  name without the PDF contents.
 
 **Waiting**
 | What | Waits on |
 |---|---|
 | Desk rules such as due dates, flights today and report windows | Migrate the modules that use `todayUtc()` to the company time zone (`MODULES.md` §26 map) |
 | Running in production | Deploy of `roy`, the permanent Meta token, the owner's OK on client data to OpenAI, (the time zone fix passed its Meta live check on 19 Nov; plan §4, "Going to production") |
-| PDFs in the chat | Step 5 |
 | More tools, module by module | Step 6 |
 | Postman entries for the two routes | Step 7 |
 
