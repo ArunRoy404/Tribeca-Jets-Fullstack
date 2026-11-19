@@ -87,7 +87,7 @@ There is no `02`: `02 · Regression checks` restated failures already captured
 beside the requests they belong to, and was removed (26 Sep 2026). The gap is
 kept rather than renumbering every folder after it.
 
-30 folders, 318 requests and 779 captured examples as of 10 Nov 2026. Newman
+30 folders, 318 requests and 784 captured examples as of 19 Nov 2026. Newman
 reports more requests (451) because the pre-request fetches that let a folder
 run alone are counted too.
 

@@ -36,7 +36,7 @@ SECTIONS_DOC = """One set of settings for the whole company (owner's decision, 7
 
 | Section | Fields | Read by |
 |---|---|---|
-| `company` | `companyName`, `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |
+| `company` | `companyName`, `companyTimeZone` (IANA name, default `America/New_York` — "today" for anyone without their own; never in the public branding), `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |
 | `defaults` | `defaultMarkupPercent`, `quoteValidityHours`, `defaultFetPercent`, `applyFetByDefault`, `followUpIntervalDays`, `defaultLeadStage`, `defaultQuoteTerms` | Quotes, Trips, Clients and Leads — each when its module is reviewed. **New records only.** |
 | `security` | `idleLogoutEnabled`, `idleTimeoutMinutes`, `idleWarningMinutes`, `showIdleWarning`, `requireAdminTwoFactor` | Auth, now: whether idle sign-out happens at all (`idleLogoutEnabled`, true/false — off, the browser runs no timer and the API stops refusing idle sessions), the idle limit, the warning (`/auth/me` → `session`) and sign-in |
 | `rateLimits` | `failedSignInLimit`, `failedSignInWindowMinutes`, `signInLockoutMinutes`, `failedSignInScope`, `codeSendLimit`, `codeSendWindowMinutes`, `codeAttemptLimit` | Auth, now: **only failures are limited** (15 Oct 2026). A wrong password counts (an unknown email too); a correct sign-in is never limited and clears the count. The failure that reaches the limit, and every attempt during the pause, answers 429 saying how long. Codes emailed (two-factor resends, reset codes) are counted per address; wrong guesses per code. A wrong current password on My Account follows the same limit, counted apart. |
@@ -76,6 +76,10 @@ def capture() -> dict:
     cap['patch_key'] = owner.request('PATCH', '/settings', {'defaults': {'quoteValidity': 48}})
     cap['patch_warning'] = owner.request('PATCH', '/settings', {'security': {'idleTimeoutMinutes': 5, 'idleWarningMinutes': 5}})
     cap['patch_broker'] = broker.request('PATCH', '/settings', cap['patch_body'])
+    # The company time zone — changed here, put back with everything else below.
+    cap['tz_body'] = {'company': {'companyTimeZone': 'Europe/London'}}
+    cap['patch_tz'] = owner.request('PATCH', '/settings', cap['tz_body'])
+    cap['patch_tz_bad'] = owner.request('PATCH', '/settings', {'company': {'companyTimeZone': 'GMT+6'}})
 
     # Rate limits: a limit set to Never, a value not offered, then a tighter
     # limit and a probe address (no account, so no real person is paused).
@@ -190,6 +194,10 @@ def build(cap: dict) -> dict:
                     example('200 · Saved', 'PATCH', '/settings', *cap['patch'], req_body=cap['patch_body']),
                     example('200 · A logo set (an image upload URL)', 'PATCH', '/settings', *cap['patch_logo'],
                             req_body=cap['logo_body']),
+                    example('200 · The company time zone set', 'PATCH', '/settings', *cap['patch_tz'],
+                            req_body=cap['tz_body']),
+                    example('400 · A fixed offset is not a time zone', 'PATCH', '/settings', *cap['patch_tz_bad'],
+                            req_body={'company': {'companyTimeZone': 'GMT+6'}}),
                     example('400 · Not one of the offered values', 'PATCH', '/settings', *cap['patch_option'],
                             req_body={'defaults': {'quoteValidityHours': 36}}),
                     example('400 · An unknown field', 'PATCH', '/settings', *cap['patch_key'],

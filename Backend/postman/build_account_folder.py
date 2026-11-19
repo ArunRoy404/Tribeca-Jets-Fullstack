@@ -62,6 +62,11 @@ def capture() -> dict:
     cap['profile'] = me.request('PATCH', '/auth/me', same)
     cap['profile_400'] = me.request('PATCH', '/auth/me', {'role': 'SUPER_ADMIN'})
     cap['profile_401'] = anonymous.request('PATCH', '/auth/me', same)
+    # The assistant's own time zone, set and then cleared back to the company's,
+    # so the run leaves the account as it found it.
+    cap['tz'] = expect('time zone', me.request('PATCH', '/auth/me', {'timeZone': 'Europe/London'}), 200)
+    cap['tz_400'] = me.request('PATCH', '/auth/me', {'timeZone': '+06:00'})
+    cap['tz_clear'] = expect('time zone cleared', me.request('PATCH', '/auth/me', {'timeZone': None}), 200)
 
     cap['2fa_on'] = me.request('PATCH', '/auth/two-factor', {'enabled': True, 'currentPassword': PASSWORD})
     cap['2fa_off'] = me.request('PATCH', '/auth/two-factor', {'enabled': False, 'currentPassword': PASSWORD})
@@ -180,10 +185,18 @@ def build(cap: dict) -> dict:
                 'description': (
                     'The signed-in user\'s own firstName, lastName, phone (null clears it) and avatarUrl (an upload '
                     'URL from POST /uploads/image, or null). Email, role and status are refused with a 400 — '
-                    'they are an administrator\'s, through PATCH /users/:id. Answers with the GET /auth/me shape.'),
+                    'they are an administrator\'s, through PATCH /users/:id. Answers with the GET /auth/me shape.\n\n'
+                    '`timeZone` — the person\'s own IANA time zone (`Asia/Dhaka`, `Europe/London`), stored in its '
+                    'canonical spelling; `null` follows the company\'s (`companyTimeZone` in the answer). Fixed '
+                    'offsets (`+06:00`, `GMT+6`, `Etc/GMT+6`) are refused: they break at daylight saving.'),
             },
             'response': [
                 example('200 · Saved', 'PATCH', '/auth/me', *cap['profile'], req_body=cap['profile_body']),
+                example('200 · Time zone set', 'PATCH', '/auth/me', *cap['tz'], req_body={'timeZone': 'Europe/London'}),
+                example('200 · Back to the company time zone', 'PATCH', '/auth/me', *cap['tz_clear'],
+                        req_body={'timeZone': None}),
+                example('400 · A fixed offset is not a time zone', 'PATCH', '/auth/me', *cap['tz_400'],
+                        req_body={'timeZone': '+06:00'}),
                 example('400 · A field this route does not take', 'PATCH', '/auth/me', *cap['profile_400'],
                         req_body={'role': 'SUPER_ADMIN'}),
                 example('401 · Not signed in', 'PATCH', '/auth/me', *cap['profile_401'], req_body=cap['profile_body']),

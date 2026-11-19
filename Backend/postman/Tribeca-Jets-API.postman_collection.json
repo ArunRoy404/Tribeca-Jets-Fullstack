@@ -2676,7 +2676,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"e45b77c1-2412-4748-9896-9987b3e5982c\",\n      \"device\": null,\n      \"ipAddress\": \"127.0.0.1\",\n      \"signedInAt\": \"2026-10-07T05:26:21.968Z\",\n      \"lastActiveAt\": \"2026-10-07T05:26:21.968Z\",\n      \"current\": false\n    },\n    {\n      \"id\": \"8559f080-6786-4a5a-8b2b-d6f221db0d85\",\n      \"device\": null,\n      \"ipAddress\": \"127.0.0.1\",\n      \"signedInAt\": \"2026-10-07T05:26:21.932Z\",\n      \"lastActiveAt\": \"2026-10-07T05:26:21.932Z\",\n      \"current\": true\n    },\n    {\n      \"id\": \"a65e9e71-8b50-4532-add9-8c57eed11b48\",\n      \"device\": null,\n      \"ipAddress\": \"127.0.0.1\",\n      \"signedInAt\": \"2026-10-07T05:25:59.257Z\",\n      \"lastActiveAt\": \"2026-10-07T05:25:59.257Z\",\n      \"current\": false\n    },\n    {\n      \"id\": \"d5e91334-cbe0-4879-a9d9-9908c5dafd38\",\n      \"device\": null,\n      \"ipAddress\": \"127.0.0.1\",\n      \"signedInAt\": \"2026-10-07T05:25:59.134Z\",\n      \"lastActiveAt\": \"2026-10-07T05:25:59.134Z\",\n      \"current\": false\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 4,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"73ff6f21-a727-4ba1-b15e-82defb91e366\",\n      \"device\": null,\n      \"ipAddress\": \"127.0.0.1\",\n      \"signedInAt\": \"2026-11-19T07:46:38.723Z\",\n      \"lastActiveAt\": \"2026-11-19T07:46:38.723Z\",\n      \"current\": false\n    },\n    {\n      \"id\": \"f2f29a9e-32ff-4096-b8c8-8198e2c3049d\",\n      \"device\": null,\n      \"ipAddress\": \"127.0.0.1\",\n      \"signedInAt\": \"2026-11-19T07:46:36.588Z\",\n      \"lastActiveAt\": \"2026-11-19T07:46:36.588Z\",\n      \"current\": true\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 2,\n    \"totalPages\": 1,\n    \"hasNext\": false,\n    \"hasPrevious\": false\n  }\n}"
                 },
                 {
                   "name": "400 \u00b7 A parameter the endpoint does not take",
@@ -2704,7 +2704,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"search\\\"\"\n  },\n  \"path\": \"/api/auth/sessions?search=Chrome\",\n  \"timestamp\": \"2026-10-07T05:26:21.988Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"search\\\"\"\n  },\n  \"path\": \"/api/auth/sessions?search=Chrome\",\n  \"timestamp\": \"2026-11-19T07:46:42.854Z\"\n}"
                 },
                 {
                   "name": "401 \u00b7 Not signed in",
@@ -2732,7 +2732,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/sessions\",\n  \"timestamp\": \"2026-10-07T05:26:21.989Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/sessions\",\n  \"timestamp\": \"2026-11-19T07:46:44.871Z\"\n}"
                 }
               ]
             },
@@ -2796,7 +2796,7 @@
                     }
                   }
                 },
-                "description": "The signed-in user's own firstName, lastName, phone (null clears it) and avatarUrl (an upload URL from POST /uploads/image, or null). Email, role and status are refused with a 400 \u2014 they are an administrator's, through PATCH /users/:id. Answers with the GET /auth/me shape."
+                "description": "The signed-in user's own firstName, lastName, phone (null clears it) and avatarUrl (an upload URL from POST /uploads/image, or null). Email, role and status are refused with a 400 \u2014 they are an administrator's, through PATCH /users/:id. Answers with the GET /auth/me shape.\n\n`timeZone` \u2014 the person's own IANA time zone (`Asia/Dhaka`, `Europe/London`), stored in its canonical spelling; `null` follows the company's (`companyTimeZone` in the answer). Fixed offsets (`+06:00`, `GMT+6`, `Etc/GMT+6`) are refused: they break at daylight saving."
               },
               "response": [
                 {
@@ -2829,7 +2829,103 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"491be7c3-fba2-44f2-8143-ea72a7042268\",\n    \"email\": \"assistant@example.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-10-07T05:26:21.963Z\",\n    \"createdAt\": \"2026-10-07T05:20:22.064Z\",\n    \"commissionTerms\": null,\n    \"permissions\": {\n      \"DASHBOARD\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIPS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"SCHEDULE\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"OPERATOR_SOURCING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"FLIGHT_TRACKING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\",\n          \"EDIT\"\n        ]\n      },\n      \"ITINERARIES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMPTY_LEGS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"CLIENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"LEADS_AGENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIP_REQUESTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"QUOTES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMAIL_TEMPLATES\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\",\n          \"SEND\"\n        ]\n      },\n      \"OPERATORS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRCRAFT\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRPORTS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"DOCUMENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TASKS\": {\n        \"reach\": \"OWN\",\n        \"actions\": [\n          \"VIEW\",\n          \"CREATE\",\n          \"EDIT\"\n        ]\n      }\n    },\n    \"session\": {\n      \"idleTimeoutMinutes\": 10\n    }\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"206e66f6-4ccb-42cf-8de7-1858ef89780e\",\n    \"email\": \"assistant@example.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"timeZone\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-11-19T07:46:38.710Z\",\n    \"createdAt\": \"2026-10-10T15:56:26.358Z\",\n    \"commissionTerms\": null,\n    \"companyTimeZone\": \"America/New_York\",\n    \"permissions\": {\n      \"DASHBOARD\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIPS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"SCHEDULE\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"OPERATOR_SOURCING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"FLIGHT_TRACKING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\",\n          \"EDIT\"\n        ]\n      },\n      \"ITINERARIES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMPTY_LEGS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"CLIENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"LEADS_AGENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIP_REQUESTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"QUOTES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMAIL_TEMPLATES\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\",\n          \"SEND\"\n        ]\n      },\n      \"OPERATORS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRCRAFT\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRPORTS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"DOCUMENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TASKS\": {\n        \"reach\": \"OWN\",\n        \"actions\": [\n          \"VIEW\",\n          \"CREATE\",\n          \"EDIT\"\n        ]\n      }\n    },\n    \"session\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true\n    }\n  }\n}"
+                },
+                {
+                  "name": "200 \u00b7 Time zone set",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/me",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "me"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"timeZone\": \"Europe/London\"\n}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"206e66f6-4ccb-42cf-8de7-1858ef89780e\",\n    \"email\": \"assistant@example.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"timeZone\": \"Europe/London\",\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-11-19T07:46:38.710Z\",\n    \"createdAt\": \"2026-10-10T15:56:26.358Z\",\n    \"commissionTerms\": null,\n    \"companyTimeZone\": \"America/New_York\",\n    \"permissions\": {\n      \"DASHBOARD\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIPS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"SCHEDULE\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"OPERATOR_SOURCING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"FLIGHT_TRACKING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\",\n          \"EDIT\"\n        ]\n      },\n      \"ITINERARIES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMPTY_LEGS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"CLIENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"LEADS_AGENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIP_REQUESTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"QUOTES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMAIL_TEMPLATES\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\",\n          \"SEND\"\n        ]\n      },\n      \"OPERATORS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRCRAFT\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRPORTS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"DOCUMENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TASKS\": {\n        \"reach\": \"OWN\",\n        \"actions\": [\n          \"VIEW\",\n          \"CREATE\",\n          \"EDIT\"\n        ]\n      }\n    },\n    \"session\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true\n    }\n  }\n}"
+                },
+                {
+                  "name": "200 \u00b7 Back to the company time zone",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/me",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "me"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"timeZone\": null\n}"
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"206e66f6-4ccb-42cf-8de7-1858ef89780e\",\n    \"email\": \"assistant@example.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"timeZone\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-11-19T07:46:38.710Z\",\n    \"createdAt\": \"2026-10-10T15:56:26.358Z\",\n    \"commissionTerms\": null,\n    \"companyTimeZone\": \"America/New_York\",\n    \"permissions\": {\n      \"DASHBOARD\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIPS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"SCHEDULE\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"OPERATOR_SOURCING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"FLIGHT_TRACKING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\",\n          \"EDIT\"\n        ]\n      },\n      \"ITINERARIES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMPTY_LEGS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"CLIENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"LEADS_AGENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIP_REQUESTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"QUOTES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMAIL_TEMPLATES\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\",\n          \"SEND\"\n        ]\n      },\n      \"OPERATORS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRCRAFT\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRPORTS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"DOCUMENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TASKS\": {\n        \"reach\": \"OWN\",\n        \"actions\": [\n          \"VIEW\",\n          \"CREATE\",\n          \"EDIT\"\n        ]\n      }\n    },\n    \"session\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true\n    }\n  }\n}"
+                },
+                {
+                  "name": "400 \u00b7 A fixed offset is not a time zone",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/auth/me",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "auth",
+                        "me"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"timeZone\": \"+06:00\"\n}"
+                    }
+                  },
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json; charset=utf-8"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"timeZone\": \"Use a time zone name, e.g. America/New_York\"\n  },\n  \"path\": \"/api/auth/me\",\n  \"timestamp\": \"2026-11-19T07:46:57.134Z\"\n}"
                 },
                 {
                   "name": "400 \u00b7 A field this route does not take",
@@ -2861,7 +2957,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"role\\\"\"\n  },\n  \"path\": \"/api/auth/me\",\n  \"timestamp\": \"2026-10-07T05:26:22.002Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"_\": \"Unrecognized key: \\\"role\\\"\"\n  },\n  \"path\": \"/api/auth/me\",\n  \"timestamp\": \"2026-11-19T07:46:51.002Z\"\n}"
                 },
                 {
                   "name": "401 \u00b7 Not signed in",
@@ -2893,7 +2989,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/me\",\n  \"timestamp\": \"2026-10-07T05:26:22.002Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/me\",\n  \"timestamp\": \"2026-11-19T07:46:53.031Z\"\n}"
                 }
               ]
             },
@@ -2975,7 +3071,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"491be7c3-fba2-44f2-8143-ea72a7042268\",\n    \"email\": \"assistant@example.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"twoFactorEnabled\": true,\n    \"lastLoginAt\": \"2026-10-07T05:26:21.963Z\",\n    \"createdAt\": \"2026-10-07T05:20:22.064Z\",\n    \"commissionTerms\": null,\n    \"permissions\": {\n      \"DASHBOARD\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIPS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"SCHEDULE\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"OPERATOR_SOURCING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"FLIGHT_TRACKING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\",\n          \"EDIT\"\n        ]\n      },\n      \"ITINERARIES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMPTY_LEGS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"CLIENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"LEADS_AGENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIP_REQUESTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"QUOTES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMAIL_TEMPLATES\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\",\n          \"SEND\"\n        ]\n      },\n      \"OPERATORS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRCRAFT\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRPORTS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"DOCUMENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TASKS\": {\n        \"reach\": \"OWN\",\n        \"actions\": [\n          \"VIEW\",\n          \"CREATE\",\n          \"EDIT\"\n        ]\n      }\n    },\n    \"session\": {\n      \"idleTimeoutMinutes\": 10\n    }\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"206e66f6-4ccb-42cf-8de7-1858ef89780e\",\n    \"email\": \"assistant@example.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"timeZone\": null,\n    \"twoFactorEnabled\": true,\n    \"lastLoginAt\": \"2026-11-19T07:46:38.710Z\",\n    \"createdAt\": \"2026-10-10T15:56:26.358Z\",\n    \"commissionTerms\": null,\n    \"companyTimeZone\": \"America/New_York\",\n    \"permissions\": {\n      \"DASHBOARD\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIPS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"SCHEDULE\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"OPERATOR_SOURCING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"FLIGHT_TRACKING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\",\n          \"EDIT\"\n        ]\n      },\n      \"ITINERARIES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMPTY_LEGS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"CLIENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"LEADS_AGENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIP_REQUESTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"QUOTES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMAIL_TEMPLATES\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\",\n          \"SEND\"\n        ]\n      },\n      \"OPERATORS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRCRAFT\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRPORTS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"DOCUMENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TASKS\": {\n        \"reach\": \"OWN\",\n        \"actions\": [\n          \"VIEW\",\n          \"CREATE\",\n          \"EDIT\"\n        ]\n      }\n    },\n    \"session\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true\n    }\n  }\n}"
                 },
                 {
                   "name": "400 \u00b7 Wrong password",
@@ -3007,7 +3103,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/auth/two-factor\",\n  \"timestamp\": \"2026-10-07T05:26:22.101Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/auth/two-factor\",\n  \"timestamp\": \"2026-11-19T07:47:05.504Z\"\n}"
                 }
               ]
             },
@@ -3089,7 +3185,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"491be7c3-fba2-44f2-8143-ea72a7042268\",\n    \"email\": \"assistant@example.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-10-07T05:26:21.963Z\",\n    \"createdAt\": \"2026-10-07T05:20:22.064Z\",\n    \"commissionTerms\": null,\n    \"permissions\": {\n      \"DASHBOARD\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIPS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"SCHEDULE\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"OPERATOR_SOURCING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"FLIGHT_TRACKING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\",\n          \"EDIT\"\n        ]\n      },\n      \"ITINERARIES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMPTY_LEGS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"CLIENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"LEADS_AGENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIP_REQUESTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"QUOTES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMAIL_TEMPLATES\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\",\n          \"SEND\"\n        ]\n      },\n      \"OPERATORS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRCRAFT\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRPORTS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"DOCUMENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TASKS\": {\n        \"reach\": \"OWN\",\n        \"actions\": [\n          \"VIEW\",\n          \"CREATE\",\n          \"EDIT\"\n        ]\n      }\n    },\n    \"session\": {\n      \"idleTimeoutMinutes\": 10\n    }\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"206e66f6-4ccb-42cf-8de7-1858ef89780e\",\n    \"email\": \"assistant@example.com\",\n    \"firstName\": \"Avery\",\n    \"lastName\": \"Assist\",\n    \"phone\": null,\n    \"role\": \"ASSISTANT\",\n    \"status\": \"ACTIVE\",\n    \"avatarUrl\": null,\n    \"timeZone\": null,\n    \"twoFactorEnabled\": false,\n    \"lastLoginAt\": \"2026-11-19T07:46:38.710Z\",\n    \"createdAt\": \"2026-10-10T15:56:26.358Z\",\n    \"commissionTerms\": null,\n    \"companyTimeZone\": \"America/New_York\",\n    \"permissions\": {\n      \"DASHBOARD\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIPS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"SCHEDULE\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"OPERATOR_SOURCING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"FLIGHT_TRACKING\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\",\n          \"EDIT\"\n        ]\n      },\n      \"ITINERARIES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMPTY_LEGS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"CLIENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"LEADS_AGENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TRIP_REQUESTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"QUOTES\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"EMAIL_TEMPLATES\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\",\n          \"SEND\"\n        ]\n      },\n      \"OPERATORS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRCRAFT\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"AIRPORTS\": {\n        \"reach\": \"ALL\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"DOCUMENTS\": {\n        \"reach\": \"ASSIGNED\",\n        \"actions\": [\n          \"VIEW\"\n        ]\n      },\n      \"TASKS\": {\n        \"reach\": \"OWN\",\n        \"actions\": [\n          \"VIEW\",\n          \"CREATE\",\n          \"EDIT\"\n        ]\n      }\n    },\n    \"session\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true\n    }\n  }\n}"
                 }
               ]
             },
@@ -3215,7 +3311,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That is this device. Use Sign out instead.\",\n  \"path\": \"/api/auth/sessions/8559f080-6786-4a5a-8b2b-d6f221db0d85\",\n  \"timestamp\": \"2026-10-07T05:26:22.115Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That is this device. Use Sign out instead.\",\n  \"path\": \"/api/auth/sessions/f2f29a9e-32ff-4096-b8c8-8198e2c3049d\",\n  \"timestamp\": \"2026-11-19T07:47:13.671Z\"\n}"
                 },
                 {
                   "name": "404 \u00b7 Not one of your sessions",
@@ -3244,7 +3340,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That session does not exist\",\n  \"path\": \"/api/auth/sessions/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-10-07T05:26:22.119Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"That session does not exist\",\n  \"path\": \"/api/auth/sessions/00000000-0000-4000-8000-000000000000\",\n  \"timestamp\": \"2026-11-19T07:47:15.735Z\"\n}"
                 }
               ]
             },
@@ -3328,7 +3424,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"signedOutSessions\": 3\n  }\n}"
+                  "body": "{\n  \"success\": true,\n  \"data\": {\n    \"signedOutSessions\": 1\n  }\n}"
                 }
               ]
             },
@@ -3452,7 +3548,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/auth/change-password\",\n  \"timestamp\": \"2026-10-07T05:26:22.184Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/auth/change-password\",\n  \"timestamp\": \"2026-11-19T07:47:22.035Z\"\n}"
                 },
                 {
                   "name": "400 \u00b7 Confirmation does not match",
@@ -3484,7 +3580,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"confirmPassword\": \"Passwords do not match\"\n  },\n  \"path\": \"/api/auth/change-password\",\n  \"timestamp\": \"2026-10-07T05:26:22.187Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"confirmPassword\": \"Passwords do not match\"\n  },\n  \"path\": \"/api/auth/change-password\",\n  \"timestamp\": \"2026-11-19T07:47:24.062Z\"\n}"
                 },
                 {
                   "name": "401 \u00b7 Not signed in",
@@ -3516,7 +3612,7 @@
                     }
                   ],
                   "cookie": [],
-                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/change-password\",\n  \"timestamp\": \"2026-10-07T05:26:22.187Z\"\n}"
+                  "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/auth/change-password\",\n  \"timestamp\": \"2026-11-19T07:47:26.090Z\"\n}"
                 }
               ]
             },
@@ -41981,7 +42077,7 @@
     },
     {
       "name": "30 \u00b7 Settings",
-      "description": "One set of settings for the whole company (owner's decision, 7 Oct 2026) \u2014 never per user. One object per Settings screen:\n\n| Section | Fields | Read by |\n|---|---|---|\n| `company` | `companyName`, `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |\n| `defaults` | `defaultMarkupPercent`, `quoteValidityHours`, `defaultFetPercent`, `applyFetByDefault`, `followUpIntervalDays`, `defaultLeadStage`, `defaultQuoteTerms` | Quotes, Trips, Clients and Leads \u2014 each when its module is reviewed. **New records only.** |\n| `security` | `idleLogoutEnabled`, `idleTimeoutMinutes`, `idleWarningMinutes`, `showIdleWarning`, `requireAdminTwoFactor` | Auth, now: whether idle sign-out happens at all (`idleLogoutEnabled`, true/false \u2014 off, the browser runs no timer and the API stops refusing idle sessions), the idle limit, the warning (`/auth/me` \u2192 `session`) and sign-in |\n| `rateLimits` | `failedSignInLimit`, `failedSignInWindowMinutes`, `signInLockoutMinutes`, `failedSignInScope`, `codeSendLimit`, `codeSendWindowMinutes`, `codeAttemptLimit` | Auth, now: **only failures are limited** (15 Oct 2026). A wrong password counts (an unknown email too); a correct sign-in is never limited and clears the count. The failure that reaches the limit, and every attempt during the pause, answers 429 saying how long. Codes emailed (two-factor resends, reset codes) are counted per address; wrong guesses per code. A wrong current password on My Account follows the same limit, counted apart. |\n| `notifications` | `emailNotifications`, `inAppNotifications`, `flightAlertsToBrokers`, `followUpReminders`, `paymentReminders`, `quoteExpiryReminders`, `quoteExpiryWarningHours`, `paymentReminderDays`, `followUpReminderMinutes` | Stored; read when the alerts are built |\n\n**Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 \u00b7 24 \u00b7 48 \u00b7 72 \u00b7 168 \u2014 `followUpIntervalDays` 1 \u00b7 2 \u00b7 3 \u00b7 5 \u00b7 7 \u2014 `idleTimeoutMinutes` 5 \u00b7 10 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `idleWarningMinutes` 1 \u00b7 2 \u00b7 5 (less than the timeout) \u2014 `quoteExpiryWarningHours` 1 \u00b7 2 \u00b7 4 \u00b7 12 \u00b7 24 \u2014 `paymentReminderDays` 0 \u00b7 1 \u00b7 3 \u00b7 7 \u2014 `followUpReminderMinutes` 0 \u00b7 15 \u00b7 60 \u00b7 1440 \u2014 `failedSignInLimit` 3 \u00b7 5 \u00b7 10 \u00b7 20 \u00b7 `null` (Never) \u2014 `failedSignInWindowMinutes` 5 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `signInLockoutMinutes` 1 \u00b7 5 \u00b7 15 \u00b7 30 \u00b7 60 \u00b7 1440 \u2014 `codeSendLimit` 3 \u00b7 5 \u00b7 10 \u00b7 `null` \u2014 `codeSendWindowMinutes` 15 \u00b7 30 \u00b7 60 \u2014 `codeAttemptLimit` 3 \u00b7 5 \u00b7 10 \u00b7 `null`. `failedSignInScope`: ACCOUNT_AND_IP (default \u2014 one email on one network) | ACCOUNT (one email from anywhere) | IP (everyone on one network). A `null` limit is \"Never\": nothing is counted, and a pause already running lifts. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.\n\n**Permissions:** reading needs Settings \u00b7 View, changing needs Settings \u00b7 Edit \u2014 administrators by default; every other role is locked out (403). The branding and the logo are **public**.",
+      "description": "One set of settings for the whole company (owner's decision, 7 Oct 2026) \u2014 never per user. One object per Settings screen:\n\n| Section | Fields | Read by |\n|---|---|---|\n| `company` | `companyName`, `companyTimeZone` (IANA name, default `America/New_York` \u2014 \"today\" for anyone without their own; never in the public branding), `companyEmail`, `website`, `phone`, `address`, `clientServicesLabel`, `logoUrl`, `showContactBlock`, `logoOnDocuments`, `showBrokerContact` | The public branding (every sidebar, the sign-in page); documents when they are built |\n| `defaults` | `defaultMarkupPercent`, `quoteValidityHours`, `defaultFetPercent`, `applyFetByDefault`, `followUpIntervalDays`, `defaultLeadStage`, `defaultQuoteTerms` | Quotes, Trips, Clients and Leads \u2014 each when its module is reviewed. **New records only.** |\n| `security` | `idleLogoutEnabled`, `idleTimeoutMinutes`, `idleWarningMinutes`, `showIdleWarning`, `requireAdminTwoFactor` | Auth, now: whether idle sign-out happens at all (`idleLogoutEnabled`, true/false \u2014 off, the browser runs no timer and the API stops refusing idle sessions), the idle limit, the warning (`/auth/me` \u2192 `session`) and sign-in |\n| `rateLimits` | `failedSignInLimit`, `failedSignInWindowMinutes`, `signInLockoutMinutes`, `failedSignInScope`, `codeSendLimit`, `codeSendWindowMinutes`, `codeAttemptLimit` | Auth, now: **only failures are limited** (15 Oct 2026). A wrong password counts (an unknown email too); a correct sign-in is never limited and clears the count. The failure that reaches the limit, and every attempt during the pause, answers 429 saying how long. Codes emailed (two-factor resends, reset codes) are counted per address; wrong guesses per code. A wrong current password on My Account follows the same limit, counted apart. |\n| `notifications` | `emailNotifications`, `inAppNotifications`, `flightAlertsToBrokers`, `followUpReminders`, `paymentReminders`, `quoteExpiryReminders`, `quoteExpiryWarningHours`, `paymentReminderDays`, `followUpReminderMinutes` | Stored; read when the alerts are built |\n\n**Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 \u00b7 24 \u00b7 48 \u00b7 72 \u00b7 168 \u2014 `followUpIntervalDays` 1 \u00b7 2 \u00b7 3 \u00b7 5 \u00b7 7 \u2014 `idleTimeoutMinutes` 5 \u00b7 10 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `idleWarningMinutes` 1 \u00b7 2 \u00b7 5 (less than the timeout) \u2014 `quoteExpiryWarningHours` 1 \u00b7 2 \u00b7 4 \u00b7 12 \u00b7 24 \u2014 `paymentReminderDays` 0 \u00b7 1 \u00b7 3 \u00b7 7 \u2014 `followUpReminderMinutes` 0 \u00b7 15 \u00b7 60 \u00b7 1440 \u2014 `failedSignInLimit` 3 \u00b7 5 \u00b7 10 \u00b7 20 \u00b7 `null` (Never) \u2014 `failedSignInWindowMinutes` 5 \u00b7 15 \u00b7 30 \u00b7 60 \u2014 `signInLockoutMinutes` 1 \u00b7 5 \u00b7 15 \u00b7 30 \u00b7 60 \u00b7 1440 \u2014 `codeSendLimit` 3 \u00b7 5 \u00b7 10 \u00b7 `null` \u2014 `codeSendWindowMinutes` 15 \u00b7 30 \u00b7 60 \u2014 `codeAttemptLimit` 3 \u00b7 5 \u00b7 10 \u00b7 `null`. `failedSignInScope`: ACCOUNT_AND_IP (default \u2014 one email on one network) | ACCOUNT (one email from anywhere) | IP (everyone on one network). A `null` limit is \"Never\": nothing is counted, and a pause already running lifts. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.\n\n**Permissions:** reading needs Settings \u00b7 View, changing needs Settings \u00b7 Edit \u2014 administrators by default; every other role is locked out (403). The branding and the logo are **public**.",
       "item": [
         {
           "name": "01 \u00b7 Read the settings",
@@ -42043,7 +42139,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": false,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-10T08:37:04.360Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"America/New_York\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-18T18:16:37.746Z\"\n  }\n}"
             },
             {
               "name": "403 \u00b7 A broker (Settings is locked for the role)",
@@ -42070,7 +42166,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 View\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-10T08:37:10.572Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 View\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:39.251Z\"\n}"
             },
             {
               "name": "401 \u00b7 Signed out",
@@ -42097,7 +42193,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-10T08:37:10.573Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:41.291Z\"\n}"
             }
           ]
         },
@@ -42174,7 +42270,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": false,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-10T08:37:10.578Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"America/New_York\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:47:43.348Z\"\n  }\n}"
             },
             {
               "name": "200 \u00b7 A logo set (an image upload URL)",
@@ -42192,7 +42288,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/f30fa76e-60b9-4dcf-b04e-df51486eb46c\"\n  }\n}"
+                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/012b78ca-9d8c-493c-9365-920aff21a28a\"\n  }\n}"
                 }
               },
               "status": "OK",
@@ -42205,7 +42301,69 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": \"/api/uploads/f30fa76e-60b9-4dcf-b04e-df51486eb46c\",\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": false,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 3,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 1,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-10T08:37:10.766Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"Europe/London\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": \"/api/uploads/012b78ca-9d8c-493c-9365-920aff21a28a\",\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 3,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 1,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:48:28.689Z\"\n  }\n}"
+            },
+            {
+              "name": "200 \u00b7 The company time zone set",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company\": {\n    \"companyTimeZone\": \"Europe/London\"\n  }\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"Europe/London\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:47:53.599Z\"\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 A fixed offset is not a time zone",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company\": {\n    \"companyTimeZone\": \"GMT+6\"\n  }\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"company.companyTimeZone\": \"Use a time zone name, e.g. America/New_York\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:55.669Z\"\n}"
             },
             {
               "name": "400 \u00b7 Not one of the offered values",
@@ -42236,7 +42394,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults.quoteValidityHours\": \"Quote validity must be one of 12, 24, 48, 72, 168\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-10T08:37:10.585Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults.quoteValidityHours\": \"Quote validity must be one of 12, 24, 48, 72, 168\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:45.409Z\"\n}"
             },
             {
               "name": "400 \u00b7 An unknown field",
@@ -42267,7 +42425,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults\": \"Unrecognized key: \\\"quoteValidity\\\"\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-10T08:37:10.587Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults\": \"Unrecognized key: \\\"quoteValidity\\\"\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:47.454Z\"\n}"
             },
             {
               "name": "400 \u00b7 The warning must come before the timeout",
@@ -42298,7 +42456,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"security.idleWarningMinutes\": \"The warning must come before the timeout\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-10T08:37:10.589Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"security.idleWarningMinutes\": \"The warning must come before the timeout\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:49.506Z\"\n}"
             },
             {
               "name": "400 \u00b7 A document is not a logo",
@@ -42329,7 +42487,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Bad Request Exception\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-10T08:37:10.731Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Bad Request Exception\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:48:12.271Z\"\n}"
             },
             {
               "name": "403 \u00b7 A broker",
@@ -42360,7 +42518,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 Edit\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-10T08:37:10.590Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 Edit\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:51.549Z\"\n}"
             },
             {
               "name": "200 \u00b7 Rate limits \u2014 a limit set to Never (null)",
@@ -42391,7 +42549,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": false,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": null,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-10T08:37:10.595Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"Europe/London\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": null,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:47:57.708Z\"\n  }\n}"
             },
             {
               "name": "400 \u00b7 A rate limit that is not offered",
@@ -42422,7 +42580,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"rateLimits.failedSignInLimit\": \"Failed sign-ins allowed must be one of 3, 5, 10, 20, or null for Never\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-10T08:37:10.603Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"rateLimits.failedSignInLimit\": \"Failed sign-ins allowed must be one of 3, 5, 10, 20, or null for Never\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:59.771Z\"\n}"
             },
             {
               "name": "401 \u00b7 Then, with 3 failed sign-ins allowed, the second wrong password warns",
@@ -42441,7 +42599,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"locked-0f90360d@example.com\",\n  \"password\": \"not-the-password\"\n}"
+                  "raw": "{\n  \"email\": \"locked-850ccba4@example.com\",\n  \"password\": \"not-the-password\"\n}"
                 }
               },
               "status": "Unauthorized",
@@ -42454,7 +42612,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password. 1 more failed attempt will pause sign-in for 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-11-10T08:37:10.681Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password. 1 more failed attempt will pause sign-in for 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-11-19T07:48:06.029Z\"\n}"
             },
             {
               "name": "429 \u00b7 \u2026and the third pauses sign-in, saying for how long",
@@ -42473,7 +42631,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"locked-0f90360d@example.com\",\n  \"password\": \"not-the-password\"\n}"
+                  "raw": "{\n  \"email\": \"locked-850ccba4@example.com\",\n  \"password\": \"not-the-password\"\n}"
                 }
               },
               "status": "Too Many Requests",
@@ -42486,7 +42644,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 429,\n  \"message\": \"Too many failed sign-in attempts. Please try again in 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-11-10T08:37:10.716Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 429,\n  \"message\": \"Too many failed sign-in attempts. Please try again in 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-11-19T07:48:08.110Z\"\n}"
             },
             {
               "name": "200 \u00b7 Then, with \"require 2FA for administrators\" on, the owner signing in is asked for a code",
@@ -42518,7 +42676,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"ad***@example.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"182573\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"ad***@example.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"669107\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
             }
           ]
         },
@@ -42553,6 +42711,34 @@
           },
           "response": [
             {
+              "name": "200 \u00b7 The branding with the contact block",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/branding",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "branding"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"logoUrl\": null,\n    \"logoOnDarkUrl\": null,\n    \"contact\": {\n      \"email\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\"\n    },\n    \"documents\": {\n      \"showContactBlock\": true,\n      \"showLogo\": true,\n      \"showBrokerContact\": true\n    }\n  }\n}"
+            },
+            {
               "name": "200 \u00b7 The branding without the contact block",
               "originalRequest": {
                 "method": "GET",
@@ -42579,34 +42765,6 @@
               ],
               "cookie": [],
               "body": "{\n  \"success\": true,\n  \"data\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"logoUrl\": null,\n    \"logoOnDarkUrl\": null,\n    \"contact\": null,\n    \"documents\": {\n      \"showContactBlock\": false,\n      \"showLogo\": true,\n      \"showBrokerContact\": true\n    }\n  }\n}"
-            },
-            {
-              "name": "200 \u00b7 The branding with the contact block",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/settings/branding",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "settings",
-                    "branding"
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"logoUrl\": null,\n    \"logoOnDarkUrl\": null,\n    \"contact\": {\n      \"email\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\"\n    },\n    \"documents\": {\n      \"showContactBlock\": true,\n      \"showLogo\": true,\n      \"showBrokerContact\": true\n    }\n  }\n}"
             }
           ]
         },
@@ -42650,7 +42808,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo?v=f30fa76e-60b9-4dcf-b04e-df51486eb46c",
+                  "raw": "{{baseUrl}}/settings/branding/logo?v=012b78ca-9d8c-493c-9365-920aff21a28a",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -42700,7 +42858,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo has been set.\",\n  \"path\": \"/api/settings/branding/logo\",\n  \"timestamp\": \"2026-11-10T08:37:10.755Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo has been set.\",\n  \"path\": \"/api/settings/branding/logo\",\n  \"timestamp\": \"2026-11-19T07:48:24.564Z\"\n}"
             }
           ]
         },
@@ -42744,7 +42902,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo-on-dark?v=f30fa76e-60b9-4dcf-b04e-df51486eb46c",
+                  "raw": "{{baseUrl}}/settings/branding/logo-on-dark?v=012b78ca-9d8c-493c-9365-920aff21a28a",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -42794,7 +42952,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo for dark backgrounds has been set.\",\n  \"path\": \"/api/settings/branding/logo-on-dark\",\n  \"timestamp\": \"2026-11-10T08:37:10.781Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo for dark backgrounds has been set.\",\n  \"path\": \"/api/settings/branding/logo-on-dark\",\n  \"timestamp\": \"2026-11-19T07:48:36.847Z\"\n}"
             }
           ]
         },
@@ -42871,7 +43029,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"companyEmail\": \"fly@tribecajets.com\",\n    \"website\": null,\n    \"phone\": null,\n    \"address\": \"test address\",\n    \"clientServicesLabel\": \"test label\",\n    \"logoUrl\": null,\n    \"logoOnDarkUrl\": null,\n    \"showContactBlock\": false,\n    \"logoOnDocuments\": true,\n    \"showBrokerContact\": true,\n    \"wireBankName\": null,\n    \"wireBeneficiaryName\": null,\n    \"wireRoutingNumber\": null,\n    \"wireAccountNumber\": null,\n    \"wireSwiftBic\": null,\n    \"wireInstructions\": null\n  },\n  \"defaults\": {\n    \"defaultMarkupPercent\": 15,\n    \"quoteValidityHours\": 24,\n    \"defaultFetPercent\": 7.5,\n    \"applyFetByDefault\": true,\n    \"followUpIntervalDays\": 3,\n    \"defaultLeadStage\": \"NEW\",\n    \"defaultQuoteTerms\": null\n  },\n  \"security\": {\n    \"idleLogoutEnabled\": false,\n    \"idleTimeoutMinutes\": 10,\n    \"idleWarningMinutes\": 1,\n    \"showIdleWarning\": true,\n    \"requireAdminTwoFactor\": false\n  },\n  \"rateLimits\": {\n    \"failedSignInLimit\": 5,\n    \"failedSignInWindowMinutes\": 15,\n    \"signInLockoutMinutes\": 15,\n    \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n    \"codeSendLimit\": 3,\n    \"codeSendWindowMinutes\": 15,\n    \"codeAttemptLimit\": 5\n  },\n  \"notifications\": {\n    \"emailNotifications\": true,\n    \"inAppNotifications\": true,\n    \"flightAlertsToBrokers\": true,\n    \"followUpReminders\": true,\n    \"paymentReminders\": true,\n    \"quoteExpiryReminders\": true,\n    \"quoteExpiryWarningHours\": 4,\n    \"paymentReminderDays\": 1,\n    \"followUpReminderMinutes\": 0\n  }\n}"
+                  "raw": "{\n  \"company\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"companyTimeZone\": \"America/New_York\",\n    \"companyEmail\": \"operations@tribecajets.com\",\n    \"website\": \"https://tribecajets.com\",\n    \"phone\": \"+1 (212) 555-0100\",\n    \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n    \"clientServicesLabel\": \"Private Client Desk\",\n    \"logoUrl\": null,\n    \"logoOnDarkUrl\": null,\n    \"showContactBlock\": true,\n    \"logoOnDocuments\": true,\n    \"showBrokerContact\": true,\n    \"wireBankName\": null,\n    \"wireBeneficiaryName\": null,\n    \"wireRoutingNumber\": null,\n    \"wireAccountNumber\": null,\n    \"wireSwiftBic\": null,\n    \"wireInstructions\": null\n  },\n  \"defaults\": {\n    \"defaultMarkupPercent\": 15,\n    \"quoteValidityHours\": 24,\n    \"defaultFetPercent\": 7.5,\n    \"applyFetByDefault\": true,\n    \"followUpIntervalDays\": 3,\n    \"defaultLeadStage\": \"NEW\",\n    \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n  },\n  \"security\": {\n    \"idleLogoutEnabled\": true,\n    \"idleTimeoutMinutes\": 10,\n    \"idleWarningMinutes\": 1,\n    \"showIdleWarning\": true,\n    \"requireAdminTwoFactor\": false,\n    \"whatsappAssistantEnabled\": true\n  },\n  \"rateLimits\": {\n    \"failedSignInLimit\": 5,\n    \"failedSignInWindowMinutes\": 15,\n    \"signInLockoutMinutes\": 15,\n    \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n    \"codeSendLimit\": 3,\n    \"codeSendWindowMinutes\": 15,\n    \"codeAttemptLimit\": 5\n  },\n  \"notifications\": {\n    \"emailNotifications\": true,\n    \"inAppNotifications\": true,\n    \"flightAlertsToBrokers\": true,\n    \"followUpReminders\": true,\n    \"paymentReminders\": true,\n    \"quoteExpiryReminders\": true,\n    \"quoteExpiryWarningHours\": 4,\n    \"paymentReminderDays\": 1,\n    \"followUpReminderMinutes\": 0\n  }\n}"
                 }
               },
               "status": "OK",
@@ -42884,7 +43042,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyEmail\": \"fly@tribecajets.com\",\n      \"website\": null,\n      \"phone\": null,\n      \"address\": \"test address\",\n      \"clientServicesLabel\": \"test label\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": null\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": false,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-10T08:37:10.845Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"America/New_York\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:48:49.217Z\"\n  }\n}"
             }
           ]
         }
