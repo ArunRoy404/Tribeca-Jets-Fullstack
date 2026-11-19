@@ -1603,8 +1603,12 @@ the first time.
   the first. Quotes spread its visibility (`OR` own / unassigned) and its
   search (`OR` client / operator / aircraft) side by side, so a broker
   limited to their own quotes saw every quote as soon as they typed a search
-  (found 19 Nov 2026). Join them: `AND: [this.visibilityScope(user),
-  this.searchWhere(query.search)]` — `quotes.scope.spec.ts` pins it.
+  (found 19 Nov 2026), and Trip Requests did the same (found the same
+  day). Join them: `AND: [this.visibilityScope(user),
+  this.searchWhere(query.search)]` — `quotes.scope.spec.ts` and
+  `trip-requests.scope.spec.ts` pin it. A `where` that already spreads an
+  `AND` folds its members into the one `AND` — a second spread `AND`
+  overwrites the first just the same.
 
 ## Errors
 

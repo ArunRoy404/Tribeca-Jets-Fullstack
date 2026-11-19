@@ -211,6 +211,23 @@ export class TripRequestsService {
     };
   }
 
+  /** "TR-1042", the summary, the client and the route. Empty with no search. */
+  private searchWhere(search: string | undefined): Prisma.TripRequestWhereInput {
+    if (!search) return {};
+    const reference = referenceFromSearch(search, 'TR');
+    return {
+      OR: [
+        ...(reference !== null ? [{ reference }] : []),
+        { summary: { contains: search, mode: 'insensitive' } },
+        { client: { firstName: { contains: search, mode: 'insensitive' } } },
+        { client: { lastName: { contains: search, mode: 'insensitive' } } },
+        { client: { companyName: { contains: search, mode: 'insensitive' } } },
+        { originAirport: { icao: { contains: search, mode: 'insensitive' } } },
+        { destinationAirport: { icao: { contains: search, mode: 'insensitive' } } },
+      ],
+    };
+  }
+
   /** Rejects a client, broker or airport the caller cannot actually link to. */
   private async assertClient(id: string): Promise<void> {
     const client = await this.prisma.client.findFirst({
@@ -247,22 +264,20 @@ export class TripRequestsService {
   ): Promise<Paginated<unknown>> {
     const { skip, take } = toPrismaPagination(query);
 
-    const trRef = query.search ? referenceFromSearch(query.search, 'TR') : null;
-    const searchConditions: Prisma.TripRequestWhereInput[] = query.search
-      ? [
-          ...(trRef !== null ? [{ reference: trRef }] : []),
-          { summary: { contains: query.search, mode: 'insensitive' } },
-          { client: { firstName: { contains: query.search, mode: 'insensitive' } } },
-          { client: { lastName: { contains: query.search, mode: 'insensitive' } } },
-          { client: { companyName: { contains: query.search, mode: 'insensitive' } } },
-          { originAirport: { icao: { contains: query.search, mode: 'insensitive' } } },
-          { destinationAirport: { icao: { contains: query.search, mode: 'insensitive' } } },
-        ]
-      : [];
-
     const where: Prisma.TripRequestWhereInput = {
       ...archiveFilter(query.archived),
-      ...this.visibilityScope(user),
+      /**
+       * Visibility and search are both an `OR`, so they are joined with
+       * `AND`, never spread side by side: spread, the search's `OR` replaced
+       * the visibility's, and a broker limited to their own requests saw
+       * everyone's as soon as they searched (found 19 Nov). The client list
+       * joins the same `AND`, so no second one overwrites it.
+       */
+      AND: [
+        this.visibilityScope(user),
+        this.searchWhere(query.search),
+        ...(query.clientIds ? [{ clientId: { in: query.clientIds } }] : []),
+      ],
       ...equalsAny(query, [
         'status',
         'source',
@@ -273,11 +288,9 @@ export class TripRequestsService {
         'destinationAirportId',
       ]),
       ...departureFilter(query.departure),
-      ...(query.clientIds ? { AND: [{ clientId: { in: query.clientIds } }] } : {}),
       // The working list, not the archive: a converted or lost request is
       // history, and leaving it on the board buries the ones needing a price.
       ...(query.openOnly ? { status: { in: OPEN_STATUSES } } : {}),
-      ...(searchConditions.length ? { OR: searchConditions } : {}),
     };
 
     const [rows, total] = await this.prisma.$transaction([
