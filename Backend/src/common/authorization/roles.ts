@@ -23,6 +23,13 @@ export const ASSIGNABLE_ROLES: UserRole[] = [
 ];
 
 /**
+ * Who can own a client or a trip — the assigned broker. Paired with the
+ * frontend's `BROKER_ROLES` in `src/lib/roles.js`: the pickers offer these
+ * roles and the server accepts these roles. Change both together.
+ */
+export const BROKER_ROLES: UserRole[] = [UserRole.BROKER, UserRole.ADMIN, UserRole.SUPER_ADMIN];
+
+/**
  * Whether this caller is an outside partner rather than desk staff.
  *
  * A referral agent's per-person permissions already exclude every desk

@@ -408,6 +408,19 @@ For clean testing, the database was wiped and seeded with standard baseline data
   signed off). Unit tests for the helper (it has none), a pass over its 19
   callers (trip references, emails, phones with spaces), a live check and a
   Newman run (31 requests send `search`). About 1–1.5 hours, its own commit.
+- **The assigned broker is only checked properly by Clients** (found 19 Nov
+  by Codex, WhatsApp step 6d). Trips, Trip Requests and Quotes accept any
+  live account as `assignedBrokerId` — an assistant or a referral agent
+  passes — and Commissions refuses only the referral agent. The pickers
+  offer only `BROKER_ROLES`, so the screens never send one; a direct API
+  call can. `BROKER_ROLES` is now in `common/authorization/roles.ts` (paired
+  with the frontend's) and Clients uses it; move each module's
+  `assertBroker` onto it at its next review, with a test and a Postman
+  example for the 400.
+- **Client Credits refuses the Assistant role with a role check**
+  (`client-credits.service.ts`, `client()`), which "Authority is never a
+  role check in a service" forbids — an action in the catalogue is the
+  rule. Fix at the module's next review (found 19 Nov).
 - The Leads table reads the newest 100 enquiries of the leads on the page;
   a lead with a very long enquiry history could crowd others out of that
   window (each lead's latest is what is shown).

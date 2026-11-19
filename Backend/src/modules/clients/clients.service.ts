@@ -33,6 +33,7 @@ import {
   canDo,
   reachOf,
 } from '../../common/authorization/access.js';
+import { BROKER_ROLES } from '../../common/authorization/roles.js';
 import { AirportsService } from '../airports/airports.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import {
@@ -199,7 +200,7 @@ export class ClientsService {
       where: {
         id,
         deletedAt: null,
-        role: { in: [UserRole.BROKER, UserRole.ADMIN, UserRole.SUPER_ADMIN] },
+        role: { in: BROKER_ROLES },
       },
       select: { id: true, status: true },
     });
@@ -625,9 +626,7 @@ export class ClientsService {
       where: {
         deletedAt: null,
         status: UserStatus.ACTIVE,
-        role: {
-          in: [UserRole.BROKER, UserRole.ADMIN, UserRole.SUPER_ADMIN],
-        },
+        role: { in: BROKER_ROLES },
       },
       select: {
         id: true,
