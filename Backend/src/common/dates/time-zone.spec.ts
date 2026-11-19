@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_TIME_ZONE, formatMomentIn, nowIn, timeZoneSchema } from './time-zone.js';
+import { DEFAULT_TIME_ZONE, formatMomentIn, momentIn, nowIn, timeZoneSchema } from './time-zone.js';
 
 describe('timeZoneSchema', () => {
   it('trims and accepts a named zone', () => {
@@ -49,5 +49,30 @@ describe('formatMomentIn', () => {
     expect(formatMomentIn(null, DEFAULT_TIME_ZONE)).toBeNull();
     expect(formatMomentIn('invalid', DEFAULT_TIME_ZONE)).toBeNull();
     expect(formatMomentIn(new Date(NaN), DEFAULT_TIME_ZONE)).toBeNull();
+  });
+});
+
+describe('momentIn', () => {
+  it.each([
+    ['2026-11-20', '14:30', 'America/New_York', '2026-11-20T19:30:00.000Z'],
+    ['2026-03-08', '01:30', 'America/New_York', '2026-03-08T06:30:00.000Z'],
+    ['2026-03-08', '03:30', 'America/New_York', '2026-03-08T07:30:00.000Z'],
+    ['2026-11-01', '01:30', 'America/New_York', '2026-11-01T05:30:00.000Z'],
+    ['2026-11-20', '14:30', 'Asia/Dhaka', '2026-11-20T08:30:00.000Z'],
+    ['2026-11-20', '00:00', 'Asia/Dhaka', '2026-11-19T18:00:00.000Z'],
+    ['2026-07-20', '14:30', 'Europe/London', '2026-07-20T13:30:00.000Z'],
+    ['2026-11-20', '14:30', 'Europe/London', '2026-11-20T14:30:00.000Z'],
+    ['2026-04-05', '01:45', 'Australia/Lord_Howe', '2026-04-04T14:45:00.000Z'],
+  ])('resolves %s %s in %s to %s', (date, time, zone, expected) => {
+    expect(momentIn(date, time, zone)).toEqual(new Date(expected));
+  });
+
+  it.each([
+    ['2026-03-08', '02:30', 'America/New_York'],
+    ['2026-10-04', '02:15', 'Australia/Lord_Howe'],
+    ['2026-02-30', '14:30', 'Asia/Dhaka'],
+    ['2026-11-20', '24:00', 'Europe/London'],
+  ])('refuses the nonexistent local time %s %s in %s', (date, time, zone) => {
+    expect(momentIn(date, time, zone)).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Logger, NotFoundException } from '@nestjs/common';
 import { Action, Module, Reach, resolveAccess } from '../../common/authorization/access.js';
+import { BROKER_ROLES } from '../../common/authorization/roles.js';
 import { DEFAULT_TIME_ZONE } from '../../common/dates/time-zone.js';
 import { MovementDirection, MovementKind } from '../../common/money/movements.js';
 import { paginate, type AuthenticatedUser } from '../../common/types/api.types.js';
@@ -8,7 +9,7 @@ import {
   AircraftCategory, AircraftStatus, ClientPriority, ClientStatus, CommissionRecipientType, CommissionStatus,
   EmptyLegStatus, FlightStatus, FollowUpMethod,
   InvoiceStatus, LeadSource, LeadStage, NoteSubjectType, NoteVisibility, OperatorStatus, PaymentMethod, PaymentTerms,
-  QuoteStatus, ResponseSpeed, TaskStatus, TripApprovalStatus, TripRequestStatus, TripStatus, TripType, UserRole,
+  QuoteStatus, ResponseSpeed, TaskPriority, TaskStatus, TripApprovalStatus, TripRequestStatus, TripStatus, TripType, UserRole,
 } from '../../generated/prisma/enums.js';
 import { PayableState } from '../operator-payments/operator-payments.amounts.js';
 import { InvoiceState, TripPaymentState } from '../receivables/receivables.amounts.js';
@@ -23,8 +24,11 @@ const ORIGIN_ID = '00000000-0000-4000-8000-000000000005';
 const DESTINATION_ID = '00000000-0000-4000-8000-000000000006';
 const QUOTE_ID = '00000000-0000-4000-8000-000000000007';
 const OTHER_QUOTE_ID = '00000000-0000-4000-8000-000000000008';
+const OWNER_ID = '00000000-0000-4000-8000-000000000009';
+const BROKER_ID = '00000000-0000-4000-8000-000000000010';
+const CURRENT_BROKER_ID = '00000000-0000-4000-8000-000000000011';
 const user: AuthenticatedUser = {
-  id: 'owner-id', email: 'owner@example.com', role: UserRole.SUPER_ADMIN,
+  id: OWNER_ID, email: 'owner@example.com', role: UserRole.SUPER_ADMIN,
   access: resolveAccess(UserRole.SUPER_ADMIN, null),
 };
 const windowArgs = { from: '2026-11-17', to: '2026-11-18' };
@@ -59,6 +63,7 @@ const summary = {
 };
 const trip = {
   id: TRIP_ID, reference: 1048, approvalStatus: TripApprovalStatus.PENDING,
+  status: TripStatus.BOOKED, assignedBrokerId: CURRENT_BROKER_ID,
   client, assignedBroker: client.assignedBroker, private: 'PRIVATE TRIP DETAIL',
   legs: [{ originAirport: { icao: 'KTEB' }, destinationAirport: { icao: 'KMIA' }, departureDate: new Date('2026-11-27') }],
 };
@@ -88,6 +93,20 @@ const salesClient = {
   nextFollowUpAt: new Date('2026-11-19T18:10:00Z'), followUpMethod: FollowUpMethod.CALL, followUpNote: 'Confirm the dates',
   secretMarker,
 };
+const liveClient = { ...salesClient, deletedAt: null, assignedBrokerId: CURRENT_BROKER_ID };
+const broker = { id: BROKER_ID, firstName: 'Barry', lastName: 'Wilson' };
+const owner = { id: OWNER_ID, firstName: 'Alex', lastName: 'Owner' };
+const taskCreateArgs = {
+  title: ' Call the operator ', dueDate: '2026-11-27', priority: TaskPriority.HIGH, assignee: 'bArRy WiLsOn',
+  clientId: CLIENT_ID, trip: 'TJ-1048', description: ' Get a firm answer ',
+};
+const followUpArgs = { clientId: CLIENT_ID, date: '2026-11-20', time: '14:30', method: FollowUpMethod.CALL, note: ' Check dates ' };
+const noteText = `${'x'.repeat(79)}😀 then unquoted text`;
+const addNoteArgs = { clientId: CLIENT_ID, body: ` ${noteText} ` };
+const tripStatusArgs = { trip: 'TJ-1048', status: TripStatus.CANCELLED, note: ' Weather ' };
+const tripAssignArgs = { record: 'TRIP', trip: 'TJ-1048', broker: 'Barry' };
+const clientAssignArgs = { record: 'CLIENT', clientId: CLIENT_ID, broker: 'Barry' };
+const quoteSendArgs = { quote: '1042', validUntil: '2026-11-27', note: ' Handed over in person ' };
 const salesRoute = {
   client: salesClient, assignedBroker: salesClient.assignedBroker, departureDate: new Date('2026-11-27'),
   originAirport: { id: ORIGIN_ID, icao: 'KTEB' }, destinationAirport: { id: DESTINATION_ID, icao: 'KMIA' },
@@ -134,16 +153,17 @@ const ledgerQuery = { page: 1, limit: 10, sortBy: 'date', sortOrder: 'desc' };
 describe('WhatsappTools dispatcher', () => {
   let schedule: { findAll: ReturnType<typeof vi.fn> };
   let dashboard: { summary: ReturnType<typeof vi.fn> };
-  let clients: { findAll: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+  const clients = { findAll: vi.fn(), findOne: vi.fn(), subjectRef: vi.fn(), create: vi.fn(), update: vi.fn() };
   let auth: { updateProfile: ReturnType<typeof vi.fn> };
-  const trips = { findAll: vi.fn(), findOne: vi.fn(), approve: vi.fn(), reject: vi.fn() };
-  const tasks = { findAll: vi.fn(), findOne: vi.fn(), update: vi.fn() };
+  const trips = { findAll: vi.fn(), findOne: vi.fn(), approve: vi.fn(), reject: vi.fn(), update: vi.fn(), changeStatus: vi.fn() };
+  const tasks = { findAll: vi.fn(), findOne: vi.fn(), update: vi.fn(), create: vi.fn() };
   const airports = { findAll: vi.fn(), usable: vi.fn() };
   const receivables = { findAll: vi.fn(), recordPayment: vi.fn(), renderPdf: vi.fn() };
   const itineraries = { renderPdfForTrip: vi.fn() };
-  const quotes = { findAll: vi.fn(), renderPdf: vi.fn() };
-  const tripRequests = { findAll: vi.fn() };
-  const notes = { findAll: vi.fn(), timeline: vi.fn() };
+  const quotes = { findAll: vi.fn(), renderPdf: vi.fn(), send: vi.fn() };
+  const tripRequests = { findAll: vi.fn(), create: vi.fn() };
+  const notes = { findAll: vi.fn(), timeline: vi.fn(), create: vi.fn() };
+  const users = { findAll: vi.fn() };
   const flightTracking = { findAll: vi.fn() };
   const emptyLegs = { findAll: vi.fn() };
   const operators = { findAll: vi.fn() };
@@ -160,13 +180,23 @@ describe('WhatsappTools dispatcher', () => {
   let context: ToolContext;
   let tools: WhatsappTools;
   const companyTimeZone = vi.fn(async () => DEFAULT_TIME_ZONE);
+  const expectNoWrites = () => {
+    for (const write of [
+      trips.approve, trips.reject, trips.update, trips.changeStatus, tasks.update, tasks.create,
+      clients.create, clients.update, notes.create, quotes.send, tripRequests.create,
+      receivables.recordPayment, auth.updateProfile,
+    ]) expect(write).not.toHaveBeenCalled();
+  };
 
   beforeEach(() => {
     schedule = { findAll: vi.fn().mockResolvedValue(paginate([flight], 1, 1, 25)) };
     dashboard = { summary: vi.fn().mockResolvedValue(structuredClone(summary)) };
-    clients = { findAll: vi.fn().mockResolvedValue(paginate([client], 1, 1, 5)), create: vi.fn() };
     auth = { updateProfile: vi.fn().mockResolvedValue(undefined) };
     vi.clearAllMocks();
+    clients.findAll.mockReset().mockResolvedValue(paginate([client], 1, 1, 5));
+    clients.findOne.mockReset().mockResolvedValue(liveClient);
+    clients.subjectRef.mockReset().mockResolvedValue({ id: CLIENT_ID, label: 'Alex Vance', archived: false });
+    users.findAll.mockReset().mockResolvedValue(paginate([broker], 1, 1, 100));
     trips.findAll.mockReset().mockResolvedValue(paginate([trip], 1, 1, 100));
     trips.findOne.mockReset().mockResolvedValue(tripDetail);
     tasks.findAll.mockReset().mockResolvedValue(paginate([task], 1, 1, 10));
@@ -190,7 +220,8 @@ describe('WhatsappTools dispatcher', () => {
     tools = new WhatsappTools(schedule as never, dashboard as never, clients as never, auth as never,
       trips as never, tasks as never, airports as never, receivables as never, pending as never, itineraries as never, quotes as never,
       tripRequests as never, notes as never, flightTracking as never, emptyLegs as never, operators as never, aircraft as never,
-      operatorPayments as never, clientCredits as never, commissions as never, transactions as never, reports as never);
+      operatorPayments as never, clientCredits as never, commissions as never, transactions as never, reports as never,
+      users as never);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -205,6 +236,9 @@ describe('WhatsappTools dispatcher', () => {
     expect(schedule.findAll).not.toHaveBeenCalled();
     expect(dashboard.summary).not.toHaveBeenCalled();
     expect(clients.findAll).not.toHaveBeenCalled();
+    expect(clients.findOne).not.toHaveBeenCalled();
+    expect(clients.subjectRef).not.toHaveBeenCalled();
+    expect(users.findAll).not.toHaveBeenCalled();
     expect(auth.updateProfile).not.toHaveBeenCalled();
     expect(trips.findAll).not.toHaveBeenCalled();
     expect(trips.findOne).not.toHaveBeenCalled();
@@ -268,6 +302,8 @@ describe('WhatsappTools dispatcher', () => {
       send_itinerary: { trip: 'TJ-1048' }, send_quote: { quote: 'Q-1042' }, send_invoice: { invoice: invoice.number },
       approve_trip: { reference: 'TJ-1048' }, decline_trip: { reference: '1048' },
       create_lead: leadArgs, complete_task: { taskId: TASK_ID }, record_payment: paymentArgs,
+      create_task: taskCreateArgs, client_follow_up: followUpArgs, add_client_note: addNoteArgs,
+      change_trip_status: tripStatusArgs, reassign: tripAssignArgs, mark_quote_sent: quoteSendArgs,
     };
     for (const { name } of tools.specs().filter((spec) => spec.name !== 'set_my_timezone')) {
       const validArgs = args[name as keyof typeof args];
@@ -427,6 +463,7 @@ describe('WhatsappTools dispatcher', () => {
       ...moneyCases.map(([name]) => name),
       'send_itinerary', 'send_quote', 'send_invoice',
       'approve_trip', 'decline_trip', 'create_lead', 'complete_task', 'record_payment',
+      'create_task', 'client_follow_up', 'add_client_note', 'change_trip_status', 'reassign', 'mark_quote_sent',
     ]);
     expect(specs[0]?.parameters).toMatchObject({ type: 'object', required: ['from', 'to'], properties: { from: { type: 'string', format: 'date' }, to: { type: 'string', format: 'date' } } });
     expect(specs[1]?.parameters).toMatchObject({ properties: { period: { enum: ['TODAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR'], default: 'WEEK' } } });
@@ -434,6 +471,9 @@ describe('WhatsappTools dispatcher', () => {
     expect(specs[3]?.parameters).toMatchObject({
       required: ['timeZone'], additionalProperties: false,
       properties: { timeZone: { anyOf: [{ type: 'string', maxLength: 64 }, { type: 'null' }] } },
+    });
+    expect(specs.find(({ name }) => name === 'reassign')?.parameters).toMatchObject({
+      type: 'object', required: ['record', 'broker'], additionalProperties: false,
     });
     expectNoServiceCalls();
   });
@@ -1086,6 +1126,231 @@ describe('WhatsappTools dispatcher', () => {
     expect(tools.specs(false).some(({ name }) => name === 'approve_trip')).toBe(false);
     expect(await dispatch(user, 'approve_trip', '{"reference":"1048"}')).toEqual({ error: 'Not permitted for this account' });
     expectNoServiceCalls();
+  });
+
+  it.each([
+    ['create_task', taskCreateArgs, {
+      kind: 'TASK_CREATE', payload: {
+        title: 'Call the operator', dueDate: new Date('2026-11-27'), description: 'Get a firm answer',
+        status: TaskStatus.TODO, priority: TaskPriority.HIGH, checklist: [],
+        assigneeId: BROKER_ID, clientId: CLIENT_ID, tripId: TRIP_ID,
+      },
+    }, 'Create task "Call the operator", assigned to Barry Wilson, due Fri 27 Nov, linked to TJ-1048 and Alex Vance'],
+    ['client_follow_up', followUpArgs, {
+      kind: 'CLIENT_FOLLOW_UP', clientId: CLIENT_ID, payload: {
+        nextFollowUpAt: new Date('2026-11-20T08:30:00.000Z'), followUpMethod: FollowUpMethod.CALL, followUpNote: 'Check dates',
+      },
+    }, 'Follow up with Alex Vance on Fri 20 Nov, 14:30 (Asia/Dhaka) by phone (replaces Fri 20 Nov 2026, 00:10 in Asia/Dhaka)'],
+    ['add_client_note', addNoteArgs, {
+      kind: 'NOTE_CREATE', payload: {
+        subjectType: NoteSubjectType.CLIENT, subjectId: CLIENT_ID, visibility: NoteVisibility.INTERNAL, body: noteText,
+      },
+    }, `Add an internal note for Alex Vance: "${'x'.repeat(79)}😀"`],
+    ['change_trip_status', tripStatusArgs, {
+      kind: 'TRIP_STATUS', tripId: TRIP_ID, payload: { status: TripStatus.CANCELLED, note: 'Weather' },
+    }, 'Move TJ-1048 from BOOKED to CANCELLED — this cancels the trip'],
+    ['reassign', tripAssignArgs, {
+      kind: 'TRIP_ASSIGN', tripId: TRIP_ID, payload: { assignedBrokerId: BROKER_ID },
+    }, 'Reassign TJ-1048 from Sam Broker to Barry Wilson — Barry Wilson gets a task and an email about it'],
+    ['reassign', clientAssignArgs, {
+      kind: 'CLIENT_ASSIGN', clientId: CLIENT_ID, payload: { assignedBrokerId: BROKER_ID },
+    }, 'Reassign Alex Vance from Sam Broker to Barry Wilson'],
+    ['mark_quote_sent', quoteSendArgs, {
+      kind: 'QUOTE_SEND', quoteId: QUOTE_ID, payload: { validUntil: new Date('2026-11-27'), note: 'Handed over in person' },
+    }, 'Mark quote Q-1042 as sent, valid until Fri 27 Nov — records it as sent; no email is sent'],
+  ] as const)('freezes a parsed %s proposal with its exact summary and no writes', async (name, args, action, summary) => {
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ proposed: true, summary });
+    expect(pending.put).toHaveBeenCalledExactlyOnceWith(PHONE, {
+      ...action, userId: user.id, summary, createdAt: expect.any(String),
+    });
+    expectNoWrites();
+    expect(quotes.renderPdf).not.toHaveBeenCalled();
+  });
+
+  it('resolves a full staff name case-insensitively across pages even when the first name is shared', async () => {
+    const otherBarry = { ...broker, id: CURRENT_BROKER_ID, lastName: 'Jones' };
+    users.findAll.mockResolvedValueOnce(paginate([otherBarry], 101, 1, 100))
+      .mockResolvedValueOnce(paginate([broker], 101, 2, 100));
+    expect(await dispatch(user, 'create_task', JSON.stringify(taskCreateArgs))).toMatchObject({ proposed: true });
+    expect(users.findAll).toHaveBeenNthCalledWith(2, user, expect.objectContaining({
+      search: 'barry', page: 2, status: 'ACTIVE', role: ['SUPER_ADMIN', 'ADMIN', 'BROKER', 'ASSISTANT'],
+    }));
+    expectNoWrites();
+  });
+
+  it('lists every matching full name when a first name is ambiguous', async () => {
+    const barryJones = { ...broker, id: CURRENT_BROKER_ID, lastName: 'Jones' };
+    const barrySmith = { ...broker, id: OWNER_ID, lastName: 'Smith' };
+    users.findAll.mockResolvedValueOnce(paginate([broker, barryJones], 101, 1, 100))
+      .mockResolvedValueOnce(paginate([barrySmith], 101, 2, 100));
+    expect(await dispatch(user, 'reassign', JSON.stringify(tripAssignArgs))).toEqual({
+      error: 'More than one active staff member matches Barry: Barry Wilson, Barry Jones, Barry Smith',
+    });
+    expect(users.findAll).toHaveBeenNthCalledWith(1, user, expect.objectContaining({
+      search: 'barry', status: 'ACTIVE', role: BROKER_ROLES,
+    }));
+    expect(pending.put).not.toHaveBeenCalled();
+    expectNoWrites();
+  });
+
+  it('creates an unassigned proposal with DTO defaults and no directory lookup', async () => {
+    const actor = { ...user, access: { [Module.TASKS]: { reach: Reach.ALL, actions: [Action.CREATE] } } };
+    expect(await dispatch(actor, 'create_task', '{"title":"Call back"}')).toEqual({
+      proposed: true, summary: 'Create task "Call back", unassigned',
+    });
+    expect(pending.put).toHaveBeenCalledExactlyOnceWith(PHONE, expect.objectContaining({
+      payload: { title: 'Call back', priority: TaskPriority.MEDIUM, status: TaskStatus.TODO, checklist: [] },
+    }));
+    expect(users.findAll).not.toHaveBeenCalled();
+    expectNoWrites();
+  });
+
+  it.each(['me', 'Alex Owner'])('resolves self-assignment by %s with CREATE alone', async (assignee) => {
+    const actor = { ...user, access: { [Module.TASKS]: { reach: Reach.ALL, actions: [Action.CREATE] } } };
+    users.findAll.mockResolvedValueOnce(paginate([owner], 1, 1, 100));
+    expect(await dispatch(actor, 'create_task', JSON.stringify({ title: 'Call back', assignee }))).toEqual({
+      proposed: true, summary: 'Create task "Call back", assigned to Alex Owner',
+    });
+    expect(users.findAll).toHaveBeenCalledExactlyOnceWith(actor, expect.objectContaining({
+      search: assignee === 'me' ? actor.email : 'alex', status: 'ACTIVE',
+    }));
+    expect(pending.put).toHaveBeenCalledExactlyOnceWith(PHONE, expect.objectContaining({
+      payload: expect.objectContaining({ assigneeId: OWNER_ID }),
+    }));
+    expectNoWrites();
+  });
+
+  it.each([
+    ['create_task', taskCreateArgs, { [Module.TASKS]: { reach: Reach.ALL, actions: [Action.CREATE] } }],
+    ['reassign', tripAssignArgs, { [Module.TRIPS]: { reach: Reach.ALL, actions: [Action.EDIT] } }],
+    ['reassign', clientAssignArgs, { [Module.CLIENTS]: { reach: Reach.ALL, actions: [Action.EDIT] } }],
+    ['reassign', clientAssignArgs, { [Module.LEADS_AGENTS]: { reach: Reach.ALL, actions: [Action.ASSIGN] } }],
+    ['reassign', tripAssignArgs, { [Module.TRIPS]: { reach: Reach.ALL, actions: [Action.ASSIGN] } }],
+    ['reassign', tripAssignArgs, { [Module.CLIENTS]: { reach: Reach.ALL, actions: [Action.EDIT, Action.ASSIGN] } }],
+  ] satisfies [string, object, AuthenticatedUser['access']][])('refuses %s without the applicable permissions', async (name, args, access) => {
+    expect(await dispatch({ ...user, access }, name, JSON.stringify(args))).toEqual({ error: 'Not permitted for this account' });
+    if (name === 'reassign') expect(users.findAll).not.toHaveBeenCalled();
+    expect(pending.put).not.toHaveBeenCalled();
+    expectNoWrites();
+  });
+
+  it('allows client reassignment with Clients EDIT and Leads & Agents ASSIGN', async () => {
+    const actor = { ...user, access: {
+      [Module.CLIENTS]: { reach: Reach.ASSIGNED, actions: [Action.EDIT] },
+      [Module.LEADS_AGENTS]: { reach: Reach.ALL, actions: [Action.ASSIGN] },
+    } };
+    expect(await dispatch(actor, 'reassign', JSON.stringify(clientAssignArgs))).toMatchObject({ proposed: true });
+    expect(clients.findOne).toHaveBeenCalledExactlyOnceWith(actor, CLIENT_ID);
+    expect(users.findAll).toHaveBeenCalledExactlyOnceWith(actor, expect.objectContaining({ role: BROKER_ROLES, status: 'ACTIVE' }));
+    expectNoWrites();
+  });
+
+  it('omits the task and email notice when the caller proposes reassigning a trip to themselves', async () => {
+    users.findAll.mockResolvedValueOnce(paginate([owner], 1, 1, 100));
+    const summary = 'Reassign TJ-1048 from Sam Broker to Alex Owner';
+    expect(await dispatch(user, 'reassign', JSON.stringify({ ...tripAssignArgs, broker: 'Alex Owner' }))).toEqual({
+      proposed: true, summary,
+    });
+    expect(pending.put).toHaveBeenCalledExactlyOnceWith(PHONE, expect.objectContaining({
+      kind: 'TRIP_ASSIGN', tripId: TRIP_ID, payload: { assignedBrokerId: user.id }, summary,
+    }));
+    expectNoWrites();
+  });
+
+  it.each([
+    ['create_task', { ...taskCreateArgs, trip: 'TJ-9999' }, 'No trip TJ-9999 you can see'],
+    ['change_trip_status', { ...tripStatusArgs, trip: 'TJ-9999' }, 'No trip TJ-9999 you can see'],
+    ['reassign', { ...tripAssignArgs, trip: 'TJ-9999' }, 'No trip TJ-9999 you can see'],
+    ['mark_quote_sent', { ...quoteSendArgs, quote: 'Q-9999' }, 'No quote Q-9999 you can see'],
+  ])('returns the scoped lookup error from %s', async (name, args, error) => {
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error });
+    expect(pending.put).not.toHaveBeenCalled();
+    expectNoWrites();
+  });
+
+  it.each([
+    ['create_task', taskCreateArgs], ['client_follow_up', followUpArgs],
+    ['add_client_note', addNoteArgs], ['reassign', clientAssignArgs],
+  ])('refuses a missing or archived client in %s', async (name, args) => {
+    clients.findOne.mockRejectedValueOnce(new NotFoundException('Client not found'));
+    clients.subjectRef.mockRejectedValueOnce(new NotFoundException('Client not found'));
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error: 'Client not found' });
+    clients.findOne.mockReset().mockResolvedValueOnce({ ...liveClient, deletedAt: new Date('2026-11-19') });
+    clients.subjectRef.mockReset().mockResolvedValueOnce({ id: CLIENT_ID, label: 'Alex Vance', archived: true });
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error: 'That client has been archived.' });
+    expect(pending.put).not.toHaveBeenCalled();
+    expectNoWrites();
+  });
+
+  it.each([
+    ['create_task', { ...taskCreateArgs, assignee: 'Unknown Person' }],
+    ['reassign', { ...tripAssignArgs, broker: 'Unknown Person' }],
+    ['reassign', { ...clientAssignArgs, broker: 'Unknown Person' }],
+  ])('refuses an unknown staff name in %s', async (name, args) => {
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error: 'No active staff member named Unknown Person' });
+    expect(pending.put).not.toHaveBeenCalled();
+    expectNoWrites();
+  });
+
+  it('defaults a follow-up with no time to 09:00 in the acting time zone', async () => {
+    clients.findOne.mockResolvedValueOnce({ ...liveClient, nextFollowUpAt: null });
+    expect(await dispatch(user, 'client_follow_up', JSON.stringify({ clientId: CLIENT_ID, date: '2026-11-20' }))).toEqual({
+      proposed: true, summary: 'Follow up with Alex Vance on Fri 20 Nov, 09:00 (Asia/Dhaka)',
+    });
+    expect(clients.findOne).toHaveBeenCalledExactlyOnceWith(user, CLIENT_ID);
+    expect(pending.put).toHaveBeenCalledExactlyOnceWith(PHONE, expect.objectContaining({
+      payload: { nextFollowUpAt: new Date('2026-11-20T03:00:00.000Z') },
+    }));
+    expectNoWrites();
+  });
+
+  it('names a follow-up time that the local clock skips without storing it', async () => {
+    context.timeZone = 'America/New_York';
+    expect(await dispatch(user, 'client_follow_up', JSON.stringify({ ...followUpArgs, date: '2026-03-08', time: '02:30' }))).toEqual({
+      error: '2026-03-08 at 02:30 is skipped in America/New_York',
+    });
+    expect(pending.put).not.toHaveBeenCalled();
+    expectNoWrites();
+  });
+
+  it.each([
+    ['add_client_note', { ...addNoteArgs, visibility: 'SHARED' }, 'Unrecognized key'],
+    ['add_client_note', { ...addNoteArgs, body: 'x'.repeat(5001) }, '5000 characters'],
+    ['reassign', { ...tripAssignArgs, clientId: CLIENT_ID }, 'For TRIP give only trip.'],
+    ['reassign', { ...clientAssignArgs, trip: 'TJ-1048' }, 'For CLIENT give only clientId.'],
+  ])('rejects invalid %s arguments before opening records', async (name, args, error) => {
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ error: expect.stringContaining(error) });
+    expectNoServiceCalls();
+    expectNoWrites();
+  });
+
+  it.each([tripAssignArgs, clientAssignArgs])('refuses to reassign a $record to its current broker id', async (args) => {
+    users.findAll.mockResolvedValueOnce(paginate([{ ...broker, id: CURRENT_BROKER_ID }], 1, 1, 100));
+    expect(await dispatch(user, 'reassign', JSON.stringify(args))).toEqual({
+      error: 'Barry Wilson is already assigned to that record',
+    });
+    expect(pending.put).not.toHaveBeenCalled();
+    expectNoWrites();
+  });
+
+  it('lets the status service decide the lifecycle when the proposal is confirmed', async () => {
+    trips.findAll.mockResolvedValueOnce(paginate([{ ...trip, status: TripStatus.COMPLETED }], 1, 1, 100));
+    expect(await dispatch(user, 'change_trip_status', JSON.stringify({ ...tripStatusArgs, status: TripStatus.BOOKED }))).toEqual({
+      proposed: true, summary: 'Move TJ-1048 from COMPLETED to BOOKED',
+    });
+    expectNoWrites();
+  });
+
+  it('uses the same exact paginated quote lookup as the PDF tool and describes no email', async () => {
+    quotes.findAll.mockResolvedValueOnce(paginate([{ ...quote, reference: 9999 }], 101, 1, 100))
+      .mockResolvedValueOnce(paginate([quote], 101, 2, 100));
+    expect(await dispatch(user, 'mark_quote_sent', JSON.stringify({ quote: 'Q-1042' }))).toEqual({
+      proposed: true, summary: 'Mark quote Q-1042 as sent — records it as sent; no email is sent',
+    });
+    expect(quotes.findAll).toHaveBeenNthCalledWith(2, user, expect.objectContaining({ search: 'Q-1042', page: 2, archived: false }));
+    expect(tools.specs().find(({ name }) => name === 'mark_quote_sent')?.description).toContain('no email is sent');
+    expect(quotes.renderPdf).not.toHaveBeenCalled();
+    expectNoWrites();
   });
 
   it.each(documentCases)('%s renders the resolved record and returns only the attachment marker', async (name, args, _module, row, file) => {

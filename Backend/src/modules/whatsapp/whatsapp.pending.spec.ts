@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveAccess } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
-import { PaymentMethod, UserRole } from '../../generated/prisma/enums.js';
+import { FollowUpMethod, NoteSubjectType, NoteVisibility, PaymentMethod, TaskPriority, TaskStatus, TripStatus, UserRole } from '../../generated/prisma/enums.js';
 import { NOTHING_PENDING_REPLY, WhatsappAgent } from './whatsapp.agent.js';
 import type { AiClient } from './whatsapp.ai-client.js';
 import { WhatsappMemory } from './whatsapp.memory.js';
@@ -23,6 +23,29 @@ const completion: PendingAction = {
   kind: 'TASK_COMPLETE', taskId: '00000000-0000-4000-8000-000000000002',
   summary: 'Complete task "Call the broker".', userId: user.id, createdAt: approval.createdAt,
 };
+const CLIENT_ID = '00000000-0000-4000-8000-000000000003';
+const BROKER_ID = '00000000-0000-4000-8000-000000000004';
+const QUOTE_ID = '00000000-0000-4000-8000-000000000005';
+const base = { userId: user.id, summary: 'Frozen proposal', createdAt: approval.createdAt };
+const newNote = {
+  ...base, kind: 'NOTE_CREATE', payload: {
+    subjectType: NoteSubjectType.CLIENT, subjectId: CLIENT_ID, visibility: NoteVisibility.INTERNAL, body: 'Call after the flight.',
+  },
+} satisfies PendingAction;
+const newActions = [
+  { ...base, kind: 'TASK_CREATE', payload: {
+    title: 'Call the broker', priority: TaskPriority.HIGH, status: TaskStatus.TODO, checklist: [],
+    dueDate: new Date('2026-11-20'), assigneeId: BROKER_ID, clientId: CLIENT_ID, tripId: approval.tripId,
+  } },
+  { ...base, kind: 'CLIENT_FOLLOW_UP', clientId: CLIENT_ID, payload: {
+    nextFollowUpAt: new Date('2026-11-20T08:30:00.000Z'), followUpMethod: FollowUpMethod.CALL, followUpNote: 'Ask about the dates',
+  } },
+  newNote,
+  { ...base, kind: 'TRIP_STATUS', tripId: approval.tripId, payload: { status: TripStatus.CANCELLED, note: 'Weather' } },
+  { ...base, kind: 'TRIP_ASSIGN', tripId: approval.tripId, payload: { assignedBrokerId: BROKER_ID } },
+  { ...base, kind: 'CLIENT_ASSIGN', clientId: CLIENT_ID, payload: { assignedBrokerId: BROKER_ID } },
+  { ...base, kind: 'QUOTE_SEND', quoteId: QUOTE_ID, payload: { validUntil: new Date('2026-11-27'), note: 'Hand-delivered' } },
+] satisfies PendingAction[];
 const askToConfirm = (summary: string) =>
   `⚠️ ${summary}\n\nReply *CONFIRM* to proceed or *CANCEL* to abort (expires in 5 minutes).`;
 const textReply = (text: string) => ({ text, documents: [] });
@@ -101,6 +124,14 @@ describe('WhatsappPending', () => {
     await redis.setString(KEY, stored, 300);
     expect(await pending.take(PHONE)).toBeNull();
     expect(await redis.getString(KEY)).toBeNull();
+  });
+
+  it.each(newActions)('round-trips the frozen $kind action with parsed dates', async (action) => {
+    const { pending, redis } = fixture();
+    await pending.put(PHONE, action);
+    expect(redis.setString).toHaveBeenCalledExactlyOnceWith(KEY, JSON.stringify(action), 300);
+    expect(await pending.take(PHONE)).toStrictEqual(action);
+    expect(await pending.take(PHONE)).toBeNull();
   });
 
   it('expires at five minutes and keeps phones separate', async () => {
@@ -182,6 +213,17 @@ describe('WhatsappAgent confirmations', () => {
     expect(await store.memory.load(PHONE)).toEqual([
       { kind: 'text', role: 'user', text }, { kind: 'text', role: 'assistant', text: success },
     ]);
+  });
+
+  it.each([
+    { ...newNote.payload, body: '' },
+    { ...newNote.payload, visibility: NoteVisibility.SHARED },
+  ])('consumes an invalid note payload without executing it on CONFIRM', async (payload) => {
+    await store.redis.setString(KEY, JSON.stringify({ ...newNote, payload }), 300);
+    expect(await agent.reply(user, PHONE, 'CONFIRM', true)).toEqual(textReply(NOTHING_PENDING_REPLY));
+    expect(await store.redis.getString(KEY)).toBeNull();
+    expect(run).not.toHaveBeenCalled();
+    expect(respond).not.toHaveBeenCalled();
   });
 
   it('runs two simultaneous confirmations once', async () => {

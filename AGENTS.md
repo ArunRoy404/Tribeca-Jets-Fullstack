@@ -1227,6 +1227,8 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
   and summary in Redis. CONFIRM is handled before the model and takes the
   action once, within five minutes, for the user it was proposed to. Check
   their current permission again and let the owning service enforce its rules.
+- **A note written by the bot is always INTERNAL.** Marking a quote sent
+  emails nobody, and the confirmation summary says so.
 - **Anything other than CONFIRM cancels the pending action.** Drop it before
   answering the next message, even when that message proposes a new action.
 - **Memory holds only user text and final replies** — at most six exchanges,

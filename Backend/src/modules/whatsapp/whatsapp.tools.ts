@@ -1,7 +1,8 @@
 import { BadRequestException, HttpException, Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { Action, canDo, Module } from '../../common/authorization/access.js';
-import { formatMomentIn, nowIn, timeZoneSchema } from '../../common/dates/time-zone.js';
+import { BROKER_ROLES, isPartner } from '../../common/authorization/roles.js';
+import { formatMomentIn, momentIn, nowIn, timeZoneSchema } from '../../common/dates/time-zone.js';
 import { calendarDate } from '../../common/dto/dates.js';
 import { MAX_PAGE_SIZE } from '../../common/dto/pagination.dto.js';
 import { createPaymentSchema } from '../../common/dto/payments.js';
@@ -14,6 +15,7 @@ import {
   EmptyLegStatus, FlightStatus, FollowUpMethod,
   InvoiceStatus, LeadSource, LeadStage, NoteSubjectType, NoteVisibility, OperatorStatus, PaymentMethod, PaymentTerms,
   QuoteStatus, ResponseSpeed, TaskPriority, TaskStatus, TripApprovalStatus, TripRequestStatus, TripStatus, TripType,
+  UserRole, UserStatus,
 } from '../../generated/prisma/enums.js';
 import { AircraftService } from '../aircraft/aircraft.service.js';
 import { queryAircraftSchema } from '../aircraft/dto/aircraft.dto.js';
@@ -23,7 +25,7 @@ import { AuthService } from '../auth/auth.service.js';
 import { ClientCreditsService } from '../client-credits/client-credits.service.js';
 import { clientCreditSummarySchema } from '../client-credits/dto/client-credit.dto.js';
 import { ClientsService } from '../clients/clients.service.js';
-import { createClientSchema, FOLLOW_UP_WINDOWS, queryClientsSchema } from '../clients/dto/client.dto.js';
+import { createClientSchema, FOLLOW_UP_WINDOWS, queryClientsSchema, updateClientSchema } from '../clients/dto/client.dto.js';
 import { CommissionsService } from '../commissions/commissions.service.js';
 import { queryCommissionsSchema } from '../commissions/dto/commission.dto.js';
 import { DashboardService } from '../dashboard/dashboard.service.js';
@@ -33,14 +35,14 @@ import { EmptyLegsService } from '../empty-legs/empty-legs.service.js';
 import { FLIGHT_WINDOWS, queryFlightsSchema } from '../flight-tracking/dto/flight-tracking.dto.js';
 import { FlightTrackingService } from '../flight-tracking/flight-tracking.service.js';
 import { ItinerariesService } from '../itineraries/itineraries.service.js';
-import { queryNotesSchema } from '../notes/dto/note.dto.js';
+import { createNoteSchema, queryNotesSchema } from '../notes/dto/note.dto.js';
 import { NotesService } from '../notes/notes.service.js';
 import { queryPayablesSchema } from '../operator-payments/dto/operator-payment.dto.js';
 import { PayableState } from '../operator-payments/operator-payments.amounts.js';
 import { OperatorPaymentsService } from '../operator-payments/operator-payments.service.js';
 import { queryOperatorsSchema } from '../operators/dto/operator.dto.js';
 import { OperatorsService } from '../operators/operators.service.js';
-import { queryQuotesSchema } from '../quotes/dto/quote.dto.js';
+import { queryQuotesSchema, sendQuoteSchema } from '../quotes/dto/quote.dto.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { queryInvoicesSchema } from '../receivables/dto/receivable.dto.js';
 import { InvoiceState, paymentProblem, TripPaymentState } from '../receivables/receivables.amounts.js';
@@ -49,19 +51,24 @@ import { reportWindowSchema } from '../reports/dto/reports.dto.js';
 import { ReportsService } from '../reports/reports.service.js';
 import { ScheduleService } from '../schedule/schedule.service.js';
 import { addDays, windowDays } from '../schedule/schedule.calendar.js';
-import { queryTasksSchema } from '../tasks/dto/task.dto.js';
+import { createTaskSchema, queryTasksSchema } from '../tasks/dto/task.dto.js';
 import { TasksService } from '../tasks/tasks.service.js';
 import { queryTransactionsSchema } from '../transactions/dto/transaction.dto.js';
 import { TransactionsService } from '../transactions/transactions.service.js';
 import { queryTripRequestsSchema, REQUEST_WINDOWS } from '../trip-requests/dto/trip-request.dto.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
-import { queryTripsSchema, rejectTripSchema } from '../trips/dto/trip.dto.js';
+import { changeTripStatusSchema, queryTripsSchema, rejectTripSchema, updateTripSchema } from '../trips/dto/trip.dto.js';
 import { approveBlockedBy, rejectBlockedBy } from '../trips/trips.approval.js';
 import { TripsService } from '../trips/trips.service.js';
-import { ACTION_ACCESS, canCreate, parseLeadRequest } from './whatsapp.actions.js';
+import { queryUsersSchema } from '../users/dto/user.dto.js';
+import { UsersService } from '../users/users.service.js';
+import { ACTION_ACCESS, canAssignTask, canCreate, canReassign, parseLeadRequest } from './whatsapp.actions.js';
 import type { AiToolSpec } from './whatsapp.ai-client.js';
 import type { WhatsappDocument } from './whatsapp.document.js';
-import { leadClientPayload, paymentPayload, WhatsappPending, type PendingAction } from './whatsapp.pending.js';
+import {
+  clientAssignPayload, clientFollowUpPayload, leadClientPayload, noteCreatePayload, paymentPayload,
+  quoteSendPayload, taskCreatePayload, tripAssignPayload, tripStatusPayload, WhatsappPending, type PendingAction,
+} from './whatsapp.pending.js';
 
 // A tool takes a date string, not the timestamp compatibility input accepted
 // by calendarDate's preprocessor. Validate before asking the shared helper
@@ -164,8 +171,36 @@ const quoteArgs = z.object({
   quote: z.string().trim().regex(/^(?:Q-?)?\d{1,9}$/i, 'Use a quote reference such as Q-1042')
     .transform((reference) => Number(reference.replace(/^Q-?/i, ''))),
 }).strict();
+const staffName = z.string().trim().min(1).max(201);
+const createTaskArgs = createTaskSchema.pick({ title: true, description: true, clientId: true }).extend({
+  dueDate: moneyDate.optional(),
+  priority: z.enum(TaskPriority).optional(),
+  assignee: staffName.optional(),
+  trip: tripReference.optional(),
+}).strict();
+const followUpArgs = z.object({
+  clientId: z.uuid(),
+  date: moneyDate,
+  time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour time like 14:30').default('09:00'),
+  method: z.enum(FollowUpMethod).optional(),
+  note: updateClientSchema.shape.followUpNote.unwrap().unwrap().optional(),
+}).strict();
+const addNoteArgs = notesArgs.extend({ body: createNoteSchema.shape.body }).strict();
+const tripStatusArgs = tripLookupArgs.extend(changeTripStatusSchema.shape).strict();
+const reassignArgs = z.object({
+  record: z.enum(['TRIP', 'CLIENT']),
+  trip: tripReference.optional(),
+  clientId: z.uuid().optional(),
+  broker: staffName,
+}).strict().refine(
+  ({ record, trip, clientId }) =>
+    record === 'TRIP' ? trip !== undefined && clientId === undefined : clientId !== undefined && trip === undefined,
+  { message: 'For TRIP give only trip. For CLIENT give only clientId.' },
+);
+const markQuoteSentArgs = quoteArgs.extend({ validUntil: moneyDate.optional(), note: sendQuoteSchema.shape.note }).strict();
 
 const person = z.object({ firstName: z.string(), lastName: z.string() });
+const staffRow = person.extend({ id: z.uuid() });
 const clientName = person.extend({ companyName: z.string().nullable() });
 const nameOf = (row: z.infer<typeof person>) => [row.firstName, row.lastName].filter(Boolean).join(' ') || null;
 
@@ -207,6 +242,7 @@ const leadRow = salesClientRow.extend({ leadSource: z.enum(LeadSource), priority
 const noteRow = z.object({ createdAt: z.date(), createdBy: person.nullable(), visibility: z.enum(NoteVisibility), body: z.string() });
 const tripRow = z.object({
   id: z.uuid(), reference: z.number(), client: clientName, assignedBroker: person.nullable(),
+  status: z.enum(TripStatus), assignedBrokerId: z.uuid().nullable(),
   approvalStatus: z.enum(TripApprovalStatus),
   legs: z.array(z.object({ originAirport: airportCode, destinationAirport: airportCode, departureDate: z.date().nullable() })),
 });
@@ -311,10 +347,15 @@ function transactionWindow(from: string | undefined, to: string | undefined, tim
 const paymentLabels: Record<PaymentMethod, string> = {
   WIRE_TRANSFER: 'wire', ACH: 'ACH', CHECK: 'check', ZELLE: 'Zelle', CREDIT_CARD: 'credit card', OTHER: 'other',
 };
+const followUpLabels: Record<FollowUpMethod, string> = {
+  CALL: 'phone', EMAIL: 'email', WHATSAPP: 'WhatsApp', SMS: 'SMS',
+};
+const staffRoles = Object.values(UserRole).filter((role) => !isPartner(role));
 
 /** A search can match a name as well as a reference. Check every page for an exact match. */
 async function exactMatches<T>(
   read: (page: number) => Promise<Paginated<unknown>>, schema: z.ZodType<T>, matches: (row: T) => boolean,
+  maxMatches = 2,
 ): Promise<T[]> {
   const found: T[] = [];
   for (let page = 1; ; page++) {
@@ -322,7 +363,7 @@ async function exactMatches<T>(
     for (const item of result.items) {
       const row = schema.parse(item);
       if (matches(row)) found.push(row);
-      if (found.length === 2) return found;
+      if (found.length === maxMatches) return found;
     }
     if (!result.meta.hasNext) return found;
   }
@@ -410,6 +451,7 @@ export class WhatsappTools {
     flightTracking: FlightTrackingService, emptyLegs: EmptyLegsService, operators: OperatorsService, aircraft: AircraftService,
     operatorPayments: OperatorPaymentsService, clientCredits: ClientCreditsService, commissions: CommissionsService,
     transactions: TransactionsService, reports: ReportsService,
+    users: UsersService,
   ) {
     const resolveTrip = async (user: AuthenticatedUser, reference: number) => {
       const label = tripLabel(reference);
@@ -427,6 +469,49 @@ export class WhatsappTools {
       );
       if (!row || duplicate) throw new BadRequestException(`No invoice ${invoice} you can see`);
       return row;
+    };
+    const resolveQuote = async (user: AuthenticatedUser, reference: number) => {
+      const label = `Q-${reference}`;
+      const [quote, duplicate] = await exactMatches(
+        (page) => quotes.findAll(user, queryQuotesSchema.parse({ search: label, page, limit: MAX_PAGE_SIZE })),
+        quoteRow, (row) => row.reference === reference,
+      );
+      if (!quote || duplicate) throw new BadRequestException(`No quote ${label} you can see`);
+      return quote;
+    };
+    const resolveLiveClient = async (user: AuthenticatedUser, id: string) => {
+      const client = await clients.findOne(user, id);
+      if (client.deletedAt) throw new BadRequestException('That client has been archived.');
+      return client;
+    };
+    const resolveLiveSubject = async (user: AuthenticatedUser, id: string) => {
+      const client = await clients.subjectRef(user, id);
+      if (client.archived) throw new BadRequestException('That client has been archived.');
+      return client;
+    };
+    const resolveStaff = async (user: AuthenticatedUser, name: string, brokersOnly = false) => {
+      const normalizeName = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
+      const query = normalizeName(name);
+      const me = !brokersOnly && query === 'me';
+      const fullName = (row: z.infer<typeof staffRow>) => `${row.firstName} ${row.lastName}`.trim();
+      const matchesFullName = (row: z.infer<typeof staffRow>) => normalizeName(fullName(row)) === query;
+      // The directory searches one column at a time. Search by a single
+      // token, then compare exact names across all returned pages.
+      const search = me ? user.email : query.split(' ')[0];
+      const candidates = await exactMatches(
+        (page) => users.findAll(user, queryUsersSchema.parse({
+          search, page, limit: MAX_PAGE_SIZE, status: UserStatus.ACTIVE,
+          role: (brokersOnly ? BROKER_ROLES : staffRoles).join(','),
+        })),
+        staffRow, (row) => me ? row.id === user.id : matchesFullName(row) || normalizeName(row.firstName) === query,
+        me ? 1 : Infinity,
+      );
+      const fullMatches = candidates.filter(matchesFullName);
+      const matches = fullMatches.length ? fullMatches : candidates;
+      const [match] = matches;
+      if (!match) throw new BadRequestException(`No active staff member named ${name}`);
+      if (matches.length > 1) throw new BadRequestException(`More than one active staff member matches ${name}: ${matches.map(fullName).join(', ')}`);
+      return { id: match.id, name: fullName(match) };
     };
     const resolveAirport = async (icao: string, label: string) => {
       const [airport, duplicate] = await exactMatches(
@@ -455,6 +540,8 @@ export class WhatsappTools {
       }
       return { proposed: true, summary };
     };
+    const proposeLine = (user: AuthenticatedUser, context: ToolContext, summary: string, action: ActionDraft) =>
+      propose(user, context, summary.replace(/[\r\n\u2028\u2029]+/g, ' '), action);
     this.definitions = [
       defineTool({
         name: 'list_flights',
@@ -989,12 +1076,7 @@ export class WhatsappTools {
         schema: quoteArgs,
         permission: { module: Module.QUOTES, action: Action.VIEW },
         async run(user, { quote: reference }, context) {
-          const label = `Q-${reference}`;
-          const [quote, duplicate] = await exactMatches(
-            (page) => quotes.findAll(user, queryQuotesSchema.parse({ search: label, page, limit: MAX_PAGE_SIZE })),
-            quoteRow, (row) => row.reference === reference,
-          );
-          if (!quote || duplicate) return { error: `No quote ${label} you can see` };
+          const quote = await resolveQuote(user, reference);
           return attachDocument(context, `quote:${quote.id}`, () => quotes.renderPdf(user, quote.id));
         },
       }),
@@ -1115,6 +1197,114 @@ export class WhatsappTools {
           const reference = payload.reference ? ` Reference: ${payload.reference}.` : '';
           const summary = `Record ${formatDollars(amount)} by ${paymentLabels[payload.method]} on ${row.number} — ${displayName(row.client)}; balance after ${balance}.${dated}${reference}`;
           return propose(user, context, summary, { kind: 'PAYMENT_RECORD', invoiceId: row.id, payload });
+        },
+      }),
+      defineTool({
+        name: 'create_task',
+        description: 'Propose creating a task. Optional due date (YYYY-MM-DD), priority, staff assignee by name or "me", client id from find_client, trip reference and description. Omit the assignee to leave it unassigned. Nothing changes until CONFIRM.',
+        schema: createTaskArgs,
+        permission: ACTION_ACCESS.TASK_CREATE,
+        proposal: true,
+        async run(user, { assignee: name, trip: reference, ...input }, context) {
+          const assignee = name ? await resolveStaff(user, name) : undefined;
+          if (!canAssignTask(user, assignee?.id)) return { error: NOT_PERMITTED };
+          const trip = reference === undefined ? undefined : await resolveTrip(user, reference);
+          const client = input.clientId ? await resolveLiveSubject(user, input.clientId) : undefined;
+          const payload = taskCreatePayload.parse({
+            ...input, ...(assignee && { assigneeId: assignee.id }), ...(trip && { tripId: trip.id }),
+          });
+          const due = payload.dueDate ? `, due ${briefDay(payload.dueDate)}` : '';
+          const links = [trip && tripLabel(trip.reference), client?.label].filter(Boolean).join(' and ');
+          const summary = `Create task "${payload.title}"${assignee ? `, assigned to ${assignee.name}` : ', unassigned'}${due}${links ? `, linked to ${links}` : ''}`;
+          return proposeLine(user, context, summary, { kind: 'TASK_CREATE', payload });
+        },
+      }),
+      defineTool({
+        name: 'client_follow_up',
+        description: 'Propose scheduling a client follow-up. Use a client id from find_client, a YYYY-MM-DD date and optionally a local 24-hour HH:MM time (default 09:00), method and note. This replaces an existing follow-up. Nothing changes until CONFIRM.',
+        schema: followUpArgs,
+        permission: ACTION_ACCESS.CLIENT_FOLLOW_UP,
+        proposal: true,
+        async run(user, { clientId, date, time, method, note }, context) {
+          const client = await resolveLiveClient(user, clientId);
+          const { timeZone } = context;
+          const moment = momentIn(date, time, timeZone);
+          if (!moment) return { error: `${date} at ${time} is skipped in ${timeZone}` };
+          const payload = clientFollowUpPayload.parse({
+            nextFollowUpAt: moment,
+            ...(method !== undefined && { followUpMethod: method }),
+            ...(note !== undefined && { followUpNote: note }),
+          });
+          const previous = formatMomentIn(client.nextFollowUpAt, timeZone);
+          const summary = `Follow up with ${displayName(client)} on ${briefDay(calendarDate.parse(date))}, ${time} (${timeZone})${method ? ` by ${followUpLabels[method]}` : ''}${previous ? ` (replaces ${previous} in ${timeZone})` : ''}`;
+          return proposeLine(user, context, summary, { kind: 'CLIENT_FOLLOW_UP', clientId: client.id, payload });
+        },
+      }),
+      defineTool({
+        name: 'add_client_note',
+        description: 'Propose an internal note for a client. Use the client id from find_client and the note body. The note is visible only to staff. Nothing changes until CONFIRM.',
+        schema: addNoteArgs,
+        permission: ACTION_ACCESS.NOTE_CREATE,
+        proposal: true,
+        async run(user, { clientId, body }, context) {
+          const client = await resolveLiveSubject(user, clientId);
+          const payload = noteCreatePayload.parse({
+            subjectType: NoteSubjectType.CLIENT, subjectId: client.id, visibility: NoteVisibility.INTERNAL, body,
+          });
+          const excerpt = Array.from(payload.body).slice(0, 80).join('');
+          return proposeLine(user, context, `Add an internal note for ${client.label}: "${excerpt}"`, { kind: 'NOTE_CREATE', payload });
+        },
+      }),
+      defineTool({
+        name: 'change_trip_status',
+        description: 'Propose changing a trip status by trip reference, with an optional note. Nothing changes until CONFIRM.',
+        schema: tripStatusArgs,
+        permission: ACTION_ACCESS.TRIP_STATUS,
+        proposal: true,
+        async run(user, { trip: reference, ...input }, context) {
+          const trip = await resolveTrip(user, reference);
+          const payload = tripStatusPayload.parse(input);
+          const cancellation = payload.status === TripStatus.CANCELLED ? ' — this cancels the trip' : '';
+          const summary = `Move ${tripLabel(trip.reference)} from ${trip.status} to ${payload.status}${cancellation}`;
+          return proposeLine(user, context, summary, { kind: 'TRIP_STATUS', tripId: trip.id, payload });
+        },
+      }),
+      defineTool({
+        name: 'reassign',
+        description: 'Propose reassigning a TRIP or CLIENT to a broker by name. For TRIP give its trip reference. For CLIENT give the client id from find_client. Nothing changes until CONFIRM.',
+        schema: reassignArgs,
+        permission: (user) => canReassign(user, 'TRIP_ASSIGN') || canReassign(user, 'CLIENT_ASSIGN'),
+        proposal: true,
+        async run(user, args, context) {
+          const kind = args.record === 'TRIP' ? 'TRIP_ASSIGN' : 'CLIENT_ASSIGN';
+          if (!canReassign(user, kind)) return { error: NOT_PERMITTED };
+          const record = args.record === 'TRIP' ? await resolveTrip(user, args.trip!) : await resolveLiveClient(user, args.clientId!);
+          const broker = await resolveStaff(user, args.broker, true);
+          if (record.assignedBrokerId === broker.id) return { error: `${broker.name} is already assigned to that record` };
+          const previous = record.assignedBroker ? nameOf(record.assignedBroker) : null;
+          const label = 'reference' in record ? tripLabel(record.reference) : displayName(record);
+          const summary = `Reassign ${label} from ${previous ?? 'unassigned'} to ${broker.name}`;
+          if (kind === 'TRIP_ASSIGN') {
+            const payload = tripAssignPayload.parse(updateTripSchema.parse({ assignedBrokerId: broker.id }));
+            const notification = broker.id === user.id ? '' : ` — ${broker.name} gets a task and an email about it`;
+            return proposeLine(user, context, summary + notification, { kind, tripId: record.id, payload });
+          }
+          const payload = clientAssignPayload.parse(updateClientSchema.parse({ assignedBrokerId: broker.id }));
+          return proposeLine(user, context, summary, { kind, clientId: record.id, payload });
+        },
+      }),
+      defineTool({
+        name: 'mark_quote_sent',
+        description: 'Propose marking a quote as sent by its reference, with an optional YYYY-MM-DD validity date and note. This records it as sent; no email is sent. Nothing changes until CONFIRM.',
+        schema: markQuoteSentArgs,
+        permission: ACTION_ACCESS.QUOTE_SEND,
+        proposal: true,
+        async run(user, { quote: reference, ...input }, context) {
+          const quote = await resolveQuote(user, reference);
+          const payload = quoteSendPayload.parse(input);
+          const validity = payload.validUntil ? `, valid until ${briefDay(payload.validUntil)}` : '';
+          const summary = `Mark quote Q-${quote.reference} as sent${validity} — records it as sent; no email is sent`;
+          return proposeLine(user, context, summary, { kind: 'QUOTE_SEND', quoteId: quote.id, payload });
         },
       }),
     ];

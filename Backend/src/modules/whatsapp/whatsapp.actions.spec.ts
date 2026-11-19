@@ -2,7 +2,7 @@ import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Action, Module, Reach, resolveAccess } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
-import { PaymentMethod, TaskStatus, UserRole } from '../../generated/prisma/enums.js';
+import { FollowUpMethod, NoteSubjectType, NoteVisibility, PaymentMethod, TaskPriority, TaskStatus, TripStatus, UserRole } from '../../generated/prisma/enums.js';
 import { createClientSchema } from '../clients/dto/client.dto.js';
 import { createTripRequestSchema } from '../trip-requests/dto/trip-request.dto.js';
 import { WhatsappActions } from './whatsapp.actions.js';
@@ -13,6 +13,8 @@ const CLIENT_ID = '00000000-0000-4000-8000-000000000012';
 const AIRPORT_ID = '00000000-0000-4000-8000-000000000013';
 const TASK_ID = '00000000-0000-4000-8000-000000000014';
 const INVOICE_ID = '00000000-0000-4000-8000-000000000015';
+const BROKER_ID = '00000000-0000-4000-8000-000000000016';
+const QUOTE_ID = '00000000-0000-4000-8000-000000000017';
 const user: AuthenticatedUser = {
   id: 'owner-id', email: 'owner@example.com', role: UserRole.SUPER_ADMIN, access: resolveAccess(UserRole.SUPER_ADMIN, null),
 };
@@ -27,13 +29,43 @@ const newLead = {
 const existingLead = {
   ...base, kind: 'LEAD_CREATE', lead: { type: 'existing', clientId: CLIENT_ID, request },
 } satisfies PendingAction;
+const newTask = {
+  ...base, kind: 'TASK_CREATE', payload: {
+    title: 'New task', description: 'Call the operator', status: TaskStatus.TODO, priority: TaskPriority.HIGH,
+    dueDate: new Date('2026-11-20'), assigneeId: BROKER_ID, clientId: CLIENT_ID, tripId: TRIP_ID, checklist: [],
+  },
+} satisfies PendingAction;
+const followUp = {
+  ...base, kind: 'CLIENT_FOLLOW_UP', clientId: CLIENT_ID, payload: {
+    nextFollowUpAt: new Date('2026-11-20T08:30:00.000Z'), followUpMethod: FollowUpMethod.CALL, followUpNote: 'Call at the office',
+  },
+} satisfies PendingAction;
+const note = {
+  ...base, kind: 'NOTE_CREATE', payload: {
+    subjectType: NoteSubjectType.CLIENT, subjectId: CLIENT_ID, visibility: NoteVisibility.INTERNAL, body: 'PRIVATE NOTE BODY',
+  },
+} satisfies PendingAction;
+const tripStatus = {
+  ...base, kind: 'TRIP_STATUS', tripId: TRIP_ID, payload: { status: TripStatus.CANCELLED, note: 'Weather' },
+} satisfies PendingAction;
+const tripAssign = {
+  ...base, kind: 'TRIP_ASSIGN', tripId: TRIP_ID, payload: { assignedBrokerId: BROKER_ID },
+} satisfies PendingAction;
+const clientAssign = {
+  ...base, kind: 'CLIENT_ASSIGN', clientId: CLIENT_ID, payload: { assignedBrokerId: BROKER_ID },
+} satisfies PendingAction;
+const quoteSend = {
+  ...base, kind: 'QUOTE_SEND', quoteId: QUOTE_ID, payload: { validUntil: new Date('2026-11-27'), note: 'Shared in person' },
+} satisfies PendingAction;
 
 describe('WhatsappActions', () => {
-  const trips = { approve: vi.fn(), reject: vi.fn() };
-  const clients = { create: vi.fn(), subjectRef: vi.fn() };
+  const trips = { approve: vi.fn(), reject: vi.fn(), changeStatus: vi.fn(), update: vi.fn() };
+  const clients = { create: vi.fn(), subjectRef: vi.fn(), update: vi.fn() };
   const requests = { create: vi.fn() };
-  const tasks = { update: vi.fn() };
+  const tasks = { update: vi.fn(), create: vi.fn() };
   const receivables = { recordPayment: vi.fn() };
+  const notes = { create: vi.fn() };
+  const quotes = { send: vi.fn() };
   let actions: WhatsappActions;
   const loggerMethods = ['log', 'warn', 'error', 'debug', 'verbose', 'fatal'] as const;
   let logs: Record<(typeof loggerMethods)[number], ReturnType<typeof vi.spyOn>>;
@@ -43,15 +75,23 @@ describe('WhatsappActions', () => {
     logs = Object.fromEntries(loggerMethods.map((method) => [method, vi.spyOn(Logger.prototype, method).mockImplementation(() => {})])) as typeof logs;
     trips.approve.mockResolvedValue({ reference: 1048 });
     trips.reject.mockResolvedValue({ reference: 1048 });
+    trips.changeStatus.mockResolvedValue({ reference: 1048, status: TripStatus.CANCELLED });
+    trips.update.mockResolvedValue({ reference: 1048 });
     clients.create.mockResolvedValue(client);
     clients.subjectRef.mockResolvedValue({ id: CLIENT_ID, label: 'Private Clientname', archived: false });
     tasks.update.mockResolvedValue({ title: 'Private task' });
+    tasks.create.mockResolvedValue({ title: newTask.payload.title });
     receivables.recordPayment.mockResolvedValue({ number: 'INV-2026-0042', balance: 0 });
-    actions = new WhatsappActions(trips as never, clients as never, requests as never, tasks as never, receivables as never);
+    quotes.send.mockResolvedValue({ reference: 1042 });
+    actions = new WhatsappActions(trips as never, clients as never, requests as never, tasks as never,
+      receivables as never, notes as never, quotes as never);
   });
   afterEach(() => vi.restoreAllMocks());
 
-  const writes = [trips.approve, trips.reject, clients.create, requests.create, tasks.update, receivables.recordPayment];
+  const writes = [
+    trips.approve, trips.reject, clients.create, requests.create, tasks.update, receivables.recordPayment,
+    trips.changeStatus, trips.update, clients.update, tasks.create, notes.create, quotes.send,
+  ];
   const expectOnlyWrite = (expected: (typeof writes)[number]) => {
     for (const write of writes.filter((write) => write !== expected)) expect(write).not.toHaveBeenCalled();
   };
@@ -102,6 +142,81 @@ describe('WhatsappActions', () => {
       .toBe('✅ $12,500.00 recorded on INV-2026-0042 — balance $0.00.');
     expect(receivables.recordPayment).toHaveBeenCalledExactlyOnceWith(user, INVOICE_ID, { ...payment, paidAt: new Date('2026-11-19') });
     expectOnlyWrite(receivables.recordPayment);
+  });
+
+  it.each([
+    { action: newTask, write: tasks.create, ids: [], reply: '✅ Task "New task" created.' },
+    { action: followUp, write: clients.update, ids: [CLIENT_ID], reply: '✅ Client follow-up scheduled.' },
+    { action: note, write: notes.create, ids: [], reply: '✅ Internal client note added.' },
+    { action: tripStatus, write: trips.changeStatus, ids: [TRIP_ID], reply: '✅ Trip TJ-1048 moved to CANCELLED.' },
+    { action: tripAssign, write: trips.update, ids: [TRIP_ID], reply: '✅ Trip TJ-1048 reassigned.' },
+    { action: clientAssign, write: clients.update, ids: [CLIENT_ID], reply: '✅ Client reassigned.' },
+    { action: quoteSend, write: quotes.send, ids: [QUOTE_ID], reply: '✅ Quote Q-1042 marked as sent. No email was sent.' },
+  ])('confirms $action.kind with only the frozen DTO payload and ids', async ({ action, write, ids, reply }) => {
+    expect(await actions.run(user, action)).toBe(reply);
+    expect(write).toHaveBeenCalledExactlyOnceWith(user, ...ids, action.payload);
+    expectOnlyWrite(write);
+    expect(clients.subjectRef).not.toHaveBeenCalled();
+    expect(logs.log).toHaveBeenCalledExactlyOnceWith(`WhatsApp action ${action.kind} confirmed`);
+    expect(JSON.stringify(logs.log.mock.calls)).not.toContain(note.payload.body);
+  });
+
+  it.each([
+    { ...newTask, payload: { ...newTask.payload, title: ' ' } },
+    { ...followUp, payload: { ...followUp.payload, nextFollowUpAt: 'tomorrow' } },
+    { ...note, payload: { ...note.payload, body: ' ' } },
+    { ...note, payload: { ...note.payload, visibility: NoteVisibility.SHARED } },
+    { ...tripStatus, payload: { ...tripStatus.payload, status: 'UNKNOWN' } },
+    { ...tripAssign, payload: { assignedBrokerId: 'some-name' } },
+    { ...clientAssign, payload: { ...clientAssign.payload, status: 'LEAD' } },
+    { ...quoteSend, payload: { ...quoteSend.payload, validUntil: 'Friday' } },
+  ])('refuses a tampered $kind payload without writing', async (action) => {
+    expect(await actions.run(user, action as PendingAction)).toBe('❌ Not done — the CRM could not complete it.');
+    for (const write of writes) expect(write).not.toHaveBeenCalled();
+    expect(logs.error).toHaveBeenCalledExactlyOnceWith(`WhatsApp action ${action.kind} failed (ZodError)`);
+  });
+
+  it.each([
+    [newTask, { [Module.TASKS]: { reach: Reach.ALL, actions: [Action.CREATE] } }],
+    [newTask, { [Module.TASKS]: { reach: Reach.ALL, actions: [Action.ASSIGN] } }],
+    [followUp, {}], [note, {}], [tripStatus, {}], [quoteSend, {}],
+    [tripAssign, { [Module.TRIPS]: { reach: Reach.ALL, actions: [Action.EDIT] } }],
+    [clientAssign, { [Module.CLIENTS]: { reach: Reach.ALL, actions: [Action.EDIT] } }],
+  ] satisfies [PendingAction, AuthenticatedUser['access']][])('rechecks withdrawn permission on confirmation', async (action, access) => {
+    expect(await actions.run({ ...user, access }, action)).toBe('Not done — your account can no longer do this.');
+    for (const write of writes) expect(write).not.toHaveBeenCalled();
+  });
+
+  it('uses current Clients EDIT and Leads & Agents ASSIGN to confirm a client reassignment', async () => {
+    const actor = { ...user, access: {
+      [Module.CLIENTS]: { reach: Reach.ALL, actions: [Action.EDIT] },
+      [Module.LEADS_AGENTS]: { reach: Reach.ALL, actions: [Action.ASSIGN] },
+    } };
+    expect(await actions.run(actor, clientAssign)).toBe('✅ Client reassigned.');
+    expect(clients.update).toHaveBeenCalledExactlyOnceWith(actor, CLIENT_ID, clientAssign.payload);
+    expectOnlyWrite(clients.update);
+  });
+
+  it.each([undefined, BROKER_ID])('confirms an unassigned or self-assigned task with CREATE alone (%s)', async (assigneeId) => {
+    const actor = { ...user, id: BROKER_ID, access: { [Module.TASKS]: { reach: Reach.ALL, actions: [Action.CREATE] } } };
+    const payload = { ...newTask.payload, assigneeId };
+    expect(await actions.run(actor, { ...newTask, userId: actor.id, payload })).toBe('✅ Task "New task" created.');
+    expect(tasks.create).toHaveBeenCalledExactlyOnceWith(actor, payload);
+    expectOnlyWrite(tasks.create);
+  });
+
+  it('refuses to confirm a new action for a different caller', async () => {
+    expect(await actions.run({ ...user, id: 'other-id' }, note)).toBe('Not done — that action belongs to another session.');
+    for (const write of writes) expect(write).not.toHaveBeenCalled();
+  });
+
+  it('passes through the trip lifecycle refusal on confirmation', async () => {
+    const message = 'A COMPLETED trip cannot move to CANCELLED. From here it can move to: .';
+    trips.changeStatus.mockRejectedValueOnce(new BadRequestException(message));
+    expect(await actions.run(user, tripStatus)).toBe(`❌ Not done: ${message}`);
+    expect(trips.changeStatus).toHaveBeenCalledExactlyOnceWith(user, TRIP_ID, tripStatus.payload);
+    expectOnlyWrite(trips.changeStatus);
+    expect(logs.warn).toHaveBeenCalledExactlyOnceWith('WhatsApp action TRIP_STATUS refused (400)');
   });
 
   it('revalidates stored data before calling a service', async () => {

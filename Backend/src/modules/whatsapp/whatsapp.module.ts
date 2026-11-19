@@ -22,6 +22,7 @@ import { TasksModule } from '../tasks/tasks.module.js';
 import { TransactionsModule } from '../transactions/transactions.module.js';
 import { TripRequestsModule } from '../trip-requests/trip-requests.module.js';
 import { TripsModule } from '../trips/trips.module.js';
+import { UsersModule } from '../users/users.module.js';
 import { WhatsappActions } from './whatsapp.actions.js';
 import { WhatsappSender } from './whatsapp.sender.js';
 import { WhatsappAgent } from './whatsapp.agent.js';
@@ -35,7 +36,7 @@ import { whatsappAiClientProvider } from './whatsapp.ai-client.js';
     AircraftModule, AirportsModule, AuthModule, ClientCreditsModule, ClientsModule, CommissionsModule, DashboardModule,
     EmptyLegsModule, FlightTrackingModule, ItinerariesModule, NotesModule, OperatorPaymentsModule, OperatorsModule,
     QuotesModule, ReceivablesModule, ReportsModule, ScheduleModule, TasksModule, TransactionsModule, TripRequestsModule,
-    TripsModule,
+    TripsModule, UsersModule,
   ],
   controllers: [WhatsappController],
   providers: [WhatsappService, WhatsappSender, WhatsappAgent, WhatsappMemory, WhatsappPending, WhatsappActions, WhatsappTools, whatsappAiClientProvider],

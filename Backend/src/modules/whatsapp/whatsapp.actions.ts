@@ -6,26 +6,50 @@ import { formatDollars } from '../../common/money/settlement.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { TaskStatus } from '../../generated/prisma/enums.js';
 import { ClientsService } from '../clients/clients.service.js';
-import { createClientSchema } from '../clients/dto/client.dto.js';
+import { createClientSchema, updateClientSchema } from '../clients/dto/client.dto.js';
+import { NotesService } from '../notes/notes.service.js';
+import { QuotesService } from '../quotes/quotes.service.js';
 import { ReceivablesService } from '../receivables/receivables.service.js';
 import { updateTaskSchema } from '../tasks/dto/task.dto.js';
 import { TasksService } from '../tasks/tasks.service.js';
 import { createTripRequestSchema } from '../trip-requests/dto/trip-request.dto.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
-import { rejectTripSchema } from '../trips/dto/trip.dto.js';
+import { rejectTripSchema, updateTripSchema } from '../trips/dto/trip.dto.js';
 import { TripsService } from '../trips/trips.service.js';
-import type { PendingAction } from './whatsapp.pending.js';
+import {
+  clientAssignPayload, clientFollowUpPayload, noteCreatePayload, quoteSendPayload, taskCreatePayload,
+  tripAssignPayload, tripStatusPayload, type PendingAction,
+} from './whatsapp.pending.js';
 
 export const ACTION_ACCESS = {
   TRIP_APPROVE: { module: Module.TRIPS, action: Action.APPROVE },
   TRIP_DECLINE: { module: Module.TRIPS, action: Action.APPROVE },
   TASK_COMPLETE: { module: Module.TASKS, action: Action.EDIT },
   PAYMENT_RECORD: { module: Module.RECEIVABLES, action: Action.PAY },
+  TASK_CREATE: { module: Module.TASKS, action: Action.CREATE },
+  CLIENT_FOLLOW_UP: { module: Module.CLIENTS, action: Action.EDIT },
+  NOTE_CREATE: { module: Module.CLIENTS, action: Action.EDIT },
+  TRIP_STATUS: { module: Module.TRIPS, action: Action.EDIT },
+  TRIP_ASSIGN: { module: Module.TRIPS, action: Action.EDIT },
+  CLIENT_ASSIGN: { module: Module.CLIENTS, action: Action.EDIT },
+  QUOTE_SEND: { module: Module.QUOTES, action: Action.SEND },
 } as const;
 
 /** The same alternative CREATE permission as the Clients and Trip Requests routes. */
 export function canCreate(user: AuthenticatedUser, module: typeof Module.CLIENTS | typeof Module.TRIP_REQUESTS): boolean {
   return canDo(user.access, module, Action.CREATE) || canDo(user.access, Module.LEADS_AGENTS, Action.CREATE);
+}
+
+export function canAssignTask(user: AuthenticatedUser, assigneeId: string | undefined): boolean {
+  return !assigneeId || assigneeId === user.id || canDo(user.access, Module.TASKS, Action.ASSIGN);
+}
+
+export function canReassign(user: AuthenticatedUser, kind: 'TRIP_ASSIGN' | 'CLIENT_ASSIGN'): boolean {
+  const { module, action } = ACTION_ACCESS[kind];
+  return canDo(user.access, module, action) && (
+    canDo(user.access, module, Action.ASSIGN) ||
+    (kind === 'CLIENT_ASSIGN' && canDo(user.access, Module.LEADS_AGENTS, Action.ASSIGN))
+  );
 }
 
 function canRun(user: AuthenticatedUser, action: PendingAction): boolean {
@@ -34,8 +58,10 @@ function canRun(user: AuthenticatedUser, action: PendingAction): boolean {
     return (lead.type === 'existing' || canCreate(user, Module.CLIENTS)) &&
       (!lead.request || canCreate(user, Module.TRIP_REQUESTS));
   }
+  if (action.kind === 'TRIP_ASSIGN' || action.kind === 'CLIENT_ASSIGN') return canReassign(user, action.kind);
   const { module, action: capability } = ACTION_ACCESS[action.kind];
-  return canDo(user.access, module, capability);
+  return canDo(user.access, module, capability) &&
+    (action.kind !== 'TASK_CREATE' || canAssignTask(user, action.payload.assigneeId));
 }
 
 /** The placeholder is only for validation, before a new client has an id. */
@@ -60,6 +86,8 @@ export class WhatsappActions {
     private readonly requests: TripRequestsService,
     private readonly tasks: TasksService,
     private readonly receivables: ReceivablesService,
+    private readonly notes: NotesService,
+    private readonly quotes: QuotesService,
   ) {}
 
   async run(user: AuthenticatedUser, action: PendingAction): Promise<string> {
@@ -113,6 +141,43 @@ export class WhatsappActions {
           const payment = createPaymentSchema.parse(action.payload);
           const invoice = await this.receivables.recordPayment(user, action.invoiceId, payment);
           reply = `✅ ${formatDollars(toCents(payment.amount))} recorded on ${invoice.number} — balance ${formatDollars(toCents(invoice.balance))}.`;
+          break;
+        }
+        case 'TASK_CREATE': {
+          const task = await this.tasks.create(user, taskCreatePayload.parse(action.payload));
+          reply = `✅ Task "${task.title}" created.`;
+          break;
+        }
+        case 'CLIENT_FOLLOW_UP': {
+          await this.clients.update(user, action.clientId, clientFollowUpPayload.parse(action.payload));
+          reply = '✅ Client follow-up scheduled.';
+          break;
+        }
+        case 'NOTE_CREATE': {
+          await this.notes.create(user, noteCreatePayload.parse(action.payload));
+          reply = '✅ Internal client note added.';
+          break;
+        }
+        case 'TRIP_STATUS': {
+          const trip = await this.trips.changeStatus(user, action.tripId, tripStatusPayload.parse(action.payload));
+          reply = `✅ Trip TJ-${trip.reference} moved to ${trip.status}.`;
+          break;
+        }
+        case 'TRIP_ASSIGN': {
+          const payload = updateTripSchema.parse(tripAssignPayload.parse(action.payload));
+          const trip = await this.trips.update(user, action.tripId, payload);
+          reply = `✅ Trip TJ-${trip.reference} reassigned.`;
+          break;
+        }
+        case 'CLIENT_ASSIGN': {
+          const payload = updateClientSchema.parse(clientAssignPayload.parse(action.payload));
+          await this.clients.update(user, action.clientId, payload);
+          reply = '✅ Client reassigned.';
+          break;
+        }
+        case 'QUOTE_SEND': {
+          const quote = await this.quotes.send(user, action.quoteId, quoteSendPayload.parse(action.payload));
+          reply = `✅ Quote Q-${quote.reference} marked as sent. No email was sent.`;
           break;
         }
       }

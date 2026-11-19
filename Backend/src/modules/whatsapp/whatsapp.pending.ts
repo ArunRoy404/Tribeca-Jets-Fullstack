@@ -3,9 +3,13 @@ import { z } from 'zod';
 import { createPaymentSchema } from '../../common/dto/payments.js';
 import { phoneDigits } from '../../config/configuration.js';
 import { RedisService } from '../../core/redis/redis.service.js';
-import { createClientSchema } from '../clients/dto/client.dto.js';
+import { NoteSubjectType, NoteVisibility } from '../../generated/prisma/enums.js';
+import { createClientSchema, updateClientSchema } from '../clients/dto/client.dto.js';
+import { createNoteSchema } from '../notes/dto/note.dto.js';
+import { sendQuoteSchema } from '../quotes/dto/quote.dto.js';
+import { createTaskSchema } from '../tasks/dto/task.dto.js';
 import { createTripRequestSchema } from '../trip-requests/dto/trip-request.dto.js';
-import { rejectTripSchema } from '../trips/dto/trip.dto.js';
+import { changeTripStatusSchema, rejectTripSchema, updateTripSchema } from '../trips/dto/trip.dto.js';
 
 export const PENDING_TTL_SECONDS = 300;
 
@@ -25,6 +29,39 @@ export const paymentPayload = z.object({
   reference: createPaymentSchema.shape.reference,
 });
 
+// JSON stores parsed DTO dates as ISO strings. Accept that representation at
+// take(), and feed parsed Dates back through the same DTO fields on CONFIRM.
+function dtoDate<T extends z.ZodType>(schema: T) {
+  return z.preprocess((value) =>
+    value instanceof Date && Number.isFinite(value.getTime()) ? value.toISOString() : value,
+  schema);
+}
+
+export const taskCreatePayload = createTaskSchema.omit({ notes: true }).strict().extend({
+  dueDate: dtoDate(createTaskSchema.shape.dueDate.unwrap()).optional(),
+});
+export const clientFollowUpPayload = updateClientSchema.pick({
+  nextFollowUpAt: true, followUpMethod: true, followUpNote: true,
+}).strict().extend({
+  nextFollowUpAt: dtoDate(updateClientSchema.shape.nextFollowUpAt.unwrap().unwrap()),
+  followUpMethod: updateClientSchema.shape.followUpMethod.unwrap().unwrap().optional(),
+  followUpNote: updateClientSchema.shape.followUpNote.unwrap().unwrap().optional(),
+});
+export const noteCreatePayload = createNoteSchema.strict().extend({
+  subjectType: z.literal(NoteSubjectType.CLIENT),
+  visibility: z.literal(NoteVisibility.INTERNAL),
+});
+export const tripStatusPayload = changeTripStatusSchema.strict();
+export const tripAssignPayload = z.strictObject({
+  assignedBrokerId: updateTripSchema.shape.assignedBrokerId.unwrap().unwrap(),
+});
+export const clientAssignPayload = z.strictObject({
+  assignedBrokerId: updateClientSchema.shape.assignedBrokerId.unwrap().unwrap(),
+});
+export const quoteSendPayload = sendQuoteSchema.strict().extend({
+  validUntil: dtoDate(sendQuoteSchema.shape.validUntil.unwrap()).optional(),
+});
+
 const actionBase = z.object({ userId: z.string().min(1), summary: z.string().min(1), createdAt: z.iso.datetime() });
 const pendingActionSchema = z.discriminatedUnion('kind', [
   actionBase.extend({ kind: z.literal('TRIP_APPROVE'), tripId: z.uuid() }),
@@ -38,6 +75,13 @@ const pendingActionSchema = z.discriminatedUnion('kind', [
   }),
   actionBase.extend({ kind: z.literal('TASK_COMPLETE'), taskId: z.uuid() }),
   actionBase.extend({ kind: z.literal('PAYMENT_RECORD'), invoiceId: z.uuid(), payload: paymentPayload }),
+  actionBase.extend({ kind: z.literal('TASK_CREATE'), payload: taskCreatePayload }),
+  actionBase.extend({ kind: z.literal('CLIENT_FOLLOW_UP'), clientId: z.uuid(), payload: clientFollowUpPayload }),
+  actionBase.extend({ kind: z.literal('NOTE_CREATE'), payload: noteCreatePayload }),
+  actionBase.extend({ kind: z.literal('TRIP_STATUS'), tripId: z.uuid(), payload: tripStatusPayload }),
+  actionBase.extend({ kind: z.literal('TRIP_ASSIGN'), tripId: z.uuid(), payload: tripAssignPayload }),
+  actionBase.extend({ kind: z.literal('CLIENT_ASSIGN'), clientId: z.uuid(), payload: clientAssignPayload }),
+  actionBase.extend({ kind: z.literal('QUOTE_SEND'), quoteId: z.uuid(), payload: quoteSendPayload }),
 ]);
 
 export type PendingAction = z.infer<typeof pendingActionSchema>;
