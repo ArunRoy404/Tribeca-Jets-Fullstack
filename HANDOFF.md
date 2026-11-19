@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 18 November 2026.** Update the "Where we are" section in the
+**Last updated: 19 November 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -15,7 +15,48 @@ for a review, and how the owner likes to work, is in
 
 ## Part 1 — Where we are
 
-### Read this first — the state on 18 Nov 2026 (end of day)
+### Read this first — the state on 19 Nov 2026
+
+- **WhatsApp step 3 passed its live check (19 Nov, 00:20, Windows
+  machine).** A question from the admin phone got a read receipt,
+  "typing…" and the CRM's answer quoting it. The fix that made it work:
+  **the app had to be subscribed to the WhatsApp Business Account**
+  (`POST /<WABA_ID>/subscribed_apps`) — the webhook form verified and
+  showed `messages` subscribed, yet delivered nothing until then. Recorded
+  in [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §4.
+- **Crucial, not fixed yet (the developer will do it, not 19 Nov):** the
+  bot reckons "today"/"tomorrow" from the UTC date, so it is a day off
+  whenever UTC and the reader's day differ. The fix is a **company
+  timezone setting** — the client (US) and the developers (Dhaka) are on
+  opposite sides of the earth — read by the bot first, then by everything
+  else that decides "today". Meta's webhook carries no timezone, so it
+  cannot come from the message. Logged in
+  [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6
+  and the settings map in `docs/MODULES.md` §26. Do it before step 4.
+- **Next session, in this order:** (1) the timezone setting and the bot
+  reading it; (2) the step 4 Codex brief (actions with CONFIRM). Still
+  open: the permanent system-user token and the owner's OK to send client
+  data to OpenAI (§6, "Needed from the developer / owner").
+- **Production:** it will work there as it did locally — HTTPS, Traefik's
+  `/api` route and Redis are all in place — but six things have to be done
+  (deploy `roy`, Dokploy env, permanent token, the account in the prod
+  database, Meta's webhook URL, the prod switch) and the deploy waits on
+  the timezone fix and the owner's OK. Checklist:
+  [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §4,
+  "Going to production". One webhook URL per Meta app: pointing it at
+  production stops local delivery.
+- **To test locally again:** Docker Desktop, `npm run start:dev`, a new
+  `cloudflared tunnel --url http://localhost:4000`, paste the new tunnel
+  address into Meta's webhook form (Step 2 · Production setup → Configure
+  Webhooks) and Verify and save, and a fresh 24-hour token in `.env` if the
+  last one is a day old.
+- This machine (Windows): Docker Desktop is a per-user install under
+  `%LOCALAPPDATA%\Programs\DockerDesktop`; cloudflared via
+  `winget install Cloudflare.cloudflared`. A quick tunnel's address
+  changes on every restart, and Meta's webhook form must be re-saved with
+  the new one.
+
+#### Earlier — the state on 18 Nov 2026 (end of day)
 
 - **WhatsApp step 3 is built, reviewed and committed — only the live check
   is left.** Codex built it, Claude reviewed and fixed one thing (a reply
@@ -477,6 +518,30 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 18–19 Nov 2026 — WhatsApp step 3 live check passed (Claude Code, Windows machine)
+
+- **Set up:** Docker Desktop (a per-user install) started, migrations
+  applied, 73 / 688 green; cloudflared from winget; the developer filled in
+  `.env` and made a fresh 24-hour token (checked read-only against Graph).
+- **Why the first four messages got nothing:** the webhook verified and
+  `messages` showed Subscribed, but only Meta's own "WA DevX Webhook
+  Events" app was subscribed to the WABA. One `POST
+  /<WABA_ID>/subscribed_apps` (approved by the developer in the session)
+  fixed it; the next message was answered. Written into plan §4.
+- **Found — crucial, the developer's decision:** the bot's "today" is the
+  UTC date. Fix with a **company timezone setting**, because the client
+  (US) and the developers (Dhaka) are on opposite sides of the earth.
+  Meta sends no timezone with a message (a UTC timestamp and a number
+  only), and guessing from the country code fails for +1 and for
+  travellers. To fix next session, before step 4.
+- **Asked: will it work on Dokploy?** Yes, given the six steps now in plan
+  §4, "Going to production"; held until the timezone fix and the owner's
+  OK on client data.
+- A `.next/` dev cache appeared at the repo root when the frontend dev
+  server ran; deleted and added to the root `.gitignore`.
+- Interrupted by load-shedding overnight; docs finished and committed on
+  19 Nov. Untested: an image message.
 
 ### 18 Nov 2026 — WhatsApp assistant, step 3 built and reviewed (Claude Code + Codex)
 
