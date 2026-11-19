@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import CommonInput from "@/components/common/CommonInput";
+import TimeZonePicker from "@/components/common/TimeZonePicker";
 import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
 import BrandLogo from "@/components/common/BrandLogo";
 import { passthroughImageLoader, uploadUrl } from "@/services/uploads.service";
@@ -65,6 +66,13 @@ export default function CompanyBrandingSection() {
               required={field.key === "companyName"}
             />
           ))}
+          <TimeZonePicker
+            label="Company time zone"
+            value={values.companyTimeZone}
+            onChange={set("companyTimeZone")}
+            disabled={!canEdit}
+            description="What 'today' means for anyone who hasn't set their own — and, later, for the desk's due dates and daily lists."
+          />
         </div>
       </SettingsCard>
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import CommonInput from "@/components/common/CommonInput";
+import TimeZonePicker from "@/components/common/TimeZonePicker";
 import FileUpload from "@/components/common/FileUpload";
 import UserAvatar from "@/components/common/UserAvatar";
 import SettingsCard from "@/components/settings/SettingsCard";
@@ -12,7 +13,7 @@ import { formatUserRole, getFullName } from "@/lib/user";
 import { optionalText } from "@/lib/form";
 
 /**
- * Your own name, phone and photo. Email and role are shown, not edited —
+ * Your own name, phone, photo and time zone. Email and role are shown, not edited —
  * the email is the sign-in identity, and a role is an administrator's call.
  * Mounted with `key={user.id}` so the draft starts from the loaded profile.
  */
@@ -29,6 +30,10 @@ export default function ProfileCard({ user }) {
 
   // A legacy signed URL is not an upload URL; only send the photo when it changed.
   const avatarChanged = form.avatarUrl !== (user?.avatarUrl ?? null);
+  const savedTimeZone = user?.timeZone ?? null;
+  // The browser prompt can update the profile while this card is open.
+  const timeZone = form.timeZone?.before === savedTimeZone ? form.timeZone.value : savedTimeZone;
+  const companyDefaultLabel = user?.companyTimeZone ? `Company default (${user.companyTimeZone})` : "Company default";
 
   return (
     <SettingsCard title="Profile" description="How you appear to the team and on the documents you send.">
@@ -41,6 +46,7 @@ export default function ProfileCard({ user }) {
             lastName: form.lastName.trim(),
             phone: optionalText(form.phone, { editing: true }),
             ...(avatarChanged ? { avatarUrl: form.avatarUrl } : {}),
+            ...(timeZone !== savedTimeZone ? { timeZone: optionalText(timeZone, { editing: true }) } : {}),
           });
         }}
       >
@@ -95,6 +101,14 @@ export default function ProfileCard({ user }) {
             error={fieldErrors.phone}
           />
           <CommonInput name="account-role" label="Role" value={formatUserRole(user?.role)} disabled />
+          <TimeZonePicker
+            label="Your time zone"
+            value={timeZone}
+            onChange={(value) => setForm((prev) => ({ ...prev, timeZone: { before: savedTimeZone, value } }))}
+            allowDefault
+            defaultLabel={companyDefaultLabel}
+            error={fieldErrors.timeZone}
+          />
         </div>
 
         <SettingsButton primary type="submit" className="self-start" disabled={isPending}>

@@ -271,6 +271,7 @@ export const QUICK_LINKS = [
 export const SETTINGS_FIELDS = {
   company: {
     companyName: "text",
+    companyTimeZone: "text",
     companyEmail: "text",
     website: "text",
     phone: "text",

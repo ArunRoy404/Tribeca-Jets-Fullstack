@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import IdleLogoutWatcher from "@/components/common/IdleLogoutWatcher";
+import TimeZonePrompt from "@/components/common/TimeZonePrompt";
 import AreaGate from "@/components/common/AreaGate";
 import PortalTopNav from "@/components/portal/PortalTopNav";
 import { PORTAL_HOME, PORTAL_SECTIONS } from "@/components/portal/portalNav";
@@ -22,6 +23,7 @@ export default function PortalLayout({ children }) {
         <AppSidebar home={PORTAL_HOME} sections={PORTAL_SECTIONS} />
         <SidebarInset className="flex min-h-screen w-full flex-col bg-background min-w-0">
           <IdleLogoutWatcher />
+          <TimeZonePrompt />
           <PortalTopNav />
           <div className="flex-1 w-full flex flex-col min-w-0">{children}</div>
         </SidebarInset>

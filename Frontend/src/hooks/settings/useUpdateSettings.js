@@ -11,15 +11,15 @@ import { toastApiError, toastSuccess } from "@/lib/toast";
  * the fields that changed (`settingsPayload` builds it).
  *
  * `settings.all` covers the branding too, so a new logo or name reaches every
- * sidebar at once; a Security save refreshes the session, which is where the
- * browser reads the idle timeout and warning from.
+ * sidebar at once. The session also refreshes when its idle policy or
+ * company time zone changes.
  */
 export function useUpdateSettings() {
   return useMutation({
     mutationFn: settingsService.update,
     onSuccess: (_data, variables) => {
       invalidate(queryKeys.settings.all);
-      if (variables?.security) invalidateCurrentUser();
+      if (variables?.security || variables?.company?.companyTimeZone !== undefined) invalidateCurrentUser();
       toastSuccess("Settings saved");
     },
     onError: (error) => toastApiError(error, "Could not save the settings"),

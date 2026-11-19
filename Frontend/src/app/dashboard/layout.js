@@ -2,6 +2,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import DashboardTopNav from "@/components/dashboard/nav/DashboardTopNav";
 import IdleLogoutWatcher from "@/components/common/IdleLogoutWatcher";
+import TimeZonePrompt from "@/components/common/TimeZonePrompt";
 import AreaGate from "@/components/common/AreaGate";
 import ModuleGate from "@/components/common/ModuleGate";
 import AskAnythingPopover from "@/components/dashboard/assistant/AskAnythingPopover";
@@ -31,6 +32,7 @@ export default function DashboardLayout({ children }) {
         <AppSidebar />
         <SidebarInset className="flex min-h-screen w-full flex-col bg-background min-w-0">
           <IdleLogoutWatcher />
+          <TimeZonePrompt />
           <DashboardTopNav />
           <div className="flex-1 w-full flex flex-col min-w-0">
             <ModuleGate>{children}</ModuleGate>
