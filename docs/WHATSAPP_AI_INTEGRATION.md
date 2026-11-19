@@ -136,7 +136,11 @@ signature sees the raw body), and Redis. But nothing carries over by
 itself:
 
 1. **Deploy `roy`.** Production runs `8127edd` (9 Nov), with no WhatsApp
-   code; `20261116120000_whatsapp_assistant_switch` applies on start.
+   code — 57 commits behind on 19 Nov. Every migration newer than what it
+   has applies on start, at least `20261116120000_whatsapp_assistant_switch`
+   and `20261119120000_time_zones` (users' and the company's time zone);
+   read the list against production's `_prisma_migrations` first, and back
+   the database up.
 2. **Dokploy env:** all six `WHATSAPP_*` / `SUPER_ADMIN_WHATSAPP_*` (all or
    none — a partial set refuses to boot), `OPENAI_API_KEY`, `OPENAI_MODEL`.
 3. **The permanent system-user token** (table above). The 24-hour token
@@ -148,6 +152,12 @@ itself:
    URL — it stays.
 6. **Settings › Security › "WhatsApp assistant" on in production** — each
    database has its own switch, off by default.
+7. **Settings › Company time zone** — check it is the desk's zone
+   (`America/New_York` by default) and that the Super Admin's own zone is
+   set (the web app asks once).
+8. **One live message from the admin phone** — "What flights go out
+   tomorrow?" — and read the API log for `Sent a reply`. Then one CONFIRM
+   action, cancelled.
 
 Two things that catch people out:
 
@@ -222,7 +232,7 @@ building → 🔍 in review → ✅ reviewed and committed.
 | 6b | **Operations** — trip details, flight status, empty legs, operator and aircraft lookup | ✅ 19 Nov — built by Codex, reviewed by Claude, no fixes needed. Codex stopped once on the brief (a per-leg flight status `findOne` does not select; `minPassengers` is 1–200 in the DTO) — both settled in the brief, no service change. `FlightTrackingService` is now exported for the bot. "Today" for flight status is the asker's day (`on`), flight times stay airport-local, passengers are names only. 19 new tests; backend 80 files / 862, tsc, oxlint. **Live via `whatsapp:ask` (OpenAI, dev database), each checked against the database:** TJ-5 in full ($48,500 + 7.5% FET = $52,137.50; profit $10,300; 4 passengers by name, no documents); active flights (TJ-8, TJ-15, TJ-22 IN_FLIGHT, TJ-21 upcoming — the bot flagged the stale October statuses itself); no AVAILABLE empty legs (the one on file is MATCHED); ExecuJet's contact; the five aircraft with 9+ seats. |
 | 6c | **Money** — invoices, operator bills, client credit, commissions, recent transactions and financial summary | ✅ 19 Nov — built by Codex, reviewed by Claude, no fixes needed. Codex stopped once on the brief (§3 said every money figure arrives formatted, but `dashboard_kpis` still returns plain numbers — wording fixed, dashboard untouched). The bot computes no figure and no state: every total, balance, OVERDUE and summary comes from its service. `ReportsService` and `TransactionsService` exported for the bot. 29 new tests; backend 80 files / 891, tsc, oxlint. **Live via `whatsapp:ask` (OpenAI, dev database), each checked against the database:** no invoices owed (the only one is a DRAFT); FlexJet owed $2,667.00 on OP-2026-0001 ($36,000 − $33,333 paid), overdue since 12 Oct; Marcus Chen $0.00 credit with no entries; no commissions owed (the only one is PAID); no movements in the last 30 days (last payment 11 Oct); October 2026 revenue $516,428.00, profit $108,428.00, 15 trips, worded as by departure date. |
 | 6d | **New actions with CONFIRM** | ✅ 19 Nov — built by Codex, reviewed by Claude, no code fixes needed. Codex stopped twice on the brief: (1) the backend had no `BROKER_ROLES` — added to `common/authorization/roles.ts` by the reviewer, Clients moved onto it, and the wider gap (Trips, Trip Requests, Quotes accept any account as broker) logged in HANDOFF; `subjectRef` lacks the current follow-up and broker (now `findOne`); a task for someone else needs `TASKS · ASSIGN`; (2) rule 7 forbade every email, but reassigning a trip correctly emails the new broker (reworded: the bot never emails a client; the summary now says the broker gets a task and an email). New shared `momentIn` (a local day and time in a zone → UTC, DST-safe). 91 new tests; backend 80 files / 982, tsc, oxlint. **Live through Meta, 19 Nov 23:28–23:29 Dhaka**, each checked in the database and the audit log: a note on Marcus Chen → INTERNAL, by the Super Admin; a follow-up "tomorrow at 14:30 by phone" → stored 08:30 UTC (14:30 Dhaka), CALL; a task for me due Monday → due 23 Nov, assigned to the Super Admin, linked to TJ-5; "Move TJ-5 to booked" → DRAFT → BOOKED; "Reassign TJ-5 to Barry Wilson" → summary named both brokers and the task and email → CANCEL → still Jordan Broker. One audit row and one `confirmed` log line per action; no message text in the log. Not tried live: mark quote sent (the only open quote is already SENT) — unit-tested. |
-| 7 | **Finish** — Postman folder for the two webhook routes (signed in a pre-request script), docs, deploy when the developer says | ⬜ |
+| 7 | **Finish** — Postman folder for the two webhook routes (signed in a pre-request script), docs, deploy when the developer says | 🟡 19 Nov — **Postman done:** `31 · WhatsApp Webhook` (3 requests, 9 examples: verify 200/403/403/400, a message 200/401/401/401, a receipt 200), builder by Codex, captured by Claude on the 4100 test API with test-only WhatsApp values (fake secret, verify token, admin phone and Meta token, no OpenAI key) and messages only from an unknown number, so nothing can reach Meta or OpenAI — the log confirms none did. Fixed in capture: the signing script redeclared the sandbox global `CryptoJS` (a SyntaxError Newman showed and a mocked runtime did not; AGENTS rule added). Newman green twice; collection 793 examples, 0 mislabelled. Codex stopped once (the brief showed the POST answer without the `{ success, data }` envelope). Docs pass done the same day (HANDOFF state, session log and What is next; the production checklist above gained migrations, the time zone check and a live check). **Left:** the deploy, when the developer says. |
 | 8 | **The phone linked in Settings** — Super Admin links their own number by sending a code to the bot; own Settings tab; the two `SUPER_ADMIN_WHATSAPP_*` env variables removed (§7) | ⬜ agreed 18 Nov, straight after step 7 |
 
 **Needed from the developer / owner:**

@@ -15,7 +15,48 @@ for a review, and how the owner likes to work, is in
 
 ## Part 1 — Where we are
 
-### Read this first — the state on 19 Nov 2026
+### Read this first — the state on 19 Nov 2026 (end of day)
+
+- **The WhatsApp assistant covers the CRM: steps 1–6 built, reviewed,
+  live-checked and committed; step 7's Postman folder is done.** In one
+  day (19 Nov): step 5 (itinerary, quote and invoice PDFs sent as WhatsApp
+  documents), step 6 in four briefs — 6a sales desk reads, 6b operations
+  reads, 6c money reads, 6d six new CONFIRM actions (task, client
+  follow-up, internal note, trip status, reassign, mark quote sent) — and
+  `31 · WhatsApp Webhook` in Postman (Newman green twice, 793 examples,
+  0 mislabelled). Each step's review, fixes and live check:
+  [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6.
+  Backend 80 files / 982 tests. Briefs in `docs/codex-prompts/step-*.md`.
+- **Two security leaks found and fixed on the way** (Codex stopped on
+  both): the **Quotes** and **Trip Requests** lists let a search replace
+  the broker's visibility (`OR` spread over `OR`), so a limited broker saw
+  every row once they searched. Joined with `AND`, pinned by
+  `quotes.scope.spec.ts` / `trip-requests.scope.spec.ts`, rule in AGENTS.md
+  ("Never spread two `OR`s"); every other list was audited. Also fixed: the
+  itinerary PDF printed its leg arrow as `!'` (Helvetica has no `→`).
+- **New findings logged, not fixed** (Known findings below): Trips, Trip
+  Requests and Quotes accept any account as the assigned broker
+  (`BROKER_ROLES` now exists in `common/authorization/roles.ts` for the
+  fix); Client Credits refuses the Assistant by role.
+- **Next, in this order:** (1) the docs pass that closes step 7 (this file
+  is part of it); (2) step 8 — the Super Admin links their phone in
+  Settings, replacing the two `SUPER_ADMIN_WHATSAPP_*` env variables
+  (plan §7); (3) the deploy, only when the developer says, by the checklist
+  in the plan §4, "Going to production" (permanent Meta token, Dokploy env,
+  migrations, webhook URL, the prod switch, the owner's OK on client data
+  to OpenAI).
+- **Restarting the API on Windows:** stopping the background task leaves
+  the Node process running and still answering on port 4000 (it cost a
+  round of live messages on the old, expired token). Kill the process on
+  the port (`Get-NetTCPConnection -LocalPort 4000`) and check the new PID
+  answers before testing.
+- **To test locally again:** Docker Desktop, `npm run start:dev`, a
+  `cloudflared tunnel --url http://localhost:4000` (re-save its address in
+  Meta's webhook form), and a fresh Meta token in `.env` — the temporary
+  token often dies within hours, not 24; the permanent system-user token
+  fixes that.
+
+#### Earlier on 19 Nov 2026
 
 - **WhatsApp step 4 (actions with CONFIRM) built, reviewed and live-checked
   (19 Nov, evening).** Approve/decline a trip, create a lead, complete a
@@ -245,14 +286,12 @@ for a review, and how the owner likes to work, is in
 4. Small, optional: move the five older Postman builders onto
    `builder_common`; the Leads table's 100-enquiry window (Known findings).
 5. **WhatsApp AI Integration (Super Admin Executive Copilot)** — in progress,
-   the developer's current focus. Steps 1–2 of 7 done (committed 17 Nov); step
-   2, the OpenAI loop with the first read tools, was live-checked on seed
-   data with the developer's own key. Step 3, sending replies, is built,
-   reviewed and committed (18 Nov); **next is its live check on the phone**
-   (Part 1, top), then step 4. Meta setup done 18 Nov: test number, "Hello World" delivered, all six
-   values in the developer's `.env` (the token is the 24-hour one). Still
-   needed: the permanent token, and the owner's OK to send real client data
-   to OpenAI. Steps and progress table in
+   the developer's current focus. **Steps 1–6 done and live-checked, step
+   7's Postman folder done (19 Nov)**; left: step 7's docs pass, step 8,
+   and the deploy (Part 1, top). Meta setup done 18 Nov: test number, all
+   six values in the developer's `.env` (a temporary token). Still needed
+   before production: the permanent token, and the owner's OK to send real
+   client data to OpenAI. Steps and progress table in
    [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6.
    **Agreed 18 Nov, straight after step 7:** the Super Admin's phone moves
    from `.env` into its own Settings tab, linked by sending a code to the
@@ -565,6 +604,30 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 19 Nov 2026 — WhatsApp steps 4–6 and step 7's Postman folder (Claude Code + Codex, Windows machine)
+
+- **How the work ran, and keeps running:** Claude writes a brief per step
+  in `docs/codex-prompts/`, Codex builds without committing and stops on
+  any mismatch, Claude reviews, fixes, live-checks (terminal through
+  `whatsapp:ask`, then the phone through Meta) and commits only when the
+  developer says, in batches by concern. **The developer's standing ask:
+  always paste the full Codex prompt in the reply**, not just the brief's
+  path.
+- **Decided by the developer:** times everywhere on a 24-hour clock as
+  `14:30` (the client's rule); a company time zone plus each user's own;
+  step 6 split into four briefs (sales, operations, money, actions); the bot
+  never emails a client (emailing stays out until decided); Operator
+  Sourcing, Charter Rates, the Document Vault, Users and Settings stay out
+  of the bot; the permanent Meta token later.
+- **Codex stopped on a real mismatch at almost every step** — two were security
+  leaks in existing code (Quotes, Trip Requests), the rest gaps in the
+  brief. Every stop was right; each was settled in the brief or the code
+  before it went on.
+- **Live through Meta:** the time zone (Dhaka / London / company), a task
+  completed and a lead cancelled (step 4), three PDFs (step 5), five new
+  CONFIRM actions checked in the database and the audit log (6d). 6a–6c
+  through `whatsapp:ask`, each answer checked against the database.
 
 ### 18–19 Nov 2026 — WhatsApp step 3 live check passed (Claude Code, Windows machine)
 
