@@ -341,13 +341,30 @@ export async function renderItineraryPdf(
     for (const leg of itinerary.legs) {
       ensureSpace(doc, 26);
       const y = doc.y;
-      const routeText = `${airportCodeLabel(leg.originAirport)} \u2192 ${airportCodeLabel(leg.destinationAirport)}`;
       const timeText = [formatPdfDate(leg.departureDate), leg.departureTime].filter((v) => v && v !== DASH).join(' \u00B7 ') || DASH;
+      // Helvetica has no "\u2192" glyph (it printed as "!'"), so the arrow is
+      // drawn, as the route banner's is.
+      const lead = `Leg ${leg.sequence}   \u00B7   ${airportCodeLabel(leg.originAirport)}`;
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(PDF_THEME.ink).text(lead, left, y, { lineBreak: false });
+      const arrowStart = left + doc.widthOfString(lead) + 5;
+      const arrowEnd = arrowStart + 12;
+      const arrowY = y + 3.5;
+      doc
+        .save()
+        .lineWidth(0.75)
+        .strokeColor(PDF_THEME.ink)
+        .moveTo(arrowStart, arrowY)
+        .lineTo(arrowEnd, arrowY)
+        .moveTo(arrowEnd - 3, arrowY - 2.5)
+        .lineTo(arrowEnd, arrowY)
+        .lineTo(arrowEnd - 3, arrowY + 2.5)
+        .stroke()
+        .restore();
       doc
         .font('Helvetica-Bold')
         .fontSize(9)
         .fillColor(PDF_THEME.ink)
-        .text(`Leg ${leg.sequence}   \u00B7   ${routeText}`, left, y, { lineBreak: false });
+        .text(airportCodeLabel(leg.destinationAirport), arrowEnd + 5, y, { lineBreak: false });
       doc
         .font('Helvetica')
         .fontSize(9)
