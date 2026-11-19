@@ -14,6 +14,7 @@ import {
 } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import { bulkResult, type BulkResult } from '../../common/dto/bulk.dto.js';
+import { referenceFromSearch } from '../../common/database/document-number.js';
 import { equalsAny, orderByField } from '../../common/database/filters.js';
 import {
   ARCHIVE_ACTOR_SELECT,
@@ -337,6 +338,26 @@ export class QuotesService {
     };
   }
 
+  /** The quote reference, client, operator, aircraft and route. Empty with no search. */
+  private searchWhere(search: string | undefined): Prisma.QuoteWhereInput {
+    if (!search) return {};
+    const reference = referenceFromSearch(search, 'Q');
+    return {
+      OR: [
+        ...(reference !== null ? [{ reference }] : []),
+        { client: { firstName: { contains: search, mode: 'insensitive' } } },
+        { client: { lastName: { contains: search, mode: 'insensitive' } } },
+        { client: { companyName: { contains: search, mode: 'insensitive' } } },
+        { operator: { name: { contains: search, mode: 'insensitive' } } },
+        { quotedAircraft: { contains: search, mode: 'insensitive' } },
+        { aircraft: { model: { contains: search, mode: 'insensitive' } } },
+        { aircraft: { tailNumber: { contains: search, mode: 'insensitive' } } },
+        { originAirport: { icao: { contains: search, mode: 'insensitive' } } },
+        { destinationAirport: { icao: { contains: search, mode: 'insensitive' } } },
+      ],
+    };
+  }
+
   async findAll(
     user: AuthenticatedUser,
     query: QueryQuotesInput,
@@ -345,7 +366,13 @@ export class QuotesService {
 
     const where: Prisma.QuoteWhereInput = {
       ...archiveFilter(query.archived),
-      ...this.visibilityScope(user),
+      /**
+       * Visibility and search are both an `OR`, so they are joined with
+       * `AND`, never spread side by side: spread, the search's `OR` replaced
+       * the visibility's, and a broker limited to their own quotes saw
+       * everyone's as soon as they typed in the search box (found 19 Nov).
+       */
+      AND: [this.visibilityScope(user), this.searchWhere(query.search)],
       ...equalsAny(query, [
         'status',
         'clientId',
@@ -363,21 +390,6 @@ export class QuotesService {
         ? {
             validUntil: { lt: new Date() },
             status: { in: [...OPEN_STATUSES] },
-          }
-        : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { client: { firstName: { contains: query.search, mode: 'insensitive' } } },
-              { client: { lastName: { contains: query.search, mode: 'insensitive' } } },
-              { client: { companyName: { contains: query.search, mode: 'insensitive' } } },
-              { operator: { name: { contains: query.search, mode: 'insensitive' } } },
-              { quotedAircraft: { contains: query.search, mode: 'insensitive' } },
-              { aircraft: { model: { contains: query.search, mode: 'insensitive' } } },
-              { aircraft: { tailNumber: { contains: query.search, mode: 'insensitive' } } },
-              { originAirport: { icao: { contains: query.search, mode: 'insensitive' } } },
-              { destinationAirport: { icao: { contains: query.search, mode: 'insensitive' } } },
-            ],
           }
         : {}),
     };

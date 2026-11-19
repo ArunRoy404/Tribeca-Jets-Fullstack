@@ -1595,6 +1595,12 @@ the first time.
 - The `where` clause is the security boundary, so it stays readable at the call
   site. Use the helpers for the repetitive parts; do not hide row-level scoping
   behind a query builder.
+- **Never spread two `OR`s into one `where`.** The second silently replaces
+  the first. Quotes spread its visibility (`OR` own / unassigned) and its
+  search (`OR` client / operator / aircraft) side by side, so a broker
+  limited to their own quotes saw every quote as soon as they typed a search
+  (found 19 Nov 2026). Join them: `AND: [this.visibilityScope(user),
+  this.searchWhere(query.search)]` — `quotes.scope.spec.ts` pins it.
 
 ## Errors
 
