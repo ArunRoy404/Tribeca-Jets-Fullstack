@@ -71,13 +71,9 @@ export function formatDay(value: Date | string | null | undefined): string | nul
   return Number.isNaN(date.getTime()) ? null : DAY.format(date);
 }
 
-/** "14:30" → "2:30 PM". A leg's local time, as the desk typed it. */
+/** "14:30", the leg's local time as stored. Null when it is missing or invalid. */
 export function formatTime(value: string | null | undefined): string | null {
-  const match = value ? /^(\d{2}):(\d{2})$/.exec(value) : null;
-  if (!match) return null;
-  const hours = Number(match[1]);
-  const suffix = hours >= 12 ? 'PM' : 'AM';
-  return `${hours % 12 || 12}:${match[2]} ${suffix}`;
+  return value && value.length === 5 && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
 }
 
 /** An airport as a route reads it: its ICAO code, else its IATA. */

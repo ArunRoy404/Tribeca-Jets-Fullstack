@@ -77,11 +77,14 @@ describe('formatting', () => {
   });
 
   it('a 24-hour time as 12-hour', () => {
-    expect(formatTime('14:30')).toBe('2:30 PM');
-    expect(formatTime('00:05')).toBe('12:05 AM');
-    expect(formatTime('12:00')).toBe('12:00 PM');
+    expect(formatTime('14:30')).toBe('14:30');
+    expect(formatTime('09:05')).toBe('09:05');
+    expect(formatTime('00:05')).toBe('00:05');
+    expect(formatTime('12:00')).toBe('12:00');
     expect(formatTime(null)).toBeNull();
     expect(formatTime('2pm')).toBeNull();
+    expect(formatTime('24:00')).toBeNull();
+    expect(formatTime('13:60')).toBeNull();
   });
 
   it('a route through every leg, and null when a stop is unknown', () => {
