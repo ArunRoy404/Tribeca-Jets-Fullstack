@@ -3,7 +3,7 @@ import { formatMomentIn } from '../../common/dates/time-zone.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { WhatsappActions } from './whatsapp.actions.js';
-import { WHATSAPP_AI_CLIENT, type AiClient, type AiMessage } from './whatsapp.ai-client.js';
+import { WHATSAPP_AI_CLIENT, type AiClientSource, type AiMessage } from './whatsapp.ai-client.js';
 import type { WhatsappDocument } from './whatsapp.document.js';
 import { WhatsappMemory, type MemoryMessage } from './whatsapp.memory.js';
 import { WhatsappPending } from './whatsapp.pending.js';
@@ -48,7 +48,7 @@ export class WhatsappAgent {
   private readonly logger = new Logger(WhatsappAgent.name);
 
   constructor(
-    @Inject(WHATSAPP_AI_CLIENT) private readonly client: AiClient | null,
+    @Inject(WHATSAPP_AI_CLIENT) private readonly getClient: AiClientSource,
     private readonly memory: WhatsappMemory,
     private readonly tools: WhatsappTools,
     private readonly settings: SettingsService,
@@ -56,7 +56,7 @@ export class WhatsappAgent {
     private readonly actions: WhatsappActions,
   ) {}
 
-  get ready(): boolean { return this.client !== null; }
+  async ready(): Promise<boolean> { return (await this.getClient()) !== null; }
 
   async cancelPending(phone: string): Promise<string> {
     const summary = await this.pending.drop(phone);
@@ -92,7 +92,8 @@ export class WhatsappAgent {
       await this.memory.reset(phone);
       return { text: prefix + 'Conversation cleared. Ready for a new question.', documents: [] };
     }
-    if (!this.client) return { text: prefix + AI_UNAVAILABLE_REPLY, documents: [] };
+    const client = await this.getClient();
+    if (!client) return { text: prefix + AI_UNAVAILABLE_REPLY, documents: [] };
 
     const history = await this.memory.load(phone);
     const messages: AiMessage[] = [...history, { kind: 'text', role: 'user', text }];
@@ -113,7 +114,7 @@ export class WhatsappAgent {
       const instructions = `Now: ${formatMomentIn(now, timeZone)} in ${timeZone} — the Super Admin's time zone.\n${WHATSAPP_INSTRUCTIONS}`;
       let turn;
       try {
-        turn = await this.client.respond({ instructions, messages: [...messages], tools: specs });
+        turn = await client.respond({ instructions, messages: [...messages], tools: specs });
       } catch (error: unknown) {
         // A provider's message may quote the request. Class only is enough
         // to diagnose a timeout without recording the conversation.

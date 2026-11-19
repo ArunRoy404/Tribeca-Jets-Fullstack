@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { phoneDigits } from '../../config/configuration.js';
+import { phoneDigits } from '../../common/phone/phone.js';
 import { RedisService } from '../../core/redis/redis.service.js';
 
 const MEMORY_TTL_SECONDS = 30 * 60;

@@ -1,6 +1,9 @@
 /// Staff accounts. Clients authenticate through the separate client portal and
 /// are NOT users — see client.prisma.
 model User {
+  /// Meta sends the digits without a leading plus. Only a verified link sets these.
+  whatsappPhone           String?   @unique
+  whatsappPhoneVerifiedAt DateTime?
   id           String  @id @default(uuid()) @db.Uuid
   email        String  @unique
   passwordHash String
@@ -87,6 +90,8 @@ model User {
   updatedUploads        Upload[]          @relation("UploadUpdatedBy")
   createdSettings       CompanySettings[] @relation("CompanySettingsCreatedBy")
   updatedSettings       CompanySettings[] @relation("CompanySettingsUpdatedBy")
+  createdWhatsappSettings WhatsappSettings[] @relation("WhatsappSettingsCreatedBy")
+  updatedWhatsappSettings WhatsappSettings[] @relation("WhatsappSettingsUpdatedBy")
 
   /// Timeline entries this person wrote. `createdBy` *is* the author here —
   /// see the comment on `Note`, which explains why there is no second column.

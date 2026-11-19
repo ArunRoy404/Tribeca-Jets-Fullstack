@@ -1,13 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
-import { AppConfigService } from '../../config/config.service.js';
 import { documentSizeKb, type WhatsappDocument } from './whatsapp.document.js';
+import { WhatsappSettingsService, type WhatsappConfig } from './whatsapp-settings.service.js';
 
 const TIMEOUT_MS = 10_000;
 const UPLOAD_TIMEOUT_MS = 30_000;
 const RETRY_DELAY_MS = 1_000;
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
-type WhatsappConfig = NonNullable<AppConfigService['whatsapp']>;
 
 function messagesUrl(config: WhatsappConfig): string {
   return `https://graph.facebook.com/${config.graphVersion}/${config.phoneNumberId}/messages`;
@@ -35,7 +34,16 @@ function metaError(body: unknown) {
 export class WhatsappSender {
   private readonly logger = new Logger(WhatsappSender.name);
 
-  constructor(private readonly config: AppConfigService) {}
+  constructor(private readonly settings: WhatsappSettingsService) {}
+
+  private async configuration(): Promise<WhatsappConfig | null> {
+    try {
+      return await this.settings.current();
+    } catch (error) {
+      this.logger.error(`WhatsApp settings could not be read (${error instanceof Error ? error.name : 'UnknownError'})`);
+      return null;
+    }
+  }
 
   private post(config: WhatsappConfig, body: object): Promise<Response> {
     return fetch(messagesUrl(config), {
@@ -59,7 +67,7 @@ export class WhatsappSender {
         const logged = codesOnly ? { code: error.code, error_subcode: error.error_subcode } : error;
         this.logger.error(`WhatsApp ${operation} failed (HTTP ${response.status}) ${JSON.stringify(logged)}`);
         if (error.code === 190) {
-          this.logger.error('WhatsApp access token rejected (code 190): renew WHATSAPP_ACCESS_TOKEN');
+          this.logger.error('WhatsApp access token rejected (code 190): replace it in Settings › WhatsApp & AI');
         }
         if (response.status !== 429 && (response.status < 500 || response.status >= 600)) return null;
       } catch {
@@ -70,7 +78,7 @@ export class WhatsappSender {
   }
 
   async sendText(to: string, body: string, replyTo?: string): Promise<boolean> {
-    const config = this.config.whatsapp;
+    const config = await this.configuration();
     if (!config) return false;
     const payload = {
       messaging_product: 'whatsapp',
@@ -85,7 +93,7 @@ export class WhatsappSender {
   }
 
   async sendDocument(to: string, file: WhatsappDocument, caption?: string, replyTo?: string): Promise<boolean> {
-    const config = this.config.whatsapp;
+    const config = await this.configuration();
     if (!config) return false;
     const size = `${documentSizeKb(file.body.length)} KB`;
     if (file.body.length > MAX_DOCUMENT_BYTES) {
@@ -136,7 +144,7 @@ export class WhatsappSender {
 
   /** One attempt: a missing typing indicator must never cost the admin their reply. */
   async markRead(messageId: string): Promise<void> {
-    const config = this.config.whatsapp;
+    const config = await this.configuration();
     if (!config) return;
     try {
       const response = await this.post(config, {

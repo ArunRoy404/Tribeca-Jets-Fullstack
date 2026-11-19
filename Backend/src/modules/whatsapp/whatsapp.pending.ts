@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { createPaymentSchema } from '../../common/dto/payments.js';
-import { phoneDigits } from '../../config/configuration.js';
+import { phoneDigits } from '../../common/phone/phone.js';
 import { RedisService } from '../../core/redis/redis.service.js';
 import { NoteSubjectType, NoteVisibility } from '../../generated/prisma/enums.js';
 import { createClientSchema, updateClientSchema } from '../clients/dto/client.dto.js';

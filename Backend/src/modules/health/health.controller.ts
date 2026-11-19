@@ -5,6 +5,7 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { RedisService } from '../../core/redis/redis.service.js';
 import { StorageService } from '../../core/storage/storage.service.js';
 import { AppConfigService } from '../../config/config.service.js';
+import { WhatsappSettingsService } from '../whatsapp/whatsapp-settings.service.js';
 
 /**
  * Liveness/readiness endpoint for the Docker healthcheck and uptime monitoring.
@@ -17,15 +18,17 @@ export class HealthController {
     private readonly redis: RedisService,
     private readonly storage: StorageService,
     private readonly config: AppConfigService,
+    private readonly whatsappSettings: WhatsappSettingsService,
   ) {}
 
   @Public()
   @Get()
   @ApiOperation({ summary: 'Service health and active drivers' })
   async check() {
-    const [database, redis] = await Promise.all([
+    const [database, redis, ai] = await Promise.all([
       this.ping(() => this.prisma.$queryRaw`SELECT 1`),
       this.ping(() => this.redis.client.ping()),
+      this.whatsappSettings.ai().then((settings) => Boolean(settings)).catch(() => false),
     ]);
 
     const healthy = database === 'up' && redis === 'up';
@@ -41,7 +44,7 @@ export class HealthController {
         // Surfaces which storage backend the env actually resolved to, so a
         // misconfigured S3 credential set is visible without reading logs.
         storage: this.storage.driverName,
-        ai: this.config.ai.enabled ? 'configured' : 'not_configured',
+        ai: ai ? 'configured' : 'not_configured',
       },
     };
   }

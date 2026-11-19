@@ -1,0 +1,20 @@
+/// One row. The four credential columns hold sealed values.
+model WhatsappSettings {
+  id            Int     @id @default(1)
+  openaiApiKey  String?
+  openaiModel   String?
+  accessToken   String?
+  appSecret     String?
+  verifyToken   String?
+  phoneNumberId String?
+  graphVersion  String  @default("v25.0")
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("WhatsappSettingsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("WhatsappSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("whatsapp_settings")
+}

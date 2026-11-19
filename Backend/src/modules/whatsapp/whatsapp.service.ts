@@ -1,15 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AppConfigService } from '../../config/config.service.js';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { RedisService } from '../../core/redis/redis.service.js';
 import { resolveAccess } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UserRole, UserStatus } from '../../generated/prisma/enums.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { SettingsService } from '../settings/settings.service.js';
 import type { WhatsappDocument } from './whatsapp.document.js';
 import type { IncomingMessage } from './whatsapp.payload.js';
 import { WhatsappSender } from './whatsapp.sender.js';
 import { isConfirmationCommand, WhatsappAgent } from './whatsapp.agent.js';
+import { WhatsappSettingsService } from './whatsapp-settings.service.js';
 
 /** Meta redelivers until it gets a 200; a day covers every retry it makes. */
 const SEEN_TTL_SECONDS = 24 * 60 * 60;
@@ -35,13 +36,32 @@ export type Outcome =
   | 'stale'
   | 'no_admin';
 
+const ADMIN_SELECT = {
+  id: true, email: true, role: true, status: true, deletedAt: true,
+  permissions: true, timeZone: true, whatsappPhone: true, whatsappPhoneVerifiedAt: true,
+} satisfies Prisma.UserSelect;
+
+type WhatsappAdmin = AuthenticatedUser & { phone: string | null };
+
+type AdminRow = Prisma.UserGetPayload<{ select: typeof ADMIN_SELECT }>;
+
+function identity(user: AdminRow): AuthenticatedUser {
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    access: resolveAccess(user.role, user.permissions),
+    ...(user.timeZone ? { timeZone: user.timeZone } : {}),
+  };
+}
+
 /**
  * The Super Admin's WhatsApp assistant.
  *
  * Every message passes the same gates, in order, before anything reads it:
  * the server is configured, Settings › Security has it switched on, it comes
- * from the one phone in the env, it has not been handled already, it is
- * recent, and the account named in the env is still an active Super Admin.
+ * from the verified phone of an active Super Admin, it has not been handled
+ * already, and it is recent.
  * A message that fails any of them is dropped without a reply — an answer to
  * a stranger confirms the number is a bot worth probing.
  */
@@ -51,7 +71,7 @@ export class WhatsappService {
   private receiving = Promise.resolve();
 
   constructor(
-    private readonly config: AppConfigService,
+    private readonly whatsappSettings: WhatsappSettingsService,
     private readonly settings: SettingsService,
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
@@ -71,34 +91,30 @@ export class WhatsappService {
   private async receiveMessages(messages: IncomingMessage[], now: Date): Promise<Outcome[]> {
     const outcomes: Outcome[] = [];
     for (const message of messages) {
-      const outcome = await this.gate(message, now);
-      if (outcome === 'accepted') {
-        // The user is re-read per message, so a suspension or a role change
-        // in the web app stops the bot at once.
-        const admin = await this.actingAdmin();
-        if (!admin) {
-          outcomes.push('no_admin');
-          continue;
-        }
-        await this.handle(admin, message);
+      const result = await this.gate(message, now);
+      if (typeof result === 'string') {
+        outcomes.push(result);
+        continue;
       }
-      outcomes.push(outcome);
+      await this.handle(result, message);
+      outcomes.push('accepted');
     }
     return outcomes;
   }
 
-  private async gate(message: IncomingMessage, now: Date): Promise<Outcome> {
-    const config = this.config.whatsapp;
-    if (!config) return 'not_configured';
+  private async gate(message: IncomingMessage, now: Date): Promise<Exclude<Outcome, 'accepted'> | AuthenticatedUser> {
+    if (!await this.whatsappSettings.current()) return 'not_configured';
 
     if (!(await this.settings.read()).whatsappAssistantEnabled) return 'switched_off';
 
-    if (message.from !== config.adminPhone) {
+    // Re-read identity per message so a suspension, role change or unlink
+    // takes effect on the next delivery.
+    const user = await this.prisma.user.findUnique({ where: { whatsappPhone: message.from }, select: ADMIN_SELECT });
+    if (!user?.whatsappPhoneVerifiedAt) {
       // The last four digits only: enough to recognise, not a register.
       this.logger.warn(`Ignored a WhatsApp message from …${message.from.slice(-4)}`);
       return 'unknown_sender';
     }
-
     if (!(await this.redis.claimOnce(`whatsapp:seen:${message.id}`, SEEN_TTL_SECONDS))) {
       return 'duplicate';
     }
@@ -108,7 +124,8 @@ export class WhatsappService {
       return 'stale';
     }
 
-    return 'accepted';
+    if (user.deletedAt || user.status !== UserStatus.ACTIVE || user.role !== UserRole.SUPER_ADMIN) return 'no_admin';
+    return identity(user);
   }
 
   /**
@@ -117,14 +134,19 @@ export class WhatsappService {
    * is still a Super Admin. Identity, by stored role: the owner's rule is that
    * only the Super Admin uses the bot.
    */
-  async actingAdmin(): Promise<AuthenticatedUser | null> {
-    const email = this.config.whatsapp?.adminEmail;
-    if (!email) return null;
-    return this.adminForEmail(email);
+  async actingAdmin(): Promise<WhatsappAdmin | null> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        deletedAt: null, status: UserStatus.ACTIVE, role: UserRole.SUPER_ADMIN,
+        whatsappPhone: { not: null }, whatsappPhoneVerifiedAt: { not: null },
+      },
+      select: ADMIN_SELECT,
+    });
+    return user ? { ...identity(user), phone: user.whatsappPhone } : null;
   }
 
-  /** The terminal's optional --as uses exactly the webhook's identity query. */
-  async adminForEmail(email: string): Promise<AuthenticatedUser | null> {
+  /** The terminal can target an active Super Admin before a phone is linked. */
+  async adminForEmail(email: string): Promise<WhatsappAdmin | null> {
     const user = await this.prisma.user.findFirst({
       where: {
         email: { equals: email.trim(), mode: 'insensitive' },
@@ -132,16 +154,9 @@ export class WhatsappService {
         status: UserStatus.ACTIVE,
         role: UserRole.SUPER_ADMIN,
       },
-      select: { id: true, email: true, role: true, permissions: true, timeZone: true },
+      select: ADMIN_SELECT,
     });
-    if (!user) {
-      this.logger.error(
-        'SUPER_ADMIN_WHATSAPP_EMAIL names no active Super Admin; the WhatsApp assistant is answering nobody.',
-      );
-      return null;
-    }
-    const { permissions, ...identity } = user;
-    return { ...identity, access: resolveAccess(user.role, permissions) };
+    return user ? { ...identity(user), phone: user.whatsappPhoneVerifiedAt ? user.whatsappPhone : null } : null;
   }
 
   /**
@@ -157,8 +172,8 @@ export class WhatsappService {
       if (message.type !== 'text' || !message.text?.trim()) {
         this.logger.log(`Ignored non-text WhatsApp message ${message.id} (${message.type})`);
         reply = await this.agent.cancelPending(message.from) + NON_TEXT_REPLY;
-      } else if (!this.agent.ready && !isConfirmationCommand(message.text)) {
-        this.logger.warn('WhatsApp assistant accepted a message but OPENAI_API_KEY / OPENAI_MODEL are not set');
+      } else if (!isConfirmationCommand(message.text) && !await this.agent.ready()) {
+        this.logger.warn('WhatsApp assistant accepted a message but the OpenAI key or model is missing from Settings');
         reply = await this.agent.cancelPending(message.from) + NOT_READY_REPLY;
       } else {
         const answer = await this.agent.reply(admin, message.from, message.text, true);

@@ -30,6 +30,11 @@ import { WhatsappMemory } from './whatsapp.memory.js';
 import { WhatsappPending } from './whatsapp.pending.js';
 import { WhatsappTools } from './whatsapp.tools.js';
 import { whatsappAiClientProvider } from './whatsapp.ai-client.js';
+import { SecretBox } from '../../common/crypto/secret-box.js';
+import { WhatsappPhoneService } from './whatsapp-phone.service.js';
+import { WhatsappSettingsController } from './whatsapp-settings.controller.js';
+import { WhatsappSettingsService } from './whatsapp-settings.service.js';
+import { WhatsappConnectionsService } from './whatsapp-connections.service.js';
 
 @Module({
   imports: [
@@ -38,7 +43,12 @@ import { whatsappAiClientProvider } from './whatsapp.ai-client.js';
     QuotesModule, ReceivablesModule, ReportsModule, ScheduleModule, TasksModule, TransactionsModule, TripRequestsModule,
     TripsModule, UsersModule,
   ],
-  controllers: [WhatsappController],
-  providers: [WhatsappService, WhatsappSender, WhatsappAgent, WhatsappMemory, WhatsappPending, WhatsappActions, WhatsappTools, whatsappAiClientProvider],
+  controllers: [WhatsappController, WhatsappSettingsController],
+  providers: [
+    WhatsappService, WhatsappSender, WhatsappAgent, WhatsappMemory, WhatsappPending, WhatsappActions,
+    WhatsappTools, whatsappAiClientProvider, SecretBox, WhatsappSettingsService, WhatsappPhoneService,
+    WhatsappConnectionsService,
+  ],
+  exports: [WhatsappSettingsService],
 })
 export class WhatsappModule {}

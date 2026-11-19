@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { phoneDigits } from '../../common/phone/phone.js';
 
 /**
  * The part of Meta's webhook payload the assistant reads.
@@ -64,7 +65,7 @@ export function readIncomingMessages(body: unknown): IncomingMessage[] {
     const seconds = timestamp ? Number(timestamp) : NaN;
     out.push({
       id,
-      from: from.replace(/\D/g, ''),
+      from: phoneDigits(from),
       type,
       text: type === 'text' ? (text?.body ?? null) : null,
       sentAt: Number.isFinite(seconds) ? new Date(seconds * 1000) : null,

@@ -10,7 +10,7 @@ const meta = { code: 190, error_subcode: 463, type: 'OAuthException', fbtrace_id
   message: 'PRIVATE META MESSAGE', error_data: { details: 'PRIVATE PARAMETER' } };
 
 describe('WhatsappSender', () => {
-  const sender = new WhatsappSender({ whatsapp: config } as never);
+  const sender = new WhatsappSender({ current: async () => config } as never);
   const post = vi.fn<typeof fetch>();
   let logs: ReturnType<typeof vi.spyOn>[];
 
@@ -46,7 +46,7 @@ describe('WhatsappSender', () => {
     post.mockResolvedValue(Response.json({ error: meta }, { status: 400 }));
     expect(await sender.sendText(phone, text)).toBe(false);
     expect(post).toHaveBeenCalledTimes(1);
-    expect(logs[2]).toHaveBeenCalledWith('WhatsApp access token rejected (code 190): renew WHATSAPP_ACCESS_TOKEN');
+    expect(logs[2]).toHaveBeenCalledWith('WhatsApp access token rejected (code 190): replace it in Settings › WhatsApp & AI');
     const logged = JSON.stringify(logs.map((log) => log.mock.calls));
     for (const value of ['HTTP 400', '190', '463', meta.type, meta.fbtrace_id]) expect(logged).toContain(value);
     for (const value of [phone, config.accessToken, text, meta.message, meta.error_data.details]) {
@@ -71,7 +71,7 @@ describe('WhatsappSender', () => {
   });
 
   it('makes no request while unconfigured', async () => {
-    const disabled = new WhatsappSender({ whatsapp: null } as never);
+    const disabled = new WhatsappSender({ current: async () => null } as never);
     expect(await disabled.sendText(phone, text)).toBe(false);
     await disabled.markRead('wamid.question');
     expect(post).not.toHaveBeenCalled();
@@ -154,7 +154,7 @@ describe('WhatsappSender', () => {
     post.mockResolvedValueOnce(Response.json({ error: { ...meta, type: file.filename, fbtrace_id: phone } }, { status: 400 }));
     expect(await sender.sendDocument(phone, file, caption)).toBe(false);
     expect(post.mock.calls.map(([endpoint]) => endpoint)).toEqual(uploadSucceeded ? [uploadUrl, url] : [uploadUrl]);
-    expect(logs[2]).toHaveBeenCalledWith('WhatsApp access token rejected (code 190): renew WHATSAPP_ACCESS_TOKEN');
+    expect(logs[2]).toHaveBeenCalledWith('WhatsApp access token rejected (code 190): replace it in Settings › WhatsApp & AI');
     const logged = JSON.stringify(logs.flatMap((log) => log.mock.calls));
     for (const value of [file.filename, caption, config.accessToken, meta.message, phone, file.body.toString()]) {
       expect(logged).not.toContain(value);
@@ -169,7 +169,7 @@ describe('WhatsappSender', () => {
   });
 
   it('refuses an oversized PDF or missing configuration before fetching', async () => {
-    const disabled = new WhatsappSender({ whatsapp: null } as never);
+    const disabled = new WhatsappSender({ current: async () => null } as never);
     expect(await disabled.sendDocument(phone, file)).toBe(false);
     expect(await sender.sendDocument(phone, { ...file, body: Buffer.alloc(10 * 1024 * 1024 + 1) }, caption)).toBe(false);
     expect(post).not.toHaveBeenCalled();

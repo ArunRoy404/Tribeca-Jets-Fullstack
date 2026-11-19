@@ -38,6 +38,9 @@ model VerificationCode {
 
   ipAddress String?
   userAgent String?
+  /// Where a code was sent when it was not the account's own address.
+  /// WHATSAPP_LINK stores the phone being linked here.
+  target String? @db.VarChar(32)
 
   createdAt DateTime @default(now())
 
@@ -55,4 +58,5 @@ enum VerificationPurpose {
   /// emit a stray AlterEnum into three unrelated migrations, each of which had
   /// to be stripped by hand. No code issues it today.
   INVITATION
+  WHATSAPP_LINK
 }

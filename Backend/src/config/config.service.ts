@@ -32,6 +32,5 @@ export class AppConfigService {
   get rateLimit() { return this.get('rateLimit'); }
   get storage() { return this.get('storage'); }
   get mail() { return this.get('mail'); }
-  get ai() { return this.get('ai'); }
-  get whatsapp() { return this.get('whatsapp'); }
+  get settingsEncryptionKey() { return this.get('settingsEncryptionKey'); }
 }

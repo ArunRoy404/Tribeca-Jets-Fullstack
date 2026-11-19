@@ -2,18 +2,17 @@ import 'reflect-metadata';
 import { parseArgs } from 'node:util';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
-import { AppConfigService } from '../config/config.service.js';
 import { WhatsappAgent } from '../modules/whatsapp/whatsapp.agent.js';
 import { documentSizeKb } from '../modules/whatsapp/whatsapp.document.js';
 import { WhatsappService } from '../modules/whatsapp/whatsapp.service.js';
+import { WhatsappSettingsService } from '../modules/whatsapp/whatsapp-settings.service.js';
 
 /**
  * Development tool: sends CRM data to OpenAI when configured and invoked.
  * Skips the webhook's signature, Settings switch, sender, redelivery and
- * freshness gates. It still resolves a live, active Super Admin through the
- * same query as the webhook; --as changes only which such account is used.
+ * freshness gates. It still resolves a live, active Super Admin.
  *
- * Without the WhatsApp env set, --as is required and the conversation is
+ * Without a linked phone, --as is required and the conversation is
  * remembered under the key `0`, which no E.164 number reduces to — so the
  * brain can be tried before Meta's credentials exist without ever sharing
  * the phone's memory. Nothing imports this script. Nest's ConfigModule loads and validates env;
@@ -37,12 +36,9 @@ async function main(): Promise<void> {
   });
   try {
     console.log('WhatsApp assistant application context started.');
-    const config = app.get(AppConfigService);
-    const missing = [
-      ...(!config.ai.openaiApiKey?.trim() ? ['OPENAI_API_KEY'] : []),
-      ...(!config.ai.openaiModel?.trim() ? ['OPENAI_MODEL'] : []),
-    ];
-    if (missing.length) throw new Error(`${missing.join(' / ')} must be set to run whatsapp:ask`);
+    if (!await app.get(WhatsappSettingsService).ai()) {
+      throw new Error('Set the OpenAI API key and model in Settings › WhatsApp & AI to run whatsapp:ask');
+    }
 
     const whatsapp = app.get(WhatsappService);
     const user = values.as
@@ -51,9 +47,9 @@ async function main(): Promise<void> {
     if (!user) {
       throw new Error(values.as
         ? '--as must name an active, non-deleted SUPER_ADMIN'
-        : 'Pass --as <email>, or set the six WhatsApp variables with SUPER_ADMIN_WHATSAPP_EMAIL naming an active SUPER_ADMIN');
+        : 'Pass --as <email>, or link an active Super Admin in Settings › WhatsApp & AI');
     }
-    const phone = config.whatsapp?.adminPhone ?? '0';
+    const phone = user.phone ?? '0';
     const reply = await app.get(WhatsappAgent).reply(user, phone, text);
     console.log(reply.text);
     for (const { filename, body } of reply.documents) {

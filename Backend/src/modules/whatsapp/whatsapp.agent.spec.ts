@@ -60,7 +60,7 @@ describe('WhatsappAgent loop and memory', () => {
     respond = vi.fn<AiClient['respond']>();
     dispatch = vi.fn().mockResolvedValue({ clients: [{ displayName: 'Alex' }] });
     settings.read.mockClear();
-    agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => [], dispatch } as never, settings as never, {} as never, {} as never);
+    agent = new WhatsappAgent(async () => ({ respond }), fixture.memory, { specs: () => [], dispatch } as never, settings as never, {} as never, {} as never);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -171,7 +171,7 @@ describe('WhatsappAgent loop and memory', () => {
     try {
       vi.setSystemTime(new Date('2026-11-19T18:00:00Z'));
       const specs = [{ name: 'find_client', description: 'Find a client', parameters: {} }];
-      agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => specs, dispatch } as never, settings as never, {} as never, {} as never);
+      agent = new WhatsappAgent(async () => ({ respond }), fixture.memory, { specs: () => specs, dispatch } as never, settings as never, {} as never, {} as never);
       respond.mockResolvedValue(final('Not on file.'));
       await agent.reply({ ...user, timeZone }, PHONE, 'Question');
       expect(respond.mock.calls[0]?.[0].instructions).toContain(`Now: ${expected} — the Super Admin's time zone.`);
@@ -230,8 +230,8 @@ describe('WhatsappAgent loop and memory', () => {
   });
 
   it('is not ready with a null client and makes no memory write', async () => {
-    agent = new WhatsappAgent(null, fixture.memory, { specs: () => [], dispatch } as never, settings as never, {} as never, {} as never);
-    expect(agent.ready).toBe(false);
+    agent = new WhatsappAgent(async () => null, fixture.memory, { specs: () => [], dispatch } as never, settings as never, {} as never, {} as never);
+    expect(await agent.ready()).toBe(false);
     expect(await agent.reply(user, PHONE, 'Question')).toEqual(textReply(AI_UNAVAILABLE_REPLY));
     expect(fixture.redis.setString).not.toHaveBeenCalled();
   });
@@ -240,19 +240,36 @@ describe('WhatsappAgent loop and memory', () => {
 describe('OpenAI adapter and readiness', () => {
   beforeEach(() => { sdk.construct.mockClear(); sdk.create.mockReset(); });
 
-  it.each([{}, { openaiApiKey: 'test-key' }, { openaiModel: 'chosen-model' }, { openaiApiKey: ' ', openaiModel: 'chosen-model' }])('builds no SDK client for incomplete AI config %j', (ai) => {
-    expect(whatsappAiClientProvider.useFactory({ ai } as never)).toBeNull();
+  it.each([{}, { openaiApiKey: 'test-key' }, { openaiModel: 'chosen-model' }, { openaiApiKey: ' ', openaiModel: 'chosen-model' }])('builds no SDK client for incomplete AI config %j', async (ai) => {
+    const getClient = whatsappAiClientProvider.useFactory({ ai: async () => ai.openaiApiKey?.trim() && ai.openaiModel ? { apiKey: ai.openaiApiKey, model: ai.openaiModel } : null } as never);
+    expect(await getClient()).toBeNull();
     expect(sdk.construct).not.toHaveBeenCalled();
   });
 
   it('uses the chosen model, a 30-second timeout, at most one retry, and store:false on every request', async () => {
-    const client = whatsappAiClientProvider.useFactory({ ai: { openaiApiKey: 'test-key', openaiModel: 'chosen-model' } } as never)!;
+    const getClient = whatsappAiClientProvider.useFactory({ ai: async () => ({ apiKey: 'test-key', model: 'chosen-model' }) } as never);
+    const client = (await getClient())!;
     sdk.create.mockResolvedValue({ status: 'completed', output: [], output_text: 'Answer' });
     const input = { instructions: 'Instructions', messages: [{ kind: 'text' as const, role: 'user' as const, text: 'Question' }], tools: [] };
     await client.respond(input);
     await client.respond(input);
     expect(sdk.construct).toHaveBeenCalledExactlyOnceWith({ apiKey: 'test-key', timeout: 30000, maxRetries: 1 });
     for (const [request] of sdk.create.mock.calls) expect(request).toMatchObject({ model: 'chosen-model', store: false, input: [{ role: 'user', content: 'Question' }] });
+  });
+
+  it('reuses the client until the stored model or key changes', async () => {
+    const ai = vi.fn().mockResolvedValue({ apiKey: 'first-key', model: 'model-one' });
+    const getClient = whatsappAiClientProvider.useFactory({ ai } as never);
+    const first = await getClient();
+    expect(await getClient()).toBe(first);
+    ai.mockResolvedValue({ apiKey: 'first-key', model: 'model-two' });
+    const second = await getClient();
+    expect(second).not.toBe(first);
+    ai.mockResolvedValue({ apiKey: 'second-key', model: 'model-two' });
+    expect(await getClient()).not.toBe(second);
+    expect(sdk.construct).toHaveBeenCalledTimes(3);
+    ai.mockResolvedValue(null);
+    expect(await getClient()).toBeNull();
   });
 
   it('maps function calls and their outputs without exposing SDK types to the loop', async () => {
@@ -298,14 +315,14 @@ describe('WhatsappService sends replies without logging content', () => {
     cancelPending.mockReset().mockResolvedValue('');
     ai = { openaiApiKey: 'test-key', openaiModel: 'chosen-model' };
     reply = vi.fn().mockResolvedValue(textReply(replyText));
-    findFirst = vi.fn().mockResolvedValue({ id: user.id, email: user.email, role: user.role, permissions: null });
+    findFirst = vi.fn().mockResolvedValue({ id: user.id, email: user.email, role: user.role, permissions: null, status: 'ACTIVE', deletedAt: null, whatsappPhone: PHONE, whatsappPhoneVerifiedAt: new Date() });
     service = new WhatsappService(
-      { get ai() { return ai; }, whatsapp: { adminPhone: PHONE, adminEmail: user.email } } as never,
+      { current: async () => ({}) } as never,
       { read: async () => ({ whatsappAssistantEnabled: true }) } as never,
       { claimOnce: async () => true } as never,
-      { user: { findFirst } } as never,
+      { user: { findFirst, findUnique: findFirst } } as never,
       // Ready exactly when the provider factory would build a client.
-      { get ready() { return Boolean(ai.openaiApiKey && ai.openaiModel); }, reply, cancelPending } as never,
+      { ready: async () => Boolean(ai.openaiApiKey && ai.openaiModel), reply, cancelPending } as never,
       sender as never,
     );
   });
@@ -326,7 +343,7 @@ describe('WhatsappService sends replies without logging content', () => {
     await service.receive([message]);
     expect(reply).not.toHaveBeenCalled();
     expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, NOT_READY_REPLY, message.id);
-    expect(logs[1]).toHaveBeenCalledExactlyOnceWith('WhatsApp assistant accepted a message but OPENAI_API_KEY / OPENAI_MODEL are not set');
+    expect(logs[1]).toHaveBeenCalledExactlyOnceWith('WhatsApp assistant accepted a message but the OpenAI key or model is missing from Settings');
   });
 
   it('resolves when the agent throws and logs no message or reply text', async () => {
@@ -342,7 +359,7 @@ describe('WhatsappService sends replies without logging content', () => {
   it('runs all gates and the real agent/memory; logs only the reply length', async () => {
     const fixture = memoryFixture();
     const agent = new WhatsappAgent(
-      { respond: async () => final(replyText) }, fixture.memory, { specs: () => [] } as never,
+      async () => ({ respond: async () => final(replyText) }), fixture.memory, { specs: () => [] } as never,
       { read: async () => ({ companyTimeZone: DEFAULT_TIME_ZONE }) } as never,
       { drop: async () => null } as never, {} as never,
     );
@@ -389,9 +406,9 @@ describe('WhatsappService sends replies without logging content', () => {
       .mockResolvedValueOnce(Response.json({ error: { code: 12 } }, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 200 }));
     vi.stubGlobal('fetch', post);
-    const transport = new WhatsappSender({ whatsapp: {
+    const transport = new WhatsappSender({ current: async () => ({
       graphVersion: 'v25.0', phoneNumberId: '4321', accessToken: 'test-token',
-    } } as never);
+    }) } as never);
     sender.markRead.mockImplementation(transport.markRead.bind(transport));
     sender.sendText.mockImplementation(transport.sendText.bind(transport));
     await expect(service.receive([message])).resolves.toEqual(['accepted']);
@@ -428,14 +445,15 @@ describe('WhatsappService sends replies without logging content', () => {
     expect(reply).toHaveBeenNthCalledWith(2, user, PHONE, 'CONFIRM', true);
   });
 
-  it('shares the active, non-deleted SUPER_ADMIN identity query with --as', async () => {
+  it('uses an active, non-deleted SUPER_ADMIN for the linked CLI identity and --as', async () => {
     await service.actingAdmin();
-    const webhookQuery = findFirst.mock.calls[0]?.[0];
     await service.adminForEmail(` ${user.email} `);
-    expect(findFirst.mock.calls[1]?.[0]).toEqual(webhookQuery);
-    expect(webhookQuery).toEqual({
-      where: { email: { equals: user.email, mode: 'insensitive' }, deletedAt: null, status: 'ACTIVE', role: 'SUPER_ADMIN' },
-      select: { id: true, email: true, role: true, permissions: true, timeZone: true },
+    const active = { deletedAt: null, status: 'ACTIVE', role: 'SUPER_ADMIN' };
+    expect(findFirst.mock.calls[0]?.[0].where).toEqual({
+      ...active, whatsappPhone: { not: null }, whatsappPhoneVerifiedAt: { not: null },
+    });
+    expect(findFirst.mock.calls[1]?.[0].where).toEqual({
+      ...active, email: { equals: user.email, mode: 'insensitive' },
     });
     findFirst.mockResolvedValueOnce(null);
     expect(await service.adminForEmail('missing@example.com')).toBeNull();

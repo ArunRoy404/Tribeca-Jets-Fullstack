@@ -21,11 +21,11 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
-import { AppConfigService } from '../../config/config.service.js';
 import { VerifyWebhookQueryDto } from './dto/whatsapp.dto.js';
 import { readFailedStatuses, readIncomingMessages } from './whatsapp.payload.js';
 import { verifyMetaSignature } from './whatsapp.signature.js';
 import { WhatsappService } from './whatsapp.service.js';
+import { WhatsappSettingsService } from './whatsapp-settings.service.js';
 
 /**
  * Meta's webhook for the Super Admin's WhatsApp assistant.
@@ -37,7 +37,7 @@ import { WhatsappService } from './whatsapp.service.js';
  * of the raw body. Who may *use* the bot is then decided per message in
  * `WhatsappService` (one phone, one Super Admin, the Settings switch).
  *
- * Both routes answer 404 while the env is not configured, so a deployment
+ * Both routes answer 404 while Meta settings are incomplete, so a deployment
  * without the assistant does not advertise the route.
  */
 @ApiTags('WhatsApp')
@@ -47,7 +47,7 @@ export class WhatsappController {
   private readonly logger = new Logger(WhatsappController.name);
 
   constructor(
-    private readonly config: AppConfigService,
+    private readonly settings: WhatsappSettingsService,
     private readonly whatsapp: WhatsappService,
   ) {}
 
@@ -58,12 +58,12 @@ export class WhatsappController {
     summary: 'Meta webhook verification',
     description:
       'Called once by Meta when the webhook URL is saved. Echoes `hub.challenge` as plain text when ' +
-      '`hub.mode` is `subscribe` and `hub.verify_token` matches WHATSAPP_VERIFY_TOKEN; 403 otherwise, ' +
+      '`hub.mode` is `subscribe` and `hub.verify_token` matches the stored verify token; 403 otherwise, ' +
       '404 while the assistant is not configured.',
   })
   @ApiResponse({ status: 200, description: 'The challenge, as plain text.' })
-  verify(@Query() query: VerifyWebhookQueryDto): StreamableFile {
-    const config = this.config.whatsapp;
+  async verify(@Query() query: VerifyWebhookQueryDto): Promise<StreamableFile> {
+    const config = await this.settings.current();
     if (!config) throw new NotFoundException();
 
     const token = query['hub.verify_token'];
@@ -86,16 +86,16 @@ export class WhatsappController {
     summary: 'Meta webhook events',
     description:
       'Incoming WhatsApp messages and delivery receipts from Meta. 401 unless `X-Hub-Signature-256` is ' +
-      'the HMAC-SHA256 of the raw body with WHATSAPP_APP_SECRET. Answers 200 at once and handles the ' +
+      'the HMAC-SHA256 of the raw body with the stored app secret. Answers 200 at once and handles the ' +
       'messages afterwards; anything not from the Super Admin phone is dropped silently.',
   })
   @ApiResponse({ status: 200, description: 'Received.' })
-  receive(
+  async receive(
     @Req() request: RawBodyRequest<Request>,
     @Headers('x-hub-signature-256') signature: string | undefined,
     @Body() body: unknown,
-  ): { received: number } {
-    const config = this.config.whatsapp;
+  ): Promise<{ received: number }> {
+    const config = await this.settings.current();
     if (!config) throw new NotFoundException();
 
     if (!verifyMetaSignature(request.rawBody, signature, config.appSecret)) {
@@ -113,7 +113,7 @@ export class WhatsappController {
       void this.whatsapp
         .receive(messages)
         .catch((error: unknown) =>
-          this.logger.error(`WhatsApp message handling failed: ${(error as Error).message}`),
+          this.logger.error(`WhatsApp message handling failed (${error instanceof Error ? error.name : 'UnknownError'})`),
         );
     }
     return { received: messages.length };

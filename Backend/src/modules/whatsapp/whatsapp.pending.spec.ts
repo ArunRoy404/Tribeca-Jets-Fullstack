@@ -162,7 +162,7 @@ describe('WhatsappAgent confirmations', () => {
     specs = vi.fn(() => []);
     dispatch = vi.fn();
     run = vi.fn().mockResolvedValue(success);
-    agent = new WhatsappAgent({ respond }, store.memory, { specs, dispatch } as never,
+    agent = new WhatsappAgent(async () => ({ respond }), store.memory, { specs, dispatch } as never,
       settings as never, store.pending, { run } as never);
   });
 

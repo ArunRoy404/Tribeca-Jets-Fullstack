@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ForbiddenException, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { HTTP_CODE_METADATA } from '@nestjs/common/constants.js';
+import { buildConfig } from '../../config/configuration.js';
 import { validateEnv } from '../../config/env.validation.js';
+import { SendLinkCodeDto, updateWhatsappSettingsSchema } from './dto/whatsapp-settings.dto.js';
 import { metaSignature, verifyMetaSignature } from './whatsapp.signature.js';
 import { readFailedStatuses, readIncomingMessages, type IncomingMessage } from './whatsapp.payload.js';
 import { MAX_MESSAGE_AGE_MS, WhatsappService } from './whatsapp.service.js';
@@ -16,8 +18,6 @@ const config = {
   appSecret: SECRET,
   verifyToken: 'verify-me',
   graphVersion: 'v25.0',
-  adminPhone: ADMIN_PHONE,
-  adminEmail: 'owner@example.com',
 };
 
 /** A payload shaped like Meta's, holding the messages given. */
@@ -99,39 +99,44 @@ describe('reading Meta payloads', () => {
   });
 });
 
-describe('WhatsApp env', () => {
+describe('WhatsApp settings configuration', () => {
   const base = {
     DATABASE_URL: 'postgres://x',
     JWT_ACCESS_SECRET: 'a'.repeat(32),
     JWT_REFRESH_SECRET: 'b'.repeat(32),
   };
-  const full = {
-    WHATSAPP_ACCESS_TOKEN: 't',
-    WHATSAPP_PHONE_NUMBER_ID: '1',
-    WHATSAPP_APP_SECRET: 's',
-    WHATSAPP_VERIFY_TOKEN: 'v',
-    SUPER_ADMIN_WHATSAPP_PHONE: '+15551234567',
-    SUPER_ADMIN_WHATSAPP_EMAIL: 'owner@example.com',
-  };
+  const previous = Object.fromEntries([
+    'WHATSAPP_ACCESS_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_APP_SECRET',
+    'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_GRAPH_VERSION', 'SUPER_ADMIN_WHATSAPP_PHONE',
+    'SUPER_ADMIN_WHATSAPP_EMAIL', 'OPENAI_API_KEY', 'OPENAI_MODEL', 'ANTHROPIC_API_KEY', 'AI_PROVIDER',
+  ].map((key) => [key, 'ignored']));
 
-  it('boots with all of it or none of it', () => {
-    expect(() => validateEnv(base)).not.toThrow();
-    expect(() => validateEnv({ ...base, ...full })).not.toThrow();
+  it('boots without any WhatsApp settings and ignores all eleven old variables', () => {
+    const env = validateEnv({ ...base, ...previous });
+    for (const key of Object.keys(previous)) expect(env).not.toHaveProperty(key);
+    const config = buildConfig(env);
+    expect(config.settingsEncryptionKey).toBeUndefined();
+    expect(config).not.toHaveProperty('ai');
+    expect(config).not.toHaveProperty('whatsapp');
   });
 
-  it('defaults to v25.0 and requires a version number with a major and minor', () => {
-    expect(validateEnv(base).WHATSAPP_GRAPH_VERSION).toBe('v25.0');
-    expect(validateEnv({ ...base, WHATSAPP_GRAPH_VERSION: 'v26.1' }).WHATSAPP_GRAPH_VERSION).toBe('v26.1');
-    expect(() => validateEnv({ ...base, WHATSAPP_GRAPH_VERSION: '25.0' })).toThrow(/Use a Graph API version/);
+  it('accepts a 32-byte base64 settings key and refuses a wrong-size key', () => {
+    const key = Buffer.alloc(32, 71).toString('base64');
+    expect(buildConfig(validateEnv({ ...base, SETTINGS_ENCRYPTION_KEY: key })).settingsEncryptionKey).toBe(key);
+    expect(() => validateEnv({ ...base, SETTINGS_ENCRYPTION_KEY: 'YWJj' })).toThrow(/SETTINGS_ENCRYPTION_KEY/);
   });
 
-  it('refuses a partial set, naming what is missing', () => {
-    const { WHATSAPP_APP_SECRET: _omitted, ...partial } = full;
-    expect(() => validateEnv({ ...base, ...partial })).toThrow(/WHATSAPP_APP_SECRET is missing/);
+  it('requires a major and minor Graph version when editing settings', () => {
+    const input = { currentPassword: 'test-password' };
+    expect(updateWhatsappSettingsSchema.safeParse({ ...input, graphVersion: 'v26.1' }).success).toBe(true);
+    expect(updateWhatsappSettingsSchema.safeParse({ ...input, graphVersion: '25.0' }).success).toBe(false);
   });
 
-  it('refuses a phone that is not E.164', () => {
-    expect(() => validateEnv({ ...base, ...full, SUPER_ADMIN_WHATSAPP_PHONE: '555-1234' })).toThrow(/E\.164/);
+  it('refuses an incomplete phone number', () => {
+    const first = SendLinkCodeDto.zodSchema.safeParse({ currentPassword: 'test-password', phone: '555-1234' });
+    const second = SendLinkCodeDto.zodSchema.safeParse({ currentPassword: 'test-password', phone: '+1 (555) 123-4567' });
+    expect(first.success).toBe(false);
+    expect(second).toMatchObject({ success: true, data: { phone: ADMIN_PHONE } });
   });
 });
 
@@ -139,11 +144,15 @@ describe('WhatsappService gates', () => {
   let enabled: boolean;
   let configured: typeof config | null;
   let claimed: Set<string>;
-  let admin: { id: string; email: string; role: string; permissions: null } | null;
+  let admin: {
+    id: string; email: string; role: string; permissions: null; status: string; deletedAt: Date | null;
+    whatsappPhone: string; whatsappPhoneVerifiedAt: Date | null;
+  };
   let service: WhatsappService;
+  const findUnique = vi.fn();
   const findFirst = vi.fn();
   const sender = { markRead: vi.fn(), sendText: vi.fn(), sendDocument: vi.fn() };
-  const agent = { ready: true, reply: vi.fn(), cancelPending: vi.fn() };
+  const agent = { ready: async () => true, reply: vi.fn(), cancelPending: vi.fn() };
 
   function expectNoSend() {
     expect(sender.markRead).not.toHaveBeenCalled();
@@ -171,13 +180,17 @@ describe('WhatsappService gates', () => {
     enabled = true;
     configured = config;
     claimed = new Set();
-    admin = { id: 'u1', email: 'owner@example.com', role: 'SUPER_ADMIN', permissions: null };
+    admin = {
+      id: 'u1', email: 'owner@example.com', role: 'SUPER_ADMIN', permissions: null,
+      status: 'ACTIVE', deletedAt: null, whatsappPhone: ADMIN_PHONE, whatsappPhoneVerifiedAt: new Date(),
+    };
+    findUnique.mockReset().mockImplementation(async ({ where }) => where.whatsappPhone === ADMIN_PHONE ? admin : null);
     findFirst.mockReset().mockImplementation(async () => admin);
     service = new WhatsappService(
-      { get whatsapp() { return configured; }, ai: {} } as never,
+      { current: async () => configured } as never,
       { read: async () => ({ whatsappAssistantEnabled: enabled }) } as never,
       { claimOnce: async (key: string) => !claimed.has(key) && Boolean(claimed.add(key)) } as never,
-      { user: { findFirst } } as never,
+      { user: { findFirst, findUnique } } as never,
       agent as never,
       sender as never,
     );
@@ -185,6 +198,9 @@ describe('WhatsappService gates', () => {
 
   it('accepts a fresh message from the Super Admin phone', async () => {
     expect(await service.receive([message()])).toEqual(['accepted']);
+    expect(agent.reply).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: admin.id, role: admin.role, access: expect.any(Object) }), ADMIN_PHONE, 'hello', true,
+    );
   });
 
   it('drops everything while the server is not configured', async () => {
@@ -199,10 +215,10 @@ describe('WhatsappService gates', () => {
     expectNoSend();
   });
 
-  it('drops any other number, without looking up the admin', async () => {
+  it('drops a phone number with no linked account', async () => {
     expect(await service.receive([message({ from: '15550000000' })])).toEqual(['unknown_sender']);
     expectNoSend();
-    expect(findFirst).not.toHaveBeenCalled();
+    expect(findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { whatsappPhone: '15550000000' } }));
   });
 
   /** Meta redelivers until it sees a 200; an approval must run once. */
@@ -224,15 +240,18 @@ describe('WhatsappService gates', () => {
   });
 
   /** Suspended, archived or demoted in the web app: the bot stops at once. */
-  it('answers nobody when the env names no active Super Admin', async () => {
-    admin = null;
+  it.each([
+    { status: 'SUSPENDED' }, { role: 'ADMIN' }, { deletedAt: new Date() },
+  ])('answers nobody when the linked account is no longer an active Super Admin: %j', async (change) => {
+    Object.assign(admin, change);
     expect(await service.receive([message()])).toEqual(['no_admin']);
     expectNoSend();
-    expect(findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ role: 'SUPER_ADMIN', status: 'ACTIVE', deletedAt: null }),
-      }),
-    );
+  });
+
+  it('silently drops an unverified number', async () => {
+    admin.whatsappPhoneVerifiedAt = null;
+    expect(await service.receive([message()])).toEqual(['unknown_sender']);
+    expectNoSend();
   });
 
   it('acts as the Super Admin with their own permission set', async () => {
@@ -246,7 +265,7 @@ describe('WhatsappController', () => {
   let configured: typeof config | null;
   const receive = vi.fn(async () => []);
   const controller = () =>
-    new WhatsappController({ get whatsapp() { return configured; } } as never, { receive } as never);
+    new WhatsappController({ current: async () => configured } as never, { receive } as never);
 
   beforeEach(() => {
     configured = config;
@@ -258,20 +277,20 @@ describe('WhatsappController', () => {
 
     /** Meta compares the body to its challenge: plain bytes, no envelope. */
     it('echoes the challenge as plain bytes when the token matches', async () => {
-      const file = controller().verify(query);
+      const file = await controller().verify(query);
       const chunks: Buffer[] = [];
       for await (const chunk of file.getStream()) chunks.push(Buffer.from(chunk as Buffer));
       expect(Buffer.concat(chunks).toString()).toBe('1158201444');
     });
 
-    it('refuses a wrong token or mode with 403', () => {
-      expect(() => controller().verify({ ...query, 'hub.verify_token': 'nope' })).toThrow(ForbiddenException);
-      expect(() => controller().verify({ ...query, 'hub.mode': 'unsubscribe' })).toThrow(ForbiddenException);
+    it('refuses a wrong token or mode with 403', async () => {
+      await expect(controller().verify({ ...query, 'hub.verify_token': 'nope' })).rejects.toThrow(ForbiddenException);
+      await expect(controller().verify({ ...query, 'hub.mode': 'unsubscribe' })).rejects.toThrow(ForbiddenException);
     });
 
-    it('is a 404 while the assistant is not configured', () => {
+    it('is a 404 while the assistant is not configured', async () => {
       configured = null;
-      expect(() => controller().verify(query)).toThrow(NotFoundException);
+      await expect(controller().verify(query)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -279,22 +298,22 @@ describe('WhatsappController', () => {
     const body = payload([textMessage()]);
     const raw = Buffer.from(JSON.stringify(body));
 
-    it('refuses an unsigned or mis-signed post with 401, handling nothing', () => {
-      expect(() => controller().receive({ rawBody: raw } as never, undefined, body)).toThrow(UnauthorizedException);
-      expect(() => controller().receive({ rawBody: raw } as never, metaSignature(raw, 'wrong'), body)).toThrow(
+    it('refuses an unsigned or mis-signed post with 401, handling nothing', async () => {
+      await expect(controller().receive({ rawBody: raw } as never, undefined, body)).rejects.toThrow(UnauthorizedException);
+      await expect(controller().receive({ rawBody: raw } as never, metaSignature(raw, 'wrong'), body)).rejects.toThrow(
         UnauthorizedException,
       );
       expect(receive).not.toHaveBeenCalled();
     });
 
-    it('acknowledges signed receipts with 200 and logs only the failed id and codes', () => {
+    it('acknowledges signed receipts with 200 and logs only the failed id and codes', async () => {
       const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
       try {
         const statuses = receipts([{ id: 'wamid.failed', status: 'failed', recipient_id: ADMIN_PHONE,
           errors: [{ code: 131047, title: 'PRIVATE TITLE' }] }]);
         const bytes = Buffer.from(JSON.stringify(statuses));
         expect(Reflect.getMetadata(HTTP_CODE_METADATA, Reflect.get(WhatsappController.prototype, 'receive'))).toBe(200);
-        expect(controller().receive({ rawBody: bytes } as never, metaSignature(bytes, SECRET), statuses)).toEqual({ received: 0 });
+        expect(await controller().receive({ rawBody: bytes } as never, metaSignature(bytes, SECRET), statuses)).toEqual({ received: 0 });
         expect(warn).toHaveBeenCalledExactlyOnceWith('WhatsApp message wamid.failed failed at Meta (codes: 131047)');
         expect(receive).not.toHaveBeenCalled();
       } finally {
@@ -302,14 +321,14 @@ describe('WhatsappController', () => {
       }
     });
 
-    it('answers a signed post and hands its messages on', () => {
-      expect(controller().receive({ rawBody: raw } as never, metaSignature(raw, SECRET), body)).toEqual({ received: 1 });
+    it('answers a signed post and hands its messages on', async () => {
+      expect(await controller().receive({ rawBody: raw } as never, metaSignature(raw, SECRET), body)).toEqual({ received: 1 });
       expect(receive).toHaveBeenCalledWith([expect.objectContaining({ id: 'wamid.1', from: ADMIN_PHONE })]);
     });
 
-    it('is a 404 while the assistant is not configured', () => {
+    it('is a 404 while the assistant is not configured', async () => {
       configured = null;
-      expect(() => controller().receive({ rawBody: raw } as never, metaSignature(raw, SECRET), body)).toThrow(
+      await expect(controller().receive({ rawBody: raw } as never, metaSignature(raw, SECRET), body)).rejects.toThrow(
         NotFoundException,
       );
     });

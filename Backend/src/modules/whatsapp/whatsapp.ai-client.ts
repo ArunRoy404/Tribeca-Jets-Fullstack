@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import type { ResponseInputItem } from 'openai/resources/responses/responses.js';
-import { AppConfigService } from '../../config/config.service.js';
+import { WhatsappSettingsService } from './whatsapp-settings.service.js';
 
 /** The loop knows text and function calls, never the provider's SDK types. */
 export type AiMessage =
@@ -27,6 +27,7 @@ export interface AiClient {
 }
 
 export const WHATSAPP_AI_CLIENT = Symbol('WHATSAPP_AI_CLIENT');
+export type AiClientSource = () => Promise<AiClient | null>;
 
 /**
  * The only provider adapter. Every request is stateless at OpenAI; only the
@@ -73,13 +74,22 @@ export class OpenAiClient implements AiClient {
   }
 }
 
-/** No key or model means no SDK instance, even when the webhook is enabled. */
+/** Resolve on demand so replacing a credential takes effect on the next turn. */
 export const whatsappAiClientProvider = {
   provide: WHATSAPP_AI_CLIENT,
-  inject: [AppConfigService],
-  useFactory: (config: AppConfigService): AiClient | null => {
-    const key = config.ai.openaiApiKey?.trim();
-    const model = config.ai.openaiModel?.trim();
-    return key && model ? new OpenAiClient(key, model) : null;
+  inject: [WhatsappSettingsService],
+  useFactory: (settings: WhatsappSettingsService): AiClientSource => {
+    let cached: { apiKey: string; model: string; client: AiClient } | undefined;
+    return async () => {
+      const config = await settings.ai();
+      if (!config) {
+        cached = undefined;
+        return null;
+      }
+      if (cached?.apiKey !== config.apiKey || cached.model !== config.model) {
+        cached = { ...config, client: new OpenAiClient(config.apiKey, config.model) };
+      }
+      return cached.client;
+    };
   },
 };

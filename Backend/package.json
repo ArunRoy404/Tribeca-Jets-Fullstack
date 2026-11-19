@@ -30,6 +30,7 @@
     "db:reset": "prisma migrate reset",
     "db:bootstrap-admin": "tsx prisma/bootstrap-admin.ts",
     "whatsapp:ask": "nest build && node dist/scripts/whatsapp-ask.js",
+    "whatsapp:import-env": "nest build && node dist/scripts/whatsapp-import-env.js",
     "services:up": "docker compose up -d",
     "services:down": "docker compose down",
     "prebuild": "prisma generate",
