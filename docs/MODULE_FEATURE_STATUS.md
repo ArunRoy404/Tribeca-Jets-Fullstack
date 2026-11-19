@@ -2019,13 +2019,16 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
   assistant checks the relevant VIEW permissions and sends up to three unique
   documents to the phone that passed the gates. OpenAI receives the attachment
   name without the PDF contents.
+- Step 6a lists trip requests, quotes, client follow-ups, lead pipeline
+  counts and stage details, and client notes. Each read uses the acting
+  user's permissions and the owning service's record scope.
 
 **Waiting**
 | What | Waits on |
 |---|---|
 | Desk rules such as due dates, flights today and report windows | Migrate the modules that use `todayUtc()` to the company time zone (`MODULES.md` §26 map) |
 | Running in production | Deploy of `roy`, the permanent Meta token, the owner's OK on client data to OpenAI, (the time zone fix passed its Meta live check on 19 Nov; plan §4, "Going to production") |
-| More tools, module by module | Step 6 |
+| More tools, module by module | Steps 6b–6d |
 | Postman entries for the two routes | Step 7 |
 
 ---
