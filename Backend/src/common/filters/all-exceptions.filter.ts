@@ -48,17 +48,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    // The request URL includes the API prefix. Its query can hold secrets
+    // (Meta's verify token) and private search terms.
+    const path = request.url.split('?', 1)[0];
 
     const { status, message, errors } = this.resolve(exception);
 
     // 5xx is our bug and needs the stack; 4xx is the caller's and does not.
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
-        `${request.method} ${request.url} -> ${status}: ${message}`,
+        `${request.method} ${path} -> ${status}: ${message}`,
         exception instanceof Error ? exception.stack : undefined,
       );
     } else {
-      this.logger.warn(`${request.method} ${request.url} -> ${status}: ${message}`);
+      this.logger.warn(`${request.method} ${path} -> ${status}: ${message}`);
     }
 
     const body: ErrorBody = {
@@ -66,7 +69,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       message,
       ...(errors ? { errors } : {}),
-      path: request.url,
+      path,
       timestamp: new Date().toISOString(),
     };
 
