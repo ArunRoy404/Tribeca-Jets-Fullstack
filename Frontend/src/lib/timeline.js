@@ -1,6 +1,7 @@
 import { getFullName } from "@/lib/user";
 import { Module } from "@/lib/access";
 import { formatDocumentCategory } from "@/lib/document";
+import { formatTimestamp } from "@/lib/archive";
 
 /**
  * Turning a timeline row into something a person reads.
@@ -236,9 +237,8 @@ export function timelineTime(value) {
 
 /** The exact moment, for the `title` attribute — the relative label is lossy. */
 export function timelineExactTime(value) {
-  if (!value) return undefined;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date.toLocaleString();
+  const label = formatTimestamp(value);
+  return label === "—" ? undefined : label;
 }
 
 /**

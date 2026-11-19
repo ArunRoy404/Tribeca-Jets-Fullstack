@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Clock } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { formatTime24, parseTime } from "@/lib/time";
+import { formatTime, parseTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 /** Values, 24-hour "HH:MM" — what the API stores and the date parsers read. */
@@ -15,14 +15,15 @@ const TIME_PRESETS = [
 ];
 
 /**
- * A time of day. **The value is "HH:MM", 24-hour; the 12-hour text is only the
- * label** — the same rule `CommonDatePicker` learned for dates.
+ * A time of day. **The value is "HH:MM", 24-hour** — what the API stores and
+ * the date parsers read — and the label is the same 24-hour time (client's
+ * rule, 19 Nov 2026: every time a person reads is `14:30`).
  *
- * It used to emit the label itself ("08:00 AM"). The follow-up dialog builds a
- * timestamp with `new Date(\`${date}T${time}\`)`, which is an Invalid Date for
- * "08:00 AM", and bails out silently — so scheduling a follow-up at any picked
- * time did nothing at all. The trip form would have sent the same string to
- * an API that only accepts "HH:MM".
+ * It used to emit a 12-hour label as its value ("08:00 AM"). The follow-up
+ * dialog builds a timestamp with `new Date(\`${date}T${time}\`)`, which is an
+ * Invalid Date for "08:00 AM", and bailed out silently — so scheduling a
+ * follow-up at any picked time did nothing at all. The value is the wire
+ * format; never let a display string leak into it again.
  *
  * The custom box accepts either form ("18:30", "6:30 pm") and normalises it;
  * something that is not a time is refused on the spot rather than stored.
@@ -56,7 +57,7 @@ export function CommonTimePicker({
     setOpen(false);
   };
 
-  // A value from before this fix ("08:00 AM") still reads correctly.
+  // Older values with a meridiem still read correctly.
   const current = parseTime(value);
 
   return (
@@ -71,7 +72,7 @@ export function CommonTimePicker({
         )}
       >
         <span className={cn(current ? "text-foreground font-medium" : "text-muted-foreground")}>
-          {current ? formatTime24(current) : placeholder}
+          {current ? formatTime(current) : placeholder}
         </span>
         <Clock className={cn("size-4 text-muted-foreground shrink-0", iconClassName)} />
       </PopoverTrigger>
@@ -95,7 +96,7 @@ export function CommonTimePicker({
                     : "bg-secondary/40 hover:bg-purple/10 text-foreground font-medium"
                 )}
               >
-                {formatTime24(time)}
+                {formatTime(time)}
               </button>
             );
           })}
@@ -120,7 +121,7 @@ export function CommonTimePicker({
             </button>
           </div>
           {customError && (
-            <p className="font-montserrat text-[11px] text-destructive">Use a time like 18:30 or 6:30 PM.</p>
+            <p className="font-montserrat text-[11px] text-destructive">Use a time like 18:30.</p>
           )}
         </form>
       </PopoverContent>

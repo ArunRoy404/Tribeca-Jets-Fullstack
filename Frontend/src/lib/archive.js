@@ -32,12 +32,13 @@ export function formatTimestamp(value) {
   if (!value) return DASH;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return DASH;
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
   });
 }
 

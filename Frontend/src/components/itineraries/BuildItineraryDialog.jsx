@@ -8,7 +8,7 @@ import { useTrip } from "@/hooks/trips";
 import { formatTripStatus } from "@/lib/trip";
 import { displayName } from "@/lib/client";
 import { formatCalendarDate } from "@/lib/date";
-import { formatTime24 } from "@/lib/time";
+import { formatTime } from "@/lib/time";
 import { optionalText } from "@/lib/form";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ function previewFromTripDetail(trip, form) {
     destinationCode: last?.destinationAirport?.icao ?? "—",
     departureDateLabel: first?.departureDate ? formatCalendarDate(first.departureDate) : "—",
     departureTime: form.departureTime || first?.departureTime || "—",
-    arrivalTimeLabel: form.arrivalTime ? formatTime24(form.arrivalTime) : "—",
+    arrivalTimeLabel: form.arrivalTime ? formatTime(form.arrivalTime) : "—",
     aircraft: aircraftLabel(trip),
     aircraftTail: trip?.aircraft?.tailNumber ?? "—",
     operator: trip?.operator?.name ?? "—",
@@ -105,7 +105,7 @@ function previewFromItinerary(itinerary, form) {
     destinationCode: itinerary?.destinationAirport?.icao ?? "—",
     departureDateLabel: itinerary?.departureDate ? formatCalendarDate(itinerary.departureDate) : "—",
     departureTime: form.departureTime || itinerary?.departureTime || "—",
-    arrivalTimeLabel: form.arrivalTime ? formatTime24(form.arrivalTime) : "—",
+    arrivalTimeLabel: form.arrivalTime ? formatTime(form.arrivalTime) : "—",
     aircraft: aircraftLabel(itinerary),
     aircraftTail: itinerary?.aircraft?.tailNumber ?? "—",
     operator: itinerary?.operator?.name ?? "—",

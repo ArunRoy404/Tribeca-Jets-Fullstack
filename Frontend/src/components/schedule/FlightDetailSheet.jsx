@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { useScheduleEvents } from "@/hooks/schedule";
-import { formatLongDate, formatTime12, parseLocalDate } from "@/lib/date";
+import { formatLongDate, parseLocalDate } from "@/lib/date";
+import { formatTime } from "@/lib/time";
 import DetailSheet from "@/components/common/DetailSheet";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/common/StatusBadge";
@@ -110,8 +111,8 @@ export default function FlightDetailSheet() {
           <FlightRouteStrip
             from={event?.from}
             to={event?.to}
-            departureLabel={event?.time ? formatTime12(event.time) : "Time not set"}
-            arrivalLabel={event?.arrivalTime ? formatTime12(event.arrivalTime) : "—"}
+            departureLabel={event?.time ? formatTime(event.time) : "Time not set"}
+            arrivalLabel={event?.arrivalTime ? formatTime(event.arrivalTime) : "—"}
             duration={event?.duration}
           />
 

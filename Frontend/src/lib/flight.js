@@ -1,4 +1,5 @@
-import { formatCalendarDate, formatTime12 } from "@/lib/date";
+import { formatCalendarDate } from "@/lib/date";
+import { formatTime } from "@/lib/time";
 import { displayName } from "@/lib/client";
 import { formatTripReference, formatTripStatus } from "@/lib/trip";
 
@@ -40,14 +41,14 @@ const WINDOW_LABELS = { ACTIVE: "Active & Upcoming", TODAY: "Departing Today", P
 export const formatFlightWindow = (value) => WINDOW_LABELS[value] ?? value;
 
 function time12(value) {
-  return value ? formatTime12(value) : null;
+  return value ? formatTime(value) : null;
 }
 
-/** "Nov 18, 2026 · 10:00 PM", the day alone when untimed, or a dash. */
+/** "Nov 18, 2026 · 22:00", the day alone when untimed, or a dash. */
 function departureLabel(leg) {
   if (!leg?.departureDate) return DASH;
   const day = formatCalendarDate(leg.departureDate);
-  return leg?.departureTime ? `${day} · ${formatTime12(leg.departureTime)}` : day;
+  return leg?.departureTime ? `${day} · ${formatTime(leg.departureTime)}` : day;
 }
 
 /** One flight — a trip leg — as the board, its cards and its panel read it. */
@@ -70,7 +71,7 @@ export function toFlightRow(leg) {
     destination: leg?.destinationAirport?.icao ?? leg?.destinationAirport?.iata ?? DASH,
     departure: departureLabel(leg),
     departureTime: time12(leg?.departureTime) ?? "Time not set",
-    eta: eta ? formatTime12(eta) : DASH,
+    eta: eta ? formatTime(eta) : DASH,
     etaSource: leg?.estimatedArrival ? "reported" : leg?.arrivalTime ? "itinerary" : null,
     flightStatusRaw: leg?.flightStatus ?? null,
     flightStatus: formatFlightStatus(leg?.flightStatus),

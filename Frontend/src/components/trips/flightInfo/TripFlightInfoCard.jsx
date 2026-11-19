@@ -1,6 +1,6 @@
 import DetailCard from "@/components/trips/DetailCard";
 import FlightInfoBox from "@/components/trips/flightInfo/FlightInfoBox";
-import { formatTime24 } from "@/lib/time";
+import { formatTime } from "@/lib/time";
 
 /**
  * Flight and arrival times. This card used to print "2h 45m" and "18:15 ET"
@@ -34,7 +34,7 @@ export default function TripFlightInfoCard({ trip }) {
         />
         <FlightInfoBox
           label="Confirmed Arrival Time"
-          value={itinerary?.arrivalTime ? formatTime24(itinerary.arrivalTime) : "—"}
+          value={itinerary?.arrivalTime ? formatTime(itinerary.arrivalTime) : "—"}
           description={itinerary ? "From the itinerary" : "Awaiting the operator itinerary"}
           status={itinerary?.arrivalTime ? "ON FILE" : "PENDING"}
           statusTone={itinerary?.arrivalTime ? undefined : "muted"}

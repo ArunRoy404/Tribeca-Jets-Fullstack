@@ -1,6 +1,6 @@
 import { toArchiveFields, formatTimestamp } from "@/lib/archive";
 import { formatCalendarDate } from "@/lib/date";
-import { formatTime24 } from "@/lib/time";
+import { formatTime } from "@/lib/time";
 import { displayName } from "@/lib/client";
 import { formatTripStatus } from "@/lib/trip";
 
@@ -54,7 +54,7 @@ export function toItineraryRow(item) {
     departureDateLabel: dateLabel ?? DASH,
     departureTime: item?.departureTime ?? null,
     arrivalTime: item?.arrivalTime ?? null,
-    arrivalTimeLabel: item?.arrivalTime ? formatTime24(item.arrivalTime) : DASH,
+    arrivalTimeLabel: item?.arrivalTime ? formatTime(item.arrivalTime) : DASH,
 
     aircraft: aircraftLabel(item),
     aircraftTail: item?.aircraft?.tailNumber ?? DASH,

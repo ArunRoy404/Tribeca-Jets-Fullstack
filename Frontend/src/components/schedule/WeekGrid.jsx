@@ -4,28 +4,18 @@ import { cn } from "@/lib/utils";
 import { useScheduleStore } from "@/store/useScheduleStore";
 import { useScheduleEvents, useScheduleParams } from "@/hooks/schedule";
 import { addDays, startOfWeek, dayLabel, formatShortDay, isSameDay } from "@/lib/date";
+import { formatTime } from "@/lib/time";
 import FlightEventCard from "@/components/common/FlightEventCard";
 
-// In clock order. The Figma rail led with 8 AM and put 7 AM second, which
-// was harmless with dummy rows and would file a real 07:00 departure below an
-// 08:00 one.
-const HOUR_ROWS = [
-  { label: "7 AM", hour: 7 },
-  { label: "8 AM", hour: 8 },
-  { label: "9 AM", hour: 9 },
-  { label: "10 AM", hour: 10 },
-  { label: "11 AM", hour: 11 },
-  { label: "12 PM", hour: 12 },
-  { label: "1 PM", hour: 13 },
-  { label: "2 PM", hour: 14 },
-  { label: "3 PM", hour: 15 },
-  { label: "4 PM", hour: 16 },
-  { label: "5 PM", hour: 17 },
-];
+// Keep the rail in clock order so the labels and flight positions agree.
+const HOUR_ROWS = Array.from({ length: 11 }, (_, index) => {
+  const hour = index + 7;
+  return { hour, label: formatTime(`${hour}:00`) };
+});
 const ROW_HEIGHT = 72;
 
 /**
- * Where a card sits on the rail. A departure outside 7 AM–5 PM clamps to the
+ * Where a card sits on the rail. A departure outside 07:00–17:00 clamps to the
  * nearest edge row and an untimed leg sits at the top — the card itself always
  * prints the real time ("Time not set" for none), so the position is never the
  * only place a time is read from.

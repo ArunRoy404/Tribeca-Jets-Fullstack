@@ -2,13 +2,12 @@
  * Times of day, in one place.
  *
  * The wire format is "HH:MM", 24-hour — what the API stores and what
- * `new Date(\`${date}T${time}\`)` can read. The 12-hour text is for reading
- * only, produced here at render time.
+ * `new Date(\`${date}T${time}\`)` can read. Display uses the same clock.
  */
 
 /**
  * Any reasonable way of writing a time → "HH:MM", or null when it is not one.
- * Accepts "18:30", "6:30", "6:30 pm", "06:30PM", "6pm".
+ * Accepts "18:30", "6:30" and typed input with a meridiem, such as "6:30 pm".
  */
 export function parseTime(input) {
   if (input === null || input === undefined) return null;
@@ -31,12 +30,7 @@ export function parseTime(input) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-/** "18:30" → "06:30 PM", for reading. Anything unparseable reads as a dash. */
-export function formatTime24(value) {
-  const time = parseTime(value);
-  if (!time) return "—";
-  const [h, m] = time.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${suffix}`;
+/** A time of day on the 24-hour clock, or a dash. */
+export function formatTime(value) {
+  return parseTime(value) ?? "—";
 }

@@ -2,7 +2,7 @@ import DetailCard from "@/components/trips/DetailCard";
 import RouteDeparturePoint from "@/components/trips/tripRoute/RouteDeparturePoint";
 import RouteAircraftDivider from "@/components/trips/tripRoute/RouteAircraftDivider";
 import RouteArrivalPoint from "@/components/trips/tripRoute/RouteArrivalPoint";
-import { formatTime24 } from "@/lib/time";
+import { formatTime } from "@/lib/time";
 
 /**
  * Every leg, in order. The fallbacks this card used to carry — "JFK", "LHR"
@@ -13,7 +13,7 @@ import { formatTime24 } from "@/lib/time";
  */
 export default function TripFlightRouteCard({ trip }) {
   const legs = trip?.legs ?? [];
-  const outboundArrival = trip?.itinerary?.arrivalTime ? formatTime24(trip.itinerary.arrivalTime) : "—";
+  const outboundArrival = trip?.itinerary?.arrivalTime ? formatTime(trip.itinerary.arrivalTime) : "—";
 
   return (
     <DetailCard title={legs.length > 1 ? `Flight Route · ${legs.length} legs` : "Flight Route"}>
