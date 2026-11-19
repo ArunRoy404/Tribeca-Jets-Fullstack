@@ -56,7 +56,7 @@ describe('WhatsappAgent loop and memory', () => {
     respond = vi.fn<AiClient['respond']>();
     dispatch = vi.fn().mockResolvedValue({ clients: [{ displayName: 'Alex' }] });
     settings.read.mockClear();
-    agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => [], dispatch } as never, settings as never);
+    agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => [], dispatch } as never, settings as never, {} as never, {} as never);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -146,7 +146,7 @@ describe('WhatsappAgent loop and memory', () => {
     try {
       vi.setSystemTime(new Date('2026-11-19T18:00:00Z'));
       const specs = [{ name: 'find_client', description: 'Find a client', parameters: {} }];
-      agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => specs, dispatch } as never, settings as never);
+      agent = new WhatsappAgent({ respond }, fixture.memory, { specs: () => specs, dispatch } as never, settings as never, {} as never, {} as never);
       respond.mockResolvedValue(final('Not on file.'));
       await agent.reply({ ...user, timeZone }, PHONE, 'Question');
       expect(respond.mock.calls[0]?.[0].instructions).toContain(`Now: ${expected} — the Super Admin's time zone.`);
@@ -205,7 +205,7 @@ describe('WhatsappAgent loop and memory', () => {
   });
 
   it('is not ready with a null client and makes no memory write', async () => {
-    agent = new WhatsappAgent(null, fixture.memory, { specs: () => [], dispatch } as never, settings as never);
+    agent = new WhatsappAgent(null, fixture.memory, { specs: () => [], dispatch } as never, settings as never, {} as never, {} as never);
     expect(agent.ready).toBe(false);
     expect(await agent.reply(user, PHONE, 'Question')).toBe(AI_UNAVAILABLE_REPLY);
     expect(fixture.redis.setString).not.toHaveBeenCalled();
@@ -258,6 +258,7 @@ describe('WhatsappService sends replies without logging content', () => {
   const message: IncomingMessage = { id: 'wamid.test', from: PHONE, type: 'text', text: 'PRIVATE MESSAGE TEXT', sentAt: new Date() };
   const replyText = 'PRIVATE REPLY TEXT';
   const sender = { markRead: vi.fn(), sendText: vi.fn() };
+  const cancelPending = vi.fn();
   let ai: { openaiApiKey?: string; openaiModel?: string };
   let reply: ReturnType<typeof vi.fn>;
   let findFirst: ReturnType<typeof vi.fn>;
@@ -268,6 +269,7 @@ describe('WhatsappService sends replies without logging content', () => {
     logs = (['log', 'warn', 'error', 'debug', 'verbose', 'fatal'] as const).map((method) => vi.spyOn(Logger.prototype, method).mockImplementation(() => {}));
     sender.markRead.mockReset().mockResolvedValue(undefined);
     sender.sendText.mockReset().mockResolvedValue(true);
+    cancelPending.mockReset().mockResolvedValue('');
     ai = { openaiApiKey: 'test-key', openaiModel: 'chosen-model' };
     reply = vi.fn().mockResolvedValue(replyText);
     findFirst = vi.fn().mockResolvedValue({ id: user.id, email: user.email, role: user.role, permissions: null });
@@ -277,7 +279,7 @@ describe('WhatsappService sends replies without logging content', () => {
       { claimOnce: async () => true } as never,
       { user: { findFirst } } as never,
       // Ready exactly when the provider factory would build a client.
-      { get ready() { return Boolean(ai.openaiApiKey && ai.openaiModel); }, reply } as never,
+      { get ready() { return Boolean(ai.openaiApiKey && ai.openaiModel); }, reply, cancelPending } as never,
       sender as never,
     );
   });
@@ -316,10 +318,11 @@ describe('WhatsappService sends replies without logging content', () => {
     const agent = new WhatsappAgent(
       { respond: async () => final(replyText) }, fixture.memory, { specs: () => [] } as never,
       { read: async () => ({ companyTimeZone: DEFAULT_TIME_ZONE }) } as never,
+      { drop: async () => null } as never, {} as never,
     );
-    reply.mockImplementation((actingUser, phone, text) => agent.reply(actingUser, phone, text));
+    reply.mockImplementation((actingUser, phone, text, allowActions) => agent.reply(actingUser, phone, text, allowActions));
     await service.receive([message]);
-    expect(reply).toHaveBeenCalledExactlyOnceWith(user, PHONE, message.text);
+    expect(reply).toHaveBeenCalledExactlyOnceWith(user, PHONE, message.text, true);
     expect(sender.markRead).toHaveBeenCalledExactlyOnceWith(message.id);
     expect(sender.markRead).toHaveBeenCalledBefore(reply);
     expect(reply).toHaveBeenCalledBefore(sender.sendText);
@@ -350,6 +353,28 @@ describe('WhatsappService sends replies without logging content', () => {
     sender.sendText.mockResolvedValue(false);
     await expect(service.receive([message])).resolves.toEqual(['accepted']);
     expect(logs[1]).toHaveBeenCalledWith('Reply to wamid.test was not delivered');
+    expect(cancelPending).toHaveBeenCalledExactlyOnceWith(PHONE);
+  });
+
+  it('passes confirmation commands through with the AI provider disabled', async () => {
+    ai = {};
+    await service.receive([{ ...message, text: 'Confirm!' }]);
+    expect(reply).toHaveBeenCalledExactlyOnceWith(user, PHONE, 'Confirm!', true);
+    expect(cancelPending).not.toHaveBeenCalled();
+  });
+
+  it('waits for the first webhook reply before handling a later message', async () => {
+    let finishSending!: (delivered: boolean) => void;
+    const sending = new Promise<boolean>((resolve) => { finishSending = resolve; });
+    sender.sendText.mockReturnValueOnce(sending);
+    const first = service.receive([message]);
+    await vi.waitFor(() => expect(sender.sendText).toHaveBeenCalledTimes(1));
+    const second = service.receive([{ ...message, id: 'wamid.next', text: 'CONFIRM' }]);
+    await Promise.resolve();
+    expect(reply).toHaveBeenCalledTimes(1);
+    finishSending(true);
+    await Promise.all([first, second]);
+    expect(reply).toHaveBeenNthCalledWith(2, user, PHONE, 'CONFIRM', true);
   });
 
   it('shares the active, non-deleted SUPER_ADMIN identity query with --as', async () => {

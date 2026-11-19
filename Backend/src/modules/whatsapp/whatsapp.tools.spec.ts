@@ -3,9 +3,16 @@ import { Logger, NotFoundException } from '@nestjs/common';
 import { Action, Module, Reach, resolveAccess } from '../../common/authorization/access.js';
 import { DEFAULT_TIME_ZONE } from '../../common/dates/time-zone.js';
 import { paginate, type AuthenticatedUser } from '../../common/types/api.types.js';
-import { UserRole } from '../../generated/prisma/enums.js';
-import { WhatsappTools, type ToolContext } from './whatsapp.tools.js';
+import { InvoiceStatus, PaymentMethod, TaskStatus, TripApprovalStatus, UserRole } from '../../generated/prisma/enums.js';
+import { ONE_ACTION_REPLY, WhatsappTools, type ToolContext } from './whatsapp.tools.js';
 
+const PHONE = '15551234567';
+const TRIP_ID = '00000000-0000-4000-8000-000000000001';
+const TASK_ID = '00000000-0000-4000-8000-000000000002';
+const CLIENT_ID = '00000000-0000-4000-8000-000000000003';
+const INVOICE_ID = '00000000-0000-4000-8000-000000000004';
+const ORIGIN_ID = '00000000-0000-4000-8000-000000000005';
+const DESTINATION_ID = '00000000-0000-4000-8000-000000000006';
 const user: AuthenticatedUser = {
   id: 'owner-id', email: 'owner@example.com', role: UserRole.SUPER_ADMIN,
   access: resolveAccess(UserRole.SUPER_ADMIN, null),
@@ -40,12 +47,32 @@ const summary = {
   operatorPayments: { outstanding: 202.34, overdue: 56.78, overdueCount: 1, dueThisWeek: 2, dueThisWeekAmount: 305.99 },
   emptyLegs: { available: 3, matched: 2, openValue: 456.78 },
 };
+const trip = {
+  id: TRIP_ID, reference: 1048, approvalStatus: TripApprovalStatus.PENDING,
+  client, assignedBroker: client.assignedBroker, private: 'PRIVATE TRIP DETAIL',
+  legs: [{ originAirport: { icao: 'KTEB' }, destinationAirport: { icao: 'KMIA' }, departureDate: new Date('2026-11-27') }],
+};
+const task = {
+  id: TASK_ID, title: 'Call the broker', status: TaskStatus.TODO, priority: 'HIGH',
+  assignee: client.assignedBroker, client, dueDate: new Date('2026-11-27'), deletedAt: null, notes: 'PRIVATE TASK NOTE',
+};
+const invoice = {
+  id: INVOICE_ID, number: 'INV-2026-0042', status: InvoiceStatus.SENT,
+  client, total: 13000, paid: 500, balance: 12500,
+};
+const leadArgs = { firstName: 'Jamie', lastName: 'Client', email: 'jamie@example.com' };
+const paymentArgs = { invoice: invoice.number, amount: 12500, method: PaymentMethod.WIRE_TRANSFER, paidAt: '2026-11-27' };
 
 describe('WhatsappTools dispatcher', () => {
   let schedule: { findAll: ReturnType<typeof vi.fn> };
   let dashboard: { summary: ReturnType<typeof vi.fn> };
-  let clients: { findAll: ReturnType<typeof vi.fn> };
+  let clients: { findAll: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
   let auth: { updateProfile: ReturnType<typeof vi.fn> };
+  const trips = { findAll: vi.fn(), approve: vi.fn(), reject: vi.fn() };
+  const tasks = { findAll: vi.fn(), findOne: vi.fn(), update: vi.fn() };
+  const airports = { findAll: vi.fn(), usable: vi.fn() };
+  const receivables = { findAll: vi.fn(), recordPayment: vi.fn() };
+  const pending = { put: vi.fn() };
   let context: ToolContext;
   let tools: WhatsappTools;
   const companyTimeZone = vi.fn(async () => DEFAULT_TIME_ZONE);
@@ -53,11 +80,22 @@ describe('WhatsappTools dispatcher', () => {
   beforeEach(() => {
     schedule = { findAll: vi.fn().mockResolvedValue(paginate([flight], 1, 1, 25)) };
     dashboard = { summary: vi.fn().mockResolvedValue(structuredClone(summary)) };
-    clients = { findAll: vi.fn().mockResolvedValue(paginate([client], 1, 1, 5)) };
+    clients = { findAll: vi.fn().mockResolvedValue(paginate([client], 1, 1, 5)), create: vi.fn() };
     auth = { updateProfile: vi.fn().mockResolvedValue(undefined) };
+    vi.clearAllMocks();
+    trips.findAll.mockReset().mockResolvedValue(paginate([trip], 1, 1, 100));
+    tasks.findAll.mockReset().mockResolvedValue(paginate([task], 1, 1, 10));
+    tasks.findOne.mockReset().mockResolvedValue(task);
+    airports.findAll.mockReset().mockImplementation(async ({ search }: { search: string }) => {
+      const rows = [{ id: ORIGIN_ID, icao: 'KTEB' }, { id: DESTINATION_ID, icao: 'KMIA' }].filter((row) => row.icao === search);
+      return paginate(rows, rows.length, 1, 100);
+    });
+    airports.usable.mockReset().mockImplementation(async (id: string) => ({ id, icao: id === ORIGIN_ID ? 'KTEB' : 'KMIA' }));
+    receivables.findAll.mockReset().mockResolvedValue(paginate([invoice], 1, 1, 100));
     companyTimeZone.mockClear();
-    context = { timeZone: 'Asia/Dhaka', companyTimeZone };
-    tools = new WhatsappTools(schedule as never, dashboard as never, clients as never, auth as never);
+    context = { timeZone: 'Asia/Dhaka', companyTimeZone, phone: PHONE };
+    tools = new WhatsappTools(schedule as never, dashboard as never, clients as never, auth as never,
+      trips as never, tasks as never, airports as never, receivables as never, pending as never);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -73,10 +111,16 @@ describe('WhatsappTools dispatcher', () => {
     expect(dashboard.summary).not.toHaveBeenCalled();
     expect(clients.findAll).not.toHaveBeenCalled();
     expect(auth.updateProfile).not.toHaveBeenCalled();
+    expect(trips.findAll).not.toHaveBeenCalled();
+    expect(tasks.findAll).not.toHaveBeenCalled();
+    expect(tasks.findOne).not.toHaveBeenCalled();
+    expect(airports.findAll).not.toHaveBeenCalled();
+    expect(receivables.findAll).not.toHaveBeenCalled();
+    expect(pending.put).not.toHaveBeenCalled();
   }
 
   it('returns an error for an unknown tool without calling any service', async () => {
-    expect(await dispatch(user, 'approve_trip', '{}')).toEqual({ error: 'Unknown tool' });
+    expect(await dispatch(user, 'archive_trip', '{}')).toEqual({ error: 'Unknown tool' });
     expectNoServiceCalls();
   });
 
@@ -109,7 +153,12 @@ describe('WhatsappTools dispatcher', () => {
   });
 
   it('requires a module permission for every tool except set_my_timezone', async () => {
-    const args = { list_flights: windowArgs, dashboard_kpis: {}, find_client: { query: 'Alex' } };
+    const args = {
+      list_flights: windowArgs, dashboard_kpis: {}, find_client: { query: 'Alex' },
+      list_pending_approvals: {}, list_open_tasks: {},
+      approve_trip: { reference: 'TJ-1048' }, decline_trip: { reference: '1048' },
+      create_lead: leadArgs, complete_task: { taskId: TASK_ID }, record_payment: paymentArgs,
+    };
     for (const { name } of tools.specs().filter((spec) => spec.name !== 'set_my_timezone')) {
       const validArgs = args[name as keyof typeof args];
       expect(validArgs).toBeDefined();
@@ -261,7 +310,10 @@ describe('WhatsappTools dispatcher', () => {
 
   it('derives usable JSON schemas from the Zod arguments', () => {
     const specs = tools.specs();
-    expect(specs.map((spec) => spec.name)).toEqual(['list_flights', 'dashboard_kpis', 'find_client', 'set_my_timezone']);
+    expect(specs.map((spec) => spec.name)).toEqual([
+      'list_flights', 'dashboard_kpis', 'find_client', 'set_my_timezone', 'list_pending_approvals', 'list_open_tasks',
+      'approve_trip', 'decline_trip', 'create_lead', 'complete_task', 'record_payment',
+    ]);
     expect(specs[0]?.parameters).toMatchObject({ type: 'object', required: ['from', 'to'], properties: { from: { type: 'string', format: 'date' }, to: { type: 'string', format: 'date' } } });
     expect(specs[1]?.parameters).toMatchObject({ properties: { period: { enum: ['TODAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR'], default: 'WEEK' } } });
     expect(specs[2]?.parameters).toMatchObject({ required: ['query'], properties: { query: { type: 'string', minLength: 2, maxLength: 100 } } });
@@ -269,6 +321,154 @@ describe('WhatsappTools dispatcher', () => {
       required: ['timeZone'], additionalProperties: false,
       properties: { timeZone: { anyOf: [{ type: 'string', maxLength: 64 }, { type: 'null' }] } },
     });
+    expectNoServiceCalls();
+  });
+
+  it('lists scoped pending approvals and open tasks with only their allowed fields', async () => {
+    expect(await dispatch(user, 'list_pending_approvals', '{}')).toEqual({
+      total: 1,
+      trips: [{ reference: 'TJ-1048', client: 'Alex Vance', origin: 'KTEB', destination: 'KMIA',
+        departureDate: '2026-11-27', assignedBroker: 'Sam Broker' }],
+    });
+    expect(trips.findAll).toHaveBeenCalledExactlyOnceWith(user, expect.objectContaining({
+      approvalStatus: TripApprovalStatus.PENDING, archived: false, page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+    }));
+    expect(await dispatch(user, 'list_open_tasks', '{"search":"broker"}')).toEqual({
+      total: 1,
+      tasks: [{ id: TASK_ID, title: task.title, status: TaskStatus.TODO, priority: 'HIGH',
+        dueDate: '2026-11-27', assignee: 'Sam Broker', client: 'Alex Vance' }],
+    });
+    expect(tasks.findAll).toHaveBeenCalledExactlyOnceWith(user, expect.objectContaining({
+      view: 'OPEN', search: 'broker', archived: false, page: 1, limit: 10, sortBy: 'dueDate', sortOrder: 'asc',
+    }));
+  });
+
+  it.each([
+    ['approve_trip', { reference: 'TJ-1048' }, { kind: 'TRIP_APPROVE', tripId: TRIP_ID },
+      'Approve trip TJ-1048 — Alex Vance, KTEB → KMIA, Fri 27 Nov.'],
+    ['decline_trip', { reference: '1048', reason: ' Missing contract ' },
+      { kind: 'TRIP_DECLINE', tripId: TRIP_ID, payload: { reason: 'Missing contract' } },
+      'Decline trip TJ-1048 — Alex Vance, KTEB → KMIA, Fri 27 Nov. Reason: Missing contract.'],
+    ['complete_task', { taskId: TASK_ID }, { kind: 'TASK_COMPLETE', taskId: TASK_ID },
+      'Complete task "Call the broker", due Fri 27 Nov, for Alex Vance.'],
+    ['record_payment', paymentArgs, { kind: 'PAYMENT_RECORD', invoiceId: INVOICE_ID,
+      payload: { amount: 12500, method: PaymentMethod.WIRE_TRANSFER, paidAt: '2026-11-27' } },
+      'Record $12,500.00 by wire on INV-2026-0042 — Alex Vance; balance after $0.00. Payment date: Fri 27 Nov.'],
+  ] as const)('stores a frozen %s proposal and makes no CRM write', async (name, args, action, summary) => {
+    expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ proposed: true, summary });
+    expect(pending.put).toHaveBeenCalledExactlyOnceWith(PHONE, expect.objectContaining({
+      ...action, userId: user.id, summary, createdAt: expect.any(String),
+    }));
+    expect(trips.approve).not.toHaveBeenCalled();
+    expect(trips.reject).not.toHaveBeenCalled();
+    expect(tasks.update).not.toHaveBeenCalled();
+    expect(receivables.recordPayment).not.toHaveBeenCalled();
+  });
+
+  it('stores a new lead with validated airport ids and calendar date, without creating any records', async () => {
+    clients.findAll.mockResolvedValue(paginate([], 0, 1, 100));
+    const args = { ...leadArgs, originIcao: 'kteb', destinationIcao: 'KMIA', departureDate: '2026-11-27', passengers: 4 };
+    const summary = 'Create lead Jamie Client (jamie@example.com), with a trip request KTEB → KMIA on Fri 27 Nov for 4.';
+    expect(await dispatch(user, 'create_lead', JSON.stringify(args))).toEqual({ proposed: true, summary });
+    expect(airports.usable).toHaveBeenNthCalledWith(1, ORIGIN_ID, 'origin');
+    expect(airports.usable).toHaveBeenNthCalledWith(2, DESTINATION_ID, 'destination');
+    expect(pending.put).toHaveBeenCalledExactlyOnceWith(PHONE, expect.objectContaining({
+      kind: 'LEAD_CREATE', userId: user.id, summary,
+      lead: { type: 'new', client: leadArgs, request: {
+        originAirportId: ORIGIN_ID, destinationAirportId: DESTINATION_ID, departureDate: '2026-11-27', passengers: 4,
+      } },
+    }));
+    expect(clients.create).not.toHaveBeenCalled();
+  });
+
+  it('proposes a request on a case-insensitive existing client match with only request CREATE', async () => {
+    clients.findAll.mockResolvedValue(paginate([{ ...client, id: CLIENT_ID, email: 'ALEX@example.com' }], 1, 1, 100));
+    const actingUser = { ...user, access: { [Module.TRIP_REQUESTS]: { reach: Reach.ALL, actions: [Action.CREATE] } } };
+    const args = { ...leadArgs, email: client.email, originIcao: 'KTEB', notes: 'Quiet cabin' };
+    expect(await dispatch(actingUser, 'create_lead', JSON.stringify(args))).toEqual({
+      proposed: true, summary: 'File a trip request for existing client Alex Vance (alex@example.com), KTEB → —. Notes: Quiet cabin',
+    });
+    expect(pending.put).toHaveBeenCalledExactlyOnceWith(PHONE, expect.objectContaining({
+      lead: { type: 'existing', clientId: CLIENT_ID, request: { originAirportId: ORIGIN_ID, internalNotes: 'Quiet cabin' } },
+    }));
+    expect(clients.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ ...leadArgs, originIcao: 'ZZZZ' }, 'Unknown origin airport ZZZZ'],
+    [{ firstName: 'Jamie', lastName: 'Client' }, 'Give an email or phone number'],
+    [{ firstName: 'Jamie', email: leadArgs.email }, 'lastName'],
+    [{ ...leadArgs, departureDate: '2026-02-30' }, 'Invalid ISO date'],
+    [{ ...leadArgs, passengers: 0 }, 'Passengers must be a whole number'],
+  ])('rejects an invalid lead without storing it', async (args, problem) => {
+    clients.findAll.mockResolvedValue(paginate([], 0, 1, 100));
+    expect(await dispatch(user, 'create_lead', JSON.stringify(args))).toEqual({ error: expect.stringContaining(problem) });
+    expect(pending.put).not.toHaveBeenCalled();
+  });
+
+  it('asks for trip details when a matching client email was given without any', async () => {
+    clients.findAll.mockResolvedValue(paginate([{ ...client, id: CLIENT_ID }], 1, 1, 100));
+    expect(await dispatch(user, 'create_lead', JSON.stringify({ ...leadArgs, email: client.email }))).toEqual({
+      error: 'That email belongs to an existing client. Give a trip detail to file a request.',
+    });
+    expect(pending.put).not.toHaveBeenCalled();
+  });
+
+  it.each([[], [trip, trip], [{ ...trip, reference: 9999 }]])('requires exactly one exact trip match from %j', async (...rows) => {
+    trips.findAll.mockResolvedValue(paginate(rows, rows.length, 1, 100));
+    expect(await dispatch(user, 'approve_trip', '{"reference":"1048"}')).toEqual({ error: 'No trip TJ-1048 you can see' });
+    expect(pending.put).not.toHaveBeenCalled();
+  });
+
+  it('checks later pages of trip search results for the exact trip', async () => {
+    trips.findAll.mockResolvedValueOnce(paginate([{ ...trip, reference: 9999 }], 101, 1, 100))
+      .mockResolvedValueOnce(paginate([trip], 101, 2, 100));
+    expect(await dispatch(user, 'approve_trip', '{"reference":"1048"}')).toMatchObject({ proposed: true });
+    expect(trips.findAll).toHaveBeenNthCalledWith(2, user, expect.objectContaining({ page: 2 }));
+  });
+
+  it.each(['approve_trip', 'decline_trip'])('refuses %s on an approved trip', async (name) => {
+    trips.findAll.mockResolvedValue(paginate([{ ...trip, approvalStatus: TripApprovalStatus.APPROVED }], 1, 1, 100));
+    expect(await dispatch(user, name, '{"reference":"TJ-1048"}')).toEqual({ error: expect.any(String) });
+    expect(pending.put).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ amount: 12500.01 }, InvoiceStatus.SENT, 'still owed'],
+    [{ amount: 1.001 }, InvoiceStatus.SENT, 'two decimal places'],
+    [{ method: 'CASH' }, InvoiceStatus.SENT, 'Invalid option'],
+    [{}, InvoiceStatus.DRAFT, 'Only sent invoices'],
+    [{ invoice: 'INV-2025-0042' }, InvoiceStatus.SENT, 'No invoice INV-2025-0042'],
+  ])('refuses an invalid payment without storing a proposal', async (args, status, problem) => {
+    receivables.findAll.mockResolvedValue(paginate([{ ...invoice, status }], 1, 1, 100));
+    expect(await dispatch(user, 'record_payment', JSON.stringify({ ...paymentArgs, ...args }))).toEqual({
+      error: expect.stringContaining(problem),
+    });
+    expect(pending.put).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ status: TaskStatus.COMPLETED }, 'already completed'],
+    [{ deletedAt: new Date('2026-11-24') }, 'archived'],
+  ])('refuses a completed or archived task', async (patch, problem) => {
+    tasks.findOne.mockResolvedValue({ ...task, ...patch });
+    expect(await dispatch(user, 'complete_task', JSON.stringify({ taskId: TASK_ID }))).toEqual({
+      error: expect.stringContaining(problem),
+    });
+    expect(pending.put).not.toHaveBeenCalled();
+  });
+
+  it('rejects a second proposal in the same reply without resolving its record', async () => {
+    expect(await dispatch(user, 'approve_trip', '{"reference":"1048"}')).toMatchObject({ proposed: true });
+    expect(await dispatch(user, 'complete_task', JSON.stringify({ taskId: TASK_ID }))).toEqual({ error: ONE_ACTION_REPLY });
+    expect(tasks.findOne).not.toHaveBeenCalled();
+    expect(pending.put).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits proposal tools and refuses a fabricated proposal call without a webhook phone', async () => {
+    delete context.phone;
+    expect(tools.specs(false).some(({ name }) => name === 'approve_trip')).toBe(false);
+    expect(await dispatch(user, 'approve_trip', '{"reference":"1048"}')).toEqual({ error: 'Not permitted for this account' });
     expectNoServiceCalls();
   });
 });

@@ -143,10 +143,13 @@ describe('WhatsappService gates', () => {
   let service: WhatsappService;
   const findFirst = vi.fn();
   const sender = { markRead: vi.fn(), sendText: vi.fn() };
+  const agent = { ready: true, reply: vi.fn(), cancelPending: vi.fn() };
 
   function expectNoSend() {
     expect(sender.markRead).not.toHaveBeenCalled();
     expect(sender.sendText).not.toHaveBeenCalled();
+    expect(agent.reply).not.toHaveBeenCalled();
+    expect(agent.cancelPending).not.toHaveBeenCalled();
   }
 
   const message = (over: Partial<IncomingMessage> = {}): IncomingMessage => ({
@@ -161,6 +164,8 @@ describe('WhatsappService gates', () => {
   beforeEach(() => {
     sender.markRead.mockReset().mockResolvedValue(undefined);
     sender.sendText.mockReset().mockResolvedValue(true);
+    agent.reply.mockReset().mockResolvedValue('A reply.');
+    agent.cancelPending.mockReset().mockResolvedValue('');
     enabled = true;
     configured = config;
     claimed = new Set();
@@ -171,7 +176,7 @@ describe('WhatsappService gates', () => {
       { read: async () => ({ whatsappAssistantEnabled: enabled }) } as never,
       { claimOnce: async (key: string) => !claimed.has(key) && Boolean(claimed.add(key)) } as never,
       { user: { findFirst } } as never,
-      { reply: vi.fn() } as never,
+      agent as never,
       sender as never,
     );
   });
@@ -204,6 +209,7 @@ describe('WhatsappService gates', () => {
     expect(await service.receive([once])).toEqual(['accepted']);
     sender.markRead.mockClear();
     sender.sendText.mockClear();
+    agent.reply.mockClear();
     expect(await service.receive([once])).toEqual(['duplicate']);
     expectNoSend();
   });

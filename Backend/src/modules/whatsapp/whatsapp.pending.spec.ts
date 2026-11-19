@@ -1,0 +1,225 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveAccess } from '../../common/authorization/access.js';
+import type { AuthenticatedUser } from '../../common/types/api.types.js';
+import { PaymentMethod, UserRole } from '../../generated/prisma/enums.js';
+import { NOTHING_PENDING_REPLY, WhatsappAgent } from './whatsapp.agent.js';
+import type { AiClient } from './whatsapp.ai-client.js';
+import { WhatsappMemory } from './whatsapp.memory.js';
+import { WhatsappPending, type PendingAction } from './whatsapp.pending.js';
+
+const PHONE = '15551234567';
+const KEY = `whatsapp:pending:${PHONE}`;
+const user: AuthenticatedUser = {
+  id: 'owner-id', email: 'owner@example.com', role: UserRole.SUPER_ADMIN,
+  access: resolveAccess(UserRole.SUPER_ADMIN, null), timeZone: 'Asia/Dhaka',
+};
+const approval: PendingAction = {
+  kind: 'TRIP_APPROVE', tripId: '00000000-0000-4000-8000-000000000001',
+  summary: 'Approve trip TJ-1048 — Alex Vance, KTEB → KMIA, Fri 27 Nov.',
+  userId: user.id, createdAt: '2026-11-19T10:00:00.000Z',
+};
+const completion: PendingAction = {
+  kind: 'TASK_COMPLETE', taskId: '00000000-0000-4000-8000-000000000002',
+  summary: 'Complete task "Call the broker".', userId: user.id, createdAt: approval.createdAt,
+};
+const askToConfirm = (summary: string) =>
+  `⚠️ ${summary}\n\nReply *CONFIRM* to proceed or *CANCEL* to abort (expires in 5 minutes).`;
+
+/** The map expires entries, and a take removes its entry before it can yield. */
+function fixture() {
+  const entries = new Map<string, { value: string; expires: number }>();
+  const read = (key: string) => {
+    const entry = entries.get(key);
+    if (!entry || entry.expires <= Date.now()) {
+      entries.delete(key);
+      return null;
+    }
+    return entry.value;
+  };
+  const redis = {
+    setString: vi.fn(async (key: string, value: string, ttl: number) => {
+      entries.set(key, { value, expires: Date.now() + ttl * 1000 });
+    }),
+    getString: vi.fn(async (key: string) => read(key)),
+    takeString: vi.fn(async (key: string) => {
+      const value = read(key);
+      entries.delete(key);
+      return value;
+    }),
+    del: vi.fn(async (key: string) => { entries.delete(key); }),
+  };
+  return { redis, pending: new WhatsappPending(redis as never), memory: new WhatsappMemory(redis as never) };
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(approval.createdAt));
+});
+afterEach(() => vi.useRealTimers());
+
+describe('WhatsappPending', () => {
+  it('stores JSON for 300 seconds and takes the action atomically once', async () => {
+    const { redis, pending } = fixture();
+    await expect(pending.put('+1 555 123 4567', approval)).resolves.toBeUndefined();
+    expect(redis.setString).toHaveBeenCalledExactlyOnceWith(KEY, JSON.stringify(approval), 300);
+    expect(await Promise.all([pending.take(PHONE), pending.take(PHONE)])).toEqual([approval, null]);
+    expect(redis.takeString).toHaveBeenCalledTimes(2);
+    expect(redis.getString).not.toHaveBeenCalled();
+  });
+
+  it('drops an action and returns only its summary', async () => {
+    const { pending } = fixture();
+    await pending.put(PHONE, approval);
+    expect(await pending.drop(PHONE)).toBe(approval.summary);
+    expect(await pending.drop(PHONE)).toBeNull();
+  });
+
+  it.each([
+    { ...approval, kind: 'TRIP_DECLINE', payload: { reason: 'Weather' } },
+    { ...approval, kind: 'LEAD_CREATE', lead: { type: 'new', client: { firstName: 'Alex', lastName: 'Vance' },
+      request: { departureDate: '2026-11-27' } } },
+    { ...approval, kind: 'PAYMENT_RECORD', invoiceId: '00000000-0000-4000-8000-000000000003',
+      payload: { amount: 12500, paidAt: '2026-11-27', method: PaymentMethod.WIRE_TRANSFER } },
+  ] satisfies PendingAction[])('preserves the frozen payload for $kind through JSON', async (action) => {
+    const { pending } = fixture();
+    await pending.put(PHONE, action);
+    const { userId, summary, createdAt } = action;
+    const restored = await pending.take(PHONE);
+    expect(restored).toMatchObject({ userId, summary, createdAt, kind: action.kind });
+    if (action.kind === 'LEAD_CREATE') {
+      expect(restored).toHaveProperty('lead', action.lead);
+    } else {
+      expect(restored).toHaveProperty('payload', action.payload);
+    }
+  });
+
+  it.each(['{bad JSON', 'null', '{"kind":"TRIP_APPROVE"}'])('consumes a malformed value %s and returns null', async (stored) => {
+    const { pending, redis } = fixture();
+    await redis.setString(KEY, stored, 300);
+    expect(await pending.take(PHONE)).toBeNull();
+    expect(await redis.getString(KEY)).toBeNull();
+  });
+
+  it('expires at five minutes and keeps phones separate', async () => {
+    const { pending } = fixture();
+    await pending.put(PHONE, approval);
+    await vi.advanceTimersByTimeAsync(299_999);
+    await pending.put('15550000000', completion);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await pending.take(PHONE)).toBeNull();
+    expect(await pending.take('15550000000')).toEqual(completion);
+  });
+});
+
+describe('WhatsappAgent confirmations', () => {
+  const success = '✅ Trip TJ-1048 approved.';
+  const question = 'Approve trip TJ-1048';
+  const settings = { read: vi.fn() };
+  let store: ReturnType<typeof fixture>;
+  let respond: ReturnType<typeof vi.fn<AiClient['respond']>>;
+  let dispatch: ReturnType<typeof vi.fn>;
+  let specs: ReturnType<typeof vi.fn>;
+  let run: ReturnType<typeof vi.fn>;
+  let agent: WhatsappAgent;
+
+  beforeEach(() => {
+    store = fixture();
+    respond = vi.fn();
+    specs = vi.fn(() => []);
+    dispatch = vi.fn();
+    run = vi.fn().mockResolvedValue(success);
+    agent = new WhatsappAgent({ respond }, store.memory, { specs, dispatch } as never,
+      settings as never, store.pending, { run } as never);
+  });
+
+  function modelProposes(action: PendingAction) {
+    respond.mockResolvedValueOnce({ kind: 'tools', calls: [
+      { id: 'proposal', name: 'approve_trip', argumentsJson: '{"reference":"1048"}' },
+      { id: 'unused', name: 'find_client', argumentsJson: '{"query":"private"}' },
+    ] }).mockResolvedValueOnce({ kind: 'text', text: 'Model claims it was done.' });
+    dispatch.mockImplementationOnce(async () => {
+      await store.pending.put(PHONE, action);
+      return { proposed: true, summary: action.summary };
+    });
+  }
+
+  it('returns the fixed proposal immediately and remembers only the exchange', async () => {
+    modelProposes(approval);
+    expect(await agent.reply(user, PHONE, question, true)).toBe(askToConfirm(approval.summary));
+    expect(respond).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith(user, 'approve_trip', '{"reference":"1048"}', expect.objectContaining({ phone: PHONE }));
+    expect(run).not.toHaveBeenCalled();
+    expect(await store.memory.load(PHONE)).toEqual([
+      { kind: 'text', role: 'user', text: question },
+      { kind: 'text', role: 'assistant', text: askToConfirm(approval.summary) },
+    ]);
+  });
+
+  it.each(['CONFIRM', 'confirm.', ' Confirm! '])('runs %j without asking the model', async (text) => {
+    await store.pending.put(PHONE, approval);
+    expect(await agent.reply(user, PHONE, text, true)).toBe(success);
+    expect(run).toHaveBeenCalledExactlyOnceWith(user, approval);
+    expect(respond).not.toHaveBeenCalled();
+    expect(await store.memory.load(PHONE)).toEqual([
+      { kind: 'text', role: 'user', text }, { kind: 'text', role: 'assistant', text: success },
+    ]);
+  });
+
+  it('runs two simultaneous confirmations once', async () => {
+    await store.pending.put(PHONE, approval);
+    expect(await Promise.all([
+      agent.reply(user, PHONE, 'CONFIRM', true),
+      agent.reply(user, PHONE, 'CONFIRM', true),
+    ])).toEqual([success, NOTHING_PENDING_REPLY]);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it('returns the empty reply after expiry', async () => {
+    await store.pending.put(PHONE, approval);
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(await agent.reply(user, PHONE, 'CONFIRM', true)).toBe(NOTHING_PENDING_REPLY);
+    expect(run).not.toHaveBeenCalled();
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it('cancels with or without punctuation without running anything', async () => {
+    await store.pending.put(PHONE, approval);
+    expect(await agent.reply(user, PHONE, ' cancel. ', true)).toBe('Cancelled — nothing was changed.');
+    expect(await agent.reply(user, PHONE, 'CANCEL', true)).toBe(NOTHING_PENDING_REPLY);
+    expect(run).not.toHaveBeenCalled();
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it('drops the pending action before the next ordinary question reaches the model', async () => {
+    await store.pending.put(PHONE, approval);
+    respond.mockImplementation(async () => {
+      expect(await store.redis.getString(KEY)).toBeNull();
+      return { kind: 'text', text: 'What else would you like to know?' };
+    });
+    expect(await agent.reply(user, PHONE, 'Okay', true)).toBe(
+      `(Not done: ${approval.summary} — cancelled.)\n\nWhat else would you like to know?`,
+    );
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('shows the cancellation then the new fixed proposal, leaving only the new one', async () => {
+    await store.pending.put(PHONE, approval);
+    modelProposes(completion);
+    expect(await agent.reply(user, PHONE, 'Complete the task', true)).toBe(
+      `(Not done: ${approval.summary} — cancelled.)\n\n${askToConfirm(completion.summary)}`,
+    );
+    expect(await store.pending.take(PHONE)).toEqual(completion);
+    expect(await store.pending.take(PHONE)).toBeNull();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('keeps direct development questions separate from the phone’s pending action', async () => {
+    await store.pending.put(PHONE, approval);
+    respond.mockResolvedValue({ kind: 'text', text: 'Read-only reply.' });
+    expect(await agent.reply(user, PHONE, 'CONFIRM')).toBe('Read-only reply.');
+    expect(specs).toHaveBeenCalledWith(false);
+    expect(run).not.toHaveBeenCalled();
+    expect(await store.pending.take(PHONE)).toEqual(approval);
+  });
+});

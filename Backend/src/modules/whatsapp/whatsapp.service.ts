@@ -8,7 +8,7 @@ import { UserRole, UserStatus } from '../../generated/prisma/enums.js';
 import { SettingsService } from '../settings/settings.service.js';
 import type { IncomingMessage } from './whatsapp.payload.js';
 import { WhatsappSender } from './whatsapp.sender.js';
-import { WhatsappAgent } from './whatsapp.agent.js';
+import { isConfirmationCommand, WhatsappAgent } from './whatsapp.agent.js';
 
 /** Meta redelivers until it gets a 200; a day covers every retry it makes. */
 const SEEN_TTL_SECONDS = 24 * 60 * 60;
@@ -47,6 +47,7 @@ export type Outcome =
 @Injectable()
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
+  private receiving = Promise.resolve();
 
   constructor(
     private readonly config: AppConfigService,
@@ -58,7 +59,15 @@ export class WhatsappService {
   ) {}
 
   /** Runs each message through the gates; returns what became of each. */
-  async receive(messages: IncomingMessage[], now = new Date()): Promise<Outcome[]> {
+  receive(messages: IncomingMessage[], now = new Date()): Promise<Outcome[]> {
+    // Meta can deliver the one phone's messages in separate requests. Finish
+    // sending one summary before a later message can change the pending slot.
+    const result = this.receiving.then(() => this.receiveMessages(messages, now));
+    this.receiving = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private async receiveMessages(messages: IncomingMessage[], now: Date): Promise<Outcome[]> {
     const outcomes: Outcome[] = [];
     for (const message of messages) {
       const outcome = await this.gate(message, now);
@@ -145,22 +154,26 @@ export class WhatsappService {
       let reply: string;
       if (message.type !== 'text' || !message.text?.trim()) {
         this.logger.log(`Ignored non-text WhatsApp message ${message.id} (${message.type})`);
-        reply = NON_TEXT_REPLY;
-      } else if (!this.agent.ready) {
+        reply = await this.agent.cancelPending(message.from) + NON_TEXT_REPLY;
+      } else if (!this.agent.ready && !isConfirmationCommand(message.text)) {
         this.logger.warn('WhatsApp assistant accepted a message but OPENAI_API_KEY / OPENAI_MODEL are not set');
-        reply = NOT_READY_REPLY;
+        reply = await this.agent.cancelPending(message.from) + NOT_READY_REPLY;
       } else {
-        reply = await this.agent.reply(admin, message.from, message.text);
+        reply = await this.agent.reply(admin, message.from, message.text, true);
       }
       if (await this.sender.sendText(message.from, reply, message.id)) {
         this.logger.log(`Sent a reply to ${message.id} (${reply.length} chars)`);
       } else {
         this.logger.warn(`Reply to ${message.id} was not delivered`);
+        // Never leave a proposal confirmable if its summary could not be sent.
+        await this.agent.cancelPending(message.from);
       }
     } catch (error: unknown) {
       this.logger.error(`WhatsApp reply preparation failed (${error instanceof Error ? error.name : 'UnknownError'})`);
       // sendText never throws, so nothing was sent yet and this cannot double up.
       await this.sender.sendText(message.from, FAILED_REPLY, message.id);
+      // Nor may a proposal stay confirmable when its summary was never shown.
+      await this.agent.cancelPending(message.from).catch(() => undefined);
     }
   }
 }
