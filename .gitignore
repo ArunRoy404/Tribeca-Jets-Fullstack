@@ -1,2 +1,5 @@
 # macOS Finder metadata
 .DS_Store
+
+# Next.js dev cache (a dev server run from the root writes one here)
+.next/
