@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { timeZoneSchema } from '../../../common/dates/time-zone.js';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
 import { pageFields } from '../../../common/dto/pagination.dto.js';
 import { uploadUrl } from '../../../common/dto/uploads.js';
 import { passwordSchema } from './verification.dto.js';
 
 /**
- * The signed-in user editing their own profile (My Account).
+ * The signed-in user editing their own name, phone, photo or time zone.
  *
  * Narrower than `PATCH /users/:id` on purpose: email is the login identity,
  * and role, status and commission terms are an administrator's decisions.
@@ -19,6 +20,8 @@ export const updateProfileSchema = z
     phone: z.string().trim().max(40).nullable().optional(),
     /** An upload URL from `POST /uploads/image`, or null to remove the photo. */
     avatarUrl: uploadUrl.nullable().optional(),
+    /** Null follows the company's time zone. */
+    timeZone: timeZoneSchema.nullable().optional(),
   })
   .strict();
 

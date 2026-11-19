@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_TIME_ZONE } from '../../common/dates/time-zone.js';
 import { FailedSignInScope, LeadStage } from '../../generated/prisma/enums.js';
 import { updateSettingsSchema } from './dto/settings.dto.js';
 import { brandingView, settingsDiff, settingsView, type SettingsRow } from './settings.view.js';
@@ -8,6 +9,7 @@ const ON_DARK_ID = '7a1c9e3b-2d4f-4a6b-9c8e-0f1a2b3c4d5e';
 
 const row: SettingsRow = {
   companyName: 'Tribeca Jets',
+  companyTimeZone: DEFAULT_TIME_ZONE,
   companyEmail: 'fly@example.com',
   website: 'www.example.com',
   phone: '+1 212 555 0100',
@@ -81,7 +83,7 @@ describe('public branding', () => {
   /** The public route is read with no session: nothing internal may leak. */
   it('carries nothing but branding', () => {
     const text = JSON.stringify(brandingView(row));
-    for (const internal of ['idleTimeout', 'requireAdminTwoFactor', 'whatsapp', 'Markup', 'Fet', 'Reminder', 'Terms', 'SignIn', 'code']) {
+    for (const internal of ['companyTimeZone', 'idleTimeout', 'requireAdminTwoFactor', 'whatsapp', 'Markup', 'Fet', 'Reminder', 'Terms', 'SignIn', 'code']) {
       expect(text).not.toContain(internal);
     }
   });
@@ -92,6 +94,7 @@ describe('settings view', () => {
     const view = settingsView(row);
     expect(Object.keys(view)).toEqual(['company', 'defaults', 'security', 'rateLimits', 'notifications', 'updatedAt']);
     expect(view.defaults.defaultFetPercent).toBe(7.5);
+    expect(view.company.companyTimeZone).toBe(DEFAULT_TIME_ZONE);
     expect(view.security).not.toHaveProperty('companyName');
   });
 });
@@ -113,6 +116,17 @@ describe('PATCH /settings validation', () => {
 
   it('accepts one section on its own', () => {
     expect(ok({ defaults: { quoteValidityHours: 48 } })).toBe(true);
+  });
+
+  it('accepts and canonicalises a company time zone', () => {
+    const companyTimeZone = new Intl.DateTimeFormat('en-US', { timeZone: 'US/Eastern' }).resolvedOptions().timeZone;
+    expect(updateSettingsSchema.parse({ company: { companyTimeZone: ' US/Eastern ' } }))
+      .toEqual({ company: { companyTimeZone } });
+  });
+
+  it('refuses an invalid or null replacement for the company time zone', () => {
+    expect(ok({ company: { companyTimeZone: 'Mars/Olympus' } })).toBe(false);
+    expect(ok({ company: { companyTimeZone: null } })).toBe(false);
   });
 
   it('refuses a value the screen has no option for', () => {

@@ -687,6 +687,7 @@ export class AuthService {
           status: true,
           avatarKey: true,
           avatarUrl: true,
+          timeZone: true,
           twoFactorEnabled: true,
           lastLoginAt: true,
           createdAt: true,

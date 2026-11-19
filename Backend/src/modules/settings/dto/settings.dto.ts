@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { timeZoneSchema } from '../../../common/dates/time-zone.js';
 import { createZodDto } from '../../../common/dto/zod-dto.js';
 import { uploadUrl } from '../../../common/dto/uploads.js';
 import { FailedSignInScope, LeadStage } from '../../../generated/prisma/enums.js';
@@ -63,6 +64,7 @@ const clearableText = (max: number) =>
 const companySchema = z
   .object({
     companyName: z.string().trim().min(1, 'The company needs a name').max(120).optional(),
+    companyTimeZone: timeZoneSchema.optional(),
     companyEmail: z
       .union([z.email('Enter a valid email address'), z.literal('')])
       .transform((value) => value || null)

@@ -44,6 +44,11 @@ model User {
   /// My Account page. Supersedes `avatarKey`, which nothing writes any more.
   avatarUrl String?
 
+  /// The person's own time zone (IANA name, e.g. "Asia/Dhaka"). Decides
+  /// what "today" means to them — the WhatsApp assistant first. Null:
+  /// the company's (`company_settings.companyTimeZone`).
+  timeZone String? @db.VarChar(64)
+
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
 

@@ -16,6 +16,9 @@ model CompanySettings {
 
   // ---- Company & branding ---------------------------------------------------
   companyName         String  @default("Tribeca Jets") @db.VarChar(120)
+  /// The desk's time zone (IANA name) — anyone without their own reads
+  /// "today" in it, and the desk rules will (19 Nov 2026).
+  companyTimeZone     String  @default("America/New_York") @db.VarChar(64)
   companyEmail        String? @db.VarChar(254)
   website             String? @db.VarChar(200)
   phone               String? @db.VarChar(40)

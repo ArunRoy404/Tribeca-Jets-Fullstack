@@ -282,6 +282,11 @@ export class AuthController {
       // fallback for a photo set before that existed.
       avatarUrl: profile.avatarUrl ?? (await this.storage.signedUrlOrNull(avatarKey)),
       /**
+       * `timeZone` above belongs to this person. Null follows the company.
+       * The browser uses both to offer a preference when its zone differs.
+       */
+      companyTimeZone: this.settingsService.current().companyTimeZone,
+      /**
        * This person's own permissions (7 Oct 2026), as
        * `{ MODULE: { reach, actions } }`. A module that is absent has no
        * access: the sidebar hides it and the browser cannot open it. Same
@@ -315,6 +320,7 @@ export class AuthController {
     summary: 'Update your own profile',
     description:
       'First name, last name, phone and photo (an upload URL from POST /uploads/image, or null). ' +
+      'Time zone (an IANA name, or null to use the company default). ' +
       'Email, role and status are not accepted here. Answers with the same shape as GET /auth/me.',
   })
   async updateMe(

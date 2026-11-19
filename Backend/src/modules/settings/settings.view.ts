@@ -10,6 +10,7 @@ import { uploadIdFrom } from '../../common/dto/uploads.js';
 /** The row as the service reads it (Decimals already turned into numbers). */
 export interface SettingsRow {
   companyName: string;
+  companyTimeZone: string;
   companyEmail: string | null;
   website: string | null;
   phone: string | null;
@@ -62,7 +63,7 @@ export interface SettingsRow {
 /** Which keys belong to which Settings screen — the API's sections. */
 export const SECTIONS = {
   company: [
-    'companyName', 'companyEmail', 'website', 'phone', 'address', 'clientServicesLabel',
+    'companyName', 'companyTimeZone', 'companyEmail', 'website', 'phone', 'address', 'clientServicesLabel',
     'logoUrl', 'logoOnDarkUrl', 'showContactBlock', 'logoOnDocuments', 'showBrokerContact',
     'wireBankName', 'wireBeneficiaryName', 'wireRoutingNumber', 'wireAccountNumber', 'wireSwiftBic', 'wireInstructions',
   ],
