@@ -1902,6 +1902,13 @@ has five sections, the open one in the URL (`?section=`).
   Sessions (#1).
 - **CRM & Quote Defaults** and **Notifications & Automation** — saved and
   shown; each screen says what reads them and when (below).
+- **WhatsApp & AI** (20 Nov, awaiting review) is visible to the Super Admin.
+  The panel accepts credentials for sealed storage and shows their masked
+  status. Linking verifies a code sent on WhatsApp, and sending a code or
+  unlinking requires the current password.
+  Each credential has its own Save or Clear flow. The OpenAI connection test
+  lists chat models and the Meta test shows the business number and verified
+  name. The webhook URL shows tunnel guidance on localhost.
 - Read-only without Settings · Edit: no Save, no upload, controls disabled.
 - Postman `30 · Settings` — 5 requests, 16 captured examples, restores every
   value it changes; 12 unit tests (branding never leaks, the audit diff,
@@ -1976,7 +1983,7 @@ caller's reach and money permission; the header's **Ask Anything** popover
 
 ---
 
-## WhatsApp assistant (Super Admin) 🟡 *(steps 1–5 reviewed and live)*
+## WhatsApp assistant (Super Admin) 🟡 *(steps 1–7 reviewed, step 8a awaiting review)*
 
 Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
 "The WhatsApp assistant is one phone, one Super Admin, signed by Meta".
@@ -1986,9 +1993,16 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
   as plain text when the verify token matches.
 - `POST /api/webhooks/whatsapp` — refused (401) unless signed by the app
   secret; reads messages leniently; answers at once.
-- The gates in `WhatsappService`: configured, Settings switch on, the one
-  phone, redelivery dropped, at most 10 minutes old, the env's account still
-  an active Super Admin (with its own permission set).
+- The gates in `WhatsappService`: configured, Settings switch on, sender
+  matches a verified phone on an active Super Admin, redelivery dropped and
+  at most 10 minutes old. The bot uses that account's permission set.
+- Step 8a reads the Meta and OpenAI credentials from **Settings › WhatsApp
+  & AI**. The four secrets are sealed with `SETTINGS_ENCRYPTION_KEY`. Health's
+  `ai` field reflects the current key and model. The migration and live
+  setup await review.
+- Step 8a-2 adds `npm run whatsapp:import-env` to fill empty settings from
+  the legacy environment once. The import reports field names and keeps
+  phone linking on the code verification flow.
 - Settings › Security › "WhatsApp assistant (Super Admin)"
   (`company_settings.whatsappAssistantEnabled`, off by default).
 - Step 2 prepares text replies through a bounded OpenAI Responses tool loop:
@@ -2003,8 +2017,8 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
   it. Tool rows stay out of memory; OpenAI requests use `store: false`.
 - The compiled development command `npm run whatsapp:ask -- "question"`
   (optional `--as <email>`) shares the webhook's live Super Admin lookup.
-  It needs `OPENAI_API_KEY` and `OPENAI_MODEL`; without the WhatsApp env set,
-  `--as` is required. Live-checked with a real OpenAI key on 17 Nov.
+  It needs the OpenAI key and model set in the panel. Until a phone is
+  verified, supply `--as` to choose an active Super Admin.
 - Step 3 sends the reply over Meta's Graph API (`whatsapp.sender.ts`): read
   receipt and "typing…", one retry on 429/5xx/network, fixed replies for a
   non-text message and for the AI not being set up, "something went wrong"

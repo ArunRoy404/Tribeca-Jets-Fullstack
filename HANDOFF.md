@@ -15,7 +15,28 @@ for a review, and how the owner likes to work, is in
 
 ## Part 1 — Where we are
 
-### Read this first — the state on 19 Nov 2026 (end of day)
+### Read this first — the state on 20 Nov 2026
+
+- **WhatsApp step 8a done and live** (Settings › WhatsApp & AI): the
+  OpenAI and Meta values are in the database, sealed with
+  `SETTINGS_ENCRYPTION_KEY` (the one env variable left for it — keep it,
+  losing it means re-entering them), changed by the Super Admin after
+  their password, with test buttons; the Super Admin's phone is linked by
+  a code the bot sends on WhatsApp. Eleven env variables are gone; the
+  developer deleted them from `.env`. Also fixed: errors no longer echo or
+  log the query string (it leaked the verify token and searched names).
+  Details: `docs/WHATSAPP_AI_INTEGRATION.md` §6, step 8.
+- **Next: 8b** — the Postman folders (the webhook folder's 4100 setup must
+  set its test values through the new routes; the five settings routes
+  need entries). Then the deploy, with values entered in production's
+  panel and a new `SETTINGS_ENCRYPTION_KEY` in Dokploy.
+- **Direction (developer, 20 Nov): more configuration moves from the env
+  into Settings later**, one item at a time, by the pattern in AGENTS.md
+  ("Configuration moves from the env into Settings"). Which items is not
+  decided; candidates are anything a person should change without a
+  redeploy (mail sender settings, for example).
+
+#### Earlier — the state on 19 Nov 2026 (end of day)
 
 - **The WhatsApp assistant covers the CRM: steps 1–6 built, reviewed,
   live-checked and committed; step 7's Postman folder is done.** In one

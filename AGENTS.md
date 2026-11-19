@@ -596,6 +596,30 @@ take `brand` from `MailService`. A new screen or email uses these.
 is never created or removed by anyone, so it carries the four audit columns
 and no archive trail. Every change is in the audit log instead.
 
+**Configuration moves from the env into Settings, one item at a time**
+(developer's direction, 20 Nov 2026). The WhatsApp assistant was the first:
+eleven env variables became Settings › WhatsApp & AI. More will follow. When
+an item moves:
+
+- **The env keeps only what the server needs before it can read the
+  database** — the database and Redis URLs, ports, `SETTINGS_ENCRYPTION_KEY`
+  and the like. Everything a person should be able to change without a
+  redeploy is a candidate for Settings.
+- **A credential is sealed** with `SecretBox` (`common/crypto/secret-box.ts`),
+  **write-only** (a read returns `{ set, last4 }`, never the value), saved
+  only after the current password, audited by field name only, and changed
+  by the role that owns it (`@SuperAdminOnly()` for the assistant's).
+- **The env variable is removed in the same pass** — from
+  `env.validation.ts`, `configuration.ts`, `config.service.ts` and
+  `.env.example` — so there is one source, never a fallback that drifts.
+  A one-off import script carries the existing value across
+  (`whatsapp:import-env` is the pattern), and the developer deletes the
+  old line from their `.env`.
+- **A test button** where the value talks to an outside service (OpenAI's
+  and Meta's are the pattern), so a wrong key is found on the screen, not
+  by a silent failure later.
+- Its row goes in `docs/MODULES.md` §26's map, like any setting.
+
 Two rules on adding settings:
 
 - **Never add a setting nothing reads.** A new control on the Settings
@@ -695,7 +719,7 @@ Users is the exception, because it has no archive/restore at all.
 Keep them separate. Collapsing them is how row-level leaks happen.
 
 1. **Authentication** — `JwtAuthGuard` is global. Routes are private by default; `@Public()` opts out. Failing closed is deliberate.
-2. **Capability** — `@RequireAccess(Module.X, Action.Y)` + `AccessGuard`, against the person's own set (the catalogue in `access.catalogue.ts`, role limits in `access.roles.ts`), and `@StaffOnly()` by stored role. Add an action to the catalogue, never an ad-hoc role list on a controller.
+2. **Capability** — `@RequireAccess(Module.X, Action.Y)` + `AccessGuard`, against the person's own set (the catalogue in `access.catalogue.ts`, role limits in `access.roles.ts`), and identity checks by stored role. `@StaffOnly()` excludes referral agents. `@SuperAdminOnly()` protects the WhatsApp assistant's credentials and verified phone, which belong to the Super Admin. Add an action to the catalogue, never an ad-hoc role list on a controller.
 3. **Row-level scope** — **always in the service layer**, never in a guard. A guard cannot scope a `findMany`. Use `reachOf(user.access, Module.X)` to decide between `ALL`, `OWN` and `ASSIGNED` and build the `where` clause from it.
 
 **Return 404, never 403, for a record the caller may not see.** A 403 confirms the row exists and turns any ID into an oracle. 403 is only for "this action is not available to your role at all" — a capability failure, not a row failure.
@@ -1191,11 +1215,12 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
   secret's HMAC of the raw bytes** (`rawBody: true` in `main.ts`). Never
   verify against a re-serialised body — it fails on real traffic and passes
   every hand-made test.
-- **The phone and the account it acts as live in the env**
-  (`SUPER_ADMIN_WHATSAPP_PHONE`, `SUPER_ADMIN_WHATSAPP_EMAIL`), never in the
-  database: nobody signed in to the web app can point the bot at their own
-  phone. All six `WHATSAPP_*`/`SUPER_ADMIN_WHATSAPP_*` variables or none — a
-  partial set refuses to boot.
+- **Settings › WhatsApp & AI belongs to the Super Admin.** OpenAI and
+  Meta secrets are write-only and AES-256-GCM sealed using the single
+  server variable `SETTINGS_ENCRYPTION_KEY`. Saving settings, sending a
+  link code and unlinking all re-check the current password. The Super
+  Admin proves their own phone by entering the code sent on WhatsApp,
+  and the bot acts as the active SUPER_ADMIN with that verified number.
 - **Every message passes the gates in `WhatsappService` first**: configured,
   Settings › Security › "WhatsApp assistant" on (off by default — the
   lost-phone switch), from that phone, not already handled (Meta redelivers;
@@ -1616,6 +1641,8 @@ the first time.
   overwrites the first just the same.
 
 ## Errors
+
+An error never echoes or logs the query string. Keep the API prefix in its `path`.
 
 `AllExceptionsFilter` already translates Prisma `P2002` → 409, `P2025` → 404, `P2003` → 400. Throw Nest's HTTP exceptions; do not hand-format error bodies in a controller.
 
