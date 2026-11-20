@@ -152,7 +152,13 @@ export const MODULES: ModuleDefinition[] = [
     requires: [Module.OPERATORS, Module.AIRCRAFT],
   },
 
-  { module: Module.CLIENTS, label: 'Clients', section: 'Sales & CRM', actions: [VIEW, CREATE, EDIT, ASSIGN, ARCHIVE] },
+  {
+    module: Module.CLIENTS,
+    label: 'Clients',
+    section: 'Sales & CRM',
+    actions: [VIEW, CREATE, EDIT, ASSIGN, ARCHIVE, VIEW_MONEY],
+    actionLabels: { [VIEW_MONEY]: 'See money on account' },
+  },
   {
     module: Module.LEADS_AGENTS,
     label: 'Leads & Agents',

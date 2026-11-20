@@ -54,7 +54,7 @@ const BROKER_GRANTS: RoleGrants = {
   [Module.EMPTY_LEGS]: grant(ALL, [VIEW, CREATE, EDIT], [ARCHIVE]),
   // Reassigning a client is a desk-management call (scope §4: no access to
   // other brokers' clients), so ASSIGN is locked for every broker.
-  [Module.CLIENTS]: grant(ASSIGNED, [VIEW, CREATE, EDIT], [ARCHIVE]),
+  [Module.CLIENTS]: grant(ASSIGNED, [VIEW, CREATE, EDIT, VIEW_MONEY], [ARCHIVE]),
   [Module.LEADS_AGENTS]: grant(ASSIGNED, [VIEW, CREATE, EDIT], [ARCHIVE]),
   [Module.TRIP_REQUESTS]: grant(OWN, [VIEW, CREATE, EDIT], [ARCHIVE]),
   [Module.REFERRALS]: grant(OWN, [VIEW, EDIT], [CREATE, ARCHIVE]),
@@ -85,7 +85,7 @@ const ASSISTANT_GRANTS: RoleGrants = {
   [Module.FLIGHT_TRACKING]: grant(ASSIGNED, [VIEW, EDIT]),
   [Module.ITINERARIES]: grant(ASSIGNED, [VIEW], [CREATE, EDIT, SEND, ARCHIVE]),
   [Module.EMPTY_LEGS]: grant(ALL, [VIEW], [CREATE, EDIT]),
-  [Module.CLIENTS]: grant(ASSIGNED, [VIEW], [CREATE, EDIT]),
+  [Module.CLIENTS]: grant(ASSIGNED, [VIEW], [CREATE, EDIT, VIEW_MONEY]),
   [Module.LEADS_AGENTS]: grant(ASSIGNED, [VIEW], [CREATE, EDIT]),
   [Module.TRIP_REQUESTS]: grant(ASSIGNED, [VIEW], [CREATE, EDIT]),
   [Module.QUOTES]: grant(ASSIGNED, [VIEW], [CREATE, EDIT, SEND]),

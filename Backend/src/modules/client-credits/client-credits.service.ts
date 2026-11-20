@@ -21,7 +21,7 @@ import {
   restoreData,
 } from '../../common/database/archive.js';
 import { Action, Module, canDo } from '../../common/authorization/access.js';
-import { CreditEntryType, UserRole } from '../../generated/prisma/enums.js';
+import { CreditEntryType } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { ClientsService } from '../clients/clients.service.js';
 import { TripsService } from '../trips/trips.service.js';
@@ -111,31 +111,26 @@ export class ClientCreditsService {
    *
    * Two separate questions, and collapsing them is how money leaks:
    *
-   * 1. **May this role see financials at all?** `VIEW_FINANCIALS` — an
-   *    assistant holds NONE, so they never learn what a client has on account,
-   *    even for a client they can otherwise read. That is a capability
-   *    failure, so 403.
+   * 1. **May the caller see money on account?** Clients · View and View money
+   *    are both required. A missing capability answers 403.
    * 2. **May they see *this* client?** Asked of the clients module, which
    *    applies the same broker scope it applies everywhere else. Out of scope
    *    is 404, never 403 — a 403 would confirm the client exists.
    *
-   * There is deliberately no MANAGE_CLIENT_CREDIT permission. The matrix
-   * already says exactly who may see money and at what reach, and a second
-   * permission whose row would be identical is a row nobody maintains.
    */
   private async client(user: AuthenticatedUser, clientId: string) {
     if (!canDo(user.access, Module.CLIENTS, Action.VIEW)) {
       throw new ForbiddenException('Your permissions do not allow viewing clients');
     }
-    if (user.role === UserRole.ASSISTANT) {
-      throw new ForbiddenException('Your role cannot see what a client has on account');
+    if (!canDo(user.access, Module.CLIENTS, Action.VIEW_MONEY)) {
+      throw new ForbiddenException('Your permissions do not allow seeing money on account');
     }
     return this.clients.subjectRef(user, clientId);
   }
 
   private assertMayWrite(user: AuthenticatedUser): void {
-    if (!canDo(user.access, Module.CLIENTS, Action.EDIT) || user.role === UserRole.ASSISTANT) {
-      throw new ForbiddenException("Your role cannot change a client's money on account");
+    if (!canDo(user.access, Module.CLIENTS, Action.EDIT) || !canDo(user.access, Module.CLIENTS, Action.VIEW_MONEY)) {
+      throw new ForbiddenException("Your permissions do not allow changing a client's money on account");
     }
   }
 

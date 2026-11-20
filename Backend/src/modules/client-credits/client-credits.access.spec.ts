@@ -60,7 +60,7 @@ describe('ClientCredits Access', () => {
       });
       await expect(
         (service as any).client(assistant, 'client-1'),
-      ).rejects.toThrow('Your role cannot see what a client has on account');
+      ).rejects.toMatchObject({ status: 403, message: 'Your permissions do not allow seeing money on account' });
     });
 
     it('refuses assistant from recording client credit movements', () => {
@@ -68,7 +68,7 @@ describe('ClientCredits Access', () => {
         [Module.CLIENTS]: [Action.VIEW, Action.EDIT],
       });
       expect(() => (service as any).assertMayWrite(assistant)).toThrow(
-        "Your role cannot change a client's money on account",
+        "Your permissions do not allow changing a client's money on account",
       );
     });
 
@@ -76,7 +76,7 @@ describe('ClientCredits Access', () => {
       const broker = makeUser(
         UserRole.BROKER,
         {
-          [Module.CLIENTS]: [Action.VIEW, Action.EDIT],
+          [Module.CLIENTS]: [Action.VIEW, Action.EDIT, Action.VIEW_MONEY],
         },
         Reach.ASSIGNED,
       );
@@ -89,13 +89,26 @@ describe('ClientCredits Access', () => {
       const admin = makeUser(
         UserRole.ADMIN,
         {
-          [Module.CLIENTS]: [Action.VIEW, Action.EDIT, Action.ARCHIVE],
+          [Module.CLIENTS]: [Action.VIEW, Action.EDIT, Action.ARCHIVE, Action.VIEW_MONEY],
         },
         Reach.ALL,
       );
       const ref = await (service as any).client(admin, 'client-1');
       expect(ref.id).toBe('client-1');
       expect(() => (service as any).assertMayWrite(admin)).not.toThrow();
+    });
+
+    it('lets an assistant with the grant read and checks Edit independently', async () => {
+      const read = makeUser(UserRole.ASSISTANT, { [Module.CLIENTS]: [Action.VIEW, Action.VIEW_MONEY] });
+      const write = makeUser(UserRole.ASSISTANT, { [Module.CLIENTS]: [Action.VIEW, Action.EDIT, Action.VIEW_MONEY] });
+      await expect((service as any).client(read, 'client-1')).resolves.toMatchObject({ id: 'client-1' });
+      expect(() => (service as any).assertMayWrite(read)).toThrow();
+      expect(() => (service as any).assertMayWrite(write)).not.toThrow();
+    });
+
+    it('refuses a broker whose stored grant omits View money', async () => {
+      const broker = makeUser(UserRole.BROKER, { [Module.CLIENTS]: [Action.VIEW, Action.EDIT] });
+      await expect((service as any).client(broker, 'client-1')).rejects.toMatchObject({ status: 403 });
     });
   });
 });

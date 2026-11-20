@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '../../generated/prisma/enums.js';
-import { MODULES, MODULE_BY_KEY } from './access.catalogue.js';
+import { actionLabel, MODULES, MODULE_BY_KEY } from './access.catalogue.js';
 import { ROLE_GRANTS } from './access.roles.js';
 import {
   Action,
@@ -37,6 +37,16 @@ describe('the role grants', () => {
     expect(allowedActions(UserRole.BROKER, Module.SETTINGS)).toEqual([]);
     expect(allowedActions(UserRole.BROKER, Module.CLIENTS)).not.toContain(Action.ASSIGN);
   });
+
+  it('labels money on account and makes it optional for assistants', () => {
+    expect(actionLabel(Module.CLIENTS, Action.VIEW_MONEY)).toBe('See money on account');
+    for (const role of [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.BROKER]) {
+      expect(defaultGrants(role).CLIENTS).toContain(Action.VIEW_MONEY);
+    }
+    expect(defaultGrants(UserRole.ASSISTANT).CLIENTS).not.toContain(Action.VIEW_MONEY);
+    expect(allowedActions(UserRole.ASSISTANT, Module.CLIENTS)).toContain(Action.VIEW_MONEY);
+    expect(allowedActions(UserRole.REFERRAL_AGENT, Module.CLIENTS)).toEqual([]);
+  });
 });
 
 describe('defaultGrants', () => {
@@ -56,7 +66,7 @@ describe('defaultGrants', () => {
 describe('resolveAccess', () => {
   it('reads an account with nothing saved as its role defaults, with the reach', () => {
     const access = resolveAccess(UserRole.BROKER, null);
-    expect(access.CLIENTS).toEqual({ reach: Reach.ASSIGNED, actions: [Action.VIEW, Action.CREATE, Action.EDIT] });
+    expect(access.CLIENTS).toEqual({ reach: Reach.ASSIGNED, actions: [Action.VIEW, Action.CREATE, Action.EDIT, Action.VIEW_MONEY] });
   });
 
   it('keeps what was ticked for this one person', () => {
