@@ -12,7 +12,7 @@ import { WhatsappSettingsService } from '../modules/whatsapp/whatsapp-settings.s
  * Skips the webhook's signature, Settings switch, sender, redelivery and
  * freshness gates. It still resolves a live, active Super Admin.
  *
- * Without a linked phone, --as is required and the conversation is
+ * Uses the earliest-linked live phone. Without one, --as is required and the conversation is
  * remembered under the key `0`, which no E.164 number reduces to — so the
  * brain can be tried before Meta's credentials exist without ever sharing
  * the phone's memory. Nothing imports this script. Nest's ConfigModule loads and validates env;

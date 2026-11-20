@@ -1,17 +1,18 @@
-import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { WHATSAPP_LINK_COOKIE } from '../../common/constants/auth.constants.js';
 import { SuperAdminOnly } from '../../common/decorators/access.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
-import { VerifyCodeDto } from '../auth/dto/verification.dto.js';
 import { sessionContextOf, TokenService } from '../auth/token.service.js';
 import {
-  RevealWhatsappSecretDto, SendLinkCodeDto, SetWhatsappAssistantDto, TestWhatsappMetaDto,
-  TestWhatsappOpenAiDto, UnlinkWhatsappPhoneDto, UpdateWhatsappSettingsDto,
+  QueryWhatsappHistoryDto, QueryWhatsappPhonesDto, RenameWhatsappPhoneDto, RevealWhatsappSecretDto, SendLinkCodeDto,
+  SetWhatsappAssistantDto, TestWhatsappMetaDto, TestWhatsappOpenAiDto, UnlinkWhatsappPhoneDto,
+  UpdateWhatsappSettingsDto, VerifyWhatsappPhoneDto,
 } from './dto/whatsapp-settings.dto.js';
 import { WhatsappConnectionsService } from './whatsapp-connections.service.js';
+import { WhatsappHistoryService } from './whatsapp-history.service.js';
 import { WhatsappPhoneService } from './whatsapp-phone.service.js';
 import { WhatsappSettingsService } from './whatsapp-settings.service.js';
 
@@ -26,12 +27,25 @@ export class WhatsappSettingsController {
     private readonly phone: WhatsappPhoneService,
     private readonly tokens: TokenService,
     private readonly connections: WhatsappConnectionsService,
+    private readonly historyService: WhatsappHistoryService,
   ) {}
 
   @Get()
   @ApiOperation({ summary: 'WhatsApp and AI settings with masked credentials' })
   view(@CurrentUser('id') userId: string) {
     return this.settings.view(userId);
+  }
+
+  @Get('phones')
+  @ApiOperation({ summary: 'List your verified WhatsApp phones, optionally including unlinked phones' })
+  phones(@CurrentUser('id') userId: string, @Query() query: QueryWhatsappPhonesDto) {
+    return this.phone.list(userId, query);
+  }
+
+  @Get('history')
+  @ApiOperation({ summary: 'Read WhatsApp assistant and settings history newest first' })
+  history(@CurrentUser('id') userId: string, @Query() query: QueryWhatsappHistoryDto) {
+    return this.historyService.list(userId, query);
   }
 
   @Patch()
@@ -90,26 +104,35 @@ export class WhatsappSettingsController {
   @ApiOperation({ summary: 'Verify the WhatsApp code using the link cookie' })
   async verify(
     @CurrentUser('id') userId: string,
-    @Body() dto: VerifyCodeDto,
+    @Body() dto: VerifyWhatsappPhoneDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const challenge = req.cookies?.[WHATSAPP_LINK_COOKIE] as string | undefined;
-    const linked = await this.phone.verify(userId, challenge, dto.code, sessionContextOf(req));
+    const linked = await this.phone.verify(userId, challenge, dto, sessionContextOf(req));
     this.tokens.clearChallenge(res, 'whatsappLink');
     return linked;
   }
 
-  @Delete('phone')
-  @ApiOperation({ summary: 'Unlink the WhatsApp number after a password check' })
-  async unlink(
+  @Patch('phone/:id')
+  @ApiOperation({ summary: 'Rename one of your linked WhatsApp phones' })
+  rename(
     @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RenameWhatsappPhoneDto,
+    @Req() req: Request,
+  ) {
+    return this.phone.rename(userId, id, dto.label, sessionContextOf(req));
+  }
+
+  @Delete('phone/:id')
+  @ApiOperation({ summary: 'Unlink one of your WhatsApp phones after a password check' })
+  unlink(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UnlinkWhatsappPhoneDto,
     @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
   ) {
-    await this.phone.unlink(userId, dto.currentPassword, sessionContextOf(req));
-    this.tokens.clearChallenge(res, 'whatsappLink');
-    return { linkedPhone: null };
+    return this.phone.unlink(userId, id, dto.currentPassword, sessionContextOf(req));
   }
 }

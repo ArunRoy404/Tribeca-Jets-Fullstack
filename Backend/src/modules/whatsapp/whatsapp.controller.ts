@@ -35,7 +35,7 @@ import { WhatsappSettingsService } from './whatsapp-settings.service.js';
  * `@RequireAccess`: the GET proves the URL is ours with the verify token, and
  * every POST is refused unless `X-Hub-Signature-256` is the app secret's HMAC
  * of the raw body. Who may *use* the bot is then decided per message in
- * `WhatsappService` (one phone, one Super Admin, the Settings switch).
+ * `WhatsappService` (verified phones, one Super Admin, the Settings switch).
  *
  * Both routes answer 404 while Meta settings are incomplete, so a deployment
  * without the assistant does not advertise the route.
@@ -87,7 +87,7 @@ export class WhatsappController {
     description:
       'Incoming WhatsApp messages and delivery receipts from Meta. 401 unless `X-Hub-Signature-256` is ' +
       'the HMAC-SHA256 of the raw body with the stored app secret. Answers 200 at once and handles the ' +
-      'messages afterwards; anything not from the Super Admin phone is dropped silently.',
+      'messages afterwards. Messages from outside the Super Admin’s verified phones are dropped silently.',
   })
   @ApiResponse({ status: 200, description: 'Received.' })
   async receive(
@@ -102,8 +102,14 @@ export class WhatsappController {
       throw new UnauthorizedException('Invalid webhook signature');
     }
 
-    for (const { id, codes } of readFailedStatuses(body)) {
+    const failed = readFailedStatuses(body);
+    for (const { id, codes } of failed) {
       this.logger.warn(`WhatsApp message ${id} failed at Meta (codes: ${codes.join(', ')})`);
+    }
+    if (failed.length) {
+      void this.whatsapp.recordDeliveryFailures(failed.map(({ id }) => id)).catch((error: unknown) =>
+        this.logger.error(`WhatsApp delivery tracking failed (${error instanceof Error ? error.name : 'UnknownError'})`),
+      );
     }
 
     const messages = readIncomingMessages(body);

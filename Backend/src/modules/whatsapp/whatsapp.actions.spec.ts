@@ -80,7 +80,9 @@ describe('WhatsappActions', () => {
     clients.create.mockResolvedValue(client);
     clients.subjectRef.mockResolvedValue({ id: CLIENT_ID, label: 'Private Clientname', archived: false });
     tasks.update.mockResolvedValue({ title: 'Private task' });
-    tasks.create.mockResolvedValue({ title: newTask.payload.title });
+    tasks.create.mockResolvedValue({ id: TASK_ID, reference: 25, title: newTask.payload.title });
+    requests.create.mockResolvedValue({ reference: 42 });
+    notes.create.mockResolvedValue({ id: CLIENT_ID });
     receivables.recordPayment.mockResolvedValue({ number: 'INV-2026-0042', balance: 0 });
     quotes.send.mockResolvedValue({ reference: 1042 });
     actions = new WhatsappActions(trips as never, clients as never, requests as never, tasks as never,
@@ -97,21 +99,28 @@ describe('WhatsappActions', () => {
   };
 
   it('approves the exact trip as the acting user', async () => {
-    expect(await actions.run(user, approval)).toBe('✅ Trip TJ-1048 approved.');
+    expect((await actions.run(user, approval)).text).toBe('✅ Trip TJ-1048 approved.');
     expect(trips.approve).toHaveBeenCalledExactlyOnceWith(user, TRIP_ID);
     expectOnlyWrite(trips.approve);
     expect(logs.log).toHaveBeenCalledExactlyOnceWith('WhatsApp action TRIP_APPROVE confirmed');
   });
 
+  it('records the task reference after creation and leaves it null on refusal', async () => {
+    await expect(actions.run(user, newTask)).resolves.toMatchObject({ outcome: 'done', ref: 'TSK-25' });
+    tasks.create.mockRejectedValueOnce(new BadRequestException('Invalid task'));
+    await expect(actions.run(user, newTask)).resolves.toMatchObject({ outcome: 'refused', ref: null });
+    await expect(actions.run(user, newLead)).resolves.toMatchObject({ outcome: 'done', ref: CLIENT_ID });
+  });
+
   it('declines the exact trip with the frozen reason', async () => {
-    expect(await actions.run(user, { ...base, kind: 'TRIP_DECLINE', tripId: TRIP_ID, payload: { reason: 'Weather' } }))
+    expect((await actions.run(user, { ...base, kind: 'TRIP_DECLINE', tripId: TRIP_ID, payload: { reason: 'Weather' } })).text)
       .toBe('✅ Trip TJ-1048 declined.');
     expect(trips.reject).toHaveBeenCalledExactlyOnceWith(user, TRIP_ID, { reason: 'Weather' });
     expectOnlyWrite(trips.reject);
   });
 
   it('creates the lead and files the validated request under the created id', async () => {
-    expect(await actions.run(user, newLead)).toBe('✅ Lead Private Clientname created, trip request filed.');
+    expect((await actions.run(user, newLead)).text).toBe('✅ Lead Private Clientname created, trip request filed.');
     expect(clients.create).toHaveBeenCalledExactlyOnceWith(user, createClientSchema.parse(newLead.lead.client));
     expect(requests.create).toHaveBeenCalledExactlyOnceWith(user, createTripRequestSchema.parse({ ...request, clientId: CLIENT_ID }));
     expect(clients.create).toHaveBeenCalledBefore(requests.create);
@@ -119,7 +128,7 @@ describe('WhatsappActions', () => {
 
   it('uses the existing live client in scope and files only the request', async () => {
     const actor = { ...user, access: { [Module.LEADS_AGENTS]: { reach: Reach.ALL, actions: [Action.CREATE] } } };
-    expect(await actions.run(actor, existingLead)).toBe('✅ Trip request filed for Private Clientname.');
+    expect((await actions.run(actor, existingLead)).text).toBe('✅ Trip request filed for Private Clientname.');
     expect(clients.subjectRef).toHaveBeenCalledExactlyOnceWith(actor, CLIENT_ID);
     expect(requests.create).toHaveBeenCalledExactlyOnceWith(actor, createTripRequestSchema.parse({ ...request, clientId: CLIENT_ID }));
     expectOnlyWrite(requests.create);
@@ -127,18 +136,18 @@ describe('WhatsappActions', () => {
 
   it('checks the matched client again before writing', async () => {
     clients.subjectRef.mockRejectedValue(new NotFoundException('Client not found'));
-    expect(await actions.run(user, existingLead)).toBe('❌ Not done: Client not found');
+    expect((await actions.run(user, existingLead)).text).toBe('❌ Not done: Client not found');
     for (const write of writes) expect(write).not.toHaveBeenCalled();
   });
 
   it('completes only the exact task', async () => {
-    expect(await actions.run(user, { ...base, kind: 'TASK_COMPLETE', taskId: TASK_ID })).toBe('✅ Task "Private task" completed.');
+    expect((await actions.run(user, { ...base, kind: 'TASK_COMPLETE', taskId: TASK_ID })).text).toBe('✅ Task "Private task" completed.');
     expect(tasks.update).toHaveBeenCalledExactlyOnceWith(user, TASK_ID, { status: TaskStatus.COMPLETED });
     expectOnlyWrite(tasks.update);
   });
 
   it('records the stored payment with a Date and reports the service’s returned balance', async () => {
-    expect(await actions.run(user, { ...base, kind: 'PAYMENT_RECORD', invoiceId: INVOICE_ID, payload: payment }))
+    expect((await actions.run(user, { ...base, kind: 'PAYMENT_RECORD', invoiceId: INVOICE_ID, payload: payment })).text)
       .toBe('✅ $12,500.00 recorded on INV-2026-0042 — balance $0.00.');
     expect(receivables.recordPayment).toHaveBeenCalledExactlyOnceWith(user, INVOICE_ID, { ...payment, paidAt: new Date('2026-11-19') });
     expectOnlyWrite(receivables.recordPayment);
@@ -153,7 +162,7 @@ describe('WhatsappActions', () => {
     { action: clientAssign, write: clients.update, ids: [CLIENT_ID], reply: '✅ Client reassigned.' },
     { action: quoteSend, write: quotes.send, ids: [QUOTE_ID], reply: '✅ Quote Q-1042 marked as sent. No email was sent.' },
   ])('confirms $action.kind with only the frozen DTO payload and ids', async ({ action, write, ids, reply }) => {
-    expect(await actions.run(user, action)).toBe(reply);
+    expect((await actions.run(user, action)).text).toBe(reply);
     expect(write).toHaveBeenCalledExactlyOnceWith(user, ...ids, action.payload);
     expectOnlyWrite(write);
     expect(clients.subjectRef).not.toHaveBeenCalled();
@@ -171,7 +180,7 @@ describe('WhatsappActions', () => {
     { ...clientAssign, payload: { ...clientAssign.payload, status: 'LEAD' } },
     { ...quoteSend, payload: { ...quoteSend.payload, validUntil: 'Friday' } },
   ])('refuses a tampered $kind payload without writing', async (action) => {
-    expect(await actions.run(user, action as PendingAction)).toBe('❌ Not done — the CRM could not complete it.');
+    expect((await actions.run(user, action as PendingAction)).text).toBe('❌ Not done — the CRM could not complete it.');
     for (const write of writes) expect(write).not.toHaveBeenCalled();
     expect(logs.error).toHaveBeenCalledExactlyOnceWith(`WhatsApp action ${action.kind} failed (ZodError)`);
   });
@@ -183,7 +192,7 @@ describe('WhatsappActions', () => {
     [tripAssign, { [Module.TRIPS]: { reach: Reach.ALL, actions: [Action.EDIT] } }],
     [clientAssign, { [Module.CLIENTS]: { reach: Reach.ALL, actions: [Action.EDIT] } }],
   ] satisfies [PendingAction, AuthenticatedUser['access']][])('rechecks withdrawn permission on confirmation', async (action, access) => {
-    expect(await actions.run({ ...user, access }, action)).toBe('Not done — your account can no longer do this.');
+    expect((await actions.run({ ...user, access }, action)).text).toBe('Not done — your account can no longer do this.');
     for (const write of writes) expect(write).not.toHaveBeenCalled();
   });
 
@@ -192,7 +201,7 @@ describe('WhatsappActions', () => {
       [Module.CLIENTS]: { reach: Reach.ALL, actions: [Action.EDIT] },
       [Module.LEADS_AGENTS]: { reach: Reach.ALL, actions: [Action.ASSIGN] },
     } };
-    expect(await actions.run(actor, clientAssign)).toBe('✅ Client reassigned.');
+    expect((await actions.run(actor, clientAssign)).text).toBe('✅ Client reassigned.');
     expect(clients.update).toHaveBeenCalledExactlyOnceWith(actor, CLIENT_ID, clientAssign.payload);
     expectOnlyWrite(clients.update);
   });
@@ -200,27 +209,27 @@ describe('WhatsappActions', () => {
   it.each([undefined, BROKER_ID])('confirms an unassigned or self-assigned task with CREATE alone (%s)', async (assigneeId) => {
     const actor = { ...user, id: BROKER_ID, access: { [Module.TASKS]: { reach: Reach.ALL, actions: [Action.CREATE] } } };
     const payload = { ...newTask.payload, assigneeId };
-    expect(await actions.run(actor, { ...newTask, userId: actor.id, payload })).toBe('✅ Task "New task" created.');
+    expect((await actions.run(actor, { ...newTask, userId: actor.id, payload })).text).toBe('✅ Task "New task" created.');
     expect(tasks.create).toHaveBeenCalledExactlyOnceWith(actor, payload);
     expectOnlyWrite(tasks.create);
   });
 
   it('refuses to confirm a new action for a different caller', async () => {
-    expect(await actions.run({ ...user, id: 'other-id' }, note)).toBe('Not done — that action belongs to another session.');
+    expect((await actions.run({ ...user, id: 'other-id' }, note)).text).toBe('Not done — that action belongs to another session.');
     for (const write of writes) expect(write).not.toHaveBeenCalled();
   });
 
   it('passes through the trip lifecycle refusal on confirmation', async () => {
     const message = 'A COMPLETED trip cannot move to CANCELLED. From here it can move to: .';
     trips.changeStatus.mockRejectedValueOnce(new BadRequestException(message));
-    expect(await actions.run(user, tripStatus)).toBe(`❌ Not done: ${message}`);
+    expect((await actions.run(user, tripStatus)).text).toBe(`❌ Not done: ${message}`);
     expect(trips.changeStatus).toHaveBeenCalledExactlyOnceWith(user, TRIP_ID, tripStatus.payload);
     expectOnlyWrite(trips.changeStatus);
     expect(logs.warn).toHaveBeenCalledExactlyOnceWith('WhatsApp action TRIP_STATUS refused (400)');
   });
 
   it('revalidates stored data before calling a service', async () => {
-    expect(await actions.run(user, { ...base, kind: 'PAYMENT_RECORD', invoiceId: INVOICE_ID, payload: { ...payment, amount: 1.001 } }))
+    expect((await actions.run(user, { ...base, kind: 'PAYMENT_RECORD', invoiceId: INVOICE_ID, payload: { ...payment, amount: 1.001 } })).text)
       .toBe('❌ Not done — the CRM could not complete it.');
     expect(receivables.recordPayment).not.toHaveBeenCalled();
     expect(logs.error).toHaveBeenCalledExactlyOnceWith('WhatsApp action PAYMENT_RECORD failed (ZodError)');
@@ -232,27 +241,27 @@ describe('WhatsappActions', () => {
     [newLead, { [Module.TRIP_REQUESTS]: { reach: Reach.ALL, actions: [Action.CREATE] } }],
   ] as const)('refuses withdrawn permission before calling any service', async (action, access) => {
     const actor = { ...user, access: access as AuthenticatedUser['access'] };
-    expect(await actions.run(actor, action)).toBe('Not done — your account can no longer do this.');
+    expect((await actions.run(actor, action)).text).toBe('Not done — your account can no longer do this.');
     for (const write of writes) expect(write).not.toHaveBeenCalled();
     expect(logs.warn).toHaveBeenCalledExactlyOnceWith(`WhatsApp action ${action.kind} refused (403)`);
   });
 
   it('refuses confirmation from another id before calling any service', async () => {
-    expect(await actions.run({ ...user, id: 'other-id' }, approval)).toBe('Not done — that action belongs to another session.');
+    expect((await actions.run({ ...user, id: 'other-id' }, approval)).text).toBe('Not done — that action belongs to another session.');
     for (const write of writes) expect(write).not.toHaveBeenCalled();
     expect(logs.warn).toHaveBeenCalledExactlyOnceWith('WhatsApp action TRIP_APPROVE refused (403)');
   });
 
   it('returns the CRM’s refusal message', async () => {
     trips.approve.mockRejectedValue(new BadRequestException('Trip was already approved.'));
-    expect(await actions.run(user, approval)).toBe('❌ Not done: Trip was already approved.');
+    expect((await actions.run(user, approval)).text).toBe('❌ Not done: Trip was already approved.');
     expect(logs.warn).toHaveBeenCalledExactlyOnceWith('WhatsApp action TRIP_APPROVE refused (400)');
     expect(logs.log).not.toHaveBeenCalled();
   });
 
   it('reports partial success when the request fails after creating the lead', async () => {
     requests.create.mockRejectedValue(new BadRequestException('The origin airport has been archived.'));
-    expect(await actions.run(user, newLead)).toBe('Created lead Private Clientname, but the trip request was not filed: The origin airport has been archived.');
+    expect((await actions.run(user, newLead)).text).toBe('Created lead Private Clientname, but the trip request was not filed: The origin airport has been archived.');
     expect(logs.warn).toHaveBeenCalledExactlyOnceWith('WhatsApp action LEAD_CREATE refused (400)');
     expect(logs.log).not.toHaveBeenCalled();
   });
@@ -261,10 +270,10 @@ describe('WhatsappActions', () => {
     await actions.run(user, newLead);
     const privateText = 'PRIVATE WHATSAPP MESSAGE';
     receivables.recordPayment.mockRejectedValueOnce(new TypeError(`${privateText}: ${payment.amount}, ${base.summary}`));
-    expect(await actions.run(user, { ...base, kind: 'PAYMENT_RECORD', invoiceId: INVOICE_ID, payload: payment }))
+    expect((await actions.run(user, { ...base, kind: 'PAYMENT_RECORD', invoiceId: INVOICE_ID, payload: payment })).text)
       .toBe('❌ Not done — the CRM could not complete it.');
     trips.approve.mockRejectedValueOnce(new BadRequestException(privateText));
-    expect(await actions.run(user, approval)).toBe(`❌ Not done: ${privateText}`);
+    expect((await actions.run(user, approval)).text).toBe(`❌ Not done: ${privateText}`);
     const recorded = JSON.stringify(loggerMethods.flatMap((method) => logs[method].mock.calls));
     for (const value of [client.lastName, String(payment.amount), base.summary, privateText, payment.reference]) {
       expect(recorded).not.toContain(value);

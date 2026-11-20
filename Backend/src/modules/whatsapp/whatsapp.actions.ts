@@ -21,6 +21,8 @@ import {
   tripAssignPayload, tripStatusPayload, type PendingAction,
 } from './whatsapp.pending.js';
 
+type ActionResult = { text: string; outcome: 'done' | 'refused'; ref: string | null };
+
 export const ACTION_ACCESS = {
   TRIP_APPROVE: { module: Module.TRIPS, action: Action.APPROVE },
   TRIP_DECLINE: { module: Module.TRIPS, action: Action.APPROVE },
@@ -90,15 +92,17 @@ export class WhatsappActions {
     private readonly quotes: QuotesService,
   ) {}
 
-  async run(user: AuthenticatedUser, action: PendingAction): Promise<string> {
+  async run(user: AuthenticatedUser, action: PendingAction): Promise<ActionResult> {
     const { kind } = action;
+    let ref = action.ref ?? null;
+    const refused = (text: string): ActionResult => ({ text, outcome: 'refused', ref });
     if (action.userId !== user.id) {
       this.logger.warn(`WhatsApp action ${kind} refused (${HttpStatus.FORBIDDEN})`);
-      return 'Not done — that action belongs to another session.';
+      return refused('Not done — that action belongs to another session.');
     }
     if (!canRun(user, action)) {
       this.logger.warn(`WhatsApp action ${kind} refused (${HttpStatus.FORBIDDEN})`);
-      return 'Not done — your account can no longer do this.';
+      return refused('Not done — your account can no longer do this.');
     }
 
     let createdLead: string | undefined;
@@ -120,12 +124,14 @@ export class WhatsappActions {
           if (lead.type === 'existing') {
             const client = await this.clients.subjectRef(user, lead.clientId);
             if (client.archived) throw new BadRequestException('That client has been archived.');
-            await this.requests.create(user, parseLeadRequest(lead.request, client.id));
+            const request = await this.requests.create(user, parseLeadRequest(lead.request, client.id));
+            ref = request.reference === undefined ? request.id : `TR-${request.reference}`;
             reply = `✅ Trip request filed for ${client.label}.`;
             break;
           }
           const request = lead.request && parseLeadRequest(lead.request);
           const client = await this.clients.create(user, createClientSchema.parse(lead.client));
+          ref = client.id;
           createdLead = `${client.firstName} ${client.lastName}`.trim();
           if (request) await this.requests.create(user, { ...request, clientId: client.id });
           reply = `✅ Lead ${createdLead} created${request ? ', trip request filed' : ''}.`;
@@ -145,6 +151,7 @@ export class WhatsappActions {
         }
         case 'TASK_CREATE': {
           const task = await this.tasks.create(user, taskCreatePayload.parse(action.payload));
+          ref = task.reference === undefined ? task.id : `TSK-${task.reference}`;
           reply = `✅ Task "${task.title}" created.`;
           break;
         }
@@ -154,7 +161,8 @@ export class WhatsappActions {
           break;
         }
         case 'NOTE_CREATE': {
-          await this.notes.create(user, noteCreatePayload.parse(action.payload));
+          const note = await this.notes.create(user, noteCreatePayload.parse(action.payload));
+          ref = note.id;
           reply = '✅ Internal client note added.';
           break;
         }
@@ -185,14 +193,14 @@ export class WhatsappActions {
       const partial = createdLead && `Created lead ${createdLead}, but the trip request was not filed:`;
       if (error instanceof HttpException) {
         this.logger.warn(`WhatsApp action ${kind} refused (${error.getStatus()})`);
-        return `${partial || '❌ Not done:'} ${error.message}`;
+        return refused(`${partial || '❌ Not done:'} ${error.message}`);
       }
       this.logger.error(`WhatsApp action ${kind} failed (${error instanceof Error ? error.constructor.name : 'UnknownError'})`);
-      return partial
+      return refused(partial
         ? `${partial} The CRM could not complete it.`
-        : '❌ Not done — the CRM could not complete it.';
+        : '❌ Not done — the CRM could not complete it.');
     }
     this.logger.log(`WhatsApp action ${kind} confirmed`);
-    return reply;
+    return { text: reply, outcome: 'done', ref };
   }
 }

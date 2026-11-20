@@ -54,6 +54,15 @@ describe('WhatsappSender', () => {
     }
   });
 
+  it('extracts the outgoing ID for receipt tracking without retrying an accepted send', async () => {
+    post.mockResolvedValue(Response.json({ messages: [{ id: 'wamid.reply' }] }));
+    const track = vi.fn().mockRejectedValue(new Error('Tracking unavailable'));
+    await expect(sender.sendText(phone, text, 'wamid.question', track)).resolves.toBe(true);
+    expect(track).toHaveBeenCalledExactlyOnceWith('wamid.reply');
+    expect(post).toHaveBeenCalledOnce();
+    expect(logs[1]).toHaveBeenCalledWith('WhatsApp delivery tracking failed (Error)');
+  });
+
   it.each([
     [500, 200, true], [500, 500, false], [429, 200, true], ['network', 200, true], ['timeout', 200, true],
   ] as const)('retries %s once, then returns the outcome of HTTP %s', async (first, second, expected) => {

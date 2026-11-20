@@ -5,8 +5,9 @@ import { SettingsService } from '../settings/settings.service.js';
 import { WhatsappActions } from './whatsapp.actions.js';
 import { WHATSAPP_AI_CLIENT, type AiClientSource, type AiMessage } from './whatsapp.ai-client.js';
 import type { WhatsappDocument } from './whatsapp.document.js';
+import { WhatsappEvent, type ProposalDetails } from './whatsapp-history.events.js';
 import { WhatsappMemory, type MemoryMessage } from './whatsapp.memory.js';
-import { WhatsappPending } from './whatsapp.pending.js';
+import { proposalDetails, WhatsappPending } from './whatsapp.pending.js';
 import { isProposal, WhatsappTools, type ToolContext } from './whatsapp.tools.js';
 
 export const AI_UNAVAILABLE_REPLY = "I couldn't reach the AI service just now — please try again in a minute.";
@@ -17,7 +18,14 @@ const CONFIRM_PROMPT = 'Reply *CONFIRM* to proceed or *CANCEL* to abort (expires
 export interface WhatsappReply {
   text: string;
   documents: WhatsappDocument[];
+  answer?: { tools: string[] } | { proposal: ProposalDetails };
 }
+
+export type ActionEvent =
+  | { action: typeof WhatsappEvent.ACTION_CANCELLED; details: ProposalDetails }
+  | { action: typeof WhatsappEvent.ACTION_CONFIRMED; details: ProposalDetails & { outcome: 'done' | 'refused' } };
+
+type RecordActionEvent = (event: ActionEvent) => Promise<void>;
 
 const normaliseCommand = (text: string) => text.trim().replace(/[.!]$/, '').toUpperCase();
 export function isConfirmationCommand(text: string): boolean {
@@ -58,9 +66,16 @@ export class WhatsappAgent {
 
   async ready(): Promise<boolean> { return (await this.getClient()) !== null; }
 
-  async cancelPending(phone: string): Promise<string> {
-    const summary = await this.pending.drop(phone);
-    return summary ? `(Not done: ${summary} — cancelled.)\n\n` : '';
+  private async takeCancelled(phone: string, recordAction?: RecordActionEvent) {
+    const action = await this.pending.take(phone);
+    const details = action && proposalDetails(action);
+    if (details) await recordAction?.({ action: WhatsappEvent.ACTION_CANCELLED, details });
+    return action;
+  }
+
+  async cancelPending(phone: string, recordAction?: RecordActionEvent): Promise<string> {
+    const action = await this.takeCancelled(phone, recordAction);
+    return action ? `(Not done: ${action.summary} — cancelled.)\n\n` : '';
   }
 
   private async rememberAction(phone: string, text: string, reply: string, history?: MemoryMessage[]): Promise<void> {
@@ -73,21 +88,26 @@ export class WhatsappAgent {
   }
 
   /** Only a message that passed the webhook gates can propose or confirm. */
-  async reply(user: AuthenticatedUser, phone: string, text: string, allowActions = false): Promise<WhatsappReply> {
+  async reply(user: AuthenticatedUser, phone: string, text: string, allowActions = false, recordAction?: RecordActionEvent): Promise<WhatsappReply> {
     if (allowActions) {
       const command = normaliseCommand(text);
       if (command === 'CONFIRM') {
         const action = await this.pending.take(phone);
-        const reply = action ? await this.actions.run(user, action) : NOTHING_PENDING_REPLY;
+        const result = action && await this.actions.run(user, action);
+        const details = action && proposalDetails(action);
+        if (details && result) {
+          await recordAction?.({ action: WhatsappEvent.ACTION_CONFIRMED, details: { ...details, outcome: result.outcome, ref: result.ref } });
+        }
+        const reply = result?.text ?? NOTHING_PENDING_REPLY;
         await this.rememberAction(phone, text, reply);
         return { text: reply, documents: [] };
       }
       if (command === 'CANCEL') {
-        const reply = await this.pending.drop(phone) ? 'Cancelled — nothing was changed.' : NOTHING_PENDING_REPLY;
+        const reply = await this.takeCancelled(phone, recordAction) ? 'Cancelled — nothing was changed.' : NOTHING_PENDING_REPLY;
         return { text: reply, documents: [] };
       }
     }
-    const prefix = allowActions ? await this.cancelPending(phone) : '';
+    const prefix = allowActions ? await this.cancelPending(phone, recordAction) : '';
     if (['reset', 'new'].includes(text.trim().toLowerCase())) {
       await this.memory.reset(phone);
       return { text: prefix + 'Conversation cleared. Ready for a new question.', documents: [] };
@@ -108,6 +128,8 @@ export class WhatsappAgent {
     };
     const now = new Date();
     const specs = this.tools.specs(allowActions);
+    const knownTools = new Set(specs.map(({ name }) => name));
+    const tools = new Set<string>();
 
     for (let round = 0; round < 5; round++) {
       const { timeZone } = context;
@@ -124,18 +146,20 @@ export class WhatsappAgent {
       if (turn.kind === 'text') {
         const reply = (prefix + turn.text).slice(0, 3500);
         await this.memory.save(phone, history, text, reply);
-        return { text: reply, documents: context.documents };
+        return { text: reply, documents: context.documents, ...(recordAction && { answer: { tools: [...tools] } }) };
       }
       // The fifth request used the budget; do not read more CRM rows for
       // results that no sixth AI request will ever consume.
       if (round === 4) break;
       for (const call of turn.calls) messages.push({ kind: 'tool_call', ...call });
       for (const call of turn.calls) {
+        if (knownTools.has(call.name)) tools.add(call.name);
         const result = await this.tools.dispatch(user, call.name, call.argumentsJson, context);
         if (isProposal(result)) {
           const reply = `${prefix}⚠️ ${result.summary}\n\n${CONFIRM_PROMPT}`;
           await this.rememberAction(phone, text, reply, history);
-          return { text: reply, documents: [] };
+          const proposal = context.proposal && proposalDetails(context.proposal);
+          return { text: reply, documents: [], ...(proposal && recordAction && { answer: { proposal } }) };
         }
         messages.push({ kind: 'tool_result', id: call.id, resultJson: JSON.stringify(result) });
       }

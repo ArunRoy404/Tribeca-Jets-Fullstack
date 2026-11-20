@@ -35,6 +35,7 @@ import { WhatsappPhoneService } from './whatsapp-phone.service.js';
 import { WhatsappSettingsController } from './whatsapp-settings.controller.js';
 import { WhatsappSettingsService } from './whatsapp-settings.service.js';
 import { WhatsappConnectionsService } from './whatsapp-connections.service.js';
+import { WhatsappHistoryService } from './whatsapp-history.service.js';
 
 @Module({
   imports: [
@@ -47,7 +48,7 @@ import { WhatsappConnectionsService } from './whatsapp-connections.service.js';
   providers: [
     WhatsappService, WhatsappSender, WhatsappAgent, WhatsappMemory, WhatsappPending, WhatsappActions,
     WhatsappTools, whatsappAiClientProvider, SecretBox, WhatsappSettingsService, WhatsappPhoneService,
-    WhatsappConnectionsService,
+    WhatsappConnectionsService, WhatsappHistoryService,
   ],
   exports: [WhatsappSettingsService],
 })

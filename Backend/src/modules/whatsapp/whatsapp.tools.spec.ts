@@ -1162,6 +1162,7 @@ describe('WhatsappTools dispatcher', () => {
     expect(await dispatch(user, name, JSON.stringify(args))).toEqual({ proposed: true, summary });
     expect(pending.put).toHaveBeenCalledExactlyOnceWith(PHONE, {
       ...action, userId: user.id, summary, createdAt: expect.any(String),
+      proposalId: expect.stringMatching(/^[a-f0-9-]{36}$/), ref: expect.toSatisfy((value: unknown) => value === null || typeof value === 'string'),
     });
     expectNoWrites();
     expect(quotes.renderPdf).not.toHaveBeenCalled();
@@ -1361,7 +1362,7 @@ describe('WhatsappTools dispatcher', () => {
       search: Object.values(args)[0], page: 1, limit: 100, archived: false,
     }));
     expect(render[name]).toHaveBeenCalledExactlyOnceWith(user, row.id);
-    expect(context.documents).toEqual([file]);
+    expect(context.documents).toEqual([{ ...file, history: { kind: name.slice(5), ref: expect.any(String) } }]);
     expect(result).toEqual({ attached: file.filename });
     expect(JSON.stringify(result)).toBe(JSON.stringify({ attached: file.filename }));
     expect(pending.put).not.toHaveBeenCalled();
@@ -1412,6 +1413,10 @@ describe('WhatsappTools dispatcher', () => {
     quotes.findAll.mockResolvedValueOnce(paginate([{ id: OTHER_QUOTE_ID, reference: 1043 }], 1, 1, 100));
     expect(await dispatch(user, 'send_quote', '{"quote":"Q-1043"}')).toEqual({ error: 'Three documents per message — ask for the rest next' });
     expect(quotes.renderPdf).toHaveBeenCalledExactlyOnceWith(user, QUOTE_ID);
-    expect(context.documents).toEqual([itineraryPdf, quotePdf, invoicePdf]);
+    expect(context.documents).toEqual([
+      { ...itineraryPdf, history: { kind: 'itinerary', ref: 'TJ-1048' } },
+      { ...quotePdf, history: { kind: 'quote', ref: 'Q-1042' } },
+      { ...invoicePdf, history: { kind: 'invoice', ref: invoice.number } },
+    ]);
   });
 });

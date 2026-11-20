@@ -1,9 +1,6 @@
 /// Staff accounts. Clients authenticate through the separate client portal and
 /// are NOT users — see client.prisma.
 model User {
-  /// Meta sends the digits without a leading plus. Only a verified link sets these.
-  whatsappPhone           String?   @unique
-  whatsappPhoneVerifiedAt DateTime?
   id           String  @id @default(uuid()) @db.Uuid
   email        String  @unique
   passwordHash String
@@ -60,6 +57,11 @@ model User {
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]
   verificationCodes VerificationCode[]
+  whatsappPhones WhatsappPhone[]
+  createdWhatsappPhones WhatsappPhone[] @relation("WhatsappPhoneCreatedBy")
+  updatedWhatsappPhones WhatsappPhone[] @relation("WhatsappPhoneUpdatedBy")
+  deletedWhatsappPhones WhatsappPhone[] @relation("WhatsappPhoneDeletedBy")
+  restoredWhatsappPhones WhatsappPhone[] @relation("WhatsappPhoneRestoredBy")
 
   /// Clients where this user owns the relationship.
   assignedClients   Client[] @relation("ClientAssignedBroker")

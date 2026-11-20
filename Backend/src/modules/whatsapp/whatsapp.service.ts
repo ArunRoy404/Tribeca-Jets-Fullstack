@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { z } from 'zod';
+import { AuditService } from '../../core/audit/audit.service.js';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { RedisService } from '../../core/redis/redis.service.js';
 import { resolveAccess } from '../../common/authorization/access.js';
@@ -8,7 +10,9 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import type { WhatsappDocument } from './whatsapp.document.js';
 import type { IncomingMessage } from './whatsapp.payload.js';
 import { WhatsappSender } from './whatsapp.sender.js';
-import { isConfirmationCommand, WhatsappAgent } from './whatsapp.agent.js';
+import { isConfirmationCommand, WhatsappAgent, type ActionEvent, type WhatsappReply } from './whatsapp.agent.js';
+import { phoneSnapshot, recordPhoneEvent, WhatsappEvent, type PhoneSnapshot } from './whatsapp-history.events.js';
+import { EARLIEST_PHONE } from './whatsapp-phone.service.js';
 import { WhatsappSettingsService } from './whatsapp-settings.service.js';
 
 /** Meta redelivers until it gets a 200; a day covers every retry it makes. */
@@ -37,10 +41,17 @@ export type Outcome =
 
 const ADMIN_SELECT = {
   id: true, email: true, role: true, status: true, deletedAt: true,
-  permissions: true, timeZone: true, whatsappPhone: true, whatsappPhoneVerifiedAt: true,
+  permissions: true, timeZone: true,
 } satisfies Prisma.UserSelect;
+const ACTIVE_ADMIN = { deletedAt: null, status: UserStatus.ACTIVE, role: UserRole.SUPER_ADMIN } as const;
+const outgoingReceipt = z.object({
+  actorId: z.string(),
+  phone: z.object({ id: z.string(), label: z.string(), last4: z.string().regex(/^\d{4}$/) }),
+});
+const receiptKey = (messageId: string) => `whatsapp:outgoing:${messageId}`;
 
 type WhatsappAdmin = AuthenticatedUser & { phone: string | null };
+type VerifiedSender = { admin: AuthenticatedUser; phone: PhoneSnapshot };
 
 type AdminRow = Prisma.UserGetPayload<{ select: typeof ADMIN_SELECT }>;
 
@@ -59,7 +70,7 @@ function identity(user: AdminRow): AuthenticatedUser {
  *
  * Every message passes the same gates, in order, before anything reads it:
  * the server is configured, Settings › WhatsApp & AI has it switched on, it comes
- * from the verified phone of an active Super Admin, it has not been handled
+ * from a verified phone of an active Super Admin, it has not been handled
  * already, and it is recent.
  * A message that fails any of them is dropped without a reply — an answer to
  * a stranger confirms the number is a bot worth probing.
@@ -75,11 +86,12 @@ export class WhatsappService {
     private readonly prisma: PrismaService,
     private readonly agent: WhatsappAgent,
     private readonly sender: WhatsappSender,
+    private readonly audit: AuditService,
   ) {}
 
   /** Runs each message through the gates; returns what became of each. */
   receive(messages: IncomingMessage[], now = new Date()): Promise<Outcome[]> {
-    // Meta can deliver the one phone's messages in separate requests. Finish
+    // Meta can deliver a phone's messages in separate requests. Finish
     // sending one summary before a later message can change the pending slot.
     const result = this.receiving.then(() => this.receiveMessages(messages, now));
     this.receiving = result.then(() => undefined, () => undefined);
@@ -100,15 +112,18 @@ export class WhatsappService {
     return outcomes;
   }
 
-  private async gate(message: IncomingMessage, now: Date): Promise<Exclude<Outcome, 'accepted'> | AuthenticatedUser> {
+  private async gate(message: IncomingMessage, now: Date): Promise<Exclude<Outcome, 'accepted'> | VerifiedSender> {
     if (!await this.whatsappSettings.current()) return 'not_configured';
 
     if (!await this.whatsappSettings.assistantEnabled()) return 'switched_off';
 
     // Re-read identity per message so a suspension, role change or unlink
     // takes effect on the next delivery.
-    const user = await this.prisma.user.findUnique({ where: { whatsappPhone: message.from }, select: ADMIN_SELECT });
-    if (!user?.whatsappPhoneVerifiedAt) {
+    const linked = await this.prisma.whatsappPhone.findFirst({
+      where: { phone: message.from, deletedAt: null },
+      select: { id: true, label: true, phone: true, user: { select: ADMIN_SELECT } },
+    });
+    if (!linked) {
       // The last four digits only: enough to recognise, not a register.
       this.logger.warn(`Ignored a WhatsApp message from …${message.from.slice(-4)}`);
       return 'unknown_sender';
@@ -122,8 +137,9 @@ export class WhatsappService {
       return 'stale';
     }
 
+    const { user } = linked;
     if (user.deletedAt || user.status !== UserStatus.ACTIVE || user.role !== UserRole.SUPER_ADMIN) return 'no_admin';
-    return identity(user);
+    return { admin: identity(user), phone: phoneSnapshot(linked) };
   }
 
   /**
@@ -133,14 +149,12 @@ export class WhatsappService {
    * only the Super Admin uses the bot.
    */
   async actingAdmin(): Promise<WhatsappAdmin | null> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        deletedAt: null, status: UserStatus.ACTIVE, role: UserRole.SUPER_ADMIN,
-        whatsappPhone: { not: null }, whatsappPhoneVerifiedAt: { not: null },
-      },
-      select: ADMIN_SELECT,
+    const linked = await this.prisma.whatsappPhone.findFirst({
+      where: { deletedAt: null, user: ACTIVE_ADMIN },
+      orderBy: EARLIEST_PHONE,
+      select: { phone: true, user: { select: ADMIN_SELECT } },
     });
-    return user ? { ...identity(user), phone: user.whatsappPhone } : null;
+    return linked ? { ...identity(linked.user), phone: linked.phone } : null;
   }
 
   /** The terminal can target an active Super Admin before a phone is linked. */
@@ -148,13 +162,27 @@ export class WhatsappService {
     const user = await this.prisma.user.findFirst({
       where: {
         email: { equals: email.trim(), mode: 'insensitive' },
-        deletedAt: null,
-        status: UserStatus.ACTIVE,
-        role: UserRole.SUPER_ADMIN,
+        ...ACTIVE_ADMIN,
       },
-      select: ADMIN_SELECT,
+      select: {
+        ...ADMIN_SELECT,
+        whatsappPhones: { where: { deletedAt: null }, orderBy: EARLIEST_PHONE, take: 1, select: { phone: true } },
+      },
     });
-    return user ? { ...identity(user), phone: user.whatsappPhoneVerifiedAt ? user.whatsappPhone : null } : null;
+    return user ? { ...identity(user), phone: user.whatsappPhones[0]?.phone ?? null } : null;
+  }
+
+  /** A positive send response can still be followed by a failed delivery receipt. */
+  async recordDeliveryFailures(ids: string[]): Promise<void> {
+    for (const id of ids) {
+      const stored = await this.redis.takeString(receiptKey(id));
+      if (!stored) continue;
+      const receipt = outgoingReceipt.safeParse(JSON.parse(stored));
+      if (receipt.success) {
+        const { actorId, phone } = receipt.data;
+        await recordPhoneEvent(this.audit, actorId, phone, WhatsappEvent.REPLY_FAILED, undefined);
+      }
+    }
   }
 
   /**
@@ -162,40 +190,58 @@ export class WhatsappService {
    * reply is logged — either can carry client names and figures. The webhook
    * has already answered Meta, so a failure here must never escape.
    */
-  private async handle(admin: AuthenticatedUser, message: IncomingMessage): Promise<void> {
+  private async handle({ admin, phone }: VerifiedSender, message: IncomingMessage): Promise<void> {
+    const recordAction = ({ action, details }: ActionEvent) => recordPhoneEvent(this.audit, admin.id, phone, action, details);
+    // The receipt carries Meta's outgoing ID. Keep only the phone snapshot
+    // and actor for recognised assistant replies, never a message or number.
+    const trackDelivery = (id: string) => this.redis.setString(receiptKey(id), JSON.stringify({ actorId: admin.id, phone }), SEEN_TTL_SECONDS);
+    let failed = false;
+    const recordFailure = async () => {
+      if (failed) return;
+      failed = true;
+      await recordPhoneEvent(this.audit, admin.id, phone, WhatsappEvent.REPLY_FAILED, undefined);
+    };
     let documents: WhatsappDocument[] = [];
+    let answer: WhatsappReply['answer'];
     try {
       await this.sender.markRead(message.id);
       let reply: string;
       if (message.type !== 'text' || !message.text?.trim()) {
         this.logger.log(`Ignored non-text WhatsApp message ${message.id} (${message.type})`);
-        reply = await this.agent.cancelPending(message.from) + NON_TEXT_REPLY;
+        reply = await this.agent.cancelPending(message.from, recordAction) + NON_TEXT_REPLY;
       } else if (!isConfirmationCommand(message.text) && !await this.agent.ready()) {
         this.logger.warn('WhatsApp assistant accepted a message but the OpenAI key or model is missing from Settings');
-        reply = await this.agent.cancelPending(message.from) + NOT_READY_REPLY;
+        reply = await this.agent.cancelPending(message.from, recordAction) + NOT_READY_REPLY;
       } else {
-        const answer = await this.agent.reply(admin, message.from, message.text, true);
-        reply = answer.text;
-        documents = answer.documents;
+        const response = await this.agent.reply(admin, message.from, message.text, true, recordAction);
+        reply = response.text;
+        documents = response.documents;
+        answer = response.answer;
       }
-      if (await this.sender.sendText(message.from, reply, message.id)) {
+      if (await this.sender.sendText(message.from, reply, message.id, trackDelivery)) {
         this.logger.log(`Sent a reply to ${message.id} (${reply.length} chars)`);
+        if (answer && 'proposal' in answer) await recordPhoneEvent(this.audit, admin.id, phone, WhatsappEvent.ACTION_PROPOSED, answer.proposal);
+        if (answer && 'tools' in answer) await recordPhoneEvent(this.audit, admin.id, phone, WhatsappEvent.QUESTION_ANSWERED, { tools: answer.tools });
       } else {
         this.logger.warn(`Reply to ${message.id} was not delivered`);
+        await recordFailure();
         // Never leave a proposal confirmable if its summary could not be sent.
         await this.agent.cancelPending(message.from);
       }
     } catch (error: unknown) {
       this.logger.error(`WhatsApp reply preparation failed (${error instanceof Error ? error.name : 'UnknownError'})`);
       // sendText never throws, so nothing was sent yet and this cannot double up.
-      await this.sender.sendText(message.from, FAILED_REPLY, message.id);
+      if (!await this.sender.sendText(message.from, FAILED_REPLY, message.id, trackDelivery)) await recordFailure();
       // Nor may a proposal stay confirmable when its summary was never shown.
       await this.agent.cancelPending(message.from).catch(() => undefined);
       return;
     }
     for (const document of documents) {
-      if (!await this.sender.sendDocument(message.from, document, undefined, message.id)) {
-        await this.sender.sendText(message.from, `I couldn't send ${document.filename} — please ask again.`, message.id);
+      if (await this.sender.sendDocument(message.from, document, undefined, message.id, trackDelivery)) {
+        if (document.history) await recordPhoneEvent(this.audit, admin.id, phone, WhatsappEvent.DOCUMENT_SENT, document.history);
+      } else {
+        await recordFailure();
+        await this.sender.sendText(message.from, `I couldn't send ${document.filename} — please ask again.`, message.id, trackDelivery);
       }
     }
   }

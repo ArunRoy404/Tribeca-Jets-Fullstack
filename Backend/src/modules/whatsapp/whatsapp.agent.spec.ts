@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { resolveAccess } from '../../common/authorization/access.js';
 import { DEFAULT_TIME_ZONE } from '../../common/dates/time-zone.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
+import { AuditService } from '../../core/audit/audit.service.js';
 import { UserRole } from '../../generated/prisma/enums.js';
 import { WhatsappAgent, AI_UNAVAILABLE_REPLY, NARROW_QUESTION_REPLY } from './whatsapp.agent.js';
 import { OpenAiClient, whatsappAiClientProvider, type AiClient, type AiTurn } from './whatsapp.ai-client.js';
@@ -304,6 +305,9 @@ describe('WhatsappService sends replies without logging content', () => {
   let ai: { openaiApiKey?: string; openaiModel?: string };
   let reply: ReturnType<typeof vi.fn>;
   let findFirst: ReturnType<typeof vi.fn>;
+  let findUser: ReturnType<typeof vi.fn>;
+  let writeAudit: ReturnType<typeof vi.fn>;
+  let outgoing: Map<string, string>;
   let service: WhatsappService;
   let logs: ReturnType<typeof vi.spyOn>[];
 
@@ -315,14 +319,27 @@ describe('WhatsappService sends replies without logging content', () => {
     cancelPending.mockReset().mockResolvedValue('');
     ai = { openaiApiKey: 'test-key', openaiModel: 'chosen-model' };
     reply = vi.fn().mockResolvedValue(textReply(replyText));
-    findFirst = vi.fn().mockResolvedValue({ id: user.id, email: user.email, role: user.role, permissions: null, status: 'ACTIVE', deletedAt: null, whatsappPhone: PHONE, whatsappPhoneVerifiedAt: new Date() });
+    const stored = { id: user.id, email: user.email, role: user.role, permissions: null, status: 'ACTIVE', deletedAt: null };
+    findFirst = vi.fn().mockResolvedValue({ user: stored, phone: PHONE, id: 'phone-id', label: 'Work' });
+    findUser = vi.fn().mockResolvedValue({ ...stored, whatsappPhones: [{ phone: PHONE }] });
+    writeAudit = vi.fn();
+    outgoing = new Map();
     service = new WhatsappService(
       { current: async () => ({}), assistantEnabled: async () => true } as never,
-      { claimOnce: async () => true } as never,
-      { user: { findFirst, findUnique: findFirst } } as never,
+      {
+        claimOnce: async () => true,
+        setString: async (id: string, snapshot: string) => { outgoing.set(id, snapshot); },
+        takeString: async (id: string) => {
+          const snapshot = outgoing.get(id);
+          outgoing.delete(id);
+          return snapshot ?? null;
+        },
+      } as never,
+      { user: { findFirst: findUser }, whatsappPhone: { findFirst } } as never,
       // Ready exactly when the provider factory would build a client.
       { ready: async () => Boolean(ai.openaiApiKey && ai.openaiModel), reply, cancelPending } as never,
       sender as never,
+      new AuditService({ auditLog: { create: writeAudit } } as never),
     );
   });
   afterEach(() => {
@@ -333,7 +350,7 @@ describe('WhatsappService sends replies without logging content', () => {
   it.each([{ type: 'image', text: null }, { type: 'text', text: null }, { type: 'text', text: '  ' }])('ignores a message with no text body: %j', async (over) => {
     await service.receive([{ ...message, ...over }]);
     expect(reply).not.toHaveBeenCalled();
-    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, NON_TEXT_REPLY, message.id);
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, NON_TEXT_REPLY, message.id, expect.any(Function));
     expect(logs[0]).toHaveBeenCalledWith(`Ignored non-text WhatsApp message wamid.test (${over.type})`);
   });
 
@@ -341,7 +358,7 @@ describe('WhatsappService sends replies without logging content', () => {
     delete ai[key];
     await service.receive([message]);
     expect(reply).not.toHaveBeenCalled();
-    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, NOT_READY_REPLY, message.id);
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, NOT_READY_REPLY, message.id, expect.any(Function));
     expect(logs[1]).toHaveBeenCalledExactlyOnceWith('WhatsApp assistant accepted a message but the OpenAI key or model is missing from Settings');
   });
 
@@ -349,7 +366,7 @@ describe('WhatsappService sends replies without logging content', () => {
     reply.mockRejectedValue(new Error(`${message.text} ${replyText}`));
     await expect(service.receive([message])).resolves.toEqual(['accepted']);
     expect(logs[2]).toHaveBeenCalledExactlyOnceWith('WhatsApp reply preparation failed (Error)');
-    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, FAILED_REPLY, message.id);
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, FAILED_REPLY, message.id, expect.any(Function));
     const logged = JSON.stringify(logs.map((log) => log.mock.calls));
     expect(logged).not.toContain(message.text);
     expect(logged).not.toContain(replyText);
@@ -360,15 +377,19 @@ describe('WhatsappService sends replies without logging content', () => {
     const agent = new WhatsappAgent(
       async () => ({ respond: async () => final(replyText) }), fixture.memory, { specs: () => [] } as never,
       { read: async () => ({ companyTimeZone: DEFAULT_TIME_ZONE }) } as never,
-      { drop: async () => null } as never, {} as never,
+      { take: async () => null } as never, {} as never,
     );
-    reply.mockImplementation((actingUser, phone, text, allowActions) => agent.reply(actingUser, phone, text, allowActions));
+    reply.mockImplementation((actingUser, phone, text, allowActions, recordAction) => agent.reply(actingUser, phone, text, allowActions, recordAction));
     await service.receive([message]);
-    expect(reply).toHaveBeenCalledExactlyOnceWith(user, PHONE, message.text, true);
+    expect(reply).toHaveBeenCalledExactlyOnceWith(user, PHONE, message.text, true, expect.any(Function));
+    expect(writeAudit).toHaveBeenCalledExactlyOnceWith({ data: expect.objectContaining({
+      actorId: user.id, entityType: 'WhatsappPhone', entityId: 'phone-id',
+      action: 'whatsapp.question_answered', metadata: { label: 'Work', last4: PHONE.slice(-4), tools: [] },
+    }) });
     expect(sender.markRead).toHaveBeenCalledExactlyOnceWith(message.id);
     expect(sender.markRead).toHaveBeenCalledBefore(reply);
     expect(reply).toHaveBeenCalledBefore(sender.sendText);
-    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id);
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id, expect.any(Function));
     expect(sender.sendDocument).not.toHaveBeenCalled();
     expect(logs[0]).toHaveBeenCalledExactlyOnceWith(`Sent a reply to wamid.test (${replyText.length} chars)`);
     const logged = JSON.stringify(logs.map((log) => log.mock.calls));
@@ -376,12 +397,43 @@ describe('WhatsappService sends replies without logging content', () => {
     expect(logged).not.toContain(replyText);
   });
 
+  it('answers even if the cancellation audit write fails', async () => {
+    writeAudit.mockRejectedValueOnce(new Error('Unavailable'));
+    reply.mockImplementationOnce(async (_user, _phone, _text, _allow, recordAction) => {
+      await recordAction({ action: 'whatsapp.action_cancelled', details: { proposalId: 'proposal', kind: 'TASK_CREATE', ref: null } });
+      return textReply(replyText);
+    });
+    await expect(service.receive([message])).resolves.toEqual(['accepted']);
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(PHONE, replyText, message.id, expect.any(Function));
+    expect(writeAudit).toHaveBeenCalledBefore(sender.sendText);
+    expect(writeAudit).toHaveBeenCalledExactlyOnceWith({ data: expect.objectContaining({
+      action: 'whatsapp.action_cancelled',
+      metadata: { proposalId: 'proposal', kind: 'TASK_CREATE', ref: null, label: 'Work', last4: PHONE.slice(-4) },
+    }) });
+    const auditData = JSON.stringify(writeAudit.mock.calls);
+    for (const privateValue of [PHONE, message.text, replyText]) expect(auditData).not.toContain(privateValue);
+  });
+
+  it('records only the proposal identity and PDF reference after their sends', async () => {
+    const proposal = { proposalId: 'proposal', kind: 'TASK_CREATE', ref: null };
+    reply.mockResolvedValueOnce({
+      text: replyText, documents: [{ ...itinerary, history: { kind: 'itinerary', ref: 'TJ-9' } }], answer: { proposal },
+    });
+    await service.receive([message]);
+    expect(sender.sendText).toHaveBeenCalledBefore(writeAudit);
+    expect(writeAudit.mock.calls.map(([{ data }]) => ({ action: data.action, ...data.metadata }))).toEqual([
+      { action: 'whatsapp.action_proposed', ...proposal, label: 'Work', last4: PHONE.slice(-4) },
+      { action: 'whatsapp.document_sent', kind: 'itinerary', ref: 'TJ-9', label: 'Work', last4: PHONE.slice(-4) },
+    ]);
+    expect(JSON.stringify(writeAudit.mock.calls)).not.toContain(itinerary.filename);
+  });
+
   it('sends the text first and each document in order to the gated sender', async () => {
     reply.mockResolvedValueOnce({ text: replyText, documents: [itinerary, quote] });
     await expect(service.receive([message])).resolves.toEqual(['accepted']);
-    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id);
-    expect(sender.sendDocument).toHaveBeenNthCalledWith(1, message.from, itinerary, undefined, message.id);
-    expect(sender.sendDocument).toHaveBeenNthCalledWith(2, message.from, quote, undefined, message.id);
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id, expect.any(Function));
+    expect(sender.sendDocument).toHaveBeenNthCalledWith(1, message.from, itinerary, undefined, message.id, expect.any(Function));
+    expect(sender.sendDocument).toHaveBeenNthCalledWith(2, message.from, quote, undefined, message.id, expect.any(Function));
     expect(sender.sendText).toHaveBeenCalledBefore(sender.sendDocument);
   });
 
@@ -391,8 +443,8 @@ describe('WhatsappService sends replies without logging content', () => {
     await expect(service.receive([message])).resolves.toEqual(['accepted']);
     expect(sender.sendText).toHaveBeenCalledTimes(2);
     expect(sender.sendText).toHaveBeenNthCalledWith(2, message.from,
-      `I couldn't send ${itinerary.filename} — please ask again.`, message.id);
-    expect(sender.sendDocument).toHaveBeenNthCalledWith(2, message.from, quote, undefined, message.id);
+      `I couldn't send ${itinerary.filename} — please ask again.`, message.id, expect.any(Function));
+    expect(sender.sendDocument).toHaveBeenNthCalledWith(2, message.from, quote, undefined, message.id, expect.any(Function));
     expect(cancelPending).not.toHaveBeenCalled();
     const logged = JSON.stringify(logs.flatMap((log) => log.mock.calls));
     for (const value of [itinerary.filename, quote.filename, itinerary.body.toString(), replyText]) {
@@ -412,7 +464,7 @@ describe('WhatsappService sends replies without logging content', () => {
     sender.sendText.mockImplementation(transport.sendText.bind(transport));
     await expect(service.receive([message])).resolves.toEqual(['accepted']);
     expect(logs[1]).toHaveBeenCalledWith('WhatsApp mark read failed (HTTP 503, code 12)');
-    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id);
+    expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(message.from, replyText, message.id, expect.any(Function));
     expect(post).toHaveBeenCalledTimes(2);
   });
 
@@ -421,12 +473,28 @@ describe('WhatsappService sends replies without logging content', () => {
     await expect(service.receive([message])).resolves.toEqual(['accepted']);
     expect(logs[1]).toHaveBeenCalledWith('Reply to wamid.test was not delivered');
     expect(cancelPending).toHaveBeenCalledExactlyOnceWith(PHONE);
+    expect(writeAudit).toHaveBeenCalledExactlyOnceWith({ data: expect.objectContaining({
+      action: 'whatsapp.reply_failed', metadata: { label: 'Work', last4: PHONE.slice(-4) },
+    }) });
+  });
+
+  it('audits one failed receipt for a tracked reply and ignores unknown IDs', async () => {
+    sender.sendText.mockImplementationOnce(async (_phone, _text, _replyTo, accepted) => {
+      await accepted('wamid.reply');
+      return true;
+    });
+    await service.receive([message]);
+    expect(outgoing.get('whatsapp:outgoing:wamid.reply')).not.toContain(PHONE);
+    await service.recordDeliveryFailures(['wamid.unknown', 'wamid.reply', 'wamid.reply']);
+    expect(writeAudit).toHaveBeenCalledExactlyOnceWith({ data: expect.objectContaining({
+      action: 'whatsapp.reply_failed', metadata: { label: 'Work', last4: PHONE.slice(-4) },
+    }) });
   });
 
   it('passes confirmation commands through with the AI provider disabled', async () => {
     ai = {};
     await service.receive([{ ...message, text: 'Confirm!' }]);
-    expect(reply).toHaveBeenCalledExactlyOnceWith(user, PHONE, 'Confirm!', true);
+    expect(reply).toHaveBeenCalledExactlyOnceWith(user, PHONE, 'Confirm!', true, expect.any(Function));
     expect(cancelPending).not.toHaveBeenCalled();
   });
 
@@ -441,20 +509,21 @@ describe('WhatsappService sends replies without logging content', () => {
     expect(reply).toHaveBeenCalledTimes(1);
     finishSending(true);
     await Promise.all([first, second]);
-    expect(reply).toHaveBeenNthCalledWith(2, user, PHONE, 'CONFIRM', true);
+    expect(reply).toHaveBeenNthCalledWith(2, user, PHONE, 'CONFIRM', true, expect.any(Function));
   });
 
   it('uses an active, non-deleted SUPER_ADMIN for the linked CLI identity and --as', async () => {
-    await service.actingAdmin();
-    await service.adminForEmail(` ${user.email} `);
+    expect((await service.actingAdmin())?.phone).toBe(PHONE);
+    expect((await service.adminForEmail(` ${user.email} `))?.phone).toBe(PHONE);
     const active = { deletedAt: null, status: 'ACTIVE', role: 'SUPER_ADMIN' };
     expect(findFirst.mock.calls[0]?.[0].where).toEqual({
-      ...active, whatsappPhone: { not: null }, whatsappPhoneVerifiedAt: { not: null },
+      deletedAt: null, user: active,
     });
-    expect(findFirst.mock.calls[1]?.[0].where).toEqual({
+    expect(findFirst.mock.calls[0]?.[0].orderBy).toEqual([{ verifiedAt: 'asc' }, { id: 'asc' }]);
+    expect(findUser.mock.calls[0]?.[0].where).toEqual({
       ...active, email: { equals: user.email, mode: 'insensitive' },
     });
-    findFirst.mockResolvedValueOnce(null);
+    findUser.mockResolvedValueOnce(null);
     expect(await service.adminForEmail('missing@example.com')).toBeNull();
   });
 });

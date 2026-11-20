@@ -146,11 +146,12 @@ describe('WhatsappService gates', () => {
   let claimed: Set<string>;
   let admin: {
     id: string; email: string; role: string; permissions: null; status: string; deletedAt: Date | null;
-    whatsappPhone: string; whatsappPhoneVerifiedAt: Date | null;
   };
+  const second = '15550000002';
+  let archived: Set<string>;
   let service: WhatsappService;
-  const findUnique = vi.fn();
-  const findFirst = vi.fn();
+  const findPhone = vi.fn();
+  const audit = { record: vi.fn() };
   const sender = { markRead: vi.fn(), sendText: vi.fn(), sendDocument: vi.fn() };
   const agent = { ready: async () => true, reply: vi.fn(), cancelPending: vi.fn() };
 
@@ -160,6 +161,7 @@ describe('WhatsappService gates', () => {
     expect(sender.sendDocument).not.toHaveBeenCalled();
     expect(agent.reply).not.toHaveBeenCalled();
     expect(agent.cancelPending).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
   }
 
   const message = (over: Partial<IncomingMessage> = {}): IncomingMessage => ({
@@ -180,25 +182,31 @@ describe('WhatsappService gates', () => {
     enabled = true;
     configured = config;
     claimed = new Set();
+    archived = new Set();
+    audit.record.mockClear();
     admin = {
       id: 'u1', email: 'owner@example.com', role: 'SUPER_ADMIN', permissions: null,
-      status: 'ACTIVE', deletedAt: null, whatsappPhone: ADMIN_PHONE, whatsappPhoneVerifiedAt: new Date(),
+      status: 'ACTIVE', deletedAt: null,
     };
-    findUnique.mockReset().mockImplementation(async ({ where }) => where.whatsappPhone === ADMIN_PHONE ? admin : null);
-    findFirst.mockReset().mockImplementation(async () => admin);
+    findPhone.mockReset().mockImplementation(async ({ where }) => {
+      const phone = where.phone ?? ADMIN_PHONE;
+      return [ADMIN_PHONE, second].includes(phone) && (!archived.has(phone) || where.deletedAt !== null)
+        ? { user: admin, phone, id: phone === second ? 'phone-2' : 'phone-1', label: 'Work' } : null;
+    });
     service = new WhatsappService(
       { current: async () => configured, assistantEnabled: async () => enabled } as never,
       { claimOnce: async (key: string) => !claimed.has(key) && Boolean(claimed.add(key)) } as never,
-      { user: { findFirst, findUnique } } as never,
+      { whatsappPhone: { findFirst: findPhone } } as never,
       agent as never,
       sender as never,
+      audit as never,
     );
   });
 
   it('accepts a fresh message from the Super Admin phone', async () => {
     expect(await service.receive([message()])).toEqual(['accepted']);
     expect(agent.reply).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ id: admin.id, role: admin.role, access: expect.any(Object) }), ADMIN_PHONE, 'hello', true,
+      expect.objectContaining({ id: admin.id, role: admin.role, access: expect.any(Object) }), ADMIN_PHONE, 'hello', true, expect.any(Function),
     );
   });
 
@@ -217,7 +225,7 @@ describe('WhatsappService gates', () => {
   it('drops a phone number with no linked account', async () => {
     expect(await service.receive([message({ from: '15550000000' })])).toEqual(['unknown_sender']);
     expectNoSend();
-    expect(findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { whatsappPhone: '15550000000' } }));
+    expect(findPhone).toHaveBeenCalledWith(expect.objectContaining({ where: { phone: '15550000000', deletedAt: null } }));
   });
 
   /** Meta redelivers until it sees a 200; an approval must run once. */
@@ -247,10 +255,15 @@ describe('WhatsappService gates', () => {
     expectNoSend();
   });
 
-  it('silently drops an unverified number', async () => {
-    admin.whatsappPhoneVerifiedAt = null;
+  it('silently drops an archived number', async () => {
+    archived.add(ADMIN_PHONE);
     expect(await service.receive([message()])).toEqual(['unknown_sender']);
     expectNoSend();
+  });
+
+  it('accepts the second verified phone and replies to that phone', async () => {
+    expect(await service.receive([message({ from: second })])).toEqual(['accepted']);
+    expect(sender.sendText).toHaveBeenCalledWith(second, 'A reply.', expect.any(String), expect.any(Function));
   });
 
   it('acts as the Super Admin with their own permission set', async () => {
@@ -263,12 +276,14 @@ describe('WhatsappService gates', () => {
 describe('WhatsappController', () => {
   let configured: typeof config | null;
   const receive = vi.fn(async () => []);
+  const recordDeliveryFailures = vi.fn(async () => undefined);
   const controller = () =>
-    new WhatsappController({ current: async () => configured } as never, { receive } as never);
+    new WhatsappController({ current: async () => configured } as never, { receive, recordDeliveryFailures } as never);
 
   beforeEach(() => {
     configured = config;
     receive.mockClear();
+    recordDeliveryFailures.mockClear();
   });
 
   describe('verification', () => {
@@ -314,6 +329,7 @@ describe('WhatsappController', () => {
         expect(Reflect.getMetadata(HTTP_CODE_METADATA, Reflect.get(WhatsappController.prototype, 'receive'))).toBe(200);
         expect(await controller().receive({ rawBody: bytes } as never, metaSignature(bytes, SECRET), statuses)).toEqual({ received: 0 });
         expect(warn).toHaveBeenCalledExactlyOnceWith('WhatsApp message wamid.failed failed at Meta (codes: 131047)');
+        expect(recordDeliveryFailures).toHaveBeenCalledExactlyOnceWith(['wamid.failed']);
         expect(receive).not.toHaveBeenCalled();
       } finally {
         warn.mockRestore();

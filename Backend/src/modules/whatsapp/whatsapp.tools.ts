@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, HttpException, Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { Action, canDo, Module } from '../../common/authorization/access.js';
@@ -378,7 +379,7 @@ export const ONE_ACTION_REPLY = 'One action at a time — confirm or cancel the 
 export const NOT_PERMITTED = 'Not permitted for this account';
 
 type Proposal = { proposed: true; summary: string };
-type ActionDraft<T = PendingAction> = T extends PendingAction ? Omit<T, 'userId' | 'summary' | 'createdAt'> : never;
+type ActionDraft<T = PendingAction> = T extends PendingAction ? Omit<T, 'userId' | 'summary' | 'createdAt' | 'proposalId'> : never;
 export function isProposal(result: unknown): result is Proposal {
   return typeof result === 'object' && result !== null &&
     'proposed' in result && result.proposed === true && 'summary' in result && typeof result.summary === 'string';
@@ -392,16 +393,17 @@ export interface ToolContext {
   /** Only the gated webhook gives the dispatcher a phone for proposals. */
   phone?: string;
   proposed?: boolean;
+  proposal?: PendingAction;
   replyPrefix?: string;
 }
 
-async function attachDocument(context: ToolContext, key: string, render: () => Promise<WhatsappDocument>) {
+async function attachDocument(context: ToolContext, key: string, history: NonNullable<WhatsappDocument['history']>, render: () => Promise<WhatsappDocument>) {
   const attached = context.attachedNames?.get(key);
   if (attached !== undefined) return { attached };
   if (context.documents.length >= 3) return { error: 'Three documents per message — ask for the rest next' };
 
   const file = await render();
-  context.documents.push(file);
+  context.documents.push({ ...file, history });
   (context.attachedNames ??= new Map()).set(key, file.filename);
   return { attached: file.filename };
 }
@@ -532,12 +534,14 @@ export class WhatsappTools {
         return { error: 'That proposal is too long to show in WhatsApp. Ask for shorter details before proposing it.' };
       }
       context.proposed = true;
+      const proposal = { ...action, proposalId: randomUUID(), ref: action.ref ?? null, userId: user.id, summary, createdAt: new Date().toISOString() };
       try {
-        await pending.put(context.phone, { ...action, userId: user.id, summary, createdAt: new Date().toISOString() });
+        await pending.put(context.phone, proposal);
       } catch (error: unknown) {
         context.proposed = false;
         throw error;
       }
+      context.proposal = proposal;
       return { proposed: true, summary };
     };
     const proposeLine = (user: AuthenticatedUser, context: ToolContext, summary: string, action: ActionDraft) =>
@@ -1063,7 +1067,7 @@ export class WhatsappTools {
         async run(user, { trip: reference }, context) {
           if (!canDo(user.access, Module.TRIPS, Action.VIEW)) return { error: NOT_PERMITTED };
           const trip = await resolveTrip(user, reference);
-          return attachDocument(context, `itinerary:${trip.id}`, async () => {
+          return attachDocument(context, `itinerary:${trip.id}`, { kind: 'itinerary', ref: tripLabel(trip.reference) }, async () => {
             const file = await itineraries.renderPdfForTrip(user, trip.id);
             if (!file) throw new BadRequestException(`No itinerary on file for ${tripLabel(trip.reference)}`);
             return file;
@@ -1077,7 +1081,7 @@ export class WhatsappTools {
         permission: { module: Module.QUOTES, action: Action.VIEW },
         async run(user, { quote: reference }, context) {
           const quote = await resolveQuote(user, reference);
-          return attachDocument(context, `quote:${quote.id}`, () => quotes.renderPdf(user, quote.id));
+          return attachDocument(context, `quote:${quote.id}`, { kind: 'quote', ref: `Q-${quote.reference}` }, () => quotes.renderPdf(user, quote.id));
         },
       }),
       defineTool({
@@ -1087,7 +1091,7 @@ export class WhatsappTools {
         permission: { module: Module.RECEIVABLES, action: Action.VIEW },
         async run(user, { invoice }, context) {
           const row = await resolveInvoice(user, invoice);
-          return attachDocument(context, `invoice:${row.id}`, () => receivables.renderPdf(user, row.id));
+          return attachDocument(context, `invoice:${row.id}`, { kind: 'invoice', ref: row.number }, () => receivables.renderPdf(user, row.id));
         },
       }),
       defineTool({
@@ -1101,7 +1105,7 @@ export class WhatsappTools {
           const problem = approveBlockedBy(trip.approvalStatus);
           if (problem) return { error: problem };
           const summary = `Approve trip ${tripLabel(reference)} — ${tripDetails(trip)}.`;
-          return propose(user, context, summary, { kind: 'TRIP_APPROVE', tripId: trip.id });
+          return propose(user, context, summary, { kind: 'TRIP_APPROVE', tripId: trip.id, ref: tripLabel(trip.reference) });
         },
       }),
       defineTool({
@@ -1115,7 +1119,7 @@ export class WhatsappTools {
           const problem = rejectBlockedBy(trip.approvalStatus);
           if (problem) return { error: problem };
           const summary = `Decline trip ${tripLabel(reference)} — ${tripDetails(trip)}. Reason: ${reason || 'no reason given'}.`;
-          return propose(user, context, summary, { kind: 'TRIP_DECLINE', tripId: trip.id, payload: { reason } });
+          return propose(user, context, summary, { kind: 'TRIP_DECLINE', tripId: trip.id, ref: tripLabel(trip.reference), payload: { reason } });
         },
       }),
       defineTool({
@@ -1167,12 +1171,14 @@ export class WhatsappTools {
         permission: ACTION_ACCESS.TASK_COMPLETE,
         proposal: true,
         async run(user, { taskId }, context) {
-          const task = taskRow.extend({ deletedAt: z.date().nullable() }).parse(await tasks.findOne(user, taskId));
+          const task = taskRow.extend({ deletedAt: z.date().nullable(), reference: z.number().optional() }).parse(await tasks.findOne(user, taskId));
           if (task.deletedAt) return { error: 'That task has been archived.' };
           if (task.status === TaskStatus.COMPLETED) return { error: 'That task is already completed.' };
           const due = task.dueDate ? `, due ${briefDay(task.dueDate)}` : '';
           const client = task.client ? `, for ${displayName(task.client)}` : '';
-          return propose(user, context, `Complete task "${task.title}"${due}${client}.`, { kind: 'TASK_COMPLETE', taskId: task.id });
+          return propose(user, context, `Complete task "${task.title}"${due}${client}.`, {
+            kind: 'TASK_COMPLETE', taskId: task.id, ref: task.reference === undefined ? task.id : `TSK-${task.reference}`,
+          });
         },
       }),
       defineTool({
@@ -1196,7 +1202,7 @@ export class WhatsappTools {
           const dated = ` Payment date: ${briefDay(calendarDate.parse(payload.paidAt))}.`;
           const reference = payload.reference ? ` Reference: ${payload.reference}.` : '';
           const summary = `Record ${formatDollars(amount)} by ${paymentLabels[payload.method]} on ${row.number} — ${displayName(row.client)}; balance after ${balance}.${dated}${reference}`;
-          return propose(user, context, summary, { kind: 'PAYMENT_RECORD', invoiceId: row.id, payload });
+          return propose(user, context, summary, { kind: 'PAYMENT_RECORD', invoiceId: row.id, ref: row.number, payload });
         },
       }),
       defineTool({
@@ -1237,7 +1243,7 @@ export class WhatsappTools {
           });
           const previous = formatMomentIn(client.nextFollowUpAt, timeZone);
           const summary = `Follow up with ${displayName(client)} on ${briefDay(calendarDate.parse(date))}, ${time} (${timeZone})${method ? ` by ${followUpLabels[method]}` : ''}${previous ? ` (replaces ${previous} in ${timeZone})` : ''}`;
-          return proposeLine(user, context, summary, { kind: 'CLIENT_FOLLOW_UP', clientId: client.id, payload });
+          return proposeLine(user, context, summary, { kind: 'CLIENT_FOLLOW_UP', clientId: client.id, ref: client.id, payload });
         },
       }),
       defineTool({
@@ -1266,7 +1272,7 @@ export class WhatsappTools {
           const payload = tripStatusPayload.parse(input);
           const cancellation = payload.status === TripStatus.CANCELLED ? ' — this cancels the trip' : '';
           const summary = `Move ${tripLabel(trip.reference)} from ${trip.status} to ${payload.status}${cancellation}`;
-          return proposeLine(user, context, summary, { kind: 'TRIP_STATUS', tripId: trip.id, payload });
+          return proposeLine(user, context, summary, { kind: 'TRIP_STATUS', tripId: trip.id, ref: tripLabel(trip.reference), payload });
         },
       }),
       defineTool({
@@ -1287,10 +1293,10 @@ export class WhatsappTools {
           if (kind === 'TRIP_ASSIGN') {
             const payload = tripAssignPayload.parse(updateTripSchema.parse({ assignedBrokerId: broker.id }));
             const notification = broker.id === user.id ? '' : ` — ${broker.name} gets a task and an email about it`;
-            return proposeLine(user, context, summary + notification, { kind, tripId: record.id, payload });
+            return proposeLine(user, context, summary + notification, { kind, tripId: record.id, ref: label, payload });
           }
           const payload = clientAssignPayload.parse(updateClientSchema.parse({ assignedBrokerId: broker.id }));
-          return proposeLine(user, context, summary, { kind, clientId: record.id, payload });
+          return proposeLine(user, context, summary, { kind, clientId: record.id, ref: record.id, payload });
         },
       }),
       defineTool({
@@ -1304,7 +1310,7 @@ export class WhatsappTools {
           const payload = quoteSendPayload.parse(input);
           const validity = payload.validUntil ? `, valid until ${briefDay(payload.validUntil)}` : '';
           const summary = `Mark quote Q-${quote.reference} as sent${validity} — records it as sent; no email is sent`;
-          return proposeLine(user, context, summary, { kind: 'QUOTE_SEND', quoteId: quote.id, payload });
+          return proposeLine(user, context, summary, { kind: 'QUOTE_SEND', quoteId: quote.id, ref: `Q-${quote.reference}`, payload });
         },
       }),
     ];

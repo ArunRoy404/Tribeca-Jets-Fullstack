@@ -93,13 +93,6 @@ describe('WhatsappPending', () => {
     expect(redis.getString).not.toHaveBeenCalled();
   });
 
-  it('drops an action and returns only its summary', async () => {
-    const { pending } = fixture();
-    await pending.put(PHONE, approval);
-    expect(await pending.drop(PHONE)).toBe(approval.summary);
-    expect(await pending.drop(PHONE)).toBeNull();
-  });
-
   it.each([
     { ...approval, kind: 'TRIP_DECLINE', payload: { reason: 'Weather' } },
     { ...approval, kind: 'LEAD_CREATE', lead: { type: 'new', client: { firstName: 'Alex', lastName: 'Vance' },
@@ -161,9 +154,24 @@ describe('WhatsappAgent confirmations', () => {
     respond = vi.fn();
     specs = vi.fn(() => []);
     dispatch = vi.fn();
-    run = vi.fn().mockResolvedValue(success);
+    run = vi.fn().mockResolvedValue({ text: success, outcome: 'done', ref: 'TJ-1048' });
     agent = new WhatsappAgent(async () => ({ respond }), store.memory, { specs, dispatch } as never,
       settings as never, store.pending, { run } as never);
+  });
+
+  it('CONFIRM from a second phone cannot take the first phone’s proposal', async () => {
+    const recordAction = vi.fn();
+    const proposal = { ...approval, proposalId: '00000000-0000-4000-8000-000000000002', ref: 'TJ-1048' };
+    await store.pending.put(PHONE, proposal);
+    await expect(agent.reply(user, '15550000000', 'CONFIRM', true, recordAction))
+      .resolves.toMatchObject({ text: NOTHING_PENDING_REPLY });
+    expect(run).not.toHaveBeenCalled();
+    expect(recordAction).not.toHaveBeenCalled();
+    await expect(agent.reply(user, PHONE, 'CONFIRM', true, recordAction)).resolves.toMatchObject({ text: success });
+    expect(recordAction).toHaveBeenCalledExactlyOnceWith({
+      action: 'whatsapp.action_confirmed',
+      details: { proposalId: proposal.proposalId, kind: 'TRIP_APPROVE', ref: 'TJ-1048', outcome: 'done' },
+    });
   });
 
   function modelProposes(action: PendingAction) {

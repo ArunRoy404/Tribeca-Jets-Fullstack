@@ -62,7 +62,12 @@ export const quoteSendPayload = sendQuoteSchema.strict().extend({
   validUntil: dtoDate(sendQuoteSchema.shape.validUntil.unwrap()).optional(),
 });
 
-const actionBase = z.object({ userId: z.string().min(1), summary: z.string().min(1), createdAt: z.iso.datetime() });
+const actionBase = z.object({
+  userId: z.string().min(1), summary: z.string().min(1), createdAt: z.iso.datetime(),
+  // Accept proposals already in Redis at deploy until their existing TTL ends.
+  proposalId: z.uuid().optional(),
+  ref: z.string().nullable().optional(),
+});
 const pendingActionSchema = z.discriminatedUnion('kind', [
   actionBase.extend({ kind: z.literal('TRIP_APPROVE'), tripId: z.uuid() }),
   actionBase.extend({ kind: z.literal('TRIP_DECLINE'), tripId: z.uuid(), payload: rejectTripSchema }),
@@ -85,6 +90,10 @@ const pendingActionSchema = z.discriminatedUnion('kind', [
 ]);
 
 export type PendingAction = z.infer<typeof pendingActionSchema>;
+
+export function proposalDetails(action: PendingAction) {
+  return action.proposalId ? { proposalId: action.proposalId, kind: action.kind, ref: action.ref ?? null } : undefined;
+}
 
 @Injectable()
 export class WhatsappPending {
@@ -111,7 +120,4 @@ export class WhatsappPending {
     return parsed.success ? parsed.data : null;
   }
 
-  async drop(phone: string): Promise<string | null> {
-    return (await this.take(phone))?.summary ?? null;
-  }
 }

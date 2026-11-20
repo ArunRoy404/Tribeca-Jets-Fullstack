@@ -1,0 +1,28 @@
+/// A verified personal phone. Unlinking archives the row so history can refer to it.
+model WhatsappPhone {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  phone      String
+  label      String   @db.VarChar(40)
+  verifiedAt DateTime
+
+  createdAt   DateTime @default(now())
+  createdById String?  @db.Uuid
+  createdBy   User?    @relation("WhatsappPhoneCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedAt   DateTime @updatedAt
+  updatedById String?  @db.Uuid
+  updatedBy   User?    @relation("WhatsappPhoneUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deletedBy    User?     @relation("WhatsappPhoneDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  restoredAt   DateTime?
+  restoredById String?   @db.Uuid
+  restoredBy   User?     @relation("WhatsappPhoneRestoredBy", fields: [restoredById], references: [id], onDelete: SetNull)
+
+  @@unique([phone], where: raw("\"deletedAt\" IS NULL"))
+  @@unique([userId, phone])
+  @@index([userId, deletedAt])
+  @@map("whatsapp_phones")
+}

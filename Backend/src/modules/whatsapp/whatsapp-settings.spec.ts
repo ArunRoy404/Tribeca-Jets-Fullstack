@@ -1,4 +1,4 @@
-import { BadGatewayException, BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import { HEADERS_METADATA, HTTP_CODE_METADATA } from '@nestjs/common/constants.js';
 import { Reflector } from '@nestjs/core';
 import { describe, expect, it, vi } from 'vitest';
@@ -9,8 +9,9 @@ import { AccessGuard } from '../../common/guards/access.guard.js';
 import { UserRole, VerificationPurpose } from '../../generated/prisma/enums.js';
 import { importWhatsappEnv } from '../../scripts/whatsapp-import-env.js';
 import { TokenService } from '../auth/token.service.js';
-import { RevealWhatsappSecretDto, SetWhatsappAssistantDto } from './dto/whatsapp-settings.dto.js';
+import { RevealWhatsappSecretDto, SendLinkCodeDto, SetWhatsappAssistantDto, VerifyWhatsappPhoneDto } from './dto/whatsapp-settings.dto.js';
 import { WhatsappConnectionsService } from './whatsapp-connections.service.js';
+import { WhatsappHistoryService } from './whatsapp-history.service.js';
 import { WhatsappPhoneService } from './whatsapp-phone.service.js';
 import { WhatsappSettingsController } from './whatsapp-settings.controller.js';
 import { WhatsappSettingsService } from './whatsapp-settings.service.js';
@@ -18,6 +19,8 @@ import { WhatsappSettingsService } from './whatsapp-settings.service.js';
 const userId = 'owner-id';
 const password = 'password-fixture';
 const phone = '15551234567';
+const phoneId = '00000000-0000-4000-8000-000000000001';
+const phoneRow = { id: phoneId, userId, phone, label: 'Work', verifiedAt: new Date(), deletedAt: null };
 const purpose = VerificationPurpose.WHATSAPP_LINK;
 const key = Buffer.alloc(32, 3).toString('base64');
 const secrets = {
@@ -52,10 +55,17 @@ function fixture(encryptionReady = true) {
         return { count: 1 };
       }),
     },
-    user: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+    user: { findFirst: vi.fn().mockResolvedValue({ id: userId }), update: vi.fn() },
+    whatsappPhone: {
+      count: vi.fn().mockResolvedValue(0),
+      findFirst: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockImplementation(async ({ create }) => ({ ...phoneRow, ...create })),
+      update: vi.fn().mockImplementation(async ({ data }) => ({ ...phoneRow, ...data })),
+    },
     verificationCode: { updateMany: vi.fn() },
     $transaction: vi.fn(),
   };
+  prisma.$transaction.mockImplementation(async (write) => write(prisma));
   const audit = { record: vi.fn() };
   const auth = { assertPassword: vi.fn() };
   const settings = new WhatsappSettingsService(prisma as never, box, config as never, auth as never, audit as never);
@@ -66,12 +76,14 @@ function fixture(encryptionReady = true) {
   };
   const sender = { sendText: vi.fn().mockResolvedValue(true) };
   const throttle = { assertMaySendCode: vi.fn() };
+  const pending = { take: vi.fn() };
+  const memory = { reset: vi.fn() };
   const phones = new WhatsappPhoneService(
     prisma as never, auth as never, verification as never, throttle as never,
-    settings, config as never, sender as never, audit as never,
+    settings, config as never, sender as never, audit as never, pending as never, memory as never,
   );
   const setupMeta = () => settings.update(userId, { currentPassword: password, phoneNumberId: '9001', ...secrets }, {});
-  return { settings, phones, box, row, prisma, audit, auth, verification, sender, throttle, setupMeta };
+  return { settings, phones, box, row, prisma, audit, auth, verification, sender, throttle, pending, memory, setupMeta };
 }
 
 describe('WhatsApp credential settings', () => {
@@ -93,9 +105,9 @@ describe('WhatsApp credential settings', () => {
     }
     expect(view).toMatchObject({
       phoneNumberId: '9001', graphVersion: 'v25.0', encryptionReady: true,
-      linkedPhone: null, webhookUrl: 'https://crm.example.com/api/webhooks/whatsapp',
+      webhookUrl: 'https://crm.example.com/api/webhooks/whatsapp',
       assistantEnabled: false,
-      readiness: { openai: false, meta: true, metaMissing: [], phoneLinked: false, encryptionReady: true },
+      readiness: { openai: false, meta: true, metaMissing: [], phonesLinked: 0, phoneLimit: 5, encryptionReady: true },
     });
     expect(await settings.current()).toMatchObject({ appSecret: secrets.appSecret });
   });
@@ -225,7 +237,7 @@ describe('WhatsApp assistant switch', () => {
     const enabled = await settings.setAssistant(userId, { enabled: true, currentPassword: password }, {});
     expect(enabled).toMatchObject({ assistantEnabled: true, readiness: {
       openai: false, meta: false, metaMissing: ['phoneNumberId', 'accessToken', 'appSecret', 'verifyToken'],
-      phoneLinked: false, encryptionReady: false,
+      phonesLinked: 0, encryptionReady: false,
     } });
     expect(await settings.assistantEnabled()).toBe(true);
     expect(row.assistantEnabled).toBe(true);
@@ -249,10 +261,10 @@ describe('WhatsApp assistant switch', () => {
 
   it('masks short secrets and reports OpenAI and phone readiness from stored values', async () => {
     const { settings, prisma } = fixture();
-    prisma.user.findUnique.mockResolvedValue({ whatsappPhone: phone, whatsappPhoneVerifiedAt: new Date() });
+    prisma.whatsappPhone.count.mockResolvedValue(2);
     const view = await settings.update(userId, { currentPassword: password, openaiApiKey: '1234', openaiModel: 'model-one' }, {});
     expect(view.openaiApiKey).toEqual({ set: true, last4: null, masked: '•'.repeat(12) });
-    expect(view.readiness).toMatchObject({ openai: true, phoneLinked: true });
+    expect(view.readiness).toMatchObject({ openai: true, phonesLinked: 2 });
   });
 });
 
@@ -331,11 +343,37 @@ describe('legacy WhatsApp settings import', () => {
 });
 
 describe('WhatsApp phone linking', () => {
-  const input = { phone: '+1 (555) 123-4567', currentPassword: password };
+  const input = { phone: '+1 (555) 123-4567', label: ' Work ', currentPassword: password };
+  const verifyInput = { code: '345678', label: 'Work' };
+
+  it('checks the password before requiring a trimmed name and refuses a sixth phone before sending', async () => {
+    const { phones, prisma, auth, verification, sender } = fixture();
+    const missing = SendLinkCodeDto.zodSchema.parse({ phone, currentPassword: password });
+    await expect(phones.sendCode(userId, missing, {})).rejects.toMatchObject({ response: { errors: { label: 'Enter a phone name' } } });
+    expect(auth.assertPassword).toHaveBeenCalledExactlyOnceWith(userId, password);
+    expect(prisma.whatsappPhone.count).not.toHaveBeenCalled();
+    expect(VerifyWhatsappPhoneDto.zodSchema.safeParse({ code: verifyInput.code }).success).toBe(false);
+
+    prisma.whatsappPhone.count.mockResolvedValue(5);
+    await expect(phones.sendCode(userId, input, {})).rejects.toThrow('You can link up to five phones. Unlink one first.');
+    expect(prisma.whatsappPhone.findFirst).not.toHaveBeenCalled();
+    expect(verification.issue).not.toHaveBeenCalled();
+    expect(sender.sendText).not.toHaveBeenCalled();
+  });
+
+  it('checks a trimmed phone name against this user’s live rows', async () => {
+    const { phones, prisma, verification } = fixture();
+    prisma.whatsappPhone.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: phoneId });
+    await expect(phones.sendCode(userId, input, {})).rejects.toThrow('You already have a phone called Work.');
+    expect(prisma.whatsappPhone.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { userId, deletedAt: null, label: { equals: 'Work', mode: 'insensitive' } },
+    }));
+    expect(verification.issue).not.toHaveBeenCalled();
+  });
 
   it('refuses another user’s number, incomplete Meta settings and a wrong password before issuance', async () => {
     const { phones, prisma, auth, verification, sender } = fixture();
-    prisma.user.findUnique.mockResolvedValueOnce({ id: 'somebody-else' });
+    prisma.whatsappPhone.findFirst.mockResolvedValueOnce({ userId: 'somebody-else' });
     await expect(phones.sendCode(userId, input, {})).rejects.toThrow(ConflictException);
     await expect(phones.sendCode(userId, input, {})).rejects.toThrow('Finish the Meta settings first');
     auth.assertPassword.mockRejectedValueOnce(new BadRequestException('Your current password is incorrect'));
@@ -367,42 +405,79 @@ describe('WhatsApp phone linking', () => {
 
   it('links only the verified target to the caller and audits the last four digits', async () => {
     const { phones, verification, prisma, audit } = fixture();
-    const linked = await phones.verify(userId, 'opaque-fixture', '345678', {});
+    const linked = await phones.verify(userId, 'opaque-fixture', verifyInput, {});
     expect(verification.verify).toHaveBeenCalledExactlyOnceWith('opaque-fixture', '345678', purpose, userId);
-    expect(prisma.user.update).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
-      where: expect.objectContaining({ id: userId, role: UserRole.SUPER_ADMIN }),
-      data: { whatsappPhone: phone, whatsappPhoneVerifiedAt: linked.verifiedAt, updatedById: userId },
+    expect(prisma.whatsappPhone.upsert).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      where: { userId_phone: { userId, phone } },
+      create: { userId, phone, label: 'Work', verifiedAt: linked.verifiedAt, createdById: userId, updatedById: userId },
+      update: expect.objectContaining({ deletedAt: null, deletedById: null, restoredById: userId, label: 'Work' }),
     }));
-    expect(linked.phone).toBe(phone);
+    expect(linked).toMatchObject({ id: phoneId, label: 'Work', last4: '4567' });
+    expect(linked).not.toHaveProperty('phone');
     expect(audit.record).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
-      action: 'user.whatsapp_linked', entityId: userId, metadata: { last4: '4567' },
+      action: 'user.whatsapp_linked', entityType: 'WhatsappPhone', entityId: phoneId, metadata: { last4: '4567', label: 'Work' },
     }));
   });
 
   it('rechecks a verified target for an intervening link before updating the caller', async () => {
     const { phones, prisma } = fixture();
-    prisma.user.findUnique.mockResolvedValueOnce({ id: 'somebody-else' });
-    await expect(phones.verify(userId, 'opaque-fixture', '345678', {})).rejects.toThrow(ConflictException);
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    prisma.whatsappPhone.findFirst.mockResolvedValueOnce({ userId: 'somebody-else' });
+    await expect(phones.verify(userId, 'opaque-fixture', verifyInput, {})).rejects.toThrow(ConflictException);
+    expect(prisma.whatsappPhone.upsert).not.toHaveBeenCalled();
+  });
+
+  it('restores the archived row when the same user verifies the number again', async () => {
+    const { phones, prisma } = fixture();
+    const original = { ...phoneRow, deletedAt: new Date('2026-11-19') };
+    prisma.whatsappPhone.upsert.mockImplementationOnce(async ({ where, update }) => {
+      expect(where).toEqual({ userId_phone: { userId, phone } });
+      expect(update).toMatchObject({ deletedAt: null, restoredAt: expect.any(Date), restoredById: userId, label: 'New name' });
+      return { ...original, ...update };
+    });
+    await expect(phones.verify(userId, 'opaque-fixture', { ...verifyInput, label: 'New name' }, {}))
+      .resolves.toMatchObject({ id: original.id, label: 'New name', deletedAt: null });
   });
 
   it('rechecks the password, unlinks the caller and invalidates their outstanding link code', async () => {
-    const { phones, auth, prisma, audit } = fixture();
-    await phones.unlink(userId, password, {});
+    const { phones, auth, prisma, audit, pending, memory } = fixture();
+    await phones.unlink(userId, phoneId, password, {});
     expect(auth.assertPassword).toHaveBeenCalledExactlyOnceWith(userId, password);
     expect(prisma.$transaction).toHaveBeenCalledOnce();
-    expect(prisma.verificationCode.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId, purpose, consumedAt: null } }));
-    expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { whatsappPhone: null, whatsappPhoneVerifiedAt: null, updatedById: userId },
+    expect(prisma.verificationCode.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId, purpose, target: phone, consumedAt: null } }));
+    expect(prisma.whatsappPhone.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: phoneId, userId, deletedAt: null },
+      data: { deletedAt: expect.any(Date), deletedById: userId },
     }));
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'user.whatsapp_unlinked', entityId: userId }));
+    expect(pending.take).toHaveBeenCalledExactlyOnceWith(phone);
+    expect(memory.reset).toHaveBeenCalledExactlyOnceWith(phone);
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'user.whatsapp_unlinked', entityId: phoneId, metadata: { phoneId, last4: '4567', label: 'Work' },
+    }));
+  });
+
+  it('returns 404 for another account’s phone', async () => {
+    const { phones, prisma, audit } = fixture();
+    const { Prisma } = await import('../../generated/prisma/client.js');
+    prisma.whatsappPhone.update.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError('No matching record', { code: 'P2025', clientVersion: 'test' }));
+    await expect(phones.unlink(userId, phoneId, password, {})).rejects.toThrow(NotFoundException);
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it('audits a rename against the phone and leaves the link event’s label intact', async () => {
+    const { phones, prisma, audit } = fixture();
+    await phones.verify(userId, 'opaque-fixture', verifyInput, {});
+    prisma.whatsappPhone.findFirst.mockResolvedValueOnce(phoneRow);
+    await expect(phones.rename(userId, phoneId, 'Personal', {})).resolves.toMatchObject({ id: phoneId, label: 'Personal' });
+    expect(audit.record.mock.calls.map(([event]) => [event.action, event.metadata.label])).toEqual([
+      ['user.whatsapp_linked', 'Work'], ['user.whatsapp_phone_renamed', 'Personal'],
+    ]);
   });
 
   it('scopes the challenge to an httpOnly link cookie and puts only the expiry in the response', async () => {
     const { phones, settings, setupMeta } = fixture();
     await setupMeta();
     const tokens = new TokenService({} as never, {} as never, { auth: { cookieSecure: true } } as never, {} as never);
-    const controller = new WhatsappSettingsController(settings, phones, tokens, new WhatsappConnectionsService(settings));
+    const controller = new WhatsappSettingsController(settings, phones, tokens, new WhatsappConnectionsService(settings), new WhatsappHistoryService({} as never, {} as never));
     const res = { cookie: vi.fn(), clearCookie: vi.fn() };
     const req = { headers: {}, cookies: { tj_whatsapp_link: 'opaque-fixture' } };
     const response = await controller.sendCode(userId, input, req as never, res as never);
@@ -410,7 +485,7 @@ describe('WhatsApp phone linking', () => {
     expect(res.cookie).toHaveBeenCalledExactlyOnceWith('tj_whatsapp_link', 'opaque-fixture', expect.objectContaining({
       httpOnly: true, secure: true, path: '/api/settings/whatsapp/phone',
     }));
-    await controller.verify(userId, { code: '345678' }, req as never, res as never);
+    await controller.verify(userId, verifyInput, req as never, res as never);
     expect(res.clearCookie).toHaveBeenCalledExactlyOnceWith('tj_whatsapp_link', expect.objectContaining({
       httpOnly: true, path: '/api/settings/whatsapp/phone',
     }));
@@ -418,7 +493,7 @@ describe('WhatsApp phone linking', () => {
 });
 
 describe('WhatsApp settings access', () => {
-  it.each(['view', 'update', 'reveal', 'setAssistant', 'sendCode', 'verify', 'unlink', 'testOpenAi', 'testMeta'] as const)(
+  it.each(['view', 'update', 'reveal', 'setAssistant', 'sendCode', 'verify', 'unlink', 'rename', 'phones', 'history', 'testOpenAi', 'testMeta'] as const)(
     'restricts %s to the stored Super Admin role', (method) => {
     const guard = new AccessGuard(new Reflector());
     const context = (role: UserRole) => ({

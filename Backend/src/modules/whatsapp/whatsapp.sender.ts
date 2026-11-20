@@ -24,6 +24,8 @@ const errorSchema = z.object({
   fbtrace_id: z.string().optional().catch(undefined),
 });
 const mediaSchema = z.object({ id: z.string().min(1) });
+const sentMessageSchema = z.object({ messages: z.array(mediaSchema) });
+type OnAccepted = (messageId: string) => Promise<void>;
 
 function metaError(body: unknown) {
   const parsed = z.object({ error: errorSchema }).safeParse(body);
@@ -77,7 +79,23 @@ export class WhatsappSender {
     return null;
   }
 
-  async sendText(to: string, body: string, replyTo?: string): Promise<boolean> {
+  private async sendMessage(config: WhatsappConfig, payload: object, operation: string, codesOnly: boolean, onAccepted?: OnAccepted) {
+    const accepted = await this.postWithRetry(() => this.post(config, payload), operation, async (response) => {
+      if (!onAccepted) return {};
+      const sent = sentMessageSchema.safeParse(await response.json().catch(() => null));
+      return { id: sent.success ? sent.data.messages[0]?.id : undefined };
+    }, codesOnly);
+    if (accepted?.id && onAccepted) {
+      try {
+        await onAccepted(accepted.id);
+      } catch (error: unknown) {
+        this.logger.warn(`WhatsApp delivery tracking failed (${error instanceof Error ? error.name : 'UnknownError'})`);
+      }
+    }
+    return accepted !== null;
+  }
+
+  async sendText(to: string, body: string, replyTo?: string, onAccepted?: OnAccepted): Promise<boolean> {
     const config = await this.configuration();
     if (!config) return false;
     const payload = {
@@ -89,10 +107,10 @@ export class WhatsappSender {
       ...(replyTo ? { context: { message_id: replyTo } } : {}),
     };
 
-    return (await this.postWithRetry(() => this.post(config, payload), `send to …${to.slice(-4)}`, () => true)) ?? false;
+    return this.sendMessage(config, payload, `send to …${to.slice(-4)}`, false, onAccepted);
   }
 
-  async sendDocument(to: string, file: WhatsappDocument, caption?: string, replyTo?: string): Promise<boolean> {
+  async sendDocument(to: string, file: WhatsappDocument, caption?: string, replyTo?: string, onAccepted?: OnAccepted): Promise<boolean> {
     const config = await this.configuration();
     if (!config) return false;
     const size = `${documentSizeKb(file.body.length)} KB`;
@@ -135,7 +153,7 @@ export class WhatsappSender {
         document: { id, filename: file.filename, ...(caption !== undefined ? { caption } : {}) },
         ...(replyTo ? { context: { message_id: replyTo } } : {}),
       };
-      return (await this.postWithRetry(() => this.post(config, payload), `document send (${size})`, () => true, true)) ?? false;
+      return await this.sendMessage(config, payload, `document send (${size})`, true, onAccepted);
     } catch {
       this.logger.error(`WhatsApp document preparation failed (${size})`);
       return false;

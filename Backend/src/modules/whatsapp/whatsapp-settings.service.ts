@@ -7,9 +7,10 @@ import type { Prisma, WhatsappSettings } from '../../generated/prisma/client.js'
 import { AuthService } from '../auth/auth.service.js';
 import type { SessionContext } from '../auth/token.service.js';
 import {
-  WHATSAPP_SECRET_FIELDS, whatsappImportSchema, type RevealWhatsappSecretDto, type SetWhatsappAssistantDto,
+  MAX_WHATSAPP_PHONES, WHATSAPP_SECRET_FIELDS, whatsappImportSchema, type RevealWhatsappSecretDto, type SetWhatsappAssistantDto,
   type UpdateWhatsappSettings, type WhatsappSettingsChanges,
 } from './dto/whatsapp-settings.dto.js';
+import { WhatsappEvent } from './whatsapp-history.events.js';
 
 export interface WhatsappConfig {
   accessToken: string;
@@ -19,7 +20,8 @@ export interface WhatsappConfig {
   graphVersion: string;
 }
 
-const SETTINGS_ID = 1;
+export const WHATSAPP_SETTINGS_ID = 1;
+const SETTINGS_ID = WHATSAPP_SETTINGS_ID;
 const CACHE_MS = 15_000;
 const META_FIELDS = ['phoneNumberId', 'accessToken', 'appSecret', 'verifyToken'] as const;
 type PanelFields = Pick<WhatsappSettings, typeof WHATSAPP_SECRET_FIELDS[number] | 'openaiModel' | 'phoneNumberId' | 'graphVersion'>;
@@ -129,19 +131,13 @@ export class WhatsappSettingsService {
   }
 
   async view(userId: string) {
-    const [row, user] = await Promise.all([
+    const [row, phonesLinked] = await Promise.all([
       this.load(),
-      this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { whatsappPhone: true, whatsappPhoneVerifiedAt: true },
-      }),
+      this.prisma.whatsappPhone.count({ where: { userId, deletedAt: null } }),
     ]);
     const origin = this.config.apiPublicUrl.replace(/\/+$/, '');
     const encryptionReady = this.secrets.ready;
     const meta = metaState(row);
-    const linkedPhone = user?.whatsappPhone && user.whatsappPhoneVerifiedAt
-      ? { phone: user.whatsappPhone, verifiedAt: user.whatsappPhoneVerifiedAt }
-      : null;
     return {
       openaiModel: row.openaiModel,
       phoneNumberId: row.phoneNumberId,
@@ -151,13 +147,13 @@ export class WhatsappSettingsService {
       appSecret: secretView(row.appSecret),
       verifyToken: secretView(row.verifyToken),
       encryptionReady,
-      linkedPhone,
       assistantEnabled: row.assistantEnabled,
       readiness: {
         openai: aiConfig(row) !== null,
         meta: meta.config !== null,
         metaMissing: meta.missing,
-        phoneLinked: linkedPhone !== null,
+        phonesLinked,
+        phoneLimit: MAX_WHATSAPP_PHONES,
         encryptionReady,
       },
       webhookUrl: `${origin}/api/webhooks/whatsapp`,
@@ -170,7 +166,7 @@ export class WhatsappSettingsService {
     const fields = FIELDS.filter((field) => changes[field] !== undefined);
     if (!fields.length) return this.view(userId);
 
-    if (!await this.save(changes, fields, userId, 'whatsapp_settings.updated', context)) {
+    if (!await this.save(changes, fields, userId, WhatsappEvent.SETTINGS_UPDATED, context)) {
       throw new ConflictException('WhatsApp settings changed. Please try again.');
     }
     return this.view(userId);
@@ -190,7 +186,7 @@ export class WhatsappSettingsService {
     this.cached = undefined;
     await this.audit.record({
       actorId: userId,
-      action: enabled ? 'whatsapp_assistant.switched_on' : 'whatsapp_assistant.switched_off',
+      action: enabled ? WhatsappEvent.SWITCHED_ON : WhatsappEvent.SWITCHED_OFF,
       entityType: 'WhatsappSettings',
       entityId: String(SETTINGS_ID),
       ...context,
@@ -213,7 +209,7 @@ export class WhatsappSettingsService {
     }
     await this.audit.record({
       actorId: userId,
-      action: 'whatsapp_settings.revealed',
+      action: WhatsappEvent.SETTINGS_REVEALED,
       entityType: 'WhatsappSettings',
       entityId: String(SETTINGS_ID),
       metadata: { field },
@@ -257,7 +253,7 @@ export class WhatsappSettingsService {
     changes: WhatsappSettingsChanges,
     fields: Field[],
     userId: string | null,
-    action: 'whatsapp_settings.updated' | 'whatsapp_settings.imported',
+    action: typeof WhatsappEvent.SETTINGS_UPDATED | 'whatsapp_settings.imported',
     context: SessionContext,
     expected: Prisma.WhatsappSettingsWhereInput = {},
   ): Promise<boolean> {
