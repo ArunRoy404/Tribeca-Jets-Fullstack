@@ -1,0 +1,202 @@
+Update - 20 Nov
+
+
+Hello Ari,
+
+The WhatsApp assistant is ready. You can now run the CRM from WhatsApp:
+ask questions, get PDFs, and approve or change things with one reply.
+
+Here is how it works.
+
+
+
+1. WHERE TO SET IT UP
+
+Settings > WhatsApp & AI
+(only you, the Super Admin, can see this page)
+
+It has two tabs:
+
+Setup
+
+ - Assistant: the on/off switch, plus a checklist that shows if
+   everything is ready. Turning it off stops the bot at once
+   (use it if a phone is ever lost).
+
+ - OpenAI: the AI key and the AI model.
+
+ - Meta (WhatsApp): the WhatsApp connection details.
+
+ - My phones: the phones allowed to talk to the bot.
+
+History
+
+ - Shows what each phone did and when: questions asked, actions
+   approved or cancelled, PDFs sent, and settings changed.
+
+ - Your messages themselves are never stored, only what happened.
+
+
+How to add your phone number (you can do this yourself):
+
+ 1. Go to Settings > WhatsApp & AI > Setup > My phones.
+
+ 2. Click "Add a phone", give it a name (for example "Personal"),
+    and type the number with country code.
+
+ 3. Enter your password. A 6-digit code arrives on WhatsApp.
+
+ 4. Type the code on the screen (not in the chat). Done.
+
+Good to know:
+
+ - You can add up to 5 phones. Each one can be renamed or removed.
+
+ - For now only: we use Meta's free test number, which can only send
+   messages to numbers on its approved list. Send us a new number once
+   before adding it, so we can approve it on Meta. Otherwise the code
+   will not arrive. This step goes away with your own WhatsApp number.
+
+
+
+2. HOW TO USE IT
+
+ - Message the business WhatsApp number, like a normal chat.
+
+ - Ask in plain English: "What flights go out tomorrow?"
+
+ - For any change, the bot first says what it will do.
+   Reply CONFIRM within 5 minutes to go ahead.
+   Any other reply cancels it.
+
+ - Times are shown on a 24-hour clock, in your time zone.
+   Say "I'm in London" and it switches.
+
+
+
+3. MODULES COVERED
+
+ - Dashboard
+ - Trips, Schedule, Flight Tracking, Itineraries
+ - Empty Legs
+ - Clients, Leads, Trip Requests, Quotes
+ - Operators, Aircraft
+ - Receivables (invoices), Operator Payments, Commissions
+ - Transactions, Reports
+ - Tasks
+
+
+
+4. MODULES NOT COVERED, AND WHY
+
+ - Users & Roles, Settings
+   Too sensitive for a chat. Who can do what, and the system settings,
+   stay on the screen only.
+
+ - Document Vault
+   Holds passports and IDs. These are never sent through WhatsApp or
+   to the AI.
+
+ - Email Templates, Operator Sourcing
+   These send emails to clients and operators. The bot never emails
+   anyone on your behalf.
+
+ - Data Import & Export
+   File work, easier on a computer.
+
+ - Airports
+   Reference data that rarely changes.
+
+ - Referrals, Client Portal
+   These belong to your referral partners and clients, not to the desk.
+
+
+
+5. WHAT YOU CAN DO, MODULE BY MODULE
+
+
+Dashboard
+
+ - See today's, this week's, month's or year's headline figures.
+ - See trips waiting for your approval.
+
+
+Trips, Schedule and Flight Tracking
+
+ - See flights on any day or date range.
+ - Get full details of a trip (client, aircraft, route, passengers, price).
+ - See flight status.
+ - Approve or decline a trip (with a reason).
+ - Change a trip's status.
+ - Reassign a trip to another broker.
+
+
+Itineraries
+
+ - Get a trip's itinerary as a PDF in the chat.
+
+
+Empty Legs
+
+ - See available empty legs (route, aircraft, price, expiry).
+
+
+Clients
+
+ - Find a client by name, email or phone.
+ - See a client's notes, follow-ups and money on account.
+ - Add an internal note.
+ - Set a follow-up date.
+ - Reassign a client to another broker.
+
+
+Leads and Trip Requests
+
+ - See leads by stage, and recent trip requests.
+ - Add a new lead (with a trip request if you like).
+
+
+Quotes
+
+ - See quotes and their status.
+ - Get a quote as a PDF in the chat.
+ - Mark a quote as sent (this emails nobody).
+
+
+Operators and Aircraft
+
+ - Look up an operator or an aircraft.
+
+
+Receivables (invoices)
+
+ - See invoices and what is still owed.
+ - Get an invoice as a PDF in the chat.
+ - Record a payment against an invoice.
+
+
+Operator Payments
+
+ - See what operators have billed and what is still to pay.
+
+
+Commissions
+
+ - See commissions and whether they are paid.
+
+
+Transactions and Reports
+
+ - See recent money movements.
+ - Get revenue, profit and margin for any period.
+
+
+Tasks
+
+ - See open tasks.
+ - Create a task.
+ - Mark a task as done.
+
+
+
+Best regards.

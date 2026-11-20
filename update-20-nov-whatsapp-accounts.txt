@@ -1,0 +1,92 @@
+WhatsApp assistant - accounts we need from you
+
+
+Hello Ari,
+
+Right now the WhatsApp assistant runs on our developer accounts, so you
+could start using it straight away:
+
+ - The AI (OpenAI) key is our developer's key.
+
+ - The WhatsApp number is Meta's free test number, on our developer's
+   Meta account. It can only message 5 pre-approved phone numbers.
+
+Before going live with your team and real clients, it should run on
+your own accounts. Here is what we need.
+
+
+
+1. OPENAI (THE AI)
+
+What:
+
+ - An OpenAI account with a payment card.
+
+ - One API key.
+
+Where:
+
+ 1. Go to platform.openai.com and sign up (or log in).
+
+ 2. Settings > Billing: add a payment card.
+    You pay only for what the bot uses.
+
+ 3. Settings > API keys > "Create new secret key". Copy it.
+
+Then:
+
+ - Paste the key yourself in Settings > WhatsApp & AI > OpenAI,
+   and click "Test connection".
+
+ - Please do not send the key by email or chat.
+
+
+
+2. META (WHATSAPP)
+
+What:
+
+ - A Meta Business account for Tribeca Jets.
+
+ - A phone number for the business that is NOT already used on the
+   WhatsApp app (a new number is easiest).
+
+ - A payment card in WhatsApp (Meta charges per conversation after a
+   free allowance).
+
+Where:
+
+ 1. Go to business.facebook.com and create a business account for
+    Tribeca Jets (if you do not have one).
+
+ 2. Settings > Users > People: add our developer as an admin.
+    We then set up the WhatsApp connection inside your account for you.
+
+ 3. Have the business phone number ready to receive a code by SMS or
+    call during setup.
+
+Then:
+
+ - We put the WhatsApp details into your Settings page.
+
+ - With your own number, the 5-phone test limit goes away.
+
+
+
+3. ONE QUESTION FOR YOU
+
+To answer a question, the assistant sends the related CRM details
+(names, trips, figures) to OpenAI.
+
+ - OpenAI does not train its AI on this data.
+
+ - The assistant asks OpenAI not to save the conversations.
+
+ - Passports and ID documents are never sent.
+
+Are you happy for real client data to be used this way?
+We need your OK before the CRM holds real clients.
+
+
+
+Best regards.
