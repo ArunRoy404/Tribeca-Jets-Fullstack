@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { Copy, Eye, EyeOff, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import CommonInput from "@/components/common/CommonInput";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import SettingsButton from "@/components/settings/SettingsButton";
+import IconActionButton from "@/components/common/IconActionButton";
 import { useCopyToClipboard } from "@/hooks/common/useCopyToClipboard";
 import SettingsPasswordDialog from "./SettingsPasswordDialog";
 
@@ -76,8 +77,11 @@ export default function SecretField({
 
   return (
     <div className="flex w-full flex-col gap-2">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div className="min-w-0 flex-1">
+      {/* The buttons sit beside the input and wrap under it only when the
+          row is too narrow; items-end keeps them level with the input, not
+          its label. */}
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-40 flex-1">
           <CommonInput
             key={editing ? "edit" : "saved"}
             name={id}
@@ -94,30 +98,30 @@ export default function SecretField({
             }}
           />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           {editing ? (
             <>
-              {onGenerate && <SettingsButton type="button" onClick={generate}>Generate</SettingsButton>}
-              {showGenerated && <SettingsButton type="button" onClick={() => copy(value)}>Copy</SettingsButton>}
-              <SettingsButton type="button" onClick={cancel}>Cancel</SettingsButton>
+              {onGenerate && <IconActionButton icon={Sparkles} label="Generate a new value" tone="primary" onClick={generate} />}
+              {showGenerated && <IconActionButton icon={Copy} label="Copy" tone="success" onClick={() => copy(value)} />}
               {secret?.set && value !== null && (
-                <SettingsButton type="button" onClick={() => setClearing(true)}>Clear</SettingsButton>
+                <IconActionButton icon={Trash2} label="Clear" tone="destructive" onClick={() => setClearing(true)} />
               )}
+              <IconActionButton icon={X} label="Cancel" onClick={cancel} />
             </>
           ) : (
             <>
               {shown ? (
                 <>
-                  <SettingsButton type="button" onClick={() => copy(revealed)}>Copy</SettingsButton>
-                  <SettingsButton type="button" onClick={() => setRevealed(null)}>Hide</SettingsButton>
+                  <IconActionButton icon={Copy} label="Copy" tone="success" onClick={() => copy(revealed)} />
+                  <IconActionButton icon={EyeOff} label="Hide" tone="primary" onClick={() => setRevealed(null)} />
                 </>
-              ) : secret?.set && <SettingsButton type="button" onClick={() => {
+              ) : secret?.set && <IconActionButton icon={Eye} label="View" tone="primary" onClick={() => {
                 onView?.();
                 setError(null);
                 setAsking(true);
-              }}>View</SettingsButton>}
-              {onGenerate && <SettingsButton type="button" onClick={generate}>Generate</SettingsButton>}
-              <SettingsButton type="button" onClick={edit}>Edit</SettingsButton>
+              }} />}
+              {onGenerate && <IconActionButton icon={Sparkles} label="Generate a new value" tone="primary" onClick={generate} />}
+              <IconActionButton icon={Pencil} label="Edit" onClick={edit} />
             </>
           )}
         </div>

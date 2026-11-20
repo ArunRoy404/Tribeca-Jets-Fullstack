@@ -1,7 +1,9 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Copy } from "lucide-react";
 import CommonInput from "@/components/common/CommonInput";
+import IconActionButton from "@/components/common/IconActionButton";
 import CommonSelect from "@/components/common/CommonSelect";
 import SecretField from "@/components/common/secret-field/SecretField";
 import SettingsPasswordDialog from "@/components/common/secret-field/SettingsPasswordDialog";
@@ -316,10 +318,10 @@ function WhatsappSettingsCards({ settings, onDirtyChange }) {
           message={metaMessage}
         />
         <div className="flex w-full flex-wrap items-end gap-2">
-          <div className="min-w-0 flex-1">
+          <div className="min-w-40 flex-1">
             <CommonInput name="whatsapp-webhook-url" label="Webhook URL" value={settings.webhookUrl} readOnly />
           </div>
-          <SettingsButton type="button" onClick={() => copyUrl(settings.webhookUrl)}>Copy URL</SettingsButton>
+          <IconActionButton icon={Copy} label="Copy webhook URL" tone="success" onClick={() => copyUrl(settings.webhookUrl)} />
         </div>
         {localUrl && <p className="text-sm text-muted-foreground">
           Meta needs a public HTTPS address. Locally, paste your tunnel&apos;s address with /api/webhooks/whatsapp instead.

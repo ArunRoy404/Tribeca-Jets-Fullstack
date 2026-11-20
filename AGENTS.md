@@ -1686,6 +1686,13 @@ This project uses shadcn/ui (the `base-nova` style, built on Base UI — `@base-
 - **Forms**: use `CommonInput` (`src/components/common/CommonInput.jsx`) for every text/email/password/textarea field — pass `type`. Password show/hide state lives inside `CommonInput`, not in the parent. Use `CommonOTPInput` for any digit-code input.
 - **A secret field on a settings screen is `SecretField`.** It hides the
   stored value by default and holds a revealed value only while it is shown.
+- **A button beside an input is `IconActionButton`** (`components/common/`,
+  developer's rule, 20 Nov 2026): an icon, the input's own height (`h-10`),
+  a tooltip that is also its accessible name, and a tone (neutral, primary,
+  success, destructive) from the theme tokens. A text button beside an
+  input stood taller than it and looked broken. The row is `flex flex-wrap
+  items-end`, so the buttons stay beside the input and wrap only when
+  narrow.
 - **Icons**: prefer the Figma-exported SVGs under `public/dashboard/icons/` and `public/auth/icons/`. Only reach for `lucide-react` when Figma didn't export the icon you need (e.g. the password-hidden `EyeOff` state, or icons shadcn primitives require internally like sidebar/dropdown chevrons) — and when mixing is unavoidable for a matched pair (e.g. show/hide eye), use the same icon family for both states rather than mixing Figma + lucide within one control.
 - **Images**: always `next/image`, never `<img>`, never the `unoptimized` prop. Local assets under `public/` need no remote-pattern config. Use `fill` + a sized `relative` parent for background/cover photos, explicit `width`/`height` for everything else.
 - **An authenticated upload needs `next/image`'s `loader` prop, not the default.** `GET /uploads/:id` requires a session, and the default loader resolves a relative `src` with its own *server-side* fetch — one with no access to the browser's httpOnly cookie, so it 401s and the image never renders. Every image built from `uploadUrl()` needs `loader={passthroughImageLoader}` (`src/services/uploads.service.js`), which hands the URL straight to the browser instead — the same reasoning this app's download links already rely on a real browser request for. A static file under `public/` never needs this.
