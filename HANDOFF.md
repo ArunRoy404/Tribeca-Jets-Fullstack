@@ -310,32 +310,27 @@ for a review, and how the owner likes to work, is in
 
 ### What is next
 
-1. **The owner's acceptance test, when the developer resumes it** — the 9 Nov
-   batch (`update-09-nov.txt` is what the client was told) and #31–#34. Tell
-   the owner what changed on 10 Nov, since it differs from the 9 Nov message:
-   a broker can no longer create or book a trip straight into Confirmed;
-   only a trip waiting for approval can be declined; a broker editing a
-   declined trip sends it back for approval; "Approve trips" and "Reassign
-   trips" are per-person permissions in Users & Roles; broker pickers now
-   list administrators too.
-2. **A decision for the owner:** archiving a trip leaves its open system
-   tasks on the Tasks Board (see Known findings).
-3. **Deploy when the developer says** — `git push deploy roy:main` is theirs
+1. **Acceptance, split as of 20 Nov:** the **developer** tests #31–#34
+   (Import / Export, PDF generator, Client Portal, AI Assistant); **Ari
+   tests on their own** on production. The developer has already had Ari's
+   feedback on the 9 Nov batch (`update-09-nov.txt`) and will hand it over
+   — **that feedback is the next batch of work.**
+2. **Deploy when the developer says** — `git push deploy roy:main` is theirs
    to run.
-4. Small, optional: move the five older Postman builders onto
+3. Small, optional: move the five older Postman builders onto
    `builder_common`; the Leads table's 100-enquiry window (Known findings).
-5. **WhatsApp AI Integration — done and live (20 Nov).** Left, for the
+4. **WhatsApp AI Integration — done and live (20 Nov).** Left, for the
    owner: their OK to send real client data to OpenAI before production
    holds real clients. Optional later: other staff using the bot as
    themselves (changes the owner's rule that only the Super Admin uses
    it), and naming the phone on each module's own timeline (today only
    the History tab shows which phone acted).
-6. **The four Known findings were fixed on 20 Nov** (session log): the
+5. **The four Known findings were fixed on 20 Nov** (session log): the
    assigned broker checked the same way everywhere, Client Credits on a
    permission (`CLIENTS · VIEW_MONEY`), full-name search in every list,
-   and an archived trip's system tasks archived with it. **Not yet
-   deployed** — the next `git push deploy roy:main` carries two migrations
-   (the permission grant, `Task.systemKind`).
+   and an archived trip's system tasks archived with it. **Deployed
+   20 Nov** (`main` at `38309ac`) with its two migrations (the permission
+   grant, `Task.systemKind`).
 
 ### The stage: module-by-module review
 
