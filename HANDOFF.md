@@ -271,10 +271,14 @@ for a review, and how the owner likes to work, is in
   generator, Client Portal, AI Assistant) and the client's 9 Nov feedback
   batch are built and verified but **not yet owner tested**.
 - **On hold by the developer's choice (10 Nov):** the owner's click-through,
-  and deploying to production. Production runs `ff1c538` (17 Nov, deployed
-  by the developer; production is still a test environment with test data).
-  Everything after it is on `roy`, including the WhatsApp assistant and its
-  migrations, which the API applies on start when it is next deployed. Do not deploy or touch `main`
+  and deploying to production. Production runs `3ecdd63` (deployed by the
+  developer 20 Nov; still a test environment with test data), with the
+  WhatsApp assistant live: its own `SETTINGS_ENCRYPTION_KEY` in Dokploy,
+  settings entered and the Super Admin's phone linked in production's panel,
+  Meta's webhook on `https://tribecajetscommandcenter.com/api/webhooks/whatsapp`,
+  and a question answered from production data at 12:07 Dhaka. Meta has one
+  webhook per app, so a local tunnel gets no messages unless Meta is pointed
+  back at it. Do not deploy or touch `main`
   unless the developer asks (see "Git" below).
 - **10 Nov 2026 was a hardening day** (two session-log entries below):
   trip approval made to actually hold and moved to a per-person permission
