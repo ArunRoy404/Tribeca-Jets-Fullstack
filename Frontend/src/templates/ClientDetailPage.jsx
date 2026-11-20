@@ -24,7 +24,6 @@ import TableStatus from "@/components/table/common/TableStatus";
 import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import { useClientsStore } from "@/store/useClientsStore";
 import { useClient, useUpdateClient, useRestoreClient } from "@/hooks/clients";
-import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
 import { toClientRow } from "@/lib/client";
@@ -39,20 +38,13 @@ export default function ClientDetailPage({ params }) {
   const openFollowUpModal = useClientsStore((s) => s.openFollowUpModal);
   const openArchiveModal = useClientsStore((s) => s.openArchiveModal);
 
-  // Money on account is financial data. An assistant holds VIEW_FINANCIALS at
-  // NONE, and the tab is *hidden* rather than shown and refused — a tab that
-  // only ever renders a 403 reads as a broken app, not as a boundary.
   const { canAccess } = usePermissions();
-  const { data: currentUser } = useCurrentUser();
-  const isAssistant = currentUser?.role === "ASSISTANT";
   const mayEdit = canAccess(Module.CLIENTS, Action.EDIT);
   const mayArchive = canAccess(Module.CLIENTS, Action.ARCHIVE);
   const mayCreateTrip = canAccess(Module.TRIPS, Action.CREATE);
   const maySend = canAccess(Module.EMAIL_TEMPLATES, Action.SEND);
   const [composeOpen, setComposeOpen] = useState(false);
-  // Money on account: the API reads it for anyone with Clients · View except
-  // an assistant (client-credits.service.ts).
-  const maySeeMoney = !isAssistant && canAccess(Module.CLIENTS, Action.VIEW);
+  const maySeeMoney = canAccess(Module.CLIENTS, Action.VIEW_MONEY);
   const maySeeInvoices = canAccess(Module.RECEIVABLES, Action.VIEW);
   const maySeeDocuments = canAccess(Module.DOCUMENTS, Action.VIEW);
 

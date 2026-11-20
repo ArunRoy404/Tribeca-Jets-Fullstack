@@ -17,7 +17,6 @@ import {
   useRestoreCredit,
   useUpdateCredit,
 } from "@/hooks/clientCredits";
-import { useCurrentUser } from "@/hooks/auth";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
 
@@ -42,12 +41,7 @@ export default function ClientCreditTab({ client }) {
   const [editing, setEditing] = useState(null);
 
   const { canAccess } = usePermissions();
-  const { data: currentUser } = useCurrentUser();
-  const isAssistant = currentUser?.role === "ASSISTANT";
-  // Money on account is financial data: an assistant never sees this tab's
-  // figures at all, and writing needs Clients · Edit — the same line the API
-  // draws (client-credits.service.ts).
-  const mayWrite = !isAssistant && canAccess(Module.CLIENTS, Action.EDIT);
+  const mayWrite = canAccess(Module.CLIENTS, Action.EDIT) && canAccess(Module.CLIENTS, Action.VIEW_MONEY);
 
   const archived = tab === "Withdrawn";
   const summary = useCreditSummary(clientId);
