@@ -112,18 +112,19 @@ model OperatorQuote {
   /// the same operator twice. Archived rows are excluded so a withdrawn ask
   /// can be re-sent.
   ///
-  /// **The uniqueness is a partial index in SQL, not `@@unique` here.**
+  /// **The uniqueness is a partial index, `WHERE "deletedAt" IS NULL`.**
   /// `@@unique([tripRequestId, operatorId, deletedAt])` does not do it:
   /// Postgres treats NULLs as distinct, so two live rows both carrying
-  /// `deletedAt = NULL` satisfy it and the duplicate gets in. The migration
-  /// creates `operator_quotes_one_live_per_operator` as
-  /// `UNIQUE (...) WHERE "deletedAt" IS NULL` instead.
+  /// `deletedAt = NULL` satisfy it and the duplicate gets in.
   ///
-  /// Prisma cannot express that, so it will not appear in a future
-  /// `migrate diff` — if one ever offers to drop it, keep it. The service
-  /// checks first as well, so the duplicate returns a 409 explaining itself
-  /// rather than a raw constraint violation; the index is what holds when two
-  /// brokers send the same ask at the same moment.
+  /// The index was created by hand in `20260917120000_operator_sourcing`,
+  /// when Prisma could not express it, and a generated migration would have
+  /// dropped it. Since 20 Nov 2026 the `partialIndexes` preview feature
+  /// declares it here, so the schema knows it. The service checks first as
+  /// well, so the duplicate returns a 409 explaining itself rather than a
+  /// raw constraint violation; the index is what holds when two brokers send
+  /// the same ask at the same moment.
+  @@unique([tripRequestId, operatorId], map: "operator_quotes_one_live_per_operator", where: raw("\"deletedAt\" IS NULL"))
   @@index([tripRequestId, operatorId])
   @@index([tripRequestId, status])
   @@index([operatorId, status])
