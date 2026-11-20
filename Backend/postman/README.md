@@ -241,9 +241,18 @@ label audit after capture.
 
 Run on the prepared 4100 API. The folder signs in as the seeded Super Admin,
 reads the cleared settings, then probes the link-code route while the Meta
-settings are incomplete. It saves fake settings, verifies that a code without
-a link cookie is refused, checks unlinking an empty account, and clears the
-fake settings in the final request.
+settings are incomplete. It saves fake settings, reveals the fake verify
+token, verifies that a code without a link cookie is refused, checks unlinking
+an empty account, and exercises switching the assistant off without a password.
+Teardown switches it off again and clears the fake settings.
+
+- **Reveal a secret** (`POST /settings/whatsapp/reveal`) re-checks the current
+  password and returns one value with `Cache-Control: no-store`. Capture checks
+  the unset and saved states, a wrong password, and a two-factor Admin session.
+- **Switch the assistant** (`PATCH /settings/whatsapp/assistant`) requires the
+  current password only to turn it on. Capture briefly switches it on with
+  fake settings and no linked Super Admin phone. The executable request switches
+  it off. Rebuild `30 · Settings` after the migration to refresh the security view.
 
 The builder signs `security@example.com` in using the log driver's two-factor
 code to capture the Admin's 403 responses. Newman runs as the Super Admin.

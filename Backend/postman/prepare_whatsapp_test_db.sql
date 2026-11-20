@@ -14,7 +14,8 @@ BEGIN
         "appSecret" = NULL,
         "verifyToken" = NULL,
         "phoneNumberId" = NULL,
-        "graphVersion" = 'v25.0';
+        "graphVersion" = 'v25.0',
+        "assistantEnabled" = FALSE;
 
     UPDATE public.users
     SET "whatsappPhone" = NULL,
@@ -27,8 +28,5 @@ BEGIN
 
     DELETE FROM public.verification_codes
     WHERE purpose = 'WHATSAPP_LINK' AND "consumedAt" IS NULL;
-
-    UPDATE public.company_settings
-    SET "whatsappAssistantEnabled" = FALSE;
 END;
 $$;

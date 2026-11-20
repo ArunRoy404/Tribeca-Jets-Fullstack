@@ -65,10 +65,17 @@ To ensure production-grade stability, the 2-day implementation focuses on the to
 
 ## 4. Settings › WhatsApp & AI
 
-Sign in as the Super Admin and open **Settings › WhatsApp & AI**. Use the
-current password to save changes. The panel shows whether each credential is
-set and displays its last four characters when available. Replace or clear
-each credential on its own row. Clearing a credential requires confirmation.
+Sign in as the Super Admin and open **Settings › WhatsApp & AI**. The
+assistant switch is at the top. Turning it on requires the current password.
+Turning it off stops the bot on the next message. The checklist shows whether
+the OpenAI key and model are usable, which Meta settings are missing, whether
+your phone is linked, and whether the server needs an encryption key.
+
+OpenAI and Meta each have one Save for the card's changed fields. Use your
+current password to save. Each credential is masked until you select View
+and enter your current password. The revealed value hides after 30 seconds.
+Clear requires confirmation and takes effect when you save. Use Generate on
+the verify token and copy it before saving so you can paste it into Meta.
 
 - **OpenAI › Test connection** checks the entered or saved API key and lists
   supported chat models. Pick a model and save it on the OpenAI card.
@@ -76,8 +83,9 @@ each credential on its own row. Clearing a credential requires confirmation.
   number ID and Graph version. When connected, it shows the business number
   and verified name. Save the phone number ID and Graph version on the Meta card.
 
-The connection tests read the providers without saving settings or requiring
-the current password.
+The connection tests check the values entered on the card, falling back to
+saved values. A successful test on a card with unsaved edits reminds you to
+save them.
 
 | Field | Where it comes from |
 |---|---|
@@ -86,7 +94,7 @@ the current password.
 | Phone number ID | Meta › WhatsApp › API Setup › Phone number ID |
 | Access token | Meta API Setup for a temporary token. For production use a system user assigned to the app and WhatsApp account, with `whatsapp_business_messaging` and `whatsapp_business_management` |
 | App secret | Meta › App settings › Basic › App secret |
-| Verify token | Make a long random value and use the same value in Meta's webhook form |
+| Verify token | Generate a random value on the Meta card and use the same value in Meta's webhook form |
 | Graph version | Meta Graph API version, defaults to `v25.0` |
 | Webhook URL | Read-only URL from `API_PUBLIC_URL`, with `/api/webhooks/whatsapp` appended |
 | Your phone | Link your own number with the code sent on WhatsApp |
@@ -128,7 +136,8 @@ number ID.
 ### Going to production
 
 1. Back up the production database and review the pending migrations, including
-   `20261120120000_whatsapp_settings`. Deploy only when authorized.
+   `20261120120000_whatsapp_settings` and
+   `20261120130000_whatsapp_assistant_switch_moves`. Deploy only when authorized.
 2. Set `SETTINGS_ENCRYPTION_KEY` in Dokploy and verify that `API_PUBLIC_URL`
    reflects the public HTTPS entry point.
 3. Sign in as the production Super Admin and enter the OpenAI and Meta
@@ -141,8 +150,8 @@ number ID.
    only its recipient list. For free-text codes outside that setup, the
    recipient needs to have opened Meta's customer service window by messaging
    the business number.
-6. Check the company and Super Admin time zones. Turn on **Settings ?
-   Security › WhatsApp assistant (Super Admin)** when ready. That switch
+6. Check the company and Super Admin time zones. Turn on **Settings ›
+   WhatsApp & AI › WhatsApp assistant** when ready. That switch
    stops the bot on the next message when turned off.
 7. After the owner approves sending client data to OpenAI, send one live
    question from the verified phone. Check the reply and try a CONFIRM
@@ -202,6 +211,29 @@ building → 🔍 in review → ✅ reviewed and committed.
 | 7 | **Finish** — Postman folder for the two webhook routes (signed in a pre-request script), docs, deploy when the developer says | 🟡 19 Nov — **Postman done:** `31 · WhatsApp Webhook` (3 requests, 9 examples: verify 200/403/403/400, a message 200/401/401/401, a receipt 200), builder by Codex, captured by Claude on the 4100 test API with test-only WhatsApp values (fake secret, verify token, admin phone and Meta token, no OpenAI key) and messages only from an unknown number, so nothing can reach Meta or OpenAI — the log confirms none did. Fixed in capture: the signing script redeclared the sandbox global `CryptoJS` (a SyntaxError Newman showed and a mocked runtime did not; AGENTS rule added). Newman green twice; collection 793 examples, 0 mislabelled. Codex stopped once (the brief showed the POST answer without the `{ success, data }` envelope). Docs pass done the same day (HANDOFF state, session log and What is next; the production checklist above gained migrations, the time zone check and a live check). **Left:** the deploy, when the developer says. |
 | 8 | **WhatsApp & AI settings** — sealed credentials, password re-check and a verified phone linked to the Super Admin (§7) | ✅ 20 Nov — **8a ✅** built by Codex (8a, then 8a-2 after the developer's review: connection tests for OpenAI and Meta, a model picker filled from the key, per-row Save / Cancel for secrets, the one-off `whatsapp:import-env`), reviewed by Claude. Codex stopped four times, all right: the verification service could not carry the phone (now a nullable `target`, PASSWORD_RESET alone stays "verified"); `sendText` is boolean (fixed message, no Meta status); `config.ai` had no reader but the bot and health (eleven env variables removed, one added: `SETTINGS_ENCRYPTION_KEY`); and **errors echoed and logged the query string** — the verify token and searched client names — fixed for every route in `AllExceptionsFilter`. Claude's one change after the live check: the code message says to enter it in Settings, not the chat. Backend 86 files / 1032, tsc, oxlint; frontend lint and build. **Live, 20 Nov 01:20–01:30 Dhaka:** migration applied; the import sealed the four Meta values (stored `v1:…`, audit names only); the screen showed each secret as "Set · ends in …"; the Meta test answered "Connected: +1 555-138-2534 · Test Number"; the link code arrived on WhatsApp and linked the Super Admin's number (`user.whatsapp_linked`, last four only; code consumed); a question from that phone was answered. **8b ✅** Postman, built by Codex (one stop, right: `security@` has two-factor on, so its 403s are captured through `two_factor_session()`), captured and run by Claude on `tribeca_postman`. New `prepare_whatsapp_test_db.sql` blanks the copy's sealed credentials and linked phones, switches the assistant off and gives `broker@` the fixture `15550000777`; it refuses any other database (tried on dev: refused, nothing changed). `31 · WhatsApp Webhook` now saves fake Meta settings through the API in `00 · Setup` and clears them in its teardown (the env block is gone from the README); new `32 · WhatsApp Settings` (6 requests, 13 examples: 200/403 read, 400/409/400 send-code with no 200, 200/400/400/403 save, 400 verify, 200/400 unlink). The connection tests are documented in the folder description, never run. Newman: each folder alone twice and together, 0 failures (31: 11 assertions, 32: 12); label audit 808 examples, 0 mislabelled; the 4100 log shows no connection test, send or reply, so no call reached Meta or OpenAI. **Production, 20 Nov:** `3ecdd63` deployed; a new `SETTINGS_ENCRYPTION_KEY` in Dokploy; settings entered and the phone linked in production's panel; Meta's webhook verified against production (a first 404 was an unsaved Meta field: the webhook stays hidden until all four are saved); the assistant switched on; "what flights do we have this week?" answered from production data at 12:07 Dhaka. |
 
+**8c ✅ 20 Nov — the tab reworked after the production setup** (built by
+Codex, reviewed, captured and live-checked by Claude). The developer's
+decisions: the switch moves to WhatsApp & AI, Super Admin only, on needs the
+password and off does not; secrets are hidden by default and viewable one at
+a time after the password, audited, **no rate limit**; the verify token gets
+Generate; one Save per card (a forgotten per-row Save caused production's
+first webhook 404). Built: `whatsapp_settings.assistantEnabled` (migration
+`20261120130000` copies the value and drops the company column — on dev the
+switch stayed on, keys untouched), `PATCH …/assistant`, `POST …/reveal`
+(`no-store`, audit `whatsapp_settings.revealed` with the field only), view
+adds `masked`, `assistantEnabled` and `readiness` (the readiness check and
+the webhook's 404 share one function), shared `SecretField`. Codex stopped
+once, right: the brief's "no secret in a URL" read as covering Meta's own
+`hub.verify_token`; clarified. Claude's change after the developer's look:
+Generate sits beside View and Edit, not only inside Edit. Backend 86 files /
+1046, tsc, oxlint; frontend lint and build. Postman: `30 · Settings`
+recaptured (no switch in Security), `32 · WhatsApp Settings` 9 requests /
+22 examples (reveal 400/200/400/403, switch 200/400/400/200); Newman 30,
+31, 32 each alone twice and together, 0 failures (40 assertions); label
+audit 817 examples, 0 mislabelled; the 4100 log has no outbound call and no
+secret value. **Not yet on production** — the migration applies on the next
+deploy and keeps production's switch on.
+
 **Needed from the developer / owner:**
 
 | Item | For | State |
@@ -239,11 +271,12 @@ Desk action proposals and confirmation are available only through the webhook.
 ## 7. WhatsApp & AI settings (20 Nov 2026)
 
 The Super Admin enters the assistant's OpenAI and Meta values in the
-panel. The key, access token, app secret and verify token are write-only
-and sealed with AES-256-GCM using `SETTINGS_ENCRYPTION_KEY`. Reads show
-readiness and the last four characters when available. A settings change
-requires the current password and records the changed field names in the
-audit trail.
+panel. The key, access token, app secret and verify token are hidden by
+default and sealed with AES-256-GCM using `SETTINGS_ENCRYPTION_KEY`. Reads
+include the mask and the last four characters when available. Reveal requires
+the current password and returns one value with `Cache-Control: no-store`.
+The audit trail records the revealed field name. Saving provider settings
+requires the current password and records the changed field names.
 
 To link a number, enter it with its country code and re-enter the current
 password. The business number sends a six-digit code. Enter that code in
@@ -254,10 +287,12 @@ phone against the caller's own account. The phone is unique across
 accounts. Unlinking also needs the current password.
 
 The webhook acts as the active Super Admin with the verified sending
-number, checking the account on each message. Settings › Security retains
-the lost-phone switch. `GET /api/health` reports whether the panel has a
+number, checking the account on each message. The lost-phone switch lives
+in `whatsapp_settings` and on Settings › WhatsApp & AI. Turning it off
+requires only the Super Admin session. `GET /api/health` reports whether the panel has a
 readable OpenAI key and a model. Ask Anything continues to use its own
 CRM-backed service.
 
-The single additive migration creates the settings and verification fields.
+The first migration creates the settings and verification fields. The
+switch migration copies its existing value out of company settings.
 Deployment, live validation, and Postman capture are separate review steps.

@@ -10,13 +10,15 @@ from build_users_folder import ADMIN_2FA, two_factor_session
 from builder_common import BASE, PASSWORD, WRITE_HEADERS, Session, copy_folder_login, script, url
 from collection_order import place_folder
 from whatsapp_postman import (
-    CLEAR_SETTINGS, CLEARED_VIEW, COLLECTION, FAKE_SETTINGS, OWNER, SETTINGS_ROUTE, TEST_BASE,
-    capture_prepared_view, capture_settings_example, capture_settings_patch, documented_body,
+    CLEAR_SETTINGS, CLEARED_VIEW, COLLECTION, FAKE_SETTINGS, OWNER, SAVED_VIEW, SETTINGS_ROUTE, TEST_BASE,
+    VERIFY_TOKEN, assert_view, capture_prepared_view, capture_settings_example, capture_settings_patch, documented_body,
     settings_patch_request, teardown_request,
 )
 
 PHONE_ROUTE = SETTINGS_ROUTE + '/phone'
 VERIFY_ROUTE = PHONE_ROUTE + '/verify'
+REVEAL_ROUTE = SETTINGS_ROUTE + '/reveal'
+ASSISTANT_ROUTE = SETTINGS_ROUTE + '/assistant'
 LINKED_BROKER_PHONE = '15550000777'
 WRONG_PASSWORD = 'postman-wrong-password'
 WRONG_PASSWORD_MESSAGE = 'Your current password is incorrect'
@@ -24,10 +26,16 @@ NOT_SUPER_ADMIN = 'These settings belong to the Super Admin.'
 META_INCOMPLETE = 'Finish the Meta settings first'
 NO_LINK_SESSION = 'This verification session has expired. Please start again.'
 PROBE_CODE = {'code': '000000'}
+REVEAL_PROBE = {'field': 'verifyToken', 'currentPassword': PASSWORD}
+REVEALED = {'field': 'verifyToken', 'value': VERIFY_TOKEN}
+SWITCH_OFF = {'enabled': False}
+SWITCH_ON = {'enabled': True, 'currentPassword': PASSWORD}
+PASSWORD_NEEDED = 'currentPassword is required to switch on the assistant'
 
 FOLDER_DESCRIPTION = """The Super Admin manages the WhatsApp assistant's credentials and links their own phone here.
 Prepare the isolated 4100 database using `postman/README.md` before capture or Newman.
-The run saves fake Meta settings and clears them in its last request. The Admin 403 examples
+The run saves fake Meta settings, reveals the fake verify token, switches the assistant off,
+and switches it off again and clears settings in teardown. The Admin 403 examples
 come from a separate two-factor session during capture.
 
 ## Not in this folder: the connection tests
@@ -36,14 +44,14 @@ Both endpoints require the Super Admin session and CSRF header. Send a JSON obje
 the optional fields below. Omitted fields use the saved settings. The rate limit is 10 requests
 per 15 minutes before the test multiplier. A connection test contacts its provider.
 
-**06 · `POST /settings/whatsapp/openai/test`**
+**`POST /settings/whatsapp/openai/test`**
 
 - `apiKey` is an optional trimmed OpenAI API key of 1–4096 characters.
 - `200` returns `{ ok: true, models: string[] }` in `data`, with the available chat model IDs.
 - `400` means the key is missing or OpenAI refused it. `502` means the API could not reach
   OpenAI or could not use its response.
 
-**07 · `POST /settings/whatsapp/meta/test`**
+**`POST /settings/whatsapp/meta/test`**
 
 - `accessToken` is an optional trimmed Meta access token of 1–4096 characters.
 - `phoneNumberId` is an optional trimmed Meta phone number ID of 1–40 digits.
@@ -62,6 +70,7 @@ def read_request(examples: list[dict]) -> dict:
         'name': '01 · Read WhatsApp settings',
         'event': [script('test', [
             "pm.variables.set('whatsappPhoneProbeReady', 'no');",
+            "pm.variables.set('whatsappRevealProbeReady', 'no');",
             "pm.test('200 OK', () => pm.response.to.have.status(200));",
             'if (pm.response.code === 200) {',
             '    const settingsView = pm.response.json().data;',
@@ -75,8 +84,9 @@ def read_request(examples: list[dict]) -> dict:
         ])],
         'request': {
             'method': 'GET', 'header': [], 'url': url(SETTINGS_ROUTE),
-            'description': 'Each secret is represented by `{ set, last4 }`. A missing secret has `set: false` '
-                           'and `last4: null`. Secrets of four or fewer characters have no displayed suffix.',
+            'description': 'Each secret is represented by `{ set, last4, masked }`. Unset secrets have '
+                           '`last4: null` and `masked: null`. Short secrets have twelve mask bullets without a suffix. '
+                           'The view also reports the assistant switch and the four setup checks.',
         },
         'response': examples,
     }
@@ -131,6 +141,24 @@ def send_code_request(owner: Session) -> dict:
     return request
 
 
+def switch_request(name: str, examples: list[dict]) -> dict:
+    return {
+        'name': name,
+        'event': [script('test', [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('The assistant is off', () => pm.expect(pm.response.json().data.assistantEnabled).to.equal(false));",
+        ])],
+        'request': {
+            'method': 'PATCH', 'url': url(ASSISTANT_ROUTE), 'header': WRITE_HEADERS,
+            'body': documented_body(SWITCH_OFF),
+            'description': 'Send a boolean `enabled`. Switching on requires the current password and is allowed '
+                           'before setup is complete. Switching off is immediate. An optional password on an off '
+                           'request is accepted and does not trigger a password check. Returns the full settings view.',
+        },
+        'response': examples,
+    }
+
+
 def capture() -> list[dict]:
     owner = Session(OWNER)
     prepared = capture_prepared_view(owner)
@@ -140,6 +168,8 @@ def capture() -> list[dict]:
         capture_settings_example(admin, '403 · Not the Super Admin', 'GET', SETTINGS_ROUTE, message=NOT_SUPER_ADMIN),
     ])
     send = send_code_request(owner)
+    unset = capture_settings_example(owner, '400 · Not set', 'POST', REVEAL_ROUTE,
+                                     REVEAL_PROBE, message='That secret is not set')
     save_errors = [
         capture_settings_example(owner, '400 · Wrong password', 'PATCH', SETTINGS_ROUTE,
                                  {'currentPassword': WRONG_PASSWORD, **FAKE_SETTINGS}, message=WRONG_PASSWORD_MESSAGE),
@@ -156,9 +186,34 @@ def capture() -> list[dict]:
             'values. `openaiModel` is optional, trimmed and 1–100 characters when set. '
             '`openaiApiKey` is an optional trimmed key of 1–4096 characters. Both accept `null` to clear. '
             'This request sets only fake Meta values. The response masks all four secrets.', [saved, *save_errors],
+            verified_flag='whatsappRevealProbeReady',
         )
+        shown = capture_settings_example(owner, '200 · Shown', 'POST', REVEAL_ROUTE, REVEAL_PROBE)
+        assert_view(shown, REVEALED, 'The reveal did not return the fake verify token.')
+        reveal = phone_request(
+            '04 · Reveal a secret', 'POST', REVEAL_ROUTE,
+            {**REVEAL_PROBE, 'currentPassword': '{{whatsappRevealProbePassword}}'},
+            'Re-checks the current password and returns one secret as `{ field, value }` with '
+            '`Cache-Control: no-store`. The executable request reveals only the fake verify token. '
+            'An unreadable secret returns 409.',
+            [unset, shown,
+             capture_settings_example(owner, '400 · Wrong password', 'POST', REVEAL_ROUTE,
+                                      {**REVEAL_PROBE, 'currentPassword': WRONG_PASSWORD}, message=WRONG_PASSWORD_MESSAGE),
+             capture_settings_example(admin, '403 · Not the Super Admin', 'POST', REVEAL_ROUTE,
+                                      REVEAL_PROBE, message=NOT_SUPER_ADMIN)],
+            200, REVEALED,
+        )
+        reveal['event'][0]['script']['exec'].append(
+            "pm.test('Cache-Control is no-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.equal('no-store'));"
+        )
+        reveal['event'].insert(0, script('prerequest', [
+            f"const revealReady = pm.variables.get('baseUrl') === {json.dumps(TEST_BASE)} &&",
+            "    pm.variables.get('whatsappPhoneProbeReady') === 'yes' &&",
+            "    pm.variables.get('whatsappRevealProbeReady') === 'yes';",
+            "pm.variables.set('whatsappRevealProbePassword', revealReady ? pm.collectionVariables.get('password') : '');",
+        ]))
         verify = phone_request(
-            '04 · Verify the link code', 'POST', VERIFY_ROUTE, PROBE_CODE,
+            '05 · Verify the link code', 'POST', VERIFY_ROUTE, PROBE_CODE,
             'Checks the six-digit code against the `tj_whatsapp_link` cookie. '
             'A successful `200` clears the cookie and returns the linked `phone` and `verifiedAt` in `data`. '
             f'Without the cookie the API returns `400` with “{NO_LINK_SESSION}”',
@@ -170,15 +225,27 @@ def capture() -> list[dict]:
         unlinked = capture_settings_example(owner, '200 · Nothing to unlink', 'DELETE', PHONE_ROUTE,
                                             {'currentPassword': PASSWORD})
         unlink = phone_request(
-            '05 · Unlink WhatsApp', 'DELETE', PHONE_ROUTE, {'currentPassword': '{{password}}'},
+            '06 · Unlink WhatsApp', 'DELETE', PHONE_ROUTE, {'currentPassword': '{{password}}'},
             'Checks the current password, clears the linked number and cookie, and consumes pending link codes. '
             'The response is `data.linkedPhone: null`, including when the Super Admin had no linked number.',
             [unlinked, unlink_refused], 200, {'linkedPhone': None},
         )
+        switch_errors = [
+            capture_settings_example(owner, '400 · Password needed to switch on', 'PATCH', ASSISTANT_ROUTE,
+                                     {'enabled': True}, message=PASSWORD_NEEDED),
+            capture_settings_example(owner, '400 · Wrong password', 'PATCH', ASSISTANT_ROUTE,
+                                     {**SWITCH_ON, 'currentPassword': WRONG_PASSWORD}, message=WRONG_PASSWORD_MESSAGE),
+        ]
+        switched_on = capture_settings_example(owner, '200 · Switched on', 'PATCH', ASSISTANT_ROUTE, SWITCH_ON)
+        assert_view(switched_on, {**SAVED_VIEW, 'assistantEnabled': True}, 'The assistant was not switched on.')
     finally:
+        switched_off = capture_settings_example(owner, '200 · Switched off', 'PATCH', ASSISTANT_ROUTE, SWITCH_OFF)
         cleared = capture_settings_patch(owner, '200 · Test settings cleared', CLEAR_SETTINGS)
 
-    return [read, send, save, verify, unlink, teardown_request(cleared)]
+    assert_view(switched_off, SAVED_VIEW, 'The assistant was not switched off.')
+    switch = switch_request('07 · Switch the assistant', [switched_on, *switch_errors, switched_off])
+    teardown_switch = switch_request('Teardown — switch the assistant off', [switched_off])
+    return [read, send, save, reveal, verify, unlink, switch, teardown_switch, teardown_request(cleared)]
 
 
 def main() -> None:

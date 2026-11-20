@@ -726,7 +726,7 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 | Inactivity timeout (Security) | Auth — `/auth/me` and the refresh check | — (env var removed 7 Oct) | ✅ |
 | Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` via `/auth/me` → `session` | — | ✅ |
 | Require 2FA for admins (Security) | Auth — sign-in (SUPER_ADMIN and ADMIN) | — | ✅ |
-| WhatsApp assistant on/off (Security, 16 Nov) | WhatsApp — `WhatsappService`, on every incoming message | — (new; off by default) | ✅ |
+| WhatsApp assistant on/off (WhatsApp & AI, 20 Nov) | `WhatsappService`'s incoming-message gate reads `whatsapp_settings.assistantEnabled` | Off by default | 🔍 8c awaiting review |
 | OpenAI key and model (WhatsApp & AI, 20 Nov) | `WhatsappSettingsService.ai()` supplies the bot, CLI and health readiness | Assistant reports unavailable | 🔍 8a awaiting review |
 | Meta token, app secret, verify token, phone number ID and Graph version | `WhatsappSettingsService.current()` supplies the webhook, sender and link flow | Webhook 404, link-code send 400 | 🔍 8a awaiting review |
 | Super Admin's verified phone | `WhatsappService` checks the account on each message | Message silently dropped | 🔍 8a awaiting review |

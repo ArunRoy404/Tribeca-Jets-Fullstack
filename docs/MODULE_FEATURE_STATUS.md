@@ -1902,13 +1902,16 @@ has five sections, the open one in the URL (`?section=`).
   Sessions (#1).
 - **CRM & Quote Defaults** and **Notifications & Automation** — saved and
   shown; each screen says what reads them and when (below).
-- **WhatsApp & AI** (20 Nov, awaiting review) is visible to the Super Admin.
-  The panel accepts credentials for sealed storage and shows their masked
-  status. Linking verifies a code sent on WhatsApp, and sending a code or
-  unlinking requires the current password.
-  Each credential has its own Save or Clear flow. The OpenAI connection test
-  lists chat models and the Meta test shows the business number and verified
-  name. The webhook URL shows tunnel guidance on localhost.
+- **WhatsApp & AI** (20 Nov, step 8c awaiting review) is visible to the Super
+  Admin. Its assistant switch shows setup readiness. Turning on requires
+  the current password and turning off takes effect on the next message.
+  Credentials are sealed and masked by default. Viewing one requires the
+  current password and is audited by field name. OpenAI and Meta each have
+  one Save for changed fields, with a prompt before leaving unsaved edits.
+  The Meta card can generate a verify token. Connection tests use typed or
+  saved settings and show when edits still need saving. Linking verifies a
+  code sent on WhatsApp. Sending a code or unlinking requires the current
+  password. The webhook URL shows tunnel guidance on localhost.
 - Read-only without Settings · Edit: no Save, no upload, controls disabled.
 - Postman `30 · Settings` — 5 requests, 16 captured examples, restores every
   value it changes; 12 unit tests (branding never leaks, the audit diff,

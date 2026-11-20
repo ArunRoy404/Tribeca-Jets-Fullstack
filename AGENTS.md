@@ -605,10 +605,12 @@ an item moves:
   database** — the database and Redis URLs, ports, `SETTINGS_ENCRYPTION_KEY`
   and the like. Everything a person should be able to change without a
   redeploy is a candidate for Settings.
-- **A credential is sealed** with `SecretBox` (`common/crypto/secret-box.ts`),
-  **write-only** (a read returns `{ set, last4 }`, never the value), saved
-  only after the current password, audited by field name only, and changed
-  by the role that owns it (`@SuperAdminOnly()` for the assistant's).
+- **A credential is sealed** with `SecretBox` (`common/crypto/secret-box.ts`)
+  and **hidden by default**. A read returns `{ set, last4, masked }`. Only
+  `POST …/reveal` shows the value, after a current-password check, with
+  `Cache-Control: no-store` and an audit entry containing only the field name.
+  Saving also requires the current password and records only field names.
+  The role that owns the credential manages it (`@SuperAdminOnly()` for the assistant's).
 - **The env variable is removed in the same pass** — from
   `env.validation.ts`, `configuration.ts`, `config.service.ts` and
   `.env.example` — so there is one source, never a fallback that drifts.
@@ -1215,15 +1217,21 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
   secret's HMAC of the raw bytes** (`rawBody: true` in `main.ts`). Never
   verify against a re-serialised body — it fails on real traffic and passes
   every hand-made test.
-- **Settings › WhatsApp & AI belongs to the Super Admin.** OpenAI and
-  Meta secrets are write-only and AES-256-GCM sealed using the single
-  server variable `SETTINGS_ENCRYPTION_KEY`. Saving settings, sending a
-  link code and unlinking all re-check the current password. The Super
-  Admin proves their own phone by entering the code sent on WhatsApp,
-  and the bot acts as the active SUPER_ADMIN with that verified number.
+- **Settings › WhatsApp & AI belongs to the Super Admin.** OpenAI and Meta
+  secrets are hidden by default and AES-256-GCM sealed using the single
+  server variable `SETTINGS_ENCRYPTION_KEY`. A read returns
+  `{ set, last4, masked }`. `POST /settings/whatsapp/reveal` re-checks the
+  current password, sets `Cache-Control: no-store`, and audits the field
+  name. The account's wrong-password throttle applies. Saving settings,
+  sending a link code and unlinking also re-check the current password.
+  The bot acts as the active Super Admin who entered the code sent to
+  their own phone.
+- **The assistant switch lives in `whatsapp_settings`**, on Settings ›
+  WhatsApp & AI, and defaults to off. Only the Super Admin can change it.
+  Turning it on requires the current password. Turning it off is immediate
+  and requires only the session.
 - **Every message passes the gates in `WhatsappService` first**: configured,
-  Settings › Security › "WhatsApp assistant" on (off by default — the
-  lost-phone switch), from that phone, not already handled (Meta redelivers;
+  "WhatsApp assistant" on, from that phone, not already handled (Meta redelivers;
   `RedisService.claimOnce`), at most ten minutes old (a queued "approve it"
   must not run after an outage), and the account still an active
   SUPER_ADMIN, re-read per message. A message failing any gate gets **no
@@ -1676,6 +1684,8 @@ This project uses shadcn/ui (the `base-nova` style, built on Base UI — `@base-
   lists everyone who can own a record (`BROKER_ROLES`, via `?role=` with
   several roles); a `getOption` returning null leaves that row out.
 - **Forms**: use `CommonInput` (`src/components/common/CommonInput.jsx`) for every text/email/password/textarea field — pass `type`. Password show/hide state lives inside `CommonInput`, not in the parent. Use `CommonOTPInput` for any digit-code input.
+- **A secret field on a settings screen is `SecretField`.** It hides the
+  stored value by default and holds a revealed value only while it is shown.
 - **Icons**: prefer the Figma-exported SVGs under `public/dashboard/icons/` and `public/auth/icons/`. Only reach for `lucide-react` when Figma didn't export the icon you need (e.g. the password-hidden `EyeOff` state, or icons shadcn primitives require internally like sidebar/dropdown chevrons) — and when mixing is unavoidable for a matched pair (e.g. show/hide eye), use the same icon family for both states rather than mixing Figma + lucide within one control.
 - **Images**: always `next/image`, never `<img>`, never the `unoptimized` prop. Local assets under `public/` need no remote-pattern config. Use `fill` + a sized `relative` parent for background/cover photos, explicit `width`/`height` for everything else.
 - **An authenticated upload needs `next/image`'s `loader` prop, not the default.** `GET /uploads/:id` requires a session, and the default loader resolves a relative `src` with its own *server-side* fetch — one with no access to the browser's httpOnly cookie, so it 401s and the image never renders. Every image built from `uploadUrl()` needs `loader={passthroughImageLoader}` (`src/services/uploads.service.js`), which hands the URL straight to the browser instead — the same reasoning this app's download links already rely on a real browser request for. A static file under `public/` never needs this.

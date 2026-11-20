@@ -42151,7 +42151,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"America/New_York\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-18T18:16:37.746Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"America/New_York\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-18T18:16:37.746Z\"\n  }\n}"
             },
             {
               "name": "403 \u00b7 A broker (Settings is locked for the role)",
@@ -42178,7 +42178,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 View\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:39.251Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 View\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-20T07:34:18.165Z\"\n}"
             },
             {
               "name": "401 \u00b7 Signed out",
@@ -42205,7 +42205,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:41.291Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Unauthorized\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-20T07:34:20.195Z\"\n}"
             }
           ]
         },
@@ -42282,7 +42282,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"America/New_York\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:47:43.348Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"America/New_York\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-20T07:34:22.225Z\"\n  }\n}"
             },
             {
               "name": "200 \u00b7 A logo set (an image upload URL)",
@@ -42300,7 +42300,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/012b78ca-9d8c-493c-9365-920aff21a28a\"\n  }\n}"
+                  "raw": "{\n  \"company\": {\n    \"logoUrl\": \"/api/uploads/ae89a12b-57f6-4b66-9e8f-946a7d6d7a9f\"\n  }\n}"
                 }
               },
               "status": "OK",
@@ -42313,7 +42313,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"Europe/London\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": \"/api/uploads/012b78ca-9d8c-493c-9365-920aff21a28a\",\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 3,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 1,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:48:28.689Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"Europe/London\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": \"/api/uploads/ae89a12b-57f6-4b66-9e8f-946a7d6d7a9f\",\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": false,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 3,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 1,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-20T07:35:07.536Z\"\n  }\n}"
             },
             {
               "name": "200 \u00b7 The company time zone set",
@@ -42344,7 +42344,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"Europe/London\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:47:53.599Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"Europe/London\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-20T07:34:32.515Z\"\n  }\n}"
             },
             {
               "name": "400 \u00b7 A fixed offset is not a time zone",
@@ -42375,7 +42375,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"company.companyTimeZone\": \"Use a time zone name, e.g. America/New_York\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:55.669Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"company.companyTimeZone\": \"Use a time zone name, e.g. America/New_York\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-20T07:34:34.578Z\"\n}"
             },
             {
               "name": "400 \u00b7 Not one of the offered values",
@@ -42406,7 +42406,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults.quoteValidityHours\": \"Quote validity must be one of 12, 24, 48, 72, 168\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:45.409Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults.quoteValidityHours\": \"Quote validity must be one of 12, 24, 48, 72, 168\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-20T07:34:24.286Z\"\n}"
             },
             {
               "name": "400 \u00b7 An unknown field",
@@ -42437,7 +42437,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults\": \"Unrecognized key: \\\"quoteValidity\\\"\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:47.454Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"defaults\": \"Unrecognized key: \\\"quoteValidity\\\"\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-20T07:34:26.339Z\"\n}"
             },
             {
               "name": "400 \u00b7 The warning must come before the timeout",
@@ -42468,7 +42468,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"security.idleWarningMinutes\": \"The warning must come before the timeout\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:49.506Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"security.idleWarningMinutes\": \"The warning must come before the timeout\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-20T07:34:28.401Z\"\n}"
             },
             {
               "name": "400 \u00b7 A document is not a logo",
@@ -42499,7 +42499,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Bad Request Exception\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:48:12.271Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Bad Request Exception\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-20T07:34:51.190Z\"\n}"
             },
             {
               "name": "403 \u00b7 A broker",
@@ -42530,7 +42530,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 Edit\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:51.549Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"You do not have permission for Settings \\u00b7 Edit\",\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-20T07:34:30.455Z\"\n}"
             },
             {
               "name": "200 \u00b7 Rate limits \u2014 a limit set to Never (null)",
@@ -42561,7 +42561,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"Europe/London\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": null,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:47:57.708Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"Europe/London\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 48,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": null,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 5,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-20T07:34:36.633Z\"\n  }\n}"
             },
             {
               "name": "400 \u00b7 A rate limit that is not offered",
@@ -42592,7 +42592,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"rateLimits.failedSignInLimit\": \"Failed sign-ins allowed must be one of 3, 5, 10, 20, or null for Never\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-19T07:47:59.771Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"rateLimits.failedSignInLimit\": \"Failed sign-ins allowed must be one of 3, 5, 10, 20, or null for Never\"\n  },\n  \"path\": \"/api/settings\",\n  \"timestamp\": \"2026-11-20T07:34:38.682Z\"\n}"
             },
             {
               "name": "401 \u00b7 Then, with 3 failed sign-ins allowed, the second wrong password warns",
@@ -42611,7 +42611,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"locked-850ccba4@example.com\",\n  \"password\": \"not-the-password\"\n}"
+                  "raw": "{\n  \"email\": \"locked-0025678e@example.com\",\n  \"password\": \"not-the-password\"\n}"
                 }
               },
               "status": "Unauthorized",
@@ -42624,7 +42624,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password. 1 more failed attempt will pause sign-in for 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-11-19T07:48:06.029Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid email or password. 1 more failed attempt will pause sign-in for 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-11-20T07:34:44.946Z\"\n}"
             },
             {
               "name": "429 \u00b7 \u2026and the third pauses sign-in, saying for how long",
@@ -42643,7 +42643,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"email\": \"locked-850ccba4@example.com\",\n  \"password\": \"not-the-password\"\n}"
+                  "raw": "{\n  \"email\": \"locked-0025678e@example.com\",\n  \"password\": \"not-the-password\"\n}"
                 }
               },
               "status": "Too Many Requests",
@@ -42656,7 +42656,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 429,\n  \"message\": \"Too many failed sign-in attempts. Please try again in 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-11-19T07:48:08.110Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 429,\n  \"message\": \"Too many failed sign-in attempts. Please try again in 1 minute.\",\n  \"path\": \"/api/auth/login\",\n  \"timestamp\": \"2026-11-20T07:34:47.055Z\"\n}"
             },
             {
               "name": "200 \u00b7 Then, with \"require 2FA for administrators\" on, the owner signing in is asked for a code",
@@ -42688,7 +42688,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"ad***@example.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"669107\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"requiresTwoFactor\": true,\n    \"email\": \"ad***@example.com\",\n    \"expiresInSeconds\": 600,\n    \"devCode\": {\n      \"code\": \"100321\",\n      \"notice\": \"SMTP is not configured, so no email was sent. This code is included in the response for development only and never appears once SMTP is set.\"\n    }\n  }\n}"
             }
           ]
         },
@@ -42820,7 +42820,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo?v=012b78ca-9d8c-493c-9365-920aff21a28a",
+                  "raw": "{{baseUrl}}/settings/branding/logo?v=ae89a12b-57f6-4b66-9e8f-946a7d6d7a9f",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -42870,7 +42870,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo has been set.\",\n  \"path\": \"/api/settings/branding/logo\",\n  \"timestamp\": \"2026-11-19T07:48:24.564Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo has been set.\",\n  \"path\": \"/api/settings/branding/logo\",\n  \"timestamp\": \"2026-11-20T07:35:03.431Z\"\n}"
             }
           ]
         },
@@ -42914,7 +42914,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/settings/branding/logo-on-dark?v=012b78ca-9d8c-493c-9365-920aff21a28a",
+                  "raw": "{{baseUrl}}/settings/branding/logo-on-dark?v=ae89a12b-57f6-4b66-9e8f-946a7d6d7a9f",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -42964,7 +42964,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo for dark backgrounds has been set.\",\n  \"path\": \"/api/settings/branding/logo-on-dark\",\n  \"timestamp\": \"2026-11-19T07:48:36.847Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"No logo for dark backgrounds has been set.\",\n  \"path\": \"/api/settings/branding/logo-on-dark\",\n  \"timestamp\": \"2026-11-20T07:35:15.730Z\"\n}"
             }
           ]
         },
@@ -43041,7 +43041,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"companyTimeZone\": \"America/New_York\",\n    \"companyEmail\": \"operations@tribecajets.com\",\n    \"website\": \"https://tribecajets.com\",\n    \"phone\": \"+1 (212) 555-0100\",\n    \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n    \"clientServicesLabel\": \"Private Client Desk\",\n    \"logoUrl\": null,\n    \"logoOnDarkUrl\": null,\n    \"showContactBlock\": true,\n    \"logoOnDocuments\": true,\n    \"showBrokerContact\": true,\n    \"wireBankName\": null,\n    \"wireBeneficiaryName\": null,\n    \"wireRoutingNumber\": null,\n    \"wireAccountNumber\": null,\n    \"wireSwiftBic\": null,\n    \"wireInstructions\": null\n  },\n  \"defaults\": {\n    \"defaultMarkupPercent\": 15,\n    \"quoteValidityHours\": 24,\n    \"defaultFetPercent\": 7.5,\n    \"applyFetByDefault\": true,\n    \"followUpIntervalDays\": 3,\n    \"defaultLeadStage\": \"NEW\",\n    \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n  },\n  \"security\": {\n    \"idleLogoutEnabled\": true,\n    \"idleTimeoutMinutes\": 10,\n    \"idleWarningMinutes\": 1,\n    \"showIdleWarning\": true,\n    \"requireAdminTwoFactor\": false,\n    \"whatsappAssistantEnabled\": true\n  },\n  \"rateLimits\": {\n    \"failedSignInLimit\": 5,\n    \"failedSignInWindowMinutes\": 15,\n    \"signInLockoutMinutes\": 15,\n    \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n    \"codeSendLimit\": 3,\n    \"codeSendWindowMinutes\": 15,\n    \"codeAttemptLimit\": 5\n  },\n  \"notifications\": {\n    \"emailNotifications\": true,\n    \"inAppNotifications\": true,\n    \"flightAlertsToBrokers\": true,\n    \"followUpReminders\": true,\n    \"paymentReminders\": true,\n    \"quoteExpiryReminders\": true,\n    \"quoteExpiryWarningHours\": 4,\n    \"paymentReminderDays\": 1,\n    \"followUpReminderMinutes\": 0\n  }\n}"
+                  "raw": "{\n  \"company\": {\n    \"companyName\": \"Tribeca Jets\",\n    \"companyTimeZone\": \"America/New_York\",\n    \"companyEmail\": \"operations@tribecajets.com\",\n    \"website\": \"https://tribecajets.com\",\n    \"phone\": \"+1 (212) 555-0100\",\n    \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n    \"clientServicesLabel\": \"Private Client Desk\",\n    \"logoUrl\": null,\n    \"logoOnDarkUrl\": null,\n    \"showContactBlock\": true,\n    \"logoOnDocuments\": true,\n    \"showBrokerContact\": true,\n    \"wireBankName\": null,\n    \"wireBeneficiaryName\": null,\n    \"wireRoutingNumber\": null,\n    \"wireAccountNumber\": null,\n    \"wireSwiftBic\": null,\n    \"wireInstructions\": null\n  },\n  \"defaults\": {\n    \"defaultMarkupPercent\": 15,\n    \"quoteValidityHours\": 24,\n    \"defaultFetPercent\": 7.5,\n    \"applyFetByDefault\": true,\n    \"followUpIntervalDays\": 3,\n    \"defaultLeadStage\": \"NEW\",\n    \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n  },\n  \"security\": {\n    \"idleLogoutEnabled\": true,\n    \"idleTimeoutMinutes\": 10,\n    \"idleWarningMinutes\": 1,\n    \"showIdleWarning\": true,\n    \"requireAdminTwoFactor\": false\n  },\n  \"rateLimits\": {\n    \"failedSignInLimit\": 5,\n    \"failedSignInWindowMinutes\": 15,\n    \"signInLockoutMinutes\": 15,\n    \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n    \"codeSendLimit\": 3,\n    \"codeSendWindowMinutes\": 15,\n    \"codeAttemptLimit\": 5\n  },\n  \"notifications\": {\n    \"emailNotifications\": true,\n    \"inAppNotifications\": true,\n    \"flightAlertsToBrokers\": true,\n    \"followUpReminders\": true,\n    \"paymentReminders\": true,\n    \"quoteExpiryReminders\": true,\n    \"quoteExpiryWarningHours\": 4,\n    \"paymentReminderDays\": 1,\n    \"followUpReminderMinutes\": 0\n  }\n}"
                 }
               },
               "status": "OK",
@@ -43054,7 +43054,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"America/New_York\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false,\n      \"whatsappAssistantEnabled\": true\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-19T07:48:49.217Z\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"company\": {\n      \"companyName\": \"Tribeca Jets\",\n      \"companyTimeZone\": \"America/New_York\",\n      \"companyEmail\": \"operations@tribecajets.com\",\n      \"website\": \"https://tribecajets.com\",\n      \"phone\": \"+1 (212) 555-0100\",\n      \"address\": \"One World Trade Center, Suite 8500, New York, NY 10007\",\n      \"clientServicesLabel\": \"Private Client Desk\",\n      \"logoUrl\": null,\n      \"logoOnDarkUrl\": null,\n      \"showContactBlock\": true,\n      \"logoOnDocuments\": true,\n      \"showBrokerContact\": true,\n      \"wireBankName\": null,\n      \"wireBeneficiaryName\": null,\n      \"wireRoutingNumber\": null,\n      \"wireAccountNumber\": null,\n      \"wireSwiftBic\": null,\n      \"wireInstructions\": null\n    },\n    \"defaults\": {\n      \"defaultMarkupPercent\": 15,\n      \"quoteValidityHours\": 24,\n      \"defaultFetPercent\": 7.5,\n      \"applyFetByDefault\": true,\n      \"followUpIntervalDays\": 3,\n      \"defaultLeadStage\": \"NEW\",\n      \"defaultQuoteTerms\": \"Standard charter terms apply. Catering and de-icing billed at cost. 100% cancellation within 48h of departure.\"\n    },\n    \"security\": {\n      \"idleLogoutEnabled\": true,\n      \"idleTimeoutMinutes\": 10,\n      \"idleWarningMinutes\": 1,\n      \"showIdleWarning\": true,\n      \"requireAdminTwoFactor\": false\n    },\n    \"rateLimits\": {\n      \"failedSignInLimit\": 5,\n      \"failedSignInWindowMinutes\": 15,\n      \"signInLockoutMinutes\": 15,\n      \"failedSignInScope\": \"ACCOUNT_AND_IP\",\n      \"codeSendLimit\": 3,\n      \"codeSendWindowMinutes\": 15,\n      \"codeAttemptLimit\": 5\n    },\n    \"notifications\": {\n      \"emailNotifications\": true,\n      \"inAppNotifications\": true,\n      \"flightAlertsToBrokers\": true,\n      \"followUpReminders\": true,\n      \"paymentReminders\": true,\n      \"quoteExpiryReminders\": true,\n      \"quoteExpiryWarningHours\": 4,\n      \"paymentReminderDays\": 1,\n      \"followUpReminderMinutes\": 0\n    },\n    \"updatedAt\": \"2026-11-20T07:35:28.160Z\"\n  }\n}"
             }
           ]
         }
@@ -43230,8 +43230,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "pm.test('The response shows the expected masked settings', () =>",
-                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": true, \"last4\": \"oken\"}, \"appSecret\": {\"set\": true, \"last4\": \"cret\"}, \"verifyToken\": {\"set\": true, \"last4\": \"oken\"}, \"phoneNumberId\": \"100000000000000\", \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null}));"
+                  "pm.test('The response shows the expected masked settings', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null, \"masked\": null}, \"accessToken\": {\"set\": true, \"last4\": \"oken\", \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"}, \"appSecret\": {\"set\": true, \"last4\": \"cret\", \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022cret\"}, \"verifyToken\": {\"set\": true, \"last4\": \"oken\", \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"}, \"phoneNumberId\": \"100000000000000\", \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null, \"assistantEnabled\": false, \"readiness\": {\"openai\": false, \"meta\": true, \"metaMissing\": [], \"phoneLinked\": false, \"encryptionReady\": true}});",
+                  "});"
                 ]
               }
             }
@@ -43316,7 +43318,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": \"100000000000000\",\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": true,\n      \"last4\": \"oken\"\n    },\n    \"appSecret\": {\n      \"set\": true,\n      \"last4\": \"cret\"\n    },\n    \"verifyToken\": {\n      \"set\": true,\n      \"last4\": \"oken\"\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": \"100000000000000\",\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"accessToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"appSecret\": {\n      \"set\": true,\n      \"last4\": \"cret\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022cret\"\n    },\n    \"verifyToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"assistantEnabled\": false,\n    \"readiness\": {\n      \"openai\": false,\n      \"meta\": true,\n      \"metaMissing\": [],\n      \"phoneLinked\": false,\n      \"encryptionReady\": true\n    },\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
             }
           ]
         },
@@ -43385,7 +43387,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-verify-token&hub.challenge=30f708ac75894ea799d82c3c4c5d25ca",
+                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-verify-token&hub.challenge=dbd4a8f1df0a478a9b2c8114af79573d",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -43406,7 +43408,7 @@
                     },
                     {
                       "key": "hub.challenge",
-                      "value": "30f708ac75894ea799d82c3c4c5d25ca",
+                      "value": "dbd4a8f1df0a478a9b2c8114af79573d",
                       "description": "Opaque challenge echoed verbatim. 1\u2013200 characters for verification. No default."
                     }
                   ]
@@ -43422,7 +43424,7 @@
                 }
               ],
               "cookie": [],
-              "body": "30f708ac75894ea799d82c3c4c5d25ca"
+              "body": "dbd4a8f1df0a478a9b2c8114af79573d"
             },
             {
               "name": "403 \u00b7 Wrong verify token",
@@ -43430,7 +43432,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-wrong-verify-token&hub.challenge=30f708ac75894ea799d82c3c4c5d25ca",
+                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-wrong-verify-token&hub.challenge=dbd4a8f1df0a478a9b2c8114af79573d",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -43451,7 +43453,7 @@
                     },
                     {
                       "key": "hub.challenge",
-                      "value": "30f708ac75894ea799d82c3c4c5d25ca",
+                      "value": "dbd4a8f1df0a478a9b2c8114af79573d",
                       "description": "Opaque challenge echoed verbatim. 1\u2013200 characters for verification. No default."
                     }
                   ]
@@ -43467,7 +43469,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":403,\"message\":\"Verification token does not match\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:03:57.898Z\"}"
+              "body": "{\"success\":false,\"statusCode\":403,\"message\":\"Verification token does not match\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T07:35:41.021Z\"}"
             },
             {
               "name": "403 \u00b7 Mode is not subscribe",
@@ -43475,7 +43477,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=unsubscribe&hub.verify_token=postman-verify-token&hub.challenge=30f708ac75894ea799d82c3c4c5d25ca",
+                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=unsubscribe&hub.verify_token=postman-verify-token&hub.challenge=dbd4a8f1df0a478a9b2c8114af79573d",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -43496,7 +43498,7 @@
                     },
                     {
                       "key": "hub.challenge",
-                      "value": "30f708ac75894ea799d82c3c4c5d25ca",
+                      "value": "dbd4a8f1df0a478a9b2c8114af79573d",
                       "description": "Opaque challenge echoed verbatim. 1\u2013200 characters for verification. No default."
                     }
                   ]
@@ -43512,7 +43514,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":403,\"message\":\"Verification token does not match\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:03:59.940Z\"}"
+              "body": "{\"success\":false,\"statusCode\":403,\"message\":\"Verification token does not match\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T07:35:43.060Z\"}"
             },
             {
               "name": "400 \u00b7 Challenge too long",
@@ -43557,7 +43559,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":400,\"message\":\"Validation failed\",\"errors\":{\"hub.challenge\":\"Too big: expected string to have <=200 characters\"},\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:04:01.976Z\"}"
+              "body": "{\"success\":false,\"statusCode\":400,\"message\":\"Validation failed\",\"errors\":{\"hub.challenge\":\"Too big: expected string to have <=200 characters\"},\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T07:35:45.094Z\"}"
             }
           ]
         },
@@ -43637,7 +43639,7 @@
                   },
                   {
                     "key": "X-Hub-Signature-256",
-                    "value": "sha256=54118db8be6a615ddb6500103121c5eaded5b8e5a39a4faf90df811e8a918c2e"
+                    "value": "sha256=4ac2dd73e65de0dc6a0897ef47b0e5e76de492962da88ac21638c6da260ffc05"
                   }
                 ],
                 "url": {
@@ -43652,7 +43654,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.e6c5ec0b20b544a39dbb49fd5ba1c8b4\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795151041\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.2790908db3bf4fe7abea4936ce0ab4e5\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795160145\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -43694,7 +43696,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.e6c5ec0b20b544a39dbb49fd5ba1c8b4\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795151041\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.2790908db3bf4fe7abea4936ce0ab4e5\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795160145\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -43712,7 +43714,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:04:06.058Z\"}"
+              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T07:35:49.172Z\"}"
             },
             {
               "name": "401 \u00b7 Wrong signature",
@@ -43725,7 +43727,7 @@
                   },
                   {
                     "key": "X-Hub-Signature-256",
-                    "value": "sha256=6e72c4227222203af06d11eeb02287f7ecc98bab3b8c074323352b2b314ecd64"
+                    "value": "sha256=364520632e292c969635c24eb0bb4137ba44e9b525c4414545c44843ee24bdf2"
                   }
                 ],
                 "url": {
@@ -43740,7 +43742,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.e6c5ec0b20b544a39dbb49fd5ba1c8b4\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795151041\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.2790908db3bf4fe7abea4936ce0ab4e5\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795160145\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -43758,7 +43760,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:04:08.089Z\"}"
+              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T07:35:51.226Z\"}"
             },
             {
               "name": "401 \u00b7 Body changed after signing",
@@ -43771,7 +43773,7 @@
                   },
                   {
                     "key": "X-Hub-Signature-256",
-                    "value": "sha256=54118db8be6a615ddb6500103121c5eaded5b8e5a39a4faf90df811e8a918c2e"
+                    "value": "sha256=4ac2dd73e65de0dc6a0897ef47b0e5e76de492962da88ac21638c6da260ffc05"
                   }
                 ],
                 "url": {
@@ -43786,7 +43788,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.e6c5ec0b20b544a39dbb49fd5ba1c8b4\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795151041\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook Probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.2790908db3bf4fe7abea4936ce0ab4e5\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795160145\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook Probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -43804,7 +43806,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:04:10.134Z\"}"
+              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T07:35:53.316Z\"}"
             }
           ]
         },
@@ -43884,7 +43886,7 @@
                   },
                   {
                     "key": "X-Hub-Signature-256",
-                    "value": "sha256=86615b19ef6b69e5c78e23bc88718fd8348ecb2abe7c69606f14261369794e93"
+                    "value": "sha256=8e2766190c507f36c0da5252925762f1b1d2bc3e0124dacf808ee63b44a82ec7"
                   }
                 ],
                 "url": {
@@ -43899,7 +43901,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"statuses\": [\n              {\n                \"id\": \"wamid.postman.3045264fd17145e6b8d3458f697ca271\",\n                \"status\": \"delivered\",\n                \"timestamp\": \"1795151050\",\n                \"recipient_id\": \"15550000999\"\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"statuses\": [\n              {\n                \"id\": \"wamid.postman.7c4c6987138145f583807d5bfce8f46a\",\n                \"status\": \"delivered\",\n                \"timestamp\": \"1795160153\",\n                \"recipient_id\": \"15550000999\"\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -44006,8 +44008,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "pm.test('The response shows the expected masked settings', () =>",
-                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": false, \"last4\": null}, \"appSecret\": {\"set\": false, \"last4\": null}, \"verifyToken\": {\"set\": false, \"last4\": null}, \"phoneNumberId\": null, \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null}));"
+                  "pm.test('The response shows the expected masked settings', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null, \"masked\": null}, \"accessToken\": {\"set\": false, \"last4\": null, \"masked\": null}, \"appSecret\": {\"set\": false, \"last4\": null, \"masked\": null}, \"verifyToken\": {\"set\": false, \"last4\": null, \"masked\": null}, \"phoneNumberId\": null, \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null, \"assistantEnabled\": false, \"readiness\": {\"openai\": false, \"meta\": false, \"metaMissing\": [\"phoneNumberId\", \"accessToken\", \"appSecret\", \"verifyToken\"], \"phoneLinked\": false, \"encryptionReady\": true}});",
+                  "});"
                 ]
               }
             }
@@ -44092,7 +44096,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": null,\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"appSecret\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"verifyToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": null,\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"accessToken\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"appSecret\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"verifyToken\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"assistantEnabled\": false,\n    \"readiness\": {\n      \"openai\": false,\n      \"meta\": false,\n      \"metaMissing\": [\n        \"phoneNumberId\",\n        \"accessToken\",\n        \"appSecret\",\n        \"verifyToken\"\n      ],\n      \"phoneLinked\": false,\n      \"encryptionReady\": true\n    },\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
             }
           ]
         }
@@ -44100,7 +44104,7 @@
     },
     {
       "name": "32 \u00b7 WhatsApp Settings",
-      "description": "The Super Admin manages the WhatsApp assistant's credentials and links their own phone here.\nPrepare the isolated 4100 database using `postman/README.md` before capture or Newman.\nThe run saves fake Meta settings and clears them in its last request. The Admin 403 examples\ncome from a separate two-factor session during capture.\n\n## Not in this folder: the connection tests\n\nBoth endpoints require the Super Admin session and CSRF header. Send a JSON object with only\nthe optional fields below. Omitted fields use the saved settings. The rate limit is 10 requests\nper 15 minutes before the test multiplier. A connection test contacts its provider.\n\n**06 \u00b7 `POST /settings/whatsapp/openai/test`**\n\n- `apiKey` is an optional trimmed OpenAI API key of 1\u20134096 characters.\n- `200` returns `{ ok: true, models: string[] }` in `data`, with the available chat model IDs.\n- `400` means the key is missing or OpenAI refused it. `502` means the API could not reach\n  OpenAI or could not use its response.\n\n**07 \u00b7 `POST /settings/whatsapp/meta/test`**\n\n- `accessToken` is an optional trimmed Meta access token of 1\u20134096 characters.\n- `phoneNumberId` is an optional trimmed Meta phone number ID of 1\u201340 digits.\n- `graphVersion` is an optional trimmed, case-sensitive Graph version up to 20 characters, in\n  `v<major>.<minor>` format. The saved default is `v25.0`.\n- `200` returns `{ ok: true, displayPhoneNumber, verifiedName }` in `data`, with both values\n  returned by Meta as strings.\n- `400` means required settings are missing, the token was refused, the ID was not found,\n  or Meta refused the connection. `502` covers an unavailable or unusable Meta response,\n  including an upstream rate limit.\n",
+      "description": "The Super Admin manages the WhatsApp assistant's credentials and links their own phone here.\nPrepare the isolated 4100 database using `postman/README.md` before capture or Newman.\nThe run saves fake Meta settings, reveals the fake verify token, switches the assistant off,\nand switches it off again and clears settings in teardown. The Admin 403 examples\ncome from a separate two-factor session during capture.\n\n## Not in this folder: the connection tests\n\nBoth endpoints require the Super Admin session and CSRF header. Send a JSON object with only\nthe optional fields below. Omitted fields use the saved settings. The rate limit is 10 requests\nper 15 minutes before the test multiplier. A connection test contacts its provider.\n\n**`POST /settings/whatsapp/openai/test`**\n\n- `apiKey` is an optional trimmed OpenAI API key of 1\u20134096 characters.\n- `200` returns `{ ok: true, models: string[] }` in `data`, with the available chat model IDs.\n- `400` means the key is missing or OpenAI refused it. `502` means the API could not reach\n  OpenAI or could not use its response.\n\n**`POST /settings/whatsapp/meta/test`**\n\n- `accessToken` is an optional trimmed Meta access token of 1\u20134096 characters.\n- `phoneNumberId` is an optional trimmed Meta phone number ID of 1\u201340 digits.\n- `graphVersion` is an optional trimmed, case-sensitive Graph version up to 20 characters, in\n  `v<major>.<minor>` format. The saved default is `v25.0`.\n- `200` returns `{ ok: true, displayPhoneNumber, verifiedName }` in `data`, with both values\n  returned by Meta as strings.\n- `400` means required settings are missing, the token was refused, the ID was not found,\n  or Meta refused the connection. `502` covers an unavailable or unusable Meta response,\n  including an upstream rate limit.\n",
       "item": [
         {
           "name": "01 \u00b7 Read WhatsApp settings",
@@ -44111,10 +44115,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.variables.set('whatsappPhoneProbeReady', 'no');",
+                  "pm.variables.set('whatsappRevealProbeReady', 'no');",
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
                   "if (pm.response.code === 200) {",
                   "    const settingsView = pm.response.json().data;",
-                  "    const expected = {\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": false, \"last4\": null}, \"appSecret\": {\"set\": false, \"last4\": null}, \"verifyToken\": {\"set\": false, \"last4\": null}, \"phoneNumberId\": null, \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null};",
+                  "    const expected = {\"openaiApiKey\": {\"set\": false, \"last4\": null, \"masked\": null}, \"accessToken\": {\"set\": false, \"last4\": null, \"masked\": null}, \"appSecret\": {\"set\": false, \"last4\": null, \"masked\": null}, \"verifyToken\": {\"set\": false, \"last4\": null, \"masked\": null}, \"phoneNumberId\": null, \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null, \"assistantEnabled\": false, \"readiness\": {\"openai\": false, \"meta\": false, \"metaMissing\": [\"phoneNumberId\", \"accessToken\", \"appSecret\", \"verifyToken\"], \"phoneLinked\": false, \"encryptionReady\": true}};",
                   "    pm.test('The test database is prepared', () => {",
                   "        pm.expect(settingsView).to.deep.include(expected);",
                   "        pm.expect(settingsView.encryptionReady).to.equal(true);",
@@ -44138,7 +44143,7 @@
                 "whatsapp"
               ]
             },
-            "description": "Each secret is represented by `{ set, last4 }`. A missing secret has `set: false` and `last4: null`. Secrets of four or fewer characters have no displayed suffix."
+            "description": "Each secret is represented by `{ set, last4, masked }`. Unset secrets have `last4: null` and `masked: null`. Short secrets have twelve mask bullets without a suffix. The view also reports the assistant switch and the four setup checks."
           },
           "response": [
             {
@@ -44167,7 +44172,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": null,\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"appSecret\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"verifyToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": null,\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"accessToken\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"appSecret\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"verifyToken\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"assistantEnabled\": false,\n    \"readiness\": {\n      \"openai\": false,\n      \"meta\": false,\n      \"metaMissing\": [\n        \"phoneNumberId\",\n        \"accessToken\",\n        \"appSecret\",\n        \"verifyToken\"\n      ],\n      \"phoneLinked\": false,\n      \"encryptionReady\": true\n    },\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
             },
             {
               "name": "403 \u00b7 Not the Super Admin",
@@ -44195,7 +44200,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"These settings belong to the Super Admin.\",\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T05:04:24.995Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"These settings belong to the Super Admin.\",\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T07:36:08.419Z\"\n}"
             }
           ]
         },
@@ -44292,7 +44297,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"phone\": \"15550001194\",                      // Required number with country code. Up to 40 characters before normalization to 8\u201315 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.\n  \"currentPassword\": \"postman-wrong-password\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "raw": "{\n  \"phone\": \"15550001618\",                      // Required number with country code. Up to 40 characters before normalization to 8\u201315 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.\n  \"currentPassword\": \"postman-wrong-password\"  // Required and nonempty. Use the current Super Admin password.\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -44310,7 +44315,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T05:04:27.099Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T07:36:10.539Z\"\n}"
             },
             {
               "name": "409 \u00b7 Number linked to another user",
@@ -44358,7 +44363,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"This WhatsApp number is already linked to another user.\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T05:04:29.223Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"This WhatsApp number is already linked to another user.\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T07:36:12.641Z\"\n}"
             },
             {
               "name": "400 \u00b7 Finish the Meta settings first",
@@ -44388,7 +44393,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"phone\": \"15550001194\",            // Required number with country code. Up to 40 characters before normalization to 8\u201315 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.\n  \"currentPassword\": \"{{password}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "raw": "{\n  \"phone\": \"15550001618\",            // Required number with country code. Up to 40 characters before normalization to 8\u201315 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.\n  \"currentPassword\": \"{{password}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -44406,7 +44411,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Finish the Meta settings first\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T05:04:31.342Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Finish the Meta settings first\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T07:36:14.776Z\"\n}"
             }
           ]
         },
@@ -44419,8 +44424,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "pm.test('The response shows the expected masked settings', () =>",
-                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": true, \"last4\": \"oken\"}, \"appSecret\": {\"set\": true, \"last4\": \"cret\"}, \"verifyToken\": {\"set\": true, \"last4\": \"oken\"}, \"phoneNumberId\": \"100000000000000\", \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null}));"
+                  "pm.test('The response shows the expected masked settings', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null, \"masked\": null}, \"accessToken\": {\"set\": true, \"last4\": \"oken\", \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"}, \"appSecret\": {\"set\": true, \"last4\": \"cret\", \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022cret\"}, \"verifyToken\": {\"set\": true, \"last4\": \"oken\", \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"}, \"phoneNumberId\": \"100000000000000\", \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null, \"assistantEnabled\": false, \"readiness\": {\"openai\": false, \"meta\": true, \"metaMissing\": [], \"phoneLinked\": false, \"encryptionReady\": true}});",
+                  "  pm.variables.set(\"whatsappRevealProbeReady\", \"yes\");",
+                  "});"
                 ]
               }
             }
@@ -44505,7 +44513,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": \"100000000000000\",\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": true,\n      \"last4\": \"oken\"\n    },\n    \"appSecret\": {\n      \"set\": true,\n      \"last4\": \"cret\"\n    },\n    \"verifyToken\": {\n      \"set\": true,\n      \"last4\": \"oken\"\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": \"100000000000000\",\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"accessToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"appSecret\": {\n      \"set\": true,\n      \"last4\": \"cret\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022cret\"\n    },\n    \"verifyToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"assistantEnabled\": false,\n    \"readiness\": {\n      \"openai\": false,\n      \"meta\": true,\n      \"metaMissing\": [],\n      \"phoneLinked\": false,\n      \"encryptionReady\": true\n    },\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
             },
             {
               "name": "400 \u00b7 Wrong password",
@@ -44552,7 +44560,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T05:04:33.437Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T07:36:18.984Z\"\n}"
             },
             {
               "name": "400 \u00b7 Invalid value",
@@ -44599,7 +44607,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"phoneNumberId\": \"Enter the Meta phone number ID\"\n  },\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T05:04:35.470Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"phoneNumberId\": \"Enter the Meta phone number ID\"\n  },\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T07:36:21.039Z\"\n}"
             },
             {
               "name": "403 \u00b7 Not the Super Admin",
@@ -44646,12 +44654,270 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"These settings belong to the Super Admin.\",\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T05:04:37.499Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"These settings belong to the Super Admin.\",\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T07:36:23.092Z\"\n}"
             }
           ]
         },
         {
-          "name": "04 \u00b7 Verify the link code",
+          "name": "04 \u00b7 Reveal a secret",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const revealReady = pm.variables.get('baseUrl') === \"http://localhost:4100/api\" &&",
+                  "    pm.variables.get('whatsappPhoneProbeReady') === 'yes' &&",
+                  "    pm.variables.get('whatsappRevealProbeReady') === 'yes';",
+                  "pm.variables.set('whatsappRevealProbePassword', revealReady ? pm.collectionVariables.get('password') : '');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 response', () => pm.response.to.have.status(200));",
+                  "pm.test('The response has the expected result', () =>",
+                  "  pm.expect(pm.response.json().data).to.deep.equal({\"field\": \"verifyToken\", \"value\": \"postman-verify-token\"}));",
+                  "pm.test('Cache-Control is no-store', () => pm.expect(pm.response.headers.get('Cache-Control')).to.equal('no-store'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp/reveal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp",
+                "reveal"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field\": \"verifyToken\",                               // Required, case-sensitive. One of openaiApiKey, accessToken, appSecret, verifyToken.\n  \"currentPassword\": \"{{whatsappRevealProbePassword}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Re-checks the current password and returns one secret as `{ field, value }` with `Cache-Control: no-store`. The executable request reveals only the fake verify token. An unreadable secret returns 409."
+          },
+          "response": [
+            {
+              "name": "400 \u00b7 Not set",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/reveal",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "reveal"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"field\": \"verifyToken\",            // Required, case-sensitive. One of openaiApiKey, accessToken, appSecret, verifyToken.\n  \"currentPassword\": \"{{password}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"That secret is not set\",\n  \"path\": \"/api/settings/whatsapp/reveal\",\n  \"timestamp\": \"2026-11-20T07:36:16.875Z\"\n}"
+            },
+            {
+              "name": "200 \u00b7 Shown",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/reveal",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "reveal"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"field\": \"verifyToken\",            // Required, case-sensitive. One of openaiApiKey, accessToken, appSecret, verifyToken.\n  \"currentPassword\": \"{{password}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"field\": \"verifyToken\",\n    \"value\": \"postman-verify-token\"\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Wrong password",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/reveal",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "reveal"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"field\": \"verifyToken\",                      // Required, case-sensitive. One of openaiApiKey, accessToken, appSecret, verifyToken.\n  \"currentPassword\": \"postman-wrong-password\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp/reveal\",\n  \"timestamp\": \"2026-11-20T07:36:29.484Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Not the Super Admin",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/reveal",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "reveal"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"field\": \"verifyToken\",            // Required, case-sensitive. One of openaiApiKey, accessToken, appSecret, verifyToken.\n  \"currentPassword\": \"{{password}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"These settings belong to the Super Admin.\",\n  \"path\": \"/api/settings/whatsapp/reveal\",\n  \"timestamp\": \"2026-11-20T07:36:31.534Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Verify the link code",
           "event": [
             {
               "listen": "test",
@@ -44749,12 +45015,12 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"This verification session has expired. Please start again.\",\n  \"path\": \"/api/settings/whatsapp/phone/verify\",\n  \"timestamp\": \"2026-11-20T05:04:41.671Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"This verification session has expired. Please start again.\",\n  \"path\": \"/api/settings/whatsapp/phone/verify\",\n  \"timestamp\": \"2026-11-20T07:36:33.593Z\"\n}"
             }
           ]
         },
         {
-          "name": "05 \u00b7 Unlink WhatsApp",
+          "name": "06 \u00b7 Unlink WhatsApp",
           "event": [
             {
               "listen": "test",
@@ -44898,7 +45164,351 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T05:04:43.787Z\"\n}"
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T07:36:35.712Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "07 \u00b7 Switch the assistant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('The assistant is off', () => pm.expect(pm.response.json().data.assistantEnabled).to.equal(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp/assistant",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp",
+                "assistant"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false  // Required boolean. true requires the current password. false works without it.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Send a boolean `enabled`. Switching on requires the current password and is allowed before setup is complete. Switching off is immediate. An optional password on an off request is accepted and does not trigger a password check. Returns the full settings view."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Switched on",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/assistant",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "assistant"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": true,                   // Required boolean. true requires the current password. false works without it.\n  \"currentPassword\": \"{{password}}\"  // Required when switching on. Optional and unchecked when switching off.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": \"100000000000000\",\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"accessToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"appSecret\": {\n      \"set\": true,\n      \"last4\": \"cret\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022cret\"\n    },\n    \"verifyToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"assistantEnabled\": true,\n    \"readiness\": {\n      \"openai\": false,\n      \"meta\": true,\n      \"metaMissing\": [],\n      \"phoneLinked\": false,\n      \"encryptionReady\": true\n    },\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Password needed to switch on",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/assistant",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "assistant"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": true  // Required boolean. true requires the current password. false works without it.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"currentPassword is required to switch on the assistant\",\n  \"path\": \"/api/settings/whatsapp/assistant\",\n  \"timestamp\": \"2026-11-20T07:36:39.933Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Wrong password",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/assistant",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "assistant"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": true,                             // Required boolean. true requires the current password. false works without it.\n  \"currentPassword\": \"postman-wrong-password\"  // Required when switching on. Optional and unchecked when switching off.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp/assistant\",\n  \"timestamp\": \"2026-11-20T07:36:42.037Z\"\n}"
+            },
+            {
+              "name": "200 \u00b7 Switched off",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/assistant",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "assistant"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": false  // Required boolean. true requires the current password. false works without it.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": \"100000000000000\",\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"accessToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"appSecret\": {\n      \"set\": true,\n      \"last4\": \"cret\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022cret\"\n    },\n    \"verifyToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"assistantEnabled\": false,\n    \"readiness\": {\n      \"openai\": false,\n      \"meta\": true,\n      \"metaMissing\": [],\n      \"phoneLinked\": false,\n      \"encryptionReady\": true\n    },\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Teardown \u2014 switch the assistant off",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('The assistant is off', () => pm.expect(pm.response.json().data.assistantEnabled).to.equal(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp/assistant",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp",
+                "assistant"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false  // Required boolean. true requires the current password. false works without it.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Send a boolean `enabled`. Switching on requires the current password and is allowed before setup is complete. Switching off is immediate. An optional password on an off request is accepted and does not trigger a password check. Returns the full settings view."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Switched off",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/assistant",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "assistant"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": false  // Required boolean. true requires the current password. false works without it.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": \"100000000000000\",\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"accessToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"appSecret\": {\n      \"set\": true,\n      \"last4\": \"cret\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022cret\"\n    },\n    \"verifyToken\": {\n      \"set\": true,\n      \"last4\": \"oken\",\n      \"masked\": \"\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022oken\"\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"assistantEnabled\": false,\n    \"readiness\": {\n      \"openai\": false,\n      \"meta\": true,\n      \"metaMissing\": [],\n      \"phoneLinked\": false,\n      \"encryptionReady\": true\n    },\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
             }
           ]
         },
@@ -44911,8 +45521,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 OK', () => pm.response.to.have.status(200));",
-                  "pm.test('The response shows the expected masked settings', () =>",
-                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": false, \"last4\": null}, \"appSecret\": {\"set\": false, \"last4\": null}, \"verifyToken\": {\"set\": false, \"last4\": null}, \"phoneNumberId\": null, \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null}));"
+                  "pm.test('The response shows the expected masked settings', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null, \"masked\": null}, \"accessToken\": {\"set\": false, \"last4\": null, \"masked\": null}, \"appSecret\": {\"set\": false, \"last4\": null, \"masked\": null}, \"verifyToken\": {\"set\": false, \"last4\": null, \"masked\": null}, \"phoneNumberId\": null, \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null, \"assistantEnabled\": false, \"readiness\": {\"openai\": false, \"meta\": false, \"metaMissing\": [\"phoneNumberId\", \"accessToken\", \"appSecret\", \"verifyToken\"], \"phoneLinked\": false, \"encryptionReady\": true}});",
+                  "});"
                 ]
               }
             }
@@ -44997,7 +45609,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": null,\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"appSecret\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"verifyToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": null,\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"accessToken\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"appSecret\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"verifyToken\": {\n      \"set\": false,\n      \"last4\": null,\n      \"masked\": null\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"assistantEnabled\": false,\n    \"readiness\": {\n      \"openai\": false,\n      \"meta\": false,\n      \"metaMissing\": [\n        \"phoneNumberId\",\n        \"accessToken\",\n        \"appSecret\",\n        \"verifyToken\"\n      ],\n      \"phoneLinked\": false,\n      \"encryptionReady\": true\n    },\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
             }
           ]
         }

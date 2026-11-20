@@ -24,21 +24,28 @@ FAKE_SETTINGS = {
 }
 CLEAR_SETTINGS = dict.fromkeys(('openaiApiKey', 'accessToken', 'appSecret', 'verifyToken', 'phoneNumberId'))
 SECRET_FIELDS = ('openaiApiKey', 'accessToken', 'appSecret', 'verifyToken')
-EMPTY_SECRET = {'set': False, 'last4': None}
+EMPTY_SECRET = {'set': False, 'last4': None, 'masked': None}
 CLEARED_VIEW = {
     **dict.fromkeys(SECRET_FIELDS, EMPTY_SECRET),
     'phoneNumberId': None,
     'openaiModel': None,
     'graphVersion': GRAPH_VERSION,
     'linkedPhone': None,
+    'assistantEnabled': False,
+    'readiness': {
+        'openai': False, 'meta': False,
+        'metaMissing': ['phoneNumberId', 'accessToken', 'appSecret', 'verifyToken'],
+        'phoneLinked': False, 'encryptionReady': True,
+    },
 }
 SAVED_VIEW = {
     **CLEARED_VIEW,
     **{
-        field: {'set': True, 'last4': FAKE_SETTINGS[field][-4:]}
+        field: {'set': True, 'last4': FAKE_SETTINGS[field][-4:], 'masked': '•' * 12 + FAKE_SETTINGS[field][-4:]}
         for field in SECRET_FIELDS if field in FAKE_SETTINGS
     },
     'phoneNumberId': FAKE_SETTINGS['phoneNumberId'],
+    'readiness': {**CLEARED_VIEW['readiness'], 'meta': True, 'metaMissing': []},
 }
 
 FIELD_COMMENTS = {
@@ -51,14 +58,17 @@ FIELD_COMMENTS = {
     'openaiApiKey': 'Optional trimmed OpenAI API key, 1–4096 characters. Send null to clear.',
     'phone': 'Required number with country code. Up to 40 characters before normalization to 8–15 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.',
     'code': 'Required string of exactly six digits after trimming. Keep leading zeroes.',
+    'field': 'Required, case-sensitive. One of openaiApiKey, accessToken, appSecret, verifyToken.',
+    'enabled': 'Required boolean. true requires the current password. false works without it.',
 }
 
 
-def documented_body(payload: dict) -> dict:
+def documented_body(payload: dict, comments: dict | None = None) -> dict:
     lines = json.dumps(payload, indent=2).splitlines()
     width = max(map(len, lines))
     for index, field in enumerate(payload, start=1):
-        lines[index] = f'{lines[index]:<{width}}  // {FIELD_COMMENTS[field]}'
+        comment = (comments or {}).get(field, FIELD_COMMENTS[field])
+        lines[index] = f'{lines[index]:<{width}}  // {comment}'
     return {'mode': 'raw', 'raw': '\n'.join(lines), 'options': {'raw': {'language': 'json'}}}
 
 
@@ -72,7 +82,11 @@ def capture_settings_example(session: Session, label: str, method: str, path: st
         shown = dict(payload)
         if shown.get('currentPassword') == PASSWORD:
             shown['currentPassword'] = '{{password}}'
-        saved['originalRequest']['body'] = documented_body(shown)
+        comments = (
+            {'currentPassword': 'Required when switching on. Optional and unchecked when switching off.'}
+            if 'enabled' in shown else None
+        )
+        saved['originalRequest']['body'] = documented_body(shown, comments)
         saved['originalRequest']['header'] = WRITE_HEADERS
     return saved
 
@@ -98,14 +112,18 @@ def capture_settings_patch(owner: Session, label: str, changes: dict) -> dict:
     return saved
 
 
-def settings_patch_request(name: str, changes: dict, description: str, examples: list[dict]) -> dict:
+def settings_patch_request(name: str, changes: dict, description: str, examples: list[dict],
+                           *, verified_flag: str | None = None) -> dict:
     expected = SAVED_VIEW if changes == FAKE_SETTINGS else CLEARED_VIEW
     return {
         'name': name,
         'event': [script('test', [
             "pm.test('200 OK', () => pm.response.to.have.status(200));",
-            "pm.test('The response shows the expected masked settings', () =>",
-            f'  pm.expect(pm.response.json().data).to.deep.include({json.dumps(expected)}));',
+            "pm.test('The response shows the expected masked settings', () => {",
+            '  pm.expect(pm.response.code).to.equal(200);',
+            f'  pm.expect(pm.response.json().data).to.deep.include({json.dumps(expected)});',
+            *([f'  pm.variables.set({json.dumps(verified_flag)}, "yes");'] if verified_flag else []),
+            '});',
         ])],
         'request': {
             'method': 'PATCH', 'url': url(SETTINGS_ROUTE), 'header': WRITE_HEADERS,
