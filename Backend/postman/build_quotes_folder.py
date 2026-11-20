@@ -24,7 +24,7 @@ from collection_order import place_folder
 
 # The shared, overridable address (POSTMAN_BASE): this builder captured
 # against :4000, the API that sends real mail, until 10 Nov 2026.
-from builder_common import BASE  # noqa: E402
+from builder_common import BASE, signed_in_id  # noqa: E402
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 PASSWORD = 'ChangeMe123!'
 MISSING = '00000000-0000-4000-8000-000000000000'
@@ -128,7 +128,7 @@ CREATE_BODY = """{
   "tripRequestId": "{{tripRequestId}}",                // optional · uuid. The enquiry this answers. Sending the quote moves that enquiry to QUOTED.
   "operatorQuoteId": "{{operatorQuoteId}}",            // optional · uuid of an OperatorQuote (module 09). This is the seam between the two: an operator quote is what an operator charges US, this is what the client pays. Linking them is what makes the margin traceable to a real number rather than one retyped from another screen.
 
-  "assignedBrokerId": null,                            // optional · uuid, or null. Defaults to the caller ONLY when nobody is named — an admin writing a quote on a broker's behalf must not have it reassigned to themselves.
+  "assignedBrokerId": null,                            // optional · uuid, or null. Defaults to the caller when they can own quotes. Other callers leave it unassigned.
 
   "operatorId": "{{operatorId}}",                      // optional · uuid. Who is flying it.
 
@@ -316,6 +316,10 @@ def build(owner, broker, assistant):
     cap['create_400_client'] = owner.request('POST', '/quotes', {
         'clientId': MISSING, 'basePrice': 79500,
     })
+    cap['invalid_broker_payload'] = {'clientId': client_id, 'basePrice': 79500, 'assignedBrokerId': signed_in_id(assistant)}
+    cap['create_400_broker'] = owner.request('POST', '/quotes', cap['invalid_broker_payload'])
+    if cap['create_400_broker'][0] == 201:
+        owner.request('DELETE', '/quotes/' + cap['create_400_broker'][1]['data']['id'])
     cap['create_400_image'] = owner.request('POST', '/quotes', {
         'clientId': client_id, 'basePrice': 79500,
         'exteriorImageUrl': 'https://example.com/g550.jpg',
@@ -597,6 +601,8 @@ def build(owner, broker, assistant):
                                   'lineItems': [{'label': 'Catering'}]}),
                 example('400 · Unknown client', 'POST', '/quotes', *cap['create_400_client'],
                         req_body={'clientId': MISSING, 'basePrice': 79500}),
+                example('400 · Not a broker', 'POST', '/quotes', *cap['create_400_broker'],
+                        req_body=cap['invalid_broker_payload']),
                 example('400 · Photo is not an upload URL', 'POST', '/quotes', *cap['create_400_image'],
                         req_body={'clientId': '{{clientId}}', 'basePrice': 79500,
                                   'exteriorImageUrl': 'https://example.com/g550.jpg'}),

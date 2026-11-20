@@ -23,7 +23,7 @@ from collection_order import place_folder
 
 # The shared, overridable address (POSTMAN_BASE): this builder captured
 # against :4000, the API that sends real mail, until 10 Nov 2026.
-from builder_common import BASE  # noqa: E402
+from builder_common import BASE, signed_in_id  # noqa: E402
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 PASSWORD = 'ChangeMe123!'
 
@@ -185,6 +185,10 @@ def build(owner, broker, assistant):
     new_id = cap['create'][1]['data']['id']
     cap['create_400_client'] = owner.request(
         'POST', '/trip-requests', {'clientId': missing})
+    cap['invalid_broker_payload'] = {'clientId': client_id, 'assignedBrokerId': signed_in_id(assistant)}
+    cap['create_400_broker'] = owner.request('POST', '/trip-requests', cap['invalid_broker_payload'])
+    if cap['create_400_broker'][0] == 201:
+        owner.request('DELETE', '/trip-requests/' + cap['create_400_broker'][1]['data']['id'])
     cap['create_400_dates'] = owner.request('POST', '/trip-requests', {
         'clientId': client_id, 'departureDate': '2026-12-10',
         'returnDate': '2026-12-01',
@@ -344,6 +348,7 @@ def build(owner, broker, assistant):
             'response': [
                 example('201 · Created', 'POST', '/trip-requests', *cap['create'], req_body=payload),
                 example('400 · Client does not exist', 'POST', '/trip-requests', *cap['create_400_client']),
+                example('400 · Not a broker', 'POST', '/trip-requests', *cap['create_400_broker'], req_body=cap['invalid_broker_payload']),
                 example('400 · Return before departure', 'POST', '/trip-requests', *cap['create_400_dates']),
                 example('403 · Role may read but not write', 'POST', '/trip-requests', *cap['create_403']),
             ],

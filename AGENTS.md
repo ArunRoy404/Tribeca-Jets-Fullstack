@@ -132,7 +132,10 @@ permission is a **module** — one per sidebar screen — and an **action** in i
   `isAdministrator`, so the owner could neither give approval to a senior
   broker nor take it from an admin. `TRIPS · ASSIGN` ("Reassign trips",
   same day) is the second: the route checked it, but it was never in the
-  catalogue, so only the role ever passed. **A new action that takes over an
+  catalogue, so only the role ever passed. `CLIENTS · VIEW_MONEY` ("See
+  money on account", 20 Nov 2026) is the third: it replaces the Assistant
+  role check on the Client Credits ledger and can be granted per person.
+  **A new action that takes over an
   existing power ships with a migration that grants it to everyone who
   held that power**, or adding it silently takes it away (stored sets are
   never rewritten by a change of role defaults).
@@ -862,6 +865,10 @@ any of this: `archiveQuerySchema`, `archiveFilter`, `ARCHIVE_SELECT`,
   it already had. Compare against the stored value first. And say *archived*
   when it is archived: that is a different problem from a mistyped id, and the
   fix is different too.
+- **Archiving a trip archives its open system tasks in the same transaction.**
+  The task's `systemKind` identifies workflow tasks. They carry the trip's
+  archive time and actor. Restoring the trip restores the system tasks
+  with that archive stamp.
 - **A restore returns 200, not 201.** `@Post(':id/restore')` needs an explicit
   `@HttpCode(HttpStatus.OK)`, because Nest gives every POST a 201 and a restore
   creates nothing — it clears a deletion stamp on a row that existed all along.
@@ -1647,6 +1654,8 @@ the first time.
 - The `where` clause is the security boundary, so it stays readable at the call
   site. Use the helpers for the repetitive parts; do not hide row-level scoping
   behind a query builder.
+- **`searchAcross` matches the whole phrase or every word across its fields.**
+  Multiword matching expands inputs of up to six words.
 - **Never spread two `OR`s into one `where`.** The second silently replaces
   the first. Quotes spread its visibility (`OR` own / unassigned) and its
   search (`OR` client / operator / aircraft) side by side, so a broker

@@ -368,6 +368,13 @@ that returns it. 75 examples across 25 requests.
 
 ## Regenerating
 
+The Clients recapture script verifies that `?search=` with the full name of
+the seeded client at `marcus.chen@example.com` returns that client. The
+Trips, Trip Requests, and Quotes builders capture `400 · Not a broker`
+on create using the seeded `assistant@example.com` account as the selected
+broker. Client Credits still uses the seeded broker and administrator. The
+permission migration preserves their access.
+
 Examples are captured from a live API rather than hand-written, because
 hand-written examples drift silently and keep claiming a shape the API stopped
 returning. **Every folder has a way to regenerate it, and nothing else in this

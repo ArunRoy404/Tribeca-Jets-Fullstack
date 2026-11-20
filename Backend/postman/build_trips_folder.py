@@ -15,7 +15,7 @@ import pathlib
 
 from builder_common import (
     MISSING, WRITE_HEADERS, Session, copy_folder_login, ensure_variables, example,
-    script, status_test, url,
+    script, signed_in_id, status_test, url,
 )
 from collection_order import place_folder
 
@@ -25,7 +25,7 @@ TYPES = 'ONE_WAY | ROUND_TRIP | MULTI_LEG'
 
 CREATE_BODY = """{
   "clientId": "{{clientId}}",                          // required · uuid. A live client.
-  "assignedBrokerId": null,                            // optional · uuid. Defaults to you; naming anyone else needs MANAGE_TRIPS at ALL scope.
+  "assignedBrokerId": null,                            // optional · uuid. An omitted broker defaults to you if eligible. Assigning someone else needs Trips · Reassign.
   "tripRequestId": null,                               // optional · uuid, same client. Linking one converts it.
   "operatorId": "{{operatorId}}",                      // optional · uuid, a live operator
   "aircraftId": null,                                  // optional · uuid, a fleet aircraft…
@@ -178,8 +178,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
     operator_id = owner.request('GET', '/operators?limit=1')[1]['data'][0]['id']
     airports = owner.request('GET', '/airports?limit=2')[1]['data']
     a, b = airports[0]['id'], airports[1]['id']
-    broker_id = broker.request('GET', '/auth/me')[1]['data']
-    broker_id = broker_id.get('id') or broker_id['user']['id']
+    broker_id = signed_in_id(broker)
+    assistant_id = signed_in_id(assistant)
 
     payload = {
         'clientId': client_id, 'operatorId': operator_id, 'aircraftDescription': 'Challenger 350',
@@ -194,6 +194,10 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         trip = cap['create'][1]['data']
         created.append(('trip', trip['id']))
         cap['create_400_legs'] = owner.request('POST', '/trips', {**payload, 'type': 'ONE_WAY'})
+        cap['create_400_broker'] = owner.request('POST', '/trips', {**payload, 'assignedBrokerId': assistant_id})
+        if cap['create_400_broker'][0] == 201:
+            created.append(('trip', cap['create_400_broker'][1]['data']['id']))
+        cap['invalid_broker_payload'] = {**payload, 'assignedBrokerId': assistant_id}
         cap['create_400_dates'] = owner.request('POST', '/trips', {
             **payload, 'legs': [{**payload['legs'][0], 'departureDate': '2026-11-20'}, payload['legs'][1]]})
         cap['create_403_reassign'] = broker.request('POST', '/trips', {**payload, 'assignedBrokerId': trip['createdById']})
@@ -310,6 +314,7 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
             'response': [
                 example('201 · Booked', 'POST', '/trips', *cap['create'], req_body=payload),
                 example('400 · Legs do not fit the type', 'POST', '/trips', *cap['create_400_legs']),
+                example('400 · Not a broker', 'POST', '/trips', *cap['create_400_broker'], req_body=cap['invalid_broker_payload']),
                 example('400 · Days go backwards', 'POST', '/trips', *cap['create_400_dates']),
                 example('403 · A broker cannot assign someone else', 'POST', '/trips', *cap['create_403_reassign']),
                 example('400 · Confirmed needs Trips · Approve', 'POST', '/trips', *cap['create_400_confirmed'],

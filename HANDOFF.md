@@ -330,10 +330,12 @@ for a review, and how the owner likes to work, is in
    themselves (changes the owner's rule that only the Super Admin uses
    it), and naming the phone on each module's own timeline (today only
    the History tab shows which phone acted).
-6. **Next by the developer's choice (20 Nov):** fix the Known findings —
-   the assigned-broker check in Trips / Trip Requests / Quotes, Client
-   Credits' role check, the clients search on a full name — as one Codex
-   step; the archived-trip tasks need the owner's decision first.
+6. **The four Known findings were fixed on 20 Nov** (session log): the
+   assigned broker checked the same way everywhere, Client Credits on a
+   permission (`CLIENTS · VIEW_MONEY`), full-name search in every list,
+   and an archived trip's system tasks archived with it. **Not yet
+   deployed** — the next `git push deploy roy:main` carries two migrations
+   (the permission grant, `Task.systemKind`).
 
 ### The stage: module-by-module review
 
@@ -455,11 +457,6 @@ For clean testing, the database was wiped and seeded with standard baseline data
 
 ### Known findings, not yet fixed
 
-- **Archiving a trip leaves its open system tasks** ("Approve Trip …",
-  "Review Assigned Trip …", "… Approval Declined") on the Tasks Board —
-  a task about a trip nobody is working. Each Postman run leaves a few in
-  `tribeca_postman`. Closing them on archive is a product choice for the
-  owner; not made.
 - `01 · Auth`'s reset flow sends two codes per run and the limit is three per
   address per 15 minutes, so two back-to-back runs pass and a third inside
   the window fails with 429 — the limit working, not a fault. Clear the test
@@ -469,31 +466,6 @@ For clean testing, the database was wiped and seeded with standard baseline data
   `builder_common` when its folder is next rebuilt. Every folder now
   regenerates from its own script — see `Backend/postman/README.md`,
   "Regenerating".
-- **A full name finds nobody in the clients search** (found 17 Nov by the
-  WhatsApp live check): `searchAcross` matches the whole string against one
-  column at a time, so "Elena Rostova" matches neither `firstName` nor
-  `lastName` — in the web app's search too. The bot works round it (its
-  tool tells the model to send one name); fixing the shared helper changes
-  every module's search, so it waits for the owner's word. **Deferred by the
-  developer, 17 Nov — fix later.** The plan: split the term into words, each
-  word must match some field, **and keep the whole phrase as an extra match**
-  so nothing that matched before stops matching (additive — the screens are
-  signed off). Unit tests for the helper (it has none), a pass over its 19
-  callers (trip references, emails, phones with spaces), a live check and a
-  Newman run (31 requests send `search`). About 1–1.5 hours, its own commit.
-- **The assigned broker is only checked properly by Clients** (found 19 Nov
-  by Codex, WhatsApp step 6d). Trips, Trip Requests and Quotes accept any
-  live account as `assignedBrokerId` — an assistant or a referral agent
-  passes — and Commissions refuses only the referral agent. The pickers
-  offer only `BROKER_ROLES`, so the screens never send one; a direct API
-  call can. `BROKER_ROLES` is now in `common/authorization/roles.ts` (paired
-  with the frontend's) and Clients uses it; move each module's
-  `assertBroker` onto it at its next review, with a test and a Postman
-  example for the 400.
-- **Client Credits refuses the Assistant role with a role check**
-  (`client-credits.service.ts`, `client()`), which "Authority is never a
-  role check in a service" forbids — an action in the catalogue is the
-  rule. Fix at the module's next review (found 19 Nov).
 - The Leads table reads the newest 100 enquiries of the leads on the page;
   a lead with a very long enquiry history could crowd others out of that
   window (each lead's latest is what is shown).
@@ -638,6 +610,35 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 20 Nov 2026 (later) — the four Known findings fixed (Claude Code + Codex, Windows machine)
+
+- **Assigned broker:** one shared `assertBroker` beside `BROKER_ROLES`
+  (live, a broker role, not suspended — invited passes) used by Clients,
+  Trips, Trip Requests, Quotes and Commissions. On create, Trips / Trip
+  Requests / Quotes take the caller as broker only when the caller is a
+  broker; an assistant's new record is unassigned (their reach includes
+  unassigned rows).
+- **Client Credits:** `CLIENTS · VIEW_MONEY` ("See money on account") —
+  admins and brokers by default, optional for assistants; the two role
+  checks are gone; migration `20261120150000` granted it to every stored
+  set that held Clients · View (dev: super admin, admin, 6 brokers).
+- **Search:** `searchMatches` / `searchAcross` keep the whole-phrase match
+  and add "every word matches some field" for 2–6 words, relation paths
+  included; Quotes and Trip Requests use it for client names. The
+  WhatsApp `find_client` tool accepts a full name.
+- **Archived trips:** `Task.systemKind` marks the tasks the trips service
+  raises (migration `20261120160000` backfilled by title once); archiving
+  a trip archives its open system tasks with the same stamp, restoring
+  brings back exactly those; approval paths find tasks by kind, not title.
+- Codex stopped three times, all right (Clients never checked status; an
+  assistant's create defaulted them as broker; Quotes / Trip Requests had
+  their own name search; titles cannot tell system tasks from a
+  person's; the task DTOs strip rather than refuse).
+- **Checks:** backend 91 files / 1116, tsc, oxlint; frontend lint and
+  build; migrations on dev with `migrate diff` empty; five folders
+  recaptured; the **whole collection** through Newman twice, 468 requests,
+  0 failures; label audit 830 / 0.
 
 ### 20 Nov 2026 — WhatsApp step 8, production deploy, 8c and 8d (Claude Code + Codex, Windows machine)
 

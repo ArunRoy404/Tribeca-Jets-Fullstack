@@ -216,8 +216,7 @@ def build(owner, broker, assistant):
         'clientId': MISSING, 'type': 'CREDIT', 'amount': 500,
         'occurredAt': '2026-04-03',
     })
-    # An assistant holds VIEW_FINANCIALS at NONE, so this is a capability
-    # failure and answers 403 — they never learn what is on the account.
+    # The seeded assistant lacks Clients · See money on account and answers 403.
     cap['create_403'] = assistant.request('POST', '/client-credits', {
         'clientId': client_id, 'type': 'CREDIT', 'amount': 500,
         'occurredAt': '2026-04-03',
@@ -309,13 +308,13 @@ def build(owner, broker, assistant):
                     'and nothing on screen says which half is right.\n\n'
                     'Withdrawn movements count towards nothing here, so the total always agrees '
                     'with the rows printed underneath it.\n\n'
-                    'Reading any of this needs `VIEW_FINANCIALS`: an assistant never learns what '
-                    'a client is holding, even for a client they can otherwise read.'),
+                    'Reading this requires Clients · View and Clients · See money on account. '
+                    'The seeded assistant lacks the money permission.'),
             },
             'response': [
                 example('200 · $18,000 credited, $12,000 used', 'GET', '/client-credits/summary?clientId={{clientId}}', *cap['summary']),
                 example('400 · A summary narrows nothing', 'GET', '/client-credits/summary?clientId={{clientId}}&type=CREDIT', *cap['summary_400']),
-                example('403 · An assistant may not see money', 'GET', '/client-credits/summary?clientId={{clientId}}', *cap['summary_403']),
+                example('403 · Missing money permission', 'GET', '/client-credits/summary?clientId={{clientId}}', *cap['summary_403']),
             ],
             'event': [script('prerequest', OWN_CLIENT), script('test', [
                 "pm.test('summary loads', function () {",
@@ -398,7 +397,7 @@ def build(owner, broker, assistant):
                 example('400 · The client has been archived', 'POST', '/client-credits', *cap['create_400_archived'], req_body={
                     'clientId': '{{clientId}}', 'type': 'CREDIT', 'amount': 500,
                     'occurredAt': '2026-04-05'}),
-                example('403 · An assistant may not record money', 'POST', '/client-credits', *cap['create_403']),
+                example('403 · Missing permission to record money', 'POST', '/client-credits', *cap['create_403']),
                 example('404 · No such client (or not yours)', 'POST', '/client-credits', *cap['create_404'], req_body={
                     'clientId': MISSING, 'type': 'CREDIT', 'amount': 500,
                     'occurredAt': '2026-04-03'}),
@@ -604,9 +603,9 @@ def build(owner, broker, assistant):
             '**No trip link yet.** Trips do not exist, and a reference string pointing at '
             'nothing would become a migration and a set of broken joins the day the table '
             'arrives. `reason` carries it for now.\n\n'
-            '**Reading needs `VIEW_FINANCIALS` *and* access to the client.** An assistant holds '
-            'the first at NONE and never learns what a client is holding; a broker sees only '
-            'their own clients, and another broker\'s ledger answers 404 rather than 403.\n\n'
+            '**Reading needs Clients · View, Clients · See money on account, and access to the client.** '
+            'Writes also require Clients · Edit. A broker sees only their own clients. '
+            'A client outside reach answers 404.\n\n'
             "Every request below is signed in as the seeded SUPER_ADMIN by the folder's "
             'pre-request script, except the 403 examples, captured as the seeded assistant.'),
         'item': items,

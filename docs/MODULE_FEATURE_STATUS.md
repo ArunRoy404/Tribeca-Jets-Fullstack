@@ -368,6 +368,9 @@ entered into the operator's fleet.
 
 ## 5. Clients ✅
 
+- The Clients list and filters support full-name search. A picked broker
+  must hold an eligible broker role and be live and unsuspended.
+
 **Working now**
 
 - Full CRUD, archive/restore, bulk operations, stats
@@ -595,6 +598,10 @@ agents are something else: clients of type `TRAVEL_AGENT`.
 
 ## 8. Trip Requests ✅
 
+- Client-name search matches the full name across first and last name.
+  A picked broker must be eligible and unsuspended. A request an assistant
+  files without choosing a broker stays unassigned.
+
 **Working now**
 
 - Full CRUD, archive/restore, bulk operations, stats
@@ -712,6 +719,10 @@ the data did not supply" the hardest rule in this project.
 
 ## 10. Quotes ✅
 
+- Client-name search matches the full name across first and last name.
+  A picked broker must be eligible and unsuspended. An assistant's new
+  quote with no broker picked stays unassigned.
+
 **Two quote entities, deliberately.** Scope §10 lists Operator Quote and Client
 Quote separately and they are genuinely different records: one is what an
 operator charges *us* (#9), the other is what the client pays, with margin and
@@ -827,6 +838,10 @@ rules the scope says nobody has agreed.
 ---
 
 ## 11. Trips ✅ *(27 Sep 2026)*
+
+- Broker assignment uses the shared live-account check. An assistant's
+  trip with no broker picked stays unassigned. Archive and restore move
+  the trip's open system tasks with it and record the counts in the audit.
 
 **Working now**
 
@@ -1374,6 +1389,9 @@ status and balance live on its own board, one click away.
 
 ### 18. Commissions ✅ *(Reviewed & migrated 11 Oct 2026)*
 
+- The attributed broker and a broker recipient both use the shared
+  live-account check. An unchanged broker link stays editable on older rows.
+
 **Working now**
 
 - `Commission` on a trip, paid to a **referral agent** (a user), a **client**
@@ -1413,6 +1431,10 @@ anywhere in the system.
 ---
 
 ## 20. Tasks Board ✅ *(28 Sep 2026)*
+
+- Trip approval, assignment, and decline tasks carry a system source.
+  Trip archive and restore move those tasks with the trip and preserve
+  manual and independently archived work.
 
 **Working now**
 
@@ -2325,11 +2347,12 @@ his own request that settles it.
 
 **Reviewed 9 Oct 2026** (review row 11):
 - **Access control:** Controller decorated with `@StaffOnly()` (blocks partner/referral agents with 403).
-- Service checks per-person access: `canDo(user.access, Module.CLIENTS, Action.VIEW / Action.EDIT)`.
-- Assistants explicitly forbidden (`user.role === Role.ASSISTANT`) from viewing or writing client credit records.
+- Reads require Clients · View and **See money on account**. Writes also
+  require Clients · Edit. An assistant can be granted the money permission.
 - Brokers scoped to their assigned clients via `ClientsService.subjectRef` (foreign broker gets 404).
-- Unit tests added: `client-credits.access.spec.ts` (5 tests, 100% passing).
-- Frontend: `ClientCreditTab.jsx` and `ClientDetailPage.jsx` updated to strictly check assistant role and `canAccess(Module.CLIENTS, Action.EDIT)`.
+- `client-credits.access.spec.ts` covers the per-person grant and the
+  separate edit check. The frontend shows the Credit tab and its controls
+  according to those permissions.
 - UI: Form inputs and selects in `CreditMovementForm.jsx` standardized to standard height (`h-10 text-[13px] rounded-md px-3 py-2`).
 
 **Waiting on a dependency**
@@ -2576,13 +2599,10 @@ may read, and a client only on their own portal statement and invoice PDF.
   27 the day before), every builder on the shared overridable `BASE`; full
   run green twice on the 4100 API.
 
-**Waiting on a decision**
+**Built on 20 Nov 2026, awaiting review**
 
-- Archiving a trip leaves its open system tasks ("Approve Trip …",
-  "Review Assigned Trip …", "… Approval Declined") on the board. Each
-  Postman run leaves a few in `tribeca_postman`; on the desk it is a task
-  about a trip nobody is working. Closing them on archive is a product
-  choice, not made.
+- Trip archive and restore now include the system tasks from the same
+  archive event. The migration marks the previously generated tasks.
 
 ### `CommonDatePicker` emitted a display string — fixed 19 September 2026
 

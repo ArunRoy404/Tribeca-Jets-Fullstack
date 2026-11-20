@@ -28,9 +28,10 @@ import pathlib
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
+from urllib.parse import urlencode
 
 # The shared, overridable address (POSTMAN_BASE) — never the mail-sending :4000 by default.
-from builder_common import BASE  # noqa: E402
+from builder_common import BASE, example  # noqa: E402
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 PASSWORD = 'ChangeMe123!'
 UNKNOWN_ID = '00000000-0000-4000-8000-000000000000'
@@ -98,6 +99,23 @@ def main() -> None:
     def examples(request_name: str) -> dict:
         return {e['name']: e for e in by_name[request_name]['response']}
 
+    seed_email = 'marcus.chen@example.com'
+    status, seeded = owner.request('GET', '/clients?' + urlencode({'search': seed_email}))
+    if status != 200:
+        raise SystemExit(f'Could not look up the seeded client ({status})')
+    client = next((row for row in seeded['data'] if row.get('email') == seed_email), None)
+    if client is None:
+        raise SystemExit('The seeded client marcus.chen@example.com is required for the full-name example')
+    full_name = f"{client['firstName']} {client['lastName']}"
+    path = '/clients?' + urlencode({'search': full_name})
+    status, matches = owner.request('GET', path)
+    full_name_example = example('200 · Full name', 'GET', path, status, matches)
+    if not any(row['id'] == client['id'] for row in matches['data']):
+        raise SystemExit('The full-name search did not return the seeded client')
+    responses = by_name['01 · List clients']['response']
+    responses[:] = [item for item in responses if item['name'] != full_name_example['name']]
+    responses.append(full_name_example)
+
     # A probe of our own, so no seeded client is mutated to make a screenshot.
     created_status, created = owner.request('POST', '/clients', {
         'firstName': 'Postman',
@@ -116,7 +134,7 @@ def main() -> None:
     probe_id = created['data']['id']
     print(f'probe client {probe_id} ({created_status})')
 
-    captured = 0
+    captured = 1
 
     # 01 · List clients
     ex = examples('01 · List clients')

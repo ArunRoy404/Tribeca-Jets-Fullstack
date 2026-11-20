@@ -109,6 +109,15 @@ class Session:
                 return error.code, raw
 
 
+def signed_in_id(session: Session) -> str:
+    """Read the ID of the seeded account the builder signed in as."""
+    status, body = session.request('GET', '/auth/me')
+    if status != 200:
+        raise SystemExit(f'Could not look up the signed-in account ({status})')
+    profile = body['data']
+    return profile.get('id') or profile['user']['id']
+
+
 def url(path: str, query: list | None = None) -> dict:
     """A Postman URL object for `{{baseUrl}}` + path, with described query params."""
     raw = '{{baseUrl}}' + path
