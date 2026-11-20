@@ -17,6 +17,28 @@ for a review, and how the owner likes to work, is in
 
 ### Read this first — the state on 20 Nov 2026 (end of day)
 
+- **Where to pick up (21 Nov, on another machine):** everything is
+  committed and pushed on `roy`; production (`main`) is at `38309ac`, with
+  everything from 20 Nov except the docs commits after it. **Next: Ari's
+  feedback** — the developer has it and will paste it in; sort it into
+  items, check each against the code, plan, then Codex briefs or direct
+  fixes. The developer also tests #31–#34 themselves; Ari tests on their
+  own. The full list of what is left is "What is next" below.
+- **Sent to Ari on 20 Nov:** `update-20-nov.txt` (how to set up and use
+  the WhatsApp assistant, modules covered and not) and
+  `update-20-nov-whatsapp-accounts.txt` (the OpenAI and Meta accounts
+  needed to go live, and the question about client data and OpenAI).
+  Waiting on Ari for: their accounts, their OK on OpenAI, their testing.
+- **The four Known findings were fixed and deployed on 20 Nov** (session
+  log): the assigned broker checked everywhere, Client Credits on
+  `CLIENTS · VIEW_MONEY`, full-name search in every list, archived trips
+  taking their system tasks with them.
+- **Before real use (when Ari's accounts arrive):** switch WhatsApp to
+  Ari's OpenAI and Meta accounts; clear production's test data and start
+  from `db:bootstrap-admin`; consider moving the desk rules ("today",
+  overdue, report windows) from UTC to the company time zone first —
+  a US desk would see "today" turn over in the evening.
+
 - **The WhatsApp assistant is finished and live on production** (`main`
   at `4bfd4b3`, deployed by the developer; production is still a test
   environment with test data). Steps 1–8 are done: 8a settings in the
@@ -518,6 +540,16 @@ For clean testing, the database was wiped and seeded with standard baseline data
 - **Storage:** `STORAGE_DRIVER=auto` with the three S3/R2 keys **empty** uses
   local disk (`Backend/storage/`). Never put production R2 keys in the local
   `.env`; a partial set refuses to boot.
+- **WhatsApp on a new machine:** add `SETTINGS_ENCRYPTION_KEY` to `.env`
+  (generate one: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
+  It is optional — the API boots without it — but Settings › WhatsApp & AI
+  cannot save a credential until it is set. A fresh dev database has no
+  WhatsApp settings and no linked phones; that is expected. Meta's webhook
+  points at **production**, so a local API gets no WhatsApp messages
+  unless Meta is pointed at a `cloudflared` tunnel (and the same verify
+  token is set locally). Normal work needs none of this.
+- **Docker Desktop must be running** before `npm run services:up` (after a
+  power cut it is not; start it first).
 - **A database reset is destructive** — only with the owner's explicit consent.
 - **Creating a migration:** `npx prisma migrate diff --from-config-datasource
   prisma7.config.ts --to-schema prisma/schema --script`, write it to
