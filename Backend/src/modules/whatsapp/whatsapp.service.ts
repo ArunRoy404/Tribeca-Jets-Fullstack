@@ -5,7 +5,6 @@ import { resolveAccess } from '../../common/authorization/access.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import { UserRole, UserStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import { SettingsService } from '../settings/settings.service.js';
 import type { WhatsappDocument } from './whatsapp.document.js';
 import type { IncomingMessage } from './whatsapp.payload.js';
 import { WhatsappSender } from './whatsapp.sender.js';
@@ -59,7 +58,7 @@ function identity(user: AdminRow): AuthenticatedUser {
  * The Super Admin's WhatsApp assistant.
  *
  * Every message passes the same gates, in order, before anything reads it:
- * the server is configured, Settings › Security has it switched on, it comes
+ * the server is configured, Settings › WhatsApp & AI has it switched on, it comes
  * from the verified phone of an active Super Admin, it has not been handled
  * already, and it is recent.
  * A message that fails any of them is dropped without a reply — an answer to
@@ -72,7 +71,6 @@ export class WhatsappService {
 
   constructor(
     private readonly whatsappSettings: WhatsappSettingsService,
-    private readonly settings: SettingsService,
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
     private readonly agent: WhatsappAgent,
@@ -105,7 +103,7 @@ export class WhatsappService {
   private async gate(message: IncomingMessage, now: Date): Promise<Exclude<Outcome, 'accepted'> | AuthenticatedUser> {
     if (!await this.whatsappSettings.current()) return 'not_configured';
 
-    if (!(await this.settings.read()).whatsappAssistantEnabled) return 'switched_off';
+    if (!await this.whatsappSettings.assistantEnabled()) return 'switched_off';
 
     // Re-read identity per message so a suspension, role change or unlink
     // takes effect on the next delivery.

@@ -6,7 +6,10 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import type { Prisma, WhatsappSettings } from '../../generated/prisma/client.js';
 import { AuthService } from '../auth/auth.service.js';
 import type { SessionContext } from '../auth/token.service.js';
-import { whatsappImportSchema, type UpdateWhatsappSettings, type WhatsappSettingsChanges } from './dto/whatsapp-settings.dto.js';
+import {
+  WHATSAPP_SECRET_FIELDS, whatsappImportSchema, type RevealWhatsappSecretDto, type SetWhatsappAssistantDto,
+  type UpdateWhatsappSettings, type WhatsappSettingsChanges,
+} from './dto/whatsapp-settings.dto.js';
 
 export interface WhatsappConfig {
   accessToken: string;
@@ -18,14 +21,28 @@ export interface WhatsappConfig {
 
 const SETTINGS_ID = 1;
 const CACHE_MS = 15_000;
-const SECRET_FIELDS = ['openaiApiKey', 'accessToken', 'appSecret', 'verifyToken'] as const;
-type PanelFields = Pick<WhatsappSettings, typeof SECRET_FIELDS[number] | 'openaiModel' | 'phoneNumberId' | 'graphVersion'>;
+const META_FIELDS = ['phoneNumberId', 'accessToken', 'appSecret', 'verifyToken'] as const;
+type PanelFields = Pick<WhatsappSettings, typeof WHATSAPP_SECRET_FIELDS[number] | 'openaiModel' | 'phoneNumberId' | 'graphVersion'>;
+type LoadedSettings = PanelFields & Pick<WhatsappSettings, 'assistantEnabled'>;
 type Field = keyof PanelFields;
 type LegacySettings = Partial<Record<Field, string>>;
 const FIELDS = Object.keys(whatsappImportSchema.shape) as Field[];
 
 function secretView(value: string | null) {
-  return { set: value !== null, last4: value === null ? null : lastFour(value) };
+  const last4 = value === null ? null : lastFour(value);
+  return { set: value !== null, last4, masked: value === null ? null : '•'.repeat(12) + (last4 ?? '') };
+}
+
+function metaState({ phoneNumberId, accessToken, appSecret, verifyToken, graphVersion }: PanelFields) {
+  const fields = { phoneNumberId, accessToken, appSecret, verifyToken };
+  const missing = META_FIELDS.filter((field) => !fields[field]);
+  // The missing-field list is also the webhook's configuration check.
+  const config = missing.length ? null : { ...fields, graphVersion } as WhatsappConfig;
+  return { config, missing };
+}
+
+function aiConfig({ openaiApiKey, openaiModel }: PanelFields) {
+  return openaiApiKey && openaiModel ? { apiKey: openaiApiKey, model: openaiModel } : null;
 }
 
 @Injectable()
@@ -33,7 +50,7 @@ export class WhatsappSettingsService {
   private readonly logger = new Logger(WhatsappSettingsService.name);
   // A write in the API process clears the cache immediately. The import CLI
   // uses its own process, so cached reads also expire.
-  private cached: Promise<PanelFields> | undefined;
+  private cached: Promise<LoadedSettings> | undefined;
   private cacheUntil = 0;
 
   constructor(
@@ -63,12 +80,13 @@ export class WhatsappSettingsService {
     });
   }
 
-  private async fetch(): Promise<PanelFields> {
+  private async fetch(): Promise<LoadedSettings> {
     const row = await this.readRow();
     return {
       openaiModel: row.openaiModel,
       phoneNumberId: row.phoneNumberId,
       graphVersion: row.graphVersion,
+      assistantEnabled: row.assistantEnabled,
       openaiApiKey: this.open(row.openaiApiKey),
       accessToken: this.open(row.accessToken),
       appSecret: this.open(row.appSecret),
@@ -76,7 +94,7 @@ export class WhatsappSettingsService {
     };
   }
 
-  private load(): Promise<PanelFields> {
+  private load(): Promise<LoadedSettings> {
     if (this.cached && Date.now() < this.cacheUntil) return this.cached;
     const loading = this.fetch().catch((error: unknown) => {
       if (this.cached === loading) this.cached = undefined;
@@ -89,15 +107,16 @@ export class WhatsappSettingsService {
 
   async current(): Promise<WhatsappConfig | null> {
     if (!this.secrets.ready) return null;
-    const { accessToken, appSecret, verifyToken, phoneNumberId, graphVersion } = await this.load();
-    if (!accessToken || !appSecret || !verifyToken || !phoneNumberId) return null;
-    return { accessToken, appSecret, verifyToken, phoneNumberId, graphVersion };
+    return metaState(await this.load()).config;
   }
 
   async ai(): Promise<{ apiKey: string; model: string } | null> {
     if (!this.secrets.ready) return null;
-    const { openaiApiKey, openaiModel } = await this.load();
-    return openaiApiKey && openaiModel ? { apiKey: openaiApiKey, model: openaiModel } : null;
+    return aiConfig(await this.load());
+  }
+
+  async assistantEnabled(): Promise<boolean> {
+    return (await this.load()).assistantEnabled;
   }
 
   async openAiTestKey(): Promise<string | null> {
@@ -118,6 +137,11 @@ export class WhatsappSettingsService {
       }),
     ]);
     const origin = this.config.apiPublicUrl.replace(/\/+$/, '');
+    const encryptionReady = this.secrets.ready;
+    const meta = metaState(row);
+    const linkedPhone = user?.whatsappPhone && user.whatsappPhoneVerifiedAt
+      ? { phone: user.whatsappPhone, verifiedAt: user.whatsappPhoneVerifiedAt }
+      : null;
     return {
       openaiModel: row.openaiModel,
       phoneNumberId: row.phoneNumberId,
@@ -126,10 +150,16 @@ export class WhatsappSettingsService {
       accessToken: secretView(row.accessToken),
       appSecret: secretView(row.appSecret),
       verifyToken: secretView(row.verifyToken),
-      encryptionReady: this.secrets.ready,
-      linkedPhone: user?.whatsappPhone && user.whatsappPhoneVerifiedAt
-        ? { phone: user.whatsappPhone, verifiedAt: user.whatsappPhoneVerifiedAt }
-        : null,
+      encryptionReady,
+      linkedPhone,
+      assistantEnabled: row.assistantEnabled,
+      readiness: {
+        openai: aiConfig(row) !== null,
+        meta: meta.config !== null,
+        metaMissing: meta.missing,
+        phoneLinked: linkedPhone !== null,
+        encryptionReady,
+      },
       webhookUrl: `${origin}/api/webhooks/whatsapp`,
     };
   }
@@ -144,6 +174,52 @@ export class WhatsappSettingsService {
       throw new ConflictException('WhatsApp settings changed. Please try again.');
     }
     return this.view(userId);
+  }
+
+  async setAssistant(userId: string, { enabled, currentPassword }: SetWhatsappAssistantDto, context: SessionContext) {
+    if (enabled) {
+      if (!currentPassword) throw new BadRequestException('currentPassword is required to switch on the assistant');
+      await this.auth.assertPassword(userId, currentPassword);
+    }
+    const changes = { assistantEnabled: enabled, updatedById: userId };
+    await this.prisma.whatsappSettings.upsert({
+      where: { id: SETTINGS_ID },
+      create: { id: SETTINGS_ID, createdById: userId, ...changes },
+      update: changes,
+    });
+    this.cached = undefined;
+    await this.audit.record({
+      actorId: userId,
+      action: enabled ? 'whatsapp_assistant.switched_on' : 'whatsapp_assistant.switched_off',
+      entityType: 'WhatsappSettings',
+      entityId: String(SETTINGS_ID),
+      ...context,
+    });
+    return this.view(userId);
+  }
+
+  async reveal(userId: string, { field, currentPassword }: RevealWhatsappSecretDto, context: SessionContext) {
+    await this.auth.assertPassword(userId, currentPassword);
+    this.requireEncryption();
+    const sealed = (await this.readRow())[field];
+    if (sealed === null) throw new BadRequestException('That secret is not set');
+
+    let value: string;
+    try {
+      value = this.secrets.openSecret(sealed);
+    } catch (error) {
+      if (!(error instanceof SecretOpenError)) throw error;
+      throw new ConflictException("That secret cannot be read with this server's key. Replace it.");
+    }
+    await this.audit.record({
+      actorId: userId,
+      action: 'whatsapp_settings.revealed',
+      entityType: 'WhatsappSettings',
+      entityId: String(SETTINGS_ID),
+      metadata: { field },
+      ...context,
+    });
+    return { field, value };
   }
 
   async importLegacy(values: LegacySettings) {
@@ -186,7 +262,7 @@ export class WhatsappSettingsService {
     expected: Prisma.WhatsappSettingsWhereInput = {},
   ): Promise<boolean> {
     const data = { ...changes };
-    for (const field of SECRET_FIELDS) {
+    for (const field of WHATSAPP_SECRET_FIELDS) {
       const value = changes[field];
       if (value === undefined) continue;
       this.requireEncryption();

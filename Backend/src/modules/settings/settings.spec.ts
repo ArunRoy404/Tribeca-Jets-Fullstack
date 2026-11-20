@@ -38,7 +38,6 @@ const row: SettingsRow = {
   idleWarningMinutes: 1,
   showIdleWarning: true,
   requireAdminTwoFactor: false,
-  whatsappAssistantEnabled: false,
   failedSignInLimit: 5,
   failedSignInWindowMinutes: 15,
   signInLockoutMinutes: 15,
@@ -96,6 +95,7 @@ describe('settings view', () => {
     expect(view.defaults.defaultFetPercent).toBe(7.5);
     expect(view.company.companyTimeZone).toBe(DEFAULT_TIME_ZONE);
     expect(view.security).not.toHaveProperty('companyName');
+    expect(view.security).not.toHaveProperty('whatsappAssistantEnabled');
   });
 });
 
@@ -137,6 +137,10 @@ describe('PATCH /settings validation', () => {
   it('refuses a misspelt key rather than ignoring it', () => {
     expect(ok({ defaults: { quoteValidity: 48 } })).toBe(false);
     expect(ok({ branding: {} })).toBe(false);
+  });
+
+  it('refuses the former security section key for the WhatsApp assistant', () => {
+    expect(ok({ security: { whatsappAssistantEnabled: true } })).toBe(false);
   });
 
   it('holds percentages to the column precision', () => {

@@ -25,6 +25,18 @@ export const updateWhatsappSettingsSchema = z.strictObject({
 export const whatsappImportSchema = z.strictObject(settingFields);
 export type WhatsappSettingsChanges = z.infer<typeof whatsappImportSchema>;
 
+export const WHATSAPP_SECRET_FIELDS = ['openaiApiKey', 'accessToken', 'appSecret', 'verifyToken'] as const;
+
+const revealWhatsappSecretSchema = z.strictObject({
+  field: z.enum(WHATSAPP_SECRET_FIELDS),
+  currentPassword: currentPasswordSchema,
+});
+
+const setWhatsappAssistantSchema = z.strictObject({
+  enabled: z.boolean(),
+  currentPassword: z.string().optional(),
+});
+
 const testOpenAiSchema = z.strictObject({ apiKey: secret.optional() });
 const testMetaSchema = z.strictObject({
   accessToken: secret.optional(),
@@ -48,3 +60,5 @@ export class SendLinkCodeDto extends createZodDto(sendLinkCodeSchema) {}
 export class UnlinkWhatsappPhoneDto extends createZodDto(unlinkPhoneSchema) {}
 export class TestWhatsappOpenAiDto extends createZodDto(testOpenAiSchema) {}
 export class TestWhatsappMetaDto extends createZodDto(testMetaSchema) {}
+export class RevealWhatsappSecretDto extends createZodDto(revealWhatsappSecretSchema) {}
+export class SetWhatsappAssistantDto extends createZodDto(setWhatsappAssistantSchema) {}

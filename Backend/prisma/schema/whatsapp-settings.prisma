@@ -1,13 +1,14 @@
 /// One row. The four credential columns hold sealed values.
 model WhatsappSettings {
-  id            Int     @id @default(1)
-  openaiApiKey  String?
-  openaiModel   String?
-  accessToken   String?
-  appSecret     String?
-  verifyToken   String?
-  phoneNumberId String?
-  graphVersion  String  @default("v25.0")
+  id               Int     @id @default(1)
+  openaiApiKey     String?
+  openaiModel      String?
+  accessToken      String?
+  appSecret        String?
+  verifyToken      String?
+  phoneNumberId    String?
+  graphVersion     String  @default("v25.0")
+  assistantEnabled Boolean @default(false)
 
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

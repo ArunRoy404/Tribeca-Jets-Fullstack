@@ -187,8 +187,7 @@ describe('WhatsappService gates', () => {
     findUnique.mockReset().mockImplementation(async ({ where }) => where.whatsappPhone === ADMIN_PHONE ? admin : null);
     findFirst.mockReset().mockImplementation(async () => admin);
     service = new WhatsappService(
-      { current: async () => configured } as never,
-      { read: async () => ({ whatsappAssistantEnabled: enabled }) } as never,
+      { current: async () => configured, assistantEnabled: async () => enabled } as never,
       { claimOnce: async (key: string) => !claimed.has(key) && Boolean(claimed.add(key)) } as never,
       { user: { findFirst, findUnique } } as never,
       agent as never,

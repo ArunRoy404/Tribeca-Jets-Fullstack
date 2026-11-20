@@ -317,8 +317,7 @@ describe('WhatsappService sends replies without logging content', () => {
     reply = vi.fn().mockResolvedValue(textReply(replyText));
     findFirst = vi.fn().mockResolvedValue({ id: user.id, email: user.email, role: user.role, permissions: null, status: 'ACTIVE', deletedAt: null, whatsappPhone: PHONE, whatsappPhoneVerifiedAt: new Date() });
     service = new WhatsappService(
-      { current: async () => ({}) } as never,
-      { read: async () => ({ whatsappAssistantEnabled: true }) } as never,
+      { current: async () => ({}), assistantEnabled: async () => true } as never,
       { claimOnce: async () => true } as never,
       { user: { findFirst, findUnique: findFirst } } as never,
       // Ready exactly when the provider factory would build a client.

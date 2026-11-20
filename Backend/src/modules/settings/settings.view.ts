@@ -39,7 +39,6 @@ export interface SettingsRow {
   idleWarningMinutes: number;
   showIdleWarning: boolean;
   requireAdminTwoFactor: boolean;
-  whatsappAssistantEnabled: boolean;
   /** Null on a limit is "Never". */
   failedSignInLimit: number | null;
   failedSignInWindowMinutes: number;
@@ -71,7 +70,7 @@ export const SECTIONS = {
     'defaultMarkupPercent', 'quoteValidityHours', 'defaultFetPercent', 'applyFetByDefault',
     'followUpIntervalDays', 'defaultLeadStage', 'defaultQuoteTerms',
   ],
-  security: ['idleLogoutEnabled', 'idleTimeoutMinutes', 'idleWarningMinutes', 'showIdleWarning', 'requireAdminTwoFactor', 'whatsappAssistantEnabled'],
+  security: ['idleLogoutEnabled', 'idleTimeoutMinutes', 'idleWarningMinutes', 'showIdleWarning', 'requireAdminTwoFactor'],
   rateLimits: [
     'failedSignInLimit', 'failedSignInWindowMinutes', 'signInLockoutMinutes', 'failedSignInScope',
     'codeSendLimit', 'codeSendWindowMinutes', 'codeAttemptLimit',

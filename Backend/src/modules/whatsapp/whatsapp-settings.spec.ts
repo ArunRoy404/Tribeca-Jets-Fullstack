@@ -1,12 +1,15 @@
 import { BadGatewayException, BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
+import { HEADERS_METADATA, HTTP_CODE_METADATA } from '@nestjs/common/constants.js';
 import { Reflector } from '@nestjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import { Action, Module, Reach } from '../../common/authorization/access.js';
+import { RATE_LIMIT_KEY } from '../../common/constants/auth.constants.js';
 import { SecretBox } from '../../common/crypto/secret-box.js';
 import { AccessGuard } from '../../common/guards/access.guard.js';
 import { UserRole, VerificationPurpose } from '../../generated/prisma/enums.js';
 import { importWhatsappEnv } from '../../scripts/whatsapp-import-env.js';
 import { TokenService } from '../auth/token.service.js';
+import { RevealWhatsappSecretDto, SetWhatsappAssistantDto } from './dto/whatsapp-settings.dto.js';
 import { WhatsappConnectionsService } from './whatsapp-connections.service.js';
 import { WhatsappPhoneService } from './whatsapp-phone.service.js';
 import { WhatsappSettingsController } from './whatsapp-settings.controller.js';
@@ -32,15 +35,15 @@ function fixture(encryptionReady = true) {
   };
   const box = new SecretBox(config as never);
   const row: {
-    id: number; openaiModel: string | null; graphVersion: string; phoneNumberId: string | null;
+    id: number; assistantEnabled: boolean; openaiModel: string | null; graphVersion: string; phoneNumberId: string | null;
     openaiApiKey: string | null; accessToken: string | null; appSecret: string | null; verifyToken: string | null;
   } = {
-    id: 1, openaiModel: null, graphVersion: 'v25.0', phoneNumberId: null,
+    id: 1, assistantEnabled: false, openaiModel: null, graphVersion: 'v25.0', phoneNumberId: null,
     openaiApiKey: null, accessToken: null, appSecret: null, verifyToken: null,
   };
   const prisma = {
     whatsappSettings: {
-      upsert: vi.fn(async () => ({ ...row })),
+      upsert: vi.fn(async ({ update }) => ({ ...Object.assign(row, update) })),
       updateMany: vi.fn(async ({ where, data }) => {
         if (Object.entries(where).some(([field, value]) => row[field as keyof typeof row] !== value)) {
           return { count: 0 };
@@ -82,13 +85,17 @@ describe('WhatsApp credential settings', () => {
     await setupMeta();
     const view = await settings.view(userId);
     for (const [field, secret] of Object.entries(secrets)) {
-      expect(view[field as keyof typeof secrets]).toEqual({ set: true, last4: secret.slice(-4) });
+      expect(view[field as keyof typeof secrets]).toEqual({
+        set: true, last4: secret.slice(-4), masked: '•'.repeat(12) + secret.slice(-4),
+      });
       expect(JSON.stringify(view)).not.toContain(secret);
       expect(JSON.stringify(row)).not.toContain(secret);
     }
     expect(view).toMatchObject({
       phoneNumberId: '9001', graphVersion: 'v25.0', encryptionReady: true,
       linkedPhone: null, webhookUrl: 'https://crm.example.com/api/webhooks/whatsapp',
+      assistantEnabled: false,
+      readiness: { openai: false, meta: true, metaMissing: [], phoneLinked: false, encryptionReady: true },
     });
     expect(await settings.current()).toMatchObject({ appSecret: secrets.appSecret });
   });
@@ -104,8 +111,9 @@ describe('WhatsApp credential settings', () => {
     const view = await settings.update(userId, { currentPassword: password, openaiApiKey: replacement, appSecret: null }, {});
     expect(row.accessToken).toBe(savedAccess);
     expect(prisma.whatsappSettings.updateMany.mock.lastCall?.[0].data).not.toHaveProperty('accessToken');
-    expect(view.openaiApiKey).toEqual({ set: true, last4: 'xyz7' });
-    expect(view.appSecret).toEqual({ set: false, last4: null });
+    expect(view.openaiApiKey).toEqual({ set: true, last4: 'xyz7', masked: '•'.repeat(12) + 'xyz7' });
+    expect(view.appSecret).toEqual({ set: false, last4: null, masked: null });
+    expect(view.readiness.metaMissing).toEqual(['appSecret']);
     expect(await settings.current()).toBeNull();
     expect(await settings.ai()).toEqual({ apiKey: replacement, model: 'model-one' });
     expect(audit.record.mock.lastCall?.[0]).toMatchObject({
@@ -139,16 +147,112 @@ describe('WhatsApp credential settings', () => {
     const stored = new SecretBox({ settingsEncryptionKey: Buffer.alloc(32, 4).toString('base64') } as never)
       .sealSecret(secrets.appSecret);
     prisma.whatsappSettings.upsert.mockImplementationOnce(async () => ({
-      id: 1, openaiModel: null, graphVersion: 'v25.0', phoneNumberId: null,
+      id: 1, assistantEnabled: false, openaiModel: null, graphVersion: 'v25.0', phoneNumberId: null,
       openaiApiKey: null, accessToken: null, verifyToken: null, appSecret: stored,
     }));
     const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     try {
-      expect((await settings.view(userId)).appSecret).toEqual({ set: false, last4: null });
+      expect((await settings.view(userId)).appSecret).toEqual({ set: false, last4: null, masked: null });
       expect(warn).toHaveBeenCalledExactlyOnceWith('SecretOpenError');
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe('WhatsApp secret reveal', () => {
+  it.each(Object.keys(secrets) as (keyof typeof secrets)[])('reveals %s and audits only its name', async (field) => {
+    const { settings, setupMeta, auth, audit } = fixture();
+    await setupMeta();
+    expect(await settings.reveal(userId, { field, currentPassword: password }, {})).toEqual({ field, value: secrets[field] });
+    expect(auth.assertPassword).toHaveBeenLastCalledWith(userId, password);
+    expect(audit.record).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: 'whatsapp_settings.revealed', metadata: { field },
+    }));
+    expect(JSON.stringify(audit.record.mock.calls)).not.toContain(secrets[field]);
+  });
+
+  it('refuses a wrong password before reading the secret', async () => {
+    const { settings, prisma, auth, audit } = fixture();
+    auth.assertPassword.mockRejectedValue(new BadRequestException('Your current password is incorrect'));
+    await expect(settings.reveal(userId, { field: 'verifyToken', currentPassword: password }, {}))
+      .rejects.toMatchObject({ status: 400, message: 'Your current password is incorrect' });
+    expect(prisma.whatsappSettings.upsert).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it('returns safe errors for unset secrets, unreadable secrets and missing encryption', async () => {
+    const input = { field: 'verifyToken', currentPassword: password } as const;
+    const { settings, row, audit } = fixture();
+    await expect(settings.reveal(userId, input, {})).rejects.toMatchObject({ status: 400, message: 'That secret is not set' });
+    row.verifyToken = new SecretBox({ settingsEncryptionKey: Buffer.alloc(32, 4).toString('base64') } as never)
+      .sealSecret(secrets.verifyToken);
+    await expect(settings.reveal(userId, input, {})).rejects.toMatchObject({
+      status: 409, message: "That secret cannot be read with this server's key. Replace it.",
+    });
+    expect(audit.record).not.toHaveBeenCalled();
+    await expect(fixture(false).settings.reveal(userId, input, {}))
+      .rejects.toMatchObject({ status: 400, message: 'Set SETTINGS_ENCRYPTION_KEY on the server first' });
+  });
+
+  it('validates the body and returns 200 with no-store and no route limit', () => {
+    const schema = RevealWhatsappSecretDto.zodSchema;
+    expect(schema.safeParse({ field: 'openaiModel', currentPassword: password }).success).toBe(false);
+    expect(schema.safeParse({ field: 'verifyToken' }).success).toBe(false);
+    expect(schema.safeParse({ field: 'verifyToken', currentPassword: password, extra: true }).success).toBe(false);
+    const handler = Reflect.get(WhatsappSettingsController.prototype, 'reveal');
+    expect(Reflect.getMetadata(HTTP_CODE_METADATA, handler)).toBe(200);
+    expect(Reflect.getMetadata(HEADERS_METADATA, handler)).toEqual([{ name: 'Cache-Control', value: 'no-store' }]);
+    expect(Reflect.getMetadata(RATE_LIMIT_KEY, handler)).toBeUndefined();
+  });
+});
+
+describe('WhatsApp assistant switch', () => {
+  it('requires a correct password before switching on', async () => {
+    const { settings, auth, prisma } = fixture();
+    await expect(settings.setAssistant(userId, { enabled: true }, {}))
+      .rejects.toMatchObject({ status: 400, message: expect.stringContaining('currentPassword') });
+    expect(auth.assertPassword).not.toHaveBeenCalled();
+    auth.assertPassword.mockRejectedValueOnce(new BadRequestException('Your current password is incorrect'));
+    await expect(settings.setAssistant(userId, { enabled: true, currentPassword: password }, {}))
+      .rejects.toMatchObject({ status: 400, message: 'Your current password is incorrect' });
+    expect(prisma.whatsappSettings.upsert).not.toHaveBeenCalled();
+  });
+
+  it('switches on before readiness, clears the cache and switches off without reauth', async () => {
+    const { settings, auth, audit, row } = fixture(false);
+    expect(await settings.assistantEnabled()).toBe(false);
+    const enabled = await settings.setAssistant(userId, { enabled: true, currentPassword: password }, {});
+    expect(enabled).toMatchObject({ assistantEnabled: true, readiness: {
+      openai: false, meta: false, metaMissing: ['phoneNumberId', 'accessToken', 'appSecret', 'verifyToken'],
+      phoneLinked: false, encryptionReady: false,
+    } });
+    expect(await settings.assistantEnabled()).toBe(true);
+    expect(row.assistantEnabled).toBe(true);
+    expect(audit.record).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'whatsapp_assistant.switched_on' }));
+    expect((await settings.setAssistant(userId, { enabled: false }, {})).assistantEnabled).toBe(false);
+    expect(await settings.assistantEnabled()).toBe(false);
+    await settings.setAssistant(userId, { enabled: false, currentPassword: 'unused-password' }, {});
+    expect(auth.assertPassword).toHaveBeenCalledExactlyOnceWith(userId, password);
+    expect(audit.record).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'whatsapp_assistant.switched_off' }));
+  });
+
+  it('accepts a boolean and an optional password only and has no route limit', () => {
+    const schema = SetWhatsappAssistantDto.zodSchema;
+    expect(schema.safeParse({ enabled: false }).success).toBe(true);
+    expect(schema.safeParse({ enabled: false, currentPassword: '' }).success).toBe(true);
+    expect(schema.safeParse({ enabled: false, currentPassword: password }).success).toBe(true);
+    expect(schema.safeParse({ enabled: 'false' }).success).toBe(false);
+    expect(schema.safeParse({ enabled: false, extra: true }).success).toBe(false);
+    expect(Reflect.getMetadata(RATE_LIMIT_KEY, Reflect.get(WhatsappSettingsController.prototype, 'setAssistant'))).toBeUndefined();
+  });
+
+  it('masks short secrets and reports OpenAI and phone readiness from stored values', async () => {
+    const { settings, prisma } = fixture();
+    prisma.user.findUnique.mockResolvedValue({ whatsappPhone: phone, whatsappPhoneVerifiedAt: new Date() });
+    const view = await settings.update(userId, { currentPassword: password, openaiApiKey: '1234', openaiModel: 'model-one' }, {});
+    expect(view.openaiApiKey).toEqual({ set: true, last4: null, masked: '•'.repeat(12) });
+    expect(view.readiness).toMatchObject({ openai: true, phoneLinked: true });
   });
 });
 
@@ -314,7 +418,7 @@ describe('WhatsApp phone linking', () => {
 });
 
 describe('WhatsApp settings access', () => {
-  it.each(['view', 'update', 'sendCode', 'verify', 'unlink', 'testOpenAi', 'testMeta'] as const)(
+  it.each(['view', 'update', 'reveal', 'setAssistant', 'sendCode', 'verify', 'unlink', 'testOpenAi', 'testMeta'] as const)(
     'restricts %s to the stored Super Admin role', (method) => {
     const guard = new AccessGuard(new Reflector());
     const context = (role: UserRole) => ({

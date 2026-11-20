@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Patch, Post, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { WHATSAPP_LINK_COOKIE } from '../../common/constants/auth.constants.js';
@@ -8,8 +8,8 @@ import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
 import { VerifyCodeDto } from '../auth/dto/verification.dto.js';
 import { sessionContextOf, TokenService } from '../auth/token.service.js';
 import {
-  SendLinkCodeDto, TestWhatsappMetaDto, TestWhatsappOpenAiDto, UnlinkWhatsappPhoneDto,
-  UpdateWhatsappSettingsDto,
+  RevealWhatsappSecretDto, SendLinkCodeDto, SetWhatsappAssistantDto, TestWhatsappMetaDto,
+  TestWhatsappOpenAiDto, UnlinkWhatsappPhoneDto, UpdateWhatsappSettingsDto,
 } from './dto/whatsapp-settings.dto.js';
 import { WhatsappConnectionsService } from './whatsapp-connections.service.js';
 import { WhatsappPhoneService } from './whatsapp-phone.service.js';
@@ -38,6 +38,20 @@ export class WhatsappSettingsController {
   @ApiOperation({ summary: 'Update WhatsApp and AI settings after a password check' })
   update(@CurrentUser('id') userId: string, @Body() dto: UpdateWhatsappSettingsDto, @Req() req: Request) {
     return this.settings.update(userId, dto, sessionContextOf(req));
+  }
+
+  @Patch('assistant')
+  @ApiOperation({ summary: 'Switch the WhatsApp assistant on or off' })
+  setAssistant(@CurrentUser('id') userId: string, @Body() dto: SetWhatsappAssistantDto, @Req() req: Request) {
+    return this.settings.setAssistant(userId, dto, sessionContextOf(req));
+  }
+
+  @Post('reveal')
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Reveal one WhatsApp or OpenAI credential after a password check' })
+  reveal(@CurrentUser('id') userId: string, @Body() dto: RevealWhatsappSecretDto, @Req() req: Request) {
+    return this.settings.reveal(userId, dto, sessionContextOf(req));
   }
 
   @Post('openai/test')
