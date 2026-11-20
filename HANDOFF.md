@@ -271,9 +271,10 @@ for a review, and how the owner likes to work, is in
   generator, Client Portal, AI Assistant) and the client's 9 Nov feedback
   batch are built and verified but **not yet owner tested**.
 - **On hold by the developer's choice (10 Nov):** the owner's click-through,
-  and deploying to production. Production runs `8127edd` (9 Nov). Everything
-  after it is on `roy` — the 10 Nov fixes and three migrations, which the API
-  applies on start when it is next deployed. Do not deploy or touch `main`
+  and deploying to production. Production runs `ff1c538` (17 Nov, deployed
+  by the developer; production is still a test environment with test data).
+  Everything after it is on `roy`, including the WhatsApp assistant and its
+  migrations, which the API applies on start when it is next deployed. Do not deploy or touch `main`
   unless the developer asks (see "Git" below).
 - **10 Nov 2026 was a hardening day** (two session-log entries below):
   trip approval made to actually hold and moved to a per-person permission
