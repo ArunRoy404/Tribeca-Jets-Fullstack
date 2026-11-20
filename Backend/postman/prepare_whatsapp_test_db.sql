@@ -17,16 +17,25 @@ BEGIN
         "graphVersion" = 'v25.0',
         "assistantEnabled" = FALSE;
 
-    UPDATE public.users
-    SET "whatsappPhone" = NULL,
-        "whatsappPhoneVerifiedAt" = NULL;
+    UPDATE public.whatsapp_phones
+    SET "deletedAt" = now()
+    WHERE "deletedAt" IS NULL;
 
-    UPDATE public.users
-    SET "whatsappPhone" = '15550000777',
-        "whatsappPhoneVerifiedAt" = now()
-    WHERE email = 'broker@example.com';
+    IF NOT EXISTS (SELECT 1 FROM public.users WHERE email = 'broker@example.com' AND role = 'BROKER') THEN
+        RAISE EXCEPTION 'Seed the broker fixture first';
+    END IF;
+    INSERT INTO public.whatsapp_phones ("id", "userId", "phone", "label", "verifiedAt", "updatedAt")
+    SELECT gen_random_uuid(), id, '15550000777', 'Fixture', now(), now()
+    FROM public.users WHERE email = 'broker@example.com'
+    ON CONFLICT ("userId", "phone") DO UPDATE
+    SET "label" = EXCLUDED."label", "verifiedAt" = now(), "updatedAt" = now(),
+        "deletedAt" = NULL, "deletedById" = NULL;
 
-    DELETE FROM public.verification_codes
+    UPDATE public.verification_codes SET "consumedAt" = now()
     WHERE purpose = 'WHATSAPP_LINK' AND "consumedAt" IS NULL;
 END;
 $$;
+
+SELECT p.id AS broker_phone_fixture_id
+FROM public.whatsapp_phones p JOIN public.users u ON u.id = p."userId"
+WHERE u.email = 'broker@example.com' AND p.phone = '15550000777' AND p."deletedAt" IS NULL;

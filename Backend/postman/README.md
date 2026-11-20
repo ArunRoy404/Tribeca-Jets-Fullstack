@@ -148,7 +148,9 @@ sign in as it for the requests marked "(as the agent)" — see below.
 
 The `tribeca_postman` copy can contain the developer's sealed credentials and
 linked phone. The 4100 API can decrypt those credentials with the same key.
-This script clears them, switches the assistant off, and links a fixture phone to the seeded broker.
+This script clears the credentials, switches the assistant off, archives
+live phones, and links a fixture phone to the seeded broker. It prints the
+broker fixture's UUID for the Settings capture.
 
 After each refresh, run this from `Backend/` before starting the 4100 API or
 running either WhatsApp builder or folder. Replace `<user>` with the test
@@ -242,10 +244,22 @@ label audit after capture.
 Run on the prepared 4100 API. The folder signs in as the seeded Super Admin,
 reads the cleared settings, then probes the link-code route while the Meta
 settings are incomplete. It saves fake settings, reveals the fake verify
-token, verifies that a code without a link cookie is refused, checks unlinking
-an empty account, and exercises switching the assistant off without a password.
+token, verifies that a code without a link cookie is refused, checks that
+another user's phone cannot be renamed or unlinked, and exercises switching
+the assistant off without a password.
 Teardown switches it off again and clears the fake settings.
 
+- **Send and verify a code** require a phone name. Verify resubmits the name
+  while the cookie binds the code to the original phone number. The folder
+  captures a missing name and a five-phone cap. The executable request runs
+  after preparation and expects `400 · Finish the Meta settings first`.
+- **List phones** uses `GET /settings/whatsapp/phones`. Use
+  `includeArchived=true` to include unlinked phones. The list is paginated.
+- **Rename and unlink** use `PATCH` and `DELETE /settings/whatsapp/phone/:id`.
+  The executable requests use the broker's fixture UUID and expect 404.
+- **History** uses `GET /settings/whatsapp/history` with pagination and optional
+  phone, event type, and UTC date filters. Capture verifies a filtered rename
+  entry and the 400 for an unknown query parameter.
 - **Reveal a secret** (`POST /settings/whatsapp/reveal`) re-checks the current
   password and returns one value with `Cache-Control: no-store`. Capture checks
   the unset and saved states, a wrong password, and a two-factor Admin session.
@@ -259,10 +273,16 @@ code to capture the Admin's 403 responses. Newman runs as the Super Admin.
 The folder description documents both live connection tests. The executable
 link-code probe stops at the incomplete-settings check.
 
-With the test API up, regenerate the folder and run it twice from `Backend/`.
+From `Backend/`, run the preparation script and keep the broker UUID it
+prints. With the test API up, load the five-phone fixture below. The fixture
+refuses any database other than `tribeca_postman`. When the builder pauses,
+run the preparation script again in a second terminal and press Enter.
+Preparation archives the five synthetic phones and restores the broker
+fixture. Run Newman twice after the capture.
 
 ```bash
-(cd postman && POSTMAN_BASE=http://localhost:4100/api python build_whatsapp_settings_folder.py && \
+docker exec -i tribeca_postgres psql -U <user> -d tribeca_postman < postman/whatsapp_five_phones.sql
+(cd postman && POSTMAN_BASE=http://localhost:4100/api python build_whatsapp_settings_folder.py --broker-phone-id <fixture-uuid> && \
   python rewrite_body_comments.py)
 npx newman run postman/Tribeca-Jets-API.postman_collection.json \
   --folder "32 · WhatsApp Settings" -e postman/Local.postman_environment.json \

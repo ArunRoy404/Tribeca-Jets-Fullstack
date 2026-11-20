@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import argparse
+from datetime import datetime, timezone
 import json
 import uuid
 
@@ -16,6 +18,8 @@ from whatsapp_postman import (
 )
 
 PHONE_ROUTE = SETTINGS_ROUTE + '/phone'
+PHONES_ROUTE = SETTINGS_ROUTE + '/phones'
+HISTORY_ROUTE = SETTINGS_ROUTE + '/history'
 VERIFY_ROUTE = PHONE_ROUTE + '/verify'
 REVEAL_ROUTE = SETTINGS_ROUTE + '/reveal'
 ASSISTANT_ROUTE = SETTINGS_ROUTE + '/assistant'
@@ -25,7 +29,13 @@ WRONG_PASSWORD_MESSAGE = 'Your current password is incorrect'
 NOT_SUPER_ADMIN = 'These settings belong to the Super Admin.'
 META_INCOMPLETE = 'Finish the Meta settings first'
 NO_LINK_SESSION = 'This verification session has expired. Please start again.'
-PROBE_CODE = {'code': '000000'}
+PROBE_LABEL = 'Code probe'
+PROBE_CODE = {'code': '000000', 'label': PROBE_LABEL}
+PHONE_MISSING = 'WhatsApp phone not found'
+PAGE_QUERY = [
+    {'key': 'page', 'value': '1', 'description': 'One-based page. Default and minimum 1.'},
+    {'key': 'limit', 'value': '10', 'description': 'Rows per page. Default 10, range 1–100.'},
+]
 REVEAL_PROBE = {'field': 'verifyToken', 'currentPassword': PASSWORD}
 REVEALED = {'field': 'verifyToken', 'value': VERIFY_TOKEN}
 SWITCH_OFF = {'enabled': False}
@@ -110,21 +120,24 @@ def phone_request(name: str, method: str, path: str, payload: dict, description:
     }
 
 
-def send_code_request(owner: Session) -> dict:
+def send_code_request(owner: Session, five_phones: dict) -> dict:
     probe = f'15550001{uuid.uuid4().int % 1000:03d}'
     examples = [
         capture_settings_example(owner, '400 · Wrong password', 'POST', PHONE_ROUTE,
-                                 {'phone': probe, 'currentPassword': WRONG_PASSWORD}, message=WRONG_PASSWORD_MESSAGE),
+                                 {'phone': probe, 'label': PROBE_LABEL, 'currentPassword': WRONG_PASSWORD}, message=WRONG_PASSWORD_MESSAGE),
+        capture_settings_example(owner, '400 · Name required', 'POST', PHONE_ROUTE,
+                                 {'phone': probe, 'currentPassword': PASSWORD}, message='Validation failed'),
         capture_settings_example(owner, '409 · Number linked to another user', 'POST', PHONE_ROUTE,
-                                 {'phone': LINKED_BROKER_PHONE, 'currentPassword': PASSWORD},
+                                 {'phone': LINKED_BROKER_PHONE, 'label': PROBE_LABEL, 'currentPassword': PASSWORD},
                                  message='This WhatsApp number is already linked to another user.'),
         capture_settings_example(owner, '400 · Finish the Meta settings first', 'POST', PHONE_ROUTE,
-                                 {'phone': probe, 'currentPassword': PASSWORD}, message=META_INCOMPLETE),
+                                 {'phone': probe, 'label': PROBE_LABEL, 'currentPassword': PASSWORD}, message=META_INCOMPLETE),
+        five_phones,
     ]
     request = phone_request(
         '02 · Send a link code', 'POST', PHONE_ROUTE,
-        {'phone': '{{whatsappProbePhone}}', 'currentPassword': '{{whatsappProbePassword}}'},
-        'Sends a verification code through Meta after checking the current password, phone availability '
+        {'phone': '{{whatsappProbePhone}}', 'label': PROBE_LABEL, 'currentPassword': '{{whatsappProbePassword}}'},
+        'Sends a verification code through Meta after checking the current password, phone name, five-phone cap, phone availability '
         'and Meta settings. A successful `200` sets the HTTP-only `tj_whatsapp_link` cookie and returns '
         '`data.expiresInSeconds` as an integer. `502` means WhatsApp did not accept the message. '
         'Sending successfully would message a phone, so the executable probe expects `400` with '
@@ -139,6 +152,79 @@ def send_code_request(owner: Session) -> dict:
         "pm.variables.set('whatsappProbePassword', ready ? pm.collectionVariables.get('password') : '');",
     ]))
     return request
+
+
+def list_request(name: str, path: str, query: list[dict], description: str, examples: list[dict]) -> dict:
+    return {
+        'name': name,
+        'request': {'method': 'GET', 'url': url(path, PAGE_QUERY + query), 'header': [], 'description': description},
+        'response': examples,
+        'event': [script('test', [
+            "pm.test('200 and a paginated list', () => {",
+            "  pm.response.to.have.status(200);",
+            "  const page = pm.response.json();",
+            "  pm.expect(page.data).to.be.an('array');",
+            "  pm.expect(page.meta).to.include({ page: 1, limit: 10 });",
+            "});",
+        ])],
+    }
+
+
+def capture_phone_fixtures(owner: Session) -> tuple[dict, dict, dict, dict, dict]:
+    panel = capture_settings_example(owner, '200 · Fixture settings', 'GET', SETTINGS_ROUTE)
+    expected = {**CLEARED_VIEW, 'readiness': {**CLEARED_VIEW['readiness'], 'phonesLinked': 5}}
+    assert_view(panel, expected, 'Clear WhatsApp settings and load exactly five owner fixtures first.')
+    listed = capture_settings_example(owner, '200 · Fixture phones', 'GET', PHONES_ROUTE)
+    phones = json.loads(listed['body'])['data']
+    if len(phones) != 5 or {phone['label'] for phone in phones} != {f'Fixture {n}' for n in range(1, 6)}:
+        raise SystemExit('Expected five synthetic phones. Run whatsapp_five_phones.sql before capture.')
+    five = capture_settings_example(owner, '409 · Five phones linked', 'POST', PHONE_ROUTE,
+                                    {'phone': '15550000987', 'label': PROBE_LABEL, 'currentPassword': PASSWORD},
+                                    message='You can link up to five phones. Unlink one first.')
+    phone_id = phones[0]['id']
+    renamed = capture_settings_example(owner, '200 · Phone renamed', 'PATCH', f'{PHONE_ROUTE}/{phone_id}',
+                                       {'label': 'Renamed fixture'})
+    day = datetime.now(timezone.utc).date().isoformat()
+    history = capture_settings_example(owner, '200 · Filter by phone, type and date', 'GET',
+                                       f'{HISTORY_ROUTE}?phoneId={phone_id}&type=settings&from={day}&to={day}')
+    if not any(row['action'] == 'user.whatsapp_phone_renamed' for row in json.loads(history['body'])['data']):
+        raise SystemExit('The filtered history did not show the fixture rename.')
+    unlinked = capture_settings_example(owner, '200 · Phone unlinked', 'DELETE', f'{PHONE_ROUTE}/{phone_id}',
+                                        {'currentPassword': PASSWORD})
+    return listed, five, renamed, unlinked, history
+
+
+def phone_history_requests(owner: Session, broker_phone_id: str, fixtures: tuple[dict, dict, dict, dict, dict]) -> list[dict]:
+    fixture_list, _, renamed, unlinked, filtered_history = fixtures
+    path = f'{PHONE_ROUTE}/{broker_phone_id}'
+    params = [
+        {'key': 'includeArchived', 'value': 'true', 'description': 'Include unlinked phones. Boolean, defaults to false.'},
+    ]
+    phones = list_request('06 · List phones', PHONES_ROUTE, params, 'Returns only your phones, earliest verification first.',
+                          [fixture_list, capture_settings_example(owner, '200 · Phones including unlinked', 'GET', PHONES_ROUTE + '?includeArchived=true')])
+    rename = phone_request('07 · Rename a phone', 'PATCH', path, {'label': 'Renamed fixture'},
+                           'Changes the name of one of your linked phones. This run uses the broker fixture and expects 404.',
+                           [renamed, capture_settings_example(owner, '404 · Not your phone', 'PATCH', path, {'label': 'Renamed fixture'}, message=PHONE_MISSING)],
+                           404, PHONE_MISSING)
+    password = {'currentPassword': PASSWORD}
+    unlink = phone_request('08 · Unlink a phone', 'DELETE', path, {'currentPassword': '{{password}}'},
+                           'Requires the current password. Unlinking archives your phone. This run uses the broker fixture and expects 404.',
+                           [
+                               unlinked,
+                               capture_settings_example(owner, '404 · Not your phone', 'DELETE', path, password, message=PHONE_MISSING),
+                               capture_settings_example(owner, '400 · Wrong password', 'DELETE', path,
+                                                        {'currentPassword': WRONG_PASSWORD}, message=WRONG_PASSWORD_MESSAGE),
+                           ], 404, PHONE_MISSING)
+    history_params = [
+        {'key': 'type', 'value': 'settings', 'description': 'Optional, case-sensitive. messages, actions, documents, or settings. Default all.'},
+        {'key': 'phoneId', 'value': '', 'disabled': True, 'description': 'Optional UUID. Default all phones and settings events.'},
+        {'key': 'from', 'value': '', 'disabled': True, 'description': 'Optional inclusive UTC calendar date in YYYY-MM-DD. Default no lower bound.'},
+        {'key': 'to', 'value': '', 'disabled': True, 'description': 'Optional inclusive UTC calendar date in YYYY-MM-DD. Default no upper bound.'},
+    ]
+    history = list_request('09 · Read WhatsApp history', HISTORY_ROUTE, history_params,
+                           'Returns the newest history first. Filters are strict. Text, secrets and phone numbers are excluded.',
+                           [filtered_history, capture_settings_example(owner, '400 · Unknown parameter', 'GET', HISTORY_ROUTE + '?search=')])
+    return [phones, rename, unlink, history]
 
 
 def switch_request(name: str, examples: list[dict]) -> dict:
@@ -159,15 +245,17 @@ def switch_request(name: str, examples: list[dict]) -> dict:
     }
 
 
-def capture() -> list[dict]:
+def capture(broker_phone_id: str) -> list[dict]:
     owner = Session(OWNER)
+    fixtures = capture_phone_fixtures(owner)
+    input('Run prepare_whatsapp_test_db.sql again to archive the five synthetic phones, then press Enter. ')
     prepared = capture_prepared_view(owner)
     admin = two_factor_session(ADMIN_2FA)
     read = read_request([
         prepared,
         capture_settings_example(admin, '403 · Not the Super Admin', 'GET', SETTINGS_ROUTE, message=NOT_SUPER_ADMIN),
     ])
-    send = send_code_request(owner)
+    send = send_code_request(owner, fixtures[1])
     unset = capture_settings_example(owner, '400 · Not set', 'POST', REVEAL_ROUTE,
                                      REVEAL_PROBE, message='That secret is not set')
     save_errors = [
@@ -214,22 +302,13 @@ def capture() -> list[dict]:
         ]))
         verify = phone_request(
             '05 · Verify the link code', 'POST', VERIFY_ROUTE, PROBE_CODE,
-            'Checks the six-digit code against the `tj_whatsapp_link` cookie. '
-            'A successful `200` clears the cookie and returns the linked `phone` and `verifiedAt` in `data`. '
+            'Checks the six-digit code against the `tj_whatsapp_link` cookie and resubmits the phone name. '
+            'A successful `200` clears the cookie and returns the linked phone summary in `data`. '
             f'Without the cookie the API returns `400` with “{NO_LINK_SESSION}”',
             [capture_settings_example(owner, '400 · No code requested', 'POST', VERIFY_ROUTE,
                                       PROBE_CODE, message=NO_LINK_SESSION)], 400, NO_LINK_SESSION,
         )
-        unlink_refused = capture_settings_example(owner, '400 · Wrong password', 'DELETE', PHONE_ROUTE,
-                                                  {'currentPassword': WRONG_PASSWORD}, message=WRONG_PASSWORD_MESSAGE)
-        unlinked = capture_settings_example(owner, '200 · Nothing to unlink', 'DELETE', PHONE_ROUTE,
-                                            {'currentPassword': PASSWORD})
-        unlink = phone_request(
-            '06 · Unlink WhatsApp', 'DELETE', PHONE_ROUTE, {'currentPassword': '{{password}}'},
-            'Checks the current password, clears the linked number and cookie, and consumes pending link codes. '
-            'The response is `data.linkedPhone: null`, including when the Super Admin had no linked number.',
-            [unlinked, unlink_refused], 200, {'linkedPhone': None},
-        )
+        phone_history = phone_history_requests(owner, broker_phone_id, fixtures)
         switch_errors = [
             capture_settings_example(owner, '400 · Password needed to switch on', 'PATCH', ASSISTANT_ROUTE,
                                      {'enabled': True}, message=PASSWORD_NEEDED),
@@ -243,17 +322,21 @@ def capture() -> list[dict]:
         cleared = capture_settings_patch(owner, '200 · Test settings cleared', CLEAR_SETTINGS)
 
     assert_view(switched_off, SAVED_VIEW, 'The assistant was not switched off.')
-    switch = switch_request('07 · Switch the assistant', [switched_on, *switch_errors, switched_off])
+    switch = switch_request('10 · Switch the assistant', [switched_on, *switch_errors, switched_off])
     teardown_switch = switch_request('Teardown — switch the assistant off', [switched_off])
-    return [read, send, save, reveal, verify, unlink, switch, teardown_switch, teardown_request(cleared)]
+    return [read, send, save, reveal, verify, *phone_history, switch, teardown_switch, teardown_request(cleared)]
 
 
 def main() -> None:
     if BASE != TEST_BASE:
         raise SystemExit(f'Set POSTMAN_BASE={TEST_BASE} to capture on the isolated test API.')
 
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--broker-phone-id', type=uuid.UUID, required=True,
+                        help='Fixture UUID printed by prepare_whatsapp_test_db.sql')
+    args = parser.parse_args()
     collection = json.loads(COLLECTION.read_text(encoding='utf-8'))
-    folder = {'name': '32 · WhatsApp Settings', 'description': FOLDER_DESCRIPTION, 'item': capture()}
+    folder = {'name': '32 · WhatsApp Settings', 'description': FOLDER_DESCRIPTION, 'item': capture(str(args.broker_phone_id))}
     copy_folder_login(collection, folder)
     place_folder(collection, folder)
     COLLECTION.write_text(json.dumps(collection, indent=2) + '\n', encoding='utf-8')

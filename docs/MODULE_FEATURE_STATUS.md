@@ -1902,16 +1902,18 @@ has five sections, the open one in the URL (`?section=`).
   Sessions (#1).
 - **CRM & Quote Defaults** and **Notifications & Automation** — saved and
   shown; each screen says what reads them and when (below).
-- **WhatsApp & AI** (20 Nov, step 8c awaiting review) is visible to the Super
+- **WhatsApp & AI** (20 Nov, step 8d awaiting review) is visible to the Super
   Admin. Its assistant switch shows setup readiness. Turning on requires
   the current password and turning off takes effect on the next message.
   Credentials are sealed and masked by default. Viewing one requires the
   current password and is audited by field name. OpenAI and Meta each have
   one Save for changed fields, with a prompt before leaving unsaved edits.
   The Meta card can generate a verify token. Connection tests use typed or
-  saved settings and show when edits still need saving. Linking verifies a
-  code sent on WhatsApp. Sending a code or unlinking requires the current
-  password. The webhook URL shows tunnel guidance on localhost.
+  saved settings and show when edits still need saving. The Super Admin can
+  link, rename or unlink up to five named phones. Linking verifies a code
+  sent on WhatsApp. Sending a code or unlinking requires the current password.
+  History is paginated and filterable by phone, date, and event type. The
+  webhook URL shows tunnel guidance on localhost.
 - Read-only without Settings · Edit: no Save, no upload, controls disabled.
 - Postman `30 · Settings` — 5 requests, 16 captured examples, restores every
   value it changes; 12 unit tests (branding never leaks, the audit diff,
@@ -1986,10 +1988,10 @@ caller's reach and money permission; the header's **Ask Anything** popover
 
 ---
 
-## WhatsApp assistant (Super Admin) 🟡 *(steps 1–7 reviewed, step 8a awaiting review)*
+## WhatsApp assistant (Super Admin) 🟡 *(step 8d awaiting review)*
 
 Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
-"The WhatsApp assistant is one phone, one Super Admin, signed by Meta".
+"The WhatsApp assistant is one Super Admin with verified phones, signed by Meta".
 
 **Working**
 - `GET /api/webhooks/whatsapp` — Meta's verification, echoes the challenge
@@ -2006,8 +2008,12 @@ Plan and progress: `docs/WHATSAPP_AI_INTEGRATION.md`. Rules: AGENTS.md,
 - Step 8a-2 adds `npm run whatsapp:import-env` to fill empty settings from
   the legacy environment once. The import reports field names and keeps
   phone linking on the code verification flow.
-- Settings › Security › "WhatsApp assistant (Super Admin)"
-  (`company_settings.whatsappAssistantEnabled`, off by default).
+- Settings › WhatsApp & AI owns the assistant switch
+  (`whatsapp_settings.assistantEnabled`, off by default).
+- Up to five verified phones are stored separately and retain their history
+  when unlinked. Settings shows the phone name and last four digits recorded
+  with each event. Redis conversations and proposals stay separate by phone.
+  Live migration, Postman capture and live checks await review.
 - Step 2 prepares text replies through a bounded OpenAI Responses tool loop:
   flight legs (at most 14 days / 25 legs), dashboard KPIs and client search
   (five results). Each read tool validates its arguments, checks VIEW and calls

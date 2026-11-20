@@ -1207,7 +1207,7 @@ Three rules follow, and they generalise to anything polymorphic:
   the top of the controller. This is the only sanctioned reason to omit one
   on a signed-in route; the WhatsApp webhook (below) has no session at all.
 
-## The WhatsApp assistant is one phone, one Super Admin, signed by Meta
+## The WhatsApp assistant is one Super Admin with verified phones, signed by Meta
 
 The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
 `docs/WHATSAPP_AI_INTEGRATION.md`). `POST /api/webhooks/whatsapp` is
@@ -1225,13 +1225,14 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
   name. The account's wrong-password throttle applies. Saving settings,
   sending a link code and unlinking also re-check the current password.
   The bot acts as the active Super Admin who entered the code sent to
-  their own phone.
+  each of their own phones. Up to five verified phones can be live, each named.
 - **The assistant switch lives in `whatsapp_settings`**, on Settings ›
   WhatsApp & AI, and defaults to off. Only the Super Admin can change it.
   Turning it on requires the current password. Turning it off is immediate
   and requires only the session.
 - **Every message passes the gates in `WhatsappService` first**: configured,
-  "WhatsApp assistant" on, from that phone, not already handled (Meta redelivers;
+  "WhatsApp assistant" on, from one of the Super Admin's verified phones,
+  not already handled (Meta redelivers;
   `RedisService.claimOnce`), at most ten minutes old (a queued "approve it"
   must not run after an outage), and the account still an active
   SUPER_ADMIN, re-read per message. A message failing any gate gets **no
@@ -1267,6 +1268,11 @@ The Super Admin runs the CRM over WhatsApp (16 Nov 2026, plan in
   emails nobody, and the confirmation summary says so.
 - **Anything other than CONFIRM cancels the pending action.** Drop it before
   answering the next message, even when that message proposes a new action.
+- **History is the audit log.** Each answered question, proposed, confirmed
+  or cancelled action, and sent document records the phone's label and last
+  four digits at the time. Keep the message, reply, secrets and full number
+  out of the event. A proposal ID links its events. Redis expires pending
+  actions after five minutes and expiry writes no event.
 - **Memory holds only user text and final replies** — at most six exchanges,
   expiring 30 minutes after the last write. Tool calls and results never
   survive the question; every OpenAI request uses `store: false`.
@@ -1585,6 +1591,10 @@ back empty** — every paid commission would have lost its method on deploy.
 `20260928100000_add_receivables` does it with `ALTER TYPE ... RENAME TO`
 instead. A rename of a column, a table or an enum is always hand-written, and
 any `DROP COLUMN` in generated SQL is read as a question, not an instruction.
+
+Declare each partial index in the Prisma schema with the `partialIndexes`
+preview feature. The migration SQL uses the same predicate and index name
+Prisma would generate, so a later migration keeps it.
 
 ## Service layer rules
 

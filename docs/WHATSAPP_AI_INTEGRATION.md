@@ -68,8 +68,8 @@ To ensure production-grade stability, the 2-day implementation focuses on the to
 Sign in as the Super Admin and open **Settings › WhatsApp & AI**. The
 assistant switch is at the top. Turning it on requires the current password.
 Turning it off stops the bot on the next message. The checklist shows whether
-the OpenAI key and model are usable, which Meta settings are missing, whether
-your phone is linked, and whether the server needs an encryption key.
+the OpenAI key and model are usable, which Meta settings are missing, how
+many phones are linked, and whether the server needs an encryption key.
 
 OpenAI and Meta each have one Save for the card's changed fields. Use your
 current password to save. Each credential is masked until you select View
@@ -97,7 +97,16 @@ save them.
 | Verify token | Generate a random value on the Meta card and use the same value in Meta's webhook form |
 | Graph version | Meta Graph API version, defaults to `v25.0` |
 | Webhook URL | Read-only URL from `API_PUBLIC_URL`, with `/api/webhooks/whatsapp` appended |
-| Your phone | Link your own number with the code sent on WhatsApp |
+| My phones | Link up to five of your own numbers. Give each a name and enter the code sent on WhatsApp. |
+
+Use **Setup** to link, rename or unlink a phone. Sending a code and
+unlinking require your current password. Unlinking archives the phone and
+clears its conversation and pending confirmation. Use **History** to
+review assistant activity and settings changes. Filter by phone, including
+unlinked phones, event type, or date. Each event shows the phone's name and
+last four digits at the time. Link and unlink events from before phone
+names appear without a phone. A proposal older than five minutes with no
+confirmation or cancellation is marked **Proposed — not confirmed**.
 
 The API needs one environment value to seal the four credentials at rest.
 Generate it with Node and set `SETTINGS_ENCRYPTION_KEY` on the API server.
@@ -137,7 +146,10 @@ number ID.
 
 1. Back up the production database and review the pending migrations, including
    `20261120120000_whatsapp_settings` and
-   `20261120130000_whatsapp_assistant_switch_moves`. Deploy only when authorized.
+   `20261120130000_whatsapp_assistant_switch_moves` and
+   `20261120140000_whatsapp_phones`. The phone migration carries the existing
+   verified number and verification time forward as **Phone 1**. Deploy only
+   when authorized.
 2. Set `SETTINGS_ENCRYPTION_KEY` in Dokploy and verify that `API_PUBLIC_URL`
    reflects the public HTTPS entry point.
 3. Sign in as the production Super Admin and enter the OpenAI and Meta
@@ -146,8 +158,8 @@ number ID.
    and check the `messages` and WABA subscriptions. For local testing, the
    callback URL can point at the tunnel to port 4000. Meta allows one callback
    URL per app.
-5. Link the Super Admin's number from the panel. Meta's test number can reach
-   only its recipient list. For free-text codes outside that setup, the
+5. Check the migrated phone in the panel or link the Super Admin's numbers.
+   Add each test recipient to Meta's list before linking. For free-text codes outside that setup, the
    recipient needs to have opened Meta's customer service window by messaging
    the business number.
 6. Check the company and Super Admin time zones. Turn on **Settings ›
@@ -234,6 +246,29 @@ audit 817 examples, 0 mislabelled; the 4100 log has no outbound call and no
 secret value. **Not yet on production** — the migration applies on the next
 deploy and keeps production's switch on.
 
+**8d ✅ 20 Nov — up to five phones and a History tab** (built by Codex,
+reviewed and live-checked by Claude; **Postman not yet captured** — the
+developer chose to ship first). The Super Admin can link up to five named
+phones. Each number keeps separate Redis memory and pending confirmations.
+The migration preserves the verified number as **Phone 1** (dev: …9550
+carried over; `migrate diff` empty after it). History reads the audit log
+and shows which phone answered, proposed, confirmed, cancelled, or received
+a PDF, alongside setup changes. The bot records send failures and matches
+failed Meta receipts to replies for up to 24 hours. Codex stopped four
+times, all right: an expiry cannot be recorded (Redis drops the proposal);
+`AuditService` already swallows failures; pre-8d link events cannot be
+tied to a phone; Prisma 7.10 *can* declare a partial index
+(`partialIndexes` preview) — and a creation has no ref until confirmed
+(a `proposalId` ties the entries). Claude's changes after review: the
+older SQL-only `operator_quotes_one_live_per_operator` index, which a
+generated migration would have dropped, is now declared in the schema
+too; the History date filter reads days in the reader's own zone (it
+used UTC days, so a Dhaka morning fell on the day before) and its
+filters use the shared toolbar pieces; the Ask Anything button is
+smaller. Backend 87 files / 1066; frontend lint and build. **Still to
+do:** capture `32 · WhatsApp Settings` with the builder and
+`whatsapp_five_phones.sql`, Newman, label audit.
+
 **Needed from the developer / owner:**
 
 | Item | For | State |
@@ -260,7 +295,8 @@ and `whatsapp.actions.spec.ts`.
 The terminal entry point is `Backend/src/scripts/whatsapp-ask.ts` —
 `npm run whatsapp:ask -- [--as <email>] "question"` compiles with Nest first.
 It needs the OpenAI key and model configured in the panel. With a verified
-phone it acts as the linked Super Admin and shares that phone's memory.
+phone it acts as the linked Super Admin and shares the earliest-linked
+live phone's memory.
 Without a verified phone, pass `--as <email>` to select an active Super Admin.
 The development conversation then uses the Redis key for phone `0`.
 It skips webhook gates and is a development tool that sends CRM data to OpenAI.
@@ -278,13 +314,14 @@ the current password and returns one value with `Cache-Control: no-store`.
 The audit trail records the revealed field name. Saving provider settings
 requires the current password and records the changed field names.
 
-To link a number, enter it with its country code and re-enter the current
+To link a number, name it, enter it with its country code, and re-enter the current
 password. The business number sends a six-digit code. Enter that code in
 the panel before it expires. The server hashes the code, stores its target,
 and binds the challenge to the browser with an httpOnly cookie scoped to
 the link routes. A successful check consumes the code and verifies the
 phone against the caller's own account. The phone is unique across
-accounts. Unlinking also needs the current password.
+accounts while linked. Unlinking also needs the current password. A fresh
+code for a previously unlinked number restores its original phone row.
 
 The webhook acts as the active Super Admin with the verified sending
 number, checking the account on each message. The lost-phone switch lives

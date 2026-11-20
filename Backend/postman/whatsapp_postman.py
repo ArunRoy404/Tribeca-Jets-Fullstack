@@ -30,12 +30,11 @@ CLEARED_VIEW = {
     'phoneNumberId': None,
     'openaiModel': None,
     'graphVersion': GRAPH_VERSION,
-    'linkedPhone': None,
     'assistantEnabled': False,
     'readiness': {
         'openai': False, 'meta': False,
         'metaMissing': ['phoneNumberId', 'accessToken', 'appSecret', 'verifyToken'],
-        'phoneLinked': False, 'encryptionReady': True,
+        'phonesLinked': 0, 'phoneLimit': 5, 'encryptionReady': True,
     },
 }
 SAVED_VIEW = {
@@ -57,6 +56,7 @@ FIELD_COMMENTS = {
     'graphVersion': 'Optional trimmed, case-sensitive Graph version in v<major>.<minor> format, up to 20 characters. Defaults to v25.0.',
     'openaiApiKey': 'Optional trimmed OpenAI API key, 1–4096 characters. Send null to clear.',
     'phone': 'Required number with country code. Up to 40 characters before normalization to 8–15 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.',
+    'label': 'Required phone name, 1–40 characters after trimming. Unique among your linked phones.',
     'code': 'Required string of exactly six digits after trimming. Keep leading zeroes.',
     'field': 'Required, case-sensitive. One of openaiApiKey, accessToken, appSecret, verifyToken.',
     'enabled': 'Required boolean. true requires the current password. false works without it.',
