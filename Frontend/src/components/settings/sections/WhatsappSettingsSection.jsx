@@ -1,173 +1,287 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CommonInput from "@/components/common/CommonInput";
 import CommonSelect from "@/components/common/CommonSelect";
-import ConfirmDialog from "@/components/common/ConfirmDialog";
+import SecretField from "@/components/common/secret-field/SecretField";
+import SettingsPasswordDialog from "@/components/common/secret-field/SettingsPasswordDialog";
+import SettingRow from "@/components/settings/SettingRow";
 import SettingsButton from "@/components/settings/SettingsButton";
 import SettingsCard from "@/components/settings/SettingsCard";
-import SettingRow from "@/components/settings/SettingRow";
 import SettingsSectionStatus from "@/components/settings/SettingsSectionStatus";
+import { useCopyToClipboard } from "@/hooks/common/useCopyToClipboard";
 import {
+  stageWhatsappRequest,
+  useRevealWhatsappSecret,
+  useSetWhatsappAssistant,
   useTestWhatsappMeta,
   useTestWhatsappOpenAi,
   useUpdateWhatsappSettings,
   useWhatsappSettings,
 } from "@/hooks/settings/useWhatsappSettings";
-import { toastError, toastSuccess } from "@/lib/toast";
-import WhatsappPasswordDialog from "./WhatsappPasswordDialog";
+import { optionalText } from "@/lib/form";
 import WhatsappPhoneCard from "./WhatsappPhoneCard";
 
-const SECRET_LABELS = {
+const FIELD_LABELS = {
   openaiApiKey: "API key",
+  phoneNumberId: "Phone number ID",
   accessToken: "Access token",
   appSecret: "App secret",
   verifyToken: "Verify token",
 };
-const META_FIELDS = ["phoneNumberId", "graphVersion"];
+const OPENAI_FIELDS = ["openaiApiKey", "openaiModel"];
+const META_SECRET_FIELDS = ["accessToken", "appSecret", "verifyToken"];
+const META_FIELDS = ["phoneNumberId", "graphVersion", ...META_SECRET_FIELDS];
+const UNSAVED_CONNECTION = "Connected — not saved yet. Click Save to keep it.";
 
-function SecretField({ field, saved, draft, onEdit, onSave, onCancel, onClear }) {
-  const label = SECRET_LABELS[field];
-  if (draft !== undefined) {
-    return (
-      <div className="flex w-full flex-wrap items-end gap-2">
-        <div className="min-w-0 flex-1 basis-44">
-          <CommonInput
-            name={field}
-            label={`New ${label.toLowerCase()}`}
-            type="password"
-            autoComplete="off"
-            showPasswordToggle={false}
-            value={draft}
-            onChange={(event) => onEdit(event.target.value)}
-          />
-        </div>
-        <SettingsButton primary type="button" onClick={onSave} disabled={!draft.trim()}>Save</SettingsButton>
-        <SettingsButton type="button" onClick={onCancel}>Cancel</SettingsButton>
-      </div>
-    );
-  }
-
-  const status = saved.set ? (saved.last4 ? `Set · ends in ${saved.last4}` : "Set") : "Not set";
-  return (
-    <SettingRow label={label} description={status} action={
-      <div className="flex flex-wrap justify-end gap-2">
-        <SettingsButton type="button" onClick={() => onEdit("")}>Replace</SettingsButton>
-        {saved.set && <SettingsButton type="button" onClick={onClear}>Clear</SettingsButton>}
-      </div>
-    } />
-  );
-}
-
-function ConnectionResult({ error, message }) {
-  if (error) return <p role="alert" className="text-sm text-destructive">{error.message}</p>;
-  if (message) return <p role="status" className="text-sm text-foreground">{message}</p>;
-  return null;
+function generateVerifyToken() {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
 }
 
 function withoutFields(drafts, fields) {
   return Object.fromEntries(Object.entries(drafts).filter(([field]) => !fields.includes(field)));
 }
 
-export default function WhatsappSettingsSection() {
-  const query = useWhatsappSettings();
+function cardChanges(fields, drafts, settings) {
+  const changes = {};
+  for (const field of fields) {
+    if (!Object.hasOwn(drafts, field)) continue;
+    const draft = drafts[field];
+
+    if (field === "openaiApiKey" || META_SECRET_FIELDS.includes(field)) {
+      const replacement = draft === null ? null : optionalText(draft);
+      if (replacement !== undefined) changes[field] = replacement;
+      continue;
+    }
+
+    const value = optionalText(draft, { editing: true });
+    if (field === "graphVersion" && !value) continue;
+    if (value !== settings[field]) changes[field] = value;
+  }
+  return changes;
+}
+
+function ReadinessItem({ ready, children }) {
+  return (
+    <li className="flex gap-2">
+      <span aria-hidden="true" className={ready ? "text-success" : "text-destructive"}>
+        {ready ? "✓" : "✗"}
+      </span>
+      <span><span className="sr-only">{ready ? "Ready. " : "Missing. "}</span>{children}</span>
+    </li>
+  );
+}
+
+function AssistantCard({ enabled, readiness }) {
+  const assistant = useSetWhatsappAssistant();
+  const [confirming, setConfirming] = useState(false);
+  const { openai, meta, metaMissing, phoneLinked, encryptionReady } = readiness;
+  const ready = openai && meta && phoneLinked && encryptionReady;
+  const border = !enabled ? "border-destructive" : ready ? "border-success" : "border-warning";
+
+  function changeEnabled(next) {
+    assistant.reset();
+    if (next) setConfirming(true);
+    else assistant.mutate(stageWhatsappRequest({ enabled: false }));
+  }
+
+  async function switchOn(currentPassword) {
+    try {
+      await assistant.mutateAsync(stageWhatsappRequest({ enabled: true, currentPassword }));
+      setConfirming(false);
+    } catch {
+      // The password dialog displays the mutation error.
+    }
+  }
+
+  return (
+    <SettingsCard title="Assistant" className={border}>
+      <SettingRow
+        label="WhatsApp assistant"
+        description="Off stops the bot at once. It answers only your linked phone."
+        checked={enabled}
+        onCheckedChange={changeEnabled}
+        disabled={assistant.isPending}
+      />
+      {enabled && !ready && <p role="status" className="text-sm text-warning">Some setup steps are still missing.</p>}
+      <ul className="space-y-1 text-sm text-foreground">
+        <ReadinessItem ready={openai}>OpenAI key and model saved</ReadinessItem>
+        <ReadinessItem ready={meta}>
+          Meta settings saved
+          {!meta && <span className="block text-muted-foreground">Missing: {metaMissing.map((field) => FIELD_LABELS[field]).join(", ")}</span>}
+        </ReadinessItem>
+        <ReadinessItem ready={phoneLinked}>Your phone linked</ReadinessItem>
+        {!encryptionReady && <ReadinessItem ready={false}>Encryption key on the server</ReadinessItem>}
+      </ul>
+      {!confirming && assistant.error && <p role="alert" className="text-sm text-destructive">{assistant.error.message}</p>}
+      {confirming && (
+        <SettingsPasswordDialog
+          title="Turn assistant on"
+          pending={assistant.isPending}
+          error={assistant.error}
+          onClose={() => { setConfirming(false); assistant.reset(); }}
+          onSubmit={switchOn}
+        />
+      )}
+    </SettingsCard>
+  );
+}
+
+function ConnectionTest({ test, disabled, onTest, message }) {
+  return (
+    <>
+      <SettingsButton type="button" disabled={test.isPending || disabled} onClick={onTest}>
+        {test.isPending ? "Testing…" : "Test connection"}
+      </SettingsButton>
+      {test.error && <p role="alert" className="text-sm text-destructive">{test.error.message}</p>}
+      {message && <p role="status" className="text-sm text-foreground">{message}</p>}
+    </>
+  );
+}
+
+function CardSave({ dirty, saving, onSave }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <SettingsButton primary type="button" disabled={!dirty || saving} onClick={onSave}>Save</SettingsButton>
+      {dirty && <p className="text-sm text-muted-foreground">Unsaved changes</p>}
+    </div>
+  );
+}
+
+function WhatsappSettingsCards({ settings, onDirtyChange }) {
   const save = useUpdateWhatsappSettings();
+  const reveal = useRevealWhatsappSecret();
   const testOpenAi = useTestWhatsappOpenAi();
   const testMeta = useTestWhatsappMeta();
+  const copyUrl = useCopyToClipboard({ success: "Webhook URL copied", failure: "Could not copy the webhook URL" });
   const [drafts, setDrafts] = useState({});
   const [confirming, setConfirming] = useState(null);
-  const [clearing, setClearing] = useState(null);
+  const [activeField, setActiveField] = useState(null);
+  const openAiTestVersion = useRef(0);
 
-  if (!query.data) {
-    return <SettingsSectionStatus isPending={query.isPending} error={query.error} onRetry={query.refetch} />;
-  }
-  const settings = query.data;
-  if (!settings.encryptionReady) {
-    return <p role="status" className="rounded-md border border-border bg-background p-4 text-sm">
-      Set SETTINGS_ENCRYPTION_KEY on the server to use the WhatsApp assistant
-    </p>;
-  }
+  const openAiChanges = cardChanges(OPENAI_FIELDS, drafts, settings);
+  const metaChanges = cardChanges(META_FIELDS, drafts, settings);
+  const openAiDirty = Object.keys(openAiChanges).length > 0;
+  const metaDirty = Object.keys(metaChanges).length > 0;
+  const dirty = openAiDirty || metaDirty;
 
-  function plainChanges(fields) {
-    const changed = {};
-    for (const field of fields) {
-      if (drafts[field] === undefined) continue;
-      const value = drafts[field].trim();
-      if (value !== (settings[field] ?? "")) changed[field] = field === "graphVersion" ? value : value || null;
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+
+  function resetConnectionTest(field, nextDraft) {
+    if (optionalText(drafts[field]) === optionalText(nextDraft)) return;
+    if (field === "openaiApiKey") {
+      openAiTestVersion.current += 1;
+      testOpenAi.reset();
     }
-    return changed;
+    if (["accessToken", "phoneNumberId", "graphVersion"].includes(field)) testMeta.reset();
   }
 
-  function openSave(title, values) {
-    save.reset();
-    setConfirming({ title, values });
+  function set(field, value) {
+    resetConnectionTest(field, value);
+    setDrafts((previous) => ({ ...previous, [field]: value }));
   }
 
-  const modelChanges = plainChanges(["openaiModel"]);
-  const metaChanges = plainChanges(META_FIELDS);
+  const resetFields = (fields) => setDrafts((previous) => withoutFields(previous, fields));
+  const plainValue = (field) => drafts[field] ?? settings[field] ?? "";
   const models = testOpenAi.data?.models ?? [];
   const modelOptions = models.map((id) => ({ label: id, value: id }));
   if (settings.openaiModel && !models.includes(settings.openaiModel)) {
     modelOptions.push({
       value: settings.openaiModel,
-      label: testOpenAi.data ? `${settings.openaiModel} (saved — not in your key's list)` : settings.openaiModel,
+      label: testOpenAi.data ? `${settings.openaiModel} (saved — not in your key’s list)` : settings.openaiModel,
     });
   }
-
-  const set = (field, value) => setDrafts((previous) => ({ ...previous, [field]: value }));
-  const resetFields = (fields) => setDrafts((previous) => withoutFields(previous, fields));
-  // Drafts exist only after a control changes. Each field, including the
-  // Graph version, reads the saved value on mount and after its draft resets.
-  const plainValue = (field) => drafts[field] ?? settings[field] ?? "";
-  const secret = (field) => (
-    <SecretField
-      key={field}
-      field={field}
-      saved={settings[field]}
-      draft={drafts[field]}
-      onEdit={(value) => set(field, value)}
-      onSave={() => openSave(`Save ${SECRET_LABELS[field].toLowerCase()}`, { [field]: drafts[field].trim() })}
-      onCancel={() => resetFields([field])}
-      onClear={() => setClearing(field)}
-    />
-  );
 
   const apiKey = drafts.openaiApiKey?.trim();
   const metaInput = Object.fromEntries(
-    ["accessToken", ...META_FIELDS].flatMap((field) => drafts[field]?.trim() ? [[field, drafts[field].trim()]] : []),
+    ["accessToken", "phoneNumberId", "graphVersion"].flatMap((field) => {
+      const value = drafts[field]?.trim();
+      return value ? [[field, value]] : [];
+    }),
   );
   const localUrl = settings.webhookUrl.startsWith("http://localhost") || settings.webhookUrl.startsWith("http://127.");
 
-  function checkOpenAi() {
-    testOpenAi.mutate(apiKey ? { apiKey } : {}, {
-      onSuccess: ({ models: returned }) => {
-        setDrafts((previous) => previous.openaiModel && !returned.includes(previous.openaiModel)
-          ? withoutFields(previous, ["openaiModel"])
-          : previous);
-      },
-    });
-  }
-
-  async function copyWebhookUrl() {
+  async function revealSecret(field, currentPassword) {
+    let value;
     try {
-      await navigator.clipboard.writeText(settings.webhookUrl);
-      toastSuccess("Webhook URL copied");
-    } catch {
-      toastError("Could not copy the webhook URL");
+      await reveal.mutateAsync(stageWhatsappRequest({ field, currentPassword }, (revealed) => { value = revealed; }));
+      return value;
+    } finally {
+      value = undefined;
+      reveal.reset();
     }
   }
 
+  function secret(field) {
+    return (
+      <SecretField
+        key={field}
+        label={FIELD_LABELS[field]}
+        secret={settings[field]}
+        value={drafts[field]}
+        editing={Object.hasOwn(drafts, field)}
+        onChange={(value) => set(field, value)}
+        onEditingChange={(editing) => {
+          if (editing) set(field, "");
+          else {
+            resetConnectionTest(field);
+            resetFields([field]);
+          }
+        }}
+        onReveal={(password) => revealSecret(field, password)}
+        onGenerate={field === "verifyToken" ? generateVerifyToken : undefined}
+        generateHint={field === "verifyToken" ? "Copy it now and paste it into Meta after you save." : undefined}
+        active={activeField === field}
+        onView={() => setActiveField(field)}
+      />
+    );
+  }
+
+  function openSave(title, fields, values) {
+    save.reset();
+    setConfirming({ title, fields, values });
+  }
+
+  async function saveCard(currentPassword) {
+    try {
+      await save.mutateAsync(stageWhatsappRequest({ ...confirming.values, currentPassword }));
+      resetFields(confirming.fields);
+      if (confirming.fields.includes(activeField)) setActiveField(null);
+      setConfirming(null);
+      save.reset();
+    } catch {
+      // The password dialog displays the mutation error.
+    }
+  }
+
+  async function checkOpenAi() {
+    const version = ++openAiTestVersion.current;
+    try {
+      const { models: returned } = await testOpenAi.mutateAsync(stageWhatsappRequest(apiKey ? { apiKey } : {}));
+      if (openAiTestVersion.current !== version) return;
+      setDrafts((previous) => previous.openaiModel && !returned.includes(previous.openaiModel)
+        ? withoutFields(previous, ["openaiModel"])
+        : previous);
+    } catch {
+      // The card displays the connection error.
+    }
+  }
+
+  const openAiMessage = testOpenAi.data && (openAiDirty ? UNSAVED_CONNECTION : models.length
+    ? "Connected to OpenAI"
+    : "Connected. This key returned no supported chat models.");
+  const metaMessage = testMeta.data && (metaDirty ? UNSAVED_CONNECTION
+    : `Connected: ${testMeta.data.displayPhoneNumber} · ${testMeta.data.verifiedName}`);
+
   return (
     <>
+      <AssistantCard enabled={settings.assistantEnabled} readiness={settings.readiness} />
       <SettingsCard title="OpenAI">
         {secret("openaiApiKey")}
-        <SettingsButton type="button" disabled={testOpenAi.isPending || (!apiKey && !settings.openaiApiKey.set)}
-          onClick={checkOpenAi}>
-          {testOpenAi.isPending ? "Testing…" : "Test connection"}
-        </SettingsButton>
-        <ConnectionResult error={testOpenAi.error} message={testOpenAi.data
-          ? (models.length ? "Connected to OpenAI" : "Connected. This key returned no supported chat models.")
-          : undefined} />
+        <ConnectionTest test={testOpenAi} disabled={!apiKey && !settings.openaiApiKey.set} onTest={checkOpenAi} message={openAiMessage} />
         <div className="flex w-full flex-col gap-2">
           <p className="font-montserrat text-base font-medium text-foreground">Model</p>
           <CommonSelect
@@ -180,13 +294,12 @@ export default function WhatsappSettingsSection() {
           />
           {!testOpenAi.data && <p className="text-sm text-muted-foreground">Test the key to choose a model</p>}
         </div>
-        <SettingsButton primary type="button" disabled={!Object.keys(modelChanges).length}
-          onClick={() => openSave("Save OpenAI settings", modelChanges)}>Save</SettingsButton>
+        <CardSave dirty={openAiDirty} saving={save.isPending} onSave={() => openSave("Save OpenAI settings", OPENAI_FIELDS, openAiChanges)} />
       </SettingsCard>
 
       <SettingsCard title="Meta (WhatsApp Cloud API)">
         <div className="grid w-full gap-4 sm:grid-cols-2">
-          <CommonInput name="phoneNumberId" label="Phone number ID" value={plainValue("phoneNumberId")}
+          <CommonInput name="phoneNumberId" label={FIELD_LABELS.phoneNumberId} value={plainValue("phoneNumberId")}
             onChange={(event) => set("phoneNumberId", event.target.value)} />
           <CommonInput name="graphVersion" label="Graph version" value={plainValue("graphVersion")}
             onChange={(event) => set("graphVersion", event.target.value)}
@@ -194,55 +307,44 @@ export default function WhatsappSettingsSection() {
               if (drafts.graphVersion !== undefined && !drafts.graphVersion.trim()) resetFields(["graphVersion"]);
             }} />
         </div>
-        {["accessToken", "appSecret", "verifyToken"].map(secret)}
-        <div className="flex w-full flex-wrap gap-2">
-          <SettingsButton type="button" disabled={testMeta.isPending || (!metaInput.accessToken && !settings.accessToken.set)
+        {META_SECRET_FIELDS.map(secret)}
+        <ConnectionTest
+          test={testMeta}
+          disabled={(!metaInput.accessToken && !settings.accessToken.set)
             || !(metaInput.phoneNumberId || settings.phoneNumberId) || !(metaInput.graphVersion || settings.graphVersion)}
-            onClick={() => testMeta.mutate(metaInput)}>
-            {testMeta.isPending ? "Testing…" : "Test connection"}
-          </SettingsButton>
-          <SettingsButton primary type="button" disabled={!Object.keys(metaChanges).length}
-            onClick={() => openSave("Save Meta settings", metaChanges)}>Save</SettingsButton>
-        </div>
-        <ConnectionResult error={testMeta.error} message={testMeta.data
-          ? `Connected: ${testMeta.data.displayPhoneNumber} · ${testMeta.data.verifiedName}`
-          : undefined} />
+          onTest={() => testMeta.mutate(stageWhatsappRequest(metaInput))}
+          message={metaMessage}
+        />
         <div className="flex w-full flex-wrap items-end gap-2">
           <div className="min-w-0 flex-1">
             <CommonInput name="whatsapp-webhook-url" label="Webhook URL" value={settings.webhookUrl} readOnly />
           </div>
-          <SettingsButton type="button" onClick={copyWebhookUrl}>Copy URL</SettingsButton>
+          <SettingsButton type="button" onClick={() => copyUrl(settings.webhookUrl)}>Copy URL</SettingsButton>
         </div>
         {localUrl && <p className="text-sm text-muted-foreground">
           Meta needs a public HTTPS address. Locally, paste your tunnel&apos;s address with /api/webhooks/whatsapp instead.
         </p>}
+        <CardSave dirty={metaDirty} saving={save.isPending} onSave={() => openSave("Save Meta settings", META_FIELDS, metaChanges)} />
       </SettingsCard>
 
       <WhatsappPhoneCard linkedPhone={settings.linkedPhone} />
-      {clearing && (
-        <ConfirmDialog open tone="destructive" title={`Clear ${SECRET_LABELS[clearing].toLowerCase()}?`}
-          description="This removes the saved credential."
-          confirmLabel="Clear"
-          onOpenChange={(open) => { if (!open) setClearing(null); }}
-          onConfirm={() => {
-            openSave(`Clear ${SECRET_LABELS[clearing].toLowerCase()}`, { [clearing]: null });
-            setClearing(null);
-          }}
-        />
-      )}
       {confirming && (
-        <WhatsappPasswordDialog
+        <SettingsPasswordDialog
           title={confirming.title}
           pending={save.isPending}
           error={save.error}
           onClose={() => { setConfirming(null); save.reset(); }}
-          onSubmit={(currentPassword) => save.mutate({ ...confirming.values, currentPassword }, { onSuccess: () => {
-            resetFields(Object.keys(confirming.values));
-            setConfirming(null);
-            save.reset();
-          } })}
+          onSubmit={saveCard}
         />
       )}
     </>
   );
+}
+
+export default function WhatsappSettingsSection({ onDirtyChange }) {
+  const query = useWhatsappSettings();
+  if (!query.data) {
+    return <SettingsSectionStatus isPending={query.isPending} error={query.error} onRetry={query.refetch} />;
+  }
+  return <WhatsappSettingsCards settings={query.data} onDirtyChange={onDirtyChange} />;
 }

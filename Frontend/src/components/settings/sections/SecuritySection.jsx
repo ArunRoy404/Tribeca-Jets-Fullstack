@@ -94,19 +94,6 @@ export default function SecuritySection() {
           onCheckedChange={set("requireAdminTwoFactor")}
           disabled={!canEdit}
         />
-        {/* The lost-phone switch (16 Nov 2026). The server also needs the
-            WHATSAPP_* env set; off here, the bot ignores every message. */}
-        <SettingRow
-          label="WhatsApp assistant (Super Admin)"
-          description={
-            security?.whatsappAssistantEnabled
-              ? "On — the Super Admin's phone set on the server can run the CRM over WhatsApp. Switch off at once if that phone is lost."
-              : "Off — the WhatsApp assistant ignores every message, including the Super Admin's."
-          }
-          checked={security?.whatsappAssistantEnabled}
-          onCheckedChange={set("whatsappAssistantEnabled")}
-          disabled={!canEdit}
-        />
         <div className="flex flex-wrap gap-2.5">
           <SettingsButton onClick={() => setChangingPassword(true)}>Change Password</SettingsButton>
           {canEdit ? (

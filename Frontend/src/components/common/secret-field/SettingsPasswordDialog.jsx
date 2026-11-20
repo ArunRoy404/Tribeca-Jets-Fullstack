@@ -5,7 +5,7 @@ import CommonInput from "@/components/common/CommonInput";
 import SettingsButton from "@/components/settings/SettingsButton";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
-export default function WhatsappPasswordDialog({ title, error, pending, onSubmit, onClose }) {
+export default function SettingsPasswordDialog({ title, error, pending, onSubmit, onClose }) {
   const [password, setPassword] = useState("");
   const message = error?.fieldErrors?.currentPassword ?? error?.message;
 
@@ -21,7 +21,7 @@ export default function WhatsappPasswordDialog({ title, error, pending, onSubmit
           setPassword("");
         }}>
           <CommonInput
-            name="whatsapp-current-password"
+            name="settings-current-password"
             label="Current password"
             type="password"
             autoComplete="current-password"

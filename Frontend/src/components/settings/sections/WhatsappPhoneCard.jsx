@@ -6,9 +6,9 @@ import CommonOTPInput from "@/components/common/CommonOTPInput";
 import SettingsButton from "@/components/settings/SettingsButton";
 import SettingsCard from "@/components/settings/SettingsCard";
 import SettingRow from "@/components/settings/SettingRow";
-import { useSendWhatsappLinkCode, useUnlinkWhatsappPhone, useVerifyWhatsappPhone } from "@/hooks/settings/useWhatsappSettings";
+import { stageWhatsappRequest, useSendWhatsappLinkCode, useUnlinkWhatsappPhone, useVerifyWhatsappPhone } from "@/hooks/settings/useWhatsappSettings";
 import { formatTimestamp } from "@/lib/archive";
-import WhatsappPasswordDialog from "./WhatsappPasswordDialog";
+import SettingsPasswordDialog from "@/components/common/secret-field/SettingsPasswordDialog";
 
 export default function WhatsappPhoneCard({ linkedPhone }) {
   const [stage, setStage] = useState(null);
@@ -35,7 +35,7 @@ export default function WhatsappPhoneCard({ linkedPhone }) {
         <form className="flex w-full flex-col items-start gap-3" onSubmit={(event) => {
           event.preventDefault();
           if (code.length !== 6 || verify.isPending) return;
-          verify.mutate({ code }, { onSuccess: () => {
+          verify.mutate(stageWhatsappRequest({ code }), { onSuccess: () => {
             setPhone("");
             setCode("");
             setStage(null);
@@ -84,23 +84,23 @@ export default function WhatsappPhoneCard({ linkedPhone }) {
       )}
 
       {stage === "password" && (
-        <WhatsappPasswordDialog
+        <SettingsPasswordDialog
           title="Send code"
           pending={send.isPending}
           error={send.error}
           onClose={() => setStage("phone")}
-          onSubmit={(currentPassword) => send.mutate({ phone, currentPassword }, {
+          onSubmit={(currentPassword) => send.mutate(stageWhatsappRequest({ phone, currentPassword }), {
             onSuccess: () => { setStage("verify"); send.reset(); },
           })}
         />
       )}
       {unlinking && (
-        <WhatsappPasswordDialog
+        <SettingsPasswordDialog
           title="Unlink phone"
           pending={unlink.isPending}
           error={unlink.error}
           onClose={() => { setUnlinking(false); unlink.reset(); }}
-          onSubmit={(currentPassword) => unlink.mutate({ currentPassword }, { onSuccess: () => {
+          onSubmit={(currentPassword) => unlink.mutate(stageWhatsappRequest({ currentPassword }), { onSuccess: () => {
             setPhone("");
             setCode("");
             setStage(null);

@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
  */
 export function useUnsavedChangesGuard(dirty, { title = "Discard your changes?", description } = {}) {
   const router = useRouter();
-  const [pendingHref, setPendingHref] = useState(null);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
 
   useEffect(() => {
     if (!dirty) return undefined;
@@ -40,7 +40,7 @@ export function useUnsavedChangesGuard(dirty, { title = "Discard your changes?",
       if (url.pathname === window.location.pathname && url.search === window.location.search) return;
       event.preventDefault();
       event.stopPropagation();
-      setPendingHref(`${url.pathname}${url.search}${url.hash}`);
+      setPendingNavigation(() => () => router.push(`${url.pathname}${url.search}${url.hash}`));
     };
 
     window.addEventListener("beforeunload", onBeforeUnload);
@@ -49,13 +49,14 @@ export function useUnsavedChangesGuard(dirty, { title = "Discard your changes?",
       window.removeEventListener("beforeunload", onBeforeUnload);
       document.removeEventListener("click", onClick, true);
     };
-  }, [dirty]);
+  }, [dirty, router]);
 
-  /** Leave for `href` — straight away when nothing is unsaved, after asking otherwise. */
+  /** An href or a navigation callback, such as changing a settings tab. */
   const requestLeave = useCallback(
-    (href) => {
-      if (dirty) setPendingHref(href);
-      else router.push(href);
+    (destination) => {
+      const navigate = typeof destination === "function" ? destination : () => router.push(destination);
+      if (dirty) setPendingNavigation(() => navigate);
+      else navigate();
     },
     [dirty, router],
   );
@@ -63,17 +64,16 @@ export function useUnsavedChangesGuard(dirty, { title = "Discard your changes?",
   return {
     requestLeave,
     dialog: {
-      open: Boolean(pendingHref),
-      onOpenChange: (open) => !open && setPendingHref(null),
+      open: Boolean(pendingNavigation),
+      onOpenChange: (open) => !open && setPendingNavigation(null),
       title,
       description: description ?? "You have changes that are not saved. Leaving this page discards them.",
       confirmLabel: "Discard and leave",
       cancelLabel: "Keep editing",
       tone: "destructive",
       onConfirm: () => {
-        const href = pendingHref;
-        setPendingHref(null);
-        router.push(href);
+        setPendingNavigation(null);
+        pendingNavigation?.();
       },
     },
   };
