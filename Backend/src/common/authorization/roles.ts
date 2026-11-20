@@ -1,4 +1,6 @@
-import { UserRole } from '../../generated/prisma/enums.js';
+import { BadRequestException } from '@nestjs/common';
+import type { Prisma } from '../../generated/prisma/client.js';
+import { UserRole, UserStatus } from '../../generated/prisma/enums.js';
 
 /**
  * Who someone *is*, as opposed to what they may do.
@@ -28,6 +30,19 @@ export const ASSIGNABLE_ROLES: UserRole[] = [
  * roles and the server accepts these roles. Change both together.
  */
 export const BROKER_ROLES: UserRole[] = [UserRole.BROKER, UserRole.ADMIN, UserRole.SUPER_ADMIN];
+
+/** A picked broker may be invited, but must be live and eligible to own desk work. */
+export async function assertBroker(
+  db: Pick<Prisma.TransactionClient, 'user'>,
+  id: string | null | undefined,
+): Promise<void> {
+  if (!id) return;
+  const broker = await db.user.findFirst({
+    where: { id, deletedAt: null, role: { in: BROKER_ROLES }, status: { not: UserStatus.SUSPENDED } },
+    select: { id: true },
+  });
+  if (!broker) throw new BadRequestException('That broker does not exist');
+}
 
 /**
  * Whether this caller is an outside partner rather than desk staff.
@@ -64,7 +79,7 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   [UserRole.BROKER]:
     'Their own trips, quotes and requests and their assigned clients. No company-wide figures.',
   [UserRole.ASSISTANT]:
-    'Supports the desk on the trips and clients assigned to them. No financial figures.',
+    'Supports the desk on assigned trips and clients. Seeing money on account requires a separate grant.',
   [UserRole.REFERRAL_AGENT]:
     'Outside partner. Partner portal only: submit referrals, follow their status, see their own commissions and the resources library.',
 };

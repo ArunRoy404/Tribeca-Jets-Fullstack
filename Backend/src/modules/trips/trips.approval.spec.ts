@@ -12,6 +12,7 @@ import {
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
 import {
   TaskStatus,
+  TaskSystemKind,
   TripApprovalStatus,
   TripStatus,
   UserRole,
@@ -219,6 +220,9 @@ describe('TripsService approval gates', () => {
       }),
     );
     expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'trip.rejected' }));
+    expect(prisma.task.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ systemKind: TaskSystemKind.TRIP_DECLINED }),
+    }));
   });
 
   it('approves a declined trip and closes its declined task', async () => {
@@ -230,7 +234,7 @@ describe('TripsService approval gates', () => {
     expect(prisma.task.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: expect.arrayContaining([{ title: 'Trip TJ-42 Approval Declined' }]),
+          systemKind: { in: [TaskSystemKind.TRIP_APPROVAL, TaskSystemKind.TRIP_DECLINED] },
         }),
       }),
     );
@@ -248,7 +252,7 @@ describe('TripsService approval gates', () => {
     expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'trip.resubmitted' }));
     expect(prisma.task.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ title: 'Trip TJ-42 Approval Declined', status: TaskStatus.TODO }),
+        where: expect.objectContaining({ systemKind: TaskSystemKind.TRIP_DECLINED, status: TaskStatus.TODO }),
       }),
     );
     expect(notify).toHaveBeenCalledOnce();
@@ -298,6 +302,7 @@ describe('TripsService approval gates', () => {
     );
     expect(prisma.task.create).toHaveBeenCalledTimes(1);
     expect(prisma.task.create.mock.calls[0][0].data.assigneeId).toBe('a1');
+    expect(prisma.task.create.mock.calls[0][0].data.systemKind).toBe(TaskSystemKind.TRIP_APPROVAL);
     expect(mail.sendTripApprovalNotification).toHaveBeenCalledTimes(1);
     expect(mail.sendTripApprovalNotification.mock.calls[0][0]).toBe('a1@example.com');
   });

@@ -1,3 +1,4 @@
+import { assertBroker, BROKER_ROLES } from '../../common/authorization/roles.js';
 import {
   BadRequestException,
   ConflictException,
@@ -15,7 +16,7 @@ import {
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import { bulkResult, type BulkResult } from '../../common/dto/bulk.dto.js';
 import { referenceFromSearch } from '../../common/database/document-number.js';
-import { equalsAny, orderByField } from '../../common/database/filters.js';
+import { equalsAny, orderByField, searchMatches } from '../../common/database/filters.js';
 import {
   ARCHIVE_ACTOR_SELECT,
   ARCHIVE_SELECT,
@@ -345,8 +346,7 @@ export class QuotesService {
     return {
       OR: [
         ...(reference !== null ? [{ reference }] : []),
-        { client: { firstName: { contains: search, mode: 'insensitive' } } },
-        { client: { lastName: { contains: search, mode: 'insensitive' } } },
+        ...searchMatches(search, ['client.firstName', 'client.lastName']),
         { client: { companyName: { contains: search, mode: 'insensitive' } } },
         { operator: { name: { contains: search, mode: 'insensitive' } } },
         { quotedAircraft: { contains: search, mode: 'insensitive' } },
@@ -788,18 +788,6 @@ export class QuotesService {
     }
   }
 
-  /** The broker a quote is assigned to has to be someone who can work it. */
-  private async assertBroker(id: string | null | undefined): Promise<void> {
-    if (!id) return;
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-      select: { id: true, deletedAt: true, status: true },
-    });
-    if (!user || user.deletedAt) {
-      throw new BadRequestException('That broker does not exist');
-    }
-  }
-
   /**
    * Every link on the quote, validated in one place.
    *
@@ -852,7 +840,7 @@ export class QuotesService {
       await this.airports.usable(links.destinationAirportId!, 'destination');
     }
     if (changed('assignedBrokerId')) {
-      await this.assertBroker(links.assignedBrokerId);
+      await assertBroker(this.prisma, links.assignedBrokerId);
     }
   }
 
@@ -965,7 +953,7 @@ export class QuotesService {
        * a quote owns it; an admin writing one on someone else's behalf says
        * so, and must not have it reassigned to themselves.
        */
-      assignedBrokerId: input.assignedBrokerId ?? user.id,
+      assignedBrokerId: input.assignedBrokerId ?? (BROKER_ROLES.includes(user.role) ? user.id : null),
       status: QuoteStatus.DRAFT,
       version: 1,
       createdById: user.id,

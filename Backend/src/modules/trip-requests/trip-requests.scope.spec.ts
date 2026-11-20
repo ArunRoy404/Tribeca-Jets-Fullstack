@@ -60,4 +60,16 @@ describe('trip requests list scope', () => {
     expect(clause.AND[0]).toEqual(visibility);
     expect(clause.AND[2]).toEqual({ clientId: { in: [clientId] } });
   });
+
+  it('joins full-name search with the original visibility clause', async () => {
+    const { service, where } = serviceCapturingWhere();
+    await service.findAll(broker, queryTripRequestsSchema.parse({ search: 'Elena Rostova' }));
+    const clause = where[0] as { AND: { OR?: unknown[] }[] };
+    expect(clause.AND[0]).toEqual(visibility);
+    expect(clause.AND[1]?.OR).toContainEqual({
+      AND: ['Elena', 'Rostova'].map((contains) => ({
+        OR: ['firstName', 'lastName'].map((field) => ({ client: { [field]: { contains, mode: 'insensitive' } } })),
+      })),
+    });
+  });
 });

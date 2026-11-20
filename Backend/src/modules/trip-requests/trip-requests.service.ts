@@ -1,3 +1,4 @@
+import { assertBroker, BROKER_ROLES } from '../../common/authorization/roles.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -13,7 +14,7 @@ import {
 } from '../../common/types/api.types.js';
 import { toPrismaPagination } from '../../common/dto/pagination.dto.js';
 import { bulkResult, type BulkResult } from '../../common/dto/bulk.dto.js';
-import { equalsAny, orderByField } from '../../common/database/filters.js';
+import { equalsAny, orderByField, searchMatches } from '../../common/database/filters.js';
 import {
   ARCHIVE_ACTOR_SELECT,
   ARCHIVE_SELECT,
@@ -219,8 +220,7 @@ export class TripRequestsService {
       OR: [
         ...(reference !== null ? [{ reference }] : []),
         { summary: { contains: search, mode: 'insensitive' } },
-        { client: { firstName: { contains: search, mode: 'insensitive' } } },
-        { client: { lastName: { contains: search, mode: 'insensitive' } } },
+        ...searchMatches(search, ['client.firstName', 'client.lastName']),
         { client: { companyName: { contains: search, mode: 'insensitive' } } },
         { originAirport: { icao: { contains: search, mode: 'insensitive' } } },
         { destinationAirport: { icao: { contains: search, mode: 'insensitive' } } },
@@ -236,17 +236,6 @@ export class TripRequestsService {
     });
     if (!client) {
       throw new BadRequestException('That client does not exist');
-    }
-  }
-
-  private async assertBroker(id: string | null | undefined): Promise<void> {
-    if (!id) return;
-    const broker = await this.prisma.user.findFirst({
-      where: { id, deletedAt: null },
-      select: { id: true },
-    });
-    if (!broker) {
-      throw new BadRequestException('That broker does not exist');
     }
   }
 
@@ -371,12 +360,12 @@ export class TripRequestsService {
 
   async create(user: AuthenticatedUser, dto: CreateTripRequestInput) {
     await this.assertClient(dto.clientId);
-    await this.assertBroker(dto.assignedBrokerId);
+    await assertBroker(this.prisma, dto.assignedBrokerId);
     await this.assertAirport(dto.originAirportId, 'origin');
     await this.assertAirport(dto.destinationAirportId, 'destination');
 
-    // An administrator or user with ASSIGN may assign to someone else;
-    // others file enquiries for themselves.
+    // An administrator or user with ASSIGN can choose the broker. Other
+    // callers take ownership only if they can own enquiries as brokers.
     const canAssign =
       canDo(user.access, Module.TRIP_REQUESTS, Action.ASSIGN) ||
       canDo(user.access, Module.LEADS_AGENTS, Action.ASSIGN) ||
@@ -384,7 +373,7 @@ export class TripRequestsService {
 
     const assignedBrokerId = canAssign
       ? (dto.assignedBrokerId ?? null)
-      : user.id;
+      : (BROKER_ROLES.includes(user.role) ? user.id : null);
 
     const request = await this.prisma.tripRequest.create({
       data: {
@@ -449,7 +438,7 @@ export class TripRequestsService {
           'Only administrators can reassign a trip request',
         );
       }
-      await this.assertBroker(dto.assignedBrokerId);
+      await assertBroker(this.prisma, dto.assignedBrokerId);
     }
     // Only a link that is actually changing is validated: an edit form
     // resends every field, and an airport archived later must not make the

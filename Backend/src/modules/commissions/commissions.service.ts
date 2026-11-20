@@ -25,9 +25,7 @@ import {
   archiveFilter,
   restoreData,
 } from '../../common/database/archive.js';
-import {
-  isPartner,
-} from '../../common/authorization/roles.js';
+import { assertBroker, isPartner } from '../../common/authorization/roles.js';
 import {
   Action,
   Module,
@@ -461,17 +459,6 @@ export class CommissionsService {
     if (client.deletedAt) throw new BadRequestException('That client has been archived. Restore them, or choose another.');
   }
 
-  private async assertBroker(id: string | null | undefined): Promise<void> {
-    if (!id) return;
-    const broker = await this.prisma.user.findFirst({ where: { id, deletedAt: null }, select: { role: true, status: true } });
-    if (!broker || broker.role === UserRole.REFERRAL_AGENT) {
-      throw new BadRequestException('That broker does not exist');
-    }
-    if (broker.status !== UserStatus.ACTIVE) {
-      throw new BadRequestException('That broker has been suspended. Choose an active broker.');
-    }
-  }
-
   private async assertReferral(id: string, agentId: string | null | undefined): Promise<void> {
     const referral = await this.prisma.referral.findFirst({
       where: { id, deletedAt: null },
@@ -495,6 +482,7 @@ export class CommissionsService {
       recipientName?: string | null;
       recipientCompany?: string | null;
     },
+    currentBrokerId?: string | null,
   ) {
     switch (type) {
       case CommissionRecipientType.REFERRAL_AGENT: {
@@ -507,7 +495,7 @@ export class CommissionsService {
       }
       case CommissionRecipientType.BROKER: {
         if (!dto.recipientUserId) throw new BadRequestException('Choose the broker');
-        await this.assertBroker(dto.recipientUserId);
+        if (dto.recipientUserId !== currentBrokerId) await assertBroker(this.prisma, dto.recipientUserId);
         return {
           agent: null,
           columns: {
@@ -565,7 +553,7 @@ export class CommissionsService {
     const trip = await this.trips.commissionTarget(dto.tripId);
     const { agent, columns } = await this.recipient(dto.recipientType, dto);
     if (dto.referralId) await this.assertReferral(dto.referralId, columns.recipientUserId);
-    await this.assertBroker(dto.brokerId);
+    await assertBroker(this.prisma, dto.brokerId);
 
     // No basis sent: a referral agent's standing structure, copied now so a
     // later change to it does not rewrite this agreement.
@@ -741,12 +729,12 @@ export class CommissionsService {
           recipientClientId: dto.recipientClientId === undefined ? current.recipientClientId : dto.recipientClientId,
           recipientName: dto.recipientName === undefined ? current.recipientName : dto.recipientName,
           recipientCompany: dto.recipientCompany === undefined ? current.recipientCompany : dto.recipientCompany,
-        })
+        }, current.recipientType === CommissionRecipientType.BROKER ? current.recipientUserId : undefined)
       : null;
 
     const agentId = recipient ? recipient.columns.recipientUserId : current.recipientUserId;
     if (dto.referralId && dto.referralId !== current.referralId) await this.assertReferral(dto.referralId, agentId);
-    if (dto.brokerId !== undefined && dto.brokerId !== current.brokerId) await this.assertBroker(dto.brokerId);
+    if (dto.brokerId !== undefined && dto.brokerId !== current.brokerId) await assertBroker(this.prisma, dto.brokerId);
 
     // Terms: the basis decides which figure applies, so a basis change clears
     // the figure it no longer uses rather than leaving it behind.

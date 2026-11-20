@@ -1,3 +1,4 @@
+import { assertBroker, BROKER_ROLES } from '../../common/authorization/roles.js';
 import {
   BadRequestException,
   ConflictException,
@@ -39,6 +40,7 @@ import {
   LeadStage,
   TaskPriority,
   TaskStatus,
+  TaskSystemKind,
   TripApprovalStatus,
   TripStatus,
   TripType,
@@ -548,15 +550,6 @@ export class TripsService {
     }
   }
 
-  private async assertBroker(id: string | null | undefined): Promise<void> {
-    if (!id) return;
-    const broker = await this.prisma.user.findFirst({
-      where: { id, deletedAt: null },
-      select: { id: true },
-    });
-    if (!broker) throw new BadRequestException('That broker does not exist');
-  }
-
   private async assertOperator(id: string | null | undefined): Promise<void> {
     if (!id) return;
     const row = await this.prisma.operator.findUnique({ where: { id }, select: { deletedAt: true } });
@@ -631,6 +624,7 @@ export class TripsService {
       await this.prisma.task.create({
         data: {
           title: `Review Assigned Trip TJ-${reference}`,
+          systemKind: TaskSystemKind.TRIP_ASSIGNED,
           description: `You have been assigned as lead broker for trip TJ-${reference} (${clientName}).`,
           status: TaskStatus.TODO,
           priority: TaskPriority.HIGH,
@@ -703,6 +697,7 @@ export class TripsService {
         await this.prisma.task.create({
           data: {
             title: `Approve Trip TJ-${reference}`,
+            systemKind: TaskSystemKind.TRIP_APPROVAL,
             description: `Trip TJ-${reference} submitted by ${brokerName} (${clientName}) is waiting for approval.`,
             status: TaskStatus.TODO,
             priority: TaskPriority.HIGH,
@@ -993,7 +988,7 @@ export class TripsService {
     this.assertLegs(dto.type, dto.legs);
     await Promise.all([
       this.assertClient(dto.clientId),
-      this.assertBroker(dto.assignedBrokerId),
+      assertBroker(this.prisma, dto.assignedBrokerId),
       this.assertOperator(dto.operatorId),
       this.assertAircraft(dto.aircraftId),
       this.assertTripRequest(dto.tripRequestId, dto.clientId),
@@ -1013,6 +1008,9 @@ export class TripsService {
       }
     }
 
+    const assignedBrokerId = dto.assignedBrokerId === undefined
+      ? (BROKER_ROLES.includes(user.role) ? user.id : null)
+      : dto.assignedBrokerId;
     const settings = await this.settings.read();
     const approval = initialApproval(mayApprove);
 
@@ -1021,7 +1019,7 @@ export class TripsService {
         data: {
           clientId: dto.clientId,
           // A broker's own booking is theirs unless they say otherwise.
-          assignedBrokerId: dto.assignedBrokerId === undefined ? user.id : dto.assignedBrokerId,
+          assignedBrokerId,
           tripRequestId: dto.tripRequestId ?? null,
           operatorId: dto.operatorId ?? null,
           aircraftId: dto.aircraftId ?? null,
@@ -1061,13 +1059,12 @@ export class TripsService {
       await this.notifyApprovers(user, trip.id, trip.reference, dto.clientId);
     }
 
-    const assignedId = dto.assignedBrokerId === undefined ? user.id : dto.assignedBrokerId;
-    if (assignedId && assignedId !== user.id) {
+    if (assignedBrokerId && assignedBrokerId !== user.id) {
       await this.notifyBrokerAssigned(
         user,
         trip.id,
         trip.reference,
-        assignedId,
+        assignedBrokerId,
         dto.clientId,
         dto.legs[0]?.departureDate ? new Date(dto.legs[0].departureDate) : null,
       );
@@ -1229,7 +1226,7 @@ export class TripsService {
     if (dto.clientId !== undefined && dto.clientId !== current.clientId) await this.assertClient(dto.clientId);
     if (dto.assignedBrokerId !== undefined && dto.assignedBrokerId !== current.assignedBrokerId) {
       this.assertMayReassign(user);
-      await this.assertBroker(dto.assignedBrokerId);
+      await assertBroker(this.prisma, dto.assignedBrokerId);
     }
     if (dto.operatorId !== undefined && dto.operatorId !== current.operatorId) await this.assertOperator(dto.operatorId);
     if (dto.aircraftId !== undefined && dto.aircraftId !== current.aircraftId) await this.assertAircraft(dto.aircraftId);
@@ -1349,7 +1346,7 @@ export class TripsService {
       await this.prisma.task.updateMany({
         where: {
           tripId: id,
-          title: `Trip TJ-${current.reference} Approval Declined`,
+          systemKind: TaskSystemKind.TRIP_DECLINED,
           status: TaskStatus.TODO,
           deletedAt: null,
         },
@@ -1525,10 +1522,8 @@ export class TripsService {
       where: {
         tripId: id,
         status: TaskStatus.TODO,
-        OR: [
-          { title: { startsWith: 'Approve Trip' } },
-          { title: `Trip TJ-${current.reference} Approval Declined` },
-        ],
+        deletedAt: null,
+        systemKind: { in: [TaskSystemKind.TRIP_APPROVAL, TaskSystemKind.TRIP_DECLINED] },
       },
       data: { status: TaskStatus.COMPLETED, completedAt: new Date(), updatedById: user.id },
     });
@@ -1584,7 +1579,7 @@ export class TripsService {
 
     // The approvers' tasks are answered.
     await this.prisma.task.updateMany({
-      where: { tripId: id, title: { startsWith: 'Approve Trip' }, status: TaskStatus.TODO },
+      where: { tripId: id, systemKind: TaskSystemKind.TRIP_APPROVAL, status: TaskStatus.TODO, deletedAt: null },
       data: { status: TaskStatus.COMPLETED, completedAt: new Date(), updatedById: user.id },
     });
 
@@ -1594,6 +1589,7 @@ export class TripsService {
       await this.prisma.task.create({
         data: {
           title: `Trip TJ-${current.reference} Approval Declined`,
+          systemKind: TaskSystemKind.TRIP_DECLINED,
           description: `Trip TJ-${current.reference} was rejected: ${reason}`,
           status: TaskStatus.TODO,
           priority: TaskPriority.HIGH,
@@ -1627,51 +1623,44 @@ export class TripsService {
 
   async remove(user: AuthenticatedUser, id: string): Promise<void> {
     this.assertMayArchive(user);
-    const trip = await this.findLive(user, id);
-    await this.prisma.trip.update({ where: { id }, data: { ...archiveData(user.id), updatedById: user.id } });
+    const [trip] = await this.archiveTrips(user, [id]);
+    if (!trip) throw new NotFoundException('Trip not found');
     await this.audit.record({
       actorId: user.id,
       action: 'trip.archived',
       entityType: 'Trip',
       entityId: id,
-      metadata: { reference: trip.reference },
+      metadata: { reference: trip.reference, tasksArchived: trip.taskCount },
     });
   }
 
   async restore(user: AuthenticatedUser, id: string) {
     this.assertMayArchive(user);
-    const trip = await this.prisma.trip.findFirst({
-      where: { id, deletedAt: { not: null }, ...this.visibilityScope(user) },
-      select: { id: true, reference: true },
-    });
+    const [trip] = await this.restoreTrips(user, [id]);
     if (!trip) throw new NotFoundException('Archived trip not found');
-    await this.prisma.trip.update({ where: { id }, data: { ...restoreData(user.id), updatedById: user.id } });
     await this.audit.record({
       actorId: user.id,
       action: 'trip.restored',
       entityType: 'Trip',
       entityId: id,
-      metadata: { reference: trip.reference },
+      metadata: { reference: trip.reference, tasksRestored: trip.taskCount },
     });
     return this.findOne(user, id);
   }
 
   async removeMany(user: AuthenticatedUser, ids: string[]): Promise<BulkResult> {
     this.assertMayArchive(user);
-    const targets = await this.prisma.trip.findMany({
-      where: { id: { in: ids }, deletedAt: null, ...this.visibilityScope(user) },
-      select: { id: true, reference: true },
-    });
+    const targets = await this.archiveTrips(user, ids);
     if (targets.length) {
-      await this.prisma.trip.updateMany({
-        where: { id: { in: targets.map((row) => row.id) } },
-        data: { ...archiveData(user.id), updatedById: user.id },
-      });
       await this.audit.record({
         actorId: user.id,
         action: 'trip.bulk_archived',
         entityType: 'Trip',
-        metadata: { count: targets.length, references: targets.map((row) => row.reference) },
+        metadata: {
+          count: targets.length,
+          references: targets.map((row) => row.reference),
+          tasksArchived: targets.reduce((total, row) => total + row.taskCount, 0),
+        },
       });
     }
     return bulkResult(ids, targets.map((row) => row.id));
@@ -1679,23 +1668,72 @@ export class TripsService {
 
   async restoreMany(user: AuthenticatedUser, ids: string[]): Promise<BulkResult> {
     this.assertMayArchive(user);
-    const targets = await this.prisma.trip.findMany({
-      where: { id: { in: ids }, deletedAt: { not: null }, ...this.visibilityScope(user) },
-      select: { id: true, reference: true },
-    });
+    const targets = await this.restoreTrips(user, ids);
     if (targets.length) {
-      await this.prisma.trip.updateMany({
-        where: { id: { in: targets.map((row) => row.id) } },
-        data: { ...restoreData(user.id), updatedById: user.id },
-      });
       await this.audit.record({
         actorId: user.id,
         action: 'trip.bulk_restored',
         entityType: 'Trip',
-        metadata: { count: targets.length, references: targets.map((row) => row.reference) },
+        metadata: {
+          count: targets.length,
+          references: targets.map((row) => row.reference),
+          tasksRestored: targets.reduce((total, row) => total + row.taskCount, 0),
+        },
       });
     }
     return bulkResult(ids, targets.map((row) => row.id));
+  }
+
+  private async archiveTrips(user: AuthenticatedUser, ids: string[]) {
+    return this.prisma.$transaction(async (tx) => {
+      const scope = this.visibilityScope(user);
+      const targets = await tx.trip.findMany({
+        where: { ...scope, id: { in: ids }, deletedAt: null },
+        select: { id: true, reference: true },
+        orderBy: { id: 'asc' },
+      });
+      const stamp = archiveData(user.id);
+      const archived: Array<{ id: string; reference: number; taskCount: number }> = [];
+      for (const trip of targets) {
+        const result = await tx.trip.updateMany({
+          where: { ...scope, id: trip.id, deletedAt: null },
+          data: { ...stamp, updatedById: user.id },
+        });
+        if (!result.count) continue;
+        const tasks = await tx.task.updateMany({
+          where: { tripId: trip.id, deletedAt: null, status: { not: TaskStatus.COMPLETED }, systemKind: { not: null } },
+          data: { ...stamp, updatedById: user.id },
+        });
+        archived.push({ ...trip, taskCount: tasks.count });
+      }
+      return archived;
+    });
+  }
+
+  private async restoreTrips(user: AuthenticatedUser, ids: string[]) {
+    return this.prisma.$transaction(async (tx) => {
+      const scope = this.visibilityScope(user);
+      const targets = await tx.trip.findMany({
+        where: { ...scope, id: { in: ids }, deletedAt: { not: null } },
+        select: { id: true, reference: true, deletedAt: true, deletedById: true },
+        orderBy: { id: 'asc' },
+      });
+      const data = { ...restoreData(user.id), updatedById: user.id };
+      const restored: Array<{ id: string; reference: number; taskCount: number }> = [];
+      for (const { id, reference, deletedAt, deletedById } of targets) {
+        if (!deletedAt) continue;
+        // Check the original archive stamp again so a concurrent restore or
+        // new archive cannot make this request restore a different set.
+        const result = await tx.trip.updateMany({ where: { ...scope, id, deletedAt, deletedById }, data });
+        if (!result.count) continue;
+        const tasks = await tx.task.updateMany({
+          where: { tripId: id, deletedAt, deletedById, systemKind: { not: null } },
+          data,
+        });
+        restored.push({ id, reference, taskCount: tasks.count });
+      }
+      return restored;
+    });
   }
 
   // ---- For other modules ------------------------------------------------

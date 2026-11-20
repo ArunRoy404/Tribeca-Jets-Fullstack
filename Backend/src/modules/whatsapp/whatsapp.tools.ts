@@ -627,9 +627,7 @@ export class WhatsappTools {
       }),
       defineTool({
         name: 'find_client',
-        // The clients search matches the whole string against one column at a
-        // time, so "Elena Rostova" matches nobody; the model must send one name.
-        description: 'Find up to five live clients by name, company, email or phone using a search string of 2–100 characters. The search matches one field at a time, so send a single name (the surname is best), a company, an email or a phone — never a full name. If a surname finds nobody, try the first name. Returns only contact, assignment and follow-up details. Total may exceed the returned clients; narrow the search when it does. Use the client id with client_notes to read their notes.',
+        description: 'Find up to five live clients by name, company, email or phone using a search string of 2–100 characters. Use the full name when known. Returns only contact, assignment and follow-up details. Total may exceed the returned clients; narrow the search when it does. Use the client id with client_notes to read their notes.',
         schema: clientArgs,
         permission: { module: Module.CLIENTS, action: Action.VIEW },
         async run(user, args, { timeZone }) {
@@ -990,7 +988,8 @@ export class WhatsappTools {
         name: 'client_credit',
         description: 'Read one client’s credit balance, total credited, total applied, entry count and last movement day. Get the client id from find_client first. A Client not found error means there is no client you can see with that id.',
         schema: clientCreditSummarySchema,
-        permission: { module: Module.CLIENTS, action: Action.VIEW },
+        permission: (user) => canDo(user.access, Module.CLIENTS, Action.VIEW)
+          && canDo(user.access, Module.CLIENTS, Action.VIEW_MONEY),
         async run(user, { clientId }) {
           const row = creditSummaryRow.parse(await clientCredits.summary(user, clientId));
           return {

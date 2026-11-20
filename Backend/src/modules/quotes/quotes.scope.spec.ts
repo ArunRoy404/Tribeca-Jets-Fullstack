@@ -47,6 +47,18 @@ describe('quotes list scope', () => {
     expect(clause.AND).toEqual([{ OR: [{ assignedBrokerId: broker.id }, { assignedBrokerId: null }] }, {}]);
   });
 
+  it('joins full-name search with the original visibility clause', async () => {
+    const { service, where } = serviceCapturingWhere();
+    await service.findAll(broker, queryQuotesSchema.parse({ search: 'Elena Rostova' }));
+    const clause = where[0] as { AND: { OR?: unknown[] }[] };
+    expect(clause.AND[0]).toEqual({ OR: [{ assignedBrokerId: broker.id }, { assignedBrokerId: null }] });
+    expect(clause.AND[1]?.OR).toContainEqual({
+      AND: ['Elena', 'Rostova'].map((contains) => ({
+        OR: ['firstName', 'lastName'].map((field) => ({ client: { [field]: { contains, mode: 'insensitive' } } })),
+      })),
+    });
+  });
+
   it.each(['Q-1042', 'q1042', '1042'])('searches by %s within the broker\'s visibility', async (search) => {
     const { service, where } = serviceCapturingWhere();
     await service.findAll(broker, queryQuotesSchema.parse({ search }));

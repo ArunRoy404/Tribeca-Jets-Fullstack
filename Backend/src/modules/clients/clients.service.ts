@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -33,7 +32,7 @@ import {
   canDo,
   reachOf,
 } from '../../common/authorization/access.js';
-import { BROKER_ROLES } from '../../common/authorization/roles.js';
+import { assertBroker, BROKER_ROLES } from '../../common/authorization/roles.js';
 import { AirportsService } from '../airports/airports.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import {
@@ -189,24 +188,6 @@ export class ClientsService {
       return { assignedBrokerId: user.id };
     }
     return {};
-  }
-
-  /**
-   * Verified on the server: an assigned broker must exist and be an active
-   * broker or admin.
-   */
-  private async assertBroker(id: string): Promise<void> {
-    const broker = await this.prisma.user.findFirst({
-      where: {
-        id,
-        deletedAt: null,
-        role: { in: BROKER_ROLES },
-      },
-      select: { id: true, status: true },
-    });
-    if (!broker) {
-      throw new BadRequestException('That broker does not exist');
-    }
   }
 
   async findAll(
@@ -422,9 +403,7 @@ export class ClientsService {
         ? user.id
         : (input.assignedBrokerId ?? null);
 
-    if (assignedBrokerId) {
-      await this.assertBroker(assignedBrokerId);
-    }
+    await assertBroker(this.prisma, input.assignedBrokerId);
 
     const settings = await this.settings.read();
     const leadStage =
@@ -502,7 +481,7 @@ export class ClientsService {
         );
       }
       if (input.assignedBrokerId !== null) {
-        await this.assertBroker(input.assignedBrokerId);
+        await assertBroker(this.prisma, input.assignedBrokerId);
       }
     }
 

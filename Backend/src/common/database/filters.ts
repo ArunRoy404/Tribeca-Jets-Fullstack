@@ -8,28 +8,39 @@
  */
 
 /**
- * Case-insensitive "contains" across several columns.
+ * Case-insensitive "contains" across columns or dotted relation paths.
  *
  * Returns `{}` for an absent term so it can be spread unconditionally — the
  * alternative is a `...(query.search ? {...} : {})` ternary at every call site,
  * which is what this replaces.
  *
- * Note this produces `OR`, so it must be spread into a `where` that has no
- * other `OR` key. No caller needs one today; if one does, nest it under `AND`
- * rather than widening this helper.
+ * This produces an `OR`. Join it through `AND` when visibility supplies its
+ * own `OR`, so neither replaces the other.
  *
  * @example ...searchAcross(query.search, ['firstName', 'email'])
  */
-export function searchAcross<T extends string>(
-  term: string | undefined,
-  fields: readonly T[],
-): Record<string, unknown> {
-  if (!term) return {};
-  return {
-    OR: fields.map((field) => ({
-      [field]: { contains: term, mode: 'insensitive' },
-    })),
-  };
+export function searchAcross(term: string | undefined, fields: readonly string[]): Record<string, unknown> {
+  const OR = searchMatches(term, fields);
+  return OR.length ? { OR } : {};
+}
+
+const MAX_SEARCH_WORDS = 6;
+
+/** Alternatives for an existing search OR that also contains other matches. */
+export function searchMatches(term: string | undefined, fields: readonly string[]): Record<string, unknown>[] {
+  const phrase = term?.trim();
+  if (!phrase || !fields.length) return [];
+
+  const paths = fields.map((field) => field.split('.'));
+  const matches = (contains: string) => paths.map((path) =>
+    path.reduceRight<Record<string, unknown>>((condition, key) => ({ [key]: condition }), { contains, mode: 'insensitive' }),
+  );
+  const whole = matches(phrase);
+  const words = phrase.split(/\s+/);
+  // For longer input, keep the original phrase match and bound query growth.
+  if (words.length < 2 || words.length > MAX_SEARCH_WORDS) return whole;
+
+  return [...whole, { AND: words.map((word) => ({ OR: matches(word) })) }];
 }
 
 /**
