@@ -31,6 +31,8 @@ export const queryKeys = {
     detail: ["settings", "detail"],
     branding: ["settings", "branding"],
     whatsapp: ["settings", "whatsapp"],
+    whatsappPhones: (params) => ["settings", "whatsapp", "phones", params],
+    whatsappHistory: (params) => ["settings", "whatsapp", "history", ...(params ? [params] : [])],
   },
 
   uploads: {

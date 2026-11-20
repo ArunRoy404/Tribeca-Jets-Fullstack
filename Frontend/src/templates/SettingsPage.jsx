@@ -54,7 +54,7 @@ export default function SettingsPage() {
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start w-full">
         <SettingsNav value={current.id} onChange={changeSection} isSuperAdmin={isSuperAdmin} />
         <div key={current.id} className="flex flex-1 flex-col gap-5 min-w-0 w-full">
-          {isWhatsapp ? <WhatsappSettingsSection onDirtyChange={setWhatsappDirty} /> : <Section />}
+          {isWhatsapp ? <WhatsappSettingsSection onDirtyChange={setWhatsappDirty} requestLeave={guard.requestLeave} /> : <Section />}
         </div>
       </div>
       <ConfirmDialog {...guard.dialog} />

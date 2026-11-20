@@ -1,7 +1,8 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryPresets } from "@/config/query.config";
+import { PAGE_SIZE_OPTIONS } from "@/hooks/common/useTableQueryParams";
 import { queryKeys } from "@/lib/queryKeys";
 import { toastSuccess } from "@/lib/toast";
 import { whatsappSettingsService } from "@/services/whatsappSettings.service";
@@ -48,10 +49,11 @@ export function useUpdateWhatsappSettings() {
 }
 
 export function useRevealWhatsappSecret() {
+  const client = useQueryClient();
   return usePrivateMutation(async ({ field, currentPassword }, receive) => {
     const { value } = await whatsappSettingsService.reveal(field, currentPassword);
     receive?.(value);
-  });
+  }, () => client.invalidateQueries({ queryKey: queryKeys.settings.whatsappHistory() }));
 }
 
 export function useSetWhatsappAssistant() {
@@ -77,10 +79,7 @@ export function useTestWhatsappMeta() {
 
 export function useVerifyWhatsappPhone() {
   const client = useQueryClient();
-  return usePrivateMutation(whatsappSettingsService.verify, (linkedPhone) => {
-    client.setQueryData(queryKeys.settings.whatsapp, (settings) => settings && {
-      ...settings, linkedPhone, readiness: { ...settings.readiness, phoneLinked: true },
-    });
+  return usePrivateMutation(whatsappSettingsService.verify, () => {
     client.invalidateQueries({ queryKey: queryKeys.settings.whatsapp });
     toastSuccess("WhatsApp phone linked");
   });
@@ -88,11 +87,51 @@ export function useVerifyWhatsappPhone() {
 
 export function useUnlinkWhatsappPhone() {
   const client = useQueryClient();
-  return usePrivateMutation(whatsappSettingsService.unlink, () => {
-    client.setQueryData(queryKeys.settings.whatsapp, (settings) => settings && {
-      ...settings, linkedPhone: null, readiness: { ...settings.readiness, phoneLinked: false },
-    });
+  return usePrivateMutation(({ id, currentPassword }) => whatsappSettingsService.unlinkPhone(id, currentPassword), () => {
     client.invalidateQueries({ queryKey: queryKeys.settings.whatsapp });
     toastSuccess("WhatsApp phone unlinked");
+  });
+}
+
+export function useRenameWhatsappPhone() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, label }) => whatsappSettingsService.renamePhone(id, label),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: queryKeys.settings.whatsapp });
+      toastSuccess("Phone renamed");
+    },
+  });
+}
+
+export function useWhatsappPhones() {
+  return useQuery({
+    ...queryPresets.standard,
+    queryKey: queryKeys.settings.whatsappPhones(),
+    queryFn: ({ signal }) => whatsappSettingsService.phones({}, signal),
+  });
+}
+
+export function useWhatsappHistoryPhones() {
+  return useQuery({
+    ...queryPresets.standard,
+    queryKey: queryKeys.settings.whatsappPhones({ includeArchived: true }),
+    queryFn: async ({ signal }) => {
+      const phones = new Map();
+      for (let page = 1; ; page++) {
+        const result = await whatsappSettingsService.phones({ includeArchived: true, page, limit: PAGE_SIZE_OPTIONS.at(-1) }, signal);
+        result?.data?.forEach((phone) => phones.set(phone?.id, phone));
+        if (!result?.meta?.hasNext) return [...phones.values()];
+      }
+    },
+  });
+}
+
+export function useWhatsappHistory(params) {
+  return useQuery({
+    ...queryPresets.live,
+    queryKey: queryKeys.settings.whatsappHistory(params),
+    queryFn: ({ signal }) => whatsappSettingsService.history(params, signal),
+    placeholderData: keepPreviousData,
   });
 }

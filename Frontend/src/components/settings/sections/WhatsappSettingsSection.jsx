@@ -12,6 +12,8 @@ import SettingsButton from "@/components/settings/SettingsButton";
 import SettingsCard from "@/components/settings/SettingsCard";
 import SettingsSectionStatus from "@/components/settings/SettingsSectionStatus";
 import { useCopyToClipboard } from "@/hooks/common/useCopyToClipboard";
+import { dateField, enumParam, filterField, paginationFields, useTableQueryParams } from "@/hooks/common/useTableQueryParams";
+import FilterTabs from "@/components/table/common/FilterTabs";
 import {
   stageWhatsappRequest,
   useRevealWhatsappSecret,
@@ -23,6 +25,21 @@ import {
 } from "@/hooks/settings/useWhatsappSettings";
 import { optionalText } from "@/lib/form";
 import WhatsappPhoneCard from "./WhatsappPhoneCard";
+import WhatsappHistory, { WHATSAPP_HISTORY_TYPES } from "./WhatsappHistory";
+
+const { page, limit } = paginationFields(["createdAt"]);
+const VIEW_PARAMS = {
+  tab: { default: "setup", parse: enumParam(["setup", "history"]), local: true, resetsPage: true },
+  page, limit,
+  phoneId: {
+    default: "",
+    parse: (value) => /^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i.test(value) ? value : undefined,
+    resetsPage: true,
+  },
+  type: filterField(WHATSAPP_HISTORY_TYPES.map(({ value }) => value)),
+  from: dateField(),
+  to: dateField(),
+};
 
 const FIELD_LABELS = {
   openaiApiKey: "API key",
@@ -79,8 +96,8 @@ function ReadinessItem({ ready, children }) {
 function AssistantCard({ enabled, readiness }) {
   const assistant = useSetWhatsappAssistant();
   const [confirming, setConfirming] = useState(false);
-  const { openai, meta, metaMissing, phoneLinked, encryptionReady } = readiness;
-  const ready = openai && meta && phoneLinked && encryptionReady;
+  const { openai, meta, metaMissing, phonesLinked, encryptionReady } = readiness;
+  const ready = openai && meta && phonesLinked > 0 && encryptionReady;
   const border = !enabled ? "border-destructive" : ready ? "border-success" : "border-warning";
 
   function changeEnabled(next) {
@@ -102,7 +119,7 @@ function AssistantCard({ enabled, readiness }) {
     <SettingsCard title="Assistant" className={border}>
       <SettingRow
         label="WhatsApp assistant"
-        description="Off stops the bot at once. It answers only your linked phone."
+        description="Off stops the bot at once. It answers only your linked phones."
         checked={enabled}
         onCheckedChange={changeEnabled}
         disabled={assistant.isPending}
@@ -114,7 +131,7 @@ function AssistantCard({ enabled, readiness }) {
           Meta settings saved
           {!meta && <span className="block text-muted-foreground">Missing: {metaMissing.map((field) => FIELD_LABELS[field]).join(", ")}</span>}
         </ReadinessItem>
-        <ReadinessItem ready={phoneLinked}>Your phone linked</ReadinessItem>
+        <ReadinessItem ready={phonesLinked > 0}>{phonesLinked > 0 ? `Phones linked: ${phonesLinked}` : "No phone linked"}</ReadinessItem>
         {!encryptionReady && <ReadinessItem ready={false}>Encryption key on the server</ReadinessItem>}
       </ul>
       {!confirming && assistant.error && <p role="alert" className="text-sm text-destructive">{assistant.error.message}</p>}
@@ -329,7 +346,7 @@ function WhatsappSettingsCards({ settings, onDirtyChange }) {
         <CardSave dirty={metaDirty} saving={save.isPending} onSave={() => openSave("Save Meta settings", META_FIELDS, metaChanges)} />
       </SettingsCard>
 
-      <WhatsappPhoneCard linkedPhone={settings.linkedPhone} />
+      <WhatsappPhoneCard phoneLimit={settings?.readiness?.phoneLimit} />
       {confirming && (
         <SettingsPasswordDialog
           title={confirming.title}
@@ -343,10 +360,26 @@ function WhatsappSettingsCards({ settings, onDirtyChange }) {
   );
 }
 
-export default function WhatsappSettingsSection({ onDirtyChange }) {
+function WhatsappSetup({ onDirtyChange }) {
   const query = useWhatsappSettings();
   if (!query.data) {
     return <SettingsSectionStatus isPending={query.isPending} error={query.error} onRetry={query.refetch} />;
   }
   return <WhatsappSettingsCards settings={query.data} onDirtyChange={onDirtyChange} />;
+}
+
+export default function WhatsappSettingsSection({ onDirtyChange, requestLeave }) {
+  const { queryParams, ...table } = useTableQueryParams(VIEW_PARAMS);
+  const { from, to, ...filters } = queryParams;
+  const params = { ...filters, from, ...(!from || !to || from <= to ? { to } : {}) };
+  const history = table.values.tab === "history";
+  return (
+    <>
+      <FilterTabs options={["Setup", "History"]} value={history ? "History" : "Setup"} onValueChange={(value) => {
+        const tab = value.toLowerCase();
+        if (tab !== table.values.tab) requestLeave?.(() => table.setters.setTab(tab));
+      }} />
+      {history ? <WhatsappHistory {...table} params={params} /> : <WhatsappSetup onDirtyChange={onDirtyChange} />}
+    </>
+  );
 }
