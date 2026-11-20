@@ -108,8 +108,8 @@ dedicated `reset-demo@example.com` account so nothing else breaks; run
 
 Use the 4100 test API and Newman command in the startup section below.
 
-Every request carries saved examples for its success case and each error case,
-all captured from the live API rather than hand-written.
+Saved examples are captured from the test API. The WhatsApp Settings folder
+documents the responses that require contacting Meta or OpenAI in words.
 
 ## Frontend route → API call
 
@@ -144,28 +144,34 @@ that line or scope the feature.
 `agent@` is the referral partner (#11). `17 · Commissions` and `18 · Referrals`
 sign in as it for the requests marked "(as the agent)" — see below.
 
-## Running the whole collection
+## Before any run: prepare the test database
+
+The `tribeca_postman` copy can contain the developer's sealed credentials and
+linked phone. The 4100 API can decrypt those credentials with the same key.
+This script clears them, switches the assistant off, and links a fixture phone to the seeded broker.
+
+After each refresh, run this from `Backend/` before starting the 4100 API or
+running either WhatsApp builder or folder. Replace `<user>` with the test
+database user.
+
+```bash
+docker exec -i tribeca_postgres psql -U <user> -d tribeca_postman < postman/prepare_whatsapp_test_db.sql
+```
+
+## Start the 4100 test API
 
 Start the isolated test API on port 4100 with the `tribeca_postman` database
 copy and its own Redis database. The log mail driver exposes the codes the
-two-factor and password-reset requests need. Set the WhatsApp values in the
-API's process environment so they override any local `.env` values. Run
-these commands from `Backend/`, replacing `<password>` with the test
-database password. Seed the test database before a full collection run.
+two-factor and password-reset requests need. The WhatsApp folders write fake
+settings through the API, which needs a valid `SETTINGS_ENCRYPTION_KEY` to
+seal them. Run these commands from `Backend/`, replacing `<password>` with
+the test database password. Seed the test database before a full collection run.
 
 ```bash
 postman_database_url='postgresql://tribeca:<password>@localhost:5432/tribeca_postman?schema=public'
 DATABASE_URL="$postman_database_url" npx prisma db seed  # full collection only
 npm run build && PORT=4100 MAIL_DRIVER=log RATE_LIMIT_MULTIPLIER=20 \
   REDIS_URL=redis://localhost:6380/1 DATABASE_URL="$postman_database_url" \
-  WHATSAPP_ACCESS_TOKEN=postman-not-a-token \
-  WHATSAPP_PHONE_NUMBER_ID=100000000000000 \
-  WHATSAPP_APP_SECRET=postman-app-secret \
-  WHATSAPP_VERIFY_TOKEN=postman-verify-token \
-  WHATSAPP_GRAPH_VERSION=v25.0 \
-  SUPER_ADMIN_WHATSAPP_PHONE=15550000001 \
-  SUPER_ADMIN_WHATSAPP_EMAIL=admin@example.com \
-  OPENAI_API_KEY= OPENAI_MODEL= \
   node dist/main.js &
 ```
 
@@ -206,12 +212,11 @@ challenge as plain text. POST verifies the HMAC of the raw body and returns
 the count in the API's JSON success envelope. Use the 4100 test API above for
 both capture and Newman, even when running just this folder.
 
-- The test process overrides the WhatsApp config with dummy values and
-  leaves `OPENAI_API_KEY` and `OPENAI_MODEL` empty.
-- Every message uses `15550000999`. The configured Super Admin phone is
-  `15550000001`, so the sender gate drops the probe silently, even if the
-  assistant is switched on in the database copy. The API acknowledges it
-  without calling Meta or OpenAI.
+- The first request signs in as the seeded Super Admin and saves fake Meta
+  settings. The final request clears them.
+- Every message uses `15550000999`. The prepared copy has the assistant
+  switched off, no linked Super Admin phone, and no OpenAI credentials. The
+  API acknowledges the probe without calling Meta or OpenAI.
 - `whatsappAppSecret` and `whatsappVerifyToken` carry only test API values
   in Local and in the collection defaults. Leave both fields blank in the
   Production environment. Use the test API's values only and keep production
@@ -231,6 +236,33 @@ The webhook bodies contain no comments, so the rewriter leaves the signed
 bytes alone. The request descriptions explain the fields. The builder
 asserts each captured status against its example label. Run the collection-wide
 label audit after capture.
+
+## 32 · WhatsApp Settings
+
+Run on the prepared 4100 API. The folder signs in as the seeded Super Admin,
+reads the cleared settings, then probes the link-code route while the Meta
+settings are incomplete. It saves fake settings, verifies that a code without
+a link cookie is refused, checks unlinking an empty account, and clears the
+fake settings in the final request.
+
+The builder signs `security@example.com` in using the log driver's two-factor
+code to capture the Admin's 403 responses. Newman runs as the Super Admin.
+The folder description documents both live connection tests. The executable
+link-code probe stops at the incomplete-settings check.
+
+With the test API up, regenerate the folder and run it twice from `Backend/`.
+
+```bash
+(cd postman && POSTMAN_BASE=http://localhost:4100/api python build_whatsapp_settings_folder.py && \
+  python rewrite_body_comments.py)
+npx newman run postman/Tribeca-Jets-API.postman_collection.json \
+  --folder "32 · WhatsApp Settings" -e postman/Local.postman_environment.json \
+  --env-var baseUrl=http://localhost:4100/api
+```
+
+After both folders pass on their own twice, run them together by passing both
+`--folder` flags. Audit the collection's example labels and check the 4100 log
+for any calls to Meta or OpenAI.
 
 ## Structure
 
@@ -321,6 +353,7 @@ or deleted on 10 Nov 2026; git history keeps them).
 | `03 · Clients` examples | `recapture_clients_examples.py` |
 | `04 · Users` … `30 · Settings` | `build_<module>_folder.py`, one per folder (`build_users_folder.py` for 04, `build_airports_folder.py` for 05, … `build_settings_folder.py` for 30) |
 | `31 · WhatsApp Webhook` | `build_whatsapp_webhook_folder.py` |
+| `32 · WhatsApp Settings` | `build_whatsapp_settings_folder.py` |
 
 Shared by the builders: `builder_common.py` (session, `example()` with its
 label check, `url()`, `script()`, `BASE` from `POSTMAN_BASE`),

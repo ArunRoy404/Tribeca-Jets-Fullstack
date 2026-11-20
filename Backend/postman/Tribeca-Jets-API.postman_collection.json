@@ -43140,11 +43140,186 @@
     },
     {
       "name": "31 \u00b7 WhatsApp Webhook",
-      "description": "Meta calls these public routes without a session.\nGET verifies the webhook with the test API's verify token.\nPOST uses `X-Hub-Signature-256`, the app secret's HMAC-SHA256 over the raw body.\nBoth routes return 404 while the assistant is unconfigured.\nRun this folder on port 4100 with the test-only WhatsApp settings in `postman/README.md`.",
+      "description": "Meta calls the webhook routes without a session.\nGET verifies the webhook with the test API's verify token.\nPOST uses `X-Hub-Signature-256`, the app secret's HMAC-SHA256 over the raw body.\nBoth routes return 404 while the Meta settings are incomplete.\nSetup saves fake Meta settings as the seeded Super Admin, and teardown clears them.\nPrepare the test database and use port 4100 as described in `postman/README.md`.",
       "auth": {
         "type": "noauth"
       },
       "item": [
+        {
+          "name": "00 \u00b7 Setup \u2014 test WhatsApp settings",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "/*",
+                  " * Signs this folder in as the seeded SUPER_ADMIN.",
+                  " *",
+                  " * Runs before every request in the folder but only acts when the",
+                  " * current session is for a different account, so it costs one login",
+                  " * per run rather than one per request. `pm.variables` is run-scoped,",
+                  " * so a fresh run always re-authenticates.",
+                  " *",
+                  " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+                  " * auth endpoints are documented once, in one place.",
+                  " */",
+                  "const NEEDED = 'owner';",
+                  "",
+                  "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+                  "    const baseUrl = pm.variables.get('baseUrl') || pm.variables.get('baseUrl');",
+                  "    pm.sendRequest({",
+                  "        url: baseUrl + '/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                email: pm.collectionVariables.get('ownerEmail'),",
+                  "                password: pm.collectionVariables.get('password'),",
+                  "            }),",
+                  "        },",
+                  "    }, function (err, res) {",
+                  "        if (err) { console.error('session setup failed', err); return; }",
+                  "",
+                  "        const body = res.json();",
+                  "        // security@ has two-factor on, so a password alone leaves the",
+                  "        // session incomplete. Finish the challenge before continuing,",
+                  "        // or every request in the folder 401s.",
+                  "        if (body && body.data && body.data.requiresTwoFactor) {",
+                  "            const code = body.data.devCode && body.data.devCode.code;",
+                  "            pm.sendRequest({",
+                  "                url: baseUrl + '/auth/two-factor/verify',",
+                  "                method: 'POST',",
+                  "                header: { 'Content-Type': 'application/json' },",
+                  "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+                  "            }, function (e, verifyRes) {",
+                  "                pm.variables.set('_sessionAs', NEEDED);",
+                  "                captureCsrf(verifyRes);",
+                  "            });",
+                  "            return;",
+                  "        }",
+                  "",
+                  "        pm.variables.set('_sessionAs', NEEDED);",
+                  "        captureCsrf(res);",
+                  "    });",
+                  "}",
+                  "",
+                  "// Writes need X-CSRF-Token, and the value is only readable from the",
+                  "// cookie the server just set.",
+                  "//",
+                  "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+                  "// the jar is not reliably populated in Newman, and a jar read that",
+                  "// comes back empty would clobber a working token with undefined.",
+                  "function captureCsrf(res) {",
+                  "    if (!res) return;",
+                  "    const cookies = res.headers.all()",
+                  "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "        .map(function (h) { return h.value; });",
+                  "    for (var i = 0; i < cookies.length; i++) {",
+                  "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+                  "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('The response shows the expected masked settings', () =>",
+                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": true, \"last4\": \"oken\"}, \"appSecret\": {\"set\": true, \"last4\": \"cret\"}, \"verifyToken\": {\"set\": true, \"last4\": \"oken\"}, \"phoneNumberId\": \"100000000000000\", \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null}));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",      // Required and nonempty. Use the current Super Admin password.\n  \"accessToken\": \"postman-not-a-token\",   // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"phoneNumberId\": \"100000000000000\",     // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n  \"appSecret\": \"postman-app-secret\",      // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": \"postman-verify-token\",  // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"graphVersion\": \"v25.0\"                 // Optional trimmed, case-sensitive Graph version in v<major>.<minor> format, up to 20 characters. Defaults to v25.0.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Saves the fake Meta settings on the prepared 4100 API. The webhook requests use the matching fake app secret and verify token."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Test settings saved",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{password}}\",      // Required and nonempty. Use the current Super Admin password.\n  \"accessToken\": \"postman-not-a-token\",   // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"phoneNumberId\": \"100000000000000\",     // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n  \"appSecret\": \"postman-app-secret\",      // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": \"postman-verify-token\",  // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"graphVersion\": \"v25.0\"                 // Optional trimmed, case-sensitive Graph version in v<major>.<minor> format, up to 20 characters. Defaults to v25.0.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": \"100000000000000\",\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": true,\n      \"last4\": \"oken\"\n    },\n    \"appSecret\": {\n      \"set\": true,\n      \"last4\": \"cret\"\n    },\n    \"verifyToken\": {\n      \"set\": true,\n      \"last4\": \"oken\"\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+            }
+          ]
+        },
         {
           "name": "01 \u00b7 Verify the webhook",
           "event": [
@@ -43201,7 +43376,7 @@
                 }
               ]
             },
-            "description": "Meta verifies the callback URL with this public GET. All three query fields must be present for verification. A wrong token or mode returns 403. A field exceeding its length limit returns 400. A successful response is the bare challenge as plain text.\n\n404 while the assistant is unconfigured. The test API is configured, so no 404 example is captured.\n429 when the request rate exceeds 30 per minute times the test multiplier. A run cannot reach that limit, so no 429 example is captured."
+            "description": "Meta verifies the callback URL with this public GET. All three query fields must be present for verification. A wrong token or mode returns 403. A field exceeding its length limit returns 400. A successful response is the bare challenge as plain text.\n\n404 while the Meta settings are incomplete. Setup saves fake settings, so no 404 example is captured.\n429 when the request rate exceeds 30 per minute times the test multiplier. A run cannot reach that limit, so no 429 example is captured."
           },
           "response": [
             {
@@ -43210,7 +43385,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-verify-token&hub.challenge=620d10103755459dacef7c3cc2b1f235",
+                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-verify-token&hub.challenge=30f708ac75894ea799d82c3c4c5d25ca",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -43231,7 +43406,7 @@
                     },
                     {
                       "key": "hub.challenge",
-                      "value": "620d10103755459dacef7c3cc2b1f235",
+                      "value": "30f708ac75894ea799d82c3c4c5d25ca",
                       "description": "Opaque challenge echoed verbatim. 1\u2013200 characters for verification. No default."
                     }
                   ]
@@ -43247,7 +43422,7 @@
                 }
               ],
               "cookie": [],
-              "body": "620d10103755459dacef7c3cc2b1f235"
+              "body": "30f708ac75894ea799d82c3c4c5d25ca"
             },
             {
               "name": "403 \u00b7 Wrong verify token",
@@ -43255,7 +43430,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-wrong-verify-token&hub.challenge=620d10103755459dacef7c3cc2b1f235",
+                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-wrong-verify-token&hub.challenge=30f708ac75894ea799d82c3c4c5d25ca",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -43276,7 +43451,7 @@
                     },
                     {
                       "key": "hub.challenge",
-                      "value": "620d10103755459dacef7c3cc2b1f235",
+                      "value": "30f708ac75894ea799d82c3c4c5d25ca",
                       "description": "Opaque challenge echoed verbatim. 1\u2013200 characters for verification. No default."
                     }
                   ]
@@ -43292,7 +43467,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":403,\"message\":\"Verification token does not match\",\"path\":\"/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-wrong-verify-token&hub.challenge=620d10103755459dacef7c3cc2b1f235\",\"timestamp\":\"2026-11-19T17:55:01.157Z\"}"
+              "body": "{\"success\":false,\"statusCode\":403,\"message\":\"Verification token does not match\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:03:57.898Z\"}"
             },
             {
               "name": "403 \u00b7 Mode is not subscribe",
@@ -43300,7 +43475,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=unsubscribe&hub.verify_token=postman-verify-token&hub.challenge=620d10103755459dacef7c3cc2b1f235",
+                  "raw": "{{baseUrl}}/webhooks/whatsapp?hub.mode=unsubscribe&hub.verify_token=postman-verify-token&hub.challenge=30f708ac75894ea799d82c3c4c5d25ca",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -43321,7 +43496,7 @@
                     },
                     {
                       "key": "hub.challenge",
-                      "value": "620d10103755459dacef7c3cc2b1f235",
+                      "value": "30f708ac75894ea799d82c3c4c5d25ca",
                       "description": "Opaque challenge echoed verbatim. 1\u2013200 characters for verification. No default."
                     }
                   ]
@@ -43337,7 +43512,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":403,\"message\":\"Verification token does not match\",\"path\":\"/api/webhooks/whatsapp?hub.mode=unsubscribe&hub.verify_token=postman-verify-token&hub.challenge=620d10103755459dacef7c3cc2b1f235\",\"timestamp\":\"2026-11-19T17:55:03.197Z\"}"
+              "body": "{\"success\":false,\"statusCode\":403,\"message\":\"Verification token does not match\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:03:59.940Z\"}"
             },
             {
               "name": "400 \u00b7 Challenge too long",
@@ -43382,7 +43557,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":400,\"message\":\"Validation failed\",\"errors\":{\"hub.challenge\":\"Too big: expected string to have <=200 characters\"},\"path\":\"/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=postman-verify-token&hub.challenge=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"timestamp\":\"2026-11-19T17:55:05.242Z\"}"
+              "body": "{\"success\":false,\"statusCode\":400,\"message\":\"Validation failed\",\"errors\":{\"hub.challenge\":\"Too big: expected string to have <=200 characters\"},\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:04:01.976Z\"}"
             }
           ]
         },
@@ -43448,7 +43623,7 @@
                 }
               }
             },
-            "description": "Sends one text message from the unknown number `15550000999`. The API counts\nthe message, then drops it silently at the gate that checks for the configured\nSuper Admin phone. Meta uses the HTTP 200 acknowledgement.\n\nThe fields of `messages[]` are:\n\n- `id` is Meta's message ID, used to detect redelivery for messages that pass\n  the sender gate. A fresh test ID is generated for each run.\n- `from` is the sender's phone number. The API keeps only its digits.\n- `timestamp` is the send time in Unix seconds as a string. The API uses it to\n  reject stale messages that pass the sender gate.\n- `type` is `text` for this probe. The API reads `text.body` as the message\n  content when `type` is `text`.\n\nThe raw JSON has no inline comments because Postman may strip them. The HMAC\nmust cover the exact bytes sent after variable resolution.\n\n- `object` must be `whatsapp_business_account` for the API to read events.\n- `entry[]` holds account batches. `entry[].changes[]` holds changes within each batch.\n- `entry[].changes[].value` holds the events. The API reads `messages[]` for\n  incoming messages and `statuses[]` for delivery updates. Either may be absent.\n\n404 while the assistant is unconfigured. The test API is configured, so no 404 example is captured.\n429 when the request rate exceeds 600 per minute times the test multiplier. A run cannot reach that limit, so no 429 example is captured."
+            "description": "Sends one text message from the unknown number `15550000999`. The API counts\nthe message. The prepared copy has the assistant switched off and no linked\nSuper Admin phone, so the message triggers no reply. Meta uses the HTTP 200 acknowledgement.\n\nThe fields of `messages[]` are:\n\n- `id` is Meta's message ID, used to detect redelivery for messages that pass\n  the sender gate. A fresh test ID is generated for each run.\n- `from` is the sender's phone number. The API keeps only its digits.\n- `timestamp` is the send time in Unix seconds as a string. The API uses it to\n  reject stale messages that pass the sender gate.\n- `type` is `text` for this probe. The API reads `text.body` as the message\n  content when `type` is `text`.\n\nThe raw JSON has no inline comments because Postman may strip them. The HMAC\nmust cover the exact bytes sent after variable resolution.\n\n- `object` must be `whatsapp_business_account` for the API to read events.\n- `entry[]` holds account batches. `entry[].changes[]` holds changes within each batch.\n- `entry[].changes[].value` holds the events. The API reads `messages[]` for\n  incoming messages and `statuses[]` for delivery updates. Either may be absent.\n\n404 while the Meta settings are incomplete. Setup saves fake settings, so no 404 example is captured.\n429 when the request rate exceeds 600 per minute times the test multiplier. A run cannot reach that limit, so no 429 example is captured."
           },
           "response": [
             {
@@ -43462,7 +43637,7 @@
                   },
                   {
                     "key": "X-Hub-Signature-256",
-                    "value": "sha256=c81cccac966596444a20664b7bc9616e3828acc089713d2efae9668c08e952df"
+                    "value": "sha256=54118db8be6a615ddb6500103121c5eaded5b8e5a39a4faf90df811e8a918c2e"
                   }
                 ],
                 "url": {
@@ -43477,7 +43652,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.ba15d40009674d4dbb3679c5c5dbcb14\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795110905\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.e6c5ec0b20b544a39dbb49fd5ba1c8b4\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795151041\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -43519,7 +43694,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.ba15d40009674d4dbb3679c5c5dbcb14\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795110905\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.e6c5ec0b20b544a39dbb49fd5ba1c8b4\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795151041\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -43537,7 +43712,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-19T17:55:09.348Z\"}"
+              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:04:06.058Z\"}"
             },
             {
               "name": "401 \u00b7 Wrong signature",
@@ -43550,7 +43725,7 @@
                   },
                   {
                     "key": "X-Hub-Signature-256",
-                    "value": "sha256=c638188b6c3c639890fbfe749b5f3219c45b6d04bcebeffd4f441bfd2dc7f91a"
+                    "value": "sha256=6e72c4227222203af06d11eeb02287f7ecc98bab3b8c074323352b2b314ecd64"
                   }
                 ],
                 "url": {
@@ -43565,7 +43740,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.ba15d40009674d4dbb3679c5c5dbcb14\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795110905\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.e6c5ec0b20b544a39dbb49fd5ba1c8b4\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795151041\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -43583,7 +43758,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-19T17:55:11.398Z\"}"
+              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:04:08.089Z\"}"
             },
             {
               "name": "401 \u00b7 Body changed after signing",
@@ -43596,7 +43771,7 @@
                   },
                   {
                     "key": "X-Hub-Signature-256",
-                    "value": "sha256=c81cccac966596444a20664b7bc9616e3828acc089713d2efae9668c08e952df"
+                    "value": "sha256=54118db8be6a615ddb6500103121c5eaded5b8e5a39a4faf90df811e8a918c2e"
                   }
                 ],
                 "url": {
@@ -43611,7 +43786,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.ba15d40009674d4dbb3679c5c5dbcb14\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795110905\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook Probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"messages\": [\n              {\n                \"id\": \"wamid.postman.e6c5ec0b20b544a39dbb49fd5ba1c8b4\",\n                \"from\": \"15550000999\",\n                \"timestamp\": \"1795151041\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"Webhook Probe\"\n                }\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -43629,7 +43804,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-19T17:55:13.434Z\"}"
+              "body": "{\"success\":false,\"statusCode\":401,\"message\":\"Invalid webhook signature\",\"path\":\"/api/webhooks/whatsapp\",\"timestamp\":\"2026-11-20T05:04:10.134Z\"}"
             }
           ]
         },
@@ -43695,7 +43870,7 @@
                 }
               }
             },
-            "description": "Sends a delivery receipt with no `messages[]`. Meta uses the HTTP 200\nacknowledgement. The API counts zero messages and does not reply to the receipt.\n\nThe fields of `statuses[]` are:\n\n- `id` is the ID of the outgoing message. This receipt uses a made-up ID\n  generated for each run.\n- `status` is `delivered` for this probe. Only `failed` receipts are logged by\n  the API, using the message ID and numeric `errors[].code` values if present.\n- `timestamp` is the delivery time in Unix seconds as a string. The API ignores it.\n- `recipient_id` is the delivery recipient's phone number. The API ignores it.\n\nThe raw JSON has no inline comments because Postman may strip them. The HMAC\nmust cover the exact bytes sent after variable resolution.\n\n- `object` must be `whatsapp_business_account` for the API to read events.\n- `entry[]` holds account batches. `entry[].changes[]` holds changes within each batch.\n- `entry[].changes[].value` holds the events. The API reads `messages[]` for\n  incoming messages and `statuses[]` for delivery updates. Either may be absent.\n\n404 while the assistant is unconfigured. The test API is configured, so no 404 example is captured.\n429 when the request rate exceeds 600 per minute times the test multiplier. A run cannot reach that limit, so no 429 example is captured."
+            "description": "Sends a delivery receipt with no `messages[]`. Meta uses the HTTP 200\nacknowledgement. The API counts zero messages and does not reply to the receipt.\n\nThe fields of `statuses[]` are:\n\n- `id` is the ID of the outgoing message. This receipt uses a made-up ID\n  generated for each run.\n- `status` is `delivered` for this probe. Only `failed` receipts are logged by\n  the API, using the message ID and numeric `errors[].code` values if present.\n- `timestamp` is the delivery time in Unix seconds as a string. The API ignores it.\n- `recipient_id` is the delivery recipient's phone number. The API ignores it.\n\nThe raw JSON has no inline comments because Postman may strip them. The HMAC\nmust cover the exact bytes sent after variable resolution.\n\n- `object` must be `whatsapp_business_account` for the API to read events.\n- `entry[]` holds account batches. `entry[].changes[]` holds changes within each batch.\n- `entry[].changes[].value` holds the events. The API reads `messages[]` for\n  incoming messages and `statuses[]` for delivery updates. Either may be absent.\n\n404 while the Meta settings are incomplete. Setup saves fake settings, so no 404 example is captured.\n429 when the request rate exceeds 600 per minute times the test multiplier. A run cannot reach that limit, so no 429 example is captured."
           },
           "response": [
             {
@@ -43709,7 +43884,7 @@
                   },
                   {
                     "key": "X-Hub-Signature-256",
-                    "value": "sha256=fd2411930edb37c3f98ccfe007f407e5e6e88186b3f333f9bae6bfb03f943227"
+                    "value": "sha256=86615b19ef6b69e5c78e23bc88718fd8348ecb2abe7c69606f14261369794e93"
                   }
                 ],
                 "url": {
@@ -43724,7 +43899,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"statuses\": [\n              {\n                \"id\": \"wamid.postman.430b7372fa004174b22097ebb7dabe74\",\n                \"status\": \"delivered\",\n                \"timestamp\": \"1795110913\",\n                \"recipient_id\": \"15550000999\"\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"changes\": [\n        {\n          \"value\": {\n            \"statuses\": [\n              {\n                \"id\": \"wamid.postman.3045264fd17145e6b8d3458f697ca271\",\n                \"status\": \"delivered\",\n                \"timestamp\": \"1795151050\",\n                \"recipient_id\": \"15550000999\"\n              }\n            ]\n          }\n        }\n      ]\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -43745,6 +43920,1163 @@
               "body": "{\"success\":true,\"data\":{\"received\":0}}"
             }
           ]
+        },
+        {
+          "name": "Teardown \u2014 clear the test WhatsApp settings",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "/*",
+                  " * Signs this folder in as the seeded SUPER_ADMIN.",
+                  " *",
+                  " * Runs before every request in the folder but only acts when the",
+                  " * current session is for a different account, so it costs one login",
+                  " * per run rather than one per request. `pm.variables` is run-scoped,",
+                  " * so a fresh run always re-authenticates.",
+                  " *",
+                  " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+                  " * auth endpoints are documented once, in one place.",
+                  " */",
+                  "const NEEDED = 'owner';",
+                  "",
+                  "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+                  "    const baseUrl = pm.variables.get('baseUrl') || pm.variables.get('baseUrl');",
+                  "    pm.sendRequest({",
+                  "        url: baseUrl + '/auth/login',",
+                  "        method: 'POST',",
+                  "        header: { 'Content-Type': 'application/json' },",
+                  "        body: {",
+                  "            mode: 'raw',",
+                  "            raw: JSON.stringify({",
+                  "                email: pm.collectionVariables.get('ownerEmail'),",
+                  "                password: pm.collectionVariables.get('password'),",
+                  "            }),",
+                  "        },",
+                  "    }, function (err, res) {",
+                  "        if (err) { console.error('session setup failed', err); return; }",
+                  "",
+                  "        const body = res.json();",
+                  "        // security@ has two-factor on, so a password alone leaves the",
+                  "        // session incomplete. Finish the challenge before continuing,",
+                  "        // or every request in the folder 401s.",
+                  "        if (body && body.data && body.data.requiresTwoFactor) {",
+                  "            const code = body.data.devCode && body.data.devCode.code;",
+                  "            pm.sendRequest({",
+                  "                url: baseUrl + '/auth/two-factor/verify',",
+                  "                method: 'POST',",
+                  "                header: { 'Content-Type': 'application/json' },",
+                  "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+                  "            }, function (e, verifyRes) {",
+                  "                pm.variables.set('_sessionAs', NEEDED);",
+                  "                captureCsrf(verifyRes);",
+                  "            });",
+                  "            return;",
+                  "        }",
+                  "",
+                  "        pm.variables.set('_sessionAs', NEEDED);",
+                  "        captureCsrf(res);",
+                  "    });",
+                  "}",
+                  "",
+                  "// Writes need X-CSRF-Token, and the value is only readable from the",
+                  "// cookie the server just set.",
+                  "//",
+                  "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+                  "// the jar is not reliably populated in Newman, and a jar read that",
+                  "// comes back empty would clobber a working token with undefined.",
+                  "function captureCsrf(res) {",
+                  "    if (!res) return;",
+                  "    const cookies = res.headers.all()",
+                  "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "        .map(function (h) { return h.value; });",
+                  "    for (var i = 0; i < cookies.length; i++) {",
+                  "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+                  "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('The response shows the expected masked settings', () =>",
+                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": false, \"last4\": null}, \"appSecret\": {\"set\": false, \"last4\": null}, \"verifyToken\": {\"set\": false, \"last4\": null}, \"phoneNumberId\": null, \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null}));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",  // Required and nonempty. Use the current Super Admin password.\n  \"openaiApiKey\": null,               // Optional trimmed OpenAI API key, 1\u20134096 characters. Send null to clear.\n  \"accessToken\": null,                // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"appSecret\": null,                  // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": null,                // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"phoneNumberId\": null               // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Clears all four secrets and the phone number ID. The prepared copy has no OpenAI model and uses Graph version `v25.0` throughout the run."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Test settings cleared",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{password}}\",  // Required and nonempty. Use the current Super Admin password.\n  \"openaiApiKey\": null,               // Optional trimmed OpenAI API key, 1\u20134096 characters. Send null to clear.\n  \"accessToken\": null,                // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"appSecret\": null,                  // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": null,                // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"phoneNumberId\": null               // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": null,\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"appSecret\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"verifyToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "32 \u00b7 WhatsApp Settings",
+      "description": "The Super Admin manages the WhatsApp assistant's credentials and links their own phone here.\nPrepare the isolated 4100 database using `postman/README.md` before capture or Newman.\nThe run saves fake Meta settings and clears them in its last request. The Admin 403 examples\ncome from a separate two-factor session during capture.\n\n## Not in this folder: the connection tests\n\nBoth endpoints require the Super Admin session and CSRF header. Send a JSON object with only\nthe optional fields below. Omitted fields use the saved settings. The rate limit is 10 requests\nper 15 minutes before the test multiplier. A connection test contacts its provider.\n\n**06 \u00b7 `POST /settings/whatsapp/openai/test`**\n\n- `apiKey` is an optional trimmed OpenAI API key of 1\u20134096 characters.\n- `200` returns `{ ok: true, models: string[] }` in `data`, with the available chat model IDs.\n- `400` means the key is missing or OpenAI refused it. `502` means the API could not reach\n  OpenAI or could not use its response.\n\n**07 \u00b7 `POST /settings/whatsapp/meta/test`**\n\n- `accessToken` is an optional trimmed Meta access token of 1\u20134096 characters.\n- `phoneNumberId` is an optional trimmed Meta phone number ID of 1\u201340 digits.\n- `graphVersion` is an optional trimmed, case-sensitive Graph version up to 20 characters, in\n  `v<major>.<minor>` format. The saved default is `v25.0`.\n- `200` returns `{ ok: true, displayPhoneNumber, verifiedName }` in `data`, with both values\n  returned by Meta as strings.\n- `400` means required settings are missing, the token was refused, the ID was not found,\n  or Meta refused the connection. `502` covers an unavailable or unusable Meta response,\n  including an upstream rate limit.\n",
+      "item": [
+        {
+          "name": "01 \u00b7 Read WhatsApp settings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('whatsappPhoneProbeReady', 'no');",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "    const settingsView = pm.response.json().data;",
+                  "    const expected = {\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": false, \"last4\": null}, \"appSecret\": {\"set\": false, \"last4\": null}, \"verifyToken\": {\"set\": false, \"last4\": null}, \"phoneNumberId\": null, \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null};",
+                  "    pm.test('The test database is prepared', () => {",
+                  "        pm.expect(settingsView).to.deep.include(expected);",
+                  "        pm.expect(settingsView.encryptionReady).to.equal(true);",
+                  "        pm.variables.set('whatsappPhoneProbeReady', 'yes');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp"
+              ]
+            },
+            "description": "Each secret is represented by `{ set, last4 }`. A missing secret has `set: false` and `last4: null`. Secrets of four or fewer characters have no displayed suffix."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Nothing set yet",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": null,\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"appSecret\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"verifyToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+            },
+            {
+              "name": "403 \u00b7 Not the Super Admin",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"These settings belong to the Super Admin.\",\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T05:04:24.995Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "02 \u00b7 Send a link code",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const probeSuffix = String(Math.floor(Math.random() * 1000)).padStart(3, '0');",
+                  "pm.variables.set('whatsappProbePhone', '15550001' + probeSuffix);",
+                  "const ready = pm.variables.get('baseUrl') === \"http://localhost:4100/api\" &&",
+                  "    pm.variables.get('whatsappPhoneProbeReady') === 'yes';",
+                  "// A missing preparation check leaves the password empty, which the DTO rejects before sending.",
+                  "pm.variables.set('whatsappProbePassword', ready ? pm.collectionVariables.get('password') : '');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 response', () => pm.response.to.have.status(400));",
+                  "pm.test('The response has the expected result', () =>",
+                  "  pm.expect(pm.response.json().message).to.deep.equal(\"Finish the Meta settings first\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp/phone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp",
+                "phone"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{whatsappProbePhone}}\",              // Required number with country code. Up to 40 characters before normalization to 8\u201315 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.\n  \"currentPassword\": \"{{whatsappProbePassword}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Sends a verification code through Meta after checking the current password, phone availability and Meta settings. A successful `200` sets the HTTP-only `tj_whatsapp_link` cookie and returns `data.expiresInSeconds` as an integer. `502` means WhatsApp did not accept the message. Sending successfully would message a phone, so the executable probe expects `400` with the Meta settings cleared."
+          },
+          "response": [
+            {
+              "name": "400 \u00b7 Wrong password",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/phone",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "phone"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"15550001194\",                      // Required number with country code. Up to 40 characters before normalization to 8\u201315 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.\n  \"currentPassword\": \"postman-wrong-password\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T05:04:27.099Z\"\n}"
+            },
+            {
+              "name": "409 \u00b7 Number linked to another user",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/phone",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "phone"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"15550000777\",            // Required number with country code. Up to 40 characters before normalization to 8\u201315 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.\n  \"currentPassword\": \"{{password}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 409,\n  \"message\": \"This WhatsApp number is already linked to another user.\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T05:04:29.223Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Finish the Meta settings first",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/phone",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "phone"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"15550001194\",            // Required number with country code. Up to 40 characters before normalization to 8\u201315 digits. A leading +, spaces, parentheses, periods and hyphens are accepted.\n  \"currentPassword\": \"{{password}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Finish the Meta settings first\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T05:04:31.342Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "03 \u00b7 Save WhatsApp settings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('The response shows the expected masked settings', () =>",
+                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": true, \"last4\": \"oken\"}, \"appSecret\": {\"set\": true, \"last4\": \"cret\"}, \"verifyToken\": {\"set\": true, \"last4\": \"oken\"}, \"phoneNumberId\": \"100000000000000\", \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null}));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",      // Required and nonempty. Use the current Super Admin password.\n  \"accessToken\": \"postman-not-a-token\",   // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"phoneNumberId\": \"100000000000000\",     // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n  \"appSecret\": \"postman-app-secret\",      // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": \"postman-verify-token\",  // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"graphVersion\": \"v25.0\"                 // Optional trimmed, case-sensitive Graph version in v<major>.<minor> format, up to 20 characters. Defaults to v25.0.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Saves the supplied fields after checking the current password. Omitted settings retain their values. `openaiModel` is optional, trimmed and 1\u2013100 characters when set. `openaiApiKey` is an optional trimmed key of 1\u20134096 characters. Both accept `null` to clear. This request sets only fake Meta values. The response masks all four secrets."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Saved",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{password}}\",      // Required and nonempty. Use the current Super Admin password.\n  \"accessToken\": \"postman-not-a-token\",   // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"phoneNumberId\": \"100000000000000\",     // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n  \"appSecret\": \"postman-app-secret\",      // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": \"postman-verify-token\",  // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"graphVersion\": \"v25.0\"                 // Optional trimmed, case-sensitive Graph version in v<major>.<minor> format, up to 20 characters. Defaults to v25.0.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": \"100000000000000\",\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": true,\n      \"last4\": \"oken\"\n    },\n    \"appSecret\": {\n      \"set\": true,\n      \"last4\": \"cret\"\n    },\n    \"verifyToken\": {\n      \"set\": true,\n      \"last4\": \"oken\"\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Wrong password",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"postman-wrong-password\",  // Required and nonempty. Use the current Super Admin password.\n  \"accessToken\": \"postman-not-a-token\",         // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"phoneNumberId\": \"100000000000000\",           // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n  \"appSecret\": \"postman-app-secret\",            // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": \"postman-verify-token\",        // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"graphVersion\": \"v25.0\"                       // Optional trimmed, case-sensitive Graph version in v<major>.<minor> format, up to 20 characters. Defaults to v25.0.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T05:04:33.437Z\"\n}"
+            },
+            {
+              "name": "400 \u00b7 Invalid value",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{password}}\",  // Required and nonempty. Use the current Super Admin password.\n  \"phoneNumberId\": \"not-digits\"       // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"phoneNumberId\": \"Enter the Meta phone number ID\"\n  },\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T05:04:35.470Z\"\n}"
+            },
+            {
+              "name": "403 \u00b7 Not the Super Admin",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{password}}\",      // Required and nonempty. Use the current Super Admin password.\n  \"accessToken\": \"postman-not-a-token\",   // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"phoneNumberId\": \"100000000000000\",     // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n  \"appSecret\": \"postman-app-secret\",      // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": \"postman-verify-token\",  // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"graphVersion\": \"v25.0\"                 // Optional trimmed, case-sensitive Graph version in v<major>.<minor> format, up to 20 characters. Defaults to v25.0.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 403,\n  \"message\": \"These settings belong to the Super Admin.\",\n  \"path\": \"/api/settings/whatsapp\",\n  \"timestamp\": \"2026-11-20T05:04:37.499Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 \u00b7 Verify the link code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 response', () => pm.response.to.have.status(400));",
+                  "pm.test('The response has the expected result', () =>",
+                  "  pm.expect(pm.response.json().message).to.deep.equal(\"This verification session has expired. Please start again.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp/phone/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp",
+                "phone",
+                "verify"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"000000\"  // Required string of exactly six digits after trimming. Keep leading zeroes.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Checks the six-digit code against the `tj_whatsapp_link` cookie. A successful `200` clears the cookie and returns the linked `phone` and `verifiedAt` in `data`. Without the cookie the API returns `400` with \u201cThis verification session has expired. Please start again.\u201d"
+          },
+          "response": [
+            {
+              "name": "400 \u00b7 No code requested",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/phone/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "phone",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"code\": \"000000\"  // Required string of exactly six digits after trimming. Keep leading zeroes.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"This verification session has expired. Please start again.\",\n  \"path\": \"/api/settings/whatsapp/phone/verify\",\n  \"timestamp\": \"2026-11-20T05:04:41.671Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "05 \u00b7 Unlink WhatsApp",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 response', () => pm.response.to.have.status(200));",
+                  "pm.test('The response has the expected result', () =>",
+                  "  pm.expect(pm.response.json().data).to.deep.equal({\"linkedPhone\": null}));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp/phone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp",
+                "phone"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Checks the current password, clears the linked number and cookie, and consumes pending link codes. The response is `data.linkedPhone: null`, including when the Super Admin had no linked number."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Nothing to unlink",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/phone",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "phone"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{password}}\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"linkedPhone\": null\n  }\n}"
+            },
+            {
+              "name": "400 \u00b7 Wrong password",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp/phone",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp",
+                    "phone"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"postman-wrong-password\"  // Required and nonempty. Use the current Super Admin password.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Your current password is incorrect\",\n  \"path\": \"/api/settings/whatsapp/phone\",\n  \"timestamp\": \"2026-11-20T05:04:43.787Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Teardown \u2014 clear the test WhatsApp settings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('The response shows the expected masked settings', () =>",
+                  "  pm.expect(pm.response.json().data).to.deep.include({\"openaiApiKey\": {\"set\": false, \"last4\": null}, \"accessToken\": {\"set\": false, \"last4\": null}, \"appSecret\": {\"set\": false, \"last4\": null}, \"verifyToken\": {\"set\": false, \"last4\": null}, \"phoneNumberId\": null, \"openaiModel\": null, \"graphVersion\": \"v25.0\", \"linkedPhone\": null}));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/settings/whatsapp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "whatsapp"
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Required on every write. Captured automatically after any login or refresh."
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",  // Required and nonempty. Use the current Super Admin password.\n  \"openaiApiKey\": null,               // Optional trimmed OpenAI API key, 1\u20134096 characters. Send null to clear.\n  \"accessToken\": null,                // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"appSecret\": null,                  // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": null,                // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"phoneNumberId\": null               // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Clears all four secrets and the phone number ID. The prepared copy has no OpenAI model and uses Graph version `v25.0` throughout the run."
+          },
+          "response": [
+            {
+              "name": "200 \u00b7 Test settings cleared",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrfToken}}",
+                    "description": "Required on every write. Captured automatically after any login or refresh."
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/settings/whatsapp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "settings",
+                    "whatsapp"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"currentPassword\": \"{{password}}\",  // Required and nonempty. Use the current Super Admin password.\n  \"openaiApiKey\": null,               // Optional trimmed OpenAI API key, 1\u20134096 characters. Send null to clear.\n  \"accessToken\": null,                // Optional trimmed Meta access token, 1\u20134096 characters. Send null to clear.\n  \"appSecret\": null,                  // Optional trimmed Meta app secret, 1\u20134096 characters. Send null to clear.\n  \"verifyToken\": null,                // Optional trimmed webhook verify token, 1\u2013200 characters. Send null to clear.\n  \"phoneNumberId\": null               // Optional trimmed Meta phone number ID, 1\u201340 digits. Send null to clear.\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"openaiModel\": null,\n    \"phoneNumberId\": null,\n    \"graphVersion\": \"v25.0\",\n    \"openaiApiKey\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"accessToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"appSecret\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"verifyToken\": {\n      \"set\": false,\n      \"last4\": null\n    },\n    \"encryptionReady\": true,\n    \"linkedPhone\": null,\n    \"webhookUrl\": \"http://localhost:4000/api/webhooks/whatsapp\"\n  }\n}"
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "/*",
+              " * Signs this folder in as the seeded SUPER_ADMIN.",
+              " *",
+              " * Runs before every request in the folder but only acts when the",
+              " * current session is for a different account, so it costs one login",
+              " * per run rather than one per request. `pm.variables` is run-scoped,",
+              " * so a fresh run always re-authenticates.",
+              " *",
+              " * This is why no folder below `01 \u00b7 Auth` contains a login request:",
+              " * auth endpoints are documented once, in one place.",
+              " */",
+              "const NEEDED = 'owner';",
+              "",
+              "if (pm.variables.get('_sessionAs') !== NEEDED) {",
+              "    pm.sendRequest({",
+              "        url: pm.variables.get('baseUrl') + '/auth/login',",
+              "        method: 'POST',",
+              "        header: { 'Content-Type': 'application/json' },",
+              "        body: {",
+              "            mode: 'raw',",
+              "            raw: JSON.stringify({",
+              "                email: pm.collectionVariables.get('ownerEmail'),",
+              "                password: pm.collectionVariables.get('password'),",
+              "            }),",
+              "        },",
+              "    }, function (err, res) {",
+              "        if (err) { console.error('session setup failed', err); return; }",
+              "",
+              "        const body = res.json();",
+              "        // security@ has two-factor on, so a password alone leaves the",
+              "        // session incomplete. Finish the challenge before continuing,",
+              "        // or every request in the folder 401s.",
+              "        if (body && body.data && body.data.requiresTwoFactor) {",
+              "            const code = body.data.devCode && body.data.devCode.code;",
+              "            pm.sendRequest({",
+              "                url: pm.variables.get('baseUrl') + '/auth/two-factor/verify',",
+              "                method: 'POST',",
+              "                header: { 'Content-Type': 'application/json' },",
+              "                body: { mode: 'raw', raw: JSON.stringify({ code: code }) },",
+              "            }, function (e, verifyRes) {",
+              "                pm.variables.set('_sessionAs', NEEDED);",
+              "                captureCsrf(verifyRes);",
+              "            });",
+              "            return;",
+              "        }",
+              "",
+              "        pm.variables.set('_sessionAs', NEEDED);",
+              "        captureCsrf(res);",
+              "    });",
+              "}",
+              "",
+              "// Writes need X-CSRF-Token, and the value is only readable from the",
+              "// cookie the server just set.",
+              "//",
+              "// Parsed out of Set-Cookie rather than read from pm.cookies.jar():",
+              "// the jar is not reliably populated in Newman, and a jar read that",
+              "// comes back empty would clobber a working token with undefined.",
+              "function captureCsrf(res) {",
+              "    if (!res) return;",
+              "    const cookies = res.headers.all()",
+              "        .filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+              "        .map(function (h) { return h.value; });",
+              "    for (var i = 0; i < cookies.length; i++) {",
+              "        const match = /tj_csrf=([^;]+)/.exec(cookies[i]);",
+              "        if (match) { pm.collectionVariables.set('csrfToken', match[1]); return; }",
+              "    }",
+              "}"
+            ]
+          }
         }
       ]
     }

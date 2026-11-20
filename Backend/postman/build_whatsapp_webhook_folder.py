@@ -6,30 +6,31 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-import pathlib
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
 
-from builder_common import BASE, ensure_variables, example, script, url
+from builder_common import BASE, Session, ensure_variables, example, script, url
 from collection_order import place_folder
+from session_setup import session_script
+from whatsapp_postman import (
+    APP_SECRET, CLEAR_SETTINGS, COLLECTION, FAKE_SETTINGS, OWNER, TEST_BASE, VERIFY_TOKEN,
+    capture_prepared_view, capture_settings_patch, settings_patch_request, teardown_request,
+)
 
-COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
-TEST_BASE = 'http://localhost:4100/api'
 ROUTE = '/webhooks/whatsapp'
-APP_SECRET = 'postman-app-secret'
-VERIFY_TOKEN = 'postman-verify-token'
 UNKNOWN_PHONE = '15550000999'
 SIGNATURE_HEADER = 'X-Hub-Signature-256'
 PROBE_TEXT = 'Webhook probe'
 
-FOLDER_DESCRIPTION = """Meta calls these public routes without a session.
+FOLDER_DESCRIPTION = """Meta calls the webhook routes without a session.
 GET verifies the webhook with the test API's verify token.
 POST uses `X-Hub-Signature-256`, the app secret's HMAC-SHA256 over the raw body.
-Both routes return 404 while the assistant is unconfigured.
-Run this folder on port 4100 with the test-only WhatsApp settings in `postman/README.md`."""
+Both routes return 404 while the Meta settings are incomplete.
+Setup saves fake Meta settings as the seeded Super Admin, and teardown clears them.
+Prepare the test database and use port 4100 as described in `postman/README.md`."""
 
 ENVELOPE_DESCRIPTION = """The raw JSON has no inline comments because Postman may strip them. The HMAC
 must cover the exact bytes sent after variable resolution.
@@ -40,8 +41,8 @@ must cover the exact bytes sent after variable resolution.
   incoming messages and `statuses[]` for delivery updates. Either may be absent."""
 
 MESSAGE_DESCRIPTION = """Sends one text message from the unknown number `15550000999`. The API counts
-the message, then drops it silently at the gate that checks for the configured
-Super Admin phone. Meta uses the HTTP 200 acknowledgement.
+the message. The prepared copy has the assistant switched off and no linked
+Super Admin phone, so the message triggers no reply. Meta uses the HTTP 200 acknowledgement.
 
 The fields of `messages[]` are:
 
@@ -79,7 +80,7 @@ SIGN_POST = [
 
 def uncaptured_errors(limit: int) -> str:
     return (
-        '404 while the assistant is unconfigured. The test API is configured, so no 404 example is captured.\n'
+        '404 while the Meta settings are incomplete. Setup saves fake settings, so no 404 example is captured.\n'
         f'429 when the request rate exceeds {limit} per minute times the test multiplier. '
         'A run cannot reach that limit, so no 429 example is captured.'
     )
@@ -286,11 +287,27 @@ def main() -> None:
             variable['value'] = defaults[variable['key']]
             variable['description'] = 'The test API’s value — never the production secret.'
 
+    owner = Session(OWNER)
+    capture_prepared_view(owner)
+    try:
+        configured = capture_settings_patch(owner, '200 · Test settings saved', FAKE_SETTINGS)
+        setup = settings_patch_request(
+            '00 · Setup — test WhatsApp settings', FAKE_SETTINGS,
+            'Saves the fake Meta settings on the prepared 4100 API. The webhook requests use '
+            'the matching fake app secret and verify token.', [configured],
+        )
+        webhook_requests = [verify_request(), incoming_request(), delivery_request()]
+    finally:
+        cleared = capture_settings_patch(owner, '200 · Test settings cleared', CLEAR_SETTINGS)
+    teardown = teardown_request(cleared)
+    for request in (setup, teardown):
+        request['event'].insert(0, session_script('owner'))
+
     folder = {
         'name': '31 · WhatsApp Webhook',
         'description': FOLDER_DESCRIPTION,
         'auth': {'type': 'noauth'},
-        'item': [verify_request(), incoming_request(), delivery_request()],
+        'item': [setup, *webhook_requests, teardown],
     }
     place_folder(collection, folder)
     COLLECTION.write_text(json.dumps(collection, indent=2) + '\n', encoding='utf-8')
