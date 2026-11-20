@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 19 November 2026.** Update the "Where we are" section in the
+**Last updated: 20 November 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -15,26 +15,39 @@ for a review, and how the owner likes to work, is in
 
 ## Part 1 — Where we are
 
-### Read this first — the state on 20 Nov 2026
+### Read this first — the state on 20 Nov 2026 (end of day)
 
-- **WhatsApp step 8a done and live** (Settings › WhatsApp & AI): the
-  OpenAI and Meta values are in the database, sealed with
-  `SETTINGS_ENCRYPTION_KEY` (the one env variable left for it — keep it,
-  losing it means re-entering them), changed by the Super Admin after
-  their password, with test buttons; the Super Admin's phone is linked by
-  a code the bot sends on WhatsApp. Eleven env variables are gone; the
-  developer deleted them from `.env`. Also fixed: errors no longer echo or
-  log the query string (it leaked the verify token and searched names).
-  Details: `docs/WHATSAPP_AI_INTEGRATION.md` §6, step 8.
-- **Next: 8b** — the Postman folders (the webhook folder's 4100 setup must
-  set its test values through the new routes; the five settings routes
-  need entries). Then the deploy, with values entered in production's
-  panel and a new `SETTINGS_ENCRYPTION_KEY` in Dokploy.
-- **Direction (developer, 20 Nov): more configuration moves from the env
-  into Settings later**, one item at a time, by the pattern in AGENTS.md
-  ("Configuration moves from the env into Settings"). Which items is not
-  decided; candidates are anything a person should change without a
-  redeploy (mail sender settings, for example).
+- **The WhatsApp assistant is finished and live on production** (`main`
+  at `4bfd4b3`, deployed by the developer; production is still a test
+  environment with test data). Steps 1–8 are done: 8a settings in the
+  database, 8b Postman, 8c the tab reworked, 8d up to five phones and a
+  History tab. On production: its own `SETTINGS_ENCRYPTION_KEY` in
+  Dokploy, the settings entered in the panel, the Super Admin's phone
+  linked ("Phone 1 · …9550"), Meta's webhook on
+  `https://tribecajetscommandcenter.com/api/webhooks/whatsapp`, the switch
+  on, and a question answered and logged in History (15:56 Dhaka). Every
+  step's review, fixes and live check: `docs/WHATSAPP_AI_INTEGRATION.md` §6.
+- **Settings › WhatsApp & AI, as it is now:** an Assistant section at the
+  top (the switch — Super Admin only, on needs the password, off is
+  instant — and a readiness checklist); each secret hidden by default and
+  viewable after the password, audited, with Copy / Hide / Edit (and
+  Generate for the verify token); one Save per card; up to five named
+  phones; Setup and History tabs. History is the audit log: which phone
+  asked, proposed, confirmed or cancelled, which document went out —
+  never the message text.
+- **Meta has one webhook per app:** messages go to production now. To
+  test locally, point Meta back at a tunnel and use the same verify token
+  locally.
+- **Two rules added today** (AGENTS.md): a partial index is declared in
+  the schema with the `partialIndexes` preview feature, never SQL-only (a
+  generated migration would drop it — the Operator Sourcing index was
+  about to be); and a button beside an input is `IconActionButton`.
+- **Direction (developer, 20 Nov): configuration moves from the env into
+  Settings, one item at a time** (AGENTS.md, "Configuration moves from the
+  env into Settings"). Which items next is not decided.
+- **Loose ends for the developer:** swap the production verify token (part
+  of it appeared in a screenshot) — Generate, Save, paste into Meta; delete
+  the unused `AI_PROVIDER=openai` line from Dokploy.
 
 #### Earlier — the state on 19 Nov 2026 (end of day)
 
@@ -311,21 +324,16 @@ for a review, and how the owner likes to work, is in
    to run.
 4. Small, optional: move the five older Postman builders onto
    `builder_common`; the Leads table's 100-enquiry window (Known findings).
-5. **WhatsApp AI Integration (Super Admin Executive Copilot)** — in progress,
-   the developer's current focus. **Steps 1–6 done and live-checked, step
-   7's Postman folder done (19 Nov)**; left: step 7's docs pass, step 8,
-   and the deploy (Part 1, top). Meta setup done 18 Nov: test number, all
-   six values in the developer's `.env` (a temporary token). Still needed
-   before production: the permanent token, and the owner's OK to send real
-   client data to OpenAI. Steps and progress table in
-   [docs/WHATSAPP_AI_INTEGRATION.md](docs/WHATSAPP_AI_INTEGRATION.md) §6.
-   **Agreed 18 Nov, straight after step 7:** the Super Admin's phone moves
-   from `.env` into its own Settings tab, linked by sending a code to the
-   bot — one Super Admin, one phone (§7 of that file).
-   Meta Cloud API + OpenAI tool-calling loop locked strictly to the Super Admin's
-   phone number (`SUPER_ADMIN_WHATSAPP_PHONE`) with HMAC-SHA256 signature
-   verification. Covers Trips (status, approval/rejection, in-chat PDF itinerary),
-   Financials/KPIs, Lead capture, Tasks, and Quotes.
+5. **WhatsApp AI Integration — done and live (20 Nov).** Left, for the
+   owner: their OK to send real client data to OpenAI before production
+   holds real clients. Optional later: other staff using the bot as
+   themselves (changes the owner's rule that only the Super Admin uses
+   it), and naming the phone on each module's own timeline (today only
+   the History tab shows which phone acted).
+6. **Next by the developer's choice (20 Nov):** fix the Known findings —
+   the assigned-broker check in Trips / Trip Requests / Quotes, Client
+   Credits' role check, the clients search on a full name — as one Codex
+   step; the archived-trip tasks need the owner's decision first.
 
 ### The stage: module-by-module review
 
@@ -630,6 +638,31 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 20 Nov 2026 — WhatsApp step 8, production deploy, 8c and 8d (Claude Code + Codex, Windows machine)
+
+- **8a** (settings in the database, phone linked by WhatsApp code,
+  eleven env variables removed) and **8b** (Postman: a guarded prep
+  script blanks the test copy; folder 31 sets fake values through the API;
+  new folder 32) — built by Codex, reviewed, captured and committed.
+- **Deployed to production** step by step with the developer: new
+  encryption key in Dokploy, push, settings entered in the panel (a first
+  webhook 404 was an unsaved Meta field), phone linked, Meta pointed at
+  production, switch on, live answer.
+- **8c** after the production setup: the switch moved into
+  `whatsapp_settings`, secrets viewable after the password, Generate for
+  the verify token, one Save per card; then icon buttons the input's
+  height (`IconActionButton`).
+- **8d**: up to five named phones (`whatsapp_phones`, partial unique
+  index), History tab from the audit log, proposal ids tying proposed /
+  confirmed / cancelled together. Codex stopped nine times across 8b–8d,
+  every stop right. Claude's fixes after review: the History date filter
+  reads the reader's own days (it used UTC); the Operator Sourcing partial
+  index, which the next generated migration would have dropped, is now
+  declared in the schema; the Ask Anything button is smaller.
+- **Checks:** backend 87 files / 1066 tests, tsc, oxlint; frontend lint
+  and build; Postman 30–32 Newman green, label audit 826 / 0. Deployed
+  8c + 8d; both migrations ran on production and the bot answered.
 
 ### 19 Nov 2026 — WhatsApp steps 4–6 and step 7's Postman folder (Claude Code + Codex, Windows machine)
 

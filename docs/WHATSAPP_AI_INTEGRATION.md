@@ -247,8 +247,8 @@ secret value. **Not yet on production** — the migration applies on the next
 deploy and keeps production's switch on.
 
 **8d ✅ 20 Nov — up to five phones and a History tab** (built by Codex,
-reviewed and live-checked by Claude; **Postman not yet captured** — the
-developer chose to ship first). The Super Admin can link up to five named
+reviewed, live-checked and captured by Claude; shipped before the Postman
+capture at the developer's choice, captured the same day). The Super Admin can link up to five named
 phones. Each number keeps separate Redis memory and pending confirmations.
 The migration preserves the verified number as **Phone 1** (dev: …9550
 carried over; `migrate diff` empty after it). History reads the audit log
@@ -265,9 +265,16 @@ generated migration would have dropped, is now declared in the schema
 too; the History date filter reads days in the reader's own zone (it
 used UTC days, so a Dhaka morning fell on the day before) and its
 filters use the shared toolbar pieces; the Ask Anything button is
-smaller. Backend 87 files / 1066; frontend lint and build. **Still to
-do:** capture `32 · WhatsApp Settings` with the builder and
-`whatsapp_five_phones.sql`, Newman, label audit.
+smaller. Backend 87 files / 1066; frontend lint and build. **Production,
+20 Nov 15:56 Dhaka:** 8c + 8d deployed (`4bfd4b3`); both migrations ran,
+the switch stayed on, the number became "Phone 1 · …9550"; "hi" from the
+phone was answered and History showed "Question answered · Phone 1" (no
+tools used, so no details). **Postman, captured after the deploy:** `32 · WhatsApp Settings`
+12 requests / 31 examples (the five-phone 409 from `whatsapp_five_phones.sql`,
+the builder pausing while the copy is reset), `31` recaptured; Newman 31
+and 32 each alone twice, then 30–32 together, 0 failures (44 assertions);
+label audit 826 examples, 0 mislabelled; no full fixture number or real
+number in the collection; the 4100 log has no outbound call or secret.
 
 **Needed from the developer / owner:**
 
