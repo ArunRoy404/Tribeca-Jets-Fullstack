@@ -75,15 +75,14 @@ function fixture(encryptionReady = true) {
     cancel: vi.fn(),
   };
   const sender = { sendText: vi.fn().mockResolvedValue(true) };
-  const throttle = { assertMaySendCode: vi.fn() };
   const pending = { take: vi.fn() };
   const memory = { reset: vi.fn() };
   const phones = new WhatsappPhoneService(
-    prisma as never, auth as never, verification as never, throttle as never,
+    prisma as never, auth as never, verification as never,
     settings, config as never, sender as never, audit as never, pending as never, memory as never,
   );
   const setupMeta = () => settings.update(userId, { currentPassword: password, phoneNumberId: '9001', ...secrets }, {});
-  return { settings, phones, box, row, prisma, audit, auth, verification, sender, throttle, pending, memory, setupMeta };
+  return { settings, phones, box, row, prisma, audit, auth, verification, sender, pending, memory, setupMeta };
 }
 
 describe('WhatsApp credential settings', () => {
@@ -382,11 +381,10 @@ describe('WhatsApp phone linking', () => {
     expect(sender.sendText).not.toHaveBeenCalled();
   });
 
-  it('throttles the normalised target and sends the code and configured expiry on WhatsApp', async () => {
-    const { phones, verification, sender, throttle, setupMeta, audit } = fixture();
+  it('sends the code and configured expiry to the normalised target on WhatsApp', async () => {
+    const { phones, verification, sender, setupMeta, audit } = fixture();
     await setupMeta();
     const result = await phones.sendCode(userId, input, {});
-    expect(throttle.assertMaySendCode).toHaveBeenCalledExactlyOnceWith(phone);
     expect(verification.issue).toHaveBeenCalledExactlyOnceWith(userId, purpose, { target: phone });
     expect(sender.sendText).toHaveBeenCalledExactlyOnceWith(phone, 'Your Tribeca Jets code is 345678. Enter it in Settings › WhatsApp & AI, not in this chat. It expires in 7 minutes.');
     expect(audit.record).toHaveBeenLastCalledWith(expect.objectContaining({

@@ -9,7 +9,6 @@ import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { UserRole, UserStatus, VerificationPurpose } from '../../generated/prisma/enums.js';
 import { AuthService } from '../auth/auth.service.js';
-import { SignInThrottleService } from '../auth/sign-in-throttle.service.js';
 import type { SessionContext } from '../auth/token.service.js';
 import { VerificationService } from '../auth/verification.service.js';
 import { MAX_WHATSAPP_PHONES, whatsappPhoneLabel, type QueryWhatsappPhonesDto, type VerifyWhatsappPhoneDto } from './dto/whatsapp-settings.dto.js';
@@ -39,7 +38,6 @@ export class WhatsappPhoneService {
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly verification: VerificationService,
-    private readonly throttle: SignInThrottleService,
     private readonly settings: WhatsappSettingsService,
     private readonly config: AppConfigService,
     private readonly sender: WhatsappSender,
@@ -86,7 +84,8 @@ export class WhatsappPhoneService {
     const phone = phoneDigits(input.phone);
     await this.assertCanLink(this.prisma, userId, phone, name.data);
     if (!await this.settings.current()) throw new BadRequestException('Finish the Meta settings first');
-    await this.throttle.assertMaySendCode(phone);
+    // Not counted by the code-send limit (developer's decision, 21 Nov 2026): the
+    // current password is re-checked above and only the Super Admin reaches here.
 
     const { challengeToken, code, expiresAt } = await this.verification.issue(userId, purpose, { ...context, target: phone });
     const ttl = this.config.verification.twoFactorTtlMinutes;

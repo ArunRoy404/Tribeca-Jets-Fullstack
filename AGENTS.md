@@ -2020,6 +2020,11 @@ everyone. **Never put a request counter back on a sign-in or code route.**
   together); the code a correct sign-in sends is not. Wrong guesses per
   code are `codeAttemptLimit` — it replaced the `VERIFICATION_MAX_ATTEMPTS`
   env var, which was deleted so there is one number.
+- **A WhatsApp link code is not counted** (developer's decision, 21 Nov
+  2026). Sending one already re-checks the Super Admin's current password,
+  and while a phone was being set up in Meta every refused send used up the
+  limit, locking the number out for fifteen minutes. Wrong guesses at the
+  code are still `codeAttemptLimit`.
 - **A wrong current password on My Account** follows the same limit, counted
   per account and apart from sign-in.
 - **"Never" (`null`) counts nothing and lifts a running pause** — it is the
