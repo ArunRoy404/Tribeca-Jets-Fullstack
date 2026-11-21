@@ -1603,6 +1603,15 @@ Declare each partial index in the Prisma schema with the `partialIndexes`
 preview feature. The migration SQL uses the same predicate and index name
 Prisma would generate, so a later migration keeps it.
 
+**Never `upsert` a model that has a partial unique index.** Prisma's native
+upsert wrote `ON CONFLICT ("phone")` for `whatsappPhone.upsert({ where:
+{ userId_phone } })`, aiming at the partial `phone` index rather than the
+`(userId, phone)` key it was given, and Postgres refuses that (42P10, P2039
+"Database error"). Every new WhatsApp phone link failed in production
+(21 Nov 2026) while the mocked unit tests passed. Read the row, then
+`update` or `create`, inside the transaction that already guards the race.
+`WhatsappPhone` and `OperatorQuote` carry partial indexes today.
+
 ## Service layer rules
 
 - Soft delete (`deletedAt`), never a hard `delete`. Every query filters `deletedAt: null`.

@@ -59,7 +59,8 @@ function fixture(encryptionReady = true) {
     whatsappPhone: {
       count: vi.fn().mockResolvedValue(0),
       findFirst: vi.fn().mockResolvedValue(null),
-      upsert: vi.fn().mockImplementation(async ({ create }) => ({ ...phoneRow, ...create })),
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockImplementation(async ({ data }) => ({ ...phoneRow, ...data })),
       update: vi.fn().mockImplementation(async ({ data }) => ({ ...phoneRow, ...data })),
     },
     verificationCode: { updateMany: vi.fn() },
@@ -405,11 +406,13 @@ describe('WhatsApp phone linking', () => {
     const { phones, verification, prisma, audit } = fixture();
     const linked = await phones.verify(userId, 'opaque-fixture', verifyInput, {});
     expect(verification.verify).toHaveBeenCalledExactlyOnceWith('opaque-fixture', '345678', purpose, userId);
-    expect(prisma.whatsappPhone.upsert).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    expect(prisma.whatsappPhone.findUnique).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
       where: { userId_phone: { userId, phone } },
-      create: { userId, phone, label: 'Work', verifiedAt: linked.verifiedAt, createdById: userId, updatedById: userId },
-      update: expect.objectContaining({ deletedAt: null, deletedById: null, restoredById: userId, label: 'Work' }),
     }));
+    expect(prisma.whatsappPhone.create).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      data: { userId, phone, label: 'Work', verifiedAt: linked.verifiedAt, createdById: userId, updatedById: userId },
+    }));
+    expect(prisma.whatsappPhone.update).not.toHaveBeenCalled();
     expect(linked).toMatchObject({ id: phoneId, label: 'Work', last4: '4567' });
     expect(linked).not.toHaveProperty('phone');
     expect(audit.record).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
@@ -421,16 +424,18 @@ describe('WhatsApp phone linking', () => {
     const { phones, prisma } = fixture();
     prisma.whatsappPhone.findFirst.mockResolvedValueOnce({ userId: 'somebody-else' });
     await expect(phones.verify(userId, 'opaque-fixture', verifyInput, {})).rejects.toThrow(ConflictException);
-    expect(prisma.whatsappPhone.upsert).not.toHaveBeenCalled();
+    expect(prisma.whatsappPhone.create).not.toHaveBeenCalled();
+    expect(prisma.whatsappPhone.update).not.toHaveBeenCalled();
   });
 
   it('restores the archived row when the same user verifies the number again', async () => {
     const { phones, prisma } = fixture();
     const original = { ...phoneRow, deletedAt: new Date('2026-11-19') };
-    prisma.whatsappPhone.upsert.mockImplementationOnce(async ({ where, update }) => {
-      expect(where).toEqual({ userId_phone: { userId, phone } });
-      expect(update).toMatchObject({ deletedAt: null, restoredAt: expect.any(Date), restoredById: userId, label: 'New name' });
-      return { ...original, ...update };
+    prisma.whatsappPhone.findUnique.mockResolvedValueOnce({ id: original.id });
+    prisma.whatsappPhone.update.mockImplementationOnce(async ({ where, data }) => {
+      expect(where).toEqual({ id: original.id });
+      expect(data).toMatchObject({ deletedAt: null, restoredAt: expect.any(Date), restoredById: userId, label: 'New name' });
+      return { ...original, ...data };
     });
     await expect(phones.verify(userId, 'opaque-fixture', { ...verifyInput, label: 'New name' }, {}))
       .resolves.toMatchObject({ id: original.id, label: 'New name', deletedAt: null });

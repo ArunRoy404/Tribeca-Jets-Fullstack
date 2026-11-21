@@ -114,12 +114,12 @@ export class WhatsappPhoneService {
       await this.assertCanLink(db, userId, target, label);
       const verifiedAt = new Date();
       const values = { label, verifiedAt, updatedById: userId };
-      return db.whatsappPhone.upsert({
-        where: { userId_phone: { userId, phone: target } },
-        create: { userId, phone: target, createdById: userId, ...values },
-        update: { ...values, ...restoreData(userId) },
-        select: PHONE_SELECT,
-      });
+      // Not upsert: Prisma's native upsert targets the partial unique index on
+      // phone, which Postgres refuses (42P10). The serializable read covers the race.
+      const existing = await db.whatsappPhone.findUnique({ where: { userId_phone: { userId, phone: target } }, select: { id: true } });
+      return existing
+        ? db.whatsappPhone.update({ where: { id: existing.id }, data: { ...values, ...restoreData(userId) }, select: PHONE_SELECT })
+        : db.whatsappPhone.create({ data: { userId, phone: target, createdById: userId, ...values }, select: PHONE_SELECT });
     }, { userId, phone: target, label });
     await recordPhoneEvent(this.audit, userId, phoneSnapshot(linked), WhatsappEvent.PHONE_LINKED, undefined, context);
     return phoneView(linked);
