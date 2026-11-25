@@ -1075,15 +1075,16 @@ API's own origin, with the session cookie attached.
 *that*. The sender's header settles exactly one question: whether text is
 `text/plain` or `text/csv`, which are the same bytes and differ only in intent.
 
-**A document may be any file** (owner's decision, 6 Oct 2026). The
-*recognised* document types — PDF, DOCX, XLSX, text, CSV — keep their own
-type; anything else (a scanned photo, legacy `.doc`/`.xls`, an archive, SVG,
-HTML) is stored as `application/octet-stream`, decided by
-`storedContentType` in `uploads.rules.ts`. That is what makes accepting it
-safe for *us*: an opaque file is always an attachment with `nosniff`, so it
-is saved to disk and never rendered on the API's origin. It does not make
-the file safe to open — a macro workbook is the reader's machine's risk, as
-any email attachment is.
+**A document is one of a fixed list** (since 30 Oct 2026, confirmed by
+the developer 25 Nov — it replaced the 6 Oct "any file" decision after QA
+filed a `.exe` into the vault, which holds passports and IDs): PDF, DOCX,
+XLSX, text, CSV, and the photo types (JPG, PNG, WebP, GIF, AVIF) for
+scanned IDs — each sniffed from the bytes. Anything else is refused,
+and executable and script extensions are refused by name as well
+(`BLOCKED_EXTENSIONS` in `uploads.rules.ts`). `acceptsAnyFile` is false for
+both kinds; the `application/octet-stream` path in `storedContentType`
+stays only for a kind that sets it. Never widen the list without the
+owner's say.
 
 **Images stay strict**, because images are served `inline`: only sniffed
 JPEG, PNG, WebP, GIF and AVIF (since 7 Oct 2026). SVG is never an image — it executes script — and

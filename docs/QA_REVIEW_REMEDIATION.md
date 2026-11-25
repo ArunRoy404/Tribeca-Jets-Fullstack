@@ -3,7 +3,7 @@
 **Document Reference:** `reviews/Tribeca_Jets_CRM—Module_Issues_Explained.pdf`  
 **Test Window:** Audited Oct 11–13, 2026 (QA Test Report v2.0)  
 **Analysis Date:** 29 October 2026  
-**Status:** 100% Implemented, Verified & Pinned Across All 4 Batches (Completed: 30 October 2026)
+**Status:** ⚠️ **Partial — superseded by `docs/FEEDBACK_TRACKER.md` (Round 1).** A check of the code on 25 Nov 2026 found about a third of the items below partial or not done, and some entries describe code that was never written. Read the tracker for what is true; this file is kept as the 30 Oct record only.
 
 ---
 
