@@ -15,15 +15,31 @@ for a review, and how the owner likes to work, is in
 
 ## Part 1 — Where we are
 
-### Read this first — the state on 20 Nov 2026 (end of day)
+### Read this first — the state on 25 Nov 2026 (end of day)
 
-- **Where to pick up (21 Nov, on another machine):** everything is
-  committed and pushed on `roy`; production (`main`) is at `38309ac`, with
-  everything from 20 Nov except the docs commits after it. **Next: Ari's
-  feedback** — the developer has it and will paste it in; sort it into
-  items, check each against the code, plan, then Codex briefs or direct
-  fixes. The developer also tests #31–#34 themselves; Ari tests on their
-  own. The full list of what is left is "What is next" below.
+- **Where to pick up (on another machine):** everything is committed and
+  pushed on `roy`. **We are in the feedback phase; no code has been written
+  for it yet.** Read, in this order:
+  1. `docs/FEEDBACK_TRACKER.md` — every feedback item, checked against the
+     code, with what was agreed. Round 1 (October QA PDF), Round 2 (Ari's
+     19 Nov list) and Round 3 part one (the developer's own list) are
+     agreed, with decisions D1–D18.
+  2. `docs/FEEDBACK_IMPLEMENTATION_PLAN.md` — the build in batches B1–B12,
+     how each batch runs, and what each one needs from Ari.
+  3. `docs/feedback-replies/` — the replies to the tester and to Ari, kept
+     current as items ship, and `QUESTIONS_FOR_ARI.md` (19 questions, sent
+     25 Nov, answers table empty).
+- **Next:** (a) the developer adds the rest of Round 3 — sort it into the
+  tracker and the plan the same way; (b) the developer confirms the order
+  change B8 (invoices and credit) before B9 (FET Accounting) — it reverses
+  D13, for a dependency reason; (c) on "go", Claude writes the B1 brief in
+  `docs/codex-prompts/feedback-b01-money-settings.md`, Codex builds, Claude
+  reviews and fixes. B1–B6 need nothing from Ari.
+- **When Ari answers:** fill `QUESTIONS_FOR_ARI.md`, the tracker's
+  question tables and `REPLIES_TO_CLIENT.md` Part C the same day, and move
+  any unblocked item in the plan.
+- Earlier state (20 Nov): production (`main`) at `38309ac`; the developer
+  tests #31–#34 themselves, Ari tests on their own.
 - **Sent to Ari on 20 Nov:** `update-20-nov.txt` (how to set up and use
   the WhatsApp assistant, modules covered and not) and
   `update-20-nov-whatsapp-accounts.txt` (the OpenAI and Meta accounts
@@ -67,9 +83,8 @@ for a review, and how the owner likes to work, is in
 - **Direction (developer, 20 Nov): configuration moves from the env into
   Settings, one item at a time** (AGENTS.md, "Configuration moves from the
   env into Settings"). Which items next is not decided.
-- **Loose ends for the developer:** swap the production verify token (part
-  of it appeared in a screenshot) — Generate, Save, paste into Meta; delete
-  the unused `AI_PROVIDER=openai` line from Dokploy.
+- ~~Loose ends for the developer: swap the production verify token; delete
+  `AI_PROVIDER=openai` from Dokploy.~~ Done (developer, confirmed 25 Nov).
 
 #### Earlier — the state on 19 Nov 2026 (end of day)
 
@@ -331,6 +346,19 @@ for a review, and how the owner likes to work, is in
   review procedure: `docs/REVIEW_PLAYBOOK.md`.
 
 ### What is next
+
+0. **Feedback round (from 25 Nov): finalise first, implement later.** Every
+   piece of feedback is sorted, checked against the code and agreed in
+   `docs/FEEDBACK_TRACKER.md`, one round per date; no code or Codex briefs
+   until the developer starts implementation. Round 1 (the October QA
+   PDF) and Round 2 (Ari's 19 Nov list, `reviews/19.11.2026.md`) are
+   finalised. Ari's 19 questions went out on 25 Nov
+   (`docs/feedback-replies/QUESTIONS_FOR_ARI.md`). Round 3 (the
+   developer's own list, 25 Nov: email and PDF redesign, branding from
+   Settings, quote interior photo, passenger weight, luggage) is agreed,
+   part one — **the developer will add more items to it.** Next: take the
+   rest of Round 3. Batches are planned in `docs/FEEDBACK_IMPLEMENTATION_PLAN.md`
+   (B1–B12); next is batch 1's Codex brief when the developer says go.
 
 1. **Acceptance, split as of 20 Nov:** the **developer** tests #31–#34
    (Import / Export, PDF generator, Client Portal, AI Assistant); **Ari
@@ -637,6 +665,33 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 25 Nov 2026 — Feedback phase: three rounds agreed, build planned (Claude Code, Windows machine)
+
+- **The developer's rule for this phase:** all feedback first, checked
+  against the code and agreed per round; overlaps merged; no code or Codex
+  briefs until the developer says implementation starts. Then Claude
+  writes each batch's brief, reviews and fixes; the developer talks only
+  to Claude.
+- **Round 1 (QA report, Oct):** the 30 Oct remediation claimed 100%; the
+  check found about a third partial or not done (e.g. the auto-advance
+  audit entry it described does not exist). `QA_REVIEW_REMEDIATION.md` now
+  says so and points to the tracker. Decisions D1–D9; D1 keeps the upload
+  allowlist, and `AGENTS.md` was corrected from "any file".
+- **Round 2 (Ari, 19 Nov):** FET Accounting, notifications, invoice
+  changes, trip transfer, Convert to Trip and more; D10–D13. Ari got 19
+  questions on 25 Nov (`docs/feedback-replies/QUESTIONS_FOR_ARI.md`).
+- **Round 3 part one (the developer, 25 Nov):** premium responsive email
+  design, logo and contact details from Settings in every email and
+  document (dark email header to use logo-on-dark; PDFs to accept any
+  logo format), premium PDFs, quote interior + exterior photos, passenger
+  weight (lb), trip luggage (count, total lb). No Figma — the app's own
+  look (D14). Weights and luggage go to the operator, never the client's
+  PDFs (D15). More Round 3 items to come.
+- **Plan:** `docs/FEEDBACK_IMPLEMENTATION_PLAN.md`, B1–B12; the design
+  system (B5) before anything that sends or renders new documents;
+  invoices (B8) before FET (B9) — awaiting the developer's OK.
+- No code changed; no tests run.
 
 ### 20 Nov 2026 (later) — the four Known findings fixed (Claude Code + Codex, Windows machine)
 
