@@ -740,6 +740,7 @@ client see on the 9th?" — is `QuoteVersion`.
 
 **Working now**
 
+- **B1 (27 Nov 2026):** create applies company FET, validity and terms when absent; an omitted base uses operator cost plus the company markup. Explicit values win and edits keep stored defaults. Deposit cannot exceed the final total on create or edit; the form shows the server maximum. Instant Estimate carries estimated operator cost and a picked or server default-markup base (blank if unavailable).
 - The quotes board: URL-backed search, status and broker filters, sorting,
   paging, page size, an Archived tab, bulk remove and bulk restore
 - Write a quote, always as a draft at V1 — nothing reaches a client by being
@@ -845,6 +846,7 @@ rules the scope says nobody has agreed.
 
 **Working now**
 
+- **B1 (27 Nov 2026):** trip creation uses the shared FET defaults helper; absent DTO values reach Settings. Booking from a quote keeps its FET values. Form labels use desk defaults or the stored trip rate.
 - `Trip` with ordered `TripLeg`s (one-way, round trip, multi-leg) and named
   `TripPassenger`s; client, broker, operator, aircraft, trip request and quote
   are real foreign keys. Pricing inputs mirror the quote's and every total is
@@ -1192,6 +1194,7 @@ of these cards makes a second request.
 
 **Working now**
 
+- **B1 (27 Nov 2026):** stats and Dashboard count open, unlapsed legs with current matches through the same scoped `onRoutes` / `matchCounts` rule as the cards. AVAILABLE and WITH LIVE MATCHES overlap; stored MATCHED alone does not count.
 - `EmptyLeg`: origin/destination airports, departure date and time, offer
   expiry, operator, aircraft (or a free-text description), seats, price,
   status, notes. List, stats, detail, create, edit, archive/restore and bulk,
@@ -1204,8 +1207,9 @@ of these cards makes a second request.
   email; requests within ±3 days of the leg are listed first. The list carries
   `matchCount` / `dateMatchCount`; the detail carries the matches. Requests are
   read through `TripRequestsService.onRoutes`, so the broker scope applies
-- Stats: counts per status and the open value, with how many open legs are
-  priced — an unpriced leg is never summed as zero
+- Stats: available, booked and expired by effective status; matched by live
+  scoped matches, plus open value and its priced-leg count. An unpriced leg
+  is never summed as zero
 - Frontend: the board with a match badge, the add/edit dialog, the detail sheet
   with the matches list, and the dashboard's "Empty Leg Opportunities" section
   reading the API. `dummyData/emptyLegs.js` and the dashboard's copy are deleted
@@ -1725,6 +1729,7 @@ answers differently.
 **Working now** — every panel reads the API; `dummyData/reports.js` is
 deleted and `useReportsStore` keeps only the export dialog.
 
+- **B1 (27 Nov 2026):** **Not yet invoiced** sits beside Outstanding AR, at `outstanding.uninvoiced`: each scoped revenue trip total less live, non-cancelled invoice totals, clamped per trip, as of today regardless of the report window. Receivables owns invoice totals and shares them with the billing ceiling; `uninvoicedCents` is the one trip arithmetic function.
 - **Window**: the period tabs (Today, This Week — Monday first, This Month,
   This Year) or a picked month, quarter or YTD, worked out from the desk's
   own today and sent as `from`/`to` (both included). In the URL, with each
@@ -1782,6 +1787,7 @@ it should is the open question in [CLIENT_ADJUSTMENTS.md](CLIENT_ADJUSTMENTS.md)
 **Working now** — every section reads the API; `dummyData/dashboard.js` and
 `useDashboardStore` are deleted.
 
+- **B1 (27 Nov 2026):** **Not yet invoiced** sits beside client receivables at `receivables.uninvoiced`, behind exactly the same read gate; absent when refused. It reads the same Receivables calculation as Reports, independent of the selected period. Empty-leg counts use the scoped stats method.
 - **Tiles** (`GET /dashboard/summary?period=&on=`): upcoming trips (active,
   departing today or later), open requests and how many await sourcing, and
   for the chosen window — Today, This Week (Monday first), This Month, This
@@ -1963,8 +1969,8 @@ has five sections, the open one in the URL (`?section=`).
 
 | Setting | Module that will read it |
 |---|---|
-| Markup, quote validity, FET %, apply FET, quote terms | Quotes (#15), Trips (#16) |
-| Follow-up interval, lead stage | Clients (#9), Leads & Agents (#12) |
+| ✅ Markup, quote validity, FET %, apply FET, quote terms | Quotes / Trips server defaults; staff forms via six-field desk-defaults (markup stays server-side) |
+| ✅ Follow-up interval, lead stage | ClientsService.create; Add Client / Add Lead use desk-defaults and omit blank create follow-ups |
 | Company name, contact, logo on documents, broker contact | Email Templates (#27), Itineraries (#17), the letterhead, the PDF generator |
 | Notification channels, flight alerts, reminders and timing | A reminder scheduler and notification inbox — with Tasks & bell (#26 in the review order) and Flight Tracking (#19) |
 | "Use the company logo on documents", "Show assigned broker contact" | The quote and itinerary documents — Quotes (#15), Itineraries (#17), the PDF generator |

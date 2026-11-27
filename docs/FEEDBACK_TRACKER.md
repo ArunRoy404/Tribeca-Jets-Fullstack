@@ -56,8 +56,8 @@ this section is the record of what is actually true.
 
 | ID | # | What to do | Why | Status |
 |---|---|---|---|---|
-| R1-01 | 33 | **Quotes apply Settings on the server**: FET rate, validity, terms and apply-FET when the field is absent; **default markup used** (base = cost + markup); delete the hardcoded `0.075` in `quotes.service.ts`. Mark the rows ✅ in `MODULES.md` §26 | Settings reach only the form today; the markup setting does nothing anywhere | open |
-| R1-02 | 11 | **Deposit capped at the quote total**, in the API and the form | A deposit above the total breaks invoicing | open |
+| R1-01 | 33 | **Quotes apply Settings on the server**: FET rate, validity, terms and apply-FET when the field is absent; **default markup used** (base = cost + markup); delete the hardcoded `0.075` in `quotes.service.ts`. Mark the rows ✅ in `MODULES.md` §26 | Settings reach only the form today; the markup setting does nothing anywhere | done (B1, 27 Nov) |
+| R1-02 | 11 | **Deposit capped at the quote total**, in the API and the form | A deposit above the total breaks invoicing | done (B1, 27 Nov) |
 | R1-03 | 32 | **Client requirements move to an internal field**, out of Terms (`AddQuoteDialog.jsx` copies them into `terms`); preview title "QUOTE", not "QUOTES" | The client reads desk notes ("Catering for 4") as contract terms | open |
 | R1-04 | 36 | **Ask an Operator sends a real email** through the shared compose form, logged in Sent | Toast says "Request sent" and nothing is sent; a charter can be lost waiting | open |
 | R1-05 | 22 | **A failed email undoes "Sent" on the quote/itinerary and tells the broker** (the worker's FAILED path) | Today a quote stays Sent when the worker later fails it, and nobody is told | open |
@@ -71,9 +71,9 @@ this section is the record of what is actually true.
 | R1-08 | 26 | Completing a trip **warns** (confirm dialog, not a block) when the operator is unpaid or part of the trip is uninvoiced | Open money is easy to miss; operators are sometimes paid late, so no block | open |
 | R1-09 | 12 | **Same From/To airport refused in Add Lead and in the API** (only Add Client checks it) | KTEB → KTEB enquiries | open |
 | R1-10 | 29 | Client lifecycle: a **timeline entry** when booking moves the client to Active/Won (none is written); **client stage → QUOTED when a quote is sent**; **summary strip filled from the latest trip** (it was removed, not filled) | Half-done on 30 Oct | open |
-| R1-11 | 38 | Instant Estimate → quote: estimate goes in as **operator cost**, base = cost + default markup (needs R1-01). Today both fields get the estimate, so the quote opens at $0 profit | Wrong starting figures | open — waits on Ari Q1 for the min-hours rule |
-| R1-12 | 4 (reports) | **Uninvoiced balance** shown next to Outstanding AR (Reports, Dashboard) | "AR $0" hides money the client still owes | open |
-| R1-13 | 31 | **One empty-leg match count** used by the counters, the Dashboard and the cards (stats count stored `MATCHED`, cards count live matches) | "0 matched" beside "1 match" | open |
+| R1-11 | 38 | Instant Estimate → quote: estimate goes in as **operator cost**, base = cost + default markup (needs R1-01). Today both fields get the estimate, so the quote opens at $0 profit | Wrong starting figures | carry-over done (B1, 27 Nov); min-hours rule waits on Ari Q1 |
+| R1-12 | 4 (reports) | **Uninvoiced balance** shown next to Outstanding AR (Reports, Dashboard) | "AR $0" hides money the client still owes | done (B1, 27 Nov) |
+| R1-13 | 31 | **One empty-leg match count** used by the counters, the Dashboard and the cards (stats count stored `MATCHED`, cards count live matches) | "0 matched" beside "1 match" | done (B1, 27 Nov) |
 
 **Low — polish**
 

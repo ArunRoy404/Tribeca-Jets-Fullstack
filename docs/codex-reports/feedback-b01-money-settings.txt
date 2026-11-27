@@ -1,0 +1,245 @@
+B1 MONEY AND SETTINGS — REVISION 2 — 27 NOVEMBER 2026
+
+Implemented for review; all changes remain uncommitted. Postman captures/Newman and live browser checks remain with the reviewer/developer.
+
+1. FILES CREATED / CHANGED (one line each; existing user changes excluded)
+
+AGENTS.md — Staff forms use useDeskDefaults; full useSettings remains restricted to Settings screens.
+Backend/postman/build_dashboard_folder.py — Documents receivables.uninvoiced and its AR permission gate.
+Backend/postman/build_empty_legs_folder.py — Documents current scoped matches and overlapping available/matched counts.
+Backend/postman/build_quotes_folder.py — Cost-only create, missing price, create/update deposit caps, default-markup examples; shared builder helpers and explicit final probe cleanup.
+Backend/postman/build_reports_folder.py — Documents outstanding.uninvoiced and its as-of-today definition.
+Backend/postman/build_settings_folder.py — Desk-defaults broker/partner/anonymous examples and a broker request; preserves final settings restoration.
+Backend/postman/build_trips_folder.py — Create captures and request body omit FET toggle/rate to demonstrate company defaults.
+Backend/src/common/authorization/roles.brokers.spec.ts — Updates quote fixtures and Settings injection for the new create contract.
+Backend/src/common/money/fet-defaults.ts — Shared pure FET settings-to-rate/default selection for Quotes and Trips.
+Backend/src/modules/assistant/assistant.knowledge.ts — Removes the fixed-rate claim from quote guidance; describes the stored quote rate and Settings defaults.
+Backend/src/modules/dashboard/dashboard.controller.ts — Documents the uninvoiced payload and visibility.
+Backend/src/modules/dashboard/dashboard.service.ts — Reads uninvoiced through Receivables behind the existing AR gate; passes caller to empty-leg stats.
+Backend/src/modules/dashboard/dashboard.summary.spec.ts — Pins uninvoiced presence and absence and avoids reading refused data.
+Backend/src/modules/empty-legs/empty-legs.controller.ts — Passes caller to stats and documents current matches.
+Backend/src/modules/empty-legs/empty-legs.matching.ts — Pure count of open, unlapsed legs with current route matches.
+Backend/src/modules/empty-legs/empty-legs.service.ts — Counts matches over open legs and the list owner-provided candidates.
+Backend/src/modules/empty-legs/empty-legs.stats.spec.ts — Covers AVAILABLE with a match, MATCHED without one, expiry, scope and unpriced legs.
+Backend/src/modules/quotes/dto/quote.dto.ts — Optional create base/FET and suggestion markups; documents Settings behavior without update defaults.
+Backend/src/modules/quotes/quotes.controller.ts — Awaits asynchronous preview/suggestions and documents default markup.
+Backend/src/modules/quotes/quotes.defaults.spec.ts — Pins Settings defaults, explicit values, null terms, expiry, missing price and untouched PATCH fields.
+Backend/src/modules/quotes/quotes.defaults.ts — Pure quote create defaults, UTC expiry, explicit-value preservation and missing-price 400.
+Backend/src/modules/quotes/quotes.money.spec.ts — Service tests for create defaults, preview/suggestions, stored edit defaults and deposit ceilings.
+Backend/src/modules/quotes/quotes.pricing.ts — Pure deposit-vs-total comparison using integer cents.
+Backend/src/modules/quotes/quotes.service.ts — Applies create defaults, Settings preview/suggestions and merged create/update deposit validation.
+Backend/src/modules/receivables/receivables.service.ts — Owns invoice cents per trip; shares the same sums with invoice ceilings and uninvoiced.
+Backend/src/modules/receivables/receivables.uninvoiced.spec.ts — Pins live/non-cancelled invoice filtering, scope, cents, edit exclusion and empty trip sets.
+Backend/src/modules/reports/reports.controller.ts — Documents outstanding.uninvoiced independently of the window.
+Backend/src/modules/reports/reports.service.ts — Reads the as-of-today uninvoiced balance through Receivables.
+Backend/src/modules/settings/settings.access.spec.ts — Pins session-only staff reads and referral-agent refusal.
+Backend/src/modules/settings/settings.controller.ts — Adds GET desk-defaults, staff-only without a Settings capability, omitting markup.
+Backend/src/modules/settings/settings.service.ts — Reads current settings and returns the narrow desk defaults view.
+Backend/src/modules/settings/settings.spec.ts — Tests the exact desk-defaults keys and null terms.
+Backend/src/modules/settings/settings.view.ts — Explicit six-field allowlist, with no markup or banking/security data.
+Backend/src/modules/trips/dto/trip.dto.ts — Leaves omitted create FET unset so the service can apply Settings.
+Backend/src/modules/trips/trips.defaults.spec.ts — Tests actual trip-create writes using Settings only for omitted FET inputs.
+Backend/src/modules/trips/trips.figures.spec.ts — Tests uninvoiced, partial/full/legacy excess invoicing and unpriced trips.
+Backend/src/modules/trips/trips.figures.ts — One cents-based uninvoiced function, clamped separately per trip.
+Backend/src/modules/trips/trips.service.ts — Uses shared FET defaults and exposes scoped revenue-trip totals to the invoice owner.
+Frontend/src/components/clients/AddClientDialog.jsx — Reads desk defaults; omits blank create follow-ups and preserves null-on-edit clearing.
+Frontend/src/components/empty-legs/EmptyLegsStats.jsx — Labels the computed count WITH LIVE MATCHES.
+Frontend/src/components/leads-agents/AddLeadDialog.jsx — Reads desk defaults; removes NEW fallback and omits blank create follow-ups.
+Frontend/src/components/quotes/AddQuoteDialog.jsx — Desk defaults, record-based edit rates, server-derived deposit maximum and field errors, optional cost-derived base.
+Frontend/src/components/quotes/estimate/InstantEstimateDialog.jsx — Carries estimated operator cost and picked/default-markup base; corrects copy and shows pending state.
+Frontend/src/components/quotes/pricing/SuggestedPricePicker.jsx — Accepts an optional saved FET rate so edit suggestions preserve it.
+Frontend/src/components/table/trips/TripsCardsContainer.jsx — Passes the saved trip rate to the mobile card.
+Frontend/src/components/table/upcoming-trips/TripCard.jsx — Formats the saved trip FET rate and omits the percentage when unknown.
+Frontend/src/components/trips/createForm/CreateFinancialsCard.jsx — Reads desk defaults for new-trip FET labels/previews and stored rates on edit.
+Frontend/src/hooks/quotes/index.js — Exports the estimate-to-draft mutation hook.
+Frontend/src/hooks/quotes/useStartEstimateQuote.js — Requests the server default suggestion, falls back to an empty base, and opens the draft via store side effects.
+Frontend/src/hooks/settings/index.js — Exports useDeskDefaults.
+Frontend/src/hooks/settings/useDeskDefaults.js — Staff-only defaults query using shared query presets and namespace.
+Frontend/src/lib/dashboard.js — Adds Not yet invoiced beside the existing AR tile.
+Frontend/src/lib/queryKeys.js — Adds settings.deskDefaults under the Settings invalidation prefix.
+Frontend/src/lib/quote.js — Deletes DEFAULT_FET_RATE and removes an invented boolean for missing quote data.
+Frontend/src/lib/reports.js — Adds Not yet invoiced beside Outstanding AR using the API figure.
+Frontend/src/lib/trip.js — Carries the stored FET rate into board rows.
+Frontend/src/services/settings.service.js — Adds the thin deskDefaults API request.
+Frontend/src/store/useCreateTripStore.js — Leaves new-trip FET absent and preserves the saved FET rate on edit.
+docs/MODULES.md — Marks seven Settings readers complete and documents the narrow staff-defaults route.
+docs/MODULE_FEATURE_STATUS.md — Records Quotes, Trips, Reports, Dashboard, Empty Legs and Settings default integration as working.
+docs/codex-reports/feedback-b01-money-settings.txt — This full report, per-file inventory and remaining-literal audit.
+
+61 B1 files, including this report.
+
+2. BRIEF / CODE MATCH
+No unresolved Revision 2 mismatch. The three first-run findings are handled by the narrow six-field staff read, moving the forms to that read, and omitting blank create follow-ups. The per-leg estimate minimum remains unchanged.
+Trips already had service-level Settings arithmetic; the DTO default prevented the absent toggle reaching it. The arithmetic now uses the same helper as Quotes.
+Existing broker-validation fixtures needed the newly required quote pricing inputs and a real Settings mock. These were updated without weakening the assertions.
+
+3. IMPLEMENTATION DECISIONS
+- Quote create defaults live in quotes.defaults.ts. Shared FET defaults live in common/money/fet-defaults.ts; updates do not apply create defaults.
+- Dashboard field: receivables.uninvoiced, behind exactly the same Receivables VIEW gate as receivables.outstanding. Reports: outstanding.uninvoiced, with its existing financial-report access.
+- Receivables owns invoice sums and orchestrates the owner-provided trip totals; uninvoicedCents in trips.figures.ts does the single cents calculation. Draft and sent invoices count; archived and cancelled invoices do not, matching the existing ceiling.
+- Empty-leg labels: AVAILABLE and WITH LIVE MATCHES. They overlap: an AVAILABLE leg with a current match appears in both. Stats and Dashboard use the same scoped candidates as cards; historical LOST, CONVERTED and archived enquiries remain candidates by the existing matching rule. Stored MATCHED alone adds nothing.
+- Add Client had the same bug as Add Lead: a blank create follow-up sent null. Both now use the lib/form editing convention: omitted on create, null on edit. ClientsService already supplies stage and follow-up defaults; Leads creates through useCreateClient / POST clients.
+- The durable AGENTS rule now distinguishes useDeskDefaults for staff forms, useSettings for restricted Settings screens, and useBranding for public branding.
+- The quote builder now uses builder_common and explicit final archive requests rather than asynchronous teardown in a test script. No builder or Newman was run.
+
+4. EVERY REMAINING RATE-LITERAL HIT
+Exact strings: 0.075, 7.5%, and quoted "7.5". Scanned tracked Backend/Frontend text sources, schemas, migrations, seed fixtures, builders and recorded Postman JSON. Generated/vendor/build files, binary assets and all .env* files were excluded before opening. Each matching line is listed once, with counts when it contains repeated occurrences. No runtime FET fallback remains in quote/trip create, preview/suggest services or the affected frontend forms.
+
+Backend/postman/Tribeca-Jets-API.postman_collection.json:14745 [0.075 x2] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:14924 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:14952 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15030 [0.075 x2] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15059 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15080 [0.075 x2] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15096 [0.075 x1; 7.5% x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15115 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15128 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15159 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15301 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15439 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15576 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15649 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15788 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15861 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:15950 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:16035 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:16190 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:16420 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:16470 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:21800 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:22111 [0.075 x10] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:22283 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:22389 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:22453 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:22537 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:22713 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:22947 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:23283 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:23465 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:34167 [0.075 x2] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:34909 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:35163 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:35405 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/Tribeca-Jets-API.postman_collection.json:35464 [0.075 x1] — Previously captured request/response example; left intact for reviewer recapture, never fabricated or rewritten by hand.
+Backend/postman/build_quotes_folder.py:63 ["7.5" x1] — Explicit sample rate or explanatory example in builder requests/docs; caller-supplied values remain supported, not a runtime default.
+Backend/postman/build_quotes_folder.py:131 [0.075 x1] — Explicit sample rate or explanatory example in builder requests/docs; caller-supplied values remain supported, not a runtime default.
+Backend/postman/build_quotes_folder.py:502 [0.075 x1] — Explicit sample rate or explanatory example in builder requests/docs; caller-supplied values remain supported, not a runtime default.
+Backend/postman/build_quotes_folder.py:503 [7.5% x1; "7.5" x1] — Explicit sample rate or explanatory example in builder requests/docs; caller-supplied values remain supported, not a runtime default.
+Backend/prisma/migrations/20260917160000_quotes/migration.sql:22 [0.075 x1] — Historical migration/backstop; no migration changed or executed.
+Backend/prisma/migrations/20260927140000_add_trips/migration.sql:33 [0.075 x1] — Historical migration/backstop; no migration changed or executed.
+Backend/prisma/schema/quote.prisma:100 [7.5% x1] — Database backstop or its explanatory comment, explicitly retained by the brief.
+Backend/prisma/schema/quote.prisma:106 [0.075 x1] — Database backstop or its explanatory comment, explicitly retained by the brief.
+Backend/prisma/schema/trip.prisma:84 [0.075 x1] — Database backstop or its explanatory comment, explicitly retained by the brief.
+Backend/prisma/seed.ts:505 [0.075 x1] — Explicit development fixture pricing, not a service fallback; seed not run.
+Backend/prisma/seed.ts:521 [0.075 x1] — Explicit development fixture pricing, not a service fallback; seed not run.
+Backend/prisma/seed.ts:549 [0.075 x1] — Explicit development fixture pricing, not a service fallback; seed not run.
+Backend/prisma/seed.ts:566 [0.075 x1] — Explicit development fixture pricing, not a service fallback; seed not run.
+Backend/prisma/seed.ts:596 [0.075 x1] — Explicit development fixture pricing, not a service fallback; seed not run.
+Backend/prisma/seed.ts:640 [0.075 x1] — Explicit development fixture pricing, not a service fallback; seed not run.
+Backend/prisma/seed.ts:690 [0.075 x1] — Explicit development fixture pricing, not a service fallback; seed not run.
+Backend/src/common/authorization/roles.brokers.spec.ts:33 [0.075 x1] — Explicit test fixture or benchmark; exercises a stored/supplied rate.
+Backend/src/common/pdf/pdf.spec.ts:67 [0.075 x1] — Explicit test fixture or benchmark; exercises a stored/supplied rate.
+Backend/src/modules/quotes/dto/quote.dto.ts:38 [0.075 x1] — Format hint/example distinguishing a rate from a percentage, not a default.
+Backend/src/modules/quotes/dto/quote.dto.ts:41 [7.5% x1; "7.5" x1] — Format hint/example distinguishing a rate from a percentage, not a default.
+Backend/src/modules/quotes/dto/quote.dto.ts:145 [0.075 x1] — Format hint/example distinguishing a rate from a percentage, not a default.
+Backend/src/modules/quotes/dto/quote.dto.ts:173 [0.075 x1] — Format hint/example distinguishing a rate from a percentage, not a default.
+Backend/src/modules/quotes/dto/quote.dto.ts:205 [0.075 x1] — Format hint/example distinguishing a rate from a percentage, not a default.
+Backend/src/modules/quotes/dto/quote.dto.ts:245 [0.075 x1] — Format hint/example distinguishing a rate from a percentage, not a default.
+Backend/src/modules/quotes/quotes.pricing.spec.ts:7 [0.075 x1] — Explicit test fixture or benchmark; exercises a stored/supplied rate.
+Backend/src/modules/quotes/quotes.pricing.spec.ts:63 [7.5% x1] — Explicit test fixture or benchmark; exercises a stored/supplied rate.
+Backend/src/modules/quotes/quotes.pricing.spec.ts:67 [0.075 x1] — Explicit test fixture or benchmark; exercises a stored/supplied rate.
+Backend/src/modules/trips/dto/trip.dto.ts:117 [0.075 x1] — Format hint/example distinguishing a rate from a percentage, not a default.
+Backend/src/modules/trips/dto/trip.dto.ts:160 [0.075 x1] — Format hint/example distinguishing a rate from a percentage, not a default.
+Backend/src/modules/trips/trips.figures.spec.ts:5 [0.075 x1] — Explicit test fixture or benchmark; exercises a stored/supplied rate.
+Backend/src/modules/trips/trips.figures.spec.ts:23 [7.5% x1] — Explicit test fixture or benchmark; exercises a stored/supplied rate.
+Backend/src/modules/whatsapp/whatsapp.tools.spec.ts:48 [0.075 x1] — Explicit test fixture or benchmark; exercises a stored/supplied rate.
+Frontend/src/components/settings/sections/QuoteDefaultsSection.jsx:73 ["7.5" x1] — Allowed Settings input placeholder; it is not submitted as a default.
+Frontend/src/components/trips/createForm/CreateFinancialsCard.jsx:21 [0.075 x1] — Documentation-only example or historical comment; the rendered value comes from the record/preview/Settings.
+Frontend/src/lib/quote.js:70 [0.075 x1; 7.5% x1] — Documentation-only example or historical comment; the rendered value comes from the record/preview/Settings.
+Frontend/src/lib/schedule.js:44 [7.5% x1] — Documentation-only example or historical comment; the rendered value comes from the record/preview/Settings.
+
+72 matching lines across 18 files.
+
+5. RUN OUTPUT / COUNTS
+Backend npx.cmd --no-install prisma generate: Prisma Client 7.10.0 generated successfully; code generation only.
+Backend npm.cmd run lint: exit 0, no warnings or errors on the final pass.
+Backend npx.cmd --no-install tsc --noEmit: exit 0, no diagnostics on the final pass.
+Backend npm.cmd test: Test Files 98 passed (98); Tests 1147 passed (1147); final duration 25.41s. Its pretest hook ran code generation only.
+Frontend npm.cmd run lint: exit 0, no diagnostics on the final pass.
+Frontend npm.cmd run build: exit 0; compiled successfully; generated static pages 45/45. Next retains the existing multiple-lockfile/workspace-root warning. Vitest retains its existing Vite tsconfig-paths-plugin advisory. No packages were installed.
+Static builder validation: all six edited Python files parse. Extracted quote/trip create JSON bodies parse, omit FET toggle/rate; the quote body omits basePrice and supplies operatorCost. Builders were neither imported nor executed.
+git diff --check: clean.
+No live browser/API checks or screenshots were run. Responsive layout uses the existing two-column mobile stats and stacked form grids; live visual verification remains for review.
+
+6. CONSTRAINTS AND GIT STATUS
+No commit, push, stash, reset or index/history mutation command was run. No database, migrations, seed, SQL, API, builders or Newman was run. No npm/pip install. No .env was opened, printed or copied.
+Backend code generation used DOTENV_CONFIG_PATH pointing at a nonexistent path. Frontend lint/build used a temporary Node filesystem preload that treats .env* files as absent, so Next did not read local environment files.
+Pre-existing user changes preserved: HANDOFF.md; docs/FEEDBACK_IMPLEMENTATION_PLAN.md; docs/feedback-replies/REPLIES_TO_CLIENT.md; untracked revised B1 brief and PROGRESS_FOR_ARI.md. FEEDBACK_TRACKER.md was not edited.
+
+Final git status --short --untracked-files=all:
+ M AGENTS.md
+ M Backend/postman/build_dashboard_folder.py
+ M Backend/postman/build_empty_legs_folder.py
+ M Backend/postman/build_quotes_folder.py
+ M Backend/postman/build_reports_folder.py
+ M Backend/postman/build_settings_folder.py
+ M Backend/postman/build_trips_folder.py
+ M Backend/src/common/authorization/roles.brokers.spec.ts
+ M Backend/src/modules/assistant/assistant.knowledge.ts
+ M Backend/src/modules/dashboard/dashboard.controller.ts
+ M Backend/src/modules/dashboard/dashboard.service.ts
+ M Backend/src/modules/empty-legs/empty-legs.controller.ts
+ M Backend/src/modules/empty-legs/empty-legs.matching.ts
+ M Backend/src/modules/empty-legs/empty-legs.service.ts
+ M Backend/src/modules/quotes/dto/quote.dto.ts
+ M Backend/src/modules/quotes/quotes.controller.ts
+ M Backend/src/modules/quotes/quotes.pricing.ts
+ M Backend/src/modules/quotes/quotes.service.ts
+ M Backend/src/modules/receivables/receivables.service.ts
+ M Backend/src/modules/reports/reports.controller.ts
+ M Backend/src/modules/reports/reports.service.ts
+ M Backend/src/modules/settings/settings.controller.ts
+ M Backend/src/modules/settings/settings.service.ts
+ M Backend/src/modules/settings/settings.spec.ts
+ M Backend/src/modules/settings/settings.view.ts
+ M Backend/src/modules/trips/dto/trip.dto.ts
+ M Backend/src/modules/trips/trips.figures.spec.ts
+ M Backend/src/modules/trips/trips.figures.ts
+ M Backend/src/modules/trips/trips.service.ts
+ M Frontend/src/components/clients/AddClientDialog.jsx
+ M Frontend/src/components/empty-legs/EmptyLegsStats.jsx
+ M Frontend/src/components/leads-agents/AddLeadDialog.jsx
+ M Frontend/src/components/quotes/AddQuoteDialog.jsx
+ M Frontend/src/components/quotes/estimate/InstantEstimateDialog.jsx
+ M Frontend/src/components/quotes/pricing/SuggestedPricePicker.jsx
+ M Frontend/src/components/table/trips/TripsCardsContainer.jsx
+ M Frontend/src/components/table/upcoming-trips/TripCard.jsx
+ M Frontend/src/components/trips/createForm/CreateFinancialsCard.jsx
+ M Frontend/src/hooks/quotes/index.js
+ M Frontend/src/hooks/settings/index.js
+ M Frontend/src/lib/dashboard.js
+ M Frontend/src/lib/queryKeys.js
+ M Frontend/src/lib/quote.js
+ M Frontend/src/lib/reports.js
+ M Frontend/src/lib/trip.js
+ M Frontend/src/services/settings.service.js
+ M Frontend/src/store/useCreateTripStore.js
+ M HANDOFF.md
+ M docs/FEEDBACK_IMPLEMENTATION_PLAN.md
+ M docs/MODULES.md
+ M docs/MODULE_FEATURE_STATUS.md
+ M docs/feedback-replies/REPLIES_TO_CLIENT.md
+?? Backend/src/common/money/fet-defaults.ts
+?? Backend/src/modules/dashboard/dashboard.summary.spec.ts
+?? Backend/src/modules/empty-legs/empty-legs.stats.spec.ts
+?? Backend/src/modules/quotes/quotes.defaults.spec.ts
+?? Backend/src/modules/quotes/quotes.defaults.ts
+?? Backend/src/modules/quotes/quotes.money.spec.ts
+?? Backend/src/modules/receivables/receivables.uninvoiced.spec.ts
+?? Backend/src/modules/settings/settings.access.spec.ts
+?? Backend/src/modules/trips/trips.defaults.spec.ts
+?? Frontend/src/hooks/quotes/useStartEstimateQuote.js
+?? Frontend/src/hooks/settings/useDeskDefaults.js
+?? docs/codex-prompts/feedback-b01-money-settings.md
+?? docs/codex-reports/feedback-b01-money-settings.txt
+?? docs/feedback-replies/PROGRESS_FOR_ARI.md

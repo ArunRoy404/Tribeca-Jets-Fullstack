@@ -706,6 +706,12 @@ effect only when the module it governs reads it — so the map below is the
 work list, and every module review checks its rows (rule in `AGENTS.md`,
 "A setting is read by the module it governs").
 
+`GET /settings/desk-defaults` supplies exactly six form defaults to every
+signed-in staff member (`@StaffOnly()`, no Settings permission). Staff forms
+use `useDeskDefaults()`; full Settings stays restricted. Default markup is
+margin policy and is applied on the server by Quotes suggested-price, behind
+Quotes · View money, rather than published in these defaults.
+
 #### Which module reads which setting
 
 | Setting (section) | Read by | Hardcoded today | Status |
@@ -715,13 +721,13 @@ work list, and every module review checks its rows (rule in `AGENTS.md`,
 | Logo for dark backgrounds (Company, 10 Nov) | `BrandLogo` wherever it sits on a dark background (`tone="light"` — the sidebar); public at `GET /settings/branding/logo-on-dark` | the main logo | ✅ |
 | Bank wire details (Company, 9 Nov) | Receivables detail, Client Portal statement, invoice PDF | none — the card is left out | ✅ (the Settings form saved nothing until 10 Nov) |
 | Show contact block / logo on PDFs / broker contact (Company) | PDF generator, Itinerary preview | always shown | ⬜ waits on PDF generator |
-| Default markup + presets (Defaults) | Quotes — new-quote form | none (blank) | ⬜ |
-| Quote validity (Defaults) | Quotes — new quote's expiry | — | ⬜ |
-| Default FET % (Defaults) | Quotes, Trips — new records only | `0.075` in `quotes.service.ts`, `DEFAULT_FET_RATE` in `lib/quote.js` | ⬜ |
-| Apply FET by default (Defaults) | Quotes, Trips — create forms | on | ⬜ |
-| Default follow-up interval (Defaults) | Clients, Leads — create / follow-up dialogs | — | ⬜ |
-| Default lead stage (Defaults) | Clients, Leads — create forms | `NEW` in the forms | ⬜ |
-| Default quote terms (Defaults) | Quotes — new-quote form | — | ⬜ |
+| Default markup (Defaults) | Quotes — `quoteDefaults` on cost-only create; `suggestPrice` when markupRates is absent; Instant Estimate draft | — | ✅ |
+| Quote validity (Defaults) | Quotes — server `quoteDefaults`; new-quote form through `useDeskDefaults()` | — | ✅ |
+| Default FET % (Defaults) | Quotes / Trips create through shared `fetDefaults`; quote preview / suggestions; staff forms through `useDeskDefaults()` | — | ✅ |
+| Apply FET by default (Defaults) | Quotes / Trips create, quote preview / suggestions and staff forms | — | ✅ |
+| Default follow-up interval (Defaults) | ClientsService.create for new leads; Add Client / Add Lead through `useDeskDefaults()` | — | ✅ |
+| Default lead stage (Defaults) | ClientsService.create and Add Client / Add Lead through `useDeskDefaults()` | — | ✅ |
+| Default quote terms (Defaults) | Quotes — server `quoteDefaults`; new-quote form through `useDeskDefaults()` | — | ✅ |
 | Automatic logout on/off (Security, 12 Oct) | Auth — refresh check, activity ping, sessions list, `/auth/me` → `session.idleLogoutEnabled` | always on | ✅ |
 | Inactivity timeout (Security) | Auth — `/auth/me` and the refresh check | — (env var removed 7 Oct) | ✅ |
 | Warning before logout, show warning (Security) | Auth — `IdleLogoutWatcher` via `/auth/me` → `session` | — | ✅ |

@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 20 November 2026.** Update the "Where we are" section in the
+**Last updated: 27 November 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -14,6 +14,44 @@ for a review, and how the owner likes to work, is in
 ---
 
 ## Part 1 — Where we are
+
+### 27 Nov 2026 — how the feedback build runs
+
+- **Every batch keeps every doc current** (tracker, plan, this file,
+  `MODULE_FEATURE_STATUS.md`, Postman, tester reply) in the same pass.
+- **Codex builds every batch;** Claude writes the brief, reviews and fixes.
+- **`docs/feedback-replies/PROGRESS_FOR_ARI.md`** is the update for Ari,
+  ready to send at any time, updated at the end of every batch.
+- **B1 (Money and Settings) built by Codex and reviewed by Claude, 27 Nov
+  — uncommitted, awaiting the developer's test.** Brief
+  `docs/codex-prompts/feedback-b01-money-settings.md` (revision 2: the
+  first run found the forms' Settings prefill had never worked — wrong
+  shape, and `/settings` refuses brokers — so B1 adds `GET
+  /settings/desk-defaults`, staff-only, six fields, no markup). Codex's
+  report: `docs/codex-reports/feedback-b01-money-settings.txt`. Review
+  fixes: the invoice sum behind the ceiling and "Not yet invoiced" counts
+  every invoice on the (already scoped) trips, not only the caller's
+  receivables scope; the deposit hint hides until a total exists. Checks:
+  backend tsc, lint, 98 files / 1,147 tests; frontend lint and build — all
+  green. **Marked done** (tracker, tester rows final, Ari's lines ✅) under
+  the developer's rule that a reviewed, green batch is done; their
+  on-screen tests are in `docs/DEVELOPER_TEST_CHECKLIST.md`. **Postman
+  verified, 27 Nov:** all six builders captured on the isolated 4100 API
+  and refreshed `tribeca_postman`: Quotes 49, Trips 34, Reports 19,
+  Dashboard 24, Empty Legs 18, Settings 27 examples (171 recaptured;
+  collection 338 request entries / 840 examples). Full Newman passed
+  twice without reseeding between runs, each 471 requests / 341 assertions /
+  0 failures; each rebuilt folder also passed standalone twice; label audit
+  0 mislabelled. The 4100 API was stopped and its process killed.
+  Reports' builder now picks live
+  airports and probes unsupported XML (PDF is supported); no API code
+  changed. Copy-only seed preparation cleared `empty_legs` first because
+  the seed omits that cleanup; the seed itself was left unchanged.
+- **A batch is done when Claude's review passes and all checks are green**
+  (developer, 27 Nov); the developer tests later from the checklist.
+- Ari has not answered the 19 questions; we start with B1–B7 (B5's font
+  and image and B7's opt-out wait). B8-before-B9 still needs the
+  developer's OK. Production deploys from `roy`; `main` is not used.
 
 ### Read this first — the state on 25 Nov 2026 (end of day)
 
@@ -35,7 +73,10 @@ for a review, and how the owner likes to work, is in
   D13, for a dependency reason; (c) on "go", Claude writes the B1 brief in
   `docs/codex-prompts/feedback-b01-money-settings.md`, Codex builds, Claude
   reviews and fixes. B1–B6 need nothing from Ari.
-- **When Ari answers:** fill `QUESTIONS_FOR_ARI.md`, the tracker's
+- **When Ari answers — first, remind the developer to decide B8 before
+  B9** (invoices and credit before FET Accounting, reversing D13; they
+  asked to be reminded at that point, 27 Nov). Then fill
+  `QUESTIONS_FOR_ARI.md`, the tracker's
   question tables and `REPLIES_TO_CLIENT.md` Part C the same day, and move
   any unblocked item in the plan.
 - Earlier state (20 Nov): production (`main`) at `38309ac`; the developer

@@ -561,7 +561,9 @@ each setting, the module that reads it, and the value hardcoded today.
 2. **Read the value from the settings** — on the backend inject the global
    `SettingsService` and `await settings.read()` when deciding (`current()`
    only inside a synchronous rule, like the idle limit); on the frontend
-   use `useSettings()`, or `useBranding()` for anything public — and delete
+   a staff form reads `useDeskDefaults()`; `useSettings()` is for the
+   Settings screens only (it needs Settings · View), and `useBranding()`
+   is for anything public — and delete
    the hardcoded copy in the same pass (`0.075` in the quotes service, the
    letterhead's literal address). Two sources for one number drift, exactly
    as a second copy of the permission matrix would — which is why the

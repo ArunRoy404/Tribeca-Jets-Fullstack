@@ -9,16 +9,22 @@ this file is **the order and the shape** of the build.
 1. Claude writes the brief: `docs/codex-prompts/feedback-bNN-<name>.md`,
    with the tracker IDs, files to touch, rules from `AGENTS.md` that apply,
    migrations, tests to add, and the definition of done.
-2. Codex builds it. One batch at a time, never two in flight.
+2. Codex builds it — always Codex, never Claude (developer, 27 Nov). One
+   batch at a time, never two in flight.
 3. Claude reviews the diff against the brief and `AGENTS.md`, runs
    `npm test`, typecheck, lint and build on both apps, and fixes what is
    wrong.
-4. **Same pass, docs:** tracker status → `done`; tester reply → `final`;
-   client Part A line written from what was built; `MODULE_FEATURE_STATUS.md`,
+4. **Same pass, docs — every batch, no exceptions (developer, 27 Nov):**
+   tracker status → `done`; tester reply → `final`;
+   `feedback-replies/PROGRESS_FOR_ARI.md` (the batch's lines → ✅ in plain
+   words, the next batch → 🔨, the date); `HANDOFF.md`; `MODULE_FEATURE_STATUS.md`,
    `MODULES.md` §26 (settings rows ✅) and `AGENTS.md` for any new durable
    rule; Postman entries for every changed or new endpoint.
-5. The developer tests. Live runs (browser, Newman) happen only when the
-   developer says so.
+5. **A batch is done once Claude's review passes and every check is green**
+   (developer's rule, 27 Nov) — the docs in step 4 are written then. Claude
+   adds the batch's on-screen tests to `docs/DEVELOPER_TEST_CHECKLIST.md`;
+   the developer runs them later, and anything that fails is fixed then.
+   Live runs (browser, Newman) happen only when the developer says so.
 6. Commit only when the developer asks, split by concern.
 
 Each migration is read by hand before it ships (no generated `DROP
@@ -104,6 +110,9 @@ total → 400; uninvoiced figure in `tallyTrips` specs; match count spec.
 - **R2-B1:** "Passenger Names" opens passenger editing and highlights it.
 - **R2-B2:** Ask AI trigger moves into the top navbar (no floating button).
 - **R2-B4:** Avinode, avinode.com.
+- **Seed fix (found by the B1 Postman run, 27 Nov):** `prisma/seed.ts`
+  does not clear `empty_legs` in its cleanup, so re-seeding a worked
+  database fails; add it in the right order. Dev fixture only.
 
 ## B3 — Workflow rules
 

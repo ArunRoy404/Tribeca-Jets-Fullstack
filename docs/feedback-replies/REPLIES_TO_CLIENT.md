@@ -29,8 +29,10 @@ Part A fills in as items ship.
 
 ## Part A — Updates (fills in as items are built and verified)
 
-*Nothing yet — implementation has not started. The draft message for the
-QA review (Round 1) is kept in Part E until its items ship.*
+*The running update for Ari — every item, its status, kept current per
+batch — is `PROGRESS_FOR_ARI.md` (since 27 Nov 2026). Do not keep a second
+copy here. The draft message for the QA review (Round 1) is kept in Part E
+as wording to reuse when its items ship.*
 
 ---
 
