@@ -112,7 +112,9 @@ export function toClientRow(client) {
 
     leadStage: formatLeadStage(client?.leadStage),
     rawLeadStage: client?.leadStage ?? null,
-    leadSource: formatLeadSource(client?.leadSource),
+    leadSource: formatClientLeadSource(client),
+    leadSourceOther: client?.leadSourceOther ?? null,
+    latestTrip: client?.latestTrip ?? null,
     rawLeadSource: client?.leadSource ?? null,
 
     broker: client?.assignedBroker
@@ -138,4 +140,10 @@ export function toClientRow(client) {
 
     ...toArchiveFields(client),
   };
+}
+
+/** Full source description for a saved client; enum dropdown labels remain short. */
+export function formatClientLeadSource(client) {
+  const label = formatLeadSource(client?.leadSource);
+  return client?.leadSource === "OTHER" && client?.leadSourceOther ? `${label} — ${client.leadSourceOther}` : label;
 }

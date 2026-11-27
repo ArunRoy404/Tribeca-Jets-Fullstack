@@ -16,7 +16,7 @@ export function useUpdateFlight() {
   return useMutation({
     mutationFn: (payload) => flightTrackingService.update(payload),
     onSuccess: (data) => {
-      invalidate(queryKeys.trips.all, queryKeys.notes.all);
+      invalidate(queryKeys.trips.all, queryKeys.notes.all, queryKeys.commissions.all, queryKeys.clients.all);
       toastSuccess(`Flight update saved for ${formatTripReference(data?.trip?.reference)}`);
     },
     onError: (error) => toastApiError(error, "Could not save this flight update"),

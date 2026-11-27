@@ -1,3 +1,4 @@
+import { formatClientStatus, formatLeadStage } from "@/lib/client";
 import { auditFieldList } from "@/lib/auditLabels";
 import { formatMoneyExact } from "@/lib/money";
 import { getFullName } from "@/lib/user";
@@ -127,6 +128,11 @@ function humanise(action) {
  */
 export function describeEvent(entry) {
   const phrase = EVENT_PHRASES[entry?.action] ?? humanise(entry?.action);
+  if (entry?.action === "client.stage_changed") {
+    const { from, to, via, tripReference } = entry.metadata ?? {};
+    const context = via === "booking" ? `on booking${tripReference ? ` TJ-${tripReference}` : ""}` : "when a quote was marked sent";
+    return `moved this client from ${formatClientStatus(from?.status)} / ${formatLeadStage(from?.leadStage)} to ${formatClientStatus(to?.status)} / ${formatLeadStage(to?.leadStage)} ${context}`;
+  }
 
   const changedFields = entry?.metadata?.fields ?? Object.keys(entry?.metadata?.changes ?? {});
   if (entry?.action?.endsWith(".updated") && Array.isArray(changedFields) && changedFields.length) {

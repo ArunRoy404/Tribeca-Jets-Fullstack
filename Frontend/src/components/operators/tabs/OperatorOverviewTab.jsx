@@ -126,6 +126,7 @@ export default function OperatorOverviewTab({ operator }) {
         <DetailCard title="TERMS">
           <div className="flex flex-col gap-4 w-full">
             <Field label="Payment Terms" value={operator.paymentTerms} />
+            <Field label="OA required" value={operator.oaRequired == null ? "Not set" : operator.oaRequired ? "Yes" : "No"} />
             <div className="flex flex-col gap-1">
               <span className="font-montserrat text-[11px] sm:text-[12px] font-medium text-muted-foreground">Cancellation Policy</span>
               {/* `whitespace-pre-line` because this is pasted from the

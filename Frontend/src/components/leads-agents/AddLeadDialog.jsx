@@ -31,6 +31,7 @@ import {
 } from "@/lib/aircraft";
 import BrokerPicker from "@/components/users/BrokerPicker";
 import AirportPicker from "@/components/airports/AirportPicker";
+import LeadSourceOtherField from "@/components/clients/LeadSourceOtherField";
 import CommonSelect from "@/components/common/CommonSelect";
 import {
   Dialog,
@@ -89,6 +90,7 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   leadSource: "",
+  leadSourceOther: "",
   leadStage: "",
   priority: "MEDIUM",
   assignedBrokerId: "",
@@ -130,6 +132,7 @@ function initialForm(lead, settings) {
     email: fieldValue(lead.email),
     phone: fieldValue(lead.phone),
     leadSource: lead.rawSource || "",
+    leadSourceOther: lead.leadSourceOther ?? "",
     leadStage: lead.rawStage || "",
     priority: lead.rawPriority || "MEDIUM",
     assignedBrokerId:
@@ -248,6 +251,7 @@ function LeadForm({ editingLead, settings, onDone }) {
       ...(editing ? {} : { type: "DIRECT", status: "LEAD" }),
       leadStage: form.leadStage || undefined,
       leadSource: form.leadSource || "DIRECT",
+      leadSourceOther: form.leadSource === "OTHER" ? optional(form.leadSourceOther) : undefined,
       priority: form.priority,
       followUpMethod: form.followUpMethod || null,
       ...(mayAssignBroker ? { assignedBrokerId: optional(form.assignedBrokerId) } : {}),
@@ -419,6 +423,8 @@ function LeadForm({ editingLead, settings, onDone }) {
             />
           </FieldWrapper>
         </div>
+
+        <LeadSourceOtherField source={form.leadSource} value={form.leadSourceOther} onChange={(value) => set("leadSourceOther", value)} />
 
         {/* The enquiry half. Only on create — an existing lead's requests are
             their own records, edited from the detail page, and rewriting one

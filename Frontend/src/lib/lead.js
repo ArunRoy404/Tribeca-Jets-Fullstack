@@ -1,3 +1,4 @@
+import { formatClientLeadSource } from "@/lib/client";
 import { formatLeadStage } from "@/lib/leadStages";
 import { formatDate, toArchiveFields } from "@/lib/archive";
 import { formatAircraftCategory } from "@/lib/aircraft";
@@ -196,7 +197,8 @@ export function toLeadRow(client, latestRequest = null) {
 
     stage: formatLeadStage(client?.leadStage),
     rawStage: client?.leadStage ?? null,
-    source: formatLeadSource(client?.leadSource),
+    source: formatClientLeadSource(client),
+    leadSourceOther: client?.leadSourceOther ?? null,
     rawSource: client?.leadSource ?? null,
     priority: formatPriority(client?.priority),
     rawPriority: client?.priority ?? null,

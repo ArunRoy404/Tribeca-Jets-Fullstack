@@ -7,6 +7,7 @@ import { useClientsStore } from "@/store/useClientsStore";
 import { useCreateClient, useUpdateClient } from "@/hooks/clients";
 import AirportPicker from "@/components/airports/AirportPicker";
 import BrokerPicker from "@/components/users/BrokerPicker";
+import LeadSourceOtherField from "@/components/clients/LeadSourceOtherField";
 import CommonSelect from "@/components/common/CommonSelect";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { useDeskDefaults } from "@/hooks/settings";
@@ -66,6 +67,7 @@ const EMPTY = {
   status: "LEAD",
   leadStage: "",
   leadSource: "DIRECT",
+  leadSourceOther: "",
   assignedBrokerId: "",
   homeAirportId: "",
   birthday: "",
@@ -113,6 +115,7 @@ function initialForm(client, settings) {
     status: client.rawStatus ?? "LEAD",
     leadStage: client.rawLeadStage ?? "",
     leadSource: client.rawLeadSource ?? "DIRECT",
+    leadSourceOther: client.leadSourceOther ?? "",
     assignedBrokerId: client.assignedBrokerId ?? "",
     homeAirportId: client.homeAirportId ?? "",
     birthday: client.birthday ? client.birthday.slice(0, 10) : "",
@@ -247,6 +250,7 @@ function ClientForm({ editingClient, settings, onDone }) {
       status: form.status,
       leadStage: form.leadStage || undefined,
       leadSource: form.leadSource,
+      leadSourceOther: form.leadSource === "OTHER" ? optional(form.leadSourceOther) : undefined,
       ...(mayAssignBroker ? { assignedBrokerId: optional(form.assignedBrokerId) } : {}),
       homeAirportId: form.homeAirportId || null,
       birthday: optional(form.birthday),
@@ -399,6 +403,8 @@ function ClientForm({ editingClient, settings, onDone }) {
               />
             </FieldWrapper>
           </div>
+
+        <LeadSourceOtherField source={form.leadSource} value={form.leadSourceOther} onChange={(value) => set("leadSourceOther", value)} />
 
           <SectionHeader title="Travel Preferences" />
 

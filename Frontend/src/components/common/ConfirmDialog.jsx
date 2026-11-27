@@ -25,10 +25,11 @@ export default function ConfirmDialog({
   cancelLabel = "Cancel",
   tone = "default",
   onConfirm,
+  pending = false,
 }) {
   const destructive = tone === "destructive";
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => !pending && onOpenChange?.(next)}>
       <DialogContent className="sm:max-w-110 p-6 flex flex-col gap-4">
         <DialogHeader className="flex flex-col items-start gap-3 w-full">
           <div className="flex items-center gap-3.5 w-full">
@@ -50,7 +51,7 @@ export default function ConfirmDialog({
           )}
         </DialogHeader>
         <div className="flex items-center justify-end gap-3 w-full">
-          <Button type="button" variant="outline" className="gap-1.5 px-4 h-10 font-medium text-[13px]" onClick={() => onOpenChange?.(false)}>
+          <Button type="button" disabled={pending} variant="outline" className="gap-1.5 px-4 h-10 font-medium text-[13px]" onClick={() => onOpenChange?.(false)}>
             <X className="size-4" />
             {cancelLabel}
           </Button>
@@ -59,6 +60,7 @@ export default function ConfirmDialog({
             variant={destructive ? "destructive" : "default"}
             className="px-5 h-10 font-medium text-[13px]"
             onClick={onConfirm}
+            disabled={pending}
           >
             {confirmLabel}
           </Button>

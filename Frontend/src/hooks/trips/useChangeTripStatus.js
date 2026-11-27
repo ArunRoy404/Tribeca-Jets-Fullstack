@@ -1,5 +1,6 @@
 "use client";
 
+import { useBookingConfirmationStore } from "@/store/useBookingConfirmationStore";
 import { useMutation } from "@tanstack/react-query";
 import { tripsService } from "@/services/trips.service";
 import { invalidate } from "@/lib/queryClient";
@@ -11,8 +12,9 @@ import { toastApiError, toastSuccess } from "@/lib/toast";
 export function useChangeTripStatus() {
   return useMutation({
     mutationFn: (payload) => tripsService.changeStatus(payload),
-    onSuccess: (data) => {
-      invalidate(queryKeys.trips.all, queryKeys.notes.all);
+    onSuccess: (data, variables) => {
+      if (variables.status === "BOOKED") useBookingConfirmationStore.getState().openModal(data);
+      invalidate(queryKeys.trips.all, queryKeys.notes.all, queryKeys.commissions.all, queryKeys.clients.all);
       toastSuccess(`TJ-${data?.reference} is now ${formatTripStatus(data?.status)}`);
     },
     onError: (error) => toastApiError(error, "Could not move this trip"),

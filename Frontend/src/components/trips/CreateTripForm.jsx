@@ -18,7 +18,9 @@ export default function CreateTripForm() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <CreatePassengersCard />
-        <CreateFinancialsCard />
+        <section id="financials" className="min-w-0 scroll-mt-24" tabIndex={-1} aria-label="Financials">
+          <CreateFinancialsCard />
+        </section>
       </div>
 
       <CreateNotesDocsCard />

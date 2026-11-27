@@ -12,6 +12,9 @@ export const useCommissionsStore = create((set) => ({
   addModalOpen: false,
   editingCommission: null,
   draft: null,
+  payingCommission: null,
+  openPayModal: (commission) => set({ payingCommission: commission }),
+  closePayModal: () => set({ payingCommission: null }),
 
   openAddModal: (draft = null) => set({ addModalOpen: true, editingCommission: null, draft }),
   openEditModal: (commission) => set({ addModalOpen: true, editingCommission: commission, draft: null }),

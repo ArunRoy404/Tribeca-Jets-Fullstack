@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Pencil, Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import ConfirmCommissionPaidDialog from "./ConfirmCommissionPaidDialog";
 import CommonInput from "@/components/common/CommonInput";
 import CommonSelect from "@/components/common/CommonSelect";
 import DatePicker from "@/components/common/DatePicker";
@@ -27,6 +28,8 @@ import {
 import { optionalNumber, optionalText } from "@/lib/form";
 import { toDateInput } from "@/lib/date";
 import { useCommissionsStore } from "@/store/useCommissionsStore";
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Action, Module } from "@/lib/access";
 
 const NONE = "__none__";
 /** The recipient toggle: a label per wire value. */
@@ -52,6 +55,7 @@ function initialForm(commission, draft) {
     finalAmount: commission?.finalAmount ?? "",
     status: commission?.status ?? "PENDING",
     method: commission?.method ?? "",
+    paymentReference: commission?.paymentReference ?? "",
     paidAt: toDateInput(commission?.paidAt),
     notes: commission?.notes ?? "",
   };
@@ -81,8 +85,11 @@ export default function AddCommissionDialog() {
 
 function CommissionForm({ commission, draft, onDone }) {
   const editing = Boolean(commission);
+  const { canAccess } = usePermissions();
+  const mayPay = canAccess(Module.COMMISSIONS, Action.PAY);
   const [form, setForm] = useState(() => initialForm(commission, draft));
   const [errors, setErrors] = useState({});
+  const [payment, setPayment] = useState(null);
   const set = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   // When a referral agent is picked, fetch their standing commission structure
@@ -112,6 +119,8 @@ function CommissionForm({ commission, draft, onDone }) {
     if (!basis) next.basis = "Choose how it is worked out";
     if (basis === "PERCENT_OF_PROFIT" && !String(form.percentage).trim()) next.percentage = "Enter the percentage";
     if ((basis === "FLAT_FEE" || basis === "CUSTOM") && !String(form.amount).trim()) next.amount = "Enter the amount";
+    const becomingPaid = form.status === "PAID" && commission?.status !== "PAID";
+    if (mayPay && becomingPaid && (!form.method || form.method === NONE)) next.method = "Choose how it was paid";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -134,14 +143,23 @@ function CommissionForm({ commission, draft, onDone }) {
               ? { percentage: optionalNumber(form.percentage) }
               : { amount: optionalNumber(form.amount) }),
           }),
-      finalAmount: optionalNumber(form.finalAmount, clear),
-      status: form.status,
-      method: form.method && form.method !== NONE ? form.method : editing ? null : undefined,
-      paidAt: form.status === "PAID" && form.paidAt ? form.paidAt : undefined,
+      ...(mayPay || form.status !== "PAID" ? { status: form.status } : {}),
+      ...(mayPay ? {
+        finalAmount: optionalNumber(form.finalAmount, clear),
+        // Null clears a stored method; a row paid before methods were required has none to clear.
+        method: form.method && form.method !== NONE ? form.method : editing && commission?.method ? null : undefined,
+        paymentReference: optionalText(form.paymentReference, clear),
+        paidAt: form.status === "PAID" && form.paidAt ? form.paidAt : undefined,
+      } : {}),
       notes: optionalText(form.notes, clear),
     };
 
-    const onError = (error) => setErrors(error?.fieldErrors ?? {});
+    if (becomingPaid && payload.status === "PAID") setPayment(payload);
+    else save(payload);
+  };
+
+  const save = (payload) => {
+    const onError = (error) => { setErrors(error?.fieldErrors ?? {}); setPayment(null); };
     if (editing) update({ id: commission.id, ...payload }, { onSuccess: onDone, onError });
     else create(payload, { onSuccess: onDone, onError });
   };
@@ -237,12 +255,12 @@ function CommissionForm({ commission, draft, onDone }) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-          <FormField label="Final amount (Optional)" error={errors.finalAmount}>
+          {mayPay && <FormField label="Final amount (Optional)" error={errors.finalAmount}>
             <CommonInput type="number" min="0.01" step="0.01" value={form.finalAmount} onChange={(e) => set("finalAmount")(e.target.value)} placeholder="Once settled" />
-          </FormField>
-          <FormField label="Status" error={errors.status}>
-            <CommonSelect value={form.status} onChange={set("status")} options={options(COMMISSION_STATUSES, formatCommissionStatus)} />
-          </FormField>
+          </FormField>}
+          {(mayPay || form.status !== "PAID") && <FormField label="Status" error={errors.status}>
+            <CommonSelect value={form.status} onChange={set("status")} options={options(COMMISSION_STATUSES.filter((status) => mayPay || status !== "PAID"), formatCommissionStatus)} />
+          </FormField>}
           <FormField label="Broker (Optional)" error={errors.brokerId}>
             <BrokerPicker
               value={form.brokerId}
@@ -254,12 +272,12 @@ function CommissionForm({ commission, draft, onDone }) {
           </FormField>
         </div>
 
-        {form.status === "PAID" && (
+        {mayPay && form.status === "PAID" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
             <FormField label="Paid on (Optional — today if blank)" error={errors.paidAt}>
               <DatePicker value={form.paidAt} onChange={set("paidAt")} placeholder="Today" />
             </FormField>
-            <FormField label="Method (Optional)" error={errors.method}>
+            <FormField label={form.status === "PAID" ? "Method" : "Method (Optional)"} error={errors.method}>
               <CommonSelect
                 value={form.method || NONE}
                 onChange={set("method")}
@@ -268,6 +286,10 @@ function CommissionForm({ commission, draft, onDone }) {
             </FormField>
           </div>
         )}
+
+        {mayPay && <FormField label="Payment reference (Optional)" error={errors.paymentReference}>
+          <CommonInput value={form.paymentReference} maxLength={120} onChange={(e) => set("paymentReference")(e.target.value)} placeholder="Transfer ID or cheque number" />
+        </FormField>}
 
         <FormField label="Notes (Optional)" error={errors.notes}>
           <CommonInput type="textarea" rows={3} value={form.notes} onChange={(e) => set("notes")(e.target.value)} placeholder="Desk notes. Never shown to the payee." />
@@ -284,6 +306,8 @@ function CommissionForm({ commission, draft, onDone }) {
           </Button>
         </div>
       </form>
+      <ConfirmCommissionPaidDialog commission={commission} payment={payment} pending={creating || updating}
+        onOpenChange={(open) => !open && setPayment(null)} onConfirm={() => save(payment)} />
     </>
   );
 }

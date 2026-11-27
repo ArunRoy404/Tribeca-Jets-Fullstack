@@ -19,7 +19,7 @@ export function useSendQuote() {
   return useMutation({
     mutationFn: (payload) => quotesService.send(payload),
     onSuccess: () => {
-      invalidate(queryKeys.quotes.all);
+      invalidate(queryKeys.quotes.all, queryKeys.clients.all, queryKeys.notes.all);
       invalidate(queryKeys.tripRequests.all);
       toastSuccess("Quote marked as sent");
     },

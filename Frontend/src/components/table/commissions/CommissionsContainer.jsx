@@ -41,6 +41,7 @@ export default function CommissionsContainer({ revealDelay = 0 }) {
 
   const openAddModal = useCommissionsStore((s) => s.openAddModal);
   const openEditModal = useCommissionsStore((s) => s.openEditModal);
+  const openPayModal = useCommissionsStore((s) => s.openPayModal);
 
   const [selected, setSelected] = useState(() => new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -91,7 +92,7 @@ export default function CommissionsContainer({ revealDelay = 0 }) {
     }
     if (mayPay) {
       if (row?.rawStatus !== "PAID" && row?.rawStatus !== "CANCELLED") {
-        actions.push({ label: "Mark Paid Today", icon: <Banknote />, onSelect: () => updateCommission?.({ id: row?.id, status: "PAID" }) });
+        actions.push({ label: "Mark Paid", icon: <Banknote />, onSelect: () => openPayModal(row.raw) });
       }
     }
     if (mayArchive) {

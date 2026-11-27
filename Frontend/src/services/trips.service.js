@@ -18,6 +18,7 @@ export const tripsService = {
 
   /** GET /trips/:id — archived trips load too. */
   detail: (id) => request({ url: `/trips/${id}`, method: "GET" }),
+  openItems: (id) => request({ url: `/trips/${id}/open-items`, method: "GET" }),
 
   /** POST /trips — a trip booked by hand. */
   create: (payload) => request({ url: "/trips", method: "POST", data: payload }),

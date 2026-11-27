@@ -76,6 +76,7 @@ export function toCommissionRow(commission) {
     amount: money(commission?.value) ?? "Not yet known",
     paidAt: formatCalendarDate(commission?.paidAt),
     method: formatPaymentMethod(commission?.method),
+    paymentReference: commission?.paymentReference || DASH,
     status: formatCommissionStatus(commission?.status),
     rawStatus: commission?.status ?? null,
     broker: commission?.broker ? personName(commission.broker) : DASH,
@@ -105,5 +106,7 @@ export function toPartnerCommission(commission) {
     final: money(commission?.finalAmount) ?? DASH,
     status: formatCommissionStatus(commission?.status),
     paidAt: formatCalendarDate(commission?.paidAt),
+    method: formatPaymentMethod(commission?.method),
+    paymentReference: commission?.paymentReference || DASH,
   };
 }

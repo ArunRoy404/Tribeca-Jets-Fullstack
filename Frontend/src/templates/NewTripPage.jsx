@@ -29,6 +29,14 @@ export default function NewTripPage({ tripId = null }) {
     if (tripId && trip && editingId !== tripId) loadTrip(trip);
   }, [tripId, trip, editingId, loadTrip]);
 
+  useEffect(() => {
+    if (tripId && editingId === tripId && window.location.hash === "#financials") {
+      const section = document.getElementById("financials");
+      section?.scrollIntoView({ block: "start" });
+      section?.focus({ preventScroll: true });
+    }
+  }, [tripId, editingId]);
+
   if (tripId && error) {
     return <NotFoundState itemType="Trip" backUrl="/dashboard/trips" backLabel="Back to Trips" />;
   }

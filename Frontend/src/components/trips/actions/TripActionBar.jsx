@@ -5,9 +5,10 @@ import { ArrowRight, Check, CheckCircle2, Mail, Undo2, XCircle } from "lucide-re
 import { Button } from "@/components/ui/button";
 import ComposeEmailDialog from "@/components/common/email/ComposeEmailDialog";
 import RejectTripDialog from "@/components/trips/actions/RejectTripDialog";
-import { useApproveTrip, useChangeTripStatus, useRejectTrip } from "@/hooks/trips";
+import { useApproveTrip, useChangeTripStatus, useRejectTrip, useTripOpenItems } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { useBookingConfirmationStore } from "@/store/useBookingConfirmationStore";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { formatMoneyExact } from "@/lib/money";
 import { Action, Module } from "@/lib/access";
 import { isStepBack, moveVerb } from "@/lib/trip";
 
@@ -29,13 +30,34 @@ export default function TripActionBar({ trip }) {
 
   const [composeOpen, setComposeOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const openBookingModal = useBookingConfirmationStore((s) => s.openModal);
+  const openItems = useTripOpenItems();
+  const [completeWarning, setCompleteWarning] = useState(null);
+  const missing = [
+    !(trip?.raw?.operatorId) && "assign an operator",
+    !(trip?.raw?.departureDate || trip?.raw?.legs?.[0]?.departureDate) && "add a departure date",
+    (!(trip?.passengerCount > 0) && !trip?.passengers?.length) && "add passengers",
+    !trip?.operatorConfirmed && "tick Operator confirmed",
+    !trip?.raw?.legs?.[0]?.departureTime && "add a departure time",
+  ].filter(Boolean);
+  const changeStatus = async (status) => {
+    try {
+      if (status === "COMPLETED") {
+        const items = await openItems.mutateAsync(trip.id);
+        const warnings = [
+          items.operatorUnpaid && `Operator not fully paid${items.operatorBalance == null ? "" : ` (${formatMoneyExact(items.operatorBalance)})`}`,
+          items.uninvoicedOpen && `${items.uninvoiced == null ? "Part of the trip" : formatMoneyExact(items.uninvoiced)} not yet invoiced`,
+        ].filter(Boolean);
+        if (warnings.length) { setCompleteWarning(warnings.join(" · ")); return; }
+      }
+      move({ id: trip.id, status });
+    } catch { /* The read hook reports the error; retain the action for retry. */ }
+  };
 
   const mayApprove = canAccess(Module.TRIPS, Action.APPROVE);
   const isPendingApproval = trip?.approvalStatus === "PENDING";
   const isDeclined = trip?.approvalStatus === "REJECTED";
   const awaitingApproval = isPendingApproval || isDeclined;
-  const isPending = isMovePending || isApprovePending || isRejectPending;
+  const isPending = isMovePending || isApprovePending || isRejectPending || openItems.isPending;
 
   const mayMove = canAccess(Module.TRIPS, Action.EDIT);
   const maySend = canAccess(Module.EMAIL_TEMPLATES, Action.SEND) && Boolean(trip?.clientId);
@@ -76,17 +98,8 @@ export default function TripActionBar({ trip }) {
           const cancel = status === "CANCELLED";
           const back = isStepBack(trip?.rawStatus, status);
           const isConfirm = status === "CONFIRMED";
-          const hasOperator = Boolean(trip?.operatorId || (trip?.operator && trip.operator !== "—"));
-          const hasDate = Boolean(trip?.rawDepartureDate || (trip?.departureDate && trip.departureDate !== "—"));
-          const hasPax = (trip?.passengerCount != null && trip.passengerCount > 0) || (trip?.passengers?.length > 0);
-          const confirmBlocked = isConfirm && (!hasOperator || !hasDate || !hasPax || awaitingApproval);
-          const tooltip = confirmBlocked
-            ? isPendingApproval
-              ? "This trip must be approved before it can be confirmed"
-              : isDeclined
-                ? "This trip was declined. Edit it to send it back for approval"
-                : "Confirming requires an assigned operator, departure date, and passengers"
-            : undefined;
+          const confirmBlocked = isConfirm && (missing.length > 0 || awaitingApproval);
+          const tooltip = confirmBlocked ? (awaitingApproval ? "This trip must be approved before confirming" : `Before confirming: ${missing.join(", ")}`) : undefined;
 
           return (
             <Button
@@ -97,18 +110,7 @@ export default function TripActionBar({ trip }) {
               className={`gap-2 px-4 ${cancel ? "text-destructive" : ""}`}
               disabled={isPending || confirmBlocked}
               title={tooltip}
-              onClick={() =>
-                move?.(
-                  { id: trip?.id, status },
-                  {
-                    onSuccess: (updated) => {
-                      if (status === "BOOKED") {
-                        openBookingModal(updated || trip);
-                      }
-                    },
-                  }
-                )
-              }
+              onClick={() => changeStatus(status)}
             >
               {cancel ? <XCircle className="size-3.5" /> : back ? <Undo2 className="size-3.5" /> : <ArrowRight className="size-3.5" />}
               {moveVerb(status, trip?.rawStatus)}
@@ -134,6 +136,12 @@ export default function TripActionBar({ trip }) {
         </p>
       )}
 
+      {moves.includes("CONFIRMED") && missing.length > 0 && (
+        <p className="w-full font-montserrat text-[12px] text-warning">Before confirming: {missing.join(", ")}</p>
+      )}
+      <ConfirmDialog open={Boolean(completeWarning)} onOpenChange={(open) => !open && setCompleteWarning(null)}
+        title="Complete this trip anyway?" description={completeWarning} confirmLabel="Complete Anyway" pending={isMovePending}
+        onConfirm={() => move({ id: trip.id, status: "COMPLETED" }, { onSuccess: () => setCompleteWarning(null) })} />
       {mayApprove && (
         <RejectTripDialog
           open={rejectOpen}

@@ -96,6 +96,7 @@ export function toOperatorRow(operator) {
     responseSpeed: formatResponseSpeed(operator?.responseSpeed) ?? "—",
 
     cancellationPolicy: operator?.cancellationPolicy ?? "—",
+    oaRequired: operator?.oaRequired ?? null,
     rawPaymentTerms: operator?.paymentTerms ?? null,
     paymentTerms: formatPaymentTerms(operator?.paymentTerms) ?? "—",
     // Sourcing never offers a suspended operator; the screens say why.

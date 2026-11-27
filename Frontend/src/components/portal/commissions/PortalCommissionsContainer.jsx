@@ -14,7 +14,7 @@ import { useEnumFilter } from "@/hooks/common/useEnumFilter";
 import { COMMISSION_STATUSES, formatCommissionStatus, toPartnerCommission } from "@/lib/commission";
 
 const ALL_STATUS = "All Status";
-const COLUMNS = ["Client", "Trip", "Trip Date", "Structure", "Estimated", "Final", "Status", "Paid On"];
+const COLUMNS = ["Client", "Trip", "Trip Date", "Structure", "Estimated", "Final", "Status", "Paid On", "Method", "Reference"];
 const CELL = "p-[12px] font-montserrat text-[12px] whitespace-nowrap";
 
 /**
@@ -90,6 +90,8 @@ export default function PortalCommissionsContainer() {
                         <StatusBadge status={row.status} bordered />
                       </TableCell>
                       <TableCell className={`${CELL} text-muted-foreground`}>{row.paidAt}</TableCell>
+                      <TableCell className={`${CELL} text-muted-foreground`}>{row.method}</TableCell>
+                      <TableCell className={`${CELL} text-muted-foreground`}>{row.paymentReference}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -122,6 +124,8 @@ function CommissionCard({ item }) {
     ["Estimated", item.estimated],
     ["Final", item.final],
     ["Paid on", item.paidAt],
+    ["Method", item.method],
+    ["Reference", item.paymentReference],
   ];
   return (
     <div className="bg-white border border-border rounded-md p-4 flex flex-col gap-3 shadow-card">

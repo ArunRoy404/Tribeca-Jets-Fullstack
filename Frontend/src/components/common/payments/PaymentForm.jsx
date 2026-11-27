@@ -45,6 +45,9 @@ export default function PaymentForm({
   pending = false,
   onSubmit,
   onCancel,
+  showAmount = true,
+  showNotes = true,
+  referenceMaxLength,
 }) {
   const editing = Boolean(payment);
   const [form, setForm] = useState(() => ({
@@ -61,7 +64,7 @@ export default function PaymentForm({
   const handleSubmit = (event) => {
     event.preventDefault();
     const next = {};
-    if (!String(form.amount).trim()) next.amount = "Enter the amount";
+    if (showAmount && !String(form.amount).trim()) next.amount = "Enter the amount";
     if (!form.method) next.method = "Choose how it was paid";
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -69,11 +72,11 @@ export default function PaymentForm({
     const clear = { editing };
     onSubmit?.(
       {
-        amount: optionalNumber(form.amount),
+        ...(showAmount ? { amount: optionalNumber(form.amount) } : {}),
         paidAt: form.paidAt || undefined,
         method: form.method,
         reference: optionalText(form.reference, clear),
-        notes: optionalText(form.notes, clear),
+        ...(showNotes ? { notes: optionalText(form.notes, clear) } : {}),
       },
       { onError: (error) => setErrors(error?.fieldErrors ?? {}) },
     );
@@ -100,7 +103,7 @@ export default function PaymentForm({
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-          <FormField label={amountLabel} error={errors.amount}>
+          {showAmount && <FormField label={amountLabel} error={errors.amount}>
             <div className="flex flex-col gap-1.5">
               <CommonInput
                 type="number"
@@ -120,7 +123,7 @@ export default function PaymentForm({
                 </button>
               )}
             </div>
-          </FormField>
+          </FormField>}
           <FormField label={dateLabel} error={errors.paidAt}>
             <DatePicker value={form.paidAt} onChange={set("paidAt")} placeholder="Today" />
           </FormField>
@@ -135,13 +138,14 @@ export default function PaymentForm({
               value={form.reference}
               onChange={(e) => set("reference")(e.target.value)}
               placeholder="Wire confirmation, cheque number"
+              maxLength={referenceMaxLength}
             />
           </FormField>
         </div>
 
-        <FormField label="Notes (Optional)" error={errors.notes}>
+        {showNotes && <FormField label="Notes (Optional)" error={errors.notes}>
           <CommonInput type="textarea" rows={2} value={form.notes} onChange={(e) => set("notes")(e.target.value)} />
-        </FormField>
+        </FormField>}
 
         <div className="border-t border-secondary flex gap-2 justify-end items-center pt-4 w-full">
           <Button type="button" variant="outline" className="gap-2 px-4" onClick={onCancel}>

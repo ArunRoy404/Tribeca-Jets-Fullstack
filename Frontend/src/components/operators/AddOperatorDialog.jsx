@@ -117,6 +117,7 @@ const EMPTY_FORM = {
   responseSpeed: "",
   cancellationPolicy: "",
   paymentTerms: "",
+  oaRequired: "UNSET",
   sourcingNotes: "",
 };
 
@@ -156,6 +157,7 @@ function initialForm(operator) {
     responseSpeed: operator.rawResponseSpeed ?? "",
     cancellationPolicy: fieldValue(operator.cancellationPolicy),
     paymentTerms: operator.rawPaymentTerms ?? "",
+    oaRequired: operator.oaRequired == null ? "UNSET" : operator.oaRequired ? "YES" : "NO",
     sourcingNotes: operator.sourcingNotes || "",
   };
 }
@@ -278,6 +280,7 @@ function OperatorForm({ editingOperator, onDone }) {
       cancellationPolicy: optional(formData.cancellationPolicy),
       paymentTerms: formData.paymentTerms || (editing ? null : undefined),
       sourcingNotes: optional(formData.sourcingNotes),
+      oaRequired: formData.oaRequired === "UNSET" ? (editing ? null : undefined) : formData.oaRequired === "YES",
     };
 
     if (editing) {
@@ -491,6 +494,11 @@ function OperatorForm({ editingOperator, onDone }) {
               onChange={(e) => handleChange("cancellationPolicy", e.target.value)}
               placeholder={"Paste the operator's policy here, e.g.\n\n30+ days before departure — 10% of the charter price\n14-30 days — 25%\n72 hours-14 days — 50%\nUnder 72 hours — non-refundable"}
             />
+          </FieldWrapper>
+
+          <FieldWrapper label="OA required? (Optional)" error={fieldErrors?.oaRequired}>
+            <CommonSelect value={formData.oaRequired} onChange={(value) => handleChange("oaRequired", value)}
+              options={[{ value: "UNSET", label: "Not set" }, { value: "YES", label: "Yes" }, { value: "NO", label: "No" }]} />
           </FieldWrapper>
 
           <FieldWrapper label="Notes (Optional)" optional>

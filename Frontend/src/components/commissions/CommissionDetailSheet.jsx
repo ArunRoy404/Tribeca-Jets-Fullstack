@@ -32,6 +32,7 @@ export default function CommissionDetailSheet() {
   const mayPay = canAccess(Module.COMMISSIONS, Action.PAY);
   const mayArchive = canAccess(Module.COMMISSIONS, Action.ARCHIVE);
   const openEditModal = useCommissionsStore((s) => s.openEditModal);
+  const openPayModal = useCommissionsStore((s) => s.openPayModal);
 
   const { mutate: update, isPending: moving } = useUpdateCommission();
   const { mutate: remove } = useRemoveCommission();
@@ -88,6 +89,7 @@ export default function CommissionDetailSheet() {
               <DetailField label="METHOD" value={item.method} valueClassName="text-purple" labelClassName="text-[14px]" />
             </div>
             <div className="flex gap-4 w-full">
+              <DetailField label="PAYMENT REFERENCE" value={item.paymentReference} labelClassName="text-[14px]" />
               <DetailField label="BROKER" value={item.broker} labelClassName="text-[14px]" />
               <DetailField label="REFERRAL" value={item.referral?.reference ?? "—"} labelClassName="text-[14px]" />
             </div>
@@ -124,9 +126,9 @@ export default function CommissionDetailSheet() {
                       </Button>
                     )}
                     {mayPay && item.rawStatus !== "PAID" && item.rawStatus !== "CANCELLED" && (
-                      <Button variant="outline" disabled={moving} className="gap-2 px-4" onClick={() => update({ id: item.id, status: "PAID" })}>
+                      <Button variant="outline" disabled={moving} className="gap-2 px-4" onClick={() => openPayModal(data)}>
                         <Banknote className="size-4" />
-                        Mark Paid Today
+                        Mark Paid
                       </Button>
                     )}
                   </div>

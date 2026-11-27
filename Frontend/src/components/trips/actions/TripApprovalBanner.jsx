@@ -1,6 +1,8 @@
 "use client";
 
 import { AlertTriangle, XCircle } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
 import { cn } from "@/lib/utils";
@@ -23,6 +25,7 @@ export default function TripApprovalBanner({ trip, className }) {
         tone="warning"
         title="Waiting for approval"
         className={className}
+        action={mayApprove && mayEdit ? <Button variant="outline" className="self-start px-4" render={<Link href={`/dashboard/trips/${trip.id}/edit#financials`} />}>Edit financials</Button> : null}
         text={
           mayApprove
             ? "This trip was created by someone without approval rights. Approve or decline it below before it can be confirmed."
@@ -53,7 +56,7 @@ export default function TripApprovalBanner({ trip, className }) {
   return null;
 }
 
-function Banner({ tone, title, text, hint, className }) {
+function Banner({ tone, title, text, hint, action, className }) {
   const Icon = tone === "warning" ? AlertTriangle : XCircle;
   return (
     <div
@@ -68,6 +71,7 @@ function Banner({ tone, title, text, hint, className }) {
         <h4 className="font-montserrat font-bold text-[13px] text-foreground">{title}</h4>
         <p className="font-montserrat text-[12px] text-foreground/90 leading-relaxed break-words">{text}</p>
         {hint && <p className="font-montserrat text-[12px] text-muted-foreground leading-relaxed">{hint}</p>}
+        {action}
       </div>
     </div>
   );
