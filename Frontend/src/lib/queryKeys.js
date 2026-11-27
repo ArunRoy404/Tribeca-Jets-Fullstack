@@ -29,6 +29,7 @@ export const queryKeys = {
   settings: {
     all: ["settings"],
     detail: ["settings", "detail"],
+    deskDefaults: ["settings", "desk-defaults"],
     branding: ["settings", "branding"],
     whatsapp: ["settings", "whatsapp"],
     whatsappPhones: (params) => ["settings", "whatsapp", "phones", params],

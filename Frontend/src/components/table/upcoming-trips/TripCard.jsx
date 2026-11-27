@@ -1,6 +1,7 @@
 import StatusBadge from "@/components/common/StatusBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import { cn } from "@/lib/utils";
+import { formatFetRate } from "@/lib/quote";
 
 function Field({ label, value, valueClassName }) {
   if (value === undefined || value === null || value === "") return null;
@@ -30,6 +31,7 @@ export default function TripCard({
   clientPmt,
   opPmt,
   fet,
+  fetRate,
   profit,
   nextAction,
   actions,
@@ -46,6 +48,7 @@ export default function TripCard({
   const displayClientPmt = clientPmt || trip?.clientPmt;
   const displayOpPmt = opPmt || trip?.opPmt;
   const displayProfit = profit || trip?.profit;
+  const displayFetRate = fetRate ?? trip?.fetRate;
 
   return (
     <div
@@ -107,7 +110,7 @@ export default function TripCard({
       )}
 
       <div className="flex items-end justify-between gap-3 w-full">
-        {fet && <Field label="FET (7.5%)" value={fet} />}
+        {fet && <Field label={displayFetRate == null ? "FET" : `FET (${formatFetRate(displayFetRate)})`} value={fet} />}
         <Field label="Profit" value={displayProfit} valueClassName="text-success font-bold" />
       </div>
 

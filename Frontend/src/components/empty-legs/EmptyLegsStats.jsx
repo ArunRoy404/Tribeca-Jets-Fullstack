@@ -15,7 +15,7 @@ export default function EmptyLegsStats() {
 
   const stats = [
     { label: "AVAILABLE", value: value(data?.available), tone: "success" },
-    { label: "MATCHED", value: value(data?.matched), tone: "info" },
+    { label: "WITH LIVE MATCHES", value: value(data?.matched), tone: "info" },
     { label: "BOOKED", value: value(data?.booked), tone: "warning" },
     {
       label: data ? `OPEN VALUE · ${data.pricedOpenCount} PRICED` : "OPEN VALUE",

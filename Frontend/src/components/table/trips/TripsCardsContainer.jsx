@@ -20,6 +20,7 @@ export default function TripsCardsContainer({ items, getActions, onItemClick }) 
           status={item?.status}
           approvalLabel={item?.approvalLabel}
           fet={item?.fet}
+          fetRate={item?.fetRate}
           profit={item?.profit}
           actions={getActions?.(item)}
           onClick={() => onItemClick?.(item)}

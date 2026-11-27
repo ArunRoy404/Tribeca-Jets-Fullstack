@@ -29,7 +29,7 @@ const PRESET_MARKUPS = [0.1, 0.15, 0.2, 0.25];
  * stored, because it is a way to arrive at the price, not a second fact about
  * the quote.
  */
-export default function SuggestedPricePicker({ operatorCost, fetEnabled, lineItems, basePrice, onPick }) {
+export default function SuggestedPricePicker({ operatorCost, fetEnabled, fetRate, lineItems, basePrice, onPick }) {
   const [customPercent, setCustomPercent] = useState("");
   const [result, setResult] = useState(null);
   const { mutate: fetchSuggestions, isPending } = useSuggestedQuotePrice();
@@ -53,7 +53,7 @@ export default function SuggestedPricePicker({ operatorCost, fetEnabled, lineIte
     if (!hasCost) return undefined;
     const handle = setTimeout(() => {
       fetchSuggestions(
-        { operatorCost: cost, markupRates, fetEnabled, lineItems },
+        { operatorCost: cost, markupRates, fetEnabled, fetRate, lineItems },
         {
           onSuccess: (data) => setResult(data),
           onError: () => setResult(null),
@@ -61,7 +61,7 @@ export default function SuggestedPricePicker({ operatorCost, fetEnabled, lineIte
       );
     }, 400);
     return () => clearTimeout(handle);
-  }, [hasCost, cost, markupRates, fetEnabled, lineItems, fetchSuggestions]);
+  }, [hasCost, cost, markupRates, fetEnabled, fetRate, lineItems, fetchSuggestions]);
 
   // A stale answer for a cost that has since been cleared or changed must not
   // be offered — only suggestions computed from the cost on screen.

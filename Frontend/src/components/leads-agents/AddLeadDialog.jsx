@@ -6,7 +6,8 @@ import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
 import { useCreateClient, useUpdateClient } from "@/hooks/clients";
 import { useCreateTripRequest } from "@/hooks/trip-requests";
 import { useCurrentUser } from "@/hooks/auth";
-import { useSettings } from "@/hooks/settings";
+import { useDeskDefaults } from "@/hooks/settings";
+import TableStatus from "@/components/table/common/TableStatus";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { optionalNumber, optionalText } from "@/lib/form";
 import { Action, Module, Reach } from "@/lib/access";
@@ -74,9 +75,9 @@ function SectionHeader({ title, hint }) {
 /**
  * Empty, not pre-filled.
  *
- * Only the two closed lists that have a real default — a new lead genuinely is
- * NEW, and MEDIUM priority is the "nobody has decided" value the API stores
- * anyway. Everything else starts blank so a hurried save cannot invent a
+ * Stage and follow-up come from the desk defaults. MEDIUM priority is the
+ * "nobody has decided" value the API stores. Everything else starts blank
+ * so a hurried save cannot invent a
  * person, a route or a budget.
  */
 const EMPTY_FORM = {
@@ -86,7 +87,7 @@ const EMPTY_FORM = {
   email: "",
   phone: "",
   leadSource: "",
-  leadStage: "NEW",
+  leadStage: "",
   priority: "MEDIUM",
   assignedBrokerId: "",
   nextFollowUpAt: "",
@@ -115,7 +116,7 @@ function initialForm(lead, settings) {
       : "";
     return {
       ...EMPTY_FORM,
-      leadStage: settings?.defaultLeadStage || "NEW",
+      leadStage: settings?.defaultLeadStage ?? "",
       nextFollowUpAt: followUpDate,
     };
   }
@@ -127,7 +128,7 @@ function initialForm(lead, settings) {
     email: fieldValue(lead.email),
     phone: fieldValue(lead.phone),
     leadSource: lead.rawSource || "",
-    leadStage: lead.rawStage || "NEW",
+    leadStage: lead.rawStage || "",
     priority: lead.rawPriority || "MEDIUM",
     assignedBrokerId:
       lead.brokerId ?? lead.assignedBrokerId ?? lead.assignedBroker?.id ?? "",
@@ -140,7 +141,7 @@ export default function AddLeadDialog() {
   const open = useLeadsAgentsStore((s) => s.addLeadModalOpen);
   const editingLead = useLeadsAgentsStore((s) => s.editingLead);
   const closeModal = useLeadsAgentsStore((s) => s.closeAddLeadModal);
-  const { data: settings } = useSettings();
+  const { data: settings, isPending: defaultsPending } = useDeskDefaults({ enabled: open });
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && closeModal()}>
@@ -148,7 +149,8 @@ export default function AddLeadDialog() {
         {/* Keyed so the form remounts with fresh state whenever the dialog
             opens on a different lead — React's own answer to "reset state when
             a prop changes". */}
-        {open && (
+        {open && defaultsPending && <TableStatus isLoading />}
+        {open && !defaultsPending && (
           <LeadForm
             key={editingLead?.id ?? "new"}
             editingLead={editingLead}
@@ -236,14 +238,14 @@ function LeadForm({ editingLead, settings, onDone }) {
       // no control for either, so sending them on edit silently turned a
       // travel-agent lead into a direct client every time it was saved.
       ...(editing ? {} : { type: "DIRECT", status: "LEAD" }),
-      leadStage: form.leadStage,
+      leadStage: form.leadStage || undefined,
       leadSource: form.leadSource || "DIRECT",
       priority: form.priority,
       followUpMethod: form.followUpMethod || null,
       ...(mayAssignBroker ? { assignedBrokerId: optional(form.assignedBrokerId) } : {}),
       nextFollowUpAt: form.nextFollowUpAt
         ? new Date(`${form.nextFollowUpAt}T00:00`).toISOString()
-        : null,
+        : optional(""),
     };
 
     if (editing) {

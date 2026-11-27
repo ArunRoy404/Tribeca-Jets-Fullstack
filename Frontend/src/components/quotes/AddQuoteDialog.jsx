@@ -13,7 +13,7 @@ import { useAirport } from "@/hooks/airports";
 import { useOperator } from "@/hooks/operators";
 import { useAircraft } from "@/hooks/aircraft";
 import { useUser } from "@/hooks/users";
-import { useSettings } from "@/hooks/settings";
+import { useDeskDefaults } from "@/hooks/settings";
 import { displayName } from "@/lib/client";
 import {
   formatMoney,
@@ -21,7 +21,6 @@ import {
 } from "@/lib/lead";
 import { formatCalendarDate, toDateInput } from "@/lib/date";
 import {
-  DEFAULT_FET_RATE,
   formatFetRate,
   formatMargin,
   formatQuoteStatus,
@@ -73,10 +72,8 @@ import { optionalNumber, optionalText } from "@/lib/form";
  * the API the first time a rounding rule changed, and that is true of a
  * preview exactly as much as it is true of a saved row.
  *
- * **Nothing here defaults a value.** Every field opens blank; only
- * `fetEnabled` survives from `EMPTY_FORM`, because it is a real API default
- * (domestic legs are taxable) shown as a switch the broker can see, not a
- * hidden number.
+ * A new quote is seeded from the desk defaults. Missing defaults stay absent
+ * so the server can apply the current company values on create.
  *
  * The right pane reuses the same cards `QuoteDetailsView` renders for a saved
  * quote (`QuoteBreakdownCard`, `FlightDetailsCard`, `QuoteProfitabilityCard`,
@@ -117,9 +114,9 @@ const EMPTY_FORM = {
   basePrice: "",
   operatorCost: "",
   depositAmount: "",
-  fetEnabled: true,
+  fetEnabled: undefined,
   lineItems: [],
-  terms: "",
+  terms: undefined,
   internalNotes: "",
   versionNote: "",
 };
@@ -133,7 +130,7 @@ export default function AddQuoteDialog() {
   const editing = useQuotesStore((s) => s.editingQuote);
   const draft = useQuotesStore((s) => s.draftQuote);
   const closeModal = useQuotesStore((s) => s.closeAddQuoteModal);
-  const { data: settings } = useSettings();
+  const { data: settings } = useDeskDefaults({ enabled: open });
 
   const [activeTab, setActiveTab] = useState("form");
 
@@ -145,6 +142,8 @@ export default function AddQuoteDialog() {
   const seesFinancials = canAccess(Module.QUOTES, Action.VIEW_MONEY);
 
   const [form, setForm] = useState(EMPTY_FORM);
+  const effectiveFetEnabled = form.fetEnabled ?? (!editing ? settings?.applyFetByDefault : undefined);
+  const effectiveTerms = form.terms ?? (!editing ? settings?.defaultQuoteTerms : undefined) ?? "";
   const [fieldErrors, setFieldErrors] = useState({});
   const setField = (field) => (value) => {
     if (fieldErrors[field]) {
@@ -280,8 +279,7 @@ export default function AddQuoteDialog() {
       !editing
         ? {
             ...EMPTY_FORM,
-            fetEnabled: settings?.applyFetByDefault !== undefined ? settings.applyFetByDefault : true,
-            terms: settings?.defaultQuoteTerms || "",
+            fetEnabled: settings?.applyFetByDefault,
             ...(draft ?? {}),
           }
         : {
@@ -301,7 +299,7 @@ export default function AddQuoteDialog() {
             basePrice: editing.rawBasePrice ?? "",
             operatorCost: editing.rawOperatorCost ?? "",
             depositAmount: editing.rawDeposit ?? "",
-            fetEnabled: editing.fetEnabled ?? true,
+            fetEnabled: editing.fetEnabled,
             lineItems: (editing.lineItems ?? []).map((li) => ({
               key: `li-${++lineItemSeq}`,
               label: li.label === "—" ? "" : (li.label ?? ""),
@@ -356,13 +354,21 @@ export default function AddQuoteDialog() {
   // the effect below, which oxlint's react-hooks/set-state-in-effect rule
   // (correctly) flags: clearing derived state belongs in the render it
   // affects, not as a side effect of an unrelated field changing.
-  const effectivePricePreview = hasValidBase ? pricePreview : null;
-
   const editingFetRate =
     editing?.fetRate === null || editing?.fetRate === undefined ? null : Number(editing.fetRate);
   // The rate the label shows: the server's own answer once it has priced,
   // else the edited quote's rate, else the default a new quote is saved with.
-  const fetRateShown = effectivePricePreview?.fetRate ?? editingFetRate ?? DEFAULT_FET_RATE;
+  const previewInputs = {
+    basePrice: Number(trimmedBase),
+    fetEnabled: effectiveFetEnabled,
+    ...(editingFetRate !== null ? { fetRate: editingFetRate } : {}),
+    operatorCost: optionalNumber(form.operatorCost),
+    lineItems: validLineItemsForPreview,
+  };
+  const previewKey = JSON.stringify(previewInputs);
+  const effectivePricePreview = hasValidBase && pricePreview?.key === previewKey ? pricePreview : null;
+  const settingFetRate = editing || settings?.defaultFetPercent === undefined ? undefined : settings.defaultFetPercent / 100;
+  const fetRateShown = effectivePricePreview?.fetRate ?? editingFetRate ?? settingFetRate;
 
   useEffect(() => {
     if (!hasValidBase) return undefined;
@@ -370,7 +376,7 @@ export default function AddQuoteDialog() {
       fetchPricePreview(
         {
           basePrice: Number(trimmedBase),
-          fetEnabled: form.fetEnabled,
+          fetEnabled: effectiveFetEnabled,
           // An edited quote keeps the rate it was saved with; the preview
           // must price at that rate, not the default a new quote gets.
           ...(editingFetRate !== null ? { fetRate: editingFetRate } : {}),
@@ -378,13 +384,13 @@ export default function AddQuoteDialog() {
           lineItems: validLineItemsForPreview,
         },
         {
-          onSuccess: (data) => setPricePreview(data),
+          onSuccess: (data) => setPricePreview({ ...data, key: previewKey }),
           onError: () => setPricePreview(null),
         },
       );
     }, 400);
     return () => clearTimeout(handle);
-  }, [hasValidBase, trimmedBase, form.fetEnabled, editingFetRate, form.operatorCost, validLineItemsForPreview, fetchPricePreview]);
+  }, [hasValidBase, trimmedBase, effectiveFetEnabled, editingFetRate, form.operatorCost, validLineItemsForPreview, fetchPricePreview, previewKey]);
 
   // ---- The live preview document ---------------------------------------------
   // Shaped like `lib/quote.js`'s `toQuoteRow()` so the reused cards below read
@@ -431,9 +437,9 @@ export default function AddQuoteDialog() {
       sourcedFrom: null,
 
       basePrice: hasValidBase ? formatMoney(Number(trimmedBase)) : "—",
-      fetEnabled: form.fetEnabled,
+      fetEnabled: effectiveFetEnabled,
       fetRateLabel: formatFetRate(fetRateShown),
-      fet: !form.fetEnabled ? "Not charged" : effectivePricePreview ? formatMoney(effectivePricePreview.fetAmount) : "—",
+      fet: effectiveFetEnabled === false ? "Not charged" : effectivePricePreview ? formatMoney(effectivePricePreview.fetAmount) : "—",
       lineItems: previewLineItems,
       total: effectivePricePreview ? formatMoney(effectivePricePreview.totalPrice) : "—",
       rawDeposit: depositValue ?? null,
@@ -455,14 +461,14 @@ export default function AddQuoteDialog() {
       expiry: formatCalendarDate(form.validUntil),
       isExpired: false,
 
-      terms: form.terms,
+      terms: effectiveTerms,
       notes: form.internalNotes,
       decisionNote: editing?.decisionNote || "",
       isArchived: editing?.isArchived ?? false,
     };
   }, [
-    editing, hasValidBase, trimmedBase, form.fetEnabled, fetRateShown, form.departureDate, form.returnDate,
-    form.validUntil, form.quotedAircraft, form.passengers, form.terms, form.internalNotes,
+    editing, hasValidBase, trimmedBase, effectiveFetEnabled, fetRateShown, form.departureDate, form.returnDate,
+    form.validUntil, form.quotedAircraft, form.passengers, effectiveTerms, form.internalNotes,
     form.depositAmount, form.operatorCost, selectedClient, selectedBroker,
     selectedOperator, selectedOriginAirport, selectedDestinationAirport,
     selectedAircraft, previewLineItems, effectivePricePreview, seesFinancials,
@@ -477,7 +483,7 @@ export default function AddQuoteDialog() {
     if (!form.originAirportId) errors.originAirportId = "Departure airport is required";
     if (!form.destinationAirportId) errors.destinationAirportId = "Arrival airport is required";
     if (!form.departureDate) errors.departureDate = "Departure date is required";
-    if (String(form.basePrice).trim() === "") {
+    if (String(form.basePrice).trim() === "" && (editing || optionalNumber(form.operatorCost) === undefined)) {
       errors.basePrice = "The base price is required";
     }
     if (form.departureDate && form.returnDate && form.returnDate < form.departureDate) {
@@ -504,22 +510,22 @@ export default function AddQuoteDialog() {
       returnDate: form.returnDate ? String(form.returnDate).slice(0, 10) : (clear.editing ? null : undefined),
       validUntil: form.validUntil ? String(form.validUntil).slice(0, 10) : (clear.editing ? null : undefined),
       passengers: optionalNumber(form.passengers, clear),
-      basePrice: Number(form.basePrice),
-      fetEnabled: form.fetEnabled,
+      basePrice: optionalNumber(form.basePrice),
+      fetEnabled: effectiveFetEnabled,
       operatorCost: optionalNumber(form.operatorCost, clear),
       depositAmount: optionalNumber(form.depositAmount, clear),
       lineItems: validLineItemsForPreview,
-      terms: optionalText(form.terms, clear),
+      terms: editing ? optionalText(effectiveTerms, clear) : form.terms === undefined ? undefined : form.terms.trim(),
       internalNotes: optionalText(form.internalNotes, clear),
     };
 
     if (editing) {
       updateQuote(
         { id: editing.id, ...payload, versionNote: optionalText(form.versionNote) },
-        { onSuccess: handleClose },
+        { onSuccess: handleClose, onError: (error) => setFieldErrors(error?.fieldErrors ?? {}) },
       );
     } else {
-      createQuote(payload, { onSuccess: handleClose });
+      createQuote(payload, { onSuccess: handleClose, onError: (error) => setFieldErrors(error?.fieldErrors ?? {}) });
     }
   };
 
@@ -687,7 +693,8 @@ export default function AddQuoteDialog() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
               <FormField
-                label="Base price ($) *"
+                label="Base price ($)"
+                optional={!editing}
                 labelClassName={LABEL_CLASS}
                 error={fieldErrors.basePrice}
               >
@@ -699,6 +706,7 @@ export default function AddQuoteDialog() {
                   value={form.basePrice}
                   onChange={(e) => setField("basePrice")(e.target.value)}
                 />
+                  {!editing && <p className="mt-1.5 font-montserrat text-[12px] text-muted-foreground">Leave blank to use operator cost plus the company markup.</p>}
               </FormField>
               <FormField label="Valid until / expiry" optional labelClassName={LABEL_CLASS}>
                 <DatePicker
@@ -742,15 +750,22 @@ export default function AddQuoteDialog() {
                     onChange={(e) => setField("operatorCost")(e.target.value)}
                   />
                 </FormField>
-                <FormField label="Deposit ($)" optional labelClassName={LABEL_CLASS}>
+                <FormField label="Deposit ($)" optional labelClassName={LABEL_CLASS} error={fieldErrors.depositAmount}>
                   <Input
                     className={FIELD_CLASS}
                     type="number"
                     min="0"
                     placeholder="e.g. 20000"
+                    step="0.01"
+                    max={effectivePricePreview?.totalPrice}
                     value={form.depositAmount}
                     onChange={(e) => setField("depositAmount")(e.target.value)}
                   />
+                  {effectivePricePreview?.totalPrice != null && (
+                    <p className="mt-1.5 font-montserrat text-[12px] text-muted-foreground">
+                      Maximum {formatMoney(effectivePricePreview.totalPrice)}
+                    </p>
+                  )}
                 </FormField>
               </div>
             )}
@@ -758,7 +773,8 @@ export default function AddQuoteDialog() {
             {seesFinancials && (
               <SuggestedPricePicker
                 operatorCost={form.operatorCost}
-                fetEnabled={form.fetEnabled}
+                fetEnabled={effectiveFetEnabled}
+                fetRate={editingFetRate ?? undefined}
                 lineItems={validLineItemsForPreview}
                 basePrice={form.basePrice}
                 onPick={(price) => setField("basePrice")(String(price))}
@@ -778,11 +794,11 @@ export default function AddQuoteDialog() {
                   international leg.
                 </span>
               </div>
-              <Switch
-                checked={form.fetEnabled}
+              {effectiveFetEnabled === undefined ? <span className="text-muted-foreground">—</span> : <Switch
+                checked={effectiveFetEnabled}
                 onCheckedChange={setField("fetEnabled")}
                 className="data-checked:bg-warning"
-              />
+              />}
             </div>
 
             {/* Extras — catering, ground transportation, de-icing. Mirrors
@@ -855,7 +871,7 @@ export default function AddQuoteDialog() {
             <FormField label="Terms" optional labelClassName={LABEL_CLASS}>
               <Textarea
                 placeholder="Printed on the quote the client sees."
-                value={form.terms}
+                value={effectiveTerms}
                 onChange={(e) => setField("terms")(e.target.value)}
                 className="min-h-20 text-[13px] font-montserrat resize-none"
               />

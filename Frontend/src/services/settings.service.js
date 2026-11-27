@@ -17,6 +17,8 @@ function buildImportFormData({ file, type, mapping }) {
  * No toasts, no redirects, no cache writes; services only talk HTTP.
  */
 export const settingsService = {
+  /** GET /settings/desk-defaults — six defaults for signed-in staff forms. */
+  deskDefaults: () => request({ url: "/settings/desk-defaults", method: "GET" }),
   /** GET /settings — `{ company, defaults, security, rateLimits, notifications, updatedAt }`. */
   get: () => request({ url: "/settings", method: "GET" }),
 

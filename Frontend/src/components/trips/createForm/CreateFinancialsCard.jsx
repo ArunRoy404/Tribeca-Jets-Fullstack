@@ -12,6 +12,8 @@ import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
 import { optionalNumber } from "@/lib/form";
 import { formatMoney } from "@/lib/money";
+import { formatFetRate } from "@/lib/quote";
+import { useDeskDefaults } from "@/hooks/settings";
 
 /**
  * The trip's price. FET, total and profit are the **server's** figures, from
@@ -24,7 +26,10 @@ import { formatMoney } from "@/lib/money";
  * Receivables (#16). Fields for either here would be stored nowhere.
  */
 export default function CreateFinancialsCard() {
-  const { basePrice, operatorCost, fetEnabled, setField } = useCreateTripStore();
+  const { basePrice, operatorCost, fetEnabled: chosenFet, fetRate: savedFetRate, editingId, setField } = useCreateTripStore();
+  const { data: defaults } = useDeskDefaults();
+  const fetEnabled = chosenFet ?? (!editingId ? defaults?.applyFetByDefault : undefined);
+  const fetRate = savedFetRate ?? (!editingId && defaults?.defaultFetPercent !== undefined ? defaults.defaultFetPercent / 100 : undefined);
   const { canAccess } = usePermissions();
   const seesFinancials = canAccess(Module.TRIPS, Action.VIEW_MONEY);
 
@@ -36,20 +41,20 @@ export default function CreateFinancialsCard() {
     if (base === undefined) return undefined;
     const handle = setTimeout(() => {
       preview(
-        { basePrice: base, fetEnabled, operatorCost: optionalNumber(operatorCost) },
+        { basePrice: base, fetEnabled, fetRate, operatorCost: optionalNumber(operatorCost) },
         { onSuccess: (data) => setPriced({ ...data, forBase: base }), onError: () => setPriced(null) },
       );
     }, 400);
     return () => clearTimeout(handle);
-  }, [base, operatorCost, fetEnabled, preview]);
+  }, [base, operatorCost, fetEnabled, fetRate, preview]);
 
   const current = base !== undefined && priced?.forBase === base ? priced : null;
 
   return (
     <DetailCard title="Financials" description="The client's price and the operator's cost. FET and profit are worked out by the server.">
       <div className="flex items-center justify-between rounded-sm bg-warning/10 px-3 py-2">
-        <p className="font-montserrat font-semibold text-[13px] text-warning">FET applies (7.5%)</p>
-        <Switch checked={fetEnabled} onCheckedChange={(v) => setField?.("fetEnabled", v)} />
+        <p className="font-montserrat font-semibold text-[13px] text-warning">FET applies{fetRate !== undefined ? ` (${formatFetRate(fetRate)})` : ""}</p>
+        {fetEnabled === undefined ? <span className="text-muted-foreground">—</span> : <Switch checked={fetEnabled} onCheckedChange={(v) => setField?.("fetEnabled", v)} />}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -67,6 +72,7 @@ export default function CreateFinancialsCard() {
         <SuggestedPricePicker
           operatorCost={operatorCost}
           fetEnabled={fetEnabled}
+          fetRate={fetRate}
           lineItems={[]}
           basePrice={basePrice}
           onPick={(price) => setField?.("basePrice", String(price))}

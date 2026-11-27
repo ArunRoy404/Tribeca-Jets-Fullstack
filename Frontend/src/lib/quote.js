@@ -67,13 +67,6 @@ export function formatMargin(value) {
   return Number.isFinite(number) ? `${number}%` : DASH;
 }
 
-/**
- * The FET rate a new quote is saved with — `Quote.fetRate`'s own
- * `@default(0.075)`, which the API also restates for its price preview.
- * Only a label's fallback before the server has priced anything.
- */
-export const DEFAULT_FET_RATE = 0.075;
-
 /** The FET rate as the form says it: 0.075 → "7.5%". */
 export function formatFetRate(rate) {
   if (rate === null || rate === undefined) return DASH;
@@ -157,7 +150,7 @@ export function toQuoteRow(quote) {
     // ---- Money. Every figure below the first four came from the API. -------
     basePrice: formatMoney(quote?.basePrice),
     rawBasePrice: quote?.basePrice ?? null,
-    fetEnabled: quote?.fetEnabled ?? true,
+    fetEnabled: quote?.fetEnabled,
     fetRate: quote?.fetRate ?? null,
     fetRateLabel: formatFetRate(quote?.fetRate),
     fet: quote?.fetEnabled ? formatMoney(quote?.fetAmount) : "Not charged",

@@ -34,7 +34,8 @@ const initialState = {
 
   basePrice: "",
   operatorCost: "",
-  fetEnabled: true,
+  fetEnabled: undefined,
+  fetRate: undefined,
 
   internalNotes: "",
   clientNotes: "",
@@ -156,7 +157,8 @@ export const useCreateTripStore = create((set) => ({
       attachments: [],
       basePrice: str(trip?.basePrice),
       operatorCost: trip?.operatorCost === undefined ? "" : str(trip?.operatorCost),
-      fetEnabled: trip?.fetEnabled ?? true,
+      fetEnabled: trip?.fetEnabled,
+      fetRate: trip?.fetRate,
       internalNotes: str(trip?.internalNotes),
       clientNotes: str(trip?.clientNotes),
     });

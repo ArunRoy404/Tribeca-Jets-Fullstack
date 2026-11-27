@@ -170,6 +170,7 @@ export function toTripRow(trip) {
     type: formatTripType(trip?.type),
     total: money(trip?.totalPrice),
     fet: money(trip?.fetAmount),
+    fetRate: trip?.fetRate ?? null,
     profit: money(trip?.grossProfit),
     // The client's billing across this trip's invoices (Receivables, #16) and
     // what its operators billed and were paid (Operator Payments, #17), both

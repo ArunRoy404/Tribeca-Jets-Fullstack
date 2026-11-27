@@ -124,6 +124,14 @@ export function toSummaryTiles(summary, period) {
         ? { badgeText: `${plural(receivables.overdueCount, "overdue payment")}`, tone: "warning" }
         : {}),
     });
+    tiles.push({
+      id: "uninvoiced",
+      icon: ICON(5),
+      title: "Not yet invoiced",
+      value: formatMoney(receivables?.uninvoiced),
+      subtitle: "booked trip value still to invoice",
+      subtitleTone: "muted",
+    });
   }
 
   const payables = summary?.operatorPayments;

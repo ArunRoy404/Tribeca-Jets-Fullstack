@@ -16,6 +16,7 @@ import AirportPicker from "@/components/airports/AirportPicker";
 import SuggestedPricePicker from "@/components/quotes/pricing/SuggestedPricePicker";
 import CharterRatesEditor from "@/components/quotes/estimate/CharterRatesEditor";
 import { useCharterEstimate } from "@/hooks/charter-rates";
+import { useStartEstimateQuote } from "@/hooks/quotes";
 import { useQuotesStore } from "@/store/useQuotesStore";
 import { formatAircraftCategory } from "@/lib/aircraft";
 import { formatMoney } from "@/lib/money";
@@ -37,16 +38,15 @@ const FIELD_CLASS = "h-10 text-[13px]";
  * shows the suggested prices at each markup over that estimate, and "Start a
  * quote" opens a new quote with the route, party and chosen price filled in.
  *
- * The estimate is not written into the quote's operator cost: that field is
- * what the operator actually charges, and an estimate sitting in it would be
- * read later as a real price.
+ * The estimate seeds the operator cost. The base is the picked suggestion or
+ * the server's default-markup suggestion; no price is calculated here.
  *
  * `mayStartQuote` hides "Start a quote" for someone who cannot create quotes.
  */
 export default function InstantEstimateDialog({ mayStartQuote = true }) {
   const open = useQuotesStore((s) => s.estimateModalOpen);
   const close = useQuotesStore((s) => s.closeEstimateModal);
-  const openAddQuoteModal = useQuotesStore((s) => s.openAddQuoteModal);
+  const { mutate: openQuote, isPending: startingQuote } = useStartEstimateQuote();
 
   const [tab, setTab] = useState("Estimate");
   const [originAirportId, setOrigin] = useState("");
@@ -107,17 +107,14 @@ export default function InstantEstimateDialog({ mayStartQuote = true }) {
   };
 
   const startQuote = () => {
-    const effectiveBasePrice =
-      basePrice || (chosen?.estimate?.estimatedCost ? String(chosen.estimate.estimatedCost) : "");
-    openAddQuoteModal?.(null, {
+    openQuote({
       originAirportId,
       destinationAirportId,
       ...(party !== undefined ? { passengers: String(party) } : {}),
       ...(selected ? { quotedAircraft: formatAircraftCategory(selected) } : {}),
-      ...(effectiveBasePrice ? { basePrice: effectiveBasePrice } : {}),
-      ...(chosen?.estimate?.estimatedCost ? { operatorCost: String(chosen.estimate.estimatedCost) } : {}),
-    });
-    handleClose();
+      basePrice,
+      ...(chosen?.estimate?.estimatedCost != null ? { operatorCost: String(chosen.estimate.estimatedCost) } : {}),
+    }, { onSuccess: handleClose });
   };
 
   return (
@@ -237,7 +234,6 @@ export default function InstantEstimateDialog({ mayStartQuote = true }) {
                     </p>
                     <SuggestedPricePicker
                       operatorCost={String(chosen.estimate?.estimatedCost ?? "")}
-                      fetEnabled
                       lineItems={[]}
                       basePrice={basePrice}
                       onPick={(price) => setBasePrice(String(price))}
@@ -248,13 +244,12 @@ export default function InstantEstimateDialog({ mayStartQuote = true }) {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 pt-2 border-t border-border">
                   {mayStartQuote ? (
                     <span className="font-montserrat text-[11px] text-muted-foreground sm:mr-auto">
-                      The quote opens with the route{basePrice ? " and the chosen price" : ""}; the operator cost stays
-                      empty until the operator quotes.
+                      The quote opens with the route, the estimated operator cost and the chosen or default-markup price.
                     </span>
                   ) : null}
                   {mayStartQuote ? (
-                    <Button type="button" onClick={startQuote} className="h-10 px-4 text-[13px]">
-                      Start a quote
+                    <Button type="button" onClick={startQuote} disabled={startingQuote || refreshing} className="h-10 px-4 text-[13px]">
+                      {startingQuote ? "Preparing quote…" : "Start a quote"}
                     </Button>
                   ) : null}
                 </div>

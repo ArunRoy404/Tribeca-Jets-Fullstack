@@ -158,6 +158,7 @@ export function toFinancialSummary(summary) {
     { label: "Avg Revenue / Trip", value: formatMoney(summary?.averageRevenue), tone: "foreground" },
     { label: "Avg Profit / Trip", value: formatMoney(summary?.averageProfit), tone: "foreground" },
     { label: "Outstanding AR", value: formatMoney(summary?.outstanding?.receivables), tone: "destructive" },
+    { label: "Not yet invoiced", value: formatMoney(summary?.outstanding?.uninvoiced), tone: "info" },
     { label: "Outstanding AP", value: formatMoney(summary?.outstanding?.payables), tone: "warning" },
   ];
 }

@@ -8,7 +8,8 @@ import AirportPicker from "@/components/airports/AirportPicker";
 import BrokerPicker from "@/components/users/BrokerPicker";
 import CommonSelect from "@/components/common/CommonSelect";
 import { usePermissions } from "@/hooks/common/usePermissions";
-import { useSettings } from "@/hooks/settings";
+import { useDeskDefaults } from "@/hooks/settings";
+import TableStatus from "@/components/table/common/TableStatus";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,7 +63,7 @@ const EMPTY = {
   phone: "",
   type: "DIRECT",
   status: "LEAD",
-  leadStage: "NEW",
+  leadStage: "",
   leadSource: "DIRECT",
   assignedBrokerId: "",
   homeAirportId: "",
@@ -94,7 +95,7 @@ function initialForm(client, settings) {
       : "";
     return {
       ...EMPTY,
-      leadStage: settings?.defaultLeadStage || "NEW",
+      leadStage: settings?.defaultLeadStage ?? "",
       nextFollowUpAt: followUpDate,
     };
   }
@@ -109,7 +110,7 @@ function initialForm(client, settings) {
     phone: client.phone === "—" ? "" : (client.phone ?? ""),
     type: client.rawType ?? "DIRECT",
     status: client.rawStatus ?? "LEAD",
-    leadStage: client.rawLeadStage ?? "NEW",
+    leadStage: client.rawLeadStage ?? "",
     leadSource: client.rawLeadSource ?? "DIRECT",
     assignedBrokerId: client.assignedBrokerId ?? "",
     homeAirportId: client.homeAirportId ?? "",
@@ -128,7 +129,7 @@ export default function AddClientDialog() {
   const open = useClientsStore((s) => s.addModalOpen);
   const editingClient = useClientsStore((s) => s.editingClient);
   const closeModal = useClientsStore((s) => s.closeAddModal);
-  const { data: settings } = useSettings();
+  const { data: settings, isPending: defaultsPending } = useDeskDefaults({ enabled: open });
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && closeModal()}>
@@ -138,7 +139,8 @@ export default function AddClientDialog() {
           on a different client. An effect calling setState renders once with
           the previous client's values before correcting itself.
         */}
-        {open && (
+        {open && defaultsPending && <TableStatus isLoading />}
+        {open && !defaultsPending && (
           <ClientForm
             key={editingClient?.id ?? "new"}
             editingClient={editingClient}
@@ -246,14 +248,14 @@ function ClientForm({ editingClient, settings, onDone }) {
       phone: optional(form.phone),
       type: form.type,
       status: form.status,
-      leadStage: form.leadStage,
+      leadStage: form.leadStage || undefined,
       leadSource: form.leadSource,
       ...(mayAssignBroker ? { assignedBrokerId: optional(form.assignedBrokerId) } : {}),
       homeAirportId: form.homeAirportId || null,
       birthday: optional(form.birthday),
       nextFollowUpAt: form.nextFollowUpAt
         ? new Date(`${form.nextFollowUpAt}T00:00`).toISOString()
-        : null,
+        : optional(""),
       notes: optional(form.notes),
       preferences: {
         ...untouchedPreferences,
