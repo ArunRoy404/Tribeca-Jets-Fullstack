@@ -70,6 +70,7 @@ async function main(): Promise<void> {
   await prisma.quote.deleteMany({});
   await prisma.operatorQuote.deleteMany({});
   await prisma.tripRequest.deleteMany({});
+  await prisma.emptyLeg.deleteMany({});
   await prisma.aircraft.deleteMany({});
   await prisma.operator.deleteMany({});
   await prisma.charterRate.deleteMany({});

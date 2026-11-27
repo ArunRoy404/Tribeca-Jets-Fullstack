@@ -806,7 +806,7 @@ export class ReceivablesService {
   private async findPayment(invoiceId: string, paymentId: string, archived: boolean) {
     const row = await this.prisma.invoicePayment.findFirst({
       where: { id: paymentId, invoiceId, deletedAt: archived ? { not: null } : null },
-      select: { id: true, amount: true },
+      select: { id: true, amount: true, method: true },
     });
     if (!row) throw new NotFoundException(archived ? 'Withdrawn payment not found' : 'Payment not found');
     return row;
@@ -841,6 +841,17 @@ export class ReceivablesService {
       metadata: {
         number: invoiceNumber(invoice.reference, invoice.createdAt),
         paymentId: payment.id,
+        amount: dto.amount,
+        method: dto.method,
+      },
+    });
+    await this.audit.record({
+      actorId: user.id,
+      action: 'client.payment_recorded',
+      entityType: 'Client',
+      entityId: invoice.clientId,
+      metadata: {
+        number: invoiceNumber(invoice.reference, invoice.createdAt),
         amount: dto.amount,
         method: dto.method,
       },
@@ -909,6 +920,18 @@ export class ReceivablesService {
         number: invoiceNumber(invoice.reference, invoice.createdAt),
         paymentId,
         amount: money(payment.amount),
+      },
+    });
+
+    await this.audit.record({
+      actorId: user.id,
+      action: 'client.payment_withdrawn',
+      entityType: 'Client',
+      entityId: invoice.clientId,
+      metadata: {
+        number: invoiceNumber(invoice.reference, invoice.createdAt),
+        amount: money(payment.amount),
+        method: payment.method,
       },
     });
 

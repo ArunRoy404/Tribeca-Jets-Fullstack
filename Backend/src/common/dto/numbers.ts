@@ -16,13 +16,14 @@ interface NumberOptions {
   min?: number;
   max?: number;
   int?: boolean;
+  rangeMessage?: string;
 }
 
-function base(message: string, { min, max, int }: NumberOptions) {
+function base(message: string, { min, max, int, rangeMessage }: NumberOptions) {
   let schema = z.coerce.number({ error: message });
   if (int) schema = schema.int(message);
-  if (min !== undefined) schema = schema.min(min);
-  if (max !== undefined) schema = schema.max(max);
+  if (min !== undefined) schema = schema.min(min, rangeMessage);
+  if (max !== undefined) schema = schema.max(max, rangeMessage);
   return schema;
 }
 

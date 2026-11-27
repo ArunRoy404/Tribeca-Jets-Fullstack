@@ -46,8 +46,8 @@ const iataSchema = z
  * field sends `""`, and `Number('')` is 0 — a valid-looking coordinate in the
  * Gulf of Guinea that nothing downstream could tell from a real one.
  */
-const LATITUDE = { min: -90, max: 90 };
-const LONGITUDE = { min: -180, max: 180 };
+const LATITUDE = { min: -90, max: 90, rangeMessage: 'Latitude must be between -90 and 90' };
+const LONGITUDE = { min: -180, max: 180, rangeMessage: 'Longitude must be between -180 and 180' };
 const RUNWAY = { min: 0, max: 30_000, int: true };
 
 export const queryAirportsSchema = paginationSchema

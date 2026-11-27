@@ -1,3 +1,4 @@
+import { assertDifferentAirports } from '../../common/validation/airports.js';
 import { assertBroker, BROKER_ROLES } from '../../common/authorization/roles.js';
 import {
   BadRequestException,
@@ -359,6 +360,7 @@ export class TripRequestsService {
   }
 
   async create(user: AuthenticatedUser, dto: CreateTripRequestInput) {
+    assertDifferentAirports(dto.originAirportId, dto.destinationAirportId);
     await this.assertClient(dto.clientId);
     await assertBroker(this.prisma, dto.assignedBrokerId);
     await this.assertAirport(dto.originAirportId, 'origin');
@@ -418,6 +420,11 @@ export class TripRequestsService {
       },
     });
     if (!target) throw new NotFoundException('Trip request not found');
+
+    assertDifferentAirports(
+      dto.originAirportId === undefined ? target.originAirportId : dto.originAirportId,
+      dto.destinationAirportId === undefined ? target.destinationAirportId : dto.destinationAirportId,
+    );
 
     // Compared against the stored client, like every other link below: an
     // edit form resends the client it already has, and a client archived

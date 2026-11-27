@@ -39,7 +39,11 @@ export const AIRCRAFT_SORTABLE_FIELDS = [
  */
 const PASSENGERS = { min: 1, max: 200, int: true };
 const RANGE_NM = { min: 1, max: 20_000, int: true };
-const YEAR = { min: 1950, max: new Date().getFullYear(), int: true };
+const YEAR = { min: 1950, int: true };
+// Read the clock at validation time, including on a server spanning New Year.
+const notFutureYear = (year: number | null | undefined) =>
+  year == null || year <= new Date().getFullYear();
+const yearMessage = 'Year built cannot be after the current year';
 const CEILING_FT = { min: 0, max: 100_000, int: true };
 const BAGGAGE_CU_FT = { min: 0, max: 5_000, int: true };
 const CABIN_LENGTH_FT = { min: 0, max: 300 };
@@ -157,7 +161,7 @@ export const createAircraftSchema = z.object({
 
   maxPassengers: optionalNumber('Passengers must be a whole number', PASSENGERS),
   rangeNm: optionalNumber('Range must be a whole number of nautical miles', RANGE_NM),
-  yearBuilt: optionalNumber('Year built must be a four-digit year', YEAR),
+  yearBuilt: optionalNumber('Year built must be a four-digit year', YEAR).refine(notFutureYear, yearMessage),
 
   /** Free text: jets are quoted in Mach, turboprops in knots. */
   maxSpeed: z.string().trim().max(40).optional(),
@@ -219,7 +223,7 @@ export const updateAircraftSchema = z
 
     maxPassengers: nullableNumber('Passengers must be a whole number', PASSENGERS),
     rangeNm: nullableNumber('Range must be a whole number of nautical miles', RANGE_NM),
-    yearBuilt: nullableNumber('Year built must be a four-digit year', YEAR),
+    yearBuilt: nullableNumber('Year built must be a four-digit year', YEAR).refine(notFutureYear, yearMessage),
 
     maxSpeed: z.string().trim().max(40).nullable().optional(),
     cruiseSpeed: z.string().trim().max(40).nullable().optional(),

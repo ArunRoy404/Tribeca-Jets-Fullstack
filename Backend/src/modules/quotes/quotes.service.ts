@@ -1,3 +1,4 @@
+import { assertDifferentAirports } from '../../common/validation/airports.js';
 import { assertBroker, BROKER_ROLES } from '../../common/authorization/roles.js';
 import {
   BadRequestException,
@@ -811,6 +812,10 @@ export class QuotesService {
     // Create carries a clientId and update does not, so the links are read
     // through one shape both inputs satisfy.
     const links: Partial<QuoteLinks> = input;
+    assertDifferentAirports(
+      links.originAirportId === undefined ? current?.originAirportId : links.originAirportId,
+      links.destinationAirportId === undefined ? current?.destinationAirportId : links.destinationAirportId,
+    );
     const changed = <K extends keyof QuoteLinks>(key: K): boolean => {
       const next = links[key];
       return next !== undefined && next !== null && next !== current?.[key];
