@@ -2,9 +2,9 @@
 """
 Builds the `10 · Quotes` folder, capturing every example live.
 
-Run the backend and seed it first:
+Capture only against the isolated Postman API and database (README):
 
-    npm run db:seed && npm run start:dev
+    POSTMAN_BASE=http://localhost:4100/api
     python3 postman/build_quotes_folder.py
 
 Examples are captured, never typed. A hand-written example drifts from the
@@ -17,104 +17,12 @@ does not grow the quotes board.
 
 import json
 import pathlib
-import urllib.error
-import urllib.request
-from http.cookiejar import CookieJar
 from collection_order import place_folder
 
 # The shared, overridable address (POSTMAN_BASE): this builder captured
 # against :4000, the API that sends real mail, until 10 Nov 2026.
-from builder_common import BASE, signed_in_id  # noqa: E402
+from builder_common import Session, MISSING, WRITE_HEADERS, copy_folder_login, example, script, signed_in_id, status_test  # noqa: E402
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
-PASSWORD = 'ChangeMe123!'
-MISSING = '00000000-0000-4000-8000-000000000000'
-
-
-class Session:
-    """A cookie-backed caller, echoing the CSRF cookie the way the app does."""
-
-    def __init__(self, email: str) -> None:
-        self.jar = CookieJar()
-        self.opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(self.jar)
-        )
-        self.request('POST', '/auth/login', {'email': email, 'password': PASSWORD})
-
-    @property
-    def csrf(self) -> str:
-        for cookie in self.jar:
-            if cookie.name == 'tj_csrf':
-                return cookie.value or ''
-        return ''
-
-    def request(self, method: str, path: str, body=None):
-        """Returns (status, parsed body). Errors are captured, not raised."""
-        data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(BASE + path, data=data, method=method)
-        if data is not None:
-            req.add_header('Content-Type', 'application/json')
-        req.add_header('X-CSRF-Token', self.csrf)
-        try:
-            with self.opener.open(req) as response:
-                raw = response.read().decode()
-                return response.status, (json.loads(raw) if raw else None)
-        except urllib.error.HTTPError as error:
-            raw = error.read().decode()
-            try:
-                return error.code, json.loads(raw)
-            except json.JSONDecodeError:
-                return error.code, raw
-
-
-def example(name: str, method: str, path: str, status: int, body, req_body=None):
-    """
-    One Postman response example, carrying the request that produced it —
-    checked against its own label.
-
-    A captured example is not an assertion: Newman runs the request's test
-    script and never compares an example's name to the response stored beside
-    it. This folder shipped `204 · Removed` holding a 200, `200 · Priced`
-    holding a 201 and an assistant's `200` read holding a 404, all green. The
-    builder is the one place that knows the promised status and the received
-    one at the same moment, so it refuses to write the lie. The fix is always
-    the request, never the label.
-    """
-    promised = name.split(' ', 1)[0]
-    if promised.isdigit() and int(promised) != status:
-        raise SystemExit(
-            f'refusing to write example {name!r}: the request returned {status}, '
-            f'not {promised}. Fix the request that captures it.')
-    original = {
-        'method': method,
-        'header': [],
-        'url': {'raw': '{{baseUrl}}' + path, 'host': ['{{baseUrl}}'],
-                'path': [p for p in path.lstrip('/').split('/') if p and '?' not in p]},
-    }
-    if req_body is not None:
-        original['body'] = {'mode': 'raw', 'raw': json.dumps(req_body, indent=2)}
-    return {
-        'name': name,
-        'originalRequest': original,
-        'status': {200: 'OK', 201: 'Created', 204: 'No Content', 400: 'Bad Request',
-                   401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found',
-                   409: 'Conflict'}[status],
-        'code': status,
-        '_postman_previewlanguage': 'json',
-        'header': [{'key': 'Content-Type', 'value': 'application/json; charset=utf-8'}],
-        'cookie': [],
-        'body': '' if body is None else json.dumps(body, indent=2, ensure_ascii=False),
-    }
-
-
-def script(listen: str, lines: list[str]):
-    return {'listen': listen, 'script': {'type': 'text/javascript', 'exec': lines}}
-
-
-WRITE_HEADERS = [
-    {'key': 'Content-Type', 'value': 'application/json'},
-    {'key': 'X-CSRF-Token', 'value': '{{csrfToken}}',
-     'description': 'Required on every write. Captured automatically after any login or refresh.'},
-]
 
 
 SORTABLE = ('createdAt | updatedAt | reference | basePrice | status | '
@@ -128,14 +36,14 @@ CREATE_BODY = """{
   "tripRequestId": "{{tripRequestId}}",                // optional · uuid. The enquiry this answers. Sending the quote moves that enquiry to QUOTED.
   "operatorQuoteId": "{{operatorQuoteId}}",            // optional · uuid of an OperatorQuote (module 09). This is the seam between the two: an operator quote is what an operator charges US, this is what the client pays. Linking them is what makes the margin traceable to a real number rather than one retyped from another screen.
 
-  "assignedBrokerId": null,                            // optional · uuid, or null. Defaults to the caller when they can own quotes. Other callers leave it unassigned.
+  // "assignedBrokerId": optional · uuid; omit to use the caller when eligible, otherwise unassigned.
 
   "operatorId": "{{operatorId}}",                      // optional · uuid. Who is flying it.
 
   // The aircraft, two ways — the same pattern operator quotes use. A real tail
   // when it is one we hold, free text when the operator is flying something we
   // have never entered.
-  "aircraftId": null,                                  // optional · uuid, or null
+  // "aircraftId": optional · uuid; omit when no tail is selected.
   "quotedAircraft": "Gulfstream G550",                 // optional · max 200 chars
   "exteriorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000001", // optional · exactly the relative URL POST /uploads/image returned (folder 11): /api/uploads/<uuid>. An absolute or external URL is a 400 — it would pin a host into the row, or serve an image this API never checked.
 
@@ -149,10 +57,10 @@ CREATE_BODY = """{
   "passengers": 4,                                     // optional · integer 1-100
 
   // ---- The priced inputs. Everything else is worked out on read. ----------
-  "basePrice": 79500,                                  // required · number 0-100000000, whole currency units, USD. The charter price BEFORE tax and extras.
+  // "basePrice": optional with operatorCost; omitted here to apply the company markup. Otherwise required, 0-100000000 before FET and extras.
 
-  "fetEnabled": true,                                  // optional · boolean, default true. US Federal Excise Tax on domestic air transportation. Set false for an international leg, which is exempt.
-  "fetRate": 0.075,                                    // optional · number 0-1. A RATE, not a percentage: 0.075, never 7.5. Above 1 is refused as a typo — "7.5" would turn a $79,500 quote into a $676,000 one, and it would go out to a client. Stored per quote because a statutory rate is a fact about when the quote was written.
+  // "fetEnabled": optional · omitted to use Company Settings. US Federal Excise Tax on domestic air transportation. Set false for an international leg, which is exempt.
+  // "fetRate": optional · omitted to use Company Settings. Number 0-1, a RATE rather than a percent. Above 1 is refused as a typo — "7.5" would turn a $79,500 quote into a $676,000 one, and it would go out to a client. Stored per quote because a statutory rate is a fact about when the quote was written.
 
   "operatorCost": 65000,                               // optional · number 0-100000000. What the flight costs US. Null until the operator's number is in — a margin of "we do not know yet" must read as unknown, never as 100% profit.
   "depositAmount": 20000,                              // optional · number 0-100000000. What the client pays up front to hold the aircraft.
@@ -219,7 +127,7 @@ PREVIEW_BODY = """{
   // that does not feed the pricing engine. Nothing here is persisted.
   "basePrice": 79500,                                  // required · number 0-100000000
 
-  "fetEnabled": true,                                  // optional · boolean, default true
+  "fetEnabled": true,                                  // optional · boolean, default from Company Settings
   "fetRate": 0.075,                                    // optional · number 0-1. A RATE, not a percentage.
 
   "operatorCost": 65000,                               // optional · number 0-100000000. Omit to see the client-side figures without a margin.
@@ -235,11 +143,11 @@ SUGGEST_BODY = """{
   // Client adjustment #6's suggested-price selector. What the base price would
   // be at each markup over the operator's cost. Nothing here is persisted.
   "operatorCost": 65000,                               // required · number 0-100000000. The markup sits on this.
-  "markupRates": [0.10, 0.15, 0.20],                   // required · 1-8 RATES, each 0-5. 0.15 is 15% — "15" is refused as the typo it is.
+  "markupRates": [0.10, 0.15, 0.20],                   // optional · omit for the company default markup; 1-8 RATES, each 0-5. 0.15 is 15% — "15" is refused as the typo it is.
 
   // Optional, mirroring the price preview, so each suggestion's total is the
   // total the client would actually see.
-  "fetEnabled": true,                                  // optional · boolean, default true
+  "fetEnabled": true,                                  // optional · boolean, default from Company Settings
   "lineItems": [                                       // optional · up to 40 entries, same shape as the create body
     { "label": "Ground transportation", "amount": 850, "included": false }
   ]
@@ -269,9 +177,6 @@ def build(owner, broker, assistant):
         'returnDate': '2026-11-17',
         'validUntil': '2026-10-20',
         'passengers': 4,
-        'basePrice': 79500,
-        'fetEnabled': True,
-        'fetRate': 0.075,
         'operatorCost': 65000,
         'depositAmount': 20000,
         'lineItems': [
@@ -282,13 +187,11 @@ def build(owner, broker, assistant):
         'internalNotes': 'Client always books the same cabin.',
     }
 
+    payload = {key: value for key, value in payload.items() if value is not None}
     cap = {}
     cap['list'] = owner.request('GET', '/quotes?page=1&limit=3')
     cap['list_400'] = owner.request('GET', '/quotes?status=sent')
-    cap['list_401'] = (401, {
-        'success': False, 'statusCode': 401, 'message': 'Unauthorized',
-        'path': '/quotes', 'timestamp': '2026-09-17T06:00:00.000Z',
-    })
+    cap['list_401'] = Session(None).request('GET', '/quotes')
     cap['stats'] = owner.request('GET', '/quotes/stats')
     cap['detail'] = owner.request('GET', f"/quotes/{seeded['id']}")
     cap['detail_404'] = owner.request('GET', f'/quotes/{MISSING}')
@@ -306,6 +209,13 @@ def build(owner, broker, assistant):
 
     cap['create'] = owner.request('POST', '/quotes', payload)
     new_id = cap['create'][1]['data']['id']
+    cap['missing_base'] = owner.request('POST', '/quotes', {'clientId': client_id})
+    deposit_probe = {'clientId': client_id, 'basePrice': 1000, 'fetEnabled': False, 'depositAmount': 1000.01}
+    cap['deposit_create'] = owner.request('POST', '/quotes', deposit_probe)
+    deposit_edit = {'basePrice': 1000, 'fetEnabled': False, 'lineItems': [], 'depositAmount': 1000.01}
+    cap['deposit_update'] = owner.request('PATCH', f'/quotes/{new_id}', deposit_edit)
+    cap['deposit_lower_price'] = owner.request('PATCH', f'/quotes/{new_id}', {'basePrice': 1, 'fetEnabled': False, 'lineItems': []})
+
     cap['create_400_rate'] = owner.request('POST', '/quotes', {
         'clientId': client_id, 'basePrice': 79500, 'fetRate': 7.5,
     })
@@ -351,6 +261,7 @@ def build(owner, broker, assistant):
         'lineItems': [{'label': 'Ground transportation', 'amount': 850, 'included': False}],
     }
     cap['suggest'] = owner.request('POST', '/quotes/suggested-price', suggest_payload)
+    cap['suggest_default'] = owner.request('POST', '/quotes/suggested-price', {'operatorCost': 65000})
     cap['suggest_400_cost'] = owner.request('POST', '/quotes/suggested-price', {'markupRates': [0.15]})
     cap['suggest_400_rate'] = owner.request('POST', '/quotes/suggested-price',
                                             {'operatorCost': 65000, 'markupRates': [15]})
@@ -426,8 +337,8 @@ def build(owner, broker, assistant):
     })
 
     # Leave both probes archived rather than on the working board.
-    owner.request('DELETE', f'/quotes/{new_id}')
-    owner.request('DELETE', f'/quotes/{copy_id}')
+    cap['teardown'] = owner.request('DELETE', f'/quotes/{new_id}')
+    cap['copy_teardown'] = owner.request('DELETE', f'/quotes/{copy_id}')
 
     query = [
         {'key': 'page', 'value': '1',
@@ -582,7 +493,7 @@ def build(owner, broker, assistant):
                          'options': {'raw': {'language': 'json'}}},
                 'url': url('/quotes'),
                 'description': (
-                    'Always created as a **DRAFT at version 1** — nothing reaches a client by '
+                    'Absent create fields take Company Settings: apply-FET, FET rate, validity and terms. Without basePrice, operatorCost plus the default markup supplies the base; neither price nor cost is a 400. A deposit cannot exceed the final total. Always created as a **DRAFT at version 1** — nothing reaches a client by '
                     'being saved, and `status` is not accepted here at all.\n\n**FET is charged on '
                     'the base charter price only.** US Federal Excise Tax applies to amounts paid '
                     'for taxable air transportation, which is the charter itself; catering and '
@@ -593,7 +504,9 @@ def build(owner, broker, assistant):
                     'quote into a $676,000 one — and that one would go out.'),
             },
             'response': [
-                example('201 · Draft written', 'POST', '/quotes', *cap['create'], req_body=payload),
+                example('201 · Base from company markup (operator cost only)', 'POST', '/quotes', *cap['create'], req_body=payload),
+                example('400 · Base price required', 'POST', '/quotes', *cap['missing_base'], req_body={'clientId': '{{clientId}}'}),
+                example('400 · Deposit over total', 'POST', '/quotes', *cap['deposit_create'], req_body=deposit_probe),
                 example('400 · FET rate typed as a percentage', 'POST', '/quotes', *cap['create_400_rate'],
                         req_body={'clientId': '{{clientId}}', 'basePrice': 79500, 'fetRate': 7.5}),
                 example('400 · Line item with neither a price nor "included"', 'POST', '/quotes', *cap['create_400_line'],
@@ -668,6 +581,8 @@ def build(owner, broker, assistant):
             },
             'response': [
                 example('200 · Repriced, now V2', 'PATCH', '/quotes/{{quoteId}}', *cap['update'], req_body=update_body),
+                example('400 · Deposit over total', 'PATCH', '/quotes/{{quoteId}}', *cap['deposit_update'], req_body=deposit_edit),
+                example('400 · Deposit over total after lowering price', 'PATCH', '/quotes/{{quoteId}}', *cap['deposit_lower_price'], req_body={'basePrice': 1, 'fetEnabled': False, 'lineItems': []}),
                 example('409 · The client has already answered', 'PATCH', '/quotes/{{quoteId}}', *cap['update_409'],
                         req_body={'basePrice': 90000}),
                 example('404 · Not found or out of scope', 'PATCH', f'/quotes/{MISSING}', *cap['update_404'],
@@ -876,27 +791,6 @@ def build(owner, broker, assistant):
                 '    pm.response.to.have.status(200);',
                 '});',
                 '',
-                '// Teardown. This is the last request in the folder, and the folder ends',
-                '// by restoring the quote it created — so every run would otherwise leave',
-                '// one more live quote on the board, plus the duplicate. Clients, airports',
-                '// and operators each accumulated dozens that way before anyone noticed.',
-                '//',
-                '// There is no hard delete in this system by design, so the run cannot',
-                '// erase its own rows. Archiving them is the best available end state.',
-                "const ids = [pm.collectionVariables.get('newQuoteId'),",
-                "             pm.collectionVariables.get('duplicatedQuoteId')];",
-                'ids.forEach(function (id) {',
-                '    if (!id) { return; }',
-                '    pm.sendRequest({',
-                "        url: pm.variables.get('baseUrl') + '/quotes/' + id,",
-                "        method: 'DELETE',",
-                "        header: { 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') },",
-                '    }, function (err) {',
-                "        if (err) { console.warn('teardown could not archive ' + id, err); }",
-                '    });',
-                '});',
-                "pm.collectionVariables.set('newQuoteId', '');",
-                "pm.collectionVariables.set('duplicatedQuoteId', '');",
             ])],
         },
         {
@@ -936,7 +830,7 @@ def build(owner, broker, assistant):
                 'description': (
                     'Client adjustment #6: *"a suggested price option where I can select different '
                     'percentages"*. Returns the base price at each markup over `operatorCost` '
-                    '(`markupRates`, as rates: 0.15 is 15%), and what each totals to the client with FET '
+                    '(`markupRates`, optional rates: 0.15 is 15%; omit for one suggestion at the company default markup), and what each totals to the client with FET '
                     'and extras — every figure from the same `priceQuote()` a saved quote uses.\n\n'
                     '**Persists nothing.** The broker picks one and it becomes the base price they submit; '
                     'the percentage is a way to arrive at the price, not a fact stored on the quote.\n\n'
@@ -947,6 +841,7 @@ def build(owner, broker, assistant):
             'response': [
                 example('200 · Suggestions', 'POST', '/quotes/suggested-price', *cap['suggest'],
                         req_body=suggest_payload),
+                example('200 · Default markup (one suggestion)', 'POST', '/quotes/suggested-price', *cap['suggest_default'], req_body={'operatorCost': 65000}),
                 example('400 · Operator cost is required', 'POST', '/quotes/suggested-price',
                         *cap['suggest_400_cost'], req_body={'markupRates': [0.15]}),
                 example('400 · Markup typed as a percentage', 'POST', '/quotes/suggested-price',
@@ -956,6 +851,17 @@ def build(owner, broker, assistant):
             ],
         },
     ]
+
+    for serial, variable, captured in [(19, 'newQuoteId', 'teardown'), (20, 'duplicatedQuoteId', 'copy_teardown')]:
+        path = '/quotes/{{' + variable + '}}'
+        items.append({
+            'name': f'{serial:02} · Teardown — archive {variable}',
+            'event': [status_test(204, 'probe archived')],
+            'request': {'method': 'DELETE', 'header': WRITE_HEADERS,
+                        'url': {'raw': '{{baseUrl}}' + path, 'host': ['{{baseUrl}}'], 'path': path.strip('/').split('/')},
+                        'description': 'Archives only this folder probe, in its own awaited request.'},
+            'response': [example('204 · Archived probe', 'DELETE', path, *cap[captured])],
+        })
 
     return {
         'name': '10 · Quotes',
@@ -988,10 +894,8 @@ def main() -> None:
     assistant = Session('assistant@example.com')
     collection = json.loads(COLLECTION.read_text())
 
-    sourcing_folder = next(
-        f for f in collection['item'] if f['name'].startswith('09'))
     folder = build(owner, broker, assistant)
-    folder['event'] = json.loads(json.dumps(sourcing_folder['event']))
+    copy_folder_login(collection, folder, '09')
 
     place_folder(collection, folder)
 

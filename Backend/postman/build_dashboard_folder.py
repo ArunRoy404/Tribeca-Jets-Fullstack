@@ -87,7 +87,7 @@ def build(owner: Session, broker: Session, assistant: Session, agent: Session, a
                 'description': (
                     'Upcoming trips and active requests as they stand now; revenue, FET and gross profit for trips '
                     'departing in the window against the window before it (`change` is a whole percent, null with '
-                    'nothing to compare); receivables, operator payments and empty legs as they stand. A section '
+                    'nothing to compare); receivables, operator payments and empty legs as they stand. `receivables.uninvoiced` is scoped booked trip value still to invoice as of today, whatever the period, behind the same permission as outstanding AR. A section '
                     'the caller may not read is absent — `money` for a role without VIEW_FINANCIALS. Any other '
                     'query parameter is a 400.'),
             },

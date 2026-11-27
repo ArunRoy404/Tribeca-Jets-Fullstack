@@ -50,7 +50,7 @@ CREATE_BODY = """{
   // computed on every read, never stored.
   "basePrice": 80000,                                  // optional · number 0-100000000. Omit for a draft with no price yet.
   "operatorCost": 65000,                               // optional · number
-  "fetEnabled": true,                                  // optional · boolean, default true
+  // "fetEnabled": optional · omit to use Company Settings apply-FET; fetRate also omitted for its current default.
   "internalNotes": "Prefers morning departures.",      // optional · max 5000
   "clientNotes": "Seafood catering."                   // optional · max 5000
 }"""
@@ -185,7 +185,7 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         'clientId': client_id, 'operatorId': operator_id, 'aircraftDescription': 'Challenger 350',
         'type': 'ROUND_TRIP', 'status': 'BOOKED', 'passengerCount': 4, 'legs': legs_for(a, b),
         'passengers': [{'fullName': 'Jonathan Reed', 'dateOfBirth': '1978-03-14', 'passportNumber': 'X1234567'}],
-        'basePrice': 80000, 'operatorCost': 65000, 'fetEnabled': True,
+        'basePrice': 80000, 'operatorCost': 65000,
         'internalNotes': 'Prefers morning departures.', 'clientNotes': 'Seafood catering.',
     }
 

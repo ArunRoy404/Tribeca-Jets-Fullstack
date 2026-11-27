@@ -9,8 +9,8 @@ Builds `29 · Reports` (#23), capturing every example from a live API.
 
 Every request in the folder is a read, so a Newman run writes nothing. The
 *builder* writes, so the examples show real figures rather than a seeded
-database's zeros: it books two probe trips on the seeded client Dana
-Whitfield (one priced, one not), invoices the priced one and records half
+database's zeros: it books two probe trips on a live client
+(one priced, one not), invoices the priced one and records half
 of it as paid — then withdraws the payment and archives the invoice and both
 trips before it saves anything, so a build leaves no debris behind.
 
@@ -64,17 +64,19 @@ def ok(result, what: str, expected: int):
 
 def seed_probe(owner: Session) -> dict:
     """Two trips in the window, an invoice on one, half of it paid. Archived again by `clear_probe`."""
-    client = first_id(owner, '/clients?search=Whitfield&limit=1', 'the seeded client Dana Whitfield')
-    kjfk = first_id(owner, '/airports?search=KJFK&limit=1', 'KJFK')
-    egll = first_id(owner, '/airports?search=EGLL&limit=1', 'EGLL')
+    client = first_id(owner, '/clients?limit=1', 'a live client')
+    airports = ok(owner.request('GET', '/airports?limit=2'), 'read two live airports', 200)['data']
+    if len(airports) < 2:
+        raise SystemExit('the reports probe needs two distinct live airports')
+    origin, destination = airports[0]['id'], airports[1]['id']
 
     priced = ok(owner.request('POST', '/trips', {
         'clientId': client, 'status': 'BOOKED', 'basePrice': 42000, 'operatorCost': 33500,
-        'legs': [{'originAirportId': kjfk, 'destinationAirportId': egll, 'departureDate': '2026-10-10'}],
+        'legs': [{'originAirportId': origin, 'destinationAirportId': destination, 'departureDate': '2026-10-10'}],
     }), 'book the priced probe trip', 201)['data']
     unpriced = ok(owner.request('POST', '/trips', {
         'clientId': client, 'status': 'BOOKED',
-        'legs': [{'originAirportId': egll, 'destinationAirportId': kjfk, 'departureDate': '2026-10-20'}],
+        'legs': [{'originAirportId': destination, 'destinationAirportId': origin, 'departureDate': '2026-10-20'}],
     }), 'book the unpriced probe trip', 201)['data']
     invoice = ok(owner.request('POST', '/receivables', {
         'tripId': priced['id'], 'amount': 42000, 'fetAmount': 3150, 'status': 'SENT', 'dueDate': '2026-10-08',
@@ -158,7 +160,7 @@ def build(owner: Session, anonymous: Session):
         cap['csv'] = download(owner, export_csv)
         cap['xlsx'] = download(owner, export_xlsx)
         cap['export_400_half'] = owner.request('GET', '/reports/export?from=2026-10-01&format=CSV')
-        cap['export_400_pdf'] = owner.request('GET', f'/reports/export?{WINDOW}&format=PDF')
+        cap['export_400_format'] = owner.request('GET', f'/reports/export?{WINDOW}&format=XML')
         cap['export_401'] = anonymous.request('GET', export_csv)
     finally:
         clear_probe(owner, probe)
@@ -172,7 +174,7 @@ def build(owner: Session, anonymous: Session):
                 'description': (
                     f'The tiles and the financial summary. {BY_DEPARTURE} `collected` is cash and the FET inside '
                     'it by payment date — each payment carries its invoice\'s share of FET, so a half-paid invoice '
-                    'has collected half its tax. `outstanding` is receivables and payables as they stand today. '
+                    'has collected half its tax. `outstanding` is receivables, payables and `uninvoiced` as they stand today, independent of the report window. `outstanding.uninvoiced` is scoped revenue trip value minus live non-cancelled invoice totals, clamped at zero per trip. '
                     'Averages and margin are null with nothing to divide. `operations` counts trips for the export '
                     'dialog. Any other query parameter is a 400.'),
             },
@@ -257,8 +259,7 @@ def build(owner: Session, anonymous: Session):
                     {'key': 'from', 'value': FROM, 'description': 'optional · YYYY-MM-DD. Send both `from` and `to`, '
                      'or neither for every operation on record.'},
                     {'key': 'to', 'value': TO, 'description': 'optional · YYYY-MM-DD, the last day included.'},
-                    {'key': 'format', 'value': 'CSV', 'description': 'optional · CSV | XLSX. Default CSV. PDF is not '
-                     'offered: nothing in the system generates one yet.'},
+                    {'key': 'format', 'value': 'CSV', 'description': 'optional · CSV | XLSX | PDF (case-sensitive). Default CSV.'},
                 ]),
                 'description': (
                     'One row per trip, oldest departure first: reference, departure, status, client, broker, route, '
@@ -270,8 +271,8 @@ def build(owner: Session, anonymous: Session):
                 file_example('200 · October as CSV', export_csv, *cap['csv'], note=''),
                 example('400 · Half a window', 'GET', '/reports/export?from=2026-10-01&format=CSV',
                         *cap['export_400_half']),
-                example('400 · PDF is not offered', 'GET', f'/reports/export?{WINDOW}&format=PDF',
-                        *cap['export_400_pdf']),
+                example('400 · XML is not offered', 'GET', f'/reports/export?{WINDOW}&format=XML',
+                        *cap['export_400_format']),
                 example('401 · Not signed in', 'GET', export_csv, *cap['export_401']),
             ],
         },
@@ -281,7 +282,7 @@ def build(owner: Session, anonymous: Session):
             'request': {
                 'method': 'GET', 'header': [],
                 'url': url('/reports/export', [
-                    {'key': 'format', 'value': 'XLSX', 'description': 'optional · CSV | XLSX. Default CSV.'},
+                    {'key': 'format', 'value': 'XLSX', 'description': 'optional · CSV | XLSX | PDF (case-sensitive). Default CSV.'},
                 ]),
                 'description': 'Every operation on record as one worksheet — a bold, frozen header row, and money '
                                'kept as numbers so the sheet can sum it. Use Postman\'s "Send and Download".',

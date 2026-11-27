@@ -11,7 +11,7 @@ sends a code.
 
 The settings are the company's real ones, so the folder **restores them
 exactly**: the builder puts back every value it changed, and the Newman run
-saves the whole set in `01` and sends it back in `06 · Teardown`.
+saves the whole set in `01` and sends it back in `07 · Teardown`.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import urllib.error
 import uuid
 import urllib.request
 
-from builder_common import BASE, FIXTURES, WRITE_HEADERS, Session, ensure_variables, example, script, url
+from builder_common import BASE, FIXTURES, WRITE_HEADERS, Session, ensure_variables, example, script, sign_in_as, url
 from collection_order import place_folder
 from session_setup import with_session
 
@@ -44,7 +44,7 @@ SECTIONS_DOC = """One set of settings for the whole company (owner's decision, 7
 
 **Fixed choices (case-sensitive numbers):** `quoteValidityHours` 12 · 24 · 48 · 72 · 168 — `followUpIntervalDays` 1 · 2 · 3 · 5 · 7 — `idleTimeoutMinutes` 5 · 10 · 15 · 30 · 60 — `idleWarningMinutes` 1 · 2 · 5 (less than the timeout) — `quoteExpiryWarningHours` 1 · 2 · 4 · 12 · 24 — `paymentReminderDays` 0 · 1 · 3 · 7 — `followUpReminderMinutes` 0 · 15 · 60 · 1440 — `failedSignInLimit` 3 · 5 · 10 · 20 · `null` (Never) — `failedSignInWindowMinutes` 5 · 15 · 30 · 60 — `signInLockoutMinutes` 1 · 5 · 15 · 30 · 60 · 1440 — `codeSendLimit` 3 · 5 · 10 · `null` — `codeSendWindowMinutes` 15 · 30 · 60 — `codeAttemptLimit` 3 · 5 · 10 · `null`. `failedSignInScope`: ACCOUNT_AND_IP (default — one email on one network) | ACCOUNT (one email from anywhere) | IP (everyone on one network). A `null` limit is \"Never\": nothing is counted, and a pause already running lifts. `defaultLeadStage`: NEW | CONTACTED | QUALIFIED | PROPOSAL | QUOTED | WON | LOST.
 
-**Permissions:** reading needs Settings · View, changing needs Settings · Edit — administrators by default; every other role is locked out (403). The branding and the logo are **public**."""
+**Permissions:** reading needs Settings · View, changing needs Settings · Edit — administrators by default; every other role is locked out (403). The branding and the logo are **public**. `GET /settings/desk-defaults` is a separate, narrow read for every signed-in staff member, with no Settings permission; the markup is omitted."""
 
 
 def fetch_bytes(path: str) -> tuple[int, int, dict]:
@@ -68,6 +68,9 @@ def capture() -> dict:
     cap['read'] = (status, before)
     cap['read_broker'] = broker.request('GET', '/settings')
     cap['read_anonymous'] = anonymous.request('GET', '/settings')
+    cap['desk_broker'] = broker.request('GET', '/settings/desk-defaults')
+    cap['desk_agent'] = Session('agent@example.com').request('GET', '/settings/desk-defaults')
+    cap['desk_anonymous'] = anonymous.request('GET', '/settings/desk-defaults')
 
     probe_validity = 48 if saved['defaults']['quoteValidityHours'] != 48 else 72
     cap['patch_body'] = {'defaults': {'quoteValidityHours': probe_validity}}
@@ -155,7 +158,7 @@ def build(cap: dict) -> dict:
                     "const current = pm.response.json().data;",
                     "pm.test('one object per screen', () =>",
                     "  pm.expect(current).to.include.keys('company', 'defaults', 'security', 'rateLimits', 'notifications'));",
-                    "// Saved whole, so 06 · Teardown can put every value back.",
+                    "// Saved whole, so 07 · Teardown can put every value back.",
                     "const { updatedAt, ...sections } = current;",
                     "pm.collectionVariables.set('settingsBefore', JSON.stringify(sections));",
                     "pm.collectionVariables.set('probeValidity', current.defaults.quoteValidityHours === 48 ? 72 : 48);",
@@ -295,7 +298,21 @@ def build(cap: dict) -> dict:
                 ],
             },
             {
-                'name': '06 · Teardown — put the settings back',
+                'name': '06 · Desk defaults (broker)',
+                'event': [script('prerequest', sign_in_as('brokerEmail', 'broker')), script('test', [
+                    "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                    "pm.test('six defaults only', () => pm.expect(Object.keys(pm.response.json().data)).to.have.members(['quoteValidityHours', 'defaultFetPercent', 'applyFetByDefault', 'defaultQuoteTerms', 'defaultLeadStage', 'followUpIntervalDays']));",
+                ])],
+                'request': {'method': 'GET', 'header': [], 'url': url('/settings/desk-defaults'),
+                            'description': 'Open to signed-in staff, including broker and assistant; referral agents are refused. Exactly six form defaults. No markup, company banking or security fields. Margin policy is applied on the server by Quotes suggested-price.'},
+                'response': [
+                    example('200 · Broker defaults', 'GET', '/settings/desk-defaults', *cap['desk_broker']),
+                    example('403 · Referral agent', 'GET', '/settings/desk-defaults', *cap['desk_agent']),
+                    example('401 · No session', 'GET', '/settings/desk-defaults', *cap['desk_anonymous']),
+                ],
+            },
+            {
+                'name': '07 · Teardown — put the settings back',
                 'event': [
                     script('prerequest', [
                         "// Every value as 01 read it, so the run changes nothing the desk set.",

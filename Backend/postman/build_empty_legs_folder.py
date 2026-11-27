@@ -185,7 +185,7 @@ def build(owner: Session, assistant: Session, anonymous: Session):
             'request': {
                 'method': 'GET', 'header': [], 'url': url('/empty-legs/stats'),
                 'description': (
-                    'Counts by status as read, and the value of the open legs. `pricedOpenCount` says how many '
+                    'Available, booked and expired counts as read; matched counts open, unlapsed legs with current route matches from the same scoped candidates as the cards, independent of stored MATCHED. Available and matched overlap. Also returns the value of the open legs. `pricedOpenCount` says how many '
                     'open legs carry a price — an unpriced leg is never summed as $0.'),
             },
             'response': [example('200 · Tiles', 'GET', '/empty-legs/stats', *cap['stats'])],
