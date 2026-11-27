@@ -90,16 +90,18 @@ export class DashboardService {
       canDo(user.access, Module.QUOTES, Action.VIEW_MONEY) ||
       canDo(user.access, Module.TRIPS, Action.VIEW_MONEY);
 
-    const [upcoming, requests, current, previous, receivables, payables, emptyLegs] = await Promise.all([
+    const seesReceivables = canDo(user.access, Module.RECEIVABLES, Action.VIEW);
+    const [upcoming, requests, current, previous, receivables, payables, emptyLegs, uninvoiced] = await Promise.all([
       canDo(user.access, Module.TRIPS, Action.VIEW) ? this.trips.upcomingCount(user, today) : 0,
       canDo(user.access, Module.TRIP_REQUESTS, Action.VIEW)
         ? this.requests.stats(user)
         : { open: 0, sourcing: 0, quoted: 0, booked: 0, pipelineValue: 0 },
       this.trips.periodFigures(user, range.from, range.to),
       this.trips.periodFigures(user, range.previousFrom, range.previousTo),
-      canDo(user.access, Module.RECEIVABLES, Action.VIEW) ? this.receivables.stats(user, {}) : null,
+      seesReceivables ? this.receivables.stats(user, {}) : null,
       canDo(user.access, Module.OPERATOR_PAYMENTS, Action.VIEW) ? this.operatorPayments.stats(user, {}) : null,
-      canDo(user.access, Module.EMPTY_LEGS, Action.VIEW) ? this.emptyLegs.stats() : null,
+      canDo(user.access, Module.EMPTY_LEGS, Action.VIEW) ? this.emptyLegs.stats(user) : null,
+      seesReceivables ? this.receivables.uninvoiced(user) : undefined,
     ]);
 
     const compare = (now: number, before: number) => ({
@@ -142,6 +144,7 @@ export class DashboardService {
       receivables: receivables
         ? {
             outstanding: receivables.outstanding,
+            uninvoiced,
             overdue: receivables.overdue,
             overdueCount: receivables.overdueCount,
             openCount: receivables.counts.DUE + receivables.counts.PARTIALLY_PAID + receivables.counts.OVERDUE,

@@ -33,6 +33,7 @@ import {
   OPEN_STATUSES,
   effectiveStatus,
   matchCounts,
+  matchedLegCount,
   matchesFor,
 } from './empty-legs.matching.js';
 import type {
@@ -237,25 +238,26 @@ export class EmptyLegsService {
    * open legs, and says how many had a price — a sum silently missing half
    * the legs reads as a quiet week.
    */
-  async stats() {
+  async stats(user: AuthenticatedUser) {
     const now = new Date();
     const live = { deletedAt: null };
-    const [available, matched, booked, expired, priced] = await Promise.all([
+    const [available, booked, expired, open] = await Promise.all([
       this.prisma.emptyLeg.count({ where: { ...live, ...this.statusWhere(EmptyLegStatus.AVAILABLE, now) } }),
-      this.prisma.emptyLeg.count({ where: { ...live, ...this.statusWhere(EmptyLegStatus.MATCHED, now) } }),
       this.prisma.emptyLeg.count({ where: { ...live, status: EmptyLegStatus.BOOKED } }),
       this.prisma.emptyLeg.count({ where: { ...live, ...this.statusWhere(EmptyLegStatus.EXPIRED, now) } }),
       this.prisma.emptyLeg.findMany({
         where: {
           ...live,
           status: { in: [...OPEN_STATUSES] },
-          price: { not: null },
           OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         },
-        select: { price: true },
+        select: { price: true, status: true, expiresAt: true, originAirportId: true, destinationAirportId: true, departureDate: true },
       }),
     ]);
 
+    const candidates = await this.requests.onRoutes(user, open);
+    const matched = matchedLegCount(open, candidates, now);
+    const priced = open.filter((leg) => leg.price !== null);
     const cents = priced.reduce((sum, row) => sum + toCents(row.price), 0);
     return {
       available,

@@ -20,7 +20,7 @@ import type { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
-import { RequireAccess } from '../../common/decorators/access.decorator.js';
+import { RequireAccess, StaffOnly } from '../../common/decorators/access.decorator.js';
 import { Action, Module } from '../../common/authorization/access.js';
 import { EXPORT_CONTENT_TYPES } from '../../common/export/tabular.js';
 import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
@@ -72,6 +72,16 @@ function requireImportFile(file: IncomingFile | undefined): IncomingFile {
 @Controller('settings')
 export class SettingsController {
   constructor(private readonly settings: SettingsService) {}
+
+  @Get('desk-defaults')
+  @StaffOnly()
+  @ApiOperation({
+    summary: 'Defaults for staff forms',
+    description: 'Open to signed-in staff; referral agents are refused. Returns quote validity, FET percent and toggle, quote terms, lead stage and follow-up interval only. The default markup is margin policy and is deliberately omitted; Quotes · View money holders use suggested-price to apply it on the server.',
+  })
+  deskDefaults() {
+    return this.settings.deskDefaults();
+  }
 
   @Get()
   @RequireAccess(Module.SETTINGS, Action.VIEW)

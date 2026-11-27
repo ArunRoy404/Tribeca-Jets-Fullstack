@@ -36,6 +36,7 @@ import { fromCents, toCents } from '../../common/money/cents.js';
 import { InvoiceStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { TripsService } from '../trips/trips.service.js';
+import { uninvoicedCents } from '../trips/trips.figures.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
 import { renderInvoicePdf } from '../../common/pdf/pdf.templates.js';
@@ -526,24 +527,45 @@ export class ReceivablesService {
 
   // ---- Invoice writes -----------------------------------------------------
 
+  /**
+   * Active invoice totals (draft and sent), shared by the ceiling and the
+   * uninvoiced balance. Callers pass only trips already resolved in the
+   * caller's trip scope, so every invoice on those trips counts — filtering
+   * them again by the receivables scope could hide another person's invoice
+   * on the same trip and let the ceiling be passed.
+   */
+  async invoicedCentsByTrip(tripIds: string[], excludeId?: string): Promise<Map<string, number>> {
+    if (tripIds.length === 0) return new Map();
+    const rows = await this.prisma.invoice.findMany({
+      where: {
+        tripId: { in: tripIds },
+        deletedAt: null,
+        status: { not: InvoiceStatus.CANCELLED },
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: { tripId: true, amount: true, fetAmount: true },
+    });
+    const totals = new Map<string, number>();
+    for (const invoice of rows) {
+      totals.set(invoice.tripId, (totals.get(invoice.tripId) ?? 0) + totalCents(invoice));
+    }
+    return totals;
+  }
+
+  /** Whatever the report window: booked trip value still to invoice, in the caller's scope. */
+  async uninvoiced(user: AuthenticatedUser): Promise<number> {
+    const trips = await this.trips.billingRows(user);
+    const invoiced = await this.invoicedCentsByTrip(trips.map((trip) => trip.id));
+    return fromCents(uninvoicedCents(trips, invoiced));
+  }
+
   async create(user: AuthenticatedUser, dto: CreateInvoiceInput) {
     const trip = await this.trips.billingTarget(user, dto.tripId);
     if (dto.clientId && dto.clientId !== trip.clientId) await this.assertClient(dto.clientId);
 
     if (trip.totalPrice !== null) {
-      const existingInvoices = await this.prisma.invoice.findMany({
-        where: {
-          tripId: trip.id,
-          deletedAt: null,
-          status: { not: InvoiceStatus.CANCELLED },
-        },
-        select: { amount: true, fetAmount: true },
-      });
-
-      const alreadyInvoicedCents = existingInvoices.reduce(
-        (sum, inv) => sum + totalCents(inv),
-        0,
-      );
+      const invoiced = await this.invoicedCentsByTrip([trip.id]);
+      const alreadyInvoicedCents = invoiced.get(trip.id) ?? 0;
       const newInvoiceCents = totalCents({
         amount: dto.amount,
         fetAmount: dto.fetAmount ?? 0,
@@ -626,20 +648,8 @@ export class ReceivablesService {
     if (status !== InvoiceStatus.CANCELLED && current.tripId) {
       const trip = await this.trips.billingTarget(user, current.tripId);
       if (trip.totalPrice !== null) {
-        const otherInvoices = await this.prisma.invoice.findMany({
-          where: {
-            tripId: current.tripId,
-            id: { not: id },
-            deletedAt: null,
-            status: { not: InvoiceStatus.CANCELLED },
-          },
-          select: { amount: true, fetAmount: true },
-        });
-
-        const otherInvoicedCents = otherInvoices.reduce(
-          (sum, inv) => sum + totalCents(inv),
-          0,
-        );
+        const invoiced = await this.invoicedCentsByTrip([current.tripId], id);
+        const otherInvoicedCents = invoiced.get(current.tripId) ?? 0;
         const tripTotalCents = toCents(trip.totalPrice);
 
         if (otherInvoicedCents + total > tripTotalCents) {

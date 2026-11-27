@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_TIME_ZONE } from '../../common/dates/time-zone.js';
 import { FailedSignInScope, LeadStage } from '../../generated/prisma/enums.js';
 import { updateSettingsSchema } from './dto/settings.dto.js';
-import { brandingView, settingsDiff, settingsView, type SettingsRow } from './settings.view.js';
+import { brandingView, deskDefaultsView, settingsDiff, settingsView, type SettingsRow } from './settings.view.js';
 
 const LOGO_ID = '3f2b8c1e-9a4d-4e6f-8b2a-1c3d5e7f9a0b';
 const ON_DARK_ID = '7a1c9e3b-2d4f-4a6b-9c8e-0f1a2b3c4d5e';
@@ -56,6 +56,17 @@ const row: SettingsRow = {
   followUpReminderMinutes: 0,
   updatedAt: new Date('2026-10-07T12:00:00Z'),
 };
+
+describe('desk defaults', () => {
+  it('returns exactly the six staff form defaults, without markup or any company/security fields', () => {
+    expect(deskDefaultsView(row)).toEqual({
+      quoteValidityHours: 24, defaultFetPercent: 7.5, applyFetByDefault: true,
+      defaultQuoteTerms: 'Subject to availability.', defaultLeadStage: LeadStage.NEW, followUpIntervalDays: 3,
+    });
+    expect(deskDefaultsView({ ...row, defaultQuoteTerms: null }).defaultQuoteTerms).toBeNull();
+    expect(deskDefaultsView(row)).not.toHaveProperty('defaultMarkupPercent');
+  });
+});
 
 describe('public branding', () => {
   it('always carries the name and the public logo address, never the upload URL', () => {

@@ -28,6 +28,8 @@ import { canDo, reachOf, Reach } from '../../common/authorization/access.js';
 import { Action, Module } from '../../common/authorization/access.catalogue.js';
 import { AirportsService } from '../airports/airports.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { fetDefaults } from '../../common/money/fet-defaults.js';
+import { quoteDefaults } from './quotes.defaults.js';
 import { PDF_CONTENT_TYPE } from '../../common/pdf/pdf.document.js';
 import { renderQuotePdf } from '../../common/pdf/pdf.templates.js';
 import {
@@ -37,6 +39,7 @@ import {
 import type { Prisma } from '../../generated/prisma/client.js';
 import {
   priceQuote,
+  depositWithinTotal,
   readLineItems,
   suggestBasePrice,
   type PricedQuote,
@@ -649,13 +652,11 @@ export class QuotesService {
    * computed from" rule this whole pricing engine exists to satisfy. A preview
    * is not an exception to that — it is the same function, called earlier.
    */
-  pricePreview(user: AuthenticatedUser, input: PreviewQuoteInput) {
+  async pricePreview(user: AuthenticatedUser, input: PreviewQuoteInput) {
+    const settings = await this.settings.read();
     const priced = priceQuote({
       basePrice: input.basePrice,
-      fetEnabled: input.fetEnabled,
-      // Mirrors `Quote.fetRate`'s own `@default(0.075)` — there is no row yet
-      // for Postgres to apply it to, so the same default is restated here.
-      fetRate: input.fetRate ?? 0.075,
+      ...fetDefaults(input, settings),
       operatorCost: input.operatorCost ?? null,
       lineItems: input.lineItems ?? [],
     });
@@ -687,14 +688,15 @@ export class QuotesService {
    * re-derives them. The route already demands VIEW_FINANCIALS, because a
    * markup over the operator's cost *is* the margin.
    */
-  suggestPrice(input: SuggestPriceInput) {
+  async suggestPrice(input: SuggestPriceInput) {
+    const settings = await this.settings.read();
+    const markupRates = input.markupRates ?? [settings.defaultMarkupPercent / 100];
     return {
       operatorCost: input.operatorCost,
-      suggestions: input.markupRates.map((markupRate) => {
+      suggestions: markupRates.map((markupRate) => {
         const priced = priceQuote({
           basePrice: suggestBasePrice(input.operatorCost, markupRate),
-          fetEnabled: input.fetEnabled,
-          fetRate: input.fetRate ?? 0.075,
+          ...fetDefaults(input, settings),
           operatorCost: input.operatorCost,
           lineItems: input.lineItems ?? [],
         });
@@ -943,10 +945,12 @@ export class QuotesService {
    */
   async create(user: AuthenticatedUser, input: CreateQuoteInput) {
     await this.assertLinks(input);
+    const defaults = quoteDefaults(input, await this.settings.read(), new Date());
 
     const { lineItems, ...rest } = input;
     const data = {
       ...rest,
+      ...defaults,
       lineItems: (lineItems ?? []) as unknown as Prisma.InputJsonValue,
       /**
        * Falls back to the caller only when nobody was named. A broker writing
@@ -959,6 +963,11 @@ export class QuotesService {
       createdById: user.id,
       updatedById: user.id,
     } satisfies Prisma.QuoteUncheckedCreateInput;
+
+    this.assertDeposit(input.depositAmount, priceQuote({
+      ...data,
+      operatorCost: input.operatorCost ?? null,
+    }).totalPrice);
 
     const quote = await this.prisma.$transaction(async (tx) => {
       const created = await tx.quote.create({
@@ -1008,6 +1017,15 @@ export class QuotesService {
 
     await this.assertLinks(input, current);
 
+    const priced = priceQuote({
+      basePrice: input.basePrice ?? current.basePrice,
+      fetEnabled: input.fetEnabled ?? current.fetEnabled,
+      fetRate: input.fetRate ?? current.fetRate,
+      operatorCost: input.operatorCost === undefined ? current.operatorCost : input.operatorCost,
+      lineItems: input.lineItems ?? current.lineItems,
+    });
+    this.assertDeposit(input.depositAmount === undefined ? current.depositAmount : input.depositAmount, priced.totalPrice);
+
     const { versionNote, lineItems, ...rest } = input;
     const newVersion = this.movesTheMoney(input, current)
       ? current.version + 1
@@ -1047,6 +1065,13 @@ export class QuotesService {
     }
 
     return this.serialise(quote, user);
+  }
+
+  private assertDeposit(deposit: Prisma.Decimal | number | null | undefined, total: number) {
+    if (depositWithinTotal(deposit, total)) return;
+    const maximum = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    const message = `The deposit can't be more than the quote total of ${maximum}`;
+    throw new BadRequestException({ message, errors: { depositAmount: message } });
   }
 
   /**

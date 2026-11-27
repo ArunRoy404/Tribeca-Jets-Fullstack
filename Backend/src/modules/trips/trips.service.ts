@@ -63,6 +63,7 @@ import { QuotesService } from '../quotes/quotes.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
 import { AirportsService } from '../airports/airports.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { fetDefaults } from '../../common/money/fet-defaults.js';
 import { MailService } from '../../core/mail/mail.service.js';
 import { TripPaymentState, todayUtc, tripPayment } from '../receivables/receivables.amounts.js';
 import { tripOperatorPayment } from '../operator-payments/operator-payments.amounts.js';
@@ -897,6 +898,19 @@ export class TripsService {
   }
 
   // ---- Reports (#23) ------------------------------------------------------
+
+  /** Priced or unpriced revenue trips for the invoice owner, as of now, in trip scope. */
+  async billingRows(user: AuthenticatedUser) {
+    const rows = await this.prisma.trip.findMany({
+      where: {
+        deletedAt: null,
+        ...this.visibilityScope(user),
+        status: { in: [...REVENUE_STATUSES] },
+      },
+      select: { id: true, ...PRICING_SELECT },
+    });
+    return rows.map((row) => ({ id: row.id, totalPrice: tripFigures(row)?.totalPrice ?? null }));
+  }
   //
   // Reports stores nothing and prices nothing: it reads trips here, in the
   // trip scope, each with its own computed figures, and aggregates them.
@@ -1036,8 +1050,7 @@ export class TripsService {
           passengerCount: dto.passengerCount ?? null,
           departureDate: dto.legs[0]?.departureDate ?? null,
           basePrice: dto.basePrice ?? null,
-          fetEnabled: dto.fetEnabled !== undefined ? dto.fetEnabled : settings.applyFetByDefault,
-          fetRate: dto.fetRate !== undefined ? dto.fetRate : settings.defaultFetPercent / 100,
+          ...fetDefaults(dto, settings),
           operatorCost: dto.operatorCost ?? null,
           lineItems: (dto.lineItems ?? []) as Prisma.InputJsonValue,
           internalNotes: dto.internalNotes ?? null,

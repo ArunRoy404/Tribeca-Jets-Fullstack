@@ -132,7 +132,7 @@ export const createQuoteSchema = z.object({
 
   departureDate: calendarDate.optional(),
   returnDate: calendarDate.optional(),
-  validUntil: calendarDate.optional(),
+  validUntil: calendarDate.optional().describe('Defaults to the UTC calendar date after the company quote-validity interval.'),
 
   passengers: optionalNumber('Passengers must be a whole number', {
     min: 1,
@@ -140,8 +140,8 @@ export const createQuoteSchema = z.object({
     int: true,
   }),
 
-  basePrice: requiredNumber('The base price is required', MONEY),
-  fetEnabled: z.boolean().default(true),
+  basePrice: optionalNumber('The base price is required', MONEY).describe('Required unless operatorCost is supplied; otherwise defaults to cost plus the company markup.'),
+  fetEnabled: z.boolean().optional().describe('Defaults to the company apply-FET setting.'),
   fetRate: optionalNumber('The FET rate must be a number like 0.075', FET_RATE),
 
   operatorCost: optionalNumber('The operator cost must be a number', MONEY),
@@ -169,7 +169,7 @@ export class CreateQuoteDto extends createZodDto(createQuoteSchema) {}
  */
 export const previewQuoteSchema = z.object({
   basePrice: requiredNumber('The base price is required', MONEY),
-  fetEnabled: z.boolean().default(true),
+  fetEnabled: z.boolean().optional().describe('Defaults to the company apply-FET setting.'),
   fetRate: optionalNumber('The FET rate must be a number like 0.075', FET_RATE),
   operatorCost: optionalNumber('The operator cost must be a number', MONEY),
   lineItems: lineItemList.optional(),
@@ -198,8 +198,10 @@ export const suggestPriceSchema = z.object({
   markupRates: z
     .array(requiredNumber('A markup must be a rate like 0.15 for 15%', MARKUP_RATE))
     .min(1, 'Choose at least one markup')
-    .max(8, 'At most eight markups at a time'),
-  fetEnabled: z.boolean().default(true),
+    .max(8, 'At most eight markups at a time')
+    .optional()
+    .describe('Omit for one suggestion using the company default markup.'),
+  fetEnabled: z.boolean().optional().describe('Defaults to the company apply-FET setting.'),
   fetRate: optionalNumber('The FET rate must be a number like 0.075', FET_RATE),
   lineItems: lineItemList.optional(),
 });

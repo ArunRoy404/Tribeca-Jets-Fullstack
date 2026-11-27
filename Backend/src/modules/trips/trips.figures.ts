@@ -11,6 +11,15 @@ export function tripFigures(row: TripPricingRow): PricedQuote | null {
   return row.basePrice === null ? null : priceQuote({ ...row, basePrice: row.basePrice });
 }
 
+/** Unbilled value now; clamp each trip separately so legacy excess cannot offset another trip. */
+export function uninvoicedCents(
+  trips: readonly { id: string; totalPrice: number | null }[],
+  invoiced: ReadonlyMap<string, number>,
+): number {
+  return trips.reduce((sum, trip) => trip.totalPrice === null ? sum :
+    sum + Math.max(0, toCents(trip.totalPrice) - (invoiced.get(trip.id) ?? 0)), 0);
+}
+
 export interface TripTally {
   /** Every trip counted, priced or not. */
   tripCount: number;

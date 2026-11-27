@@ -27,7 +27,7 @@ export class DashboardController {
   @ApiOperation({
     summary: 'The tiles',
     description:
-      'Upcoming trips and active requests as they stand now; revenue, FET and gross profit for the trips departing in `period` (the calendar TODAY, WEEK, MONTH or QUARTER containing `on`, or YEAR to date) against the window before it; receivables, operator payments and empty legs as they stand. A section the caller may not read is absent.',
+      'Upcoming trips and active requests as they stand now; revenue, FET and gross profit for the trips departing in `period` (the calendar TODAY, WEEK, MONTH or QUARTER containing `on`, or YEAR to date) against the window before it; receivables, operator payments and empty legs as they stand. `receivables.uninvoiced` is booked trip value still to invoice as of today, regardless of the period, visible behind the same Receivables read permission as outstanding AR. A section the caller may not read is absent.',
   })
   summary(@CurrentUser() user: AuthenticatedUser, @Query() query: DashboardSummaryDto) {
     return this.dashboard.summary(user, query);

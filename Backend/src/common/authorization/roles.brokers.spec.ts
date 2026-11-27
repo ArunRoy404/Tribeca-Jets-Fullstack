@@ -29,17 +29,19 @@ function setup(role: UserRole, status: UserStatus = UserStatus.ACTIVE, deletedAt
     client: { ...table(stored), findUnique: vi.fn().mockResolvedValue(stored) },
     trip: table({ ...stored, status: TripStatus.DRAFT, approvalStatus: TripApprovalStatus.APPROVED }),
     tripRequest: table(stored),
-    quote: table({ ...stored, status: QuoteStatus.DRAFT, version: 1 }),
+    quote: table({ ...stored, status: QuoteStatus.DRAFT, version: 1, basePrice: 100, fetEnabled: false,
+      fetRate: 0.075, operatorCost: null, lineItems: [], depositAmount: null }),
     commission: table(commission),
     $transaction: vi.fn(),
   };
   prisma.$transaction.mockImplementation(async (run) => run(prisma));
-  const settings = { read: vi.fn().mockResolvedValue({ defaultFetPercent: 7.5 }) };
+  const settings = { read: vi.fn().mockResolvedValue({ defaultFetPercent: 7.5, applyFetByDefault: true,
+    defaultMarkupPercent: 15, quoteValidityHours: 24, defaultQuoteTerms: null }) };
   const airports = { usable: vi.fn().mockResolvedValue({}) };
   const clients = new ClientsService(prisma as never, {} as never, {} as never, airports as never, settings as never);
   const trips = new TripsService(prisma as never, {} as never, {} as never, {} as never, airports as never, settings as never, {} as never);
   const requests = new TripRequestsService(prisma as never, {} as never, {} as never, airports as never);
-  const quotes = new QuotesService(prisma as never, {} as never, {} as never, airports as never);
+  const quotes = new QuotesService(prisma as never, {} as never, airports as never, settings as never);
   const commissions = new CommissionsService(prisma as never, {} as never,
     { commissionTarget: async () => ({ id: 'trip', assignedBrokerId: 'prior-broker' }) } as never);
   const tripInput = { clientId: 'client', type: 'ONE_WAY', status: TripStatus.DRAFT,
@@ -49,7 +51,7 @@ function setup(role: UserRole, status: UserStatus = UserStatus.ACTIVE, deletedAt
     clients: [() => clients.create(admin, { assignedBrokerId } as never), () => clients.update(admin, 'record', { assignedBrokerId })],
     trips: [() => trips.create(admin, { ...tripInput, assignedBrokerId } as never), () => trips.update(admin, 'record', { assignedBrokerId })],
     tripRequests: [() => requests.create(admin, { clientId: 'client', assignedBrokerId } as never), () => requests.update(admin, 'record', { assignedBrokerId })],
-    quotes: [() => quotes.create(admin, { clientId: 'client', assignedBrokerId } as never), () => quotes.update(admin, 'record', { assignedBrokerId })],
+    quotes: [() => quotes.create(admin, { clientId: 'client', basePrice: 100, assignedBrokerId } as never), () => quotes.update(admin, 'record', { assignedBrokerId })],
     commissionBroker: [
       () => commissions.create(admin, { ...terms, ...manualRecipient, tripId: 'trip', brokerId: selectedId } as never),
       () => commissions.update(admin, 'record', { brokerId: selectedId }),
@@ -93,7 +95,7 @@ it.each([[UserRole.ASSISTANT, null], [UserRole.BROKER, 'caller']] as const)(
     const user = account(role);
     await expect(trips.create(user, tripInput as never)).rejects.toBe(reachedWrite);
     await expect(requests.create(user, { clientId: 'client' } as never)).rejects.toBe(reachedWrite);
-    await expect(quotes.create(user, { clientId: 'client' } as never)).rejects.toBe(reachedWrite);
+    await expect(quotes.create(user, { clientId: 'client', basePrice: 100 } as never)).rejects.toBe(reachedWrite);
     for (const table of [prisma.trip, prisma.tripRequest, prisma.quote]) {
       expect(table.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ assignedBrokerId }) }));
     }

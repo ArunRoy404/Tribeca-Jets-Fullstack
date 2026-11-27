@@ -153,11 +153,11 @@ export class QuotesController {
     description:
       'A dry run of the same pricing engine a saved quote uses — FET amount, extras total, total price and (for a caller with VIEW_MONEY) gross profit and margin. Nothing here is persisted; the create/edit form calls this as a broker types, so the live preview never re-derives the arithmetic itself.',
   })
-  pricePreview(
+  async pricePreview(
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: PreviewQuoteDto,
   ) {
-    return this.quotes.pricePreview(user, body);
+    return await this.quotes.pricePreview(user, body);
   }
 
   @Post('suggested-price')
@@ -166,10 +166,10 @@ export class QuotesController {
   @ApiOperation({
     summary: 'Suggest a client price at each markup over the operator cost',
     description:
-      'Client adjustment #6: the base price at each markup rate (0.15 = 15%) over `operatorCost`, and what each totals with FET and extras through the same pricing engine a saved quote uses. Nothing is persisted — the broker picks one and it becomes the base price they submit. Needs VIEW_MONEY, because a markup over cost is the margin.',
+      'Client adjustment #6: the base price at each markup rate (0.15 = 15%) over `operatorCost`; omit `markupRates` for one suggestion using the current company default markup, and what each totals with FET and extras through the same pricing engine a saved quote uses. Nothing is persisted — the broker picks one and it becomes the base price they submit. Needs VIEW_MONEY, because a markup over cost is the margin.',
   })
-  suggestPrice(@Body() body: SuggestPriceDto) {
-    return this.quotes.suggestPrice(body);
+  async suggestPrice(@Body() body: SuggestPriceDto) {
+    return await this.quotes.suggestPrice(body);
   }
 
   @Patch(':id')

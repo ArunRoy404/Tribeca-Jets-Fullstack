@@ -54,10 +54,10 @@ export class EmptyLegsController {
   @ApiOperation({
     summary: 'Empty-leg board tiles',
     description:
-      'Available, matched, booked and expired counts (lapsed open legs count as expired), and `openValue` — the sum of the priced open legs — with `pricedOpenCount` saying how many had a price.',
+      'Available, booked and expired counts (lapsed open legs count as expired); matched counts open, unlapsed legs with at least one current route match in the caller request scope, using the same matching rule as the list. Available and matched can overlap, and `openValue` — the sum of the priced open legs — with `pricedOpenCount` saying how many had a price.',
   })
-  stats() {
-    return this.legs.stats();
+  stats(@CurrentUser() user: AuthenticatedUser) {
+    return this.legs.stats(user);
   }
 
   @Get(':id')

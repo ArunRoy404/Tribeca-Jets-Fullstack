@@ -30,6 +30,7 @@ import {
 } from './settings.data.js';
 import {
   brandingView,
+  deskDefaultsView,
   settingsDiff,
   settingsView,
   type SettingsRow,
@@ -121,6 +122,10 @@ export class SettingsService implements OnModuleInit {
   /** `GET /settings`. */
   async view() {
     return settingsView(await this.read());
+  }
+
+  async deskDefaults() {
+    return deskDefaultsView(await this.read());
   }
 
   /** `GET /settings/branding` — public. */

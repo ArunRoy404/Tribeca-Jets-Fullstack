@@ -61,12 +61,13 @@ export class ReportsService {
   /** The tiles and the financial summary for the window. */
   async summary(user: AuthenticatedUser, query: ReportWindowInput) {
     const window = windowFromDays(query.from, query.to);
-    const [trips, collected, receivables, payables, allTime] = await Promise.all([
+    const [trips, collected, receivables, payables, allTime, uninvoiced] = await Promise.all([
       this.trips.reportRows(user, window),
       this.receivables.collectedBetween(user, window.from, window.to),
       this.receivables.stats(user, {}),
       this.operatorPayments.stats(user, {}),
       this.trips.reportCount(user),
+      this.receivables.uninvoiced(user),
     ]);
     const tally = tallyTrips(trips.map((trip) => trip.figures));
 
@@ -85,7 +86,7 @@ export class ReportsService {
       /** By payment date: money that arrived in the window, and the FET inside it. */
       collected,
       /** As they stand today, whatever the window. */
-      outstanding: { receivables: receivables.outstanding, payables: payables.outstanding },
+      outstanding: { receivables: receivables.outstanding, uninvoiced, payables: payables.outstanding },
       /** For the export dialog: operations in this window, and on record in all. */
       operations: { window: tally.tripCount, allTime },
     };

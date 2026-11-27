@@ -30,7 +30,7 @@ export class ReportsController {
   @RequireAccess(Module.REPORTS, Action.VIEW)
   @ApiOperation({
     summary: 'The tiles and the financial summary',
-    description: `Revenue, profit, margin, FET charged, averages and trip count over \`from\`–\`to\` (both days included). ${BY_DEPARTURE} \`collected\` is the cash and FET received by payment date in the same window. \`outstanding\` is receivables and payables as they stand today. Averages and margin are null when there is nothing to divide.`,
+    description: `Revenue, profit, margin, FET charged, averages and trip count over \`from\`–\`to\` (both days included). ${BY_DEPARTURE} \`collected\` is the cash and FET received by payment date in the same window. \`outstanding\` is receivables, payables and uninvoiced as they stand today, regardless of the window. outstanding.uninvoiced sums each scoped revenue trip total less its active invoice totals, clamped at zero per trip. Averages and margin are null when there is nothing to divide.`,
   })
   summary(@CurrentUser() user: AuthenticatedUser, @Query() query: ReportWindowDto) {
     return this.reports.summary(user, query);

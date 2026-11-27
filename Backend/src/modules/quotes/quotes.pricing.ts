@@ -1,4 +1,5 @@
 import type { Prisma } from '../../generated/prisma/client.js';
+import { toCents } from '../../common/money/cents.js';
 
 /**
  * One extra on an offer, as stored in `Quote.lineItems`.
@@ -134,6 +135,11 @@ export function priceQuote(row: PricingInputs): PricedQuote {
  */
 export function suggestBasePrice(operatorCost: number, markupRate: number): number {
   return cents(operatorCost * (1 + markupRate));
+}
+
+/** Check the final offer, including FET and extras, in integer cents. */
+export function depositWithinTotal(deposit: Prisma.Decimal | number | null | undefined, totalPrice: number): boolean {
+  return deposit == null || toCents(deposit) <= toCents(totalPrice);
 }
 
 /** The fields whose change means the offer is a new version of itself. */

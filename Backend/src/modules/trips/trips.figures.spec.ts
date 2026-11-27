@@ -1,8 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { tallyTrips, tripFigures } from './trips.figures.js';
+import { tallyTrips, tripFigures, uninvoicedCents } from './trips.figures.js';
 
 const trip = (basePrice: number | null, operatorCost: number | null = null, fetEnabled = true) =>
   tripFigures({ basePrice, operatorCost, fetEnabled, fetRate: 0.075, lineItems: [] });
+
+describe('uninvoicedCents', () => {
+  const trips = [{ id: 'trip', totalPrice: 123.45 }];
+  it.each([[0, 12345], [2345, 10000], [12345, 0], [20000, 0]])(
+    'subtracts %i invoiced cents, clamped per trip', (invoiced, expected) => {
+      expect(uninvoicedCents(trips, new Map([['trip', invoiced]]))).toBe(expected);
+    },
+  );
+  it('ignores unpriced trips and never uses one over-invoiced trip to offset another', () => {
+    expect(uninvoicedCents([...trips, { id: 'unpriced', totalPrice: null }, { id: 'excess', totalPrice: 10 }],
+      new Map([['excess', 5000], ['unpriced', 500]]))).toBe(12345);
+  });
+});
 
 describe('tallyTrips', () => {
   it('sums revenue, FET and profit to the cent', () => {

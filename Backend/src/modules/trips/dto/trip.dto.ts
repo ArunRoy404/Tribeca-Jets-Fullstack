@@ -113,7 +113,7 @@ export const createTripSchema = z.object({
   passengers: z.array(passengerSchema).max(200).default([]),
 
   basePrice: optionalNumber('The price must be a number', MONEY),
-  fetEnabled: z.boolean().default(true),
+  fetEnabled: z.boolean().optional().describe('Defaults to the company apply-FET setting.'),
   fetRate: optionalNumber('The FET rate must be a number like 0.075', FET_RATE),
   operatorCost: optionalNumber('The operator cost must be a number', MONEY),
   lineItems: lineItemList.optional(),

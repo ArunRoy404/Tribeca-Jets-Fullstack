@@ -94,6 +94,18 @@ export function matchCounts(leg: MatchableLeg, requests: readonly MatchableReque
 /** Still on offer: nobody has booked it and nobody has closed it. */
 export const OPEN_STATUSES = [EmptyLegStatus.AVAILABLE, EmptyLegStatus.MATCHED] as const;
 
+/** Matches are computed now, independently of the status someone last stored. */
+export function matchedLegCount(
+  legs: readonly (MatchableLeg & { status: EmptyLegStatus; expiresAt: Date | null })[],
+  requests: readonly MatchableRequest[],
+  now: Date,
+): number {
+  return legs.filter((leg) =>
+    (OPEN_STATUSES as readonly EmptyLegStatus[]).includes(effectiveStatus(leg.status, leg.expiresAt, now)) &&
+    matchCounts(leg, requests).matchCount > 0,
+  ).length;
+}
+
 /**
  * The status as the desk should read it. An open leg whose offer has lapsed
  * *is* expired, whether or not anyone has clicked Expire — computed on read

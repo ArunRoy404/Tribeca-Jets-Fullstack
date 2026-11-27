@@ -99,6 +99,18 @@ export function settingsView(row: SettingsRow) {
   };
 }
 
+/** Staff form defaults only. Margin policy stays behind Quotes · View money. */
+export function deskDefaultsView(row: SettingsRow) {
+  return {
+    quoteValidityHours: row.quoteValidityHours,
+    defaultFetPercent: row.defaultFetPercent,
+    applyFetByDefault: row.applyFetByDefault,
+    defaultQuoteTerms: row.defaultQuoteTerms,
+    defaultLeadStage: row.defaultLeadStage,
+    followUpIntervalDays: row.followUpIntervalDays,
+  };
+}
+
 /** The public address of the logo, versioned by its upload so a new logo is a new URL. */
 export const LOGO_PATH = '/api/settings/branding/logo';
 

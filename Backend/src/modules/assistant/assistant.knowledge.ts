@@ -54,7 +54,7 @@ export const WORKFLOW_GUIDES: WorkflowGuide[] = [
     keywords: ['create a quote with fet', 'federal excise tax', 'how do i create a quote', 'fet on quote', 'markup'],
     topic: 'Creating a Quote with FET',
     answer:
-      'Quotes store the base charter price, FET toggle/rate, and extras; the server computes the 7.5% Federal Excise Tax, total investment, and gross margin automatically.',
+      'Quotes store the base charter price, FET toggle/rate, and extras; the server computes Federal Excise Tax at the quote’s own rate, total investment, and gross margin automatically. New quotes take omitted defaults from Company Settings.',
     items: [
       {
         label: '1. Open Quotes › New Quote',
