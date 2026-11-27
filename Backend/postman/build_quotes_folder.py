@@ -223,6 +223,9 @@ def build(owner, broker, assistant):
         'clientId': client_id, 'basePrice': 79500,
         'lineItems': [{'label': 'Catering'}],
     })
+    cap['same_airport_payload'] = {'clientId': client_id, 'basePrice': 79500,
+                                   'originAirportId': airports[0]['id'], 'destinationAirportId': airports[0]['id']}
+    cap['create_same_airport'] = owner.request('POST', '/quotes', cap['same_airport_payload'])
     cap['create_400_client'] = owner.request('POST', '/quotes', {
         'clientId': MISSING, 'basePrice': 79500,
     })
@@ -512,6 +515,7 @@ def build(owner, broker, assistant):
                 example('400 · Line item with neither a price nor "included"', 'POST', '/quotes', *cap['create_400_line'],
                         req_body={'clientId': '{{clientId}}', 'basePrice': 79500,
                                   'lineItems': [{'label': 'Catering'}]}),
+                example('400 · Same airport', 'POST', '/quotes', *cap['create_same_airport'], req_body=cap['same_airport_payload']),
                 example('400 · Unknown client', 'POST', '/quotes', *cap['create_400_client'],
                         req_body={'clientId': MISSING, 'basePrice': 79500}),
                 example('400 · Not a broker', 'POST', '/quotes', *cap['create_400_broker'],

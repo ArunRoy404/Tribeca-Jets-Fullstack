@@ -152,7 +152,7 @@ def build(owner, broker, assistant):
     airport_id = owner.request('GET', '/airports?limit=1')[1]['data'][0]['id']
     payload = {
         'clientId': client_id, 'source': 'REFERRAL', 'status': 'OPEN',
-        'originAirportId': airport_id, 'destinationAirportId': None,
+        'originAirportId': airport_id,
         'departureDate': '2026-11-15', 'returnDate': '2026-11-18',
         'passengers': 4, 'aircraftPreference': 'HEAVY_JET',
         'estimatedValue': 28000,
@@ -183,6 +183,9 @@ def build(owner, broker, assistant):
 
     cap['create'] = owner.request('POST', '/trip-requests', payload)
     new_id = cap['create'][1]['data']['id']
+    cap['same_airport_payload'] = {'clientId': client_id,
+                                   'originAirportId': airport_id, 'destinationAirportId': airport_id}
+    cap['create_same_airport'] = owner.request('POST', '/trip-requests', cap['same_airport_payload'])
     cap['create_400_client'] = owner.request(
         'POST', '/trip-requests', {'clientId': missing})
     cap['invalid_broker_payload'] = {'clientId': client_id, 'assignedBrokerId': signed_in_id(assistant)}
@@ -347,6 +350,7 @@ def build(owner, broker, assistant):
             },
             'response': [
                 example('201 · Created', 'POST', '/trip-requests', *cap['create'], req_body=payload),
+                example('400 · Same airport', 'POST', '/trip-requests', *cap['create_same_airport'], req_body=cap['same_airport_payload']),
                 example('400 · Client does not exist', 'POST', '/trip-requests', *cap['create_400_client']),
                 example('400 · Not a broker', 'POST', '/trip-requests', *cap['create_400_broker'], req_body=cap['invalid_broker_payload']),
                 example('400 · Return before departure', 'POST', '/trip-requests', *cap['create_400_dates']),

@@ -112,6 +112,10 @@ def capture() -> dict:
     try:
         cap['create_409'] = owner.request('POST', '/airports', {**body, 'icao': seeded['icao']})
         cap['create_400'] = owner.request('POST', '/airports', {'icao': 'TOOLONG', 'name': '', 'city': 'X', 'country': 'USA'})
+        cap['create_latitude_body'] = {**body, 'icao': fresh_icao(), 'latitude': 91}
+        cap['create_latitude'] = owner.request('POST', '/airports', cap['create_latitude_body'])
+        cap['create_longitude_body'] = {**body, 'icao': fresh_icao(), 'longitude': -181}
+        cap['create_longitude'] = owner.request('POST', '/airports', cap['create_longitude_body'])
         cap['create_403'] = broker.request('POST', '/airports', {**body, 'icao': fresh_icao()})
 
         cap['patch_body'] = {'longestRunwayFt': 7011, 'assignedFbo': 'Jet Aviation Bedford'}
@@ -228,6 +232,10 @@ def build(cap: dict) -> dict:
                             req_body={'icao': created_icao, '…': 'the same body'}),
                     example('400 · Validation failed', 'POST', '/airports', *cap['create_400'],
                             req_body={'icao': 'TOOLONG', 'name': '', 'city': 'X', 'country': 'USA'}),
+                    example('400 · Latitude must be between -90 and 90', 'POST', '/airports', *cap['create_latitude'],
+                            req_body=cap['create_latitude_body']),
+                    example('400 · Longitude must be between -180 and 180', 'POST', '/airports', *cap['create_longitude'],
+                            req_body=cap['create_longitude_body']),
                     example('403 · A broker without Airports · Create', 'POST', '/airports', *cap['create_403']),
                 ],
                 body=CREATE_BODY,
