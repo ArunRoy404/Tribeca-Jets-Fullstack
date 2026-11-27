@@ -89,3 +89,124 @@ audit: 844 examples, 0 mislabelled. No builder fixes or product code changes
 were needed. The copy seeded successfully with the B2 `empty_legs` cleanup;
 no manual clearing was needed. The 4100 API and its launcher were stopped
 and their processes killed.
+
+## B3 — Workflow rules (27 Nov 2026) · one migration
+
+Migration `20261127120000_feedback_b3` was applied to dev by Claude earlier.
+This run refreshed `tribeca_postman` and ran `db:deploy` against the copy only;
+B3 was already present in the snapshot, with no pending migrations.
+
+Checked boxes mean the **API portion passed (API walk, 27 Nov)**. The API
+walk is complete, including re-verification of Claude's first-leg landing
+fix. Screen behavior remains **screen — not walked**.
+
+- [x] **Mark Paid.** PAID without method → 400; date, method and trimmed
+  reference save → 200. The form, Review Payment and confirmation are
+  **screen — not walked**. (API walk, 27 Nov)
+- [x] **Old paid commissions still edit.** A disposable pre-B3 fixture
+  (PAID, method null, earlier paidAt) accepts a notes-only PATCH (200) and
+  preserves PAID / null method. Fixture SQL targeted the copy and that probe
+  only. The edit dialog/confirmation is **screen — not walked**.
+  (API walk, 27 Nov)
+- [x] **Agent portal data.** Agent commission read and list → 200 with date,
+  method and reference, without desk notes or broker data. Portal rendering
+  is **screen — not walked**. (API walk, 27 Nov)
+- [x] **Earned on completion.** Status action COMPLETED
+  passes (200), earning PENDING while PAID/CANCELLED statuses, payment fields
+  and update timestamps stay unchanged; reopening preserves EARNED.
+  Fresh two-leg probe: first landing (200) leaves the trip IN_FLIGHT and its
+  commission PENDING while leg 2 is null; last landing (200) completes it
+  with reason all_flights_landed and earns it once (one commission.earned
+  audit row). PAID/CANCELLED statuses, payment fields and updatedAt are
+  unchanged after both landings. (API walk, 27 Nov)
+- [x] **Confirm needs operator + time.** API refuses confirmation (400),
+  naming both “tick Operator confirmed” and “add a departure time”; filling
+  them permits confirmation (200). Disabled button and page hint are
+  **screen — not walked**. (API walk, 27 Nov)
+- [x] **Complete warns.** Admin open-items → 200 with
+  operatorBalance 7000 / uninvoiced 10000. Broker without the two money-view
+  modules → 200 with both warning flags and null amounts. Completion with
+  open money succeeds (200). An absent operator bill warns with null balance.
+  Fully paid operator bill and fully invoiced trip: both warning flags false,
+  admin amounts zero, broker amounts null; completion succeeds (200).
+  Complete Anyway dialog, warning layout and hidden amounts are **screen —
+  not walked**. (API walk, 27 Nov)
+- [x] **Client lifecycle.** Send quote: NEW → QUOTED with client.stage_changed
+  / via quote_sent. Book: ACTIVE / WON, via booking and trip reference.
+  Sending another quote preserves WON and the stage-event count (reads/actions
+  200; booking 201). (API walk, 27 Nov)
+- [x] **Latest trip strip.** Client detail → 200 with latestTrip null when
+  there are no trips. After booking, latestTrip returns route airports,
+  status, operator name, aircraft tail/model, leg departure date/time and
+  estimatedArrival; basePrice, operatorCost and grossProfit are absent.
+  A broker skips a newer trip outside their reach and receives the newest
+  visible trip, or null when none is visible (200; hidden trip itself 404).
+  Layout, “No trips yet” and 24-hour rendering are **screen — not walked**.
+  (API walk, 27 Nov)
+- [ ] **Edit financials.** Approver's pending-trip banner opens the edit form
+  scrolled to Financials — **screen — not walked**.
+- [x] **Lead source Other.** Missing description on create or switch to OTHER
+  → 400; description trims and persists; changing source clears it to null
+  (201 / 200). Add Client/Add Lead controls and display are **screen — not
+  walked**. (API walk, 27 Nov)
+- [x] **OA required.** true / false / null persist and read back (201 / 200);
+  create null → 400. Form/Overview Yes / No / Not set display is **screen —
+  not walked**. (API walk, 27 Nov)
+
+Issues found:
+
+- **27 Nov — new product bug, API walk stopped.** On two-leg probe **TJ-90**,
+  `PATCH /flight-tracking/:firstLegId` IN_FLIGHT → 200, then LANDED → 200,
+  completes the trip and makes its PENDING commission EARNED while leg 2
+  still has flightStatus null. Read-only copy queries and the audit trail
+  confirm first leg LANDED / ETA 16:45, second leg null, trip COMPLETED,
+  `reason: all_flights_landed`, and commission.earned. The unlanded count in
+  `TripsService.updateFlight()` uses `flightStatus: { not: LANDED }`, which
+  excludes SQL NULL, so an unreported leg is not counted. **No product code
+  was changed or fixed.** All probes archived; the 4100 process killed.
+  **Fixed (Claude, 27 Nov):** the count now includes `flightStatus: null`
+  legs (an explicit `OR`); a test pins the query. Read-only on dev: the old
+  filter counted 3 not-landed legs, the new one 19 (16 unreported). The bug
+  predates B3 (Flight Tracking #14 auto-completed early too); B3 made it
+  earn commissions.
+  **Re-verified (API walk, 27 Nov):** fresh probe TJ-23 stays IN_FLIGHT /
+  PENDING after leg 1, then COMPLETED / EARNED after leg 2, with one earned
+  event. PAID/CANCELLED payment fields and timestamps remain unchanged.
+- **Previous blocker resolved:** Claude's estimatedArrival select fix is in
+  the temporary build; valid client detail reads now return 200, including
+  latestTrip null for a client without trips.
+- **Builder correction:** removed request 09's obsolete Clients cleanup
+  script, which archived/cleared the probe before B3's final teardown. The
+  final teardown now has its own captured 204. Both standalone runs pass;
+  no status label was relaxed.
+- **Copy preparation:** inherited WhatsApp settings needed clearing to match
+  the collection's fixture. An immediate full repeat hit the configured
+  email-code quota; let its window expire naturally, then reran successfully.
+  No limits or counters changed. The copied broker held money-view grants;
+  temporarily removed those two modules for the no-view test, then restored
+  its exact raw permissions and update stamps on the copy.
+
+**B3 Postman result, 27 Nov:** all four builders completed: Commissions
+**21**, Trips **38**, Clients **26**, Operators **29** examples (**114** in
+these folders). Final collection: **341 request entries / 852 examples**.
+Both successful full Newman runs: **473 requests / 344 assertions / 0 failures**
+each, without reseeding between runs. Each rebuilt folder passed standalone
+twice: Clients 12 requests / 5 assertions, Operators 11 / 10, Trips 33 / 15,
+Commissions 23 / 12 per run; all zero failures. Label audit: **0 mislabelled**,
+0 missing status labels across 852 examples. The initial API walk stopped
+under the product-bug rule above; the walk-finish run below completed it.
+All **28** probe rows from both initial walk attempts were archived (204).
+Port 4000 retained its original PID; dev was not written.
+Report: `docs/codex-reports/feedback-b03-postman.txt`.
+
+**Walk finish result, 27 Nov:** API walk complete; only the developer's screen
+checks remain. Refreshed tribeca_postman, ran copy-only db:deploy (no pending
+migrations), and compiled the current tree into a new temporary 4100 API.
+First-/last-leg completion, commission preservation, fully settled completion
+and latestTrip fields/reach all passed. Flight Tracking passed standalone
+twice (**13 requests / 8 assertions / 0 failures** each); Trips twice
+(**33 / 15 / 0** each); full collection once (**473 / 344 / 0**). No builders
+ran; read-only label audit: **852 examples / 0 mislabelled / 0 missing labels**.
+All **15** new walk probes archived/withdrawn; copied broker permissions and
+update stamps restored exactly. No product changes; 4100 stopped; dev and
+4000 untouched. All screen checks above remain **screen — not walked**.

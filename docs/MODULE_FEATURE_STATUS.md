@@ -289,6 +289,8 @@ audit trail pointing at them.
 
 ## 4. Operators ✅
 
+**B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R2-C3: nullable `oaRequired` in create/update and list/detail reads. The form uses Yes / No / Not set; details preserve all three states, with no default. Postman definitions written; live capture/Newman deferred by the B3 brief.
+
 **Working now**
 
 - Full CRUD, archive/restore, bulk operations, stats
@@ -371,6 +373,8 @@ entered into the operator's fleet.
 ---
 
 ## 5. Clients ✅
+
+**B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-10 / R2-C1: booking advances the client with a transactional `client.stage_changed` audit; quote sending advances only earlier LEAD stages to QUOTED through ClientsService, also transactionally audited. The existing summary strip reads the latest live trip through TripsService after the client scope check (route, date, status and available flight facts); no trip says "No trips yet". OTHER requires trimmed `leadSourceOther` (max 500), round-trips through both selects, and clears on a source change. Postman definitions written; live capture/Newman deferred by the B3 brief.
 
 **B2 · 27 Nov 2026:** preferred-route validation shares its same-airport check with Add Lead and Trip Requests. Lead stages and their labels have one source (`lib/leadStages.js`). Newly recorded/withdrawn Receivables payments also appear on the client timeline (invoice number, amount and method only); past payments are not back-filled.
 
@@ -541,6 +545,8 @@ makes the create form work. See **Uploads (#28)**.
 ---
 
 ## 7. Leads & Agents ✅
+
+**B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R2-C1: Add/Edit Lead shares the conditional OTHER source description field with Add/Edit Client; description is required for OTHER and preserved on unrelated partial edits. Postman definitions written; live capture/Newman deferred by the B3 brief.
 
 **B2 · 27 Nov 2026:** Add Lead refuses an identical departure/arrival before creating the client or enquiry. Its stage picker shares the same ordered stages and labels as Clients.
 
@@ -731,6 +737,8 @@ the data did not supply" the hardest rule in this project.
 
 ## 10. Quotes ✅
 
+**B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-10: marking a quote sent moves an earlier-stage LEAD client to QUOTED through ClientsService in the quote update transaction. WON, LOST, QUOTED and active clients are preserved; the client timeline records the change. Postman definitions written; live capture/Newman deferred by the B3 brief.
+
 **B2 · 27 Nov 2026:** enquiry requirements and internal notes append to the quote’s internal notes without replacing typed notes; Terms keeps its desk default. Preview heading is QUOTE (the existing PDF already has no plural QUOTES). Approved, unbooked live quotes offer Book Trip from the shared row/card menu, with the detail page’s permission/state rule and booking flow. Create/update reject identical airports through the shared helper; builder example written, capture/Newman deferred.
 
 - Client-name search matches the full name across first and last name.
@@ -853,6 +861,8 @@ rules the scope says nobody has agreed.
 ---
 
 ## 11. Trips ✅ *(27 Sep 2026)*
+
+**B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-06/07/08/10 / R2-T2: confirming also requires the operator-confirmed tick and the first leg’s departureTime; all missing requirements are named together and shown beside Confirm. Completion earns live PENDING commissions with one audit per commission in the same transaction. GET /trips/:id/open-items reads the owning money services, returns permission-filtered amounts and warning flags; Complete warns but never blocks on money. The pending approval banner links Edit financials to the existing form’s Financials section for permitted editors. Booking’s client lifecycle change is audited in its transaction. Postman definitions written; live capture/Newman deferred by the B3 brief.
 
 **B2 · 27 Nov 2026:** Passenger Names in the checklist opens the manifest editor and briefly highlights its card with the theme ring (reduced-motion aware). Fields are shared with the full trip form; edit availability follows Trips · Edit and the trip’s editable/live state, with unsaved-change confirmation. Contract link is Avinode at https://www.avinode.com.
 
@@ -1144,6 +1154,8 @@ of these cards makes a second request.
 
 ## 14. Flight Tracking ✅ *(28 Sep 2026 — manual)*
 
+**B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-06: landing the last live leg completes the trip and earns its live PENDING commissions in the same transaction, with commission audit entries. PAID/CANCELLED commissions are unchanged and reopening does not reverse EARNED. Postman definitions written; live capture/Newman deferred by the B3 brief.
+
 **Working now**
 
 - **Manual by decision (27 Sep 2026).** No flight-data provider: a broker
@@ -1253,6 +1265,8 @@ of these cards makes a second request.
 
 ### 16. Receivables ✅ *(28 Sep 2026)*
 
+**B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-08: the trip completion preflight uses `invoicedCentsByTrip` and B1’s `uninvoicedCents` for that scoped trip. The uninvoiced amount is hidden without Receivables · View; its warning flag remains available. Postman definitions written; live capture/Newman deferred by the B3 brief.
+
 **B2 · 27 Nov 2026:** recording or withdrawing a client payment writes `client.payment_recorded` / `client.payment_withdrawn` on its invoice’s Client, in addition to the invoice event. Client metadata is exactly invoice number, amount and method, never payment notes/reference; no historical backfill.
 
 **Working now**
@@ -1315,6 +1329,8 @@ of these cards makes a second request.
 as open; this module records them.
 
 ### 17. Operator Payments ✅ *(28 Sep 2026)*
+
+**B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-08: `positionOnTrip` owns the trip-wide payable balance used by completion warnings. All live payments on live, non-cancelled bills count. No recorded bill warns for an assigned operator but supplies no invented amount; the balance needs Operator Payments · View. Postman definitions written; live capture/Newman deferred by the B3 brief.
 
 **Working now**
 
@@ -1410,6 +1426,8 @@ status and balance live on its own board, one click away.
 | Refunds as movements | **A decision** — see Client Credits (#30) |
 
 ### 18. Commissions ✅ *(Reviewed & migrated 11 Oct 2026)*
+
+**B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-06: PAID requires a payment method; the small payout form collects method, optional reference (trimmed, max 120) and calendar paid date (today if blank), then asks ConfirmDialog. Add/Edit also confirms PAID. The reference is in staff and partner reads, the detail sheet, portal and audit metadata. Both trip-completion paths call the commission-owned `earnOnTripCompletion` transaction function; PENDING → EARNED only, no reversal on reopening. Postman definitions written; live capture/Newman deferred by the B3 brief.
 
 - The attributed broker and a broker recipient both use the shared
   live-account check. An unchanged broker link stays editable on older rows.

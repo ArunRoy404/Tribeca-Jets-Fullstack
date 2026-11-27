@@ -649,6 +649,30 @@ Two rules on adding settings:
 
 Everything in part one applies here too.
 
+## Trip completion and client lifecycle consequences (Feedback B3, 27 Nov 2026)
+
+**A commission becomes EARNED in its trip's completion transaction, on every
+completion path.** Both the trip status action and the last flight landing call
+`commissions/commissions.completion.ts`'s `earnOnTripCompletion(tx, tripId,
+actorId)`. Only live PENDING commissions move; each gets a `commission.earned`
+audit row in that transaction. Reopening never reverses it. A payment method is
+required when a commission becomes PAID or its method is cleared — never on an
+unrelated edit, because commissions paid before B3 have none on file. The payout
+reference belongs in the payee's view too.
+
+**Open money warns before completion; it never blocks it.** The trip-scoped
+preflight reads balances through Operator Payments and Receivables, hides
+amounts without their respective View permissions, and retains warning flags.
+An absent bill supplies no invented balance.
+
+**An automatic client stage change is a timeline event in the same
+transaction.** Booking records `client.stage_changed` with `via: booking` and
+the trip reference. Marking a quote sent advances only earlier-stage leads to
+QUOTED through ClientsService, with `via: quote_sent`; neither writes an event
+when nothing changed. OTHER lead sources require their description and clear
+it on a source change. An operator's `oaRequired` is true / false / null;
+null means Not set and must never become No by default.
+
 ## This is not the Nest/Prisma you know
 
 Version specifics that break habits learned from older releases:

@@ -1,0 +1,148 @@
+Feedback B3 review fixes — 27 November 2026
+
+1. Fix status
+
+Fix 1 — already in place; regression-test and documentation gaps filled. Changed this pass: Backend/src/modules/commissions/commissions.workflow.spec.ts and AGENTS.md.
+Fix 2 — already in place; verified in full, no changes needed. Files changed this pass: none.
+
+Fix 1 verification:
+- Backend/src/modules/commissions/commissions.service.ts already rejects a missing resulting method only when the resulting status is PAID and the row becomes PAID or dto.method is explicitly null. The refusal is a 400 with errors.method before any write.
+- Backend/src/modules/commissions/dto/commission.dto.ts already requires a method for a PAID create. Its independent update schema accepts an absent method and rejects status: PAID with method: null.
+- Frontend/src/components/commissions/AddCommissionDialog.jsx already defines becomingPaid as form.status === "PAID" && commission?.status !== "PAID". Both method validation and confirmation run only for that transition; other saves proceed directly. Blank methods become null on edit only when a stored method exists; otherwise undefined is omitted from JSON.
+- Expanded the existing workflow suite from 6 to 15 tests: both PENDING/EARNED transitions without a method; legacy PAID notes edits with and without an unchanged PAID status; clearing a method on PAID rows, including legacy rows; and preserving a stored method when status: PAID is submitted without method. Refusals assert the field-level 400 and no update or audit write. Legacy edits assert the notes were written and no method was sent to the update.
+- Updated only the requested B3 sentence in AGENTS.md to explain the transition/clear rule and legacy paid commissions.
+
+Fix 2 verification:
+- Backend/src/modules/operators/dto/operator.dto.ts already uses z.boolean().optional() on create, with the omit-for-Not-set comment, and z.boolean().nullable().optional() on update. Neither has a default.
+- Backend/src/modules/operators/operators.workflow.spec.ts already covers true/false through both DTOs, service writes and response selects; omitted Not set on create (undefined), null on update, no defaults, rejected create null and rejected update string 'false'. All 4 tests passed.
+- Frontend/src/components/operators/AddOperatorDialog.jsx already uses undefined for Not set on create and null on edit; explicit Yes/No produce booleans.
+- Backend/postman/build_operators_folder.py already documents: "optional · true / false; omit for not set (never null on create)". CREATE uses True; only PATCH clears oaRequired with None. Inspected as source only; did not execute it or change the collection.
+
+2. Verification output
+
+Backend: npm.cmd run lint — exit 0.
+  > oxlint --type-aware src/ test/
+  No diagnostics.
+
+Backend: npx.cmd tsc --noEmit — exit 0, no diagnostics.
+
+Backend: npm.cmd test — exit 0.
+  pretest: prisma generate (Prisma Client 7.10.0; generation only).
+  > vitest run
+  Test Files  109 passed (109)
+       Tests  1219 passed (1219)
+    Duration  27.53s
+  Includes 15 commission payout workflow tests and 4 operator OA tests.
+  Non-failing output: Vite's tsconfig-paths plugin notice, expected mocked
+  WhatsApp/secret and session-refusal log messages, and a Vitest performance hint.
+
+Frontend: npm.cmd run lint — exit 0.
+  > eslint
+  No diagnostics.
+
+Frontend: npm.cmd run build — exit 0.
+  Next.js 16.3.1 (Turbopack)
+  Compiled successfully in 3.4s.
+  Generating static pages: 45/45.
+  Warning: multiple lockfiles; Next inferred the repository root. No config
+  changes made for this warning.
+
+Windows invocation note: the initial bare npm/npx commands were refused by
+PowerShell's script execution policy before the checks ran. Repeated using
+the installed npm.cmd/npx.cmd launchers; no execution-policy changes made.
+
+3. Scope and working tree
+
+No migration created, edited or applied. The pre-existing untracked
+Backend/prisma/migrations/20261127120000_feedback_b3/ remains untouched.
+No database commands, API requests, database writes or .env edits.
+No Postman builders, body-rewrite scripts or Newman runs.
+No commit, push, stash or reset. Existing B3 work remains uncommitted as requested.
+HANDOFF.md, tracker, checklist and other existing documentation were not edited.
+Frontend behavior was inspected in source and checked by lint/build; no browser
+or live database testing was performed.
+
+This pass changed only:
+- AGENTS.md
+- Backend/src/modules/commissions/commissions.workflow.spec.ts
+- docs/codex-reports/feedback-b03-review-fixes.txt (this report)
+
+git status --short (includes pre-existing changes):
+ M AGENTS.md
+ M Backend/postman/Tribeca-Jets-API.postman_collection.json
+ M Backend/postman/build_commissions_folder.py
+ M Backend/postman/build_operators_folder.py
+ M Backend/postman/build_trips_folder.py
+ M Backend/postman/recapture_clients_examples.py
+ M Backend/prisma/schema/client.prisma
+ M Backend/prisma/schema/commission.prisma
+ M Backend/prisma/schema/operator.prisma
+ M Backend/src/app.module.ts
+ M Backend/src/common/authorization/roles.brokers.spec.ts
+ M Backend/src/common/validation/airports.spec.ts
+ M Backend/src/modules/clients/clients.module.ts
+ M Backend/src/modules/clients/clients.service.ts
+ M Backend/src/modules/clients/dto/client.dto.ts
+ M Backend/src/modules/commissions/commissions.service.ts
+ M Backend/src/modules/commissions/dto/commission.dto.ts
+ M Backend/src/modules/operator-payments/operator-payments.service.ts
+ M Backend/src/modules/operators/dto/operator.dto.ts
+ M Backend/src/modules/operators/operators.service.ts
+ M Backend/src/modules/quotes/quotes.module.ts
+ M Backend/src/modules/quotes/quotes.money.spec.ts
+ M Backend/src/modules/quotes/quotes.scope.spec.ts
+ M Backend/src/modules/quotes/quotes.service.ts
+ M Backend/src/modules/trips/trips.approval.spec.ts
+ M Backend/src/modules/trips/trips.module.ts
+ M Backend/src/modules/trips/trips.service.ts
+ M Frontend/src/components/clients/AddClientDialog.jsx
+ M Frontend/src/components/clients/ClientSummaryBar.jsx
+ M Frontend/src/components/commissions/AddCommissionDialog.jsx
+ M Frontend/src/components/commissions/CommissionDetailSheet.jsx
+ M Frontend/src/components/common/ConfirmDialog.jsx
+ M Frontend/src/components/common/payments/PaymentForm.jsx
+ M Frontend/src/components/leads-agents/AddLeadDialog.jsx
+ M Frontend/src/components/operators/AddOperatorDialog.jsx
+ M Frontend/src/components/operators/tabs/OperatorOverviewTab.jsx
+ M Frontend/src/components/portal/commissions/PortalCommissionsContainer.jsx
+ M Frontend/src/components/table/commissions/CommissionsContainer.jsx
+ M Frontend/src/components/trips/CreateTripForm.jsx
+ M Frontend/src/components/trips/actions/TripActionBar.jsx
+ M Frontend/src/components/trips/actions/TripApprovalBanner.jsx
+ M Frontend/src/hooks/flight-tracking/useUpdateFlight.js
+ M Frontend/src/hooks/quotes/useSendQuote.js
+ M Frontend/src/hooks/trips/index.js
+ M Frontend/src/hooks/trips/useChangeTripStatus.js
+ M Frontend/src/hooks/trips/useUpdateTrip.js
+ M Frontend/src/lib/client.js
+ M Frontend/src/lib/commission.js
+ M Frontend/src/lib/lead.js
+ M Frontend/src/lib/operator.js
+ M Frontend/src/lib/timeline.js
+ M Frontend/src/services/trips.service.js
+ M Frontend/src/store/useCommissionsStore.js
+ M Frontend/src/templates/CommissionsPage.jsx
+ M Frontend/src/templates/NewTripPage.jsx
+ M HANDOFF.md
+ M docs/DEVELOPER_TEST_CHECKLIST.md
+ M docs/FEEDBACK_TRACKER.md
+ M docs/MODULE_FEATURE_STATUS.md
+ M docs/feedback-replies/PROGRESS_FOR_ARI.md
+ M docs/feedback-replies/REPLIES_TO_TESTER.md
+?? Backend/prisma/migrations/20261127120000_feedback_b3/
+?? Backend/src/modules/clients/clients.workflow.spec.ts
+?? Backend/src/modules/commissions/commissions.completion.ts
+?? Backend/src/modules/commissions/commissions.workflow.spec.ts
+?? Backend/src/modules/operators/operators.workflow.spec.ts
+?? Backend/src/modules/quotes/quotes.workflow.spec.ts
+?? Backend/src/modules/trips/trip-open-items.module.ts
+?? Backend/src/modules/trips/trip-open-items.spec.ts
+?? Backend/src/modules/trips/trips.workflow.spec.ts
+?? Frontend/src/components/clients/LeadSourceOtherField.jsx
+?? Frontend/src/components/commissions/ConfirmCommissionPaidDialog.jsx
+?? Frontend/src/components/commissions/MarkCommissionPaidDialog.jsx
+?? Frontend/src/hooks/trips/useTripOpenItems.js
+?? docs/codex-prompts/feedback-b03-postman.md
+?? docs/codex-prompts/feedback-b03-review-fixes.md
+?? docs/codex-reports/feedback-b03-review-fixes.txt
+?? docs/codex-reports/feedback-b03-workflow-rules.txt

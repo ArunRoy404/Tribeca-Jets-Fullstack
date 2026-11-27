@@ -66,11 +66,51 @@ for a review, and how the owner likes to work, is in
   clearing. The 4100 API and its launcher were stopped and their processes
   killed. **Outstanding:** the developer's on-screen tests in the
   checklist. **Next: B3.**
-- **B3 (workflow rules): brief written, not built** (27 Nov,
-  `docs/codex-prompts/feedback-b03-workflow-rules.md`). Codex hit its
-  usage limit 22 seconds in, before changing any file. To resume: paste
-  the B3 launcher into a new Codex chat. B3 has a migration (three
-  nullable columns) — Codex writes it and does not run it.
+- **B3 (workflow rules) built by Codex and reviewed by Claude, 27 Nov —
+  done, uncommitted.** Brief `docs/codex-prompts/feedback-b03-workflow-rules.md`,
+  report `docs/codex-reports/feedback-b03-workflow-rules.txt`. Migration
+  `20261127120000_feedback_b3` (three nullable columns) **applied to the
+  dev database by Claude, 27 Nov**; the dev API and frontend restarted. Review
+  fixes: a PAID commission's method is required only when it becomes PAID
+  or its method is cleared (Codex's rule refused editing the notes of any
+  commission paid before B3 without a method, and the edit form re-asked
+  "mark paid?" on every save of a paid row); operator create no longer
+  accepts `oaRequired: null` (create omits, edit clears). Codex then
+  verified both and added regression tests
+  (`docs/codex-reports/feedback-b03-review-fixes.txt`). Checks green:
+  109 files / 1,219 tests, tsc, both lints, build. **Postman verified, 27 Nov:** refreshed
+  `tribeca_postman`, ran copy-only `db:deploy` (B3 already present; no pending
+  migrations), and rebuilt the API with Claude's estimatedArrival fix into
+  a temporary folder on 4100. Valid client detail reads now return 200.
+  Commissions 21, Trips 38, Clients 26, Operators 29 examples (114 in rebuilt
+  folders; collection 341 request entries / 852 examples). Both successful
+  full Newman runs passed: 473 requests / 344 assertions / 0 failures each,
+  without reseeding between runs; each rebuilt folder passed standalone
+  twice. Label audit: 0 mislabelled across 852 examples. Fixed only the
+  Clients builder's stale cleanup before its final teardown; prepared copied
+  WhatsApp fixtures and let the email-code quota expire before the repeat.
+  **API checklist walk stopped on a new product bug:** landing leg 1 of a
+  two-leg trip (probe TJ-90) completes it and earns its PENDING commission
+  while leg 2 is still unreported. updateFlight's unlanded count excludes
+  null flightStatus. **Fixed by Claude, 27 Nov** (the count includes
+  unreported legs; test added; 1,220 tests green; confirmed read-only on dev
+  — 16 unreported legs the old filter skipped). Pre-B3 bug in Flight
+  Tracking; B3 made it earn commissions. **Walk finish verified, 27 Nov:**
+  refreshed the copy, ran copy-only db:deploy (no pending migrations), and
+  rebuilt the current tree into a new temporary 4100 API. First landing
+  leaves IN_FLIGHT / PENDING; last landing completes / earns once with
+  reason all_flights_landed. PAID/CANCELLED payment fields and updatedAt
+  stay unchanged. Fully settled completion and latestTrip route, operator,
+  aircraft, ETA, no-money fields and broker reach/null assertions all pass.
+  Flight Tracking standalone twice: 13 requests / 8 assertions each; Trips
+  standalone twice: 33 / 15 each; full collection once: 473 / 344 — all zero
+  failures and zero off-target requests. No builders ran; read-only label
+  audit: 852 examples, 0 mislabelled. No product code changed. All 28 initial
+  and 15 new walk probes archived/withdrawn; the broker's exact copied
+  permissions and update stamps restored. The 4100 process was killed;
+  port 4000 retained its original PID and dev was not written. Report:
+  `docs/codex-reports/feedback-b03-postman.txt`. **API walk complete; only
+  the developer's screen checks remain.**
 - **A batch is done when Claude's review passes and all checks are green**
   (developer, 27 Nov); the developer tests later from the checklist.
 - Ari has not answered the 19 questions; we start with B1–B7 (B5's font

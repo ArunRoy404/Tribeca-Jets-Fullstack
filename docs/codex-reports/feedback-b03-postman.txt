@@ -1,0 +1,611 @@
+Feedback B3 — Postman / Newman / API checklist report
+27 November 2026 (Asia/Dhaka)
+
+RESULT: CAPTURES AND NEWMAN COMPLETE; API WALK STOPPED ON A NEW PRODUCT BUG.
+No product code was changed or fixed. Remaining checks were not called passed.
+
+1. Isolation, refresh, migration and build
+- Read AGENTS.md in full, the B3 brief, HANDOFF, review playbook, checklist,
+  relevant builders and the earlier blocked report.
+- Port 4100 initially unused; dev port 4000 listener PID 3916.
+- Refreshed tribeca_postman only with dropdb/createdb, then pg_dump -Fc
+  tribeca_jets | pg_restore --no-owner --exit-on-error into tribeca_postman.
+  Dev was read solely as the authorized dump source, never written or migrated.
+- npm run db:deploy targeted the copy only and passed with no pending
+  migrations. 20261127120000_feedback_b3 was inherited from the dev snapshot.
+- Compiled the current API into a temporary folder, preserving dev dist.
+  Confirmed emitted latestForClient selects estimatedArrival.
+- Started PID 19892 on 4100 with copy-only DATABASE_URL, MAIL_DRIVER=log,
+  REDIS_URL=redis://localhost:6380/1 and RATE_LIMIT_MULTIPLIER=20.
+  Backend/.env values remained in memory; API output was discarded.
+- Builders used POSTMAN_BASE=http://localhost:4100/api. Newman ran from
+  Backend using the existing cached installation and an environment baseUrl
+  override to http://localhost:4100/api. Every request, including script
+  requests, was checked for isolation: zero off-target requests.
+- No npm or pip install; no reseed. No request was sent to port 4000.
+
+2. Builders and captured examples
+- build_commissions_folder.py: 12 request entries / 21 examples.
+  PAID with WIRE_TRANSFER / WIRE-9842; 400 without method.
+- build_trips_folder.py: 15 request entries / 38 examples.
+  Confirmation-readiness 400; open-items 200 / 401 / 404.
+- recapture_clients_examples.py: 11 request entries / 26 examples.
+  leadSourceOther, 400 Describe the source, final teardown 204.
+- build_operators_folder.py: 10 request entries / 29 examples.
+  oaRequired true on create, cleared to null on PATCH; no null create body.
+- Final B3 folders: 114 examples; final collection: 341 entries / 852 examples.
+- Only builder correction: Clients request 09 still archived the probe and
+  cleared newClientId in its test script, so the final teardown got 404.
+  Removed obsolete cleanup in the builder, retained the restore assertion,
+  and captured examples for B3 validation and final teardown. The final 204
+  now clears the id. Both standalone runs prove it. No label was relaxed.
+- rewrite_body_comments.py passed from Backend/postman (112 bodies).
+
+3. Newman results
+Run                         Requests  Assertions  Failures
+full-1                           473         344         0
+full-2                           473         344         0
+standalone-03-1                   12           5         0
+standalone-03-2                   12           5         0
+standalone-06-1                   11          10         0
+standalone-06-2                   11          10         0
+standalone-15-1                   33          15         0
+standalone-15-2                   33          15         0
+standalone-17-1                   23          12         0
+standalone-17-2                   23          12         0
+
+- Both successful full runs used the same copy, without reseeding between runs.
+- Earlier failed attempts, retained in the temporary evidence:
+  Initial full: 474 requests / 344 assertions / 9 failures. One was the
+  Clients teardown; eight were inherited WhatsApp fixture mismatches and
+  dependent checks. Cleared copied credentials/model through 4100 only;
+  confirmed assistant off and zero linked phones. No WhatsApp code changed.
+  Immediate repeat: 473 requests / 344 assertions / 3 failures: reset-code
+  429, then dependent verification/reset 400. Let the Redis database 1 code
+  window expire naturally. No limit changes, counter clearing or auth edits.
+- Successful final repeat additionally retained HTTP status evidence:
+  forgot-password, resend, verify and reset-password all 200; zero 429s.
+
+4. API checklist walk
+- Used admin@example.com SUPER_ADMIN, broker@example.com BROKER and
+  agent@example.com REFERRAL_AGENT cookie sessions; /auth/me 200.
+- First walk: copied broker held both money-view grants, so API correctly
+  returned amounts. Its expected no-view assertion failed as a fixture
+  mismatch, not a product bug. Archived all 12 probes (204).
+- Second walk: temporarily removed OPERATOR_PAYMENTS and RECEIVABLES from
+  that copied broker through PATCH /users/:id (200), verified effective
+  permissions on the next /auth/me, and restored the exact original raw
+  permissions and update stamps in finally. Restoration verified on the copy.
+- Legacy paid fixture: set method NULL and an earlier paidAt on a newly
+  created disposable PAID commission using copy-only SQL. The API correctly
+  cannot create such a historical row today. No seeded commission was paid.
+- Second walk results (asserted fields below):
+
+PASS — Seeded account identities
+  Checked: {"owner": "SUPER_ADMIN", "broker": "BROKER", "agent": "REFERRAL_AGENT"}
+PASS — OA true create
+  Checked: {"oaRequired": true, "createNullStatus": 400}
+PASS — OA round trip False
+  Checked: {"oaRequired": false}
+PASS — OA round trip None
+  Checked: {"oaRequired": null}
+PASS — OA round trip True
+  Checked: {"oaRequired": true}
+PASS — Other source required on create
+  Checked: {"success": false, "statusCode": 400, "message": "Validation failed", "errors": {"leadSourceOther": "Describe the source"}, "path": "/api/clients", "timestamp": "2026-11-27T15:44:11.931Z"}
+PASS — Other source saved and trimmed
+  Checked: {"leadSource": "OTHER", "leadSourceOther": "Aviation conference"}
+PASS — No trips latestTrip
+  Checked: {"latestTrip": null}
+PASS — Source change clears Other
+  Checked: {"leadSource": "DIRECT", "leadSourceOther": null}
+PASS — Quote sent advances NEW lead
+  Checked: {"status": "LEAD", "leadStage": "QUOTED", "events": [{"kind": "EVENT", "id": "d2490103-d4e7-4ef0-a785-e14891070b4a", "action": "client.stage_changed", "metadata": {"to": {"status": "LEAD", "leadStage": "QUOTED"}, "via": "quote_sent", "from": {"status": "LEAD", "leadStage": "NEW"}}, "createdAt": "2026-11-27T15:44:12.087Z", "actorId": "351de68d-0256-4ba7-8fa5-8140e4db1c65", "actor": {"id": "351de68d-0256-4ba7-8fa5-8140e4db1c65", "firstName": "Ari", "lastName": "Admin", "email": "admin@example.com"}}]}
+PASS — Booking advances Active Won with trip reference
+  Checked: {"status": "ACTIVE", "leadStage": "WON", "tripReference": 88, "events": [{"kind": "EVENT", "id": "25ac8df9-c339-4cfe-9045-f6f342f319ca", "action": "client.stage_changed", "metadata": {"to": {"status": "ACTIVE", "leadStage": "WON"}, "via": "booking", "from": {"status": "LEAD", "leadStage": "QUOTED"}, "tripReference": 88}, "createdAt": "2026-11-27T15:44:12.181Z", "actorId": "351de68d-0256-4ba7-8fa5-8140e4db1c65", "actor": {"id": "351de68d-0256-4ba7-8fa5-8140e4db1c65", "firstName": "Ari", "lastName": "Admin", "email": "admin@example.com"}}, {"kind": "EVENT", "id": "d2490103-d4e7-4ef0-a785-e14891070b4a", "action": "client.stage_changed", "metadata": {"to": {"status": "LEAD", "leadStage": "QUOTED"}, "via": "quote_sent", "from": {"status": "LEAD", "leadStage": "NEW"}}, "createdAt": "2026-11-27T15:44:12.087Z", "actorId": "351de68d-0256-4ba7-8fa5-8140e4db1c65", "actor": {"id": "351de68d-0256-4ba7-8fa5-8140e4db1c65", "firstName": "Ari", "lastName": "Admin", "email": "admin@example.com"}}]}
+PASS — WON client never moves back on quote
+  Checked: {"status": "ACTIVE", "leadStage": "WON", "stageEventCount": 2}
+PASS — Confirm names operator tick and departure time
+  Checked: {"success": false, "statusCode": 400, "message": "Before confirming: tick Operator confirmed, add a departure time", "path": "/api/trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/status", "timestamp": "2026-11-27T15:44:12.417Z"}
+PASS — Absent bill warns without inventing balance
+  Checked: {"operatorUnpaid": true, "operatorBalance": null, "uninvoiced": 10000, "uninvoicedOpen": true}
+PASS — Legacy PAID notes-only edit
+  Checked: {"status": "PAID", "method": null, "notes": "B3 notes-only legacy edit"}
+PASS — Mark Paid refuses missing method
+  Checked: {"success": false, "statusCode": 400, "message": "Choose a payment method before marking a commission paid", "errors": {"method": "Choose a payment method"}, "path": "/api/commissions/e8dc21c1-b69d-4d9d-9fac-1212492b3bbc", "timestamp": "2026-11-27T15:44:12.702Z"}
+PASS — Mark Paid saves date method reference
+  Checked: {"status": "PAID", "method": "WIRE_TRANSFER", "paymentReference": "B3-WIRE-9842", "paidAt": "2026-11-27T00:00:00.000Z"}
+PASS — Agent commission read and list show payout hide desk notes
+  Checked: {"paidAt": "2026-11-27T00:00:00.000Z", "method": "WIRE_TRANSFER", "paymentReference": "B3-WIRE-9842", "notesPresent": false, "brokerPresent": false}
+PASS — Admin open-items amounts
+  Checked: {"operatorUnpaid": true, "operatorBalance": 7000, "uninvoiced": 10000, "uninvoicedOpen": true}
+PASS — Broker open-items flags without amounts
+  Checked: {"operatorUnpaid": true, "operatorBalance": null, "uninvoiced": null, "uninvoicedOpen": true}
+PASS — Status completion earns pending despite open money
+  Checked: {"tripStatus": "COMPLETED", "pendingNow": "EARNED", "preservedStatuses": ["PAID", "PAID", "CANCELLED", "PAID"], "openItems": {"operatorUnpaid": true, "operatorBalance": 7000, "uninvoiced": 10000, "uninvoicedOpen": true}}
+PASS — Reopen does not reverse earned
+  Checked: {"status": "EARNED"}
+FAIL — Only last landing may complete trip / earn commission
+  Checked: {"tripReadStatus": 200, "tripId": "8425f840-fc71-4420-b5fd-23fb0b3d8e58", "tripStatus": "COMPLETED", "tripArchived": true, "commissionReadStatus": 200, "commissionId": "9d6cf964-7e50-48a9-8541-a02277e92883", "commissionStatus": "EARNED", "commissionArchived": true, "legsFromReadOnlyCopyQuery": [{"id": "dc2f47f3-e3a0-4ad2-a4bc-918525241b0d", "sequence": 1, "flightStatus": "LANDED", "estimatedArrival": "16:45"}, {"id": "f6edf890-563e-4ae1-8652-bd771883d311", "sequence": 2, "flightStatus": null, "estimatedArrival": null}]}
+
+PARTIAL / NOT REACHED:
+- Status-action completion passed, including preservation of PAID/CANCELLED
+  payment fields and update stamps. Flight completion failed before the last
+  landing; the last-leg and its PAID/CANCELLED preservation checks were not run.
+- Open-money completion and broker flags without amounts passed. Fully
+  settled / no-warning completion was not reached before the product stop.
+- Client detail no-trips latestTrip null passed. Reads after booking also
+  returned 200, resolving the old select failure. Dedicated latestTrip route,
+  operator, aircraft and ETA assertions were not reached.
+- Mark Paid, legacy notes-only edit, agent narrowed payout data, confirmation
+  refusal, client lifecycle, OTHER source validation/clearing and OA tri-state
+  checks passed before the stop.
+
+Screen — not walked:
+- Mark Paid form, Review Payment/confirmation; legacy edit confirmation flow;
+  portal rendering; disabled Confirm/page hint; Complete Anyway and warning
+  layout; latest-trip strip/No trips yet/24-hour rendering; Edit financials
+  scrolling; Add Client/Add Lead source controls/display; operator form/Overview.
+
+5. New product bug — stopped without fixing
+Probe TJ-90 (two legs), created and confirmed on 4100:
+  POST /trips -> 201; POST /commissions (PENDING, flat fee 125) -> 201.
+  POST /trips/8425f840-fc71-4420-b5fd-23fb0b3d8e58/status CONFIRMED -> 200.
+  PATCH /flight-tracking/dc2f47f3-e3a0-4ad2-a4bc-918525241b0d
+    {flightStatus: IN_FLIGHT, estimatedArrival: 16:45} -> 200.
+  PATCH same FIRST leg {flightStatus: LANDED} -> 200.
+  GET /commissions/9d6cf964-7e50-48a9-8541-a02277e92883 -> 200, EARNED.
+  Only the first leg had been reported. Expected trip IN_FLIGHT / commission
+  PENDING until the second leg lands. Actual trip COMPLETED / commission EARNED.
+  Read-only verification after cleanup: GET archived trip/commission -> 200;
+  persisted copy trip_legs: leg 1 LANDED / ETA 16:45; leg 2 flightStatus null.
+  Audit: reason all_flights_landed, then commission.earned, after leg 1.
+- Cause: Backend/src/modules/trips/trips.service.ts:2120-2121 counts other
+  unlanded legs with flightStatus: { not: FlightStatus.LANDED }. SQL NULL
+  does not satisfy that comparison, so an unreported leg is excluded.
+- No API, frontend, schema or migration source was edited. No workaround
+  was applied to the product or used to force the landing check green.
+- The local walk harness initially printed an empty AssertionError message;
+  investigated its saved calls and persisted state, then recorded the explicit
+  failure above. The harness exit status was not treated as evidence of a pass.
+
+Calls behind the second walk (status codes):
+  GET /auth/me -> 200
+  GET /auth/me -> 200
+  GET /auth/me -> 200
+  PATCH /users/d36cbf85-ccd5-41f9-92c5-1cac8d452511 -> 200
+  GET /auth/me -> 200
+  Copy fixture: temporarily remove broker money module grants; exact original restored in finally
+  GET /airports?limit=2 -> 200
+  POST /operators -> 400
+  POST /operators -> 201
+  PATCH /operators/31dba556-784e-447c-919c-68a3cb33ee5b -> 200
+  GET /operators/31dba556-784e-447c-919c-68a3cb33ee5b -> 200
+  PATCH /operators/31dba556-784e-447c-919c-68a3cb33ee5b -> 200
+  GET /operators/31dba556-784e-447c-919c-68a3cb33ee5b -> 200
+  PATCH /operators/31dba556-784e-447c-919c-68a3cb33ee5b -> 200
+  GET /operators/31dba556-784e-447c-919c-68a3cb33ee5b -> 200
+  POST /clients -> 400
+  POST /clients -> 201
+  GET /clients/81d57656-7142-4536-a0a1-0be8120d9ad2 -> 200
+  PATCH /clients/81d57656-7142-4536-a0a1-0be8120d9ad2 -> 200
+  GET /clients/81d57656-7142-4536-a0a1-0be8120d9ad2 -> 200
+  PATCH /clients/81d57656-7142-4536-a0a1-0be8120d9ad2 -> 400
+  POST /quotes -> 201
+  POST /quotes/d7511322-856b-423b-932d-38d497b50721/send -> 200
+  GET /clients/81d57656-7142-4536-a0a1-0be8120d9ad2 -> 200
+  GET /notes/timeline?subjectType=CLIENT&subjectId=81d57656-7142-4536-a0a1-0be8120d9ad2&limit=100 -> 200
+  POST /quotes/d7511322-856b-423b-932d-38d497b50721/approve -> 200
+  POST /trips/from-quote/d7511322-856b-423b-932d-38d497b50721 -> 201
+  GET /clients/81d57656-7142-4536-a0a1-0be8120d9ad2 -> 200
+  GET /notes/timeline?subjectType=CLIENT&subjectId=81d57656-7142-4536-a0a1-0be8120d9ad2&limit=100 -> 200
+  POST /quotes -> 201
+  POST /quotes/8b305c9a-9f38-47d1-acba-bd8b89ed3c4a/send -> 200
+  GET /clients/81d57656-7142-4536-a0a1-0be8120d9ad2 -> 200
+  GET /notes/timeline?subjectType=CLIENT&subjectId=81d57656-7142-4536-a0a1-0be8120d9ad2&limit=100 -> 200
+  POST /trips -> 201
+  POST /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/status -> 400
+  PATCH /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea -> 200
+  GET /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/open-items -> 200
+  POST /commissions -> 201
+  POST /commissions -> 201
+  POST /commissions -> 201
+  POST /commissions -> 201
+  Copy fixture: legacy PAID commission without method
+  PATCH /commissions/87fb3775-84d4-447b-b20a-193506ec8d2e -> 200
+  PATCH /commissions/e8dc21c1-b69d-4d9d-9fac-1212492b3bbc -> 400
+  PATCH /commissions/e8dc21c1-b69d-4d9d-9fac-1212492b3bbc -> 200
+  GET /commissions/e8dc21c1-b69d-4d9d-9fac-1212492b3bbc -> 200
+  GET /commissions?tripId=73fa70e4-dbe5-4ed5-8e16-37d55dd223ea&limit=100 -> 200
+  POST /commissions -> 201
+  POST /operator-payments -> 201
+  GET /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/open-items -> 200
+  GET /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/open-items -> 200
+  POST /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/status -> 200
+  POST /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/status -> 200
+  POST /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/status -> 200
+  GET /commissions/63c2cb03-e6a0-4ea5-94a9-c63335b9e55a -> 200
+  GET /commissions/e8dc21c1-b69d-4d9d-9fac-1212492b3bbc -> 200
+  GET /commissions/6faf2470-d5f1-46c0-8b86-ec5bf565e969 -> 200
+  GET /commissions/aaf494dd-eecb-4b0f-8d7e-0f49d59755b3 -> 200
+  GET /commissions/87fb3775-84d4-447b-b20a-193506ec8d2e -> 200
+  GET /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/open-items -> 200
+  POST /trips/73fa70e4-dbe5-4ed5-8e16-37d55dd223ea/status -> 200
+  GET /commissions/63c2cb03-e6a0-4ea5-94a9-c63335b9e55a -> 200
+  POST /trips -> 201
+  POST /commissions -> 201
+  POST /commissions -> 201
+  POST /commissions -> 201
+  POST /trips/8425f840-fc71-4420-b5fd-23fb0b3d8e58/status -> 200
+  PATCH /flight-tracking/dc2f47f3-e3a0-4ad2-a4bc-918525241b0d -> 200
+  PATCH /flight-tracking/dc2f47f3-e3a0-4ad2-a4bc-918525241b0d -> 200
+  GET /commissions/9d6cf964-7e50-48a9-8541-a02277e92883 -> 200
+  Copy fixture: broker exact raw permissions and update stamps restored
+
+Teardown: 12 first-walk + 16 second-walk probes = 28; every DELETE -> 204.
+No seeded trip was completed. All probes end archived.
+
+6. Label audit
+852 examples checked recursively, comparing the status anywhere in the name
+with the stored code: 0 mislabelled, 0 missing status labels.
+
+7. Shutdown, file scope and git
+- Killed isolated PID 19892; verified no port 4100 listener or process remains.
+- Port 4000 still has original PID 3916; no HTTP request targeted it.
+- Only tribeca_postman was written. Migration command targeted the copy only.
+- No secret or value from Backend/.env was printed or written into a file.
+- Starting-file hashes confirm no product changes during this task.
+- Changed: collection JSON, Clients recapture builder, checklist, HANDOFF and
+  this overwritten report. Existing product/builder changes were preserved.
+- No commit, push, stash or reset. Work intentionally remains uncommitted.
+
+git status --short (all other changes pre-existed):
+ M AGENTS.md
+ M Backend/postman/Tribeca-Jets-API.postman_collection.json
+ M Backend/postman/build_commissions_folder.py
+ M Backend/postman/build_operators_folder.py
+ M Backend/postman/build_trips_folder.py
+ M Backend/postman/recapture_clients_examples.py
+ M Backend/prisma/schema/client.prisma
+ M Backend/prisma/schema/commission.prisma
+ M Backend/prisma/schema/operator.prisma
+ M Backend/src/app.module.ts
+ M Backend/src/common/authorization/roles.brokers.spec.ts
+ M Backend/src/common/validation/airports.spec.ts
+ M Backend/src/modules/clients/clients.module.ts
+ M Backend/src/modules/clients/clients.service.ts
+ M Backend/src/modules/clients/dto/client.dto.ts
+ M Backend/src/modules/commissions/commissions.service.ts
+ M Backend/src/modules/commissions/dto/commission.dto.ts
+ M Backend/src/modules/operator-payments/operator-payments.service.ts
+ M Backend/src/modules/operators/dto/operator.dto.ts
+ M Backend/src/modules/operators/operators.service.ts
+ M Backend/src/modules/quotes/quotes.module.ts
+ M Backend/src/modules/quotes/quotes.money.spec.ts
+ M Backend/src/modules/quotes/quotes.scope.spec.ts
+ M Backend/src/modules/quotes/quotes.service.ts
+ M Backend/src/modules/trips/trips.approval.spec.ts
+ M Backend/src/modules/trips/trips.module.ts
+ M Backend/src/modules/trips/trips.service.ts
+ M Frontend/src/components/clients/AddClientDialog.jsx
+ M Frontend/src/components/clients/ClientSummaryBar.jsx
+ M Frontend/src/components/commissions/AddCommissionDialog.jsx
+ M Frontend/src/components/commissions/CommissionDetailSheet.jsx
+ M Frontend/src/components/common/ConfirmDialog.jsx
+ M Frontend/src/components/common/payments/PaymentForm.jsx
+ M Frontend/src/components/leads-agents/AddLeadDialog.jsx
+ M Frontend/src/components/operators/AddOperatorDialog.jsx
+ M Frontend/src/components/operators/tabs/OperatorOverviewTab.jsx
+ M Frontend/src/components/portal/commissions/PortalCommissionsContainer.jsx
+ M Frontend/src/components/table/commissions/CommissionsContainer.jsx
+ M Frontend/src/components/trips/CreateTripForm.jsx
+ M Frontend/src/components/trips/actions/TripActionBar.jsx
+ M Frontend/src/components/trips/actions/TripApprovalBanner.jsx
+ M Frontend/src/hooks/flight-tracking/useUpdateFlight.js
+ M Frontend/src/hooks/quotes/useSendQuote.js
+ M Frontend/src/hooks/trips/index.js
+ M Frontend/src/hooks/trips/useChangeTripStatus.js
+ M Frontend/src/hooks/trips/useUpdateTrip.js
+ M Frontend/src/lib/client.js
+ M Frontend/src/lib/commission.js
+ M Frontend/src/lib/lead.js
+ M Frontend/src/lib/operator.js
+ M Frontend/src/lib/timeline.js
+ M Frontend/src/services/trips.service.js
+ M Frontend/src/store/useCommissionsStore.js
+ M Frontend/src/templates/CommissionsPage.jsx
+ M Frontend/src/templates/NewTripPage.jsx
+ M HANDOFF.md
+ M docs/DEVELOPER_TEST_CHECKLIST.md
+ M docs/FEEDBACK_TRACKER.md
+ M docs/MODULE_FEATURE_STATUS.md
+ M docs/feedback-replies/PROGRESS_FOR_ARI.md
+ M docs/feedback-replies/REPLIES_TO_TESTER.md
+?? Backend/prisma/migrations/20261127120000_feedback_b3/
+?? Backend/src/modules/clients/clients.workflow.spec.ts
+?? Backend/src/modules/commissions/commissions.completion.ts
+?? Backend/src/modules/commissions/commissions.workflow.spec.ts
+?? Backend/src/modules/operators/operators.workflow.spec.ts
+?? Backend/src/modules/quotes/quotes.workflow.spec.ts
+?? Backend/src/modules/trips/trip-open-items.module.ts
+?? Backend/src/modules/trips/trip-open-items.spec.ts
+?? Backend/src/modules/trips/trips.workflow.spec.ts
+?? Frontend/src/components/clients/LeadSourceOtherField.jsx
+?? Frontend/src/components/commissions/ConfirmCommissionPaidDialog.jsx
+?? Frontend/src/components/commissions/MarkCommissionPaidDialog.jsx
+?? Frontend/src/hooks/trips/useTripOpenItems.js
+?? docs/codex-prompts/feedback-b03-postman.md
+?? docs/codex-prompts/feedback-b03-review-fixes.md
+?? docs/codex-reports/feedback-b03-postman.txt
+?? docs/codex-reports/feedback-b03-review-fixes.txt
+?? docs/codex-reports/feedback-b03-workflow-rules.txt
+
+Raw evidence: local temporary tribeca-b3-rerun-20261127 folder.
+
+
+Walk finish (27 Nov)
+====================
+RESULT: PASS. API walk complete; only the developer's screen checks remain.
+No product code changes, no builder changes and no collection changes in this run.
+
+1. Environment and fix build
+- Read AGENTS.md in full, both B3 briefs, HANDOFF, checklist, previous report
+  and local environment guidance. Used the current working tree, preserving
+  all pre-existing uncommitted work.
+- Refreshed tribeca_postman only: dropdb/createdb, then pg_dump -Fc from
+  tribeca_jets piped into pg_restore --no-owner --exit-on-error on the copy.
+  Dev was used solely as the authorized read-only dump source; no writes,
+  migrations or API requests targeted dev or port 4000.
+- npm run db:deploy passed against the copy only: no pending migrations;
+  20261127120000_feedback_b3 was already present in the refreshed snapshot.
+- Recompiled the current API to the new temporary directory
+  %TEMP%/tribeca-b3-walk-finish-20261127/dist, leaving dev dist untouched.
+  Checked the emitted updateFlight query contains the explicit OR including
+  flightStatus null. Started isolated Node PID 16480 on port 4100 with
+  MAIL_DRIVER=log, REDIS_URL=redis://localhost:6380/1, copy-only DATABASE_URL
+  and RATE_LIMIT_MULTIPLIER=20. Backend/.env was read in memory for overrides;
+  no value from it was printed or written. API output was discarded.
+- Cleared copied WhatsApp credentials/model/phoneNumberId, selected v25.0,
+  kept assistant off and confirmed zero owner phones through 4100 only.
+  No limits, counters or verification records were cleared or changed.
+- Temporarily removed the copied broker's two money-view modules through
+  PATCH /users/:id (200), verified /auth/me (200), then restored its exact
+  raw stored permissions, updatedAt and updatedById in finally on the copy.
+  A read-back matched the original snapshot exactly.
+
+2. Fix re-verification and remaining API walk
+- Created fresh two-leg trip TJ-23, with real probe operator and aircraft,
+  plus PENDING, PAID and CANCELLED commissions. POST creates -> 201;
+  POST /trips/:id/status CONFIRMED -> 200.
+- First-leg PATCH IN_FLIGHT with ETA 16:45 -> 200; PATCH LANDED -> 200.
+  GET trip and commission -> 200: trip IN_FLIGHT, commission PENDING.
+  Copy-only read confirmed leg 1 LANDED / leg 2 flightStatus null, zero
+  completion events and zero commission.earned events.
+- Second-leg PATCH IN_FLIGHT with ETA 20:15 -> 200; PATCH LANDED -> 200.
+  GET trip and commission -> 200: COMPLETED / EARNED. Copy audit read:
+  exactly one trip.status_changed to COMPLETED with reason
+  all_flights_landed, exactly one commission.earned for the pending probe.
+- PAID and CANCELLED commissions read before, after leg 1 and after leg 2
+  -> 200 throughout. Status, method, paidAt, paymentReference and updatedAt
+  matched their original values after both landings.
+- Fully settled case: POST operator bill 7000 -> 201; POST bill payment
+  7000 -> 201; POST SENT invoice 10000, zero FET -> 201; POST invoice payment
+  10000 -> 201. GET /trips/:id/open-items -> 200 as owner and broker:
+  operatorUnpaid false / uninvoicedOpen false; owner balances 0 / 0;
+  broker without money-view modules amounts null / null. CONFIRMED,
+  IN_FLIGHT and COMPLETED status actions all -> 200; final COMPLETED.
+- GET /clients/:id -> 200 after booking: latestTrip includes status, both
+  route airports, operator name, related aircraft tail/model, leg date
+  2026-11-26, departure times 14:30 / 18:30 and ETA 16:45 / 20:15.
+  Recursively checked basePrice / operatorCost / grossProfit are absent.
+- Broker reach: created a newer owner-assigned trip on a broker-visible
+  client. Owner GET client -> 200 returns that trip; broker GET client
+  -> 200 returns the preceding trip in reach. Broker GET hidden trip
+  -> 404. Separate broker-visible client with only an owner-assigned trip:
+  owner GET -> 200 with trip, broker GET -> 200 with latestTrip null.
+  Client with no trips also -> 200 with latestTrip null.
+
+Asserted walk results:
+PASS - Seeded identities
+  Checked: {"owner": "SUPER_ADMIN", "broker": "BROKER"}
+PASS - Copied WhatsApp fixture cleared
+  Checked: {"assistantEnabled": false, "credentialFieldsCleared": true, "liveOwnerPhones": 0}
+PASS - Client without trips returns null
+  Checked: {"latestTrip": null}
+PASS - First landing leaves unreported leg pending
+  Checked: {"tripId": "e0b764a8-5ef1-4b25-8a56-75809010cd9b", "reference": 23, "tripStatus": "IN_FLIGHT", "commissionStatus": "PENDING", "legs": [{"sequence": 1, "flightStatus": "LANDED"}, {"sequence": 2, "flightStatus": null}], "audit": {"earned": 0, "completion": []}}
+PASS - First landing preserves paid and cancelled
+  Checked: [{"status": "PAID", "method": "WIRE_TRANSFER", "paidAt": "2026-11-26T00:00:00.000Z", "paymentReference": "B3-FINISH-PAID", "updatedAt": "2026-11-27T15:54:46.792Z"}, {"status": "CANCELLED", "method": null, "paidAt": null, "paymentReference": null, "updatedAt": "2026-11-27T15:54:46.816Z"}]
+PASS - Last landing completes and earns exactly once
+  Checked: {"tripStatus": "COMPLETED", "commissionStatus": "EARNED", "audit": {"earned": 1, "completion": [{"to": "COMPLETED", "from": "IN_FLIGHT", "reason": "all_flights_landed", "reference": 23}]}}
+PASS - Last landing preserves paid and cancelled
+  Checked: [{"status": "PAID", "method": "WIRE_TRANSFER", "paidAt": "2026-11-26T00:00:00.000Z", "paymentReference": "B3-FINISH-PAID", "updatedAt": "2026-11-27T15:54:46.792Z"}, {"status": "CANCELLED", "method": null, "paidAt": null, "paymentReference": null, "updatedAt": "2026-11-27T15:54:46.816Z"}]
+PASS - Latest trip returns route operator aircraft date time ETA without money
+  Checked: {"id": "e0b764a8-5ef1-4b25-8a56-75809010cd9b", "reference": 23, "type": "ROUND_TRIP", "status": "COMPLETED", "departureDate": "2026-11-26T00:00:00.000Z", "passengerCount": 2, "assignedBroker": {"id": "d36cbf85-ccd5-41f9-92c5-1cac8d452511", "firstName": "Jordan", "lastName": "Broker", "email": "broker@example.com"}, "operator": {"name": "B3 Finish 75aed70a"}, "aircraft": {"tailNumber": "B375AED70A", "model": "Walk finish probe model"}, "aircraftDescription": null, "legs": [{"originAirport": {"id": "92adc70a-7b24-4ac6-b5e5-663ad1d9a596", "icao": "KASE", "iata": "ASE", "name": "Aspen/Pitkin County", "city": "Aspen", "country": "USA", "assignedFbo": "Atlantic Aviation"}, "destinationAirport": {"id": "dd381a0f-6574-4a83-86be-366ce3863f57", "icao": "KVNY", "iata": "VNY", "name": "Van Nuys Airport", "city": "Los Angeles", "country": "USA", "assignedFbo": "Castle & Cooke Aviation"}, "departureDate": "2026-11-26T00:00:00.000Z", "departureTime": "14:30", "estimatedArrival": "16:45"}, {"originAirport": {"id": "dd381a0f-6574-4a83-86be-366ce3863f57", "icao": "KVNY", "iata": "VNY", "name": "Van Nuys Airport", "city": "Los Angeles", "country": "USA", "assignedFbo": "Castle & Cooke Aviation"}, "destinationAirport": {"id": "92adc70a-7b24-4ac6-b5e5-663ad1d9a596", "icao": "KASE", "iata": "ASE", "name": "Aspen/Pitkin County", "city": "Aspen", "country": "USA", "assignedFbo": "Atlantic Aviation"}, "departureDate": "2026-11-26T00:00:00.000Z", "departureTime": "18:30", "estimatedArrival": "20:15"}]}
+PASS - Fully settled preflight clears both warnings
+  Checked: {"admin": {"operatorUnpaid": false, "operatorBalance": 0, "uninvoiced": 0, "uninvoicedOpen": false}, "brokerWithoutMoneyView": {"operatorUnpaid": false, "operatorBalance": null, "uninvoiced": null, "uninvoicedOpen": false}}
+PASS - Fully settled completion succeeds
+  Checked: {"tripId": "c5112651-21da-43c8-ac91-4e7db1870c27", "status": "COMPLETED"}
+PASS - Broker latest trip skips newest outside reach
+  Checked: {"ownerNewest": "bb04302d-8d2b-4106-9e69-f20fa7305398", "brokerNewestVisible": "c5112651-21da-43c8-ac91-4e7db1870c27", "hiddenTripRead": 404}
+PASS - Broker latest trip is null when none in reach
+  Checked: {"latestTrip": null, "ownerSeesTrip": "55edeab0-58a6-477e-889b-151003d896be"}
+PASS - Broker exact raw permissions and update stamps restored
+  Checked: {"verified": true, "database": "tribeca_postman"}
+
+Calls behind the walk (status codes):
+  GET /auth/me -> 200
+  GET /auth/me -> 200
+  PATCH /settings/whatsapp/assistant -> 200
+  PATCH /settings/whatsapp -> 200
+  GET /settings/whatsapp/phones?limit=100 -> 200
+  GET /settings/whatsapp/phones?limit=100 -> 200
+  PATCH /users/d36cbf85-ccd5-41f9-92c5-1cac8d452511 -> 200
+  GET /auth/me -> 200
+  GET /airports?limit=2 -> 200
+  POST /operators -> 201
+  POST /aircraft -> 201
+  POST /clients -> 201
+  GET /clients/c4fa5f47-fc3f-46ce-b041-dc6002816e41 -> 200
+  POST /trips -> 201
+  POST /commissions -> 201
+  POST /commissions -> 201
+  POST /commissions -> 201
+  GET /commissions/553e0648-b8a0-403b-856a-19d65f751ac2 -> 200
+  GET /commissions/9839789f-92f7-4864-afa5-5dfbc8c0a1c0 -> 200
+  GET /commissions/09b1de7f-5c4d-4d2e-9b42-ac86e98d21c5 -> 200
+  POST /trips/e0b764a8-5ef1-4b25-8a56-75809010cd9b/status -> 200
+  PATCH /flight-tracking/e39ec193-fc9d-4197-bad5-0f90b1b635a2 -> 200
+  PATCH /flight-tracking/e39ec193-fc9d-4197-bad5-0f90b1b635a2 -> 200
+  GET /trips/e0b764a8-5ef1-4b25-8a56-75809010cd9b -> 200
+  GET /commissions/09b1de7f-5c4d-4d2e-9b42-ac86e98d21c5 -> 200
+  GET /commissions/553e0648-b8a0-403b-856a-19d65f751ac2 -> 200
+  GET /commissions/9839789f-92f7-4864-afa5-5dfbc8c0a1c0 -> 200
+  PATCH /flight-tracking/876ba61a-fa85-40bb-bc8b-45019207c2b4 -> 200
+  PATCH /flight-tracking/876ba61a-fa85-40bb-bc8b-45019207c2b4 -> 200
+  GET /trips/e0b764a8-5ef1-4b25-8a56-75809010cd9b -> 200
+  GET /commissions/09b1de7f-5c4d-4d2e-9b42-ac86e98d21c5 -> 200
+  GET /commissions/553e0648-b8a0-403b-856a-19d65f751ac2 -> 200
+  GET /commissions/9839789f-92f7-4864-afa5-5dfbc8c0a1c0 -> 200
+  GET /clients/c4fa5f47-fc3f-46ce-b041-dc6002816e41 -> 200
+  POST /trips -> 201
+  POST /operator-payments -> 201
+  POST /operator-payments/bdd1335a-66d6-4916-9704-cb75a4142300/payments -> 201
+  POST /receivables -> 201
+  POST /receivables/c2e2899b-bdf6-4f30-aa7f-0fe5aa07b07a/payments -> 201
+  GET /trips/c5112651-21da-43c8-ac91-4e7db1870c27/open-items -> 200
+  GET /trips/c5112651-21da-43c8-ac91-4e7db1870c27/open-items -> 200
+  POST /trips/c5112651-21da-43c8-ac91-4e7db1870c27/status -> 200
+  POST /trips/c5112651-21da-43c8-ac91-4e7db1870c27/status -> 200
+  POST /trips/c5112651-21da-43c8-ac91-4e7db1870c27/status -> 200
+  GET /clients/c4fa5f47-fc3f-46ce-b041-dc6002816e41 -> 200
+  POST /trips -> 201
+  GET /clients/c4fa5f47-fc3f-46ce-b041-dc6002816e41 -> 200
+  GET /clients/c4fa5f47-fc3f-46ce-b041-dc6002816e41 -> 200
+  GET /trips/bb04302d-8d2b-4106-9e69-f20fa7305398 -> 404
+  POST /clients -> 201
+  POST /trips -> 201
+  GET /clients/184d19b0-ee15-4e2b-8834-24b680886007 -> 200
+  GET /clients/184d19b0-ee15-4e2b-8834-24b680886007 -> 200
+
+3. Newman
+Run                             Requests  Assertions  Failures
+standalone-flight-tracking-1          13           8         0
+standalone-flight-tracking-2          13           8         0
+standalone-trips-1                    33          15         0
+standalone-trips-2                    33          15         0
+full-1                               473         344         0
+- Ran from Backend using the existing cached Newman installation;
+  envVar baseUrl=http://localhost:4100/api (the programmatic equivalent of
+  --env-var). No npm or pip install. Same copy throughout, no reseeding.
+- Guarded every outgoing request, including scripts: 565 requests checked,
+  zero off-target requests. All four standalone runs and the full run green.
+- No builders ran and no examples were recaptured. Additional read-only
+  label audit: 852 examples, 0 mislabelled, 0 missing status labels.
+
+4. Teardown, findings and scope
+- No new product bug found. Claude's landing fix passed; no product code
+  was fixed, modified or worked around.
+- Temporary harness teardown mistake: payment creation returns its parent
+  bill, so its top-level id is not the payment id; withdrawal returns 200,
+  not 204. The first cleanup got two 404s for those wrong ids and two 400s
+  because the bills still held live payments. Corrected the temporary
+  harness, read the real ids from each bill's payments, withdrew each
+  payment (200), and archived each bill (204). All other archives -> 204.
+  Subsequent read-only copy queries verified all 15 walk-created rows
+  archived/withdrawn. These were harness errors, not product failures.
+- Screen - not walked: all dialogs/confirmation flows, portal rendering,
+  Complete Anyway/warning layout, latest-trip strip layout/No trips yet/
+  24-hour rendering, Edit financials scrolling, source and OA controls.
+- Killed isolated PID 16480 and verified both the process and port 4100
+  listener are gone. Port 4000 retains original PID 3916; no request sent.
+- Only tribeca_postman and API port 4100 were used for mutations/checks;
+  migration command targeted the copy only. No secret printed or stored.
+- Before/after hashes: Backend, Frontend, builders and collection unchanged.
+  Only this report (appended), docs/DEVELOPER_TEST_CHECKLIST.md and HANDOFF.md
+  were edited for this task. An unrelated review PDF changed externally
+  during the run and was left untouched.
+- No git commit, push, stash or reset. Documentation changes intentionally
+  remain uncommitted alongside the pre-existing work.
+
+git status --short (product/builder changes pre-existed):
+ M AGENTS.md
+ M Backend/postman/Tribeca-Jets-API.postman_collection.json
+ M Backend/postman/build_commissions_folder.py
+ M Backend/postman/build_operators_folder.py
+ M Backend/postman/build_trips_folder.py
+ M Backend/postman/recapture_clients_examples.py
+ M Backend/prisma/schema/client.prisma
+ M Backend/prisma/schema/commission.prisma
+ M Backend/prisma/schema/operator.prisma
+ M Backend/src/app.module.ts
+ M Backend/src/common/authorization/roles.brokers.spec.ts
+ M Backend/src/common/validation/airports.spec.ts
+ M Backend/src/modules/clients/clients.module.ts
+ M Backend/src/modules/clients/clients.service.ts
+ M Backend/src/modules/clients/dto/client.dto.ts
+ M Backend/src/modules/commissions/commissions.service.ts
+ M Backend/src/modules/commissions/dto/commission.dto.ts
+ M Backend/src/modules/operator-payments/operator-payments.service.ts
+ M Backend/src/modules/operators/dto/operator.dto.ts
+ M Backend/src/modules/operators/operators.service.ts
+ M Backend/src/modules/quotes/quotes.module.ts
+ M Backend/src/modules/quotes/quotes.money.spec.ts
+ M Backend/src/modules/quotes/quotes.scope.spec.ts
+ M Backend/src/modules/quotes/quotes.service.ts
+ M Backend/src/modules/trips/trips.approval.spec.ts
+ M Backend/src/modules/trips/trips.module.ts
+ M Backend/src/modules/trips/trips.service.ts
+ M Frontend/src/components/clients/AddClientDialog.jsx
+ M Frontend/src/components/clients/ClientSummaryBar.jsx
+ M Frontend/src/components/commissions/AddCommissionDialog.jsx
+ M Frontend/src/components/commissions/CommissionDetailSheet.jsx
+ M Frontend/src/components/common/ConfirmDialog.jsx
+ M Frontend/src/components/common/payments/PaymentForm.jsx
+ M Frontend/src/components/leads-agents/AddLeadDialog.jsx
+ M Frontend/src/components/operators/AddOperatorDialog.jsx
+ M Frontend/src/components/operators/tabs/OperatorOverviewTab.jsx
+ M Frontend/src/components/portal/commissions/PortalCommissionsContainer.jsx
+ M Frontend/src/components/table/commissions/CommissionsContainer.jsx
+ M Frontend/src/components/trips/CreateTripForm.jsx
+ M Frontend/src/components/trips/actions/TripActionBar.jsx
+ M Frontend/src/components/trips/actions/TripApprovalBanner.jsx
+ M Frontend/src/hooks/flight-tracking/useUpdateFlight.js
+ M Frontend/src/hooks/quotes/useSendQuote.js
+ M Frontend/src/hooks/trips/index.js
+ M Frontend/src/hooks/trips/useChangeTripStatus.js
+ M Frontend/src/hooks/trips/useUpdateTrip.js
+ M Frontend/src/lib/client.js
+ M Frontend/src/lib/commission.js
+ M Frontend/src/lib/lead.js
+ M Frontend/src/lib/operator.js
+ M Frontend/src/lib/timeline.js
+ M Frontend/src/services/trips.service.js
+ M Frontend/src/store/useCommissionsStore.js
+ M Frontend/src/templates/CommissionsPage.jsx
+ M Frontend/src/templates/NewTripPage.jsx
+ M HANDOFF.md
+ M docs/DEVELOPER_TEST_CHECKLIST.md
+ M docs/FEEDBACK_TRACKER.md
+ M docs/MODULE_FEATURE_STATUS.md
+ M docs/feedback-replies/PROGRESS_FOR_ARI.md
+ M docs/feedback-replies/REPLIES_TO_TESTER.md
+?? Backend/prisma/migrations/20261127120000_feedback_b3/
+?? Backend/src/modules/clients/clients.workflow.spec.ts
+?? Backend/src/modules/commissions/commissions.completion.ts
+?? Backend/src/modules/commissions/commissions.workflow.spec.ts
+?? Backend/src/modules/operators/operators.workflow.spec.ts
+?? Backend/src/modules/quotes/quotes.workflow.spec.ts
+?? Backend/src/modules/trips/trip-open-items.module.ts
+?? Backend/src/modules/trips/trip-open-items.spec.ts
+?? Backend/src/modules/trips/trips.workflow.spec.ts
+?? Frontend/src/components/clients/LeadSourceOtherField.jsx
+?? Frontend/src/components/commissions/ConfirmCommissionPaidDialog.jsx
+?? Frontend/src/components/commissions/MarkCommissionPaidDialog.jsx
+?? Frontend/src/hooks/trips/useTripOpenItems.js
+?? docs/codex-prompts/feedback-b03-postman.md
+?? docs/codex-prompts/feedback-b03-review-fixes.md
+?? docs/codex-prompts/feedback-b03-walk-finish.md
+?? docs/codex-reports/feedback-b03-postman.txt
+?? docs/codex-reports/feedback-b03-review-fixes.txt
+?? docs/codex-reports/feedback-b03-workflow-rules.txt

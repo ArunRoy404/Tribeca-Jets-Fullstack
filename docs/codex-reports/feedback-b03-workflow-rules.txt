@@ -1,0 +1,339 @@
+Feedback B3 — workflow rules
+27 November 2026
+
+Implementation complete. The migration is written and deliberately unapplied.
+Live API/database integration and Postman capture remain deferred as instructed.
+
+1. Files changed (one line each)
+
+AGENTS.md — Document durable commission completion, payout, open-money warning, client lifecycle, OTHER-source and nullable OA rules under part two.
+Backend/postman/Tribeca-Jets-API.postman_collection.json — Write B3 fields and executable error/open-items requests; preserve all 844 captured examples; keep serial order and add client probe teardown.
+Backend/postman/build_commissions_folder.py — Prepare payout method/reference and Method required captures for the next authorized live run.
+Backend/postman/build_operators_folder.py — Prepare OA true/null payloads and exact nullable-boolean documentation.
+Backend/postman/build_trips_folder.py — Prepare confirmation prerequisites and open-items 200/401/404 captures, using the shared capture assertions.
+Backend/postman/recapture_clients_examples.py — Prepare OTHER-source captures, assert captured status labels, and use a live client instead of a named demo record.
+Backend/prisma/migrations/20261127120000_feedback_b3/migration.sql — Prisma-generated, hand-checked B3 migration containing exactly three nullable ADD COLUMN statements; not applied.
+Backend/prisma/schema/client.prisma — Declare nullable Client.leadSourceOther with no default.
+Backend/prisma/schema/commission.prisma — Declare nullable Commission.paymentReference with no default.
+Backend/prisma/schema/operator.prisma — Declare nullable Operator.oaRequired with no default.
+Backend/src/app.module.ts — Register the trip open-items reader module.
+Backend/src/common/authorization/roles.brokers.spec.ts — Supply the added ClientsService dependency in existing quote service fixtures.
+Backend/src/common/validation/airports.spec.ts — Supply the added ClientsService dependency in existing quote service fixtures.
+Backend/src/modules/clients/clients.module.ts — Defer the existing Trips reader import with forwardRef for the quote-to-client owner call.
+Backend/src/modules/clients/clients.service.ts — Validate/clear OTHER descriptions, select them, advance quote-sent leads transactionally, and return the scoped latest trip.
+Backend/src/modules/clients/clients.workflow.spec.ts — Test lifecycle audit/no-change behavior, forward-only quote advancement, OTHER validation/clearing, and scope-before-latest-trip reads.
+Backend/src/modules/clients/dto/client.dto.ts — Add bounded, trimmed leadSourceOther to separate create/update schemas; require it on OTHER creates.
+Backend/src/modules/commissions/commissions.completion.ts — Export earnOnTripCompletion(tx, tripId, actorId), earning only live PENDING rows with one transactional audit per change.
+Backend/src/modules/commissions/commissions.service.ts — Require payout methods; store/select/audit reference and method; include proof of payment in partner reads and transaction movements.
+Backend/src/modules/commissions/commissions.workflow.spec.ts — Test method-required 400s, reference validation/storage/audit, and partner projection without desk data.
+Backend/src/modules/commissions/dto/commission.dto.ts — Validate payout method, optional trimmed reference up to 120 characters, and the existing calendar paid date.
+Backend/src/modules/operator-payments/operator-payments.service.ts — Own the trip-wide live-payables balance read used by completion warnings.
+Backend/src/modules/operators/dto/operator.dto.ts — Accept oaRequired as null/true/false, without a default, on create and update.
+Backend/src/modules/operators/operators.service.ts — Add oaRequired to the shared list select inherited by detail reads.
+Backend/src/modules/operators/operators.workflow.spec.ts — Test null/true/false through both DTOs, writes and selects, plus absence and string rejection.
+Backend/src/modules/quotes/quotes.module.ts — Import the client owner through forwardRef.
+Backend/src/modules/quotes/quotes.money.spec.ts — Supply the added client lifecycle owner in existing pricing fixtures.
+Backend/src/modules/quotes/quotes.scope.spec.ts — Supply the added client lifecycle owner in existing scope fixtures.
+Backend/src/modules/quotes/quotes.service.ts — Advance the client through ClientsService within the quote-send transaction.
+Backend/src/modules/quotes/quotes.workflow.spec.ts — Test quote-send transaction delegation and Nest resolution of the deferred client/trip/quote service cycle.
+Backend/src/modules/trips/trip-open-items.module.ts — Implement the staff/session trip-scoped GET endpoint through the three owning services, without importing dependants into TripsModule.
+Backend/src/modules/trips/trip-open-items.spec.ts — Test amounts versus warning flags, independent permissions, unknown figures, fully settled trips, and scoped 404 behavior.
+Backend/src/modules/trips/trips.approval.spec.ts — Update the approved-trip fixture with the required operator tick/time and transaction audit mock.
+Backend/src/modules/trips/trips.module.ts — Defer the existing Quotes reader import and document the lifecycle dependency arrangement.
+Backend/src/modules/trips/trips.service.ts — Audit booking client changes, enforce complete confirmation requirements, read latest client trips, and earn commissions in both completion transactions.
+Backend/src/modules/trips/trips.workflow.spec.ts — Test both completion paths, untouched PAID/CANCELLED commissions, reopening, confirmation requirements and quote-booking bypass prevention, plus latest-trip scope.
+Frontend/src/components/clients/AddClientDialog.jsx — Seed, edit and submit the conditional OTHER-source description.
+Frontend/src/components/clients/ClientSummaryBar.jsx — Populate the existing flight-context markup from the latest scoped trip; show No trips yet and honest blanks.
+Frontend/src/components/clients/LeadSourceOtherField.jsx — Share the required OTHER description input between client and lead editors.
+Frontend/src/components/commissions/AddCommissionDialog.jsx — Collect the payment reference and confirm PAID saves; hide and omit payout-only fields without PAY.
+Frontend/src/components/commissions/CommissionDetailSheet.jsx — Display payment reference and open the payout form instead of writing PAID immediately.
+Frontend/src/components/commissions/ConfirmCommissionPaidDialog.jsx — Share the commission payout confirmation; avoid reusing an old computed amount after terms change.
+Frontend/src/components/commissions/MarkCommissionPaidDialog.jsx — Collect method/reference/date with the shared PaymentForm, then ConfirmDialog before using the mutation hook.
+Frontend/src/components/common/ConfirmDialog.jsx — Add optional pending behavior to prevent duplicate confirmation and dismissal during writes, preserving existing callers.
+Frontend/src/components/common/payments/PaymentForm.jsx — Add optional amount/notes visibility and reference length, preserving all existing payment-form behavior by default.
+Frontend/src/components/leads-agents/AddLeadDialog.jsx — Seed, edit and submit the shared conditional OTHER-source description.
+Frontend/src/components/operators/AddOperatorDialog.jsx — Add Yes/No/Not set OA control, preserving null separately from false and omitting unset on create.
+Frontend/src/components/operators/tabs/OperatorOverviewTab.jsx — Display OA required as Yes, No or Not set.
+Frontend/src/components/portal/commissions/PortalCommissionsContainer.jsx — Show payout method and reference in both partner table and mobile cards.
+Frontend/src/components/table/commissions/CommissionsContainer.jsx — Open the shared payout form from Mark Paid row actions.
+Frontend/src/components/trips/CreateTripForm.jsx — Give the existing Financials section an accessible fragment target.
+Frontend/src/components/trips/actions/TripActionBar.jsx — Show the complete confirmation checklist; fetch fresh open items before Complete and ask Complete Anyway when needed.
+Frontend/src/components/trips/actions/TripApprovalBanner.jsx — Link permitted pending-trip approvers to Edit financials in the existing trip form.
+Frontend/src/hooks/flight-tracking/useUpdateFlight.js — Invalidate commission/client reads after flight lifecycle consequences.
+Frontend/src/hooks/quotes/useSendQuote.js — Invalidate client reads and timelines after quote-send lifecycle advancement.
+Frontend/src/hooks/trips/index.js — Export the trip open-items operation hook.
+Frontend/src/hooks/trips/useChangeTripStatus.js — Own lifecycle cache invalidation and booking modal behavior, including newly earned commissions and client context.
+Frontend/src/hooks/trips/useTripOpenItems.js — Perform a fresh explicit preflight read on each Complete click and own its error toast.
+Frontend/src/hooks/trips/useUpdateTrip.js — Refresh the latest-trip client context after trip edits.
+Frontend/src/lib/client.js — Carry latestTrip and leadSourceOther; format saved OTHER sources with their actual description.
+Frontend/src/lib/commission.js — Carry payout references in staff and partner row projections, and payment methods in the partner projection.
+Frontend/src/lib/lead.js — Carry OTHER description and reuse the full saved-client source formatter.
+Frontend/src/lib/operator.js — Preserve oaRequired null/true/false in the operator row projection.
+Frontend/src/lib/timeline.js — Render recorded automatic client stage/status changes with their booking or quote-sent context.
+Frontend/src/services/trips.service.js — Add the thin GET open-items request wrapper.
+Frontend/src/store/useCommissionsStore.js — Hold the commission selected for the shared payout dialog.
+Frontend/src/templates/CommissionsPage.jsx — Mount the single payout dialog shared by table and detail actions.
+Frontend/src/templates/NewTripPage.jsx — Scroll and focus Financials after the existing edit form finishes loading.
+docs/MODULE_FEATURE_STATUS.md — Update the nine affected module/dependency entries, stating migration and live-capture status.
+docs/codex-reports/feedback-b03-workflow-rules.txt — Record the requested implementation, SQL, decisions, validation, and final working-tree report.
+
+Migration: Backend/prisma/migrations/20261127120000_feedback_b3/migration.sql
+Generated using a schema-to-schema Prisma diff against a temporary snapshot of
+the original schema. This does not connect to a database. SQL read in full and
+checked: exactly three nullable ADD COLUMNs, no defaults, backfill or DROP.
+
+Full migration SQL:
+
+-- AlterTable
+ALTER TABLE "clients" ADD COLUMN     "leadSourceOther" TEXT;
+
+-- AlterTable
+ALTER TABLE "commissions" ADD COLUMN     "paymentReference" TEXT;
+
+-- AlterTable
+ALTER TABLE "operators" ADD COLUMN     "oaRequired" BOOLEAN;
+
+2. Per-item status and code mismatches
+
+R1-06 — DONE. PAID requires method (field-level 400); reference is trimmed,
+max 120, stored, selected, audited and visible with date/method to the partner.
+Mark Paid opens the existing shared payment form adapted to a fixed commission,
+then ConfirmDialog. Add/Edit PAID saves also confirm. Hooks retain toasts and
+invalidation. Both trip completion paths earn live PENDING commissions and
+write commission.earned in the same transaction; PAID/CANCELLED stay unchanged
+and reopening never reverses EARNED. The existing identifier is COM-..., which
+is retained instead of introducing the brief's illustrative CM-... prefix.
+
+R1-07 — DONE. Confirmation names every missing operational requirement in one
+message, including operator-confirmed and the first leg's departure time.
+The trip page shows the same list. Creation as CONFIRMED uses the same checks.
+Booking a quote straight into CONFIRMED cannot bypass them: quotes have neither
+an operator-confirmed tick nor a leg departure time, so it must be booked first
+and completed on the trip before confirmation.
+
+R1-08 — DONE. GET /trips/:id/open-items is session/staff-only, applies the
+trip's read scope before any balance read and answers 404 outside it. The
+owning services supply the balance and invoiced totals; B1 uninvoicedCents
+computes the one-trip remainder. Complete fetches fresh results and warns
+without blocking on money. Figures are null without the respective permissions.
+Mismatch resolved explicitly: added uninvoicedOpen alongside the three named
+response fields, because a null uninvoiced amount cannot tell a caller without
+money access whether that warning is needed. No amount is leaked in that flag.
+
+R1-10 — DONE. Booking's actual client status/stage change writes the Client
+audit row in its transaction, including from/to, via booking and tripReference.
+Quote send uses ClientsService, in the quote update transaction, to advance
+only earlier LEAD stages NEW/CONTACTED/QUALIFIED/PROPOSAL to QUOTED. WON, LOST,
+QUOTED and non-leads do not move. Conditional writes avoid auditing a no-change.
+The client summary reads a scoped latest trip, including route/date/status;
+no trip displays No trips yet.
+Mismatch: git log -S and the current tree show ClientSummaryBar still present
+and mounted, with flight fields deliberately blank. No 30 October removal was
+found in this history. Reused that component's existing InfoField/grid markup,
+filled from real trip data, instead of inventing another strip.
+
+R2-T2 — DONE. The pending-trip approval banner offers Edit financials to an
+approver who can edit the trip. It opens the existing edit URL at #financials,
+then scrolls/focuses the section after loading. No new write endpoint.
+
+R2-C1 — DONE. leadSourceOther is on separate create/update DTOs and the shared
+list select inherited by detail. OTHER requires a nonblank description; source
+changes away clear it. Unrelated partial edits preserve it. Client and lead
+create/edit forms share one conditional input, and saved client/lead displays
+show Other — <text>.
+
+R2-C3 — DONE. oaRequired round-trips null/true/false with no default. The form
+uses CommonSelect for Yes/No/Not set; details display the three states. Unset
+is omitted on create by the frontend and sent as null when clearing an edit.
+
+3. Implementation decisions
+
+- EARNED wiring: the exported commission-owned function
+  earnOnTripCompletion(tx, tripId, actorId), with no CommissionsModule import
+  into TripsModule. Both status completion and the last live leg landing call
+  it. Conditional PENDING updates produce one audit per changed commission.
+  Its amount is computed with the existing commission/pricing owners, never
+  stored as another commission total. Transactional audit writes use tx.auditLog
+  directly: the normal AuditService deliberately swallows failures outside a
+  transaction, which would not satisfy this brief's atomic consequence.
+- Departure-time field: TripLeg.departureTime on the first live leg, ordered by
+  sequence ascending. operatorConfirmedAt is the stored operator tick.
+- Latest trip: most recently created live trip, ordered createdAt DESC then id
+  DESC. ClientsService checks client scope first and calls TripsService, which
+  also applies the caller's trip scope. The projection contains no financial
+  fields; optional flight facts remain honest blanks. This reuses the existing
+  summary markup rather than restoring invented data from an old design.
+- Client ownership: QuotesService calls ClientsService rather than writing the
+  Client model. The existing Clients → Trips → Quotes read dependencies require
+  forwardRef on the new cycle's services/modules; a Nest resolution regression
+  test pins it. The commission completion wiring introduces no such DI cycle.
+- Open items: a small reader module sits above Trips, Operator Payments and
+  Receivables, avoiding an import of those dependants into TripsModule.
+  operatorBalance requires OPERATOR_PAYMENTS · VIEW, and uninvoiced requires
+  RECEIVABLES · VIEW, matching the existing trip money readers. Both flags
+  remain available. An assigned operator with no bill warns but supplies null
+  balance; an unpriced trip supplies null uninvoiced rather than invented zero.
+- OTHER free text is trimmed and bounded to 500 characters; only the reference
+  had a specified length in the brief (120). oaRequired explicitly accepts null
+  on both DTOs because this field is deliberately three-valued.
+- Shared UI changes are additive: ConfirmDialog pending and PaymentForm optional
+  visibility/length props leave existing callers' defaults intact. Paid-only
+  inputs are hidden and omitted when the caller lacks COMMISSIONS · PAY.
+- Durable AGENTS.md additions: atomic EARNED on every completion path; a method
+  for PAID and the payee's payout reference; warning-only open money without
+  figure leaks; atomic audited automatic client stages; OTHER-source clearing;
+  and preservation of the OA null/false distinction.
+
+4. Run output and validation
+
+PowerShell blocks npm.ps1/npx.ps1 on this machine. Used the corresponding
+npm.cmd/npx.cmd launchers for the exact requested commands.
+
+Backend: npx.cmd prisma generate
+  Loaded Prisma config from prisma7.config.ts.
+  Prisma schema loaded from prisma/schema.
+  Generated Prisma Client (7.10.0) to ./src/generated/prisma successfully.
+  Also runs through npm test's existing pretest script.
+
+Backend: npm.cmd run lint
+  > oxlint --type-aware src/ test/
+  Exit 0, no errors or warnings in the final run.
+
+Backend: npx.cmd tsc --noEmit
+  Exit 0, no diagnostics.
+
+Backend: npm.cmd test
+  > prisma generate (pretest)
+  > vitest run
+  Test Files  109 passed (109)
+       Tests  1209 passed (1209)
+    Duration  27.11s
+  Six new workflow test files, 43 additional tests over the 1,166 baseline.
+  Initial implementation runs exposed an old confirmation fixture that lacked
+  the new tick/time and a new test that misunderstood calendarDate's existing
+  ISO-normalizing behavior. Corrected the fixtures/assertion; final suite green.
+  Existing vite-tsconfig-paths deprecation advice and expected mocked auth/
+  WhatsApp warning logs remain; no live WhatsApp call was made by this work.
+
+Frontend: npm.cmd run lint
+  > eslint
+  Exit 0, no diagnostics.
+
+Frontend: npm.cmd run build
+  Next.js 16.3.1 (Turbopack)
+  Compiled successfully in 3.7s.
+  Generating static pages: 45/45.
+  Exit 0. Existing multiple-lockfiles/workspace-root advisory remains.
+
+Offline layout verification:
+  Rendered the actual affected components with the built CSS and fixture data,
+  without running the API or connecting to the CRM. Inspected Chrome screenshots:
+    375px: innerWidth 375, document scrollWidth 375.
+    768px: innerWidth 768, document scrollWidth 768.
+    1440px: innerWidth 1440, document scrollWidth 1440.
+  Checked latest/no-trip strips, approval shortcut, confirmation prerequisites,
+  payout form, OTHER input and the three-way OA control. No horizontal overflow.
+  Screenshots: C:/Users/ROY/AppData/Local/Temp/tribeca-feedback-b3-375.png,
+  tribeca-feedback-b3-768.png and tribeca-feedback-b3-1440.png in the same folder.
+  Temporary render/browser scripts were removed from the repository. This was
+  component layout verification, not signed-in live API interaction testing.
+
+Postman (local, no API calls):
+  Four modified capture scripts parse as Python.
+  Request bodies in all four touched folders parse after removing JSON comments.
+  Recursive label audit: 844 examples, zero mislabeled statuses.
+  All previously captured response objects remain unchanged.
+  Ran rewrite_body_comments.py from postman/; preserved untouched folders.
+  No builder, recapture script, or Newman run was performed. New captures and
+  full/standalone Newman verification are pending by explicit instruction.
+
+Other checks:
+  git diff --check: exit 0 (only Git's LF/CRLF conversion advisories).
+  Clock-pattern scan of the changed display areas: no AM/PM/12-hour display
+  regressions. The preview shows 14:30 / 17:30.
+
+5. Final confirmations and git status
+
+Nothing committed, staged or pushed. Branch roy, HEAD unchanged:
+1ad9ab78906116aa65af4bc3527481244101e51d
+
+Migration 20261127120000_feedback_b3 was not run on any database. No migration
+deploy/dev/reset, seed, database write, or database connection was used for this
+work. Prisma generation and schema-to-schema SQL generation are local only;
+backend tests use mocked dependencies. No .env/.env.local file was changed.
+
+HANDOFF.md, docs/FEEDBACK_TRACKER.md, docs/DEVELOPER_TEST_CHECKLIST.md and
+all of docs/feedback-replies/ are unchanged, as required by the brief.
+All B3 work remains uncommitted for review, as requested.
+
+Final git status --short --untracked-files=all:
+ M AGENTS.md
+ M Backend/postman/Tribeca-Jets-API.postman_collection.json
+ M Backend/postman/build_commissions_folder.py
+ M Backend/postman/build_operators_folder.py
+ M Backend/postman/build_trips_folder.py
+ M Backend/postman/recapture_clients_examples.py
+ M Backend/prisma/schema/client.prisma
+ M Backend/prisma/schema/commission.prisma
+ M Backend/prisma/schema/operator.prisma
+ M Backend/src/app.module.ts
+ M Backend/src/common/authorization/roles.brokers.spec.ts
+ M Backend/src/common/validation/airports.spec.ts
+ M Backend/src/modules/clients/clients.module.ts
+ M Backend/src/modules/clients/clients.service.ts
+ M Backend/src/modules/clients/dto/client.dto.ts
+ M Backend/src/modules/commissions/commissions.service.ts
+ M Backend/src/modules/commissions/dto/commission.dto.ts
+ M Backend/src/modules/operator-payments/operator-payments.service.ts
+ M Backend/src/modules/operators/dto/operator.dto.ts
+ M Backend/src/modules/operators/operators.service.ts
+ M Backend/src/modules/quotes/quotes.module.ts
+ M Backend/src/modules/quotes/quotes.money.spec.ts
+ M Backend/src/modules/quotes/quotes.scope.spec.ts
+ M Backend/src/modules/quotes/quotes.service.ts
+ M Backend/src/modules/trips/trips.approval.spec.ts
+ M Backend/src/modules/trips/trips.module.ts
+ M Backend/src/modules/trips/trips.service.ts
+ M Frontend/src/components/clients/AddClientDialog.jsx
+ M Frontend/src/components/clients/ClientSummaryBar.jsx
+ M Frontend/src/components/commissions/AddCommissionDialog.jsx
+ M Frontend/src/components/commissions/CommissionDetailSheet.jsx
+ M Frontend/src/components/common/ConfirmDialog.jsx
+ M Frontend/src/components/common/payments/PaymentForm.jsx
+ M Frontend/src/components/leads-agents/AddLeadDialog.jsx
+ M Frontend/src/components/operators/AddOperatorDialog.jsx
+ M Frontend/src/components/operators/tabs/OperatorOverviewTab.jsx
+ M Frontend/src/components/portal/commissions/PortalCommissionsContainer.jsx
+ M Frontend/src/components/table/commissions/CommissionsContainer.jsx
+ M Frontend/src/components/trips/CreateTripForm.jsx
+ M Frontend/src/components/trips/actions/TripActionBar.jsx
+ M Frontend/src/components/trips/actions/TripApprovalBanner.jsx
+ M Frontend/src/hooks/flight-tracking/useUpdateFlight.js
+ M Frontend/src/hooks/quotes/useSendQuote.js
+ M Frontend/src/hooks/trips/index.js
+ M Frontend/src/hooks/trips/useChangeTripStatus.js
+ M Frontend/src/hooks/trips/useUpdateTrip.js
+ M Frontend/src/lib/client.js
+ M Frontend/src/lib/commission.js
+ M Frontend/src/lib/lead.js
+ M Frontend/src/lib/operator.js
+ M Frontend/src/lib/timeline.js
+ M Frontend/src/services/trips.service.js
+ M Frontend/src/store/useCommissionsStore.js
+ M Frontend/src/templates/CommissionsPage.jsx
+ M Frontend/src/templates/NewTripPage.jsx
+ M docs/MODULE_FEATURE_STATUS.md
+?? Backend/prisma/migrations/20261127120000_feedback_b3/migration.sql
+?? Backend/src/modules/clients/clients.workflow.spec.ts
+?? Backend/src/modules/commissions/commissions.completion.ts
+?? Backend/src/modules/commissions/commissions.workflow.spec.ts
+?? Backend/src/modules/operators/operators.workflow.spec.ts
+?? Backend/src/modules/quotes/quotes.workflow.spec.ts
+?? Backend/src/modules/trips/trip-open-items.module.ts
+?? Backend/src/modules/trips/trip-open-items.spec.ts
+?? Backend/src/modules/trips/trips.workflow.spec.ts
+?? Frontend/src/components/clients/LeadSourceOtherField.jsx
+?? Frontend/src/components/commissions/ConfirmCommissionPaidDialog.jsx
+?? Frontend/src/components/commissions/MarkCommissionPaidDialog.jsx
+?? Frontend/src/hooks/trips/useTripOpenItems.js
+?? docs/codex-reports/feedback-b03-workflow-rules.txt
