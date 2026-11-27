@@ -66,6 +66,11 @@ for a review, and how the owner likes to work, is in
   clearing. The 4100 API and its launcher were stopped and their processes
   killed. **Outstanding:** the developer's on-screen tests in the
   checklist. **Next: B3.**
+- **B3 (workflow rules): brief written, not built** (27 Nov,
+  `docs/codex-prompts/feedback-b03-workflow-rules.md`). Codex hit its
+  usage limit 22 seconds in, before changing any file. To resume: paste
+  the B3 launcher into a new Codex chat. B3 has a migration (three
+  nullable columns) — Codex writes it and does not run it.
 - **A batch is done when Claude's review passes and all checks are green**
   (developer, 27 Nov); the developer tests later from the checklist.
 - Ari has not answered the 19 questions; we start with B1–B7 (B5's font

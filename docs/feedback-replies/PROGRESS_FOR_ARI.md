@@ -42,14 +42,14 @@ the 19 questions we sent on 25 November.
 - ✅ The Avinode link is corrected.
 
 **3. Workflow rules**
-- ⏳ Marking a commission paid asks how it was paid and the reference.
-- ⏳ A commission becomes Earned when its trip is completed.
-- ⏳ A trip can't be confirmed until the operator has confirmed and a departure time is set.
-- ⏳ Completing a trip warns you if the operator is unpaid or part of the trip isn't invoiced.
-- ⏳ Clients move to Quoted when a quote is sent, and to Active when they book, shown on their timeline.
-- ⏳ "Edit financials" button on the approval banner.
-- ⏳ A box to write the lead source when it is "Other".
-- ⏳ "OA required" (Yes / No) on each operator.
+- 🔨 Marking a commission paid asks how it was paid and the reference.
+- 🔨 A commission becomes Earned when its trip is completed.
+- 🔨 A trip can't be confirmed until the operator has confirmed and a departure time is set.
+- 🔨 Completing a trip warns you if the operator is unpaid or part of the trip isn't invoiced.
+- 🔨 Clients move to Quoted when a quote is sent, and to Active when they book, shown on their timeline.
+- 🔨 "Edit financials" button on the approval banner.
+- 🔨 A box to write the lead source when it is "Other".
+- 🔨 "OA required" (Yes / No) on each operator.
 
 **4. Trip details**
 - ⏳ Quotes carry interior and exterior photos, and both go on to the itinerary.
