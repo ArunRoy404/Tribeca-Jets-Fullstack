@@ -52,7 +52,7 @@ in part. Inside that, the order follows dependencies:
 |---|---|---|---|---|
 | B1 | Money and Settings correctness | R1-01, R1-02, R1-11 (carry-over), R1-12, R1-13 | — (R1-11's min-hours rule waits on R1 Q1) | — |
 | B2 | Small fixes and polish | R1-03, R1-09, R1-14, R1-15, R1-16, R1-18, R1-19, R2-B1, R2-B2, R2-B4 | — | — |
-| B3 | Workflow rules | R1-06, R1-07, R1-08, R1-10, R2-T2, R2-C1, R2-C3 | — | yes |
+| B3 | Workflow rules | R1-06, R1-07, R1-08, R1-10, R2-T2, R2-C1, R2-C3 | — | yes (+ commissions.paymentReference) |
 | B4 | Trip data | R3-04, R3-05, R3-06, R2-T1, R2-T4 | — | yes |
 | B5 | Email and document design system | R3-01, R3-02, R3-03 | — (font Q14 and jet image Q13 slot in later) | — |
 | B6 | Emails that tell the truth, and invoices | R1-04, R1-05, R2-F3, R2-F2, R2-F5 | — | maybe |
