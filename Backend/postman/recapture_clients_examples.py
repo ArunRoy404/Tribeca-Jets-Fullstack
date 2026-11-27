@@ -24,6 +24,7 @@ twice does not add rows to the working directory.
 """
 
 import json
+import re
 import pathlib
 import urllib.error
 import urllib.request
@@ -81,6 +82,9 @@ STATUS_TEXT = {200: 'OK', 201: 'Created', 204: 'No Content', 400: 'Bad Request',
 
 def set_body(example: dict, status: int, body) -> dict:
     """Replaces one stored example's response, leaving its request alone."""
+    expected = re.search(r'\b([1-5]\d{2})\b', example['name'])
+    if expected and int(expected.group(1)) != status:
+        raise AssertionError(f"{example['name']}: expected {expected.group(1)}, received {status}")
     example['code'] = status
     example['status'] = STATUS_TEXT[status]
     example['body'] = '' if body is None else json.dumps(body, indent=2, ensure_ascii=False)
@@ -96,22 +100,27 @@ def main() -> None:
     folder = next(f for f in collection['item'] if f['name'].startswith('03 · Clients'))
     by_name = {r['name']: r for r in folder['item']}
 
+    # B3 adds a final teardown request. The older restore test must no longer
+    # archive the probe or clear its id before that request can use it.
+    by_name['09 · Restore several clients']['event'] = [{
+        'listen': 'test', 'script': {'type': 'text/javascript', 'exec': [
+            "pm.test('restored', () => pm.response.to.have.status(200));",
+        ]},
+    }]
+
     def examples(request_name: str) -> dict:
         return {e['name']: e for e in by_name[request_name]['response']}
 
-    seed_email = 'marcus.chen@example.com'
-    status, seeded = owner.request('GET', '/clients?' + urlencode({'search': seed_email}))
-    if status != 200:
-        raise SystemExit(f'Could not look up the seeded client ({status})')
-    client = next((row for row in seeded['data'] if row.get('email') == seed_email), None)
-    if client is None:
-        raise SystemExit('The seeded client marcus.chen@example.com is required for the full-name example')
+    status, available = owner.request('GET', '/clients?limit=1')
+    if status != 200 or not available['data']:
+        raise SystemExit('A live client is required for the full-name example')
+    client = available['data'][0]
     full_name = f"{client['firstName']} {client['lastName']}"
     path = '/clients?' + urlencode({'search': full_name})
     status, matches = owner.request('GET', path)
     full_name_example = example('200 · Full name', 'GET', path, status, matches)
     if not any(row['id'] == client['id'] for row in matches['data']):
-        raise SystemExit('The full-name search did not return the seeded client')
+        raise SystemExit('The full-name search did not return the live client')
     responses = by_name['01 · List clients']['response']
     responses[:] = [item for item in responses if item['name'] != full_name_example['name']]
     responses.append(full_name_example)
@@ -124,7 +133,8 @@ def main() -> None:
         'status': 'LEAD',
         'email': 'postman.probe@example.com',
         'phone': '+1 555 0100',
-        'leadSource': 'DIRECT',
+        'leadSource': 'OTHER',
+        'leadSourceOther': 'Aviation conference',
         'leadStage': 'NEW',
         'priority': 'MEDIUM',
         'notes': 'Created by the Postman example capture script.',
@@ -158,6 +168,16 @@ def main() -> None:
     captured += bool(set_body(ex['403 · Missing X-CSRF-Token'], *owner.request('POST', '/clients', {'firstName': 'No', 'lastName': 'Csrf'}, csrf=False)))
     captured += bool(set_body(ex['401 · Not signed in'], *anon.request('POST', '/clients', {'firstName': 'Not', 'lastName': 'SignedIn'})))
 
+    invalid_source = {'firstName': 'Postman', 'lastName': 'Probe', 'leadSource': 'OTHER'}
+    source_responses = by_name['04 · Create client']['response']
+    source_responses[:] = [row for row in source_responses if row['name'] != '400 · Describe the source']
+    source_example = example('400 · Describe the source', 'POST', '/clients',
+                             *owner.request('POST', '/clients', invalid_source), req_body=invalid_source)
+    source_responses.append(source_example)
+    by_name['10 · 400 · Describe the source']['response'] = [source_example]
+    by_name['10 · 400 · Describe the source']['request']['description'] = (
+        'OTHER requires leadSourceOther. No query parameters.')
+
     # 05 · Update client — notes and preferences round-trip, which is the whole
     # reason this re-capture was needed.
     ex = examples('05 · Update client')
@@ -188,7 +208,9 @@ def main() -> None:
     captured += bool(set_body(ex['404 · Not found'], *owner.request('DELETE', f'/clients/{UNKNOWN_ID}')))
     delete_status, delete_body = owner.request('DELETE', f'/clients/{probe_id}')
     deleted_example = ex.get('204 · Deleted') or ex.get('200 · Deleted')
-    deleted_example['name'] = f'{delete_status} · Deleted'
+    if delete_status != 204:
+        raise AssertionError(f'Delete expected 204, received {delete_status}')
+    deleted_example['name'] = '204 · Deleted'
     captured += bool(set_body(deleted_example, delete_status, delete_body))
 
     # 07 · Restore client
@@ -197,11 +219,21 @@ def main() -> None:
 
     # Teardown. There is no hard delete in this system by design, so the run
     # cannot erase its own row; archiving it is the best available end state.
-    owner.request('DELETE', f'/clients/{probe_id}')
+    teardown = by_name['11 · Teardown — archive the probe']
+    teardown['response'] = [example('204 · Archived', 'DELETE', f'/clients/{probe_id}',
+                                     *owner.request('DELETE', f'/clients/{probe_id}'))]
+    teardown['request']['description'] = (
+        'Archives this run\'s probe in its own last request. No query parameters.')
+    teardown['event'] = [{
+        'listen': 'test', 'script': {'type': 'text/javascript', 'exec': [
+            "pm.test('archived', () => pm.response.to.have.status(204));",
+            "pm.collectionVariables.set('newClientId', '');",
+        ]},
+    }]
     print(f'probe {probe_id} archived')
 
     COLLECTION.write_text(json.dumps(collection, indent=2) + '\n')
-    print(f'recaptured {captured} examples in {folder["name"]}')
+    print(f'recaptured {sum(len(r["response"]) for r in folder["item"])} examples in {folder["name"]}')
 
 
 if __name__ == '__main__':

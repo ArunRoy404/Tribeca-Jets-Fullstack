@@ -45,6 +45,7 @@ CREATE_BODY = """{
   // "finalAmount": optional · the settled figure, once agreed — omit it rather than send null, which is refused here
 
   "status": "PENDING",                                 // optional · PENDING | EARNED | PAID | CANCELLED (default PENDING)
+  // "paymentReference": optional · trimmed text, max 120; omit rather than null on create
   // "method": optional · WIRE_TRANSFER | ACH | CHECK | ZELLE | CREDIT_CARD | OTHER — omit it rather than send null, which is refused here
   // "paidAt": optional · YYYY-MM-DD. Defaults to today when PAID. — omit it rather than send null, which is refused here
   "notes": "Standard terms."                           // optional · max 5000. Never shown to the agent.
@@ -53,7 +54,9 @@ CREATE_BODY = """{
 UPDATE_BODY = """{
   // Every field optional; null clears.
   "status": "PAID",                                    // optional · PENDING | EARNED | PAID | CANCELLED
-  "method": "WIRE_TRANSFER",                           // optional · payment method
+  "method": "WIRE_TRANSFER",                           // required when status is PAID · WIRE_TRANSFER | ACH | CHECK | ZELLE | CREDIT_CARD | OTHER
+  "paymentReference": "WIRE-9842",                       // optional · trimmed, max 120 characters; visible to the payee
+  // "paidAt": optional · YYYY-MM-DD; defaults to today when PAID
   "finalAmount": 1400                                  // optional · the settled amount
 }"""
 
@@ -139,7 +142,8 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
         cap['detail'] = owner.request('GET', f"/commissions/{commission['id']}")
         cap['detail_404'] = agent.request('GET', f"/commissions/{manual['id']}")
 
-        update = {'status': 'PAID', 'method': 'WIRE_TRANSFER', 'finalAmount': 1400}
+        update = {'status': 'PAID', 'method': 'WIRE_TRANSFER', 'paymentReference': 'WIRE-9842', 'finalAmount': 1400}
+        cap['method_400'] = owner.request('PATCH', f"/commissions/{commission['id']}", {'status': 'PAID'})
         cap['update'] = owner.request('PATCH', f"/commissions/{commission['id']}", update)
         cap['update_400'] = owner.request('PATCH', f"/commissions/{commission['id']}", {})
 
@@ -225,7 +229,7 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
                 'description': (
                     'The portal\'s Commission Center (#11). Made as the seeded referral agent: only their own '
                     'commissions, projected down to client/trip, trip date, structure, estimated, final, status '
-                    'and payment date — no notes, no broker, nothing about the trip\'s money.'),
+                    'and payment date, method and payout reference — no notes, no broker, nothing about the trip\'s money.'),
             },
             'response': [example('200 · The agent\'s own, narrowed', 'GET', '/commissions?page=1&limit=10', *cap['list_agent'])],
         },
@@ -269,11 +273,12 @@ def build(owner: Session, broker: Session, agent: Session, anonymous: Session):
                 'method': 'PATCH', 'header': WRITE_HEADERS,
                 'body': {'mode': 'raw', 'raw': UPDATE_BODY, 'options': {'raw': {'language': 'json'}}},
                 'url': url('/commissions/{{newCommissionId}}'),
-                'description': 'Marking it PAID with no `paidAt` stamps today. Only the fields sent change.',
+                'description': 'PAID requires method. paymentReference is trimmed, max 120, and visible to the agent. No paidAt stamps today. Live PENDING commissions also become EARNED in their trip completion transaction, from either completion path.',
             },
             'response': [
                 example('200 · Paid', 'PATCH', f'/commissions/{cid}', *cap['update'],
-                        req_body={'status': 'PAID', 'method': 'WIRE_TRANSFER', 'finalAmount': 1400}),
+                        req_body={'status': 'PAID', 'method': 'WIRE_TRANSFER', 'paymentReference': 'WIRE-9842', 'finalAmount': 1400}),
+                example('400 · Method required', 'PATCH', f'/commissions/{cid}', *cap['method_400'], req_body={'status': 'PAID'}),
                 example('400 · Empty body', 'PATCH', f'/commissions/{cid}', *cap['update_400'], req_body={}),
             ],
         },

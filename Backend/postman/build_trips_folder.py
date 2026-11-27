@@ -60,6 +60,7 @@ UPDATE_BODY = """{
   // COMPLETE lists: send an existing row's id to keep it, leave one out to
   // archive it (nothing is deleted). Status is not here — see 06.
   "type": "ONE_WAY",
+  "operatorConfirmed": true,                           // required before confirming; stamps operatorConfirmedAt
   "legs": [
     { "id": "{{tripLegId}}", "originAirportId": "{{airportId}}", "destinationAirportId": "{{airportId2}}", "departureDate": "2026-11-10", "departureTime": "10:00" }
   ],
@@ -212,11 +213,15 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         cap['detail_404'] = owner.request('GET', f'/trips/{MISSING}')
 
         update = {
-            'type': 'ONE_WAY',
+            'type': 'ONE_WAY', 'operatorConfirmed': True,
             'legs': [{'id': trip['legs'][0]['id'], 'originAirportId': a, 'destinationAirportId': b,
                       'departureDate': '2026-11-10', 'departureTime': '10:00'}],
             'clientNotes': None,
         }
+        cap['not_ready_400'] = owner.request('POST', f"/trips/{trip['id']}/status", {'status': 'CONFIRMED'})
+        cap['open_items'] = owner.request('GET', f"/trips/{trip['id']}/open-items")
+        cap['open_items_404'] = owner.request('GET', f'/trips/{MISSING}/open-items')
+        cap['open_items_401'] = anonymous.request('GET', f"/trips/{trip['id']}/open-items")
         cap['update'] = owner.request('PATCH', f"/trips/{trip['id']}", update)
         cap['update_400'] = owner.request('PATCH', f"/trips/{trip['id']}", {})
 
@@ -400,11 +405,12 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
                     'DRAFT → BOOKED → CONFIRMED → IN_FLIGHT → COMPLETED, each undoable one step; CANCELLED from '
                     'anywhere before departure; a cancelled trip reopens as DRAFT. A disallowed move is a 400 '
                     'that names the allowed ones. CONFIRMED also needs `approvalStatus: APPROVED` — a PENDING or '
-                    'declined trip is refused.'),
+                    'declined trip is refused. Before confirming: assign an operator, tick Operator confirmed, add a departure date, a first-leg departure time and passengers. Completion never blocks on open money; GET open-items is a warning only.'),
             },
             'response': [
                 example('200 · Confirmed', 'POST', f'/trips/{trip_id}/status', *cap['status'],
                         req_body={'status': 'CONFIRMED', 'note': 'Operator confirmed the tail.'}),
+                example('400 · Not ready to confirm', 'POST', f'/trips/{trip_id}/status', *cap['not_ready_400'], req_body={'status': 'CONFIRMED'}),
                 example('400 · Not a move from here', 'POST', f'/trips/{trip_id}/status', *cap['status_400'],
                         req_body={'status': 'COMPLETED'}),
                 example('400 · A declined trip cannot be confirmed', 'POST', f"/trips/{cap['declined_id']}/status",
@@ -533,6 +539,18 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
             'response': [],
         },
     ]
+
+    items.insert(-1, {
+        'name': '14 · Open money before completion',
+        'event': [status_test(200, '200 OK')],
+        'request': {'method': 'GET', 'header': [], 'url': url('/trips/{{newTripId}}/open-items'),
+            'description': 'Session + trip scope (404 outside it). operatorUnpaid and uninvoicedOpen are warning flags. operatorBalance needs Operator Payments · View; uninvoiced needs Receivables · View. Figures otherwise null. No query parameters. Completion is never blocked.'},
+        'response': [example('200 · Open items', 'GET', f'/trips/{trip_id}/open-items', *cap['open_items']),
+            example('404 · Not found or out of scope', 'GET', f'/trips/{MISSING}/open-items', *cap['open_items_404']),
+            example('401 · Not signed in', 'GET', f'/trips/{trip_id}/open-items', *cap['open_items_401'])],
+    })
+    for index, item in enumerate(items, 1):
+        item['name'] = f"{index:02d} · {item['name'].split(' · ', 1)[1]}"
 
     return {
         'name': '15 · Trips',

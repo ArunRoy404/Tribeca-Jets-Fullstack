@@ -85,6 +85,7 @@ CREATE = {
     'safetyRating': 4.9,
     'responseSpeed': 'FAST',
     'paymentTerms': 'NET_30',
+    'oaRequired': True,
     'cancellationPolicy': '30+ days — 10%\n14-30 days — 25%\nUnder 72 hours — non-refundable',
     'sourcingNotes': 'Probe written by the Postman run; archived at the end.',
 }
@@ -104,18 +105,20 @@ CREATE_RAW = """{
   "reliabilityRating": 4.6,                             // optional · number 0-5, the desk's own rating
   "safetyRating": 4.9,                                  // optional · number 0-5, the desk's own safety rating. Blank = not rated.
   "responseSpeed": "FAST",                              // optional · FAST | AVERAGE | SLOW
+  "oaRequired": true,                                   // optional · true / false; omit for not set (never null on create)
   "paymentTerms": "NET_30",                             // optional · PREPAID | DUE_ON_RECEIPT | NET_7 | NET_15 | NET_30
   "cancellationPolicy": "30+ days — 10%\\n14-30 days — 25%\\nUnder 72 hours — non-refundable", // optional · max 5000 chars, pasted verbatim
   "sourcingNotes": "Probe written by the Postman run; archived at the end." // optional · max 2000 chars. "Notes" on screen.
 }"""
 
-PATCH = {'status': 'SUSPENDED', 'paymentTerms': 'NET_15', 'safetyRating': 4.5}
+PATCH = {'status': 'SUSPENDED', 'paymentTerms': 'NET_15', 'safetyRating': 4.5, 'oaRequired': None}
 PATCH_RAW = """{
   // Every field optional; send at least one. null clears an optional field
   // (paymentTerms, responseSpeed, safetyRating, website, …).
   // homeBase, primaryContact and contactEmail can be changed, never cleared.
 
   "status": "SUSPENDED",
+  "oaRequired": null,                                   // true / false / null; clear to not set
   "paymentTerms": "NET_15",
   "safetyRating": 4.5
 }"""
