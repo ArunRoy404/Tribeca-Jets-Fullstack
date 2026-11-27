@@ -37,6 +37,7 @@ model Client {
   tripRequests TripRequest[] @relation("TripRequestClient")
 
   leadSource LeadSource @default(DIRECT)
+  leadSourceOther String?
   leadStage  LeadStage  @default(NEW)
 
   /// Currently responsible broker; brokers only see rows where this is them.

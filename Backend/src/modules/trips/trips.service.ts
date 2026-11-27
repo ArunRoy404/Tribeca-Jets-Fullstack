@@ -4,6 +4,8 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Inject,
+  forwardRef,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
@@ -49,6 +51,7 @@ import {
 } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { priceQuote } from '../quotes/quotes.pricing.js';
+import { earnOnTripCompletion } from '../commissions/commissions.completion.js';
 import { tallyTrips, tripFigures } from './trips.figures.js';
 import {
   approveBlockedBy,
@@ -371,7 +374,8 @@ export class TripsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly quotes: QuotesService,
+    @Inject(forwardRef(() => QuotesService))
+    private readonly quotes: Pick<QuotesService, 'bookingSource'>,
     private readonly requests: TripRequestsService,
     private readonly airports: AirportsService,
     private readonly settings: SettingsService,
@@ -429,6 +433,7 @@ export class TripsService {
     tx: Prisma.TransactionClient,
     clientId: string,
     userId: string,
+    tripReference: number,
   ): Promise<void> {
     const client = await tx.client.findUnique({
       where: { id: clientId },
@@ -440,14 +445,19 @@ export class TripsService {
     const nextStage = LeadStage.WON;
 
     if (nextStatus !== client.status || client.leadStage !== nextStage) {
-      await tx.client.update({
-        where: { id: clientId },
+      const changed = await tx.client.updateMany({
+        where: { id: clientId, deletedAt: null, status: client.status, leadStage: client.leadStage },
         data: {
           status: nextStatus,
           leadStage: nextStage,
           updatedById: userId,
         },
       });
+      if (changed.count) await tx.auditLog.create({ data: {
+        actorId: userId, action: 'client.stage_changed', entityType: 'Client', entityId: clientId,
+        metadata: { from: { status: client.status, leadStage: client.leadStage },
+          to: { status: nextStatus, leadStage: nextStage }, via: 'booking', tripReference },
+      } });
     }
   }
 
@@ -1010,16 +1020,9 @@ export class TripsService {
     ]);
 
     if (dto.status === TripStatus.CONFIRMED) {
-      if (!dto.operatorId) {
-        throw new BadRequestException('Cannot create a confirmed trip: an operator must be assigned.');
-      }
-      if (!dto.legs[0]?.departureDate) {
-        throw new BadRequestException('Cannot create a confirmed trip: departure date must be set.');
-      }
-      const count = dto.passengerCount ?? dto.passengers?.length ?? 0;
-      if (count < 1) {
-        throw new BadRequestException('Cannot create a confirmed trip: passenger count or passenger manifest must be provided.');
-      }
+      this.assertConfirmationReady({ operatorId: dto.operatorId, operatorConfirmed: dto.operatorConfirmed,
+        departureDate: dto.legs[0]?.departureDate, departureTime: dto.legs[0]?.departureTime,
+        passengerCount: dto.passengerCount, passengers: dto.passengers });
     }
 
     const assignedBrokerId = dto.assignedBrokerId === undefined
@@ -1062,7 +1065,7 @@ export class TripsService {
       });
       await this.writeLegs(tx, user, created.id, dto.legs, []);
       await this.writePassengers(tx, user, created.id, dto.passengers, []);
-      await this.autoAdvanceClientOnBooking(tx, dto.clientId, user.id);
+      await this.autoAdvanceClientOnBooking(tx, dto.clientId, user.id, created.reference);
       return created;
     });
 
@@ -1118,6 +1121,13 @@ export class TripsService {
       );
     }
 
+    if (dto.status === TripStatus.CONFIRMED) {
+      // Quotes do not carry the operator tick or a leg time. Book first,
+      // then fill those facts on the trip before confirming it.
+      this.assertConfirmationReady({ operatorId: quote.operatorId, operatorConfirmed: false,
+        departureDate: quote.departureDate, departureTime: null, passengerCount: quote.passengers });
+    }
+
     const outbound = {
       originAirportId: quote.originAirportId,
       destinationAirportId: quote.destinationAirportId,
@@ -1163,7 +1173,7 @@ export class TripsService {
         select: { id: true, reference: true },
       });
       await this.writeLegs(tx, user, created.id, legs, []);
-      await this.autoAdvanceClientOnBooking(tx, quote.clientId, user.id);
+      await this.autoAdvanceClientOnBooking(tx, quote.clientId, user.id, created.reference);
       return created;
     });
 
@@ -1218,7 +1228,7 @@ export class TripsService {
         operatorPaymentReceivedAt: true,
         departureDate: true,
         passengerCount: true,
-        legs: { where: { deletedAt: null }, select: { id: true, originAirportId: true, destinationAirportId: true, departureDate: true } },
+        legs: { where: { deletedAt: null }, orderBy: { sequence: 'asc' }, select: { id: true, originAirportId: true, destinationAirportId: true, departureDate: true, departureTime: true } },
         passengers: { where: { deletedAt: null }, select: { id: true } },
       },
     });
@@ -1447,6 +1457,34 @@ export class TripsService {
     }
   }
 
+  private assertConfirmationReady(trip: {
+    operatorId?: string | null; operatorConfirmed?: boolean; departureDate?: Date | null;
+    departureTime?: string | null; passengerCount?: number | null; passengers?: readonly unknown[];
+  }): void {
+    const missing = [
+      !trip.operatorId && 'assign an operator',
+      !trip.departureDate && 'add a departure date',
+      (!(trip.passengerCount && trip.passengerCount > 0) && !trip.passengers?.length) && 'add passengers',
+      !trip.operatorConfirmed && 'tick Operator confirmed',
+      !trip.departureTime && 'add a departure time',
+    ].filter(Boolean);
+    if (missing.length) throw new BadRequestException(`Before confirming: ${missing.join(', ')}`);
+  }
+
+  /** Latest means most recently created live trip, with deterministic ties. No financial fields. */
+  async latestForClient(user: AuthenticatedUser, clientId: string) {
+    return this.prisma.trip.findFirst({
+      where: { clientId, deletedAt: null, ...this.visibilityScope(user) },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, reference: true, type: true, status: true, departureDate: true,
+        passengerCount: true, assignedBroker: ACTOR_SELECT, operator: { select: { name: true } },
+        aircraft: { select: { tailNumber: true, model: true } }, aircraftDescription: true,
+        legs: { where: { deletedAt: null }, orderBy: { sequence: 'asc' },
+          select: { originAirport: AIRPORT_SELECT, destinationAirport: AIRPORT_SELECT,
+            departureDate: true, departureTime: true, estimatedArrival: true } } },
+    });
+  }
+
   /**
    * Moves the trip along its lifecycle. A move the lifecycle does not allow is
    * a 400 that names the allowed ones, so the screen can explain rather than
@@ -1465,16 +1503,9 @@ export class TripsService {
     if (dto.status === TripStatus.CONFIRMED) {
       const approvalBlock = confirmBlockedBy(current.approvalStatus);
       if (approvalBlock) throw new BadRequestException(approvalBlock);
-      if (!current.operatorId) {
-        throw new BadRequestException('Cannot confirm trip: an operator must be assigned before confirming.');
-      }
-      const depDate = current.departureDate ?? current.legs[0]?.departureDate;
-      if (!depDate) {
-        throw new BadRequestException('Cannot confirm trip: departure date must be set.');
-      }
-      if ((current.passengerCount === null || current.passengerCount < 1) && current.passengers.length === 0) {
-        throw new BadRequestException('Cannot confirm trip: passenger count or passenger manifest must be provided.');
-      }
+      this.assertConfirmationReady({ operatorId: current.operatorId, operatorConfirmed: Boolean(current.operatorConfirmedAt),
+        departureDate: current.departureDate ?? current.legs[0]?.departureDate,
+        departureTime: current.legs[0]?.departureTime, passengerCount: current.passengerCount, passengers: current.passengers });
     }
 
     if (dto.status === TripStatus.IN_FLIGHT || dto.status === TripStatus.COMPLETED) {
@@ -1485,17 +1516,13 @@ export class TripsService {
       }
     }
 
-    await this.prisma.trip.update({
-      where: { id },
-      data: { status: dto.status, updatedById: user.id },
-    });
-
-    await this.audit.record({
-      actorId: user.id,
-      action: 'trip.status_changed',
-      entityType: 'Trip',
-      entityId: id,
-      metadata: { reference: current.reference, from: current.status, to: dto.status, note: dto.note ?? null },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.trip.update({ where: { id }, data: { status: dto.status, updatedById: user.id } });
+      if (dto.status === TripStatus.COMPLETED) await earnOnTripCompletion(tx, id, user.id);
+      await tx.auditLog.create({ data: {
+        actorId: user.id, action: 'trip.status_changed', entityType: 'Trip', entityId: id,
+        metadata: { reference: current.reference, from: current.status, to: dto.status, note: dto.note ?? null },
+      } });
     });
 
     return this.findOne(user, id);
@@ -2049,64 +2076,70 @@ export class TripsService {
       throw new BadRequestException('Nothing to report — change the status, the arrival estimate or the link, or add a note.');
     }
 
-    await this.prisma.tripLeg.update({
-      where: { id: legId },
-      data: {
-        ...(statusChanged ? { flightStatus: dto.flightStatus, flightStatusAt: new Date() } : {}),
-        ...Object.fromEntries(fields.map((key) => [key, dto[key]])),
-        updatedById: user.id,
-      },
-    });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tripLeg.update({
+        where: { id: legId },
+        data: {
+          ...(statusChanged ? { flightStatus: dto.flightStatus, flightStatusAt: new Date() } : {}),
+          ...Object.fromEntries(fields.map((key) => [key, dto[key]])),
+          updatedById: user.id,
+        },
+      });
 
-    await this.audit.record({
-      actorId: user.id,
-      action: statusChanged ? 'flight.status_changed' : 'flight.updated',
-      entityType: 'TripLeg',
-      entityId: legId,
-      metadata: {
-        reference: leg.trip.reference,
-        sequence: leg.sequence,
-        ...(statusChanged ? { from: leg.flightStatus, to: dto.flightStatus } : {}),
-        fields,
-        estimatedArrival: dto.estimatedArrival === undefined ? leg.estimatedArrival : dto.estimatedArrival,
-        note: dto.note ?? null,
-      },
-    });
+      await tx.auditLog.create({ data: {
+        actorId: user.id,
+        action: statusChanged ? 'flight.status_changed' : 'flight.updated',
+        entityType: 'TripLeg',
+        entityId: legId,
+        metadata: {
+          reference: leg.trip.reference,
+          sequence: leg.sequence,
+          ...(statusChanged ? { from: leg.flightStatus, to: dto.flightStatus } : {}),
+          fields,
+          estimatedArrival: dto.estimatedArrival === undefined ? leg.estimatedArrival : dto.estimatedArrival,
+          note: dto.note ?? null,
+        },
+      } });
 
-    if (statusChanged) {
-      if (dto.flightStatus === FlightStatus.IN_FLIGHT) {
-        if (leg.trip.status !== TripStatus.IN_FLIGHT && leg.trip.status !== TripStatus.COMPLETED) {
-          await this.prisma.trip.update({
-            where: { id: leg.trip.id },
-            data: { status: TripStatus.IN_FLIGHT, updatedById: user.id },
+      if (statusChanged) {
+        if (dto.flightStatus === FlightStatus.IN_FLIGHT) {
+          if (leg.trip.status !== TripStatus.IN_FLIGHT && leg.trip.status !== TripStatus.COMPLETED) {
+            await tx.trip.update({
+              where: { id: leg.trip.id },
+              data: { status: TripStatus.IN_FLIGHT, updatedById: user.id },
+            });
+            await tx.auditLog.create({ data: {
+              actorId: user.id,
+              action: 'trip.status_changed',
+              entityType: 'Trip',
+              entityId: leg.trip.id,
+              metadata: { reference: leg.trip.reference, from: leg.trip.status, to: TripStatus.IN_FLIGHT, reason: 'flight_departed' },
+            } });
+          }
+        } else if (dto.flightStatus === FlightStatus.LANDED) {
+          const unlanded = await tx.tripLeg.count({
+            // An unreported leg has no flight status, and SQL's `<> 'LANDED'` is
+            // never true for NULL, so it must be counted explicitly.
+            where: { tripId: leg.trip.id, deletedAt: null, id: { not: legId },
+              OR: [{ flightStatus: null }, { flightStatus: { not: FlightStatus.LANDED } }] },
           });
-          await this.audit.record({
-            actorId: user.id,
-            action: 'trip.status_changed',
-            entityType: 'Trip',
-            entityId: leg.trip.id,
-            metadata: { reference: leg.trip.reference, from: leg.trip.status, to: TripStatus.IN_FLIGHT, reason: 'flight_departed' },
-          });
-        }
-      } else if (dto.flightStatus === FlightStatus.LANDED) {
-        const unlanded = await this.prisma.tripLeg.count({
-          where: { tripId: leg.trip.id, deletedAt: null, id: { not: legId }, flightStatus: { not: FlightStatus.LANDED } },
-        });
-        if (unlanded === 0 && leg.trip.status !== TripStatus.COMPLETED) {
-          await this.prisma.trip.update({
-            where: { id: leg.trip.id },
-            data: { status: TripStatus.COMPLETED, updatedById: user.id },
-          });
-          await this.audit.record({
-            actorId: user.id,
-            action: 'trip.status_changed',
-            entityType: 'Trip',
-            entityId: leg.trip.id,
-            metadata: { reference: leg.trip.reference, from: leg.trip.status, to: TripStatus.COMPLETED, reason: 'all_flights_landed' },
-          });
+          if (unlanded === 0 && leg.trip.status !== TripStatus.COMPLETED) {
+            await tx.trip.update({
+              where: { id: leg.trip.id },
+              data: { status: TripStatus.COMPLETED, updatedById: user.id },
+            });
+            await tx.auditLog.create({ data: {
+              actorId: user.id,
+              action: 'trip.status_changed',
+              entityType: 'Trip',
+              entityId: leg.trip.id,
+              metadata: { reference: leg.trip.reference, from: leg.trip.status, to: TripStatus.COMPLETED, reason: 'all_flights_landed' },
+            } });
+            await earnOnTripCompletion(tx, leg.trip.id, user.id);
+          }
         }
       }
-    }
+    });
 
     return this.flight(user, legId);
   }

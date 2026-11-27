@@ -54,6 +54,7 @@ model Operator {
   cancellationPolicy String?
   /// When they expect to be paid. Read when paying them (Operator Payments).
   paymentTerms       PaymentTerms?
+  oaRequired         Boolean?
   /// What the desk needs to remember when sourcing from them.
   sourcingNotes      String?
 

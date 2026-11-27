@@ -96,6 +96,8 @@ export const createOperatorSchema = z.object({
   cancellationPolicy: z.string().trim().max(5_000).optional(),
   /** PREPAID, DUE_ON_RECEIPT, NET_7, NET_15 or NET_30. */
   paymentTerms: z.enum(PaymentTerms).optional(),
+  /** Omit for Not set; null is an edit's way to clear it. */
+  oaRequired: z.boolean().optional(),
   sourcingNotes: z.string().trim().max(2_000).optional(),
 });
 
@@ -132,6 +134,7 @@ export const updateOperatorSchema = z
 
     cancellationPolicy: z.string().trim().max(5_000).nullable().optional(),
     paymentTerms: z.enum(PaymentTerms).nullable().optional(),
+    oaRequired: z.boolean().nullable().optional(),
     sourcingNotes: z.string().trim().max(2_000).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {

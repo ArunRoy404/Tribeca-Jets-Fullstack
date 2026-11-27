@@ -17,7 +17,7 @@ function serviceCapturingWhere() {
     count: vi.fn(() => 'count'),
   };
   const prisma = { quote, $transaction: vi.fn(async () => [[], 0]) };
-  const service = new QuotesService(prisma as never, {} as never, {} as never, {} as never);
+  const service = new QuotesService(prisma as never, {} as never, {} as never, {} as never, {} as never);
   return { service, where };
 }
 

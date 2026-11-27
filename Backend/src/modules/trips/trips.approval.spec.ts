@@ -133,7 +133,7 @@ const liveTrip = (overrides: Record<string, unknown> = {}) => ({
 });
 
 function makeService(trip: ReturnType<typeof liveTrip>) {
-  const tx = { trip: { update: vi.fn() } };
+  const tx = { trip: { update: vi.fn() }, auditLog: { create: vi.fn() } };
   const prisma = {
     trip: { findFirst: vi.fn().mockResolvedValue(trip), update: vi.fn() },
     task: { create: vi.fn(), updateMany: vi.fn() },
@@ -183,9 +183,10 @@ describe('TripsService approval gates', () => {
   });
 
   it('confirms an approved trip', async () => {
-    const { service, prisma } = makeService(liveTrip({ approvalStatus: APPROVED }));
+    const { service, tx } = makeService(liveTrip({ approvalStatus: APPROVED, operatorConfirmedAt: new Date(),
+      legs: [{ departureDate: new Date('2030-01-01'), departureTime: '14:30' }] }));
     await service.changeStatus(broker, 'trip-1', { status: TripStatus.CONFIRMED });
-    expect(prisma.trip.update).toHaveBeenCalledWith(
+    expect(tx.trip.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: TripStatus.CONFIRMED }) }),
     );
   });

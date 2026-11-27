@@ -1,7 +1,10 @@
 import {
+  BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
@@ -38,6 +41,7 @@ import { SettingsService } from '../settings/settings.service.js';
 import {
   ClientStatus,
   LeadStage,
+  LeadSource,
   UserRole,
   UserStatus,
 } from '../../generated/prisma/enums.js';
@@ -66,6 +70,7 @@ const CLIENT_LIST_SELECT = {
   nextFollowUpAt: true,
   followUpNote: true,
   leadSource: true,
+  leadSourceOther: true,
   leadStage: true,
   /**
    * Notes and preferences are read as well as written. They were accepted by
@@ -164,9 +169,9 @@ export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    // Trips (#11)'s second pass: the roster's active-trip counts. One-way —
-    // trips never imports this module.
-    private readonly trips: TripsService,
+    // Quotes now advances clients through this owner; defer the existing trip-reader edge.
+    @Inject(forwardRef(() => TripsService))
+    private readonly trips: Pick<TripsService, 'activeCountByBroker' | 'latestForClient'>,
     private readonly airports: AirportsService,
     private readonly settings: SettingsService,
   ) {}
@@ -259,7 +264,7 @@ export class ClientsService {
       throw new NotFoundException('Client not found');
     }
 
-    return client;
+    return { ...client, latestTrip: await this.trips.latestForClient(user, id) };
   }
 
   /**
@@ -271,7 +276,7 @@ export class ClientsService {
   private async findLive(user: AuthenticatedUser, id: string) {
     const client = await this.prisma.client.findFirst({
       where: { id, deletedAt: null, ...this.visibilityScope(user) },
-      select: { id: true, assignedBrokerId: true, homeAirportId: true },
+      select: { id: true, assignedBrokerId: true, homeAirportId: true, leadSource: true, leadSourceOther: true },
     });
     if (!client) {
       throw new NotFoundException('Client not found');
@@ -392,7 +397,34 @@ export class ClientsService {
     return { rows, total };
   }
 
+  private sourceOther(source: LeadSource, description?: string | null): string | null {
+    if (source !== LeadSource.OTHER) return null;
+    if (!description?.trim()) throw new BadRequestException({
+      message: 'Describe the source', errors: { leadSourceOther: 'Describe the source' },
+    });
+    return description.trim();
+  }
+
+  /** Consequence of sending a quote, within the sender's transaction. Never moves backwards. */
+  async advanceOnQuoteSent(tx: Prisma.TransactionClient, clientId: string, actorId: string): Promise<void> {
+    const client = await tx.client.findFirst({
+      where: { id: clientId, deletedAt: null }, select: { status: true, leadStage: true },
+    });
+    const earlier: LeadStage[] = [LeadStage.NEW, LeadStage.CONTACTED, LeadStage.QUALIFIED, LeadStage.PROPOSAL];
+    if (!client || client.status !== ClientStatus.LEAD || !earlier.includes(client.leadStage)) return;
+    const changed = await tx.client.updateMany({
+      where: { id: clientId, deletedAt: null, status: ClientStatus.LEAD, leadStage: client.leadStage },
+      data: { leadStage: LeadStage.QUOTED, updatedById: actorId },
+    });
+    if (changed.count) await tx.auditLog.create({ data: {
+      actorId, action: 'client.stage_changed', entityType: 'Client', entityId: clientId,
+      metadata: { from: { status: client.status, leadStage: client.leadStage },
+        to: { status: client.status, leadStage: LeadStage.QUOTED }, via: 'quote_sent' },
+    } });
+  }
+
   async create(user: AuthenticatedUser, input: CreateClientInput) {
+    const leadSourceOther = this.sourceOther(input.leadSource, input.leadSourceOther);
     if (input.homeAirportId) {
       await this.airports.usable(input.homeAirportId, 'home airport');
     }
@@ -420,6 +452,7 @@ export class ClientsService {
     const client = await this.prisma.client.create({
       data: {
         ...fields,
+        leadSourceOther,
         leadStage,
         nextFollowUpAt,
         assignedBrokerId,
@@ -450,6 +483,9 @@ export class ClientsService {
   async update(user: AuthenticatedUser, id: string, input: UpdateClientInput) {
     // Reuses the scoped read, so an out-of-scope id 404s before any write.
     const current = await this.findLive(user, id);
+    const sourceTouched = input.leadSource !== undefined || input.leadSourceOther !== undefined;
+    const leadSourceOther = sourceTouched ? this.sourceOther(input.leadSource ?? current.leadSource,
+      input.leadSourceOther === undefined ? current.leadSourceOther : input.leadSourceOther) : undefined;
 
     // Only a link that is actually changing is checked. The edit form resends
     // every field, so checking unconditionally meant a client whose home
@@ -493,6 +529,7 @@ export class ClientsService {
       where: { id },
       data: {
         ...fields,
+        ...(sourceTouched ? { leadSourceOther } : {}),
         updatedById: user.id,
         ...(preferences
           ? { preferences: preferences as Prisma.InputJsonValue }

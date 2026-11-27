@@ -22,7 +22,7 @@ function setup(depositAmount: number | null = null) {
   const prisma = { ...tx, client: { findUnique: vi.fn().mockResolvedValue({ deletedAt: null }) },
     $transaction: vi.fn(async (run) => run(tx)) };
   const settings = { read: vi.fn().mockResolvedValue(settingsRow) };
-  const service = new QuotesService(prisma as never, { record: vi.fn() } as never, {} as never, settings as never);
+  const service = new QuotesService(prisma as never, { record: vi.fn() } as never, {} as never, settings as never, {} as never);
   return { service, quote, settings };
 }
 

@@ -73,9 +73,12 @@ export const createCommissionSchema = z.object({
 
   status: z.enum(CommissionStatus).default(CommissionStatus.PENDING),
   method: z.enum(PaymentMethod).optional(),
+  paymentReference: z.string().trim().max(120).optional(),
   /** Defaults to today when the status is PAID and no day is given. */
   paidAt: calendarDate.optional(),
   notes: z.string().trim().max(5_000).optional(),
+}).refine((value) => value.status !== CommissionStatus.PAID || Boolean(value.method), {
+  path: ['method'], message: 'Choose a payment method before marking a commission paid',
 });
 
 export type CreateCommissionInput = z.infer<typeof createCommissionSchema>;
@@ -107,11 +110,17 @@ export const updateCommissionSchema = z
 
     status: z.enum(CommissionStatus).optional(),
     method: z.enum(PaymentMethod).nullable().optional(),
+    paymentReference: z.string().trim().max(120).nullable().optional(),
     paidAt: calendarDate.nullable().optional(),
     notes: z.string().trim().max(5_000).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'Provide at least one field to update',
+  })
+  // An absent method keeps the stored one, so only the service can tell
+  // whether this edit leaves a PAID row without one; an explicit null cannot.
+  .refine((value) => value.status !== CommissionStatus.PAID || value.method !== null, {
+    path: ['method'], message: 'Choose a payment method before marking a commission paid',
   });
 
 export type UpdateCommissionInput = z.infer<typeof updateCommissionSchema>;

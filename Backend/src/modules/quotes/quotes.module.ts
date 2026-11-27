@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { ClientsModule } from '../clients/clients.module.js';
 import { AirportsModule } from '../airports/airports.module.js';
 import { QuotesController } from './quotes.controller.js';
 import { QuotesService } from './quotes.service.js';
 
 @Module({
-  imports: [AirportsModule],
+  imports: [AirportsModule, forwardRef(() => ClientsModule)],
   controllers: [QuotesController],
   providers: [QuotesService],
   // Exported for the second pass: the client detail page's Quotes tab, the

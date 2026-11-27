@@ -5,10 +5,13 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Inject,
+  forwardRef,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
 import { AuditService } from '../../core/audit/audit.service.js';
+import { ClientsService } from '../clients/clients.service.js';
 import {
   paginate,
   type AuthenticatedUser,
@@ -253,6 +256,8 @@ export class QuotesService {
     private readonly audit: AuditService,
     private readonly airports: AirportsService,
     private readonly settings: SettingsService,
+    @Inject(forwardRef(() => ClientsService))
+    private readonly clients: Pick<ClientsService, 'advanceOnQuoteSent'>,
   ) {}
 
   // ---- Reading ------------------------------------------------------------
@@ -1104,15 +1109,19 @@ export class QuotesService {
       );
     }
 
-    const quote = await this.prisma.quote.update({
-      where: { id },
-      data: {
-        status: QuoteStatus.SENT,
-        sentAt: new Date(),
-        ...(input.validUntil ? { validUntil: input.validUntil } : {}),
-        updatedById: user.id,
-      },
-      select: QUOTE_DETAIL_SELECT,
+    const quote = await this.prisma.$transaction(async (tx) => {
+      const sent = await tx.quote.update({
+        where: { id },
+        data: {
+          status: QuoteStatus.SENT,
+          sentAt: new Date(),
+          ...(input.validUntil ? { validUntil: input.validUntil } : {}),
+          updatedById: user.id,
+        },
+        select: QUOTE_DETAIL_SELECT,
+      });
+      await this.clients.advanceOnQuoteSent(tx, current.clientId, user.id);
+      return sent;
     });
 
     /**

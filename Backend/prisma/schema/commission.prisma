@@ -50,6 +50,7 @@ model Commission {
 
   status CommissionStatus @default(PENDING)
   method PaymentMethod?
+  paymentReference String?
   /// The day it was paid. A day, not a moment.
   paidAt DateTime?        @db.Date
 

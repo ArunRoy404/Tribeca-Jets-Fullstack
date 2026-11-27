@@ -52,6 +52,7 @@ const OPERATOR_SELECT = {
   responseSpeed: true,
   cancellationPolicy: true,
   paymentTerms: true,
+  oaRequired: true,
   sourcingNotes: true,
   createdAt: true,
   createdById: true,

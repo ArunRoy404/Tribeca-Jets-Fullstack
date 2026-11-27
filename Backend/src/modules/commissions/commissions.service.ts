@@ -111,6 +111,7 @@ const COMMISSION_SELECT = {
   finalAmount: true,
   status: true,
   method: true,
+  paymentReference: true,
   paidAt: true,
   notes: true,
   createdAt: true,
@@ -220,6 +221,7 @@ export class CommissionsService {
       finalAmount: full.finalAmount,
       value: full.value,
       method: full.method,
+      paymentReference: full.paymentReference,
       paidAt: full.paidAt,
       clientName: referred,
       referral: row.referral ? { id: row.referral.id, reference: row.referral.reference } : null,
@@ -392,7 +394,7 @@ export class CommissionsService {
           date: row.paidAt as Date,
           amount: commissionValue(row, profitOf(row.trip)),
           method: row.method,
-          reference: null,
+          reference: row.paymentReference,
           document: { id: row.id, number: `COM-${row.reference}` },
           counterparty: {
             type: 'PAYEE',
@@ -543,8 +545,11 @@ export class CommissionsService {
   // ---- Writes -----------------------------------------------------------
 
   async create(user: AuthenticatedUser, dto: CreateCommissionInput) {
+    if (dto.status === CommissionStatus.PAID && !dto.method) {
+      throw new BadRequestException({ message: 'Choose a payment method before marking a commission paid', errors: { method: 'Choose a payment method' } });
+    }
     if (
-      (dto.status === CommissionStatus.PAID || dto.finalAmount !== undefined || dto.paidAt !== undefined) &&
+      (dto.status === CommissionStatus.PAID || dto.finalAmount !== undefined || dto.paidAt !== undefined || dto.method !== undefined || dto.paymentReference !== undefined) &&
       !canDo(user.access, Module.COMMISSIONS, Action.PAY)
     ) {
       throw new ForbiddenException('You do not have permission to pay or record paid commissions');
@@ -582,6 +587,7 @@ export class CommissionsService {
         finalAmount: dto.finalAmount ?? null,
         status: dto.status,
         method: dto.method ?? null,
+        paymentReference: dto.paymentReference ?? null,
         paidAt: this.paidAtFor(dto.status, dto.paidAt),
         notes: dto.notes ?? null,
         createdById: user.id,
@@ -595,7 +601,8 @@ export class CommissionsService {
       action: 'commission.created',
       entityType: 'Commission',
       entityId: created.id,
-      metadata: { reference: created.reference, tripReference: trip.reference, recipientType: dto.recipientType },
+      metadata: { reference: created.reference, tripReference: trip.reference, recipientType: dto.recipientType,
+        method: dto.method ?? null, paymentReference: dto.paymentReference ?? null },
     });
 
     return this.findOne(user, created.id);
@@ -672,6 +679,8 @@ export class CommissionsService {
         amount: true,
         status: true,
         paidAt: true,
+        method: true,
+        paymentReference: true,
       },
     });
     if (!row) throw new NotFoundException('Commission not found');
@@ -705,6 +714,7 @@ export class CommissionsService {
       const touchedPayment =
         dto.finalAmount !== undefined ||
         dto.method !== undefined ||
+        dto.paymentReference !== undefined ||
         dto.paidAt !== undefined ||
         dto.status === CommissionStatus.PAID;
       if (touchedPayment) {
@@ -754,6 +764,13 @@ export class CommissionsService {
     if (problem) throw new BadRequestException(problem);
 
     const status = dto.status ?? current.status;
+    const method = dto.method === undefined ? current.method : dto.method;
+    // Checked when the row becomes PAID or its method is cleared, never on an
+    // unrelated edit: a commission paid before B3 may have no method on file.
+    const becomingPaid = dto.status === CommissionStatus.PAID && current.status !== CommissionStatus.PAID;
+    if (status === CommissionStatus.PAID && !method && (becomingPaid || dto.method === null)) {
+      throw new BadRequestException({ message: 'Choose a payment method before marking a commission paid', errors: { method: 'Choose a payment method' } });
+    }
     // The plain columns, named — the recipient and the terms are written from
     // their validated forms above, never as sent.
     const fields = {
@@ -763,6 +780,7 @@ export class CommissionsService {
       ...(dto.finalAmount !== undefined ? { finalAmount: dto.finalAmount } : {}),
       ...(dto.status !== undefined ? { status: dto.status } : {}),
       ...(dto.method !== undefined ? { method: dto.method } : {}),
+      ...(dto.paymentReference !== undefined ? { paymentReference: dto.paymentReference } : {}),
       ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
     };
 
@@ -785,6 +803,8 @@ export class CommissionsService {
       metadata: {
         reference: current.reference,
         fields: Object.keys(dto),
+        method: method ?? null,
+        paymentReference: dto.paymentReference === undefined ? current.paymentReference : dto.paymentReference,
         ...(dto.status && dto.status !== current.status ? { from: current.status, to: dto.status } : {}),
       },
     });

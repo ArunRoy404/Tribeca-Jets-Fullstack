@@ -41,6 +41,7 @@ import {
 } from '../../common/money/movements.js';
 import {
   PayableState,
+  tripOperatorPayment,
   paidCents,
   payableFigures,
   payableNumber,
@@ -187,6 +188,16 @@ export class OperatorPaymentsService {
 
   private serialisePayment(row: Prisma.OperatorPayablePaymentGetPayload<{ select: typeof PAYMENT_SELECT }>) {
     return { ...row, amount: money(row.amount) };
+  }
+
+  /** Caller must first resolve the trip in its read scope. Includes all live bills on that trip. */
+  async positionOnTrip(tripId: string) {
+    const rows = await this.prisma.operatorPayable.findMany({
+      where: { tripId, deletedAt: null },
+      select: { amount: true, status: true, dueDate: true,
+        payments: { where: { deletedAt: null }, select: { amount: true } } },
+    });
+    return tripOperatorPayment(rows);
   }
 
   // ---- Reads ------------------------------------------------------------

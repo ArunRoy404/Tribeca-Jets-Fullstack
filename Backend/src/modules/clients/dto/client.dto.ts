@@ -60,6 +60,7 @@ const clientBaseSchema = z.object({
    */
   homeAirportId: z.uuid().nullable().optional(),
   leadSource: z.enum(LeadSource).default(LeadSource.DIRECT),
+  leadSourceOther: z.string().trim().max(500).optional(),
   /** Optional so the service applies the company settings default (`defaultLeadStage`). */
   leadStage: z.enum(LeadStage).optional(),
   assignedBrokerId: z.uuid().optional(),
@@ -87,7 +88,9 @@ const clientBaseSchema = z.object({
 export const createClientSchema = clientBaseSchema.refine(
   (v) => v.type !== ClientType.TRAVEL_AGENT || Boolean(v.companyName),
   { path: ['companyName'], message: 'Company name is required for travel agents' },
-);
+).refine((v) => v.leadSource !== LeadSource.OTHER || Boolean(v.leadSourceOther), {
+  path: ['leadSourceOther'], message: 'Describe the source',
+});
 
 export type CreateClientInput = z.infer<typeof createClientSchema>;
 export class CreateClientDto extends createZodDto(createClientSchema) {}
@@ -131,6 +134,7 @@ export const updateClientSchema = z.object({
   birthday: calendarDate.nullable().optional(),
   homeAirportId: z.uuid().nullable().optional(),
   leadSource: z.enum(LeadSource).optional(),
+  leadSourceOther: z.string().trim().max(500).nullable().optional(),
   leadStage: z.enum(LeadStage).optional(),
   /** Null unassigns. Changing it at all is an administrator's call. */
   assignedBrokerId: z.uuid().nullable().optional(),

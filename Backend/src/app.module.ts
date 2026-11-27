@@ -23,6 +23,7 @@ import { NotesModule } from './modules/notes/notes.module.js';
 import { ClientCreditsModule } from './modules/client-credits/client-credits.module.js';
 import { CharterRatesModule } from './modules/charter-rates/charter-rates.module.js';
 import { TripsModule } from './modules/trips/trips.module.js';
+import { TripOpenItemsModule } from './modules/trips/trip-open-items.module.js';
 import { ItinerariesModule } from './modules/itineraries/itineraries.module.js';
 import { ScheduleModule } from './modules/schedule/schedule.module.js';
 import { FlightTrackingModule } from './modules/flight-tracking/flight-tracking.module.js';
@@ -85,6 +86,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
     ClientCreditsModule,
     CharterRatesModule,
     TripsModule,
+    TripOpenItemsModule,
     ItinerariesModule,
     ScheduleModule,
     FlightTrackingModule,
