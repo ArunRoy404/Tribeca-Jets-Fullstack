@@ -1,12 +1,6 @@
 import BrandLogo from "@/components/common/BrandLogo";
 import Image from "next/image";
 
-const stats = [
-  { value: "240+", label: "Active Clients" },
-  { value: "$18M", label: "YTD Revenue" },
-  { value: "96%", label: "Trip Success" },
-];
-
 export default function AuthLayout({ children }) {
   return (
     <div className="relative flex min-h-screen w-full bg-background">
@@ -39,19 +33,12 @@ export default function AuthLayout({ children }) {
               <p>Precision execution.</p>
             </div>
             <p className="font-montserrat font-normal text-[14px] text-border">
-              Your integrated workspace for managing clients, charter trips, operators, and revenue — built for
+              Your integrated workspace for managing clients, charter trips, operators, and revenue â€” built for
               professional brokers.
             </p>
           </div>
 
-          <div className="flex w-full">
-            {stats.map((stat) => (
-              <div key={stat.label} className="flex flex-1 flex-col gap-2 p-4">
-                <p className="font-montserrat font-bold text-[24px] text-purple">{stat.value}</p>
-                <p className="font-montserrat font-normal text-[12px] text-white">{stat.label}</p>
-              </div>
-            ))}
-          </div>
+
         </div>
       </div>
 

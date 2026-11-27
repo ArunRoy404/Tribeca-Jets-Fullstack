@@ -259,3 +259,8 @@ export function toVersionRow(version, currentVersion) {
     isCurrent: version?.version === currentVersion,
   };
 }
+
+/** Shared by the detail actions and both quote list layouts. */
+export function canBookQuote(quote, mayCreateTrip) {
+  return Boolean(mayCreateTrip && !quote?.isArchived && !quote?.trip && quote?.rawStatus === "APPROVED");
+}

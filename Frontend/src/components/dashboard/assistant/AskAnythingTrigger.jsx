@@ -5,18 +5,10 @@ export default function AskAnythingTrigger() {
   return (
     <PopoverTrigger
       aria-label="Ask Anything AI Assistant (Press Cmd+K or Ctrl+K)"
-      className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-20 bg-sidebar border border-purple flex gap-2 items-center px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-full cursor-pointer shadow-glow-purple outline-none hover:opacity-95 transition-all group"
+      className="h-9 sm:h-11 shrink-0 border border-purple flex gap-2 items-center justify-center px-2 sm:px-3 rounded-md cursor-pointer outline-none hover:bg-white/10 transition-colors text-white"
     >
       <Image src="/dashboard/icons/sparkle.svg" alt="" width={18} height={18} />
-      <span
-        className="font-montserrat font-bold text-[13px] text-white whitespace-nowrap"
-        style={{ textShadow: "0px 4px 4px rgba(180,79,243,0.69)" }}
-      >
-        Ask Anything
-      </span>
-      <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium text-white/70 bg-white/10 rounded border border-white/20">
-        ⌘K
-      </kbd>
+      <span className="hidden sm:inline font-montserrat font-semibold text-[13px] whitespace-nowrap">Ask AI</span>
     </PopoverTrigger>
   );
 }

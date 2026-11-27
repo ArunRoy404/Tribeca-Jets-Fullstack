@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Check, Clock, Mail, Plane, RotateCcw, Send, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DetailCard from "@/components/quotes/DetailCard";
@@ -14,9 +13,9 @@ import {
   useSendQuote,
 } from "@/hooks/quotes";
 import { useBookQuote } from "@/hooks/trips";
-import { useBookingConfirmationStore } from "@/store/useBookingConfirmationStore";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Module, Action } from "@/lib/access";
+import { canBookQuote } from "@/lib/quote";
 import { cn } from "@/lib/utils";
 import { emailWillReachRecipient } from "@/lib/email";
 
@@ -47,8 +46,6 @@ export default function QuoteStatusActionsCard({ quote }) {
   const { mutate: reopen, isPending: isReopening } = useReopenQuote();
   const { mutate: restore, isPending: isRestoring } = useRestoreQuote();
   const { mutate: book, isPending: isBooking } = useBookQuote();
-  const router = useRouter();
-  const openBookingModal = useBookingConfirmationStore((s) => s.openModal);
 
   const { canAccess } = usePermissions();
   const maySendQuote = canAccess(Module.QUOTES, Action.SEND);
@@ -205,21 +202,11 @@ export default function QuoteStatusActionsCard({ quote }) {
             <span>Booked as {quote.trip.reference}</span>
           </Link>
         ) : (
-          quote.rawStatus === "APPROVED" && canBook && (
+          canBookQuote(quote, canBook) && (
             <Button
               type="button"
               disabled={busy}
-              onClick={() =>
-                book(
-                  { quoteId: quote.id },
-                  {
-                    onSuccess: (trip) => {
-                      if (trip) openBookingModal(trip);
-                      router.push(`/dashboard/trips/${trip?.id}`);
-                    },
-                  }
-                )
-              }
+              onClick={() => book({ quoteId: quote.id })}
               className={cn(BUTTON, "shadow-button")}
             >
               <Plane className="size-4" />

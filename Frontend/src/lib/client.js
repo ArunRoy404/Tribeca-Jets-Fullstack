@@ -1,4 +1,6 @@
+import { formatLeadStage } from "@/lib/leadStages";
 import { toArchiveFields, formatDate } from "@/lib/archive";
+export { LEAD_STAGES, formatLeadStage } from "@/lib/leadStages";
 
 /**
  * Display helpers for clients and travel agents.
@@ -20,16 +22,6 @@ const TYPE_LABELS = {
   TRAVEL_AGENT: "Travel Agent",
 };
 
-const STAGE_LABELS = {
-  NEW: "New",
-  CONTACTED: "Contacted",
-  QUALIFIED: "Qualified",
-  PROPOSAL: "Proposal",
-  QUOTED: "Quoted",
-  WON: "Won",
-  LOST: "Lost",
-};
-
 const SOURCE_LABELS = {
   DIRECT: "Direct",
   TRAVEL_AGENT: "Travel Agent",
@@ -43,7 +35,6 @@ const SOURCE_LABELS = {
 /** Every value, for the table filters and the form pickers. */
 export const FILTERABLE_CLIENT_STATUSES = ["LEAD", "ACTIVE", "VIP", "INACTIVE"];
 export const FILTERABLE_CLIENT_TYPES = ["DIRECT", "TRAVEL_AGENT"];
-export const CLIENT_LEAD_STAGES = Object.keys(STAGE_LABELS);
 export const CLIENT_LEAD_SOURCES = Object.keys(SOURCE_LABELS);
 
 /** The follow-up windows the API accepts, with the labels the toolbar shows. */
@@ -56,7 +47,6 @@ const FOLLOW_UP_LABELS = {
 
 export const formatClientStatus = (v) => STATUS_LABELS[v] ?? v ?? "";
 export const formatClientType = (v) => TYPE_LABELS[v] ?? v ?? "";
-export const formatLeadStage = (v) => STAGE_LABELS[v] ?? v ?? "";
 export const formatLeadSource = (v) => SOURCE_LABELS[v] ?? v ?? "";
 export const formatFollowUpWindow = (v) => FOLLOW_UP_LABELS[v] ?? v ?? "";
 

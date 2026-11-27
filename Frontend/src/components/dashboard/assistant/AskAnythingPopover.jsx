@@ -80,7 +80,7 @@ export default function AskAnythingPopover() {
       <AskAnythingTrigger />
 
       <PopoverContent
-        side="top"
+        side="bottom"
         align="end"
         sideOffset={12}
         className="w-[calc(100vw-2rem)] sm:w-[440px] gap-0 overflow-hidden rounded-md p-0 z-50 shadow-xl"

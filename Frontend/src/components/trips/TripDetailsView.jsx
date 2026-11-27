@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import DetailHeader from "@/components/common/DetailHeader";
 import CommonCard from "@/components/common/CommonCard";
 import NotesTimeline from "@/components/notes/NotesTimeline";
@@ -22,6 +24,14 @@ import TripNotesCard from "@/components/trips/notes/TripNotesCard";
 import TripPassengersCard from "@/components/trips/passengers/TripPassengersCard";
 
 export default function TripDetailsView({ trip }) {
+  const [editingPassengers, setEditingPassengers] = useState(false);
+  const [passengerEditRequest, setPassengerEditRequest] = useState(0);
+  const reduceMotion = useReducedMotion();
+  const editPassengers = () => {
+    setEditingPassengers(true);
+    setPassengerEditRequest((value) => value + 1);
+    document.getElementById("passengers-card")?.scrollIntoView({ behavior: reduceMotion ? "instant" : "smooth", block: "center" });
+  };
   const breadcrumbs = [
     { label: "Operations" },
     { label: "All Operations", href: "/dashboard/trips" },
@@ -69,10 +79,19 @@ export default function TripDetailsView({ trip }) {
           </div>
 
           <div className="flex flex-col gap-6 min-w-0">
-            <TripConfirmationCard trip={trip} />
+            <TripConfirmationCard trip={trip} onEditPassengers={editPassengers} />
             <TripContractCard trip={trip} />
-            <div id="passengers-card">
-              <TripPassengersCard trip={trip} />
+            <div id="passengers-card" className="relative scroll-mt-20">
+              {passengerEditRequest > 0 && (
+                <motion.div
+                  key={passengerEditRequest}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 z-10 rounded-md ring-2 ring-ring"
+                  initial={{ opacity: 1 }} animate={{ opacity: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 2.5, ease: "easeOut" }}
+                />
+              )}
+              <TripPassengersCard trip={trip} editing={editingPassengers} onEdit={editPassengers} onDone={() => setEditingPassengers(false)} />
             </div>
             <TripDocumentsCard trip={trip} />
             <TripNotesCard trip={trip} />

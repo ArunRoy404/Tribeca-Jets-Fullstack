@@ -8,13 +8,13 @@ import { useUpdateTrip } from "@/hooks/trips";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
 
-const AVANODE_URL = "https://www.avanode.com";
+const AVINODE_URL = "https://www.avinode.com";
 const DOCUSIGN_URL = "https://app.docusign.com";
 
 /**
  * Contract Management Card (Batch 3 - CRM Feedback 8.1, 8.2, 8.3)
  * Tracks Contract Sent / Received statuses and provides direct launch
- * buttons for Avanode and DocuSign.
+ * buttons for Avinode and DocuSign.
  */
 export default function TripContractCard({ trip }) {
   const { canAccess } = usePermissions();
@@ -112,9 +112,9 @@ export default function TripContractCard({ trip }) {
                 size="sm"
                 className="h-9 px-3 gap-1.5 text-[12px] font-medium border-border hover:bg-secondary/60 justify-center"
               >
-                <a href={AVANODE_URL} target="_blank" rel="noopener noreferrer">
+                <a href={AVINODE_URL} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="size-3.5 text-purple" />
-                  Create Contract (Avanode)
+                  Create Contract (Avinode)
                 </a>
               </Button>
               <Button

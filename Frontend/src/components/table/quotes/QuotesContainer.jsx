@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Plane,
   Eye,
   Edit,
   Copy,
@@ -37,7 +38,8 @@ import {
 } from "@/hooks/quotes";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
-import { toQuoteRow } from "@/lib/quote";
+import { useBookQuote } from "@/hooks/trips";
+import { canBookQuote, toQuoteRow } from "@/lib/quote";
 import { ARCHIVE_TABS } from "@/lib/archive";
 
 export default function QuotesContainer({ revealDelay = 0 }) {
@@ -61,6 +63,8 @@ export default function QuotesContainer({ revealDelay = 0 }) {
   const isEmpty = !isPending && !error && rows.length === 0;
 
   const { canAccess } = usePermissions();
+  const mayBook = canAccess(Module.TRIPS, Action.CREATE);
+  const { mutate: book, isPending: isBooking } = useBookQuote();
   const mayCreate = canAccess(Module.QUOTES, Action.CREATE);
   const mayEdit = canAccess(Module.QUOTES, Action.EDIT);
   const maySend = canAccess(Module.QUOTES, Action.SEND);
@@ -137,6 +141,12 @@ export default function QuotesContainer({ revealDelay = 0 }) {
     }
 
     const actions = [view];
+    if (canBookQuote(quote, mayBook)) {
+      actions.push({
+        label: "Book Trip", icon: <Plane />,
+        onSelect: () => !isBooking && book({ quoteId: quote.id }),
+      });
+    }
 
     if (maySend && quote?.rawStatus === "DRAFT") {
       actions.push({

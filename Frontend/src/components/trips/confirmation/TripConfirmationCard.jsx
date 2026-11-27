@@ -1,5 +1,7 @@
 "use client";
 
+import { usePermissions } from "@/hooks/common/usePermissions";
+import { Action, Module } from "@/lib/access";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import DetailCard from "@/components/trips/DetailCard";
@@ -13,9 +15,12 @@ import { useUpdateTrip } from "@/hooks/trips";
  * Each tick is a real recorded event with a "Go" button navigating
  * directly to the relevant card or action.
  */
-export default function TripConfirmationCard({ trip }) {
+export default function TripConfirmationCard({ trip, onEditPassengers }) {
   const openBuildModal = useItinerariesStore((s) => s.openBuildModal);
   const { mutate: updateTrip, isPending: updating } = useUpdateTrip();
+
+  const { canAccess } = usePermissions();
+  const mayEditPassengers = canAccess(Module.TRIPS, Action.EDIT) && trip?.editable && !trip?.isArchived;
 
   const committed = ["BOOKED", "CONFIRMED", "IN_FLIGHT", "COMPLETED"].includes(trip?.rawStatus);
   const named = (trip?.passengers?.length ?? 0) > 0;
@@ -50,9 +55,9 @@ export default function TripConfirmationCard({ trip }) {
     },
     {
       id: "passengers-named",
-      label: "Passengers named",
+      label: "Passenger Names",
       done: named,
-      onGo: () => scrollTo("passengers-card"),
+      onGo: mayEditPassengers ? onEditPassengers : undefined,
     },
     {
       id: "price-set",

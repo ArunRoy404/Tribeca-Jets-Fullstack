@@ -1,3 +1,5 @@
+import { auditFieldList } from "@/lib/auditLabels";
+import { formatMoneyExact } from "@/lib/money";
 import { getFullName } from "@/lib/user";
 import { Module } from "@/lib/access";
 import { formatDocumentCategory } from "@/lib/document";
@@ -126,10 +128,22 @@ function humanise(action) {
 export function describeEvent(entry) {
   const phrase = EVENT_PHRASES[entry?.action] ?? humanise(entry?.action);
 
+  const changedFields = entry?.metadata?.fields ?? Object.keys(entry?.metadata?.changes ?? {});
+  if (entry?.action?.endsWith(".updated") && Array.isArray(changedFields) && changedFields.length) {
+    const detail = entry.action === "flight.updated" ? flightDetail(entry.metadata) : "";
+    return `updated ${auditFieldList(changedFields)}${detail}`;
+  }
+
   if (entry?.action?.startsWith("client_credit.") && entry?.metadata?.amount) {
     const formattedAmount = "$" + Number(entry.metadata.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const typeLabel = entry.metadata.type === "APPLICATION" ? "applied" : "credit";
     return `${phrase} (${typeLabel} ${formattedAmount})`;
+  }
+
+  if (entry?.action === "client.payment_recorded" || entry?.action === "client.payment_withdrawn") {
+    const verb = entry.action === "client.payment_recorded" ? "recorded" : "withdrawn";
+    const method = entry?.metadata?.method === "WIRE_TRANSFER" ? "wire" : humanise(entry?.metadata?.method).toLowerCase();
+    return `Payment of ${formatMoneyExact(entry?.metadata?.amount)} ${verb} on ${entry?.metadata?.number ?? "—"}${method ? ` (${method})` : ""}`;
   }
 
   const status = entry?.metadata?.changes?.status;
@@ -157,12 +171,6 @@ export function describeEvent(entry) {
     const to = FLIGHT_STATUS_WORDS[entry.metadata.to] ?? entry.metadata.to;
     return `${phrase} ${to}${flightDetail(entry.metadata)}`;
   }
-  if (entry?.action === "flight.updated") {
-    const fields = Array.isArray(entry?.metadata?.fields) && entry.metadata.fields.length
-      ? ` (${entry.metadata.fields.map((f) => (f === "estimatedArrival" ? "arrival estimate" : "tracking link")).join(", ")})`
-      : "";
-    return `${phrase}${fields}${flightDetail(entry.metadata)}`;
-  }
   // An email (#21) records who it went to, the subject, and whether a mail
   // server took it. LOGGED is said out loud: it was recorded and reached
   // nobody, and the timeline must not read as though the client has it.
@@ -186,15 +194,6 @@ export function describeEvent(entry) {
   }
   if (entry?.action === "trip.booked_from_quote" && entry?.metadata?.quoteReference) {
     return `booked this trip from Q-${entry.metadata.quoteReference}`;
-  }
-
-  const fields = entry?.metadata?.fields;
-  if (
-    (entry?.action === "client.updated" || entry?.action === "trip.updated") &&
-    Array.isArray(fields) &&
-    fields.length
-  ) {
-    return `${phrase} (${fields.join(", ")})`;
   }
 
   return phrase;

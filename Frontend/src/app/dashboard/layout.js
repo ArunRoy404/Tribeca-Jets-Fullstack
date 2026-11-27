@@ -5,7 +5,6 @@ import IdleLogoutWatcher from "@/components/common/IdleLogoutWatcher";
 import TimeZonePrompt from "@/components/common/TimeZonePrompt";
 import AreaGate from "@/components/common/AreaGate";
 import ModuleGate from "@/components/common/ModuleGate";
-import AskAnythingPopover from "@/components/dashboard/assistant/AskAnythingPopover";
 import BookingConfirmationDialog from "@/components/trips/booking/BookingConfirmationDialog";
 
 /**
@@ -37,7 +36,6 @@ export default function DashboardLayout({ children }) {
           <div className="flex-1 w-full flex flex-col min-w-0">
             <ModuleGate>{children}</ModuleGate>
           </div>
-          <AskAnythingPopover />
           <BookingConfirmationDialog />
         </SidebarInset>
       </SidebarProvider>

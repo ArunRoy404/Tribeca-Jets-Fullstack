@@ -1,5 +1,7 @@
 "use client";
 
+import { toastError } from "@/lib/toast";
+import { sameAirport, SAME_AIRPORT_MESSAGE } from "@/lib/airports";
 import { useEffect, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { useTripRequestsStore } from "@/store/useTripRequestsStore";
@@ -81,6 +83,12 @@ export default function TripRequestDialog() {
 
   const handleSubmit = () => {
     if (!form.clientId || isDateInvalid) return;
+
+    if (sameAirport(form.originAirportId, form.destinationAirportId)) {
+      toastError("Invalid route", SAME_AIRPORT_MESSAGE);
+      return;
+    }
+
 
     if (editing?.id) {
       // `forUpdate` sends a cleared field as null rather than omitting it —

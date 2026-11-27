@@ -1,5 +1,6 @@
 "use client";
 
+import AskAnythingPopover from "@/components/dashboard/assistant/AskAnythingPopover";
 import TopNav from "./TopNav";
 import { useCurrentUser } from "@/hooks/auth";
 import { toDisplayUser } from "@/lib/user";
@@ -13,5 +14,5 @@ import { toDisplayUser } from "@/lib/user";
 export default function DashboardTopNav() {
   const { data: user, isLoading } = useCurrentUser();
 
-  return <TopNav user={toDisplayUser(user, { isLoading })} />;
+  return <TopNav user={toDisplayUser(user, { isLoading })} assistant={<AskAnythingPopover />} />;
 }

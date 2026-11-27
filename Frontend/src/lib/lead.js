@@ -1,8 +1,10 @@
+import { formatLeadStage } from "@/lib/leadStages";
 import { formatDate, toArchiveFields } from "@/lib/archive";
 import { formatAircraftCategory } from "@/lib/aircraft";
 // Imported, not only re-exported: `export { x } from` creates no local
 // binding, so this file's own calls threw "formatMoney is not defined".
 import { formatMoney } from "@/lib/money";
+export { LEAD_STAGES, formatLeadStage } from "@/lib/leadStages";
 
 /**
  * Display helpers for the Leads & Agents screens.
@@ -24,16 +26,6 @@ import { formatMoney } from "@/lib/money";
  */
 
 const DASH = "—";
-
-const STAGE_LABELS = {
-  NEW: "New",
-  CONTACTED: "Contacted",
-  QUALIFIED: "Qualified",
-  PROPOSAL: "Proposal",
-  QUOTED: "Quoted",
-  WON: "Won",
-  LOST: "Lost",
-};
 
 const PRIORITY_LABELS = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
 
@@ -72,22 +64,6 @@ const REQUEST_STATUS_LABELS = {
   LOST: "Lost",
 };
 
-/**
- * The funnel, in order.
- *
- * Order matters — it is the sales pipeline, and sorting it alphabetically
- * would put Contacted before New. The API enum is declared in this order too.
- */
-export const LEAD_STAGES = [
-  "NEW",
-  "CONTACTED",
-  "QUALIFIED",
-  "PROPOSAL",
-  "QUOTED",
-  "WON",
-  "LOST",
-];
-
 /** Stages where the desk is still working the lead. */
 export const OPEN_LEAD_STAGES = [
   "NEW",
@@ -102,7 +78,6 @@ export const LEAD_SOURCES = Object.keys(SOURCE_LABELS);
 export const FOLLOW_UP_METHODS = Object.keys(METHOD_LABELS);
 export const REQUEST_STATUSES = Object.keys(REQUEST_STATUS_LABELS);
 
-export const formatLeadStage = (v) => (v ? (STAGE_LABELS[v] ?? v) : "");
 export const formatPriority = (v) => (v ? (PRIORITY_LABELS[v] ?? v) : "");
 export const formatLeadSource = (v) => (v ? (SOURCE_LABELS[v] ?? v) : "");
 export const formatFollowUpMethod = (v) => (v ? (METHOD_LABELS[v] ?? v) : "");

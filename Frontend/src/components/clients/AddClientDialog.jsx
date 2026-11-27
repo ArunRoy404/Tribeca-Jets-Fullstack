@@ -1,5 +1,6 @@
 "use client";
 
+import { sameAirport, SAME_AIRPORT_MESSAGE } from "@/lib/airports";
 import { useMemo, useState } from "react";
 import { Plus, Edit, X, ArrowRight } from "lucide-react";
 import { useClientsStore } from "@/store/useClientsStore";
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import DatePicker from "@/components/common/DatePicker";
 import {
   CLIENT_LEAD_SOURCES,
-  CLIENT_LEAD_STAGES,
+  LEAD_STAGES,
   FILTERABLE_CLIENT_STATUSES,
   FILTERABLE_CLIENT_TYPES,
   formatClientStatus,
@@ -188,7 +189,7 @@ function ClientForm({ editingClient, settings, onDone }) {
 
   const leadStageOptions = useMemo(
     () =>
-      CLIENT_LEAD_STAGES.map((v) => ({
+      LEAD_STAGES.map((v) => ({
         value: v,
         label: formatLeadStage(v),
       })),
@@ -221,12 +222,8 @@ function ClientForm({ editingClient, settings, onDone }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (
-      form.routeFrom &&
-      form.routeTo &&
-      form.routeFrom.trim().toUpperCase() === form.routeTo.trim().toUpperCase()
-    ) {
-      toastError("Invalid preferred route", "Origin and destination airports cannot be the same.");
+    if (sameAirport(form.routeFrom, form.routeTo)) {
+      toastError("Invalid preferred route", SAME_AIRPORT_MESSAGE);
       return;
     }
 

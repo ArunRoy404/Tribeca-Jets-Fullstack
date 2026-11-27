@@ -1,11 +1,9 @@
 "use client";
 
-import { Minus, Plus, X } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
+import PassengerManifestFields from "@/components/trips/passengers/PassengerManifestFields";
 import DetailCard from "@/components/trips/DetailCard";
 import FormField from "@/components/trips/FormField";
-import DatePicker from "@/components/common/DatePicker";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useCreateTripStore } from "@/store/useCreateTripStore";
 
 /**
@@ -59,78 +57,12 @@ export default function CreatePassengersCard() {
       </FormField>
 
       <FormField label="Passenger Names (Optional)">
-        <div className="flex flex-col gap-2.5">
-          {passengers.map((p, index) => {
-            const isLead = index === 0;
-
-            return (
-              <div
-                key={p?.id ?? `p-${index}`}
-                className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-md border border-border p-2.5 sm:border-0 sm:p-0"
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="flex items-center justify-center size-6 rounded-full bg-secondary font-montserrat font-semibold text-[11px] text-foreground shrink-0">
-                    {index + 1}
-                  </span>
-                  <Input
-                    className="h-10 flex-1 min-w-0 rounded-md text-[13px]"
-                    placeholder={`Passenger ${index + 1} full name`}
-                    value={p?.fullName || ""}
-                    onChange={(e) => updatePassenger?.(index, "fullName", e.target.value)}
-                  />
-                  {!isLead && (
-                    <button
-                      type="button"
-                      onClick={() => removePassenger?.(index)}
-                      aria-label={`Remove passenger ${index + 1}`}
-                      className="flex sm:hidden items-center justify-center size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors shrink-0"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-                  <div className="sm:w-36">
-                    <DatePicker
-                      className="h-10 text-[13px] rounded-md"
-                      value={p?.dateOfBirth}
-                      onChange={(v) => updatePassenger?.(index, "dateOfBirth", v)}
-                      placeholder="Date of Birth"
-                    />
-                  </div>
-                  <Input
-                    className="h-10 sm:w-32 rounded-md text-[13px]"
-                    placeholder="Passport..."
-                    value={p?.passportNumber || ""}
-                    onChange={(e) => updatePassenger?.(index, "passportNumber", e.target.value)}
-                  />
-                  {!isLead ? (
-                    <button
-                      type="button"
-                      onClick={() => removePassenger?.(index)}
-                      aria-label={`Remove passenger ${index + 1}`}
-                      className="hidden sm:flex items-center justify-center size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors shrink-0"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  ) : (
-                    <div className="hidden sm:block size-8 shrink-0" />
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => addPassenger?.()}
-            className="gap-2 px-3.5 w-fit h-9 text-[12px] font-medium rounded-md mt-1"
-          >
-            <Plus className="size-3.5" />
-            Add Passenger
-          </Button>
-        </div>
+        <PassengerManifestFields
+          passengers={passengers}
+          updatePassenger={updatePassenger}
+          removePassenger={removePassenger}
+          addPassenger={addPassenger}
+        />
       </FormField>
     </DetailCard>
   );

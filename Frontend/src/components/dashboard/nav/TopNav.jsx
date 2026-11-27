@@ -73,7 +73,7 @@ function getRouteTitle(pathname) {
  * default to the CRM's — the partner portal (#11) passes its own titles and
  * hides the bell, which carries desk notifications an agent has no part in.
  */
-export default function TopNav({ user, titleFor = getRouteTitle, showNotifications = true }) {
+export default function TopNav({ user, titleFor = getRouteTitle, showNotifications = true, assistant }) {
   const pathname = usePathname();
   const routeTitle = titleFor(pathname);
 
@@ -86,6 +86,7 @@ export default function TopNav({ user, titleFor = getRouteTitle, showNotificatio
         </h1>
       </div>
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        {assistant}
         {showNotifications && <NotificationPopover />}
         {/* Below `md` the sidebar footer carries the profile instead, so the
             two never appear together. */}

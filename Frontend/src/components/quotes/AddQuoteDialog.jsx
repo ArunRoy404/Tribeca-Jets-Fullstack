@@ -182,8 +182,7 @@ export default function AddQuoteDialog() {
       departureDate: found.departureDate ? toDateInput(found.departureDate) : prev.departureDate,
       returnDate: found.returnDate ? toDateInput(found.returnDate) : prev.returnDate,
       passengers: found.passengers != null ? String(found.passengers) : prev.passengers,
-      terms: found.requirements || prev.terms,
-      internalNotes: found.internalNotes || prev.internalNotes,
+      internalNotes: [prev.internalNotes, found.internalNotes, found.requirements].filter(Boolean).join("\n"),
     }));
 
     setFieldErrors((prev) => {
@@ -974,7 +973,7 @@ export default function AddQuoteDialog() {
 
             <div className="flex flex-col items-center justify-center text-center gap-1 py-1">
               <h2 className="font-montserrat font-bold text-[20px] tracking-[0.38em] text-foreground uppercase">
-                QUOTES
+                QUOTE
               </h2>
               <p className="font-montserrat font-medium text-[12px] text-muted-foreground">
                 {previewQuote.reference}

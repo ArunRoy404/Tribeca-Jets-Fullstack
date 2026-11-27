@@ -1,5 +1,7 @@
 "use client";
 
+import { toastError } from "@/lib/toast";
+import { sameAirport, SAME_AIRPORT_MESSAGE } from "@/lib/airports";
 import { useMemo, useState } from "react";
 import { Plus, Edit, X } from "lucide-react";
 import { useLeadsAgentsStore } from "@/store/useLeadsAgentsStore";
@@ -225,6 +227,12 @@ function LeadForm({ editingLead, settings, onDone }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!editing && sameAirport(form.originAirportId, form.destinationAirportId)) {
+      toastError("Invalid route", SAME_AIRPORT_MESSAGE);
+      return;
+    }
+
 
     // The person. A lead is a Client at lead stage — there is no separate
     // leads table, so this is an ordinary client record.
