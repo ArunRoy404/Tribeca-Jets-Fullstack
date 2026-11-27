@@ -42,22 +42,22 @@ verified, ready to send) → `sent`.
 |---|---|---|
 | 33 | New quotes take the default markup, validity, FET switch, FET rate and terms from Settings, applied by the server too. New leads and clients take the default stage and follow-up interval. | final |
 | 11 | A deposit above the quote total is refused. | final |
-| 32 | The client's requirements are kept in an internal field and no longer appear under Terms on the client's quote; the preview title reads "QUOTE". | draft |
+| 32 | The client's requirements are kept in an internal field and no longer appear under Terms on the client's quote; the preview title reads "QUOTE". | final |
 | 36 | Ask an Operator now sends a real email, which appears under Email Templates → Sent. | draft |
 | 22 (failed send) | If an email fails, the quote or itinerary goes back from Sent and the broker is told. | draft |
 | 30 | Mark Paid asks for the payment method and reference and confirms first; a commission becomes Earned automatically when its trip completes. | draft |
 | 9 | Mark Confirmed requires the operator-confirmed tick and a departure time, as well as an operator, a date and passengers. | draft |
 | 26 | Completing a trip warns when the operator is unpaid or part of the trip isn't invoiced. (Departed/Completed before the departure date is already refused.) | draft |
-| 12 | The same From and To airport is refused on leads, clients and trip requests. | draft |
+| 12 | The same From and To airport is refused on leads, clients and trip requests. | final |
 | 29 | Booking moves the client to Active / Won and records it on their timeline; sending a quote moves them to Quoted; the summary strip shows their latest trip. | draft |
 | 38 | Start a quote from the estimate now brings the chosen size, the estimate as operator cost, and a base price with the default markup. | final — min-hours rule waits on the client |
 | 4 (reports) | Reports and the Dashboard show the uninvoiced balance next to Outstanding AR. | final |
 | 31 | Empty-leg counters, the Dashboard and the cards use the same match count. | final |
 | 35 (figures) | The invented sign-in figures are removed. | draft |
-| 21 | Book Trip is in the quote list's row menu. | draft |
-| 15 | The timeline describes changes in plain words, and client payments appear on it. | draft |
+| 21 | Book Trip is in the quote list's row menu. | final |
+| 15 | The timeline describes changes in plain words, and client payments appear on it. | final |
 | 34 (referrals) | Staff can log a phoned-in referral; clients and leads have a "Referred by" that shows in Referrals (merged with the client's 19 Nov request). | draft |
-| 18 | Latitude 200 now says "must be between -90 and 90". | draft |
+| 18 | Latitude 200 now says "must be between -90 and 90". | final |
 
 ### Not changing — and why
 

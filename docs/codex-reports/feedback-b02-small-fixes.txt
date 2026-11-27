@@ -1,0 +1,269 @@
+Feedback B2 — small fixes and polish
+27 November 2026 (Asia/Dhaka)
+
+Implementation complete for all eleven brief items. This is the Codex build;
+reviewer sign-off and authorized live/Postman capture remain separate.
+All changes are intentionally uncommitted.
+
+1. Files changed (one line each)
+
+Backend/postman/build_airports_folder.py — Adds asserted latitude/longitude range captures for the next isolated run.
+Backend/postman/build_quotes_folder.py — Adds an asserted 400 Same airport create example.
+Backend/postman/build_trip_requests_folder.py — Adds an asserted 400 Same airport create example; omits the optional empty destination from the normal fixture.
+Backend/prisma/seed.ts — Clears EmptyLeg before aircraft, operators and airports; seed not run.
+Backend/src/common/dto/numbers.ts — Adds an optional rangeMessage without changing existing callers’ default range text.
+Backend/src/common/validation/airports.spec.ts — Tests the helper and both services on create and merged one-field updates.
+Backend/src/common/validation/airports.ts — Shares the same-airport 400 and destinationAirportId field error.
+Backend/src/modules/aircraft/aircraft.year.spec.ts — Tests New Year rollover with the same loaded schemas and a mocked clock.
+Backend/src/modules/aircraft/dto/aircraft.dto.ts — Computes the year-built ceiling during create/update validation.
+Backend/src/modules/airports/airports.coordinates.spec.ts — Tests both ends of both coordinate ranges on create/edit.
+Backend/src/modules/airports/dto/airport.dto.ts — Names latitude and longitude bounds in both create/edit field errors.
+Backend/src/modules/quotes/quotes.service.ts — Checks the effective airport pair before creating/updating links.
+Backend/src/modules/receivables/receivables.payment-audit.spec.ts — Tests exact Client audit payloads, stored withdrawal values and a refused payment.
+Backend/src/modules/receivables/receivables.service.ts — Writes record/withdraw client audit events with exactly invoice number, amount and method.
+Backend/src/modules/trip-requests/trip-requests.service.ts — Checks identical airports on create and on the merged update route.
+Backend/test/audit-labels.spec.ts — Exercises the frontend JavaScript label map in Vitest, including unknown fields.
+Frontend/src/app/(auth)/layout.js — Removes all three invented metrics and labels while retaining the centered hero.
+Frontend/src/app/dashboard/layout.js — Removes the old floating assistant mount.
+Frontend/src/components/clients/AddClientDialog.jsx — Uses the shared route check/message and canonical stage list.
+Frontend/src/components/dashboard/assistant/AskAnythingPopover.jsx — Opens the existing panel below its header trigger.
+Frontend/src/components/dashboard/assistant/AskAnythingTrigger.jsx — Uses header sizing, responsive Ask AI text and theme styling; removes fixed positioning.
+Frontend/src/components/dashboard/nav/DashboardTopNav.jsx — Supplies the assistant only through the staff header adapter.
+Frontend/src/components/dashboard/nav/TopNav.jsx — Adds an optional assistant slot beside the bell; portal callers retain their behavior.
+Frontend/src/components/leads-agents/AddLeadDialog.jsx — Refuses an identical route before either create mutation.
+Frontend/src/components/quotes/AddQuoteDialog.jsx — Appends enquiry notes/requirements internally, preserves Terms, and labels the preview QUOTE.
+Frontend/src/components/quotes/actions/QuoteStatusActionsCard.jsx — Uses the shared booking eligibility and hook-owned booking flow.
+Frontend/src/components/table/quotes/QuotesContainer.jsx — Adds Book Trip through the shared desktop/mobile getRowActions.
+Frontend/src/components/trip-requests/TripRequestDialog.jsx — Checks identical airports and shows the shared message before create/edit submission.
+Frontend/src/components/trips/TripDetailsView.jsx — Connects checklist editing and a fading theme ring without resetting an open draft.
+Frontend/src/components/trips/confirmation/TripConfirmationCard.jsx — Passenger Names opens the editor only when the person may edit the live, editable trip.
+Frontend/src/components/trips/contract/TripContractCard.jsx — Corrects AVINODE_URL, destination URL and all Avinode wording.
+Frontend/src/components/trips/createForm/CreatePassengersCard.jsx — Reuses the extracted manifest fields while retaining its count/store behavior.
+Frontend/src/components/trips/passengers/PassengerManifestFields.jsx — Shares responsive name/DOB/passport fields between the full form and compact card editor.
+Frontend/src/components/trips/passengers/TripPassengersCard.jsx — Adds edit/save/cancel via the existing update hook and unsaved-change guard; uses calendar-date formatting for DOB.
+Frontend/src/hooks/trips/useBookQuote.js — Owns the existing booking confirmation and trip navigation for every caller.
+Frontend/src/lib/airports.js — Shares sameAirport and its exact message for ids and normalized ICAO text.
+Frontend/src/lib/auditLabels.js — Maps audit fields to screen labels, humanises unknown keys and joins labels in words.
+Frontend/src/lib/client.js — Removes its duplicate stages/labels and imports/re-exports the canonical source.
+Frontend/src/lib/lead.js — Removes its duplicate stages/labels and imports/re-exports the canonical source.
+Frontend/src/lib/leadStages.js — Defines the single ordered lead-stage list and label map.
+Frontend/src/lib/quote.js — Shares the approved/live/unbooked booking predicate.
+Frontend/src/lib/timeline.js — Uses labels for every updated event carrying fields and renders client payment sentences.
+docs/MODULE_FEATURE_STATUS.md — Records B2 behavior for the eleven touched module sections and deferred live verification.
+docs/codex-reports/feedback-b02-small-fixes.txt — This implementation and validation report.
+
+2. Per-item result and mismatches
+
+R1-03 — DONE. Request requirements append to internalNotes, along with request
+internal notes, on new lines after any existing typed notes. Terms is not assigned
+by request selection, preserving B1’s Settings default. Preview now says QUOTE.
+Mismatch: the current PDF has no QUOTES title; it already says Charter Quotation
+and uses the quote reference as its heading. Left that existing wording alone as
+instructed to change only the plural word; no B5 redesign.
+
+R1-09 — DONE. Backend assertDifferentAirports is shared by Trip Requests and
+Quotes, producing 400 with errors.destinationAirportId and the exact message
+"Departure and arrival can't be the same airport". Updates compare the stored
+route merged with sent values, preserving an explicit null clear. Frontend
+Add Client, Add Lead and Trip Requests share sameAirport/message; Add Lead
+checks before creating either the client or request. Existing rejecting modules
+were retained (details below), rather than replacing their existing checks.
+
+R1-14 — DONE. Removed 240+, $18M, 96% and all three labels. No substitute figures.
+The hero’s centered positioning and the auth split layout remain balanced.
+
+R1-15 — DONE. Book Trip is in getRowActions, used by the quote table and cards.
+The same canBookQuote predicate is used by detail and list: Trips CREATE,
+APPROVED, live and no live linked booking. useBookQuote now owns the shared
+confirmation modal and navigation after success. Pending list clicks are ignored.
+
+R1-16 — DONE. One lib/auditLabels.js map is used by the common timeline formatter;
+known fields get screen labels, unknown camel/snake/dotted keys are humanised,
+and lists read e.g. "updated phone and email". This also covers credit, document,
+referral and flight updated events when the audit event supplies fields.
+Record/withdraw writes client.payment_recorded/client.payment_withdrawn on the
+invoice’s actual Client. Metadata is exactly { number, amount, method }, with
+no notes, bank reference or payment id. Withdrawal reads the stored payment’s
+amount/method. The existing client timeline query needs no change. Example:
+"Payment of $5,000.00 recorded on INV-2026-0042 (wire)".
+Past payments are NOT back-filled. Existing payment edit/restore behavior is
+outside the requested record/withdraw event addition.
+
+R1-18 — DONE. Both DTOs produce "Latitude must be between -90 and 90" and
+"Longitude must be between -180 and 180" for out-of-range coordinates.
+Mismatch: numbers.ts accepted an error message but did not pass it to min/max;
+added optional rangeMessage, preserving other callers and required-field text.
+
+R1-19 — DONE. leadStages.js is the sole full stage-list/label source. lib/client
+and lib/lead import/re-export it; CLIENT_LEAD_STAGES was removed. The existing
+OPEN_LEAD_STAGES subset is a distinct filter, not a competing full stage list.
+Aircraft create/edit keep integer/minimum rules and refine against the current
+year per validation. Mocked-date tests cross New Year without reimporting schemas.
+
+R2-B1 — DONE. Passenger Names opens editing and scrolls to the card, with a
+brief fading ring using ring-ring and Framer Motion (reduced-motion aware).
+Mismatch: the current card was read-only, with no edit mode to activate. Extracted
+the existing full trip form’s manifest fields into PassengerManifestFields and
+reused them in a compact editor. Save uses useUpdateTrip and the existing endpoint;
+edit follows Trips EDIT and live/editable state. Drafts survive repeated Go clicks,
+Cancel/links guard unsaved changes, and dates use YYYY-MM-DD and calendar rendering.
+No invented passenger values or new endpoint.
+
+R2-B2 — DONE. The same assistant panel/keyboard shortcut is in the staff TopNav,
+beside the bell, at h-9 sm:h-11. No floating trigger remains. Portal TopNav does
+not receive the optional slot, preserving the existing staff-only visibility.
+375 px: icon-only control, 36 px tall, profile hidden; title can truncate.
+768 px: Ask AI text visible, 44 px tall, profile visible; title can truncate.
+1440 px: same 44 px controls with the expanded desktop sidebar/layout.
+No new header wrapping from these classes: header/control rows do not flex-wrap,
+Ask AI has whitespace-nowrap, the controls shrink-0, and the title min-w-0/truncate.
+An unusually long user name can still widen the pre-existing unbounded UserMenu;
+this batch does not change that component. Widths were reviewed from classes,
+not claimed as browser/screenshot verification.
+
+R2-B4 — DONE. AVINODE_URL = "https://www.avinode.com", Avinode labels/comment.
+Source grep across both apps found no remaining Avanode/avanode/AVANODE.
+
+Seed — DONE. emptyLeg.deleteMany is before aircraft/operator/airport cleanup,
+matching its foreign keys. Seed was edited only and never executed.
+
+3. Airport checks already present before B2
+
+- Trips: legProblem rejects same-airport legs (and checks leg count/date order);
+  existing lifecycle specs cover this. Retained.
+- Empty Legs: create DTO and service merged-update check already reject it.
+  Retained.
+- Referrals: create DTO already rejects identical airports. Retained.
+- Charter Rates: estimate DTO already requires distinct airports. Retained.
+- Add Client: frontend already checked matching preferred ICAO text; lifted
+  this into the shared frontend helper and standardized its message.
+- Trip Requests and Quotes: no same-airport refusal before B2; both gained it.
+
+4. Validation and run output
+
+Used installed .cmd launchers because PowerShell blocked npm.ps1/npx.ps1 under
+its execution policy. No execution-policy change and no package installation.
+The npx invocations used --no-install to require installed tooling.
+
+Backend: npx.cmd --no-install prisma generate
+  Loaded Prisma config from prisma7.config.ts.
+  Prisma schema loaded from prisma/schema.
+  Generated Prisma Client (7.10.0) to src/generated/prisma. Exit 0.
+  Code generation only; no migration or database connection requested.
+
+Backend: npm.cmd run lint
+  > oxlint --type-aware src/ test/
+  Exit 0, no diagnostics (final rerun also clean).
+
+Backend: npx.cmd --no-install tsc --noEmit
+  Exit 0, no diagnostics.
+  Initial attempt caught one new test fixture missing the DTO’s defaulted
+  source/status; fixed the typed fixture and reran successfully.
+
+Backend: npm.cmd test
+  > pretest: prisma generate (code generation only)
+  > vitest run
+  Test Files 103 passed (103)
+  Tests 1166 passed (1166)
+  Final run duration 43.33s. Exit 0.
+  Earlier full run also passed 103/1166. Five added spec files / 19 new tests:
+  helper/service create + merged updates (8), aircraft year (2), coordinates (4),
+  payment audit (3), frontend label map (2).
+  Vitest warns that vite-tsconfig-paths is now redundant. Existing mock tests
+  print expected token/WhatsApp warnings; no live service was launched.
+
+Frontend: npm.cmd run lint
+  > eslint
+  Exit 0, no diagnostics, including the final rerun.
+
+Frontend: npm.cmd run build
+  Next.js 16.3.1 (Turbopack)
+  Compiled successfully in 5.0s.
+  Generated static pages (45/45); final optimization completed. Exit 0.
+  Build warns about multiple lockfiles and inferred workspace root; left the
+  existing configuration unchanged. No API or database was started.
+
+Python AST parse (not execution/import) of all three edited builders: PASS.
+git diff --check: PASS.
+Static greps: no old CLIENT_LEAD_STAGES or Avanode spellings; only one full
+LEAD_STAGES definition. No plural QUOTES heading in the preview/PDF templates.
+Touched passenger/header components have no AM/PM clock output. The timeline’s
+remaining locale-default calls format money and calendar dates, not time of day.
+
+Postman: written now, capture later as explicitly required. Trip Requests and
+Quotes have 400 Same airport create captures/examples. Airports has both range
+captures/examples. Existing example functions assert received versus promised
+status. Builders/Newman were NOT run, and no captured collection response was
+fabricated or hand-edited. They remain pending for an authorized isolated API run.
+No browser/live checks were performed.
+
+5. Docs, safety boundaries and working tree
+
+MODULE_FEATURE_STATUS.md updated for Auth, Airports, Clients, Aircraft, Leads,
+Trip Requests, Quotes, Trips, Receivables, AI Assistant and Notes/Timeline.
+AGENTS.md unchanged: no new durable rule needed beyond its existing shared-code,
+validation, permissions, honest-data and theme conventions.
+HANDOFF.md, FEEDBACK_TRACKER.md, DEVELOPER_TEST_CHECKLIST.md and feedback-replies
+were left to the reviewer, as this brief explicitly directs. The plan was read
+and not changed; no settings reader/map changed in this batch.
+
+Pre-existing changes preserved:
+- docs/feedback-replies/PROGRESS_FOR_ARI.md was modified before this work.
+- docs/codex-prompts/feedback-b02-small-fixes.md was already untracked.
+Neither was edited by this session.
+
+No git commit, push, stash, reset, add or other history/index-changing action was
+run. No database commands, migrations, seed execution, SQL, API, builders or
+Newman were run. No npm/pip install. No .env file was opened, printed, copied or
+edited by the agent. The prescribed generate/test/build tools load their normal
+configuration internally; Next reports the environment filename only.
+
+Final read-only git status --short:
+ M Backend/postman/build_airports_folder.py
+ M Backend/postman/build_quotes_folder.py
+ M Backend/postman/build_trip_requests_folder.py
+ M Backend/prisma/seed.ts
+ M Backend/src/common/dto/numbers.ts
+ M Backend/src/modules/aircraft/dto/aircraft.dto.ts
+ M Backend/src/modules/airports/dto/airport.dto.ts
+ M Backend/src/modules/quotes/quotes.service.ts
+ M Backend/src/modules/receivables/receivables.service.ts
+ M Backend/src/modules/trip-requests/trip-requests.service.ts
+ M Frontend/src/app/(auth)/layout.js
+ M Frontend/src/app/dashboard/layout.js
+ M Frontend/src/components/clients/AddClientDialog.jsx
+ M Frontend/src/components/dashboard/assistant/AskAnythingPopover.jsx
+ M Frontend/src/components/dashboard/assistant/AskAnythingTrigger.jsx
+ M Frontend/src/components/dashboard/nav/DashboardTopNav.jsx
+ M Frontend/src/components/dashboard/nav/TopNav.jsx
+ M Frontend/src/components/leads-agents/AddLeadDialog.jsx
+ M Frontend/src/components/quotes/AddQuoteDialog.jsx
+ M Frontend/src/components/quotes/actions/QuoteStatusActionsCard.jsx
+ M Frontend/src/components/table/quotes/QuotesContainer.jsx
+ M Frontend/src/components/trip-requests/TripRequestDialog.jsx
+ M Frontend/src/components/trips/TripDetailsView.jsx
+ M Frontend/src/components/trips/confirmation/TripConfirmationCard.jsx
+ M Frontend/src/components/trips/contract/TripContractCard.jsx
+ M Frontend/src/components/trips/createForm/CreatePassengersCard.jsx
+ M Frontend/src/components/trips/passengers/TripPassengersCard.jsx
+ M Frontend/src/hooks/trips/useBookQuote.js
+ M Frontend/src/lib/client.js
+ M Frontend/src/lib/lead.js
+ M Frontend/src/lib/quote.js
+ M Frontend/src/lib/timeline.js
+ M docs/MODULE_FEATURE_STATUS.md
+ M docs/feedback-replies/PROGRESS_FOR_ARI.md
+?? Backend/src/common/validation/
+?? Backend/src/modules/aircraft/aircraft.year.spec.ts
+?? Backend/src/modules/airports/airports.coordinates.spec.ts
+?? Backend/src/modules/receivables/receivables.payment-audit.spec.ts
+?? Backend/test/audit-labels.spec.ts
+?? Frontend/src/components/trips/passengers/PassengerManifestFields.jsx
+?? Frontend/src/lib/airports.js
+?? Frontend/src/lib/auditLabels.js
+?? Frontend/src/lib/leadStages.js
+?? docs/codex-prompts/feedback-b02-small-fixes.md
+?? docs/codex-reports/feedback-b02-small-fixes.txt
+
+Final verification: frontend lint exit 0; git diff --check clean;
+git diff --cached --name-only empty (no staged files).

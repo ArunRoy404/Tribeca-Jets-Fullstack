@@ -47,6 +47,25 @@ for a review, and how the owner likes to work, is in
   airports and probes unsupported XML (PDF is supported); no API code
   changed. Copy-only seed preparation cleared `empty_legs` first because
   the seed omits that cleanup; the seed itself was left unchanged.
+- **B2 (small fixes) built by Codex and reviewed by Claude, 27 Nov — done.**
+  Brief `docs/codex-prompts/feedback-b02-small-fixes.md`, report
+  `docs/codex-reports/feedback-b02-small-fixes.txt`. Beyond the brief,
+  Codex built a compact passenger editor on the trip page (the card had
+  no edit mode); reviewed — it uses the existing trip update. Client
+  payments write `client.payment_recorded` / `_withdrawn` on the Client
+  (not back-filled; payment edit/restore write no client entry). Checks
+  green: 103 files / 1,166 tests, both lints, build. No review fixes
+  needed. **Postman verified, 27 Nov:** all three builders ran on the
+  isolated 4100 API and refreshed `tribeca_postman`: Airports 36, Trip
+  Requests 25, Quotes 50 examples (111 written; collection 338 request
+  entries / 844 examples). Full Newman passed twice without reseeding
+  between runs, each 471 requests / 341 assertions / 0 failures; each
+  rebuilt folder also passed standalone twice. Label audit: 0 mislabelled
+  across 844 examples. No builder fixes or product code changes were
+  needed. The copy seeded with B2's `empty_legs` cleanup without manual
+  clearing. The 4100 API and its launcher were stopped and their processes
+  killed. **Outstanding:** the developer's on-screen tests in the
+  checklist. **Next: B3.**
 - **A batch is done when Claude's review passes and all checks are green**
   (developer, 27 Nov); the developer tests later from the checklist.
 - Ari has not answered the 19 questions; we start with B1–B7 (B5's font

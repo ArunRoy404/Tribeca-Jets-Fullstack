@@ -51,3 +51,41 @@ twice. The 4100 API was stopped and its process killed. Reports' stale fixture a
 probes were corrected in its builder; no API code changed. Setup required
 clearing `empty_legs` on the copy before seeding because the seed omits its
 cleanup; the seed itself was not changed.
+
+## B2 — Small fixes (27 Nov 2026) · no migration
+
+- [ ] **Requirements stay internal.** New quote from a trip request with
+  requirements: they land in Internal notes, not Terms. Preview says "QUOTE".
+- [ ] **Same airport refused.** Add Lead, a trip request and a quote with
+  KTEB → KTEB: refused with "Departure and arrival can't be the same airport".
+- [ ] **Sign-in page** shows no 240+ / $18M / 96%.
+- [ ] **Book Trip** in the quote list's row menu (and the mobile card) on an
+  approved quote with no booking; it opens the same booking flow.
+- [ ] **Timeline words.** Edit a client's phone and email: the timeline reads
+  "updated phone and email". Record a payment on that client's invoice: it
+  shows on the client's timeline. (Older payments are not back-filled.)
+- [ ] **Coordinates.** Airport latitude 100 → "Latitude must be between -90
+  and 90".
+- [ ] **Lead stages** are the same list in Add Client and Add Lead.
+- [ ] **Passenger Names** (trip checklist) opens the passengers card in edit
+  mode with a brief highlight; add, edit, remove, save; Cancel asks before
+  losing changes.
+- [ ] **Ask AI** is in the top bar beside the bell at phone, tablet and
+  desktop widths; no floating button.
+- [ ] **Avinode** link on the trip contract card goes to avinode.com.
+
+Issues found:
+
+- none yet
+
+**B2 Postman verified (27 Nov 2026):** all three builders ran on the
+isolated 4100 API and refreshed `tribeca_postman`: Airports 36, Trip
+Requests 25, Quotes 50 examples (111 written; collection total 844 across
+338 request entries). Captures include both coordinate range messages and
+the trip request and quote `400 · Same airport` refusals. Both full Newman
+runs passed without reseeding between them: 471 requests, 341 assertions,
+0 failures each. Each rebuilt folder also passed standalone twice. Label
+audit: 844 examples, 0 mislabelled. No builder fixes or product code changes
+were needed. The copy seeded successfully with the B2 `empty_legs` cleanup;
+no manual clearing was needed. The 4100 API and its launcher were stopped
+and their processes killed.

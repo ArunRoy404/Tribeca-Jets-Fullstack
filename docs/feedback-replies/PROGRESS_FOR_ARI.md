@@ -30,16 +30,16 @@ the 19 questions we sent on 25 November.
 - ✅ Reports and the Dashboard show "Not yet invoiced" beside Outstanding AR: what your booked trips are worth that hasn't been invoiced yet.
 - ✅ Empty-leg matches show the same number on the tiles, the Dashboard and the cards.
 
-**2. Small fixes**
-- ⏳ The client's requirements stay internal and never appear on the client's quote.
-- ⏳ A trip or lead can't have the same departure and arrival airport.
-- ⏳ The made-up figures on the sign-in page are removed.
-- ⏳ "Book Trip" straight from the quote's menu.
-- ⏳ The timeline says what changed in plain words, and shows client payments.
-- ⏳ Clearer messages on airport coordinates, one list of lead stages, and aircraft years up to the current year.
-- ⏳ "Passenger Names" takes you straight to editing the passengers.
-- ⏳ Ask AI moves into the top bar.
-- ⏳ The Avinode link is corrected.
+**2. Small fixes — done**
+- ✅ The client's requirements go into the quote's internal notes and never appear on the client's quote.
+- ✅ A trip, lead, enquiry or quote can't have the same departure and arrival airport.
+- ✅ The made-up figures on the sign-in page are gone.
+- ✅ "Book Trip" straight from the quote list's menu.
+- ✅ The timeline says what changed in plain words ("updated phone and email"), and new client payments appear on the client's timeline.
+- ✅ Clear messages on airport coordinates, one list of lead stages everywhere, and aircraft years always allowed up to the current year.
+- ✅ "Passenger Names" opens the passenger list for editing right on the trip page.
+- ✅ Ask AI sits in the top bar instead of floating over the page.
+- ✅ The Avinode link is corrected.
 
 **3. Workflow rules**
 - ⏳ Marking a commission paid asks how it was paid and the reference.

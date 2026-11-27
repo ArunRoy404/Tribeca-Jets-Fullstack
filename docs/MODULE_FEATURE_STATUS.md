@@ -35,6 +35,8 @@ Legend: ✅ done · ◐ partly done · ⬅ next · ⬜ not started
 
 ## 1. Auth & Sessions ✅
 
+**B2 · 27 Nov 2026 (implemented; reviewer/live checks pending):** removed the invented 240+ clients, $18M revenue and 96% success figures and their labels from the sign-in layout; the hero remains centered without replacement metrics.
+
 **Working now**
 
 - Sign-in with email and password; httpOnly cookie session, no token ever
@@ -232,6 +234,8 @@ audit trail pointing at them.
 
 ## 3. Airports ✅ *(reviewed and signed off 8 Oct 2026)*
 
+**B2 · 27 Nov 2026:** latitude and longitude field errors now name their ranges (-90 to 90 and -180 to 180), on create and edit. Builder range examples are written; capture/Newman deferred by the batch brief.
+
 **Working now**
 
 - Full CRUD, archive/restore, bulk archive and bulk restore
@@ -368,6 +372,8 @@ entered into the operator's fleet.
 
 ## 5. Clients ✅
 
+**B2 · 27 Nov 2026:** preferred-route validation shares its same-airport check with Add Lead and Trip Requests. Lead stages and their labels have one source (`lib/leadStages.js`). Newly recorded/withdrawn Receivables payments also appear on the client timeline (invoice number, amount and method only); past payments are not back-filled.
+
 - The Clients list and filters support full-name search. A picked broker
   must hold an eligible broker role and be live and unsuspended.
 
@@ -463,6 +469,8 @@ API accepted, stored, and never gave back:
 
 ## 6. Aircraft ✅
 
+**B2 · 27 Nov 2026:** the year-built ceiling reads the current year on every validation, including after New Year without restarting the API; create/edit rollover tests use a mocked clock.
+
 **Working now**
 
 - Full CRUD, archive/restore, bulk operations, stats
@@ -534,6 +542,8 @@ makes the create form work. See **Uploads (#28)**.
 
 ## 7. Leads & Agents ✅
 
+**B2 · 27 Nov 2026:** Add Lead refuses an identical departure/arrival before creating the client or enquiry. Its stage picker shares the same ordered stages and labels as Clients.
+
 **Working now**
 
 - Leads list — search, and stage / source / priority / broker filters, paging
@@ -597,6 +607,8 @@ agents are something else: clients of type `TRAVEL_AGENT`.
 ---
 
 ## 8. Trip Requests ✅
+
+**B2 · 27 Nov 2026:** the form refuses identical airports before submission; the API uses the shared `assertDifferentAirports` on create and the merged route on update, with a destination field error. Same-airport builder example written; live capture/Newman deferred.
 
 - Client-name search matches the full name across first and last name.
   A picked broker must be eligible and unsuspended. A request an assistant
@@ -719,6 +731,8 @@ the data did not supply" the hardest rule in this project.
 
 ## 10. Quotes ✅
 
+**B2 · 27 Nov 2026:** enquiry requirements and internal notes append to the quote’s internal notes without replacing typed notes; Terms keeps its desk default. Preview heading is QUOTE (the existing PDF already has no plural QUOTES). Approved, unbooked live quotes offer Book Trip from the shared row/card menu, with the detail page’s permission/state rule and booking flow. Create/update reject identical airports through the shared helper; builder example written, capture/Newman deferred.
+
 - Client-name search matches the full name across first and last name.
   A picked broker must be eligible and unsuspended. An assistant's new
   quote with no broker picked stays unassigned.
@@ -839,6 +853,8 @@ rules the scope says nobody has agreed.
 ---
 
 ## 11. Trips ✅ *(27 Sep 2026)*
+
+**B2 · 27 Nov 2026:** Passenger Names in the checklist opens the manifest editor and briefly highlights its card with the theme ring (reduced-motion aware). Fields are shared with the full trip form; edit availability follows Trips · Edit and the trip’s editable/live state, with unsaved-change confirmation. Contract link is Avinode at https://www.avinode.com.
 
 - Broker assignment uses the shared live-account check. An assistant's
   trip with no broker picked stays unassigned. Archive and restore move
@@ -1236,6 +1252,8 @@ of these cards makes a second request.
   the three above with no table of its own. Below.
 
 ### 16. Receivables ✅ *(28 Sep 2026)*
+
+**B2 · 27 Nov 2026:** recording or withdrawing a client payment writes `client.payment_recorded` / `client.payment_withdrawn` on its invoice’s Client, in addition to the invoice event. Client metadata is exactly invoice number, amount and method, never payment notes/reference; no historical backfill.
 
 **Working now**
 
@@ -2005,6 +2023,8 @@ has five sections, the open one in the URL (`?section=`).
 
 ## 27. AI Assistant 🟡 *(built 29 Oct 2026 as review row #34 — ready for owner test)*
 
+**B2 · 27 Nov 2026:** Ask AI is beside the notification bell in the staff TopNav, opening the same panel and retaining the keyboard shortcut; the floating bottom trigger is removed. Header height is `h-9 sm:h-11`; mobile is icon-only. Portal header remains unchanged. Layout classes reviewed at 375 / 768 / 1440 px; browser checks deferred.
+
 Built on 29 Oct: `GET /assistant/suggestions` and `POST /assistant/ask`
 (`Backend/src/modules/assistant/`, `@StaffOnly()`), answering within the
 caller's reach and money permission; the header's **Ask Anything** popover
@@ -2226,6 +2246,8 @@ does not exist yet.
 ---
 
 ## 29. Notes / Timeline ✅ *(Clients, Trips, Referrals, Flights)*
+
+**B2 · 27 Nov 2026:** every `*.updated` event with recorded fields uses the shared `lib/auditLabels.js` map (screen labels joined in words, unknown keys humanised). Client payment record/withdrawal events render the stored amount, invoice number and method through the existing timeline query. Past payments are not back-filled.
 
 **Not in the original queue.** It is the client's adjustment #5 — *"a section
 where I can write notes and add it to a timeline"*, for trips and for clients.

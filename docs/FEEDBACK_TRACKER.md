@@ -58,7 +58,7 @@ this section is the record of what is actually true.
 |---|---|---|---|---|
 | R1-01 | 33 | **Quotes apply Settings on the server**: FET rate, validity, terms and apply-FET when the field is absent; **default markup used** (base = cost + markup); delete the hardcoded `0.075` in `quotes.service.ts`. Mark the rows ✅ in `MODULES.md` §26 | Settings reach only the form today; the markup setting does nothing anywhere | done (B1, 27 Nov) |
 | R1-02 | 11 | **Deposit capped at the quote total**, in the API and the form | A deposit above the total breaks invoicing | done (B1, 27 Nov) |
-| R1-03 | 32 | **Client requirements move to an internal field**, out of Terms (`AddQuoteDialog.jsx` copies them into `terms`); preview title "QUOTE", not "QUOTES" | The client reads desk notes ("Catering for 4") as contract terms | open |
+| R1-03 | 32 | **Client requirements move to an internal field**, out of Terms (`AddQuoteDialog.jsx` copies them into `terms`); preview title "QUOTE", not "QUOTES" | The client reads desk notes ("Catering for 4") as contract terms | done (B2, 27 Nov) |
 | R1-04 | 36 | **Ask an Operator sends a real email** through the shared compose form, logged in Sent | Toast says "Request sent" and nothing is sent; a charter can be lost waiting | open |
 | R1-05 | 22 | **A failed email undoes "Sent" on the quote/itinerary and tells the broker** (the worker's FAILED path) | Today a quote stays Sent when the worker later fails it, and nobody is told | open |
 | R1-06 | 30 | **Commissions**: Mark Paid asks for method and reference, with a confirmation; a commission becomes **EARNED automatically when its trip completes** | Payouts with no trail; status never leaves PENDING | open |
@@ -69,7 +69,7 @@ this section is the record of what is actually true.
 |---|---|---|---|---|
 | R1-07 | 9 | Confirming a trip also requires the **operator-confirmed tick** and a **departure time** (operator, date and passengers already required) | Trips confirmed before the operator has said yes | open |
 | R1-08 | 26 | Completing a trip **warns** (confirm dialog, not a block) when the operator is unpaid or part of the trip is uninvoiced | Open money is easy to miss; operators are sometimes paid late, so no block | open |
-| R1-09 | 12 | **Same From/To airport refused in Add Lead and in the API** (only Add Client checks it) | KTEB → KTEB enquiries | open |
+| R1-09 | 12 | **Same From/To airport refused in Add Lead and in the API** (only Add Client checks it) | KTEB → KTEB enquiries | done (B2, 27 Nov) |
 | R1-10 | 29 | Client lifecycle: a **timeline entry** when booking moves the client to Active/Won (none is written); **client stage → QUOTED when a quote is sent**; **summary strip filled from the latest trip** (it was removed, not filled) | Half-done on 30 Oct | open |
 | R1-11 | 38 | Instant Estimate → quote: estimate goes in as **operator cost**, base = cost + default markup (needs R1-01). Today both fields get the estimate, so the quote opens at $0 profit | Wrong starting figures | carry-over done (B1, 27 Nov); min-hours rule waits on Ari Q1 |
 | R1-12 | 4 (reports) | **Uninvoiced balance** shown next to Outstanding AR (Reports, Dashboard) | "AR $0" hides money the client still owes | done (B1, 27 Nov) |
@@ -79,12 +79,12 @@ this section is the record of what is actually true.
 
 | ID | # | What to do | Status |
 |---|---|---|---|
-| R1-14 | 35 | Remove the invented sign-in figures (240+ / $18M / 96%) in `app/(auth)/layout.js` — breaks "never display a number the data did not supply" | open |
-| R1-15 | 21 | **Book Trip** in the quote row menu (and card) | open |
-| R1-16 | 15 | Timeline in plain words ("updated phone, email", not raw field names); client payments on the client timeline | open |
+| R1-14 | 35 | Remove the invented sign-in figures (240+ / $18M / 96%) in `app/(auth)/layout.js` — breaks "never display a number the data did not supply" | done (B2, 27 Nov) |
+| R1-15 | 21 | **Book Trip** in the quote row menu (and card) | done (B2, 27 Nov) |
+| R1-16 | 15 | Timeline in plain words ("updated phone, email", not raw field names); client payments on the client timeline | done (B2, 27 Nov) |
 | R1-17 | 34 (referrals) | Desk **"Log referral"** form (API already accepts staff + `agentId`); **agent picker when lead source = Referral** | **merged into R2-C2** |
-| R1-18 | 18 | Friendly latitude/longitude range message (today Zod's default "Too big…") | open |
-| R1-19 | — | Cleanup: one shared lead-stage list (`CLIENT_LEAD_STAGES` and `LEAD_STAGES` are two copies); aircraft year cap computed per request, not at server start | open |
+| R1-18 | 18 | Friendly latitude/longitude range message (today Zod's default "Too big…") | done (B2, 27 Nov) |
+| R1-19 | — | Cleanup: one shared lead-stage list (`CLIENT_LEAD_STAGES` and `LEAD_STAGES` are two copies); aircraft year cap computed per request, not at server start | done (B2, 27 Nov) |
 
 ### 1.3 Not fixing, or not in this round
 
@@ -163,10 +163,10 @@ this section is the record of what is actually true.
 
 | ID | Bug | Cause | Fix | Status |
 |---|---|---|---|---|
-| R2-B1 | "Passenger Names" in the checklist does nothing | Scrolls to the passengers card, which sits just below — no visible move, never opens editing | Open passenger editing and highlight it | open |
-| R2-B2 | Ask AI covers the bottom of the page | `fixed bottom-5 right-5` trigger | Move into the top navbar | open |
+| R2-B1 | "Passenger Names" in the checklist does nothing | Scrolls to the passengers card, which sits just below — no visible move, never opens editing | Open passenger editing and highlight it | done (B2, 27 Nov) |
+| R2-B2 | Ask AI covers the bottom of the page | `fixed bottom-5 right-5` trigger | Move into the top navbar | done (B2, 27 Nov) |
 | R2-B3 | Ask AI: bad answers, no auto-scroll | The in-app assistant is keyword matching (`assistant.service.ts` `ask()`), not AI | Run it on the **WhatsApp assistant's OpenAI agent and tools** (same permissions, read tools); fix auto-scroll. Needs Ari's OpenAI OK (pending since 20 Nov) | open |
-| R2-B4 | "Avanode" | `AVANODE_URL` + label in `TripContractCard.jsx` | Avinode, avinode.com | open |
+| R2-B4 | "Avanode" | `AVANODE_URL` + label in `TripContractCard.jsx` | Avinode, avinode.com | done (B2, 27 Nov) |
 | R2-C5 | Airports missing in the itinerary builder | Not reproducible from the code — the route comes from the picked trip by design and the trip detail sends leg airports | Reproduce — Ari Q11 | open — waits on Q11 |
 | R2-C2b | "Referrals not working at all" | Desk page is wired; most likely empty because the desk cannot add one | Covered by R2-C2 — confirm with Ari Q10 | open — waits on Q10 |
 
