@@ -7,6 +7,7 @@ import { request, requestWithMeta } from "@/lib/axios";
  * side effect lives in the hooks.
  */
 export const clientsService = {
+  passengers: (id, params) => requestWithMeta({ url: `/clients/${id}/passengers`, method: "GET", params }),
   /**
    * GET /clients
    *

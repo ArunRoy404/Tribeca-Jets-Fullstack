@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { toDateInput } from "@/lib/date";
 
 /**
  * The trip form's draft — client-only state shared by the form's six cards,
@@ -9,11 +10,15 @@ import { create } from "zustand";
  * and a lead-source percentage nobody had chosen.
  */
 const blankLeg = () => ({ id: undefined, originAirportId: "", destinationAirportId: "", departureDate: "", departureTime: "" });
-const blankPassenger = () => ({ id: undefined, fullName: "", dateOfBirth: "", passportNumber: "" });
+const blankPassenger = () => ({ id: undefined, fullName: "", dateOfBirth: "", passportNumber: "", weightLb: "" });
 
 const initialState = {
   /** The trip being edited, or null for a new one. */
   editingId: null,
+  tripRequestId: "",
+  fromRequestId: null,
+  luggageCount: "",
+  luggageWeightLb: "",
 
   clientId: "",
   assignedBrokerId: "",
@@ -89,12 +94,12 @@ export const useCreateTripStore = create((set) => ({
       return { passengerCount: String(next), passengers: nextPassengers };
     }),
 
-  addPassenger: () =>
+  addPassenger: (preset = {}) =>
     set((state) => {
       const nextCount = state.passengers.length + 1;
       return {
-        passengerCount: String(nextCount),
-        passengers: [...state.passengers, blankPassenger()],
+        passengerCount: String(Math.max(Number(state.passengerCount) || 0, nextCount)),
+        passengers: [...state.passengers, { ...blankPassenger(), ...preset }],
       };
     }),
 
@@ -125,8 +130,9 @@ export const useCreateTripStore = create((set) => ({
     const rawPassengers = (trip?.passengers ?? []).map((p) => ({
       id: p?.id,
       fullName: str(p?.fullName),
-      dateOfBirth: p?.dateOfBirth ? String(p.dateOfBirth).slice(0, 10) : "",
+      dateOfBirth: toDateInput(p?.dateOfBirth),
       passportNumber: str(p?.passportNumber),
+      weightLb: str(p?.weightLb),
     }));
     const totalCount = Math.max(1, Number(trip?.passengerCount) || rawPassengers.length || 1);
     const passengers = [...rawPassengers];
@@ -137,6 +143,9 @@ export const useCreateTripStore = create((set) => ({
     return set({
       ...initialState,
       editingId: trip?.id ?? null,
+      tripRequestId: str(trip?.tripRequestId),
+      luggageCount: str(trip?.luggageCount),
+      luggageWeightLb: str(trip?.luggageWeightLb),
       clientId: str(trip?.clientId),
       assignedBrokerId: str(trip?.assignedBrokerId),
       type: trip?.type ?? "ONE_WAY",
@@ -145,7 +154,7 @@ export const useCreateTripStore = create((set) => ({
         id: leg?.id,
         originAirportId: str(leg?.originAirportId),
         destinationAirportId: str(leg?.destinationAirportId),
-        departureDate: leg?.departureDate ? String(leg.departureDate).slice(0, 10) : "",
+        departureDate: toDateInput(leg?.departureDate),
         departureTime: str(leg?.departureTime),
       })),
       operatorId: str(trip?.operatorId),
@@ -163,6 +172,20 @@ export const useCreateTripStore = create((set) => ({
       clientNotes: str(trip?.clientNotes),
     });
   },
+
+  loadRequest: (request) => set({
+    ...initialState,
+    fromRequestId: request.id,
+    tripRequestId: request.id,
+    clientId: request.clientId,
+    assignedBrokerId: str(request.assignedBrokerId),
+    legs: [{ ...blankLeg(), originAirportId: str(request.originAirportId), destinationAirportId: str(request.destinationAirportId), departureDate: toDateInput(request.departureDate) }],
+    passengerCount: str(request.passengers),
+    passengers: [],
+    luggageCount: str(request.luggageCount),
+    luggageWeightLb: str(request.luggageWeightLb),
+    attachments: [],
+  }),
 
   reset: () =>
     set({

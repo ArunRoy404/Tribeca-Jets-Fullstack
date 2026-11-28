@@ -28,7 +28,6 @@ import {
 } from "@/lib/quote";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Module, Action } from "@/lib/access";
-import { uploadUrl, passthroughImageLoader } from "@/services/uploads.service";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +45,7 @@ import DatePicker from "@/components/common/DatePicker";
 import DetailTabNav from "@/components/common/DetailTabNav";
 import TribecaLetterhead from "@/components/common/TribecaLetterhead";
 import FileUpload, { ACCEPT } from "@/components/common/FileUpload";
-import { PhotoTile } from "@/components/common/photo-tile";
+import QuoteAircraftPhotoCard from "@/components/quotes/photo/QuoteAircraftPhotoCard";
 import SuggestedPricePicker from "@/components/quotes/pricing/SuggestedPricePicker";
 import QuoteDetailStats from "@/components/quotes/header/QuoteDetailStats";
 import QuoteBreakdownCard from "@/components/quotes/breakdown/QuoteBreakdownCard";
@@ -107,6 +106,7 @@ const EMPTY_FORM = {
   aircraftId: "",
   quotedAircraft: "",
   exteriorImageUrl: "",
+  interiorImageUrl: "",
   departureDate: "",
   returnDate: "",
   validUntil: "",
@@ -290,7 +290,8 @@ export default function AddQuoteDialog() {
             destinationAirportId: editing.destinationAirportId ?? "",
             aircraftId: editing.aircraftId ?? "",
             quotedAircraft: editing.rawQuotedAircraft ?? "",
-            exteriorImageUrl: editing.exteriorImageUrl ?? "",
+            exteriorImageUrl: editing.exteriorImageOverride ?? "",
+            interiorImageUrl: editing.interiorImageOverride ?? "",
             departureDate: toDateInput(editing.rawDepartureDate || editing.departureDate),
             returnDate: toDateInput(editing.rawReturnDate || editing.returnDate),
             validUntil: toDateInput(editing.rawValidUntil || editing.validUntil),
@@ -505,6 +506,7 @@ export default function AddQuoteDialog() {
       aircraftId: form.aircraftId || null,
       quotedAircraft: optionalText(form.quotedAircraft, clear),
       exteriorImageUrl: optionalText(form.exteriorImageUrl, clear),
+      interiorImageUrl: optionalText(form.interiorImageUrl, clear),
       departureDate: form.departureDate ? String(form.departureDate).slice(0, 10) : (clear.editing ? null : undefined),
       returnDate: form.returnDate ? String(form.returnDate).slice(0, 10) : (clear.editing ? null : undefined),
       validUntil: form.validUntil ? String(form.validUntil).slice(0, 10) : (clear.editing ? null : undefined),
@@ -643,21 +645,17 @@ export default function AddQuoteDialog() {
               />
             </FormField>
 
-            <FormField label="Aircraft Photo" optional labelClassName={LABEL_CLASS}>
-              <FileUpload
-                variant="dropzone"
-                kind="image"
-                visibility="PUBLIC"
-                accept={ACCEPT.image}
-                heading="Drag & drop exterior photo"
-                description="or click to upload"
-                value={form.exteriorImageUrl}
-                library
-                suggested={fleetPhotos}
-                onUploaded={(data) => setField("exteriorImageUrl")(data.url)}
-                onRemove={() => setField("exteriorImageUrl")("")}
-              />
-            </FormField>
+            {[{ field: "exteriorImageUrl", label: "Exterior photo" }, { field: "interiorImageUrl", label: "Interior photo" }].map(({ field, label }) => (
+              <FormField key={field} label={label} optional labelClassName={LABEL_CLASS}>
+                <FileUpload
+                  variant="dropzone" kind="image" visibility="PUBLIC" accept={ACCEPT.image}
+                  heading={`Drag & drop ${label.toLowerCase()}`} description="or click to upload"
+                  value={form[field]} library suggested={fleetPhotos}
+                  onUploaded={(data) => setField(field)(data.url)}
+                  onRemove={() => setField(field)("")}
+                />
+              </FormField>
+            ))}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
               <FormField label="Departure *" labelClassName={LABEL_CLASS} error={fieldErrors.departureDate}>
@@ -980,13 +978,7 @@ export default function AddQuoteDialog() {
               </p>
             </div>
 
-            <PhotoTile
-              src={form.exteriorImageUrl ? uploadUrl(form.exteriorImageUrl) : null}
-              alt="Aircraft exterior"
-              label="Aircraft Exterior"
-              images={[{ src: uploadUrl(form.exteriorImageUrl), alt: "Aircraft exterior", loader: passthroughImageLoader }]}
-              loader={passthroughImageLoader}
-            />
+            <QuoteAircraftPhotoCard quote={{ exteriorImageUrl: form.exteriorImageUrl || selectedAircraft?.exteriorImageUrl, interiorImageUrl: form.interiorImageUrl || selectedAircraft?.interiorImageUrl }} />
 
             {/* Same stats row QuoteDetailsView shows for a saved quote — not
                 a second, preview-only copy of the same five tiles. */}

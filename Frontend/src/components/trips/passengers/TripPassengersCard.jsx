@@ -8,7 +8,7 @@ import { usePermissions } from "@/hooks/common/usePermissions";
 import { useUnsavedChangesGuard } from "@/hooks/common/useUnsavedChangesGuard";
 import { useUpdateTrip } from "@/hooks/trips";
 import { Action, Module } from "@/lib/access";
-import { optionalText } from "@/lib/form";
+import { optionalText, optionalNumber } from "@/lib/form";
 import { toDateInput, formatCalendarDate } from "@/lib/date";
 import DetailCard from "@/components/trips/DetailCard";
 
@@ -17,6 +17,7 @@ const manifestDraft = (trip) => (trip?.passengers ?? []).map((passenger) => ({
   fullName: passenger?.fullName ?? "",
   dateOfBirth: toDateInput(passenger?.dateOfBirth),
   passportNumber: passenger?.passportNumber ?? "",
+  weightLb: passenger?.weightLb ?? "",
 }));
 
 function PassengerEditor({ trip, onDone }) {
@@ -30,6 +31,7 @@ function PassengerEditor({ trip, onDone }) {
       ...(p?.id ? { id: p.id } : {}), fullName: p?.fullName.trim(),
       dateOfBirth: optionalText(p?.dateOfBirth, { editing: true }),
       passportNumber: optionalText(p?.passportNumber, { editing: true }),
+      weightLb: optionalNumber(p?.weightLb, { editing: true }),
     })),
   }, { onSuccess: onDone });
 
@@ -37,10 +39,10 @@ function PassengerEditor({ trip, onDone }) {
     <div className="flex flex-col gap-3">
       <fieldset disabled={isPending} className="min-w-0">
         <PassengerManifestFields
-          compact passengers={draft}
+          compact clientId={trip?.clientId} passengers={draft}
           updatePassenger={(index, field, value) => setDraft((prev) => prev.map((p, i) => i === index ? { ...p, [field]: value } : p))}
           removePassenger={(index) => setDraft((prev) => prev.filter((_, i) => i !== index))}
-          addPassenger={() => setDraft((prev) => [...prev, { fullName: "", dateOfBirth: "", passportNumber: "" }])}
+          addPassenger={(preset = {}) => setDraft((prev) => [...prev, { fullName: "", dateOfBirth: "", passportNumber: "", weightLb: "", ...preset }])}
         />
       </fieldset>
       <div className="flex flex-wrap gap-2">
@@ -74,6 +76,7 @@ export default function TripPassengersCard({ trip, editing, onEdit, onDone }) {
             return (
               <div key={p?.id} className="flex flex-col gap-0.5">
                 <p className="font-montserrat font-semibold text-[13px] text-foreground">{p?.fullName}</p>
+                {p?.weightLb != null && <p className="text-[11px] text-muted-foreground">{p.weightLb} lb</p>}
                 {hasDetails ? (
                   <p className="font-montserrat text-[11px] text-muted-foreground">
                     {p?.dateOfBirth ? `Born ${formatCalendarDate(p.dateOfBirth)}` : "DOB not on file"}

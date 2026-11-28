@@ -145,7 +145,10 @@ export function toQuoteRow(quote) {
     aircraft: quotedAircraftLabel(quote),
     aircraftId: quote?.aircraftId ?? null,
     rawQuotedAircraft: quote?.quotedAircraft ?? "",
-    exteriorImageUrl: quote?.exteriorImageUrl ?? null,
+    exteriorImageUrl: quote?.exteriorImageUrl ?? quote?.aircraft?.exteriorImageUrl ?? null,
+    interiorImageUrl: quote?.interiorImageUrl ?? quote?.aircraft?.interiorImageUrl ?? null,
+    exteriorImageOverride: quote?.exteriorImageUrl ?? "",
+    interiorImageOverride: quote?.interiorImageUrl ?? "",
 
     // ---- Money. Every figure below the first four came from the API. -------
     basePrice: formatMoney(quote?.basePrice),

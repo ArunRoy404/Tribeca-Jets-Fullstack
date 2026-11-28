@@ -219,6 +219,8 @@ export function toTripDetail(trip) {
     registration: trip?.aircraft?.tailNumber ?? null,
     aircraftCategory: trip?.aircraft?.category ? formatAircraftCategory(trip.aircraft.category) : null,
     passengerCount: trip?.passengerCount ?? null,
+    luggageCount: trip?.luggageCount ?? null,
+    luggageWeightLb: trip?.luggageWeightLb ?? null,
     passengers: trip?.passengers ?? [],
     legs,
     operatorConfirmed: Boolean(trip?.operatorConfirmed),

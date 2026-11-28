@@ -65,6 +65,8 @@ export default function TripRequestDialog() {
       returnDate: dateValue(editing.rawReturnDate),
       quoteDeadline: dateValue(editing.rawQuoteDeadline),
       passengers: numberValue(editing.rawPassengers),
+      luggageCount: numberValue(editing.luggageCount),
+      luggageWeightLb: numberValue(editing.luggageWeightLb),
       estimatedValue: numberValue(editing.rawEstimatedValue),
       summary: editing.summary ?? "",
       requirements: editing.requirements ?? "",

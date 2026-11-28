@@ -80,6 +80,7 @@ export function toItineraryRow(item) {
 
     exteriorImageUrl: item?.exteriorImageUrl ?? null,
     interiorImageUrl: item?.interiorImageUrl ?? null,
+    quotePhotos: item?.quotePhotos ?? null,
     exteriorImageOverride: item?.exteriorImageOverride ?? "",
     interiorImageOverride: item?.interiorImageOverride ?? "",
 

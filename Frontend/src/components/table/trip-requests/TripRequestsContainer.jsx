@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Edit2, Eye, RotateCcw, Trash2, User, XCircle } from "lucide-react";
+import { Plane, Edit2, Eye, RotateCcw, Trash2, User, XCircle } from "lucide-react";
 import CommonCard from "@/components/common/CommonCard";
 import Reveal from "@/components/common/Reveal";
 import TablePagination from "@/components/table/common/TablePagination";
@@ -24,6 +24,7 @@ import {
   useTripRequests,
   useUpdateTripRequest,
 } from "@/hooks/trip-requests";
+import { canConvertRequest } from "@/lib/tripRequest";
 import { toTripRequestRow } from "@/lib/lead";
 import { usePermissions } from "@/hooks/common/usePermissions";
 import { Action, Module } from "@/lib/access";
@@ -117,7 +118,10 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
       onSelect: () => handleOpenClient(request?.clientId),
     };
 
-    if (!mayEdit && !mayArchive) return [viewDetails, viewClient];
+    const convert = canAccess(Module.TRIPS, Action.CREATE) && canConvertRequest(request)
+      ? [{ label: "Convert to Trip", icon: <Plane />, onSelect: () => router.push(`/dashboard/trips/new?fromRequest=${request.id}`) }] : [];
+    const converted = request?.convertedTrip ? [{ label: `Converted to TJ-${request.convertedTrip.reference}`, icon: <Plane />, onSelect: () => router.push(`/dashboard/trips/${request.convertedTrip.id}`) }] : [];
+    if (!mayEdit && !mayArchive) return [viewDetails, viewClient, ...convert, ...converted];
 
     if (isArchived) {
       return mayArchive
@@ -133,7 +137,7 @@ export default function TripRequestsContainer({ revealDelay = 0 }) {
         : [viewDetails, viewClient];
     }
 
-    const actions = [viewDetails, viewClient];
+    const actions = [viewDetails, viewClient, ...convert, ...converted];
     if (mayEdit) {
       actions.push({
         label: "Edit Request",

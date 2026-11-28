@@ -156,6 +156,9 @@ export function toTripRequestRow(request) {
 
     passengers: request?.passengers ?? DASH,
     rawPassengers: request?.passengers ?? null,
+    luggageCount: request?.luggageCount ?? null,
+    luggageWeightLb: request?.luggageWeightLb ?? null,
+    convertedTrip: request?.convertedTrip ?? null,
     // Formatted here, not raw: the card printed "LIGHT_JET" at the reader.
     // Enum casing is the wire vocabulary, never the display vocabulary.
     aircraftPreference: request?.aircraftPreference

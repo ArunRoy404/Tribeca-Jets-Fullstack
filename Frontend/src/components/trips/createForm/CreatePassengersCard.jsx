@@ -9,10 +9,11 @@ import { useCreateTripStore } from "@/store/useCreateTripStore";
 /**
  * Passenger count and manifest. The count stepper directly controls manifest
  * capacity. All passengers collect full name, optional Date of Birth, and
- * Passport number.
+ * Passport number and weight in lb.
  */
 export default function CreatePassengersCard() {
   const {
+    clientId,
     passengerCount,
     passengers = [],
     setPassengerCount,
@@ -58,6 +59,7 @@ export default function CreatePassengersCard() {
 
       <FormField label="Passenger Names (Optional)">
         <PassengerManifestFields
+          clientId={clientId}
           passengers={passengers}
           updatePassenger={updatePassenger}
           removePassenger={removePassenger}

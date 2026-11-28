@@ -1,6 +1,7 @@
 "use client";
 
 import StatusBadge from "@/components/common/StatusBadge";
+import ConvertedTripLink from "@/components/trip-requests/ConvertedTripLink";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import RestoredBadge from "@/components/common/RestoredBadge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,6 +40,7 @@ export default function TripRequestsTableRow({
             <RestoredBadge at={request?.restoredAtLabel} by={request?.restoredByName} />
           ) : null}
         </span>
+        <ConvertedTripLink trip={request?.convertedTrip} />
       </TableCell>
 
       <TableCell className="p-[10px] font-montserrat font-bold text-[12px] text-foreground text-center">

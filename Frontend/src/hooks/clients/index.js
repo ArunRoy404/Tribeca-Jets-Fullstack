@@ -14,3 +14,5 @@ export { useRemoveClients } from "./useRemoveClients";
 export { useRestoreClient } from "./useRestoreClient";
 export { useRestoreClients } from "./useRestoreClients";
 export { useClientsTableParams } from "./useClientsTableParams";
+
+export { useClientPassengers } from "./useClientPassengers";

@@ -89,8 +89,8 @@ function previewFromTripDetail(trip, form) {
     arrivalFbo: form.arrivalFbo || last?.destinationAirport?.assignedFbo || "—",
     tripStatus: formatTripStatus(trip?.status),
     logoUrl: form.logoUrl || null,
-    exteriorImageUrl: form.exteriorImage || trip?.aircraft?.exteriorImageUrl || null,
-    interiorImageUrl: form.interiorImage || trip?.aircraft?.interiorImageUrl || null,
+    exteriorImageUrl: form.exteriorImage || trip?.quote?.exteriorImageUrl || trip?.aircraft?.exteriorImageUrl || null,
+    interiorImageUrl: form.interiorImage || trip?.quote?.interiorImageUrl || trip?.aircraft?.interiorImageUrl || null,
   };
 }
 
@@ -122,9 +122,9 @@ function previewFromItinerary(itinerary, form) {
     arrivalFbo: form.arrivalFbo || itinerary?.destinationAirport?.assignedFbo || "—",
     tripStatus: formatTripStatus(itinerary?.tripStatus),
     logoUrl: form.logoUrl || null,
-    // Likewise a removed photo override falls back to the aircraft's own photo.
-    exteriorImageUrl: form.exteriorImage || itinerary?.aircraft?.exteriorImageUrl || null,
-    interiorImageUrl: form.interiorImage || itinerary?.aircraft?.interiorImageUrl || null,
+    // Removing an override restores the booked quote's photo, then the aircraft's.
+    exteriorImageUrl: form.exteriorImage || itinerary?.quotePhotos?.exteriorImageUrl || itinerary?.aircraft?.exteriorImageUrl || null,
+    interiorImageUrl: form.interiorImage || itinerary?.quotePhotos?.interiorImageUrl || itinerary?.aircraft?.interiorImageUrl || null,
   };
 }
 
@@ -350,7 +350,7 @@ function ItineraryForm({ itinerary, onDone }) {
           </FieldWrapper>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <FieldWrapper label="Aircraft Exterior Photo (overrides the fleet photo)">
+            <FieldWrapper label="Aircraft Exterior Photo (overrides the quote or fleet photo)">
               <FileUpload
                 variant="dropzone"
                 kind="image"
@@ -360,11 +360,12 @@ function ItineraryForm({ itinerary, onDone }) {
                 description="or click to upload"
                 value={form.exteriorImage}
                 library
+                suggested={[{ url: selectedTrip?.quote?.exteriorImageUrl || itinerary?.quotePhotos?.exteriorImageUrl, label: "Booked quote photo" }, { url: selectedTrip?.aircraft?.exteriorImageUrl || itinerary?.aircraft?.exteriorImageUrl, label: "Aircraft photo" }].filter((photo) => photo.url)}
                 onUploaded={(data) => set("exteriorImage")(data.url)}
                 onRemove={() => set("exteriorImage")("")}
               />
             </FieldWrapper>
-            <FieldWrapper label="Cabin / Interior Photo (overrides the fleet photo)">
+            <FieldWrapper label="Cabin / Interior Photo (overrides the quote or fleet photo)">
               <FileUpload
                 variant="dropzone"
                 kind="image"
@@ -374,6 +375,7 @@ function ItineraryForm({ itinerary, onDone }) {
                 description="or click to upload"
                 value={form.interiorImage}
                 library
+                suggested={[{ url: selectedTrip?.quote?.interiorImageUrl || itinerary?.quotePhotos?.interiorImageUrl, label: "Booked quote photo" }, { url: selectedTrip?.aircraft?.interiorImageUrl || itinerary?.aircraft?.interiorImageUrl, label: "Aircraft photo" }].filter((photo) => photo.url)}
                 onUploaded={(data) => set("interiorImage")(data.url)}
                 onRemove={() => set("interiorImage")("")}
               />

@@ -1,5 +1,8 @@
 "use client";
 
+import { canConvertRequest } from "@/lib/tripRequest";
+import ConvertedTripLink from "./ConvertedTripLink";
+import { formatLuggage } from "@/lib/luggage";
 import Link from "next/link";
 import { Edit2, ExternalLink, RotateCcw, Search, Trash2, User, XCircle } from "lucide-react";
 import DetailSheet from "@/components/common/DetailSheet";
@@ -92,6 +95,7 @@ export default function TripRequestDetailSheet() {
             </div>
           </div>
 
+          <ConvertedTripLink trip={request.convertedTrip} />
           {/* Route Strip */}
           <FlightRouteStrip
             from={request.originIcao || request.route?.split("→")?.[0]?.trim() || "TBD"}
@@ -118,6 +122,7 @@ export default function TripRequestDetailSheet() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
               <DetailField label="BUDGET" value={request.estimatedValue} labelClassName="text-[12px]" />
               <DetailField label="PASSENGERS" value={request.passengers} labelClassName="text-[12px]" />
+              <DetailField label="LUGGAGE" value={formatLuggage(request)} labelClassName="text-[12px]" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
               <DetailField label="AIRCRAFT PREFERENCE" value={request.aircraftPreference || "No preference"} labelClassName="text-[12px]" />
@@ -157,6 +162,8 @@ export default function TripRequestDetailSheet() {
                   Source in Operators
                 </Button>
               </Link>
+
+              {canAccess(Module.TRIPS, Action.CREATE) && canConvertRequest(request) && <Link href={`/dashboard/trips/new?fromRequest=${request.id}`}><Button size="sm">Convert to Trip</Button></Link>}
 
               {mayEdit && !isArchived && (
                 <Button

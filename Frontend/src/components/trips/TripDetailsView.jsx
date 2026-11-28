@@ -1,5 +1,6 @@
 "use client";
 
+import { formatLuggage } from "@/lib/luggage";
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import DetailHeader from "@/components/common/DetailHeader";
@@ -93,6 +94,7 @@ export default function TripDetailsView({ trip }) {
               )}
               <TripPassengersCard trip={trip} editing={editingPassengers} onEdit={editPassengers} onDone={() => setEditingPassengers(false)} />
             </div>
+            <DetailCard title="Luggage"><p className="text-sm text-muted-foreground">{formatLuggage(trip)}</p></DetailCard>
             <TripDocumentsCard trip={trip} />
             <TripNotesCard trip={trip} />
           </div>

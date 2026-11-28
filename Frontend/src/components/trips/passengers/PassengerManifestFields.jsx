@@ -1,22 +1,23 @@
 "use client";
 
 import { Plus, X } from "lucide-react";
+import SavedPassengerPicker from "@/components/clients/SavedPassengerPicker";
 import DatePicker from "@/components/common/DatePicker";
 import CommonInput from "@/components/common/CommonInput";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 /** The same manifest fields in the full trip form and the detail-card editor. */
-export default function PassengerManifestFields({ passengers = [], updatePassenger, removePassenger, addPassenger, compact = false }) {
+export default function PassengerManifestFields({ passengers = [], updatePassenger, removePassenger, addPassenger, clientId, compact = false }) {
   return (
     <div className="flex flex-col gap-2.5">
+      {clientId && <SavedPassengerPicker clientId={clientId} onPick={addPassenger} disabled={passengers.length >= 200} />}
       {passengers.map((p, index) => {
         const isLead = index === 0;
 
         return (
           <div
             key={p?.id ?? `p-${index}`}
-            className={compact ? "flex flex-col gap-2 rounded-md border border-border p-2.5" : "flex flex-col sm:flex-row sm:items-center gap-2 rounded-md border border-border p-2.5 sm:border-0 sm:p-0"}
+            className="flex flex-col gap-2 rounded-md border border-border p-2.5"
           >
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <span className="flex items-center justify-center size-6 rounded-full bg-secondary font-montserrat font-semibold text-[11px] text-foreground shrink-0">
@@ -37,14 +38,14 @@ export default function PassengerManifestFields({ passengers = [], updatePasseng
                   type="button"
                   onClick={() => removePassenger?.(index)}
                   aria-label={`Remove passenger ${index + 1}`}
-                  className={cn("flex items-center justify-center size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors shrink-0", !compact && "sm:hidden")}
+                  className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors shrink-0"
                 >
                   <X className="size-4" />
                 </button>
               )}
             </div>
-            <div className={cn("grid grid-cols-2 gap-2", !compact && "sm:flex sm:items-center")}>
-              <div className={cn(!compact && "sm:w-36")}>
+            <div className={compact ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 sm:grid-cols-3 gap-2"}>
+              <div className="min-w-0">
                 <DatePicker
                   className="h-10 text-[13px] rounded-md"
                   value={p?.dateOfBirth}
@@ -52,7 +53,7 @@ export default function PassengerManifestFields({ passengers = [], updatePasseng
                   placeholder="Date of Birth"
                 />
               </div>
-              <div className={cn("min-w-0", !compact && "sm:w-32")}>
+              <div className="min-w-0">
                 <CommonInput
                   className="h-10 rounded-md text-[13px]"
                   aria-label={`Passenger ${index + 1} passport number`}
@@ -62,18 +63,12 @@ export default function PassengerManifestFields({ passengers = [], updatePasseng
                   onChange={(e) => updatePassenger?.(index, "passportNumber", e.target.value)}
                 />
               </div>
-              {!compact && (!isLead ? (
-                <button
-                  type="button"
-                  onClick={() => removePassenger?.(index)}
-                  aria-label={`Remove passenger ${index + 1}`}
-                  className="hidden sm:flex items-center justify-center size-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer transition-colors shrink-0"
-                >
-                  <X className="size-4" />
-                </button>
-              ) : (
-                <div className="hidden sm:block size-8 shrink-0" />
-              ))}
+              <CommonInput
+                type="number" min={1} max={1000} step={1}
+                aria-label={`Passenger ${index + 1} weight in lb (optional)`}
+                placeholder="Weight (lb, optional)" value={p?.weightLb ?? ""}
+                onChange={(e) => updatePassenger?.(index, "weightLb", e.target.value)}
+              />
             </div>
           </div>
         );

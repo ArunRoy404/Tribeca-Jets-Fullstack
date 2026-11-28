@@ -273,6 +273,7 @@ export const queryKeys = {
   },
 
   clients: {
+    passengers: (id, params) => ["trips", "client-passengers", id, params ?? {}],
     all: ["clients"],
     list: (params) => ["clients", "list", params ?? {}],
     detail: (id) => ["clients", "detail", id],

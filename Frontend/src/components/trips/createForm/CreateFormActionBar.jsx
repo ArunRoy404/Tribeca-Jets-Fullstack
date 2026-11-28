@@ -35,20 +35,24 @@ export default function CreateFormActionBar() {
       ...(leg.id ? { id: leg.id } : {}),
       originAirportId: leg.originAirportId,
       destinationAirportId: leg.destinationAirportId,
-      departureDate: optionalText(leg.departureDate, { editing: true }),
-      departureTime: optionalText(leg.departureTime, { editing: true }),
+      departureDate: optionalText(leg.departureDate, opts),
+      departureTime: optionalText(leg.departureTime, opts),
     }));
     const passengers = draft.passengers
       .filter((p) => p.fullName.trim())
       .map((p) => ({
         ...(p.id ? { id: p.id } : {}),
         fullName: p.fullName.trim(),
-        dateOfBirth: optionalText(p.dateOfBirth, { editing: true }),
-        passportNumber: optionalText(p.passportNumber, { editing: true }),
+        weightLb: optionalNumber(p.weightLb, opts),
+        dateOfBirth: optionalText(p.dateOfBirth, opts),
+        passportNumber: optionalText(p.passportNumber, opts),
       }));
 
     return {
       clientId: draft.clientId,
+      tripRequestId: optionalText(draft.tripRequestId, opts),
+      luggageCount: optionalNumber(draft.luggageCount, opts),
+      luggageWeightLb: optionalNumber(draft.luggageWeightLb, opts),
       ...(mayAssign ? { assignedBrokerId: optionalText(draft.assignedBrokerId, opts) } : {}),
       type: draft.type,
       ...(editing ? {} : { status }),

@@ -1,5 +1,6 @@
 "use client";
 
+import LuggageFields from "@/components/common/LuggageFields";
 import { useMemo } from "react";
 import ClientPicker from "@/components/clients/ClientPicker";
 import AirportPicker from "@/components/airports/AirportPicker";
@@ -40,6 +41,8 @@ export const EMPTY_TRIP_REQUEST_FORM = {
   departureDate: "",
   returnDate: "",
   passengers: "",
+  luggageCount: "",
+  luggageWeightLb: "",
   estimatedValue: "",
   quoteDeadline: "",
   summary: "",
@@ -245,7 +248,7 @@ export default function TripRequestForm({
         </FormField>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start w-full">
         <FormField
           label="Departure Date"
           labelClassName={LABEL_CLASS}
@@ -276,7 +279,9 @@ export default function TripRequestForm({
             />
           </FormField>
         ) : null}
+      </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start w-full">
         <FormField label="Passengers" optional labelClassName={LABEL_CLASS} className="flex-1 min-w-0">
           <Input
             className={FIELD_CLASS}
@@ -288,6 +293,9 @@ export default function TripRequestForm({
             onChange={(e) => setField?.("passengers")(e.target.value)}
           />
         </FormField>
+        <div className="sm:col-span-2 min-w-0">
+          <LuggageFields luggageCount={form?.luggageCount} luggageWeightLb={form?.luggageWeightLb} onChange={(field, value) => setField?.(field)(value)} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start w-full">
@@ -366,6 +374,8 @@ export function toTripRequestPayload(form, { forUpdate = false } = {}) {
     returnDate: text(form?.returnDate),
     quoteDeadline: text(form?.quoteDeadline),
     passengers: number(form?.passengers),
+    luggageCount: number(form?.luggageCount),
+    luggageWeightLb: number(form?.luggageWeightLb),
     estimatedValue: number(form?.estimatedValue),
     summary: text(form?.summary),
     requirements: text(form?.requirements),

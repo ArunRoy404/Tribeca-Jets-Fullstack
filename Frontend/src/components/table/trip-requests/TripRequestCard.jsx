@@ -1,6 +1,7 @@
 "use client";
 
 import { Route } from "lucide-react";
+import ConvertedTripLink from "@/components/trip-requests/ConvertedTripLink";
 import StatusBadge from "@/components/common/StatusBadge";
 import RowActionsMenu from "@/components/table/common/RowActionsMenu";
 import RestoredBadge from "@/components/common/RestoredBadge";
@@ -63,6 +64,7 @@ export default function TripRequestCard({
         </div>
       </div>
 
+      <ConvertedTripLink trip={request?.convertedTrip} />
       <div className="flex items-start justify-between gap-3 w-full">
         <Field label="Route" value={request?.route} />
         <Field label="Departure" value={request?.departureDate} />
