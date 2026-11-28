@@ -32,7 +32,7 @@ from http.cookiejar import CookieJar
 from urllib.parse import urlencode
 
 # The shared, overridable address (POSTMAN_BASE) — never the mail-sending :4000 by default.
-from builder_common import BASE, example  # noqa: E402
+from builder_common import BASE, example, status_test, url  # noqa: E402
 COLLECTION = pathlib.Path(__file__).with_name('Tribeca-Jets-API.postman_collection.json')
 PASSWORD = 'ChangeMe123!'
 UNKNOWN_ID = '00000000-0000-4000-8000-000000000000'
@@ -95,9 +95,15 @@ def main() -> None:
     owner = Session('admin@example.com')
     broker = Session('broker@example.com')
     anon = Session()
+    partner = Session('agent@example.com')
 
     collection = json.loads(COLLECTION.read_text())
     folder = next(f for f in collection['item'] if f['name'].startswith('03 · Clients'))
+    by_name = {r['name']: r for r in folder['item']}
+
+    # B4 adds the paginated saved-passenger read before the final teardown.
+    teardown_request = next(item for item in folder['item'] if 'Teardown' in item['name'])
+    teardown_request['name'] = '12 · Teardown — archive the probe'
     by_name = {r['name']: r for r in folder['item']}
 
     # B3 adds a final teardown request. The older restore test must no longer
@@ -161,6 +167,34 @@ def main() -> None:
     captured += bool(set_body(ex['200 · Client record'], *owner.request('GET', f'/clients/{probe_id}')))
     captured += bool(set_body(ex['404 · Not found or out of scope'], *owner.request('GET', f'/clients/{UNKNOWN_ID}')))
 
+    # Saved passengers are read-only. Capture every response from this run.
+    passenger_path = f'/clients/{probe_id}/passengers'
+    passenger_examples = [
+        example('200 · Saved passengers', 'GET', passenger_path, *owner.request('GET', passenger_path)),
+        example('401 · Not signed in', 'GET', passenger_path, *anon.request('GET', passenger_path)),
+        example('403 · Referral agent is not staff', 'GET', passenger_path, *partner.request('GET', passenger_path)),
+        example('404 · Client missing or outside scope', 'GET', f'/clients/{UNKNOWN_ID}/passengers',
+                *owner.request('GET', f'/clients/{UNKNOWN_ID}/passengers')),
+        example('400 · Page outside bounds', 'GET', passenger_path + '?page=0',
+                *owner.request('GET', passenger_path + '?page=0')),
+    ]
+    passenger_request = {
+        'name': '11 · Saved passengers',
+        'event': [status_test(200, 'saved passengers are paginated')],
+        'request': {
+            'method': 'GET', 'header': [],
+            'url': url('/clients/{{newClientId}}/passengers', [
+                {'key': 'page', 'value': '1', 'description': 'Page, integer >= 1; default 1.'},
+                {'key': 'limit', 'value': '10', 'description': 'Rows per page, integer 1-100; default 10.'},
+                {'key': 'search', 'value': '', 'disabled': True, 'description': 'Optional trimmed full-name search, 1-200 characters; omitted by default.'},
+            ]),
+            'description': 'Open staff read, scoped first by the client and then the trips. Live trips and passengers only. De-duplicated by trimmed case-insensitive full name plus DOB; most recent trip values win (departure day, then booking date, deterministic ties). Returns name, DOB, last weight in lb and lastTripReference, never passportNumber. Fixed newest-trip order; sortBy/sortOrder are not accepted. A new probe may have an empty page.',
+        },
+        'response': passenger_examples,
+    }
+    folder['item'][:] = [item for item in folder['item'] if item['name'] != passenger_request['name']]
+    folder['item'].insert(folder['item'].index(teardown_request), passenger_request)
+
     # 04 · Create client — the probe's own creation, plus the ways it fails.
     ex = examples('04 · Create client')
     captured += bool(set_body(ex['201 · Created'], created_status, created))
@@ -219,7 +253,7 @@ def main() -> None:
 
     # Teardown. There is no hard delete in this system by design, so the run
     # cannot erase its own row; archiving it is the best available end state.
-    teardown = by_name['11 · Teardown — archive the probe']
+    teardown = by_name['12 · Teardown — archive the probe']
     teardown['response'] = [example('204 · Archived', 'DELETE', f'/clients/{probe_id}',
                                      *owner.request('DELETE', f'/clients/{probe_id}'))]
     teardown['request']['description'] = (

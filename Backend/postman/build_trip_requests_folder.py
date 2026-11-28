@@ -127,6 +127,8 @@ CREATE_BODY = """{
   "departureDate": "2026-11-15",                       // optional
   "returnDate": "2026-11-18",                          // optional
 
+  "luggageCount": 3,                                  // optional · integer 0-100; staff/operator data, never on client documents.
+  "luggageWeightLb": 120,                             // optional · integer 1-10000 lb; omit when unknown.
   "passengers": 4,                                     // optional · integer 1-200. An empty string is stored as absent, never as 0.
   "aircraftPreference": "HEAVY_JET",                   // optional · TURBOPROP | LIGHT_JET | MIDSIZE_JET | SUPER_MIDSIZE | HEAVY_JET | ULTRA_LONG_RANGE | VIP_AIRLINER. A category, not a tail — at enquiry stage nobody has picked an airframe.
   "estimatedValue": 28000,                             // optional · number 0-100000000, whole currency units. Feeds the pipeline total, so it is DECIMAL not float.
@@ -141,6 +143,8 @@ UPDATE_BODY = """{
   // Send only what changed; anything omitted is left alone, and null clears.
   "status": "SOURCING",                                // Also how the request moves through the pipeline.
 
+  "luggageCount": 4,                                  // optional · integer 0-100, or null to clear.
+  "luggageWeightLb": null,                            // optional · integer 1-10000 lb, or null to clear.
   "estimatedValue": 31500,
 
   "internalNotes": "Client added two passengers on the call."
@@ -155,6 +159,7 @@ def build(owner, broker, assistant):
         'originAirportId': airport_id,
         'departureDate': '2026-11-15', 'returnDate': '2026-11-18',
         'passengers': 4, 'aircraftPreference': 'HEAVY_JET',
+        'luggageCount': 3, 'luggageWeightLb': 120,
         'estimatedValue': 28000,
         'summary': 'NYC → Miami, business charter',
         'requirements': 'Catering and ground transport.',
@@ -200,6 +205,7 @@ def build(owner, broker, assistant):
 
     cap['update'] = owner.request('PATCH', f'/trip-requests/{new_id}', {
         'status': 'SOURCING', 'estimatedValue': 31500,
+        'luggageCount': 4, 'luggageWeightLb': None,
         'internalNotes': 'Client added two passengers on the call.',
     })
     cap['update_400'] = owner.request('PATCH', f'/trip-requests/{new_id}', {})

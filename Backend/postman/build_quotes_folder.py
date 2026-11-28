@@ -45,6 +45,7 @@ CREATE_BODY = """{
   // have never entered.
   // "aircraftId": optional · uuid; omit when no tail is selected.
   "quotedAircraft": "Gulfstream G550",                 // optional · max 200 chars
+  "interiorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000002", // optional · relative /api/uploads/<uuid>; aircraft interior is the fallback.
   "exteriorImageUrl": "/api/uploads/00000000-0000-4000-8000-000000000001", // optional · exactly the relative URL POST /uploads/image returned (folder 11): /api/uploads/<uuid>. An absolute or external URL is a 400 — it would pin a host into the row, or serve an image this API never checked.
 
   "originAirportId": "{{airportId}}",                  // optional · uuid of a live airport. A real relation, never an ICAO string typed into a box.
@@ -91,6 +92,7 @@ UPDATE_BODY = """{
   // first — that is a recorded act, and this is not.
   "basePrice": 82500,
 
+  "interiorImageUrl": null,                            // optional · relative /api/uploads/<uuid>, or null to clear the override.
   "exteriorImageUrl": null,                            // optional · /api/uploads/<uuid>, or null to remove the photo.
 
   "lineItems": [
@@ -171,6 +173,7 @@ def build(owner, broker, assistant):
         'aircraftId': None,
         'quotedAircraft': 'Gulfstream G550',
         'exteriorImageUrl': '/api/uploads/00000000-0000-4000-8000-000000000001',
+        'interiorImageUrl': '/api/uploads/00000000-0000-4000-8000-000000000002',
         'originAirportId': airports[0]['id'],
         'destinationAirportId': airports[1]['id'],
         'departureDate': '2026-11-14',
@@ -275,6 +278,7 @@ def build(owner, broker, assistant):
     cap['approve_draft_409'] = owner.request('POST', f'/quotes/{new_id}/approve', {})
 
     update_body = {
+        'interiorImageUrl': None,
         'basePrice': 82500,
         'lineItems': [
             {'label': 'Catering (seafood premium)', 'amount': None, 'included': True},

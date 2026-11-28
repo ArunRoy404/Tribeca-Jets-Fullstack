@@ -26,7 +26,7 @@ TYPES = 'ONE_WAY | ROUND_TRIP | MULTI_LEG'
 CREATE_BODY = """{
   "clientId": "{{clientId}}",                          // required · uuid. A live client.
   "assignedBrokerId": null,                            // optional · uuid. An omitted broker defaults to you if eligible. Assigning someone else needs Trips · Reassign.
-  "tripRequestId": null,                               // optional · uuid, same client. Linking one converts it.
+  "tripRequestId": "{{convertTripRequestId}}",         // optional · uuid, live request in reach for this client. Linking converts it; setup creates a probe.
   "operatorId": "{{operatorId}}",                      // optional · uuid, a live operator
   "aircraftId": null,                                  // optional · uuid, a fleet aircraft…
   "aircraftDescription": "Challenger 350",             // optional · …or free text for a tail not in the fleet. Max 200.
@@ -34,6 +34,8 @@ CREATE_BODY = """{
   "type": "ROUND_TRIP",                                // optional · ONE_WAY | ROUND_TRIP | MULTI_LEG (default ONE_WAY). Must fit the legs: 1, 2, 2+.
   "status": "BOOKED",                                  // optional · DRAFT | BOOKED | CONFIRMED (default DRAFT). Never created in flight or done.
   "operatorConfirmed": false,                          // optional · boolean. Stamps operatorConfirmedAt.
+  "luggageCount": 3,                                  // optional · integer 0-100; operator data only.
+  "luggageWeightLb": 120,                             // optional · integer 1-10000 lb; omit when unknown.
   "passengerCount": 4,                                 // optional · integer 1-200
 
   // Legs in order. No leg may start and end at the same airport, and the
@@ -43,7 +45,7 @@ CREATE_BODY = """{
     { "originAirportId": "{{airportId2}}", "destinationAirportId": "{{airportId}}", "departureDate": "2026-11-14", "departureTime": null }
   ],
   "passengers": [                                      // optional · up to 200. Names usually arrive later.
-    { "fullName": "Jonathan Reed", "dateOfBirth": "1978-03-14", "passportNumber": "X1234567" }
+    { "fullName": "Jonathan Reed", "dateOfBirth": "1978-03-14", "passportNumber": "X1234567", "weightLb": 180 } // weightLb optional · integer 1-1000 lb; omit when unknown.
   ],
 
   // Priced inputs, exactly as on a quote. FET, total, profit and margin are
@@ -64,6 +66,9 @@ UPDATE_BODY = """{
   "legs": [
     { "id": "{{tripLegId}}", "originAirportId": "{{airportId}}", "destinationAirportId": "{{airportId2}}", "departureDate": "2026-11-10", "departureTime": "10:00" }
   ],
+  "luggageCount": 4,                                  // optional · integer 0-100, null clears.
+  "luggageWeightLb": null,                            // optional · integer 1-10000 lb, null clears.
+  "passengers": [{ "id": "{{tripPassengerId}}", "fullName": "Jonathan Reed", "dateOfBirth": "1978-03-14", "passportNumber": "X1234567", "weightLb": 185 }], // complete list; weightLb integer 1-1000 lb, null clears on edit.
   "clientNotes": null                                  // clears the client notes
 }"""
 
@@ -82,7 +87,12 @@ def legs_for(a, b):
 LOOKUPS = [
     "const base = pm.variables.get('baseUrl');",
     "pm.sendRequest({ url: base + '/clients?limit=1', method: 'GET' }, function (err, res) {",
-    "    if (!err && res.code === 200 && res.json().data.length) { pm.collectionVariables.set('clientId', res.json().data[0].id); }",
+    "    if (err || res.code !== 200 || !res.json().data.length) { throw new Error('A live client is required'); }",
+    "    const clientId = res.json().data[0].id; pm.collectionVariables.set('clientId', clientId);",
+    "    pm.sendRequest({ url: base + '/trip-requests', method: 'POST', header: { 'Content-Type': 'application/json', 'X-CSRF-Token': pm.collectionVariables.get('csrfToken') }, body: { mode: 'raw', raw: JSON.stringify({ clientId: clientId, luggageCount: 3, luggageWeightLb: 120, summary: 'Postman Convert to Trip probe' }) } }, function (requestError, requestResponse) {",
+    "        if (requestError || requestResponse.code !== 201) { throw new Error('Could not create conversion probe'); }",
+    "        pm.collectionVariables.set('convertTripRequestId', requestResponse.json().data.id);",
+    "    });",
     '});',
     "pm.sendRequest({ url: base + '/operators?limit=1', method: 'GET' }, function (err, res) {",
     "    if (!err && res.code === 200 && res.json().data.length) { pm.collectionVariables.set('operatorId', res.json().data[0].id); }",
@@ -182,10 +192,18 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
     broker_id = signed_in_id(broker)
     assistant_id = signed_in_id(assistant)
 
+    request_status, request_body = owner.request('POST', '/trip-requests', {
+        'clientId': client_id, 'luggageCount': 3, 'luggageWeightLb': 120, 'summary': 'Postman Convert to Trip probe'})
+    if request_status != 201:
+        raise AssertionError(f'Conversion probe: expected 201, received {request_status}')
+    conversion_id = request_body['data']['id']
+    created.append(('request', conversion_id))
+
     payload = {
+        'tripRequestId': conversion_id, 'luggageCount': 3, 'luggageWeightLb': 120,
         'clientId': client_id, 'operatorId': operator_id, 'aircraftDescription': 'Challenger 350',
         'type': 'ROUND_TRIP', 'status': 'BOOKED', 'passengerCount': 4, 'legs': legs_for(a, b),
-        'passengers': [{'fullName': 'Jonathan Reed', 'dateOfBirth': '1978-03-14', 'passportNumber': 'X1234567'}],
+        'passengers': [{'fullName': 'Jonathan Reed', 'dateOfBirth': '1978-03-14', 'passportNumber': 'X1234567', 'weightLb': 180}],
         'basePrice': 80000, 'operatorCost': 65000,
         'internalNotes': 'Prefers morning departures.', 'clientNotes': 'Seafood catering.',
     }
@@ -216,6 +234,8 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
             'type': 'ONE_WAY', 'operatorConfirmed': True,
             'legs': [{'id': trip['legs'][0]['id'], 'originAirportId': a, 'destinationAirportId': b,
                       'departureDate': '2026-11-10', 'departureTime': '10:00'}],
+            'luggageCount': 4, 'luggageWeightLb': None,
+            'passengers': [{'id': trip['passengers'][0]['id'], 'fullName': 'Jonathan Reed', 'dateOfBirth': '1978-03-14', 'passportNumber': 'X1234567', 'weightLb': 185}],
             'clientNotes': None,
         }
         cap['not_ready_400'] = owner.request('POST', f"/trips/{trip['id']}/status", {'status': 'CONFIRMED'})
@@ -270,8 +290,10 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         cap['bulk_restore'] = owner.request('POST', '/trips/bulk-restore', {'ids': [trip['id']]})
     finally:
         for kind, row_id in created:
-            path = f'/trips/{row_id}' if kind == 'trip' else f'/quotes/{row_id}'
-            owner.request('DELETE', path)
+            path = f'/trips/{row_id}' if kind == 'trip' else (f'/trip-requests/{row_id}' if kind == 'request' else f'/quotes/{row_id}')
+            archived = owner.request('DELETE', path)
+            if kind == 'request':
+                cap['conversion_teardown'] = archived
 
     trip_id = cap['create'][1]['data']['id']
     list_query = [
@@ -296,6 +318,7 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
         'const body = pm.response.json();',
         "pm.collectionVariables.set('newTripId', body.data.id);",
         "pm.collectionVariables.set('tripLegId', body.data.legs[0].id);",
+        "pm.collectionVariables.set('tripPassengerId', body.data.passengers[0].id);",
     ])
 
     items = [
@@ -538,9 +561,16 @@ def build(owner: Session, broker: Session, assistant: Session, anonymous: Sessio
             },
             'response': [],
         },
+        {
+            'name': '15 · Teardown — archive converted request',
+            'event': [status_test(204, 'conversion probe archived')],
+            'request': {'method': 'DELETE', 'header': WRITE_HEADERS, 'url': url('/trip-requests/{{convertTripRequestId}}'),
+                        'description': 'Archives only the request created by 01, in its own final awaited request. No query parameters.'},
+            'response': [example('204 · Archived conversion probe', 'DELETE', f'/trip-requests/{conversion_id}', *cap['conversion_teardown'])],
+        },
     ]
 
-    items.insert(-1, {
+    items.insert(next(index for index, item in enumerate(items) if item['name'] == '14 · Teardown'), {
         'name': '14 · Open money before completion',
         'event': [status_test(200, '200 OK')],
         'request': {'method': 'GET', 'header': [], 'url': url('/trips/{{newTripId}}/open-items'),
@@ -577,7 +607,7 @@ def main() -> None:
     place_folder(collection, folder)
 
     ensure_variables(collection, {
-        'newTripId': '', 'tripLegId': '', 'bookQuoteId': '', 'bookedTripId': '', 'airportId2': '',
+        'newTripId': '', 'tripLegId': '', 'tripPassengerId': '', 'convertTripRequestId': '', 'bookQuoteId': '', 'bookedTripId': '', 'airportId2': '',
         'pendingTripId': '', 'declinedTripId': '', 'brokerEmail': 'broker@example.com',
     })
 
