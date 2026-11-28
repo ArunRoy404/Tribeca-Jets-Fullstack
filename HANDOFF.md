@@ -111,6 +111,12 @@ for a review, and how the owner likes to work, is in
   port 4000 retained its original PID and dev was not written. Report:
   `docs/codex-reports/feedback-b03-postman.txt`. **API walk complete; only
   the developer's screen checks remain.**
+- **B3 committed and pushed on `roy`, 27 Nov** (api, web, postman, docs).
+- **B4 (trip data): brief written, not built** (27 Nov,
+  `docs/codex-prompts/feedback-b04-trip-data.md`). One migration (six
+  nullable columns: quote interior photo, passenger weight, luggage on
+  trips and trip requests). Codex writes it and does not run it; Claude
+  applies it after review.
 - **A batch is done when Claude's review passes and all checks are green**
   (developer, 27 Nov); the developer tests later from the checklist.
 - Ari has not answered the 19 questions; we start with B1–B7 (B5's font

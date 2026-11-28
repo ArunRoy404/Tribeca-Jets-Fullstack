@@ -1,0 +1,225 @@
+Feedback B4 — trip data
+28 November 2026 (Asia/Dhaka)
+
+Implemented all five brief items. Ready for review; not database-tested because the migration must remain unapplied. Postman definitions are written only and their live capture/Newman verification remains deliberately deferred.
+
+1. Files changed (one line per file)
+
+AGENTS.md — Adds durable D15 client-data exclusion and the saved-passenger no-passport rule.
+Backend/postman/build_quotes_folder.py — Documents/captures interior photo create and clearing on update when run later.
+Backend/postman/build_trip_requests_folder.py — Adds luggage create/update bodies and capture inputs.
+Backend/postman/build_trips_folder.py — Adds weight/luggage, a request-linked create probe and its own final teardown; keeps open-items before teardown.
+Backend/postman/recapture_clients_examples.py — Defines saved-passenger 200/400/401/403/404 captures and a paginated request before teardown.
+Backend/prisma/migrations/20261128120000_feedback_b4/migration.sql — Prisma-generated six-column additive migration; written and inspected, not applied.
+Backend/prisma/schema/quote.prisma — Adds nullable Quote.interiorImageUrl.
+Backend/prisma/schema/trip-request.prisma — Adds nullable luggage count and weight.
+Backend/prisma/schema/trip.prisma — Adds nullable passenger weight and trip luggage columns.
+Backend/src/common/authorization/roles.brokers.spec.ts — Adapts the request-service constructor fixture only.
+Backend/src/common/pdf/pdf.templates.ts — Renders exterior and interior quote photos beside one another; optional additive argument.
+Backend/src/common/validation/airports.spec.ts — Adapts the request-service constructor fixture only.
+Backend/src/modules/client-portal/client-portal.service.ts — Adds interior quote reads/PDF and relation-based itinerary photo inheritance; excludes operator measurements.
+Backend/src/modules/client-portal/client-portal.trip-data.spec.ts — Pins portal trip/itinerary payload and select exclusions, plus quote/itinerary PDF photos.
+Backend/src/modules/clients/clients.access.spec.ts — Pins the new open staff read with no module action decorator.
+Backend/src/modules/clients/clients.controller.ts — Adds GET /clients/:id/passengers under the existing staff-session boundary.
+Backend/src/modules/clients/clients.service.ts — Checks client scope before delegating saved passengers to TripsService.
+Backend/src/modules/clients/dto/client-passengers.dto.ts — Strict page/limit/search DTO; fixed newest-trip ordering, rejects ignored sort fields.
+Backend/src/modules/itineraries/itineraries.service.ts — Reads Trip.quote photos for override > quote > aircraft fallback and edit suggestions.
+Backend/src/modules/quotes/dto/quote.dto.ts — Validates relative interior uploads on create; nullable override on edit.
+Backend/src/modules/quotes/quotes.photos.spec.ts — Tests photo DTOs/select round-trips and all itinerary fallback levels.
+Backend/src/modules/quotes/quotes.service.ts — Selects interior photos, reads both for PDFs and preserves both on quote duplication.
+Backend/src/modules/quotes/quotes.workflow.spec.ts — Pins Nest resolution of the request/trip/client/quote dependency cycle.
+Backend/src/modules/trip-requests/dto/trip-request.dto.ts — Adds bounded luggage create/edit fields.
+Backend/src/modules/trip-requests/trip-requests.module.ts — Defers the conversion-reader TripsModule dependency.
+Backend/src/modules/trip-requests/trip-requests.scope.spec.ts — Supplies the new converted-trip reader mock while preserving scope assertions.
+Backend/src/modules/trip-requests/trip-requests.service.ts — Selects luggage, checks picked requests in reach, attaches converted trips through TripsService.
+Backend/src/modules/trips/dto/trip.dto.ts — Adds bounded luggage and distinct create/edit passenger-weight validation.
+Backend/src/modules/trips/trips.data.spec.ts — Tests bounds, blank handling, de-duplication, latest values, scope, pagination and mismatched conversion clients.
+Backend/src/modules/trips/trips.module.ts — Defers the reciprocal request dependency.
+Backend/src/modules/trips/trips.passengers.ts — Pure de-duplication with an explicit passport-free response allowlist.
+Backend/src/modules/trips/trips.service.ts — Writes/selects measurements, scopes saved manifests and converted-trip links, delegates picked-request checks.
+Frontend/src/app/dashboard/trips/new/page.js — Passes only a fromRequest id from search params to the existing trip page.
+Frontend/src/components/clients/SavedPassengerPicker.jsx — Thin RecordPicker wrapper; adds name/DOB/last weight and an empty passport.
+Frontend/src/components/common/LuggageFields.jsx — Shared optional bounded count/weight controls for trip and request forms.
+Frontend/src/components/itineraries/BuildItineraryDialog.jsx — Uses quote-first defaults in create/edit previews and offers quote/fleet library suggestions.
+Frontend/src/components/quotes/AddQuoteDialog.jsx — Adds interior upload/library/suggestions; shared two-photo preview and override-aware edit prefill.
+Frontend/src/components/quotes/photo/QuoteAircraftPhotoCard.jsx — Shared exterior/interior gallery with aircraft fallbacks.
+Frontend/src/components/table/trip-requests/TripRequestCard.jsx — Shows the same converted-trip link on mobile.
+Frontend/src/components/table/trip-requests/TripRequestsContainer.jsx — Adds the same permission/state-gated Convert action to row and mobile menus.
+Frontend/src/components/table/trip-requests/TripRequestsTableRow.jsx — Shows Converted to TJ-123 as a real link.
+Frontend/src/components/trip-requests/ConvertedTripLink.jsx — Shared visible trip link for row, mobile card and detail.
+Frontend/src/components/trip-requests/TripRequestDetailSheet.jsx — Adds gated Convert to Trip, the converted-trip link and luggage display.
+Frontend/src/components/trip-requests/TripRequestDialog.jsx — Prefills luggage from the saved row, retaining zero bags.
+Frontend/src/components/trip-requests/TripRequestForm.jsx — Places shared luggage fields beside passenger count and includes them in payloads.
+Frontend/src/components/trips/CreateTripForm.jsx — Places a Luggage section directly below Passengers.
+Frontend/src/components/trips/TripDetailsView.jsx — Shows the staff-only luggage summary with honest blanks.
+Frontend/src/components/trips/createForm/CreateFormActionBar.jsx — Submits request id, luggage and weights; create omits blank optional values, edit clears.
+Frontend/src/components/trips/createForm/CreatePassengersCard.jsx — Supplies the selected client to the shared manifest/past-passenger picker.
+Frontend/src/components/trips/passengers/PassengerManifestFields.jsx — Shared editable weight control and past-passenger picker with responsive fields.
+Frontend/src/components/trips/passengers/TripPassengersCard.jsx — Reads/edits weight, displays lb, adds editable saved suggestions without passports.
+Frontend/src/hooks/clients/index.js — Exports the saved-passenger hook through the clients hook surface.
+Frontend/src/hooks/clients/useClientPassengers.js — Paginated saved-passenger query through the clients service, shared presets and query keys.
+Frontend/src/lib/itinerary.js — Carries relation-read quote photos into the itinerary edit model.
+Frontend/src/lib/lead.js — Carries luggage and the scoped converted trip into request rows.
+Frontend/src/lib/luggage.js — Formats supplied bag count and lb without inventing a missing component.
+Frontend/src/lib/queryKeys.js — Keys saved-passenger results beneath trips so trip writes refresh them.
+Frontend/src/lib/quote.js — Carries effective photos and separate raw overrides for safe edit prefill.
+Frontend/src/lib/trip.js — Carries luggage into the staff trip detail model.
+Frontend/src/lib/tripRequest.js — Shares conversion eligibility: live, neither CONVERTED nor LOST.
+Frontend/src/services/clients.service.js — Adds the one-to-one passengers HTTP wrapper.
+Frontend/src/store/useCreateTripStore.js — Keeps request id, weights and luggage; loads request facts, preserves party count on saved-passenger additions, uses toDateInput.
+Frontend/src/templates/NewTripPage.jsx — Loads/validates the request through its hook, initializes once and handles unavailable/closed requests.
+docs/MODULE_FEATURE_STATUS.md — Records B4 state for Clients, Trip Requests, Quotes, Trips, Itineraries and Client Portal; migration/capture remain pending.
+docs/codex-reports/feedback-b04-trip-data.txt — This implementation report, SQL, validation output and final working-tree state.
+
+Migration SQL in full — Backend/prisma/migrations/20261128120000_feedback_b4/migration.sql
+
+-- AlterTable
+ALTER TABLE "quotes" ADD COLUMN     "interiorImageUrl" TEXT;
+
+-- AlterTable
+ALTER TABLE "trip_requests" ADD COLUMN     "luggageCount" INTEGER,
+ADD COLUMN     "luggageWeightLb" INTEGER;
+
+-- AlterTable
+ALTER TABLE "trips" ADD COLUMN     "luggageCount" INTEGER,
+ADD COLUMN     "luggageWeightLb" INTEGER;
+
+-- AlterTable
+ALTER TABLE "trip_passengers" ADD COLUMN     "weightLb" INTEGER;
+
+Generated by Prisma migrate diff between the pre-B4 schema copied into TEMP and the edited schema, using --from-schema / --to-schema / --script / --output. No datasource or shadow database was used. Hand-read and mechanically checked: four ALTER TABLE statements, six ADD COLUMNs, all nullable; no DEFAULT, backfill or DROP. The real @@map names are quotes, trip_requests, trips, trip_passengers. The migration was NOT RUN.
+
+2. Per item
+
+R3-04 — DONE. Interior quote upload validates like exterior on both DTOs, returns through list/detail selects, appears beside exterior in the shared quote preview/gallery and PDF, and is included in portal quote responses/PDF. Each photo falls back to the selected aircraft. Quote duplication preserves both photos. Itinerary override wins, then the booked quote photo, then the trip aircraft photo, with both quote/fleet choices offered by the existing photo library.
+R3-05 — DONE. Optional integer weightLb 1–1000 is written/read with each trip passenger, edited on the full form and B2 detail-card editor, and shown as e.g. 180 lb only when present. Blank create is absent; blank/null edit clears.
+R3-06 — DONE. Optional luggageCount 0–100 and luggageWeightLb 1–10000 on Trip and TripRequest, DTOs/selects/writes/forms included. Luggage sits directly below trip Passengers and beside request passenger count. Staff detail shows only supplied parts (zero bags is retained). D15 excludes these and passenger weights from client preview/PDF/portal selects and merge fields; no client email fields were added.
+R2-T1 — DONE. Shared desktop/mobile row action and detail action use Trips · Create, and hide for CONVERTED, LOST or archived requests. Only fromRequest=<uuid> goes in the URL. The existing new-trip page fetches the request through useTripRequest and submits the existing POST /trips with tripRequestId. Visible converted-trip links are on row, mobile card and detail. The owning TripsService reads the latest visible live booking per request, with no new request column or endpoint. Request selection is now rechecked through TripRequestsService in its read reach as well as for client identity; mismatched clients are pinned by a create-service test.
+R2-T4 — DONE. GET /clients/:id/passengers checks client scope first (404 outside it), then reads live manifests on live trips in TripsService reach. Trimmed case-insensitive name + DOB de-duplication happens before search/pagination. The most recent trip supplies even a blank weight. The endpoint returns an explicit allowlist including lastTripReference, never passportNumber. Both trip passenger editors use a thin RecordPicker wrapper and retain editable name/DOB/weight. No new table.
+
+Mismatches/assumptions: the brief's opening says five columns but its detailed migration correctly names six; six were added. The request's actual closed status is LOST, not a CLOSED enum, so LOST is excluded from conversion. The Clients Postman source is recapture_clients_examples.py rather than build_clients_folder.py; that is the file updated. No other requested item was skipped.
+
+3. Decisions
+
+Photo link: Trip.quoteId -> Quote, selected through trip.quote in the itinerary service and the raw trip detail used by the build dialog. Itinerary responses expose quotePhotos for edit preview/library suggestions. Trip gets no photo columns and booking stores no photo copies.
+Convert placement: row action menu on desktop, the identical menu on mobile cards, and the request detail toolbar. Converted to TJ-123 is a real link on row, mobile card and detail, with a corresponding menu navigation action.
+Saved-passenger recency: departure day descending, missing days last, then trip createdAt descending, with trip id/sequence/passenger id ties fixed. No passport reuse: a passport is sensitive and offering it again remains an owner decision; this batch deliberately never returns or copies one.
+Durable rule added in AGENTS.md part one: "Passenger weights and luggage are operator data: never on a client document, the portal or a client merge field." The same paragraph records the passport-free saved-passenger rule.
+
+4. Validation — final results
+
+Windows npm.cmd/npx.cmd were used because PowerShell blocks the .ps1 shims; no execution-policy setting was changed.
+
+Backend:
+  npx.cmd prisma generate
+    Prisma Client 7.10.0 generated successfully into src/generated/prisma (2.31s on the final explicit generation).
+  npm.cmd run lint
+    oxlint --type-aware src/ test/ — exit 0, no diagnostics.
+  npx.cmd tsc --noEmit
+    exit 0, no diagnostics.
+  npm.cmd test
+    pretest Prisma generation succeeded.
+    Test Files  112 passed (112)
+    Tests       1245 passed (1245)
+    Duration    40.78s
+    Includes the new Nest dependency-cycle regression; 25 tests added over the 1220-test baseline.
+
+Frontend:
+  npm.cmd run lint
+    eslint — exit 0, no diagnostics.
+  npm.cmd run build
+    Next.js 16.3.1 — exit 0.
+    Compiled successfully in 3.6s; generated static pages 45/45 in 1805ms.
+    /dashboard/trips/new is dynamic because it reads searchParams.
+
+Existing informational warnings: Vite recommends its native tsconfigPaths option; Next warns about multiple workspace lockfiles. Prisma offered a version upgrade. No dependency or configuration changes were made for those notices.
+
+Browser:
+  36 layout checks: 12 views each at 375px, 768px and 1440px, zero horizontal overflow (document and open dialogs) and zero page errors. Views: conversion form, saved passenger in full form, trip detail, passenger editor, request form/detail/Convert menu/converted link, quote detail/form/preview and itinerary build.
+  All API traffic was intercepted with local fixtures (142 calls), including activity and mutation requests. No real sign-in or API write ran.
+  Asserted request-id/client/broker/route/date/count/luggage prefill in the actual intercepted POST /trips payload; choosing a saved passenger retained the original party count and submitted the saved weight. Asserted the inline editor's PATCH passenger payload and no reused passport. Itinerary preview selected both booked quote photos.
+  After the last serialization/date-helper edits, repeated 12 mobile checks and the POST/PATCH payload assertions: passed, zero page errors. Blank create passport/time were omitted; edit passport clearing remained null.
+  Screenshots/results: %TEMP%/tribeca-b4-browser-final/ and %TEMP%/tribeca-b4-browser-submit/ (fixture-based checks, not a live migrated-database test).
+  Clock audit: 31 changed/new frontend files checked for AM/PM, hour12 and browser-default locale time calls; zero matches.
+
+Other checks:
+  git diff --check — exit 0, no whitespace errors (Git only printed its existing LF/CRLF notices).
+  All four changed Python builders parsed with ast.parse — syntax OK, none imported or executed.
+  Migration SQL audit — only six nullable ADD COLUMNs across four ALTER TABLE statements.
+
+Postman deferred exactly as requested: no builder, rewrite_body_comments.py, or Newman run; collection JSON and captured examples were not changed. Live migration/capture/API/database verification belongs to the review pass after the migration is approved and applied.
+
+5. Confirmation and git status
+
+Nothing committed or pushed. No database was modified and no .env file was edited. No migration apply/deploy/dev/reset/seed command ran. Prisma generation and schema-to-schema diff only produced local files. Browser requests used intercepted fixtures. No builders or Newman ran.
+
+HANDOFF.md was already modified and docs/codex-prompts/feedback-b04-trip-data.md was already untracked at session start; both were read and preserved without edits. FEEDBACK_TRACKER.md, DEVELOPER_TEST_CHECKLIST.md and docs/feedback-replies/ were not edited. The code and documentation listed above remain uncommitted because the user explicitly prohibited commits/pushes.
+
+Final git status --short:
+ M AGENTS.md
+ M Backend/postman/build_quotes_folder.py
+ M Backend/postman/build_trip_requests_folder.py
+ M Backend/postman/build_trips_folder.py
+ M Backend/postman/recapture_clients_examples.py
+ M Backend/prisma/schema/quote.prisma
+ M Backend/prisma/schema/trip-request.prisma
+ M Backend/prisma/schema/trip.prisma
+ M Backend/src/common/authorization/roles.brokers.spec.ts
+ M Backend/src/common/pdf/pdf.templates.ts
+ M Backend/src/common/validation/airports.spec.ts
+ M Backend/src/modules/client-portal/client-portal.service.ts
+ M Backend/src/modules/clients/clients.access.spec.ts
+ M Backend/src/modules/clients/clients.controller.ts
+ M Backend/src/modules/clients/clients.service.ts
+ M Backend/src/modules/itineraries/itineraries.service.ts
+ M Backend/src/modules/quotes/dto/quote.dto.ts
+ M Backend/src/modules/quotes/quotes.service.ts
+ M Backend/src/modules/quotes/quotes.workflow.spec.ts
+ M Backend/src/modules/trip-requests/dto/trip-request.dto.ts
+ M Backend/src/modules/trip-requests/trip-requests.module.ts
+ M Backend/src/modules/trip-requests/trip-requests.scope.spec.ts
+ M Backend/src/modules/trip-requests/trip-requests.service.ts
+ M Backend/src/modules/trips/dto/trip.dto.ts
+ M Backend/src/modules/trips/trips.module.ts
+ M Backend/src/modules/trips/trips.service.ts
+ M Frontend/src/app/dashboard/trips/new/page.js
+ M Frontend/src/components/itineraries/BuildItineraryDialog.jsx
+ M Frontend/src/components/quotes/AddQuoteDialog.jsx
+ M Frontend/src/components/quotes/photo/QuoteAircraftPhotoCard.jsx
+ M Frontend/src/components/table/trip-requests/TripRequestCard.jsx
+ M Frontend/src/components/table/trip-requests/TripRequestsContainer.jsx
+ M Frontend/src/components/table/trip-requests/TripRequestsTableRow.jsx
+ M Frontend/src/components/trip-requests/TripRequestDetailSheet.jsx
+ M Frontend/src/components/trip-requests/TripRequestDialog.jsx
+ M Frontend/src/components/trip-requests/TripRequestForm.jsx
+ M Frontend/src/components/trips/CreateTripForm.jsx
+ M Frontend/src/components/trips/TripDetailsView.jsx
+ M Frontend/src/components/trips/createForm/CreateFormActionBar.jsx
+ M Frontend/src/components/trips/createForm/CreatePassengersCard.jsx
+ M Frontend/src/components/trips/passengers/PassengerManifestFields.jsx
+ M Frontend/src/components/trips/passengers/TripPassengersCard.jsx
+ M Frontend/src/hooks/clients/index.js
+ M Frontend/src/lib/itinerary.js
+ M Frontend/src/lib/lead.js
+ M Frontend/src/lib/queryKeys.js
+ M Frontend/src/lib/quote.js
+ M Frontend/src/lib/trip.js
+ M Frontend/src/services/clients.service.js
+ M Frontend/src/store/useCreateTripStore.js
+ M Frontend/src/templates/NewTripPage.jsx
+ M HANDOFF.md
+ M docs/MODULE_FEATURE_STATUS.md
+?? Backend/prisma/migrations/20261128120000_feedback_b4/
+?? Backend/src/modules/client-portal/client-portal.trip-data.spec.ts
+?? Backend/src/modules/clients/dto/client-passengers.dto.ts
+?? Backend/src/modules/quotes/quotes.photos.spec.ts
+?? Backend/src/modules/trips/trips.data.spec.ts
+?? Backend/src/modules/trips/trips.passengers.ts
+?? Frontend/src/components/clients/SavedPassengerPicker.jsx
+?? Frontend/src/components/common/LuggageFields.jsx
+?? Frontend/src/components/trip-requests/ConvertedTripLink.jsx
+?? Frontend/src/hooks/clients/useClientPassengers.js
+?? Frontend/src/lib/luggage.js
+?? Frontend/src/lib/tripRequest.js
+?? docs/codex-prompts/feedback-b04-trip-data.md
+?? docs/codex-reports/feedback-b04-trip-data.txt

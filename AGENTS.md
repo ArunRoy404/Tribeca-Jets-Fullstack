@@ -359,6 +359,12 @@ Tracking (#14), which read the same trip facts a third and fourth time.
 
 ## Contract rules that apply to both sides
 
+**Passenger weights and luggage are operator data: never on a client
+document, the portal or a client merge field.** Staff forms may store and
+show them; client quote and itinerary previews/PDFs and portal selects must
+exclude them. Saved-passenger suggestions reuse name, date of birth and last
+weight only, never passport numbers; passport reuse awaits the owner's decision.
+
 - **Enum values are the backend's `SCREAMING_SNAKE_CASE`**, on the wire and in the database. The frontend maps them to display labels at the edge; it never invents its own vocabulary (no `"Senior Broker"` on the wire when the enum says `SENIOR_BROKER`).
 - **Every list endpoint is paginated** and returns `{ success, data, meta }` with a full `meta`. There are no unpaginated list endpoints.
 - **Soft delete everywhere** (`deletedAt`). Historical data is never destroyed.

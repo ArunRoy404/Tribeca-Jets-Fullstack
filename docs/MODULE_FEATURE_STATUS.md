@@ -374,6 +374,8 @@ entered into the operator's fleet.
 
 ## 5. Clients ✅
 
+**B4 · 28 Nov 2026 — implemented, awaiting review; migration `20261128120000_feedback_b4` written, not applied:** GET /clients/:id/passengers resolves client scope first, then reads visible live trip manifests through TripsService. Server-paginated/searchable suggestions de-duplicate trimmed case-insensitive name plus DOB, retaining the most recent trip’s name, DOB, weight and reference; no passport numbers and no new table. Most recent means departure day (null last), then booking date, with deterministic ties. Used by both trip passenger editors. Postman builders updated only; capture and Newman deliberately not run.
+
 **B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-10 / R2-C1: booking advances the client with a transactional `client.stage_changed` audit; quote sending advances only earlier LEAD stages to QUOTED through ClientsService, also transactionally audited. The existing summary strip reads the latest live trip through TripsService after the client scope check (route, date, status and available flight facts); no trip says "No trips yet". OTHER requires trimmed `leadSourceOther` (max 500), round-trips through both selects, and clears on a source change. Postman definitions written; live capture/Newman deferred by the B3 brief.
 
 **B2 · 27 Nov 2026:** preferred-route validation shares its same-airport check with Add Lead and Trip Requests. Lead stages and their labels have one source (`lib/leadStages.js`). Newly recorded/withdrawn Receivables payments also appear on the client timeline (invoice number, amount and method only); past payments are not back-filled.
@@ -614,6 +616,8 @@ agents are something else: clients of type `TRAVEL_AGENT`.
 
 ## 8. Trip Requests ✅
 
+**B4 · 28 Nov 2026 — implemented, awaiting review; migration `20261128120000_feedback_b4` written, not applied:** R3-06 / R2-T1: optional bag count and total luggage weight in lb on create/edit and detail. Convert to Trip is on the shared row/mobile menu and detail sheet for Trips · Create, excluding LOST (closed), CONVERTED and archived requests. It passes only fromRequest=<id>, loads via useTripRequest, and prefills the existing form including luggage. The converted trip link is resolved by TripsService in trip reach; no new endpoint or request-side trip column. Trip creation now re-checks the picked request through its owner’s scope. Postman builders updated only; capture and Newman deliberately not run.
+
 **B2 · 27 Nov 2026:** the form refuses identical airports before submission; the API uses the shared `assertDifferentAirports` on create and the merged route on update, with a destination field error. Same-airport builder example written; live capture/Newman deferred.
 
 - Client-name search matches the full name across first and last name.
@@ -736,6 +740,8 @@ the data did not supply" the hardest rule in this project.
 ---
 
 ## 10. Quotes ✅
+
+**B4 · 28 Nov 2026 — implemented, awaiting review; migration `20261128120000_feedback_b4` written, not applied:** R3-04: optional interior upload beside exterior, both in list/detail responses, create/edit with photo-library/fleet suggestions, saved/form previews, duplication and staff/client PDF renderers. Each quote photo falls back to its aircraft photo. Trips carry no photo columns; itineraries read the booked quote through Trip.quoteId. Postman builders updated only; capture and Newman deliberately not run.
 
 **B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-10: marking a quote sent moves an earlier-stage LEAD client to QUOTED through ClientsService in the quote update transaction. WON, LOST, QUOTED and active clients are preserved; the client timeline records the change. Postman definitions written; live capture/Newman deferred by the B3 brief.
 
@@ -862,6 +868,8 @@ rules the scope says nobody has agreed.
 
 ## 11. Trips ✅ *(27 Sep 2026)*
 
+**B4 · 28 Nov 2026 — implemented, awaiting review; migration `20261128120000_feedback_b4` written, not applied:** R3-05 / R3-06 / R2-T1 / R2-T4: optional per-passenger weight (1–1,000 lb) in both passenger editors; optional luggage count (0–100) and weight (1–10,000 lb), with a Luggage section below Passengers and honest blanks on detail. Add from past trips uses the client-scoped paginated RecordPicker and leaves name/DOB/last weight editable, never reusing passports. Request conversion uses the existing POST /trips with tripRequestId and markConverted; converted requests resolve their trip through this service. No operator data appears in client documents, portal payloads or merge fields. Postman builders updated only; capture and Newman deliberately not run.
+
 **B3 · 27 Nov 2026 — implemented, awaiting review and unapplied migration `20261127120000_feedback_b3`:** R1-06/07/08/10 / R2-T2: confirming also requires the operator-confirmed tick and the first leg’s departureTime; all missing requirements are named together and shown beside Confirm. Completion earns live PENDING commissions with one audit per commission in the same transaction. GET /trips/:id/open-items reads the owning money services, returns permission-filtered amounts and warning flags; Complete warns but never blocks on money. The pending approval banner links Edit financials to the existing form’s Financials section for permitted editors. Booking’s client lifecycle change is audited in its transaction. Postman definitions written; live capture/Newman deferred by the B3 brief.
 
 **B2 · 27 Nov 2026:** Passenger Names in the checklist opens the manifest editor and briefly highlights its card with the theme ring (reduced-motion aware). Fields are shared with the full trip form; edit availability follows Trips · Edit and the trip’s editable/live state, with unsaved-change confirmation. Contract link is Avinode at https://www.avinode.com.
@@ -975,6 +983,8 @@ operator bills, where a bill is recorded and paid. Absent for a role without
 ---
 
 ## 12. Itineraries ✅ *(28 Sep 2026, reviewed and signed off 11 Oct 2026)*
+
+**B4 · 28 Nov 2026 — implemented, awaiting review; migration `20261128120000_feedback_b4` written, not applied:** R3-04: effective photos resolve itinerary override → Trip.quote photos → Trip.aircraft photos on every read. Build/edit preview and library suggestions use the same relation, without storing trip photos. Passenger selects and previews/PDFs exclude weights and luggage (D15). Postman builders updated only; capture and Newman deliberately not run.
 
 **A thin document over its trip, deliberately.** The passenger-facing document
 for a trip: tail, times, passengers and passport numbers, catering, ground
@@ -1886,6 +1896,8 @@ asked for yet.
 ---
 
 ## 25. Client Portal 🟡 *(built 29 Oct 2026 — ready for owner test)*
+
+**B4 · 28 Nov 2026 — implemented, awaiting review; migration `20261128120000_feedback_b4` written, not applied:** R3-04 / D15: quote responses and PDF include interior/exterior photos with aircraft fallbacks; itinerary PDF follows override → booked quote → aircraft. Explicit client selects and PDF payloads exclude passenger weight and luggage; regression tests pin the boundary. Postman builders updated only; capture and Newman deliberately not run.
 
 **Built 29 Oct 2026:**
 - **Separate token authentication surface (`Backend/src/modules/client-portal/`):** Uses HMAC-SHA256 signed URL tokens (`client-portal.token.ts`, 90-day validity, constant-time `timingSafeEqual`) verified against the live `Client` row (`deletedAt: null`), completely separate from staff `tj_access` cookies.
