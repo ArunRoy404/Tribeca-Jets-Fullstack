@@ -1,6 +1,6 @@
 # Handoff — where the project is, and how to pick it up
 
-**Last updated: 27 November 2026.** Update the "Where we are" section in the
+**Last updated: 28 November 2026.** Update the "Where we are" section in the
 same pass as any session that ships, reviews or commits something. A stale
 handoff is worse than none: the next session trusts it.
 
@@ -14,6 +14,61 @@ for a review, and how the owner likes to work, is in
 ---
 
 ## Part 1 — Where we are
+
+### 28 Nov 2026 — B4 built, committed and pushed; review is next
+
+- **Current state:** all five Feedback B4 items are implemented and pushed
+  to `origin/roy`. **Awaiting Claude's review; not yet signed off.** Read
+  `docs/codex-prompts/feedback-b04-trip-data.md` and the complete implementation
+  report `docs/codex-reports/feedback-b04-trip-data.txt` before resuming.
+- **Implemented:** exterior/interior quote photos and PDFs; itinerary photos
+  read through `Trip.quoteId` (own override → quote → aircraft); optional
+  passenger weight and trip/request luggage on staff screens; Convert to Trip
+  through the existing new-trip form/POST; scoped, paginated past-passenger
+  suggestions without passports. D15 keeps weights/luggage off client documents,
+  portal payloads and client merge fields. No new passenger table or trip photo
+  columns. Converted-trip links read bookings through TripsService.
+- **Checks passed:** backend Prisma generation, lint, TypeScript, **112 files /
+  1,245 tests**; frontend lint/build (**45/45 static pages**); **36** fixture-based
+  checks at 375px / 768px / 1440px with no horizontal overflow or browser errors,
+  plus **12** final mobile/payload checks. These were unit/build/fixture checks,
+  **not live API checks against an applied B4 migration**.
+- **Do not mistake committed for migrated:** migration
+  `Backend/prisma/migrations/20261128120000_feedback_b4/migration.sql` is
+  **written, inspected and NOT APPLIED**. Six nullable ADD COLUMNs only.
+  No database or `.env` was changed in this session.
+- **Postman:** four builder sources updated and syntax-checked; **no builder,
+  body-comment rewrite or Newman run**. Collection JSON/captured examples remain
+  at the prior B3 state. Sources are `build_quotes_folder.py`,
+  `build_trips_folder.py`, `build_trip_requests_folder.py` and
+  `recapture_clients_examples.py` (the Clients source is not named
+  `build_clients_folder.py`).
+- **Next, in order:** Claude reviews B4 and fixes findings; applies the migration
+  after review under the established workflow; verifies the API and captures the
+  four Postman folders on the isolated 4100 / `tribeca_postman` / log-mail setup,
+  never the owner's dev/mail API. Run each folder standalone and the full
+  collection twice, audit example labels, and verify the conversion/passenger
+  flows against the migrated API. Only after review/checks pass mark B4 done and
+  update the tracker, checklist and tester replies. B5 follows B4 review.
+- **Still pending:** the owner's passport-reuse decision (saved suggestions
+  deliberately omit passports); Ari's existing questions and the B8-before-B9
+  ordering decision. This session did not resolve them.
+
+**B4 commit batches — pushed to `origin/roy`, 28 Nov 2026:**
+
+| Commit | Concern | Contents |
+|---|---|---|
+| `dc5ee5328408728a9a412e2edb121c8533474e2e` | Backend + migration | Schema, DTOs/selects/writes, scoped saved passengers and converted-trip reads, photos/PDFs, client-data boundary and regression tests; migration remains unapplied. |
+| `d96c990695d5a2326169f707d8fc42aad0bb71ea` | Frontend | Quote/itinerary photos, weight/luggage forms and displays, saved-passenger RecordPicker, request conversion/prefill and trip links. |
+| `ce1a63d82d33b0c3221c2b19008324a8555dcc70` | Postman definitions | Four builder updates, request conversion probe/teardown and saved-passenger captures; not executed. |
+| `2c68ef9e6e02567388c2c650da380aa59411de31` | Documentation | B4 brief/report, six-column SQL in the report, module feature status, D15/passport rules and the existing handoff context. |
+
+The follow-up documentation commit immediately after `2c68ef9` records this
+handoff and the report's commit-status addendum; find its own hash with
+`git log -1 --format="%H %s" -- HANDOFF.md`. The developer explicitly requested
+all these commits/pushes. `origin/roy` is the destination; `deploy` and `main`
+were not pushed. No migration or Postman execution is authorized by this
+commit-only follow-up. Fetch the current branch before resuming elsewhere.
 
 ### 27 Nov 2026 — how the feedback build runs
 
@@ -112,11 +167,13 @@ for a review, and how the owner likes to work, is in
   `docs/codex-reports/feedback-b03-postman.txt`. **API walk complete; only
   the developer's screen checks remain.**
 - **B3 committed and pushed on `roy`, 27 Nov** (api, web, postman, docs).
-- **B4 (trip data): brief written, not built** (27 Nov,
-  `docs/codex-prompts/feedback-b04-trip-data.md`). One migration (six
-  nullable columns: quote interior photo, passenger weight, luggage on
-  trips and trip requests). Codex writes it and does not run it; Claude
-  applies it after review.
+- **B4 (trip data): built by Codex and pushed on `roy`, 28 Nov;
+  awaiting Claude's review.** Brief `docs/codex-prompts/feedback-b04-trip-data.md`,
+  report `docs/codex-reports/feedback-b04-trip-data.txt`; commit batches and
+  resumption steps are in the 28 Nov entry above. Migration
+  `20261128120000_feedback_b4` (six nullable columns) remains **unapplied**;
+  Postman builders updated only, capture/Newman not run. Claude applies the
+  migration after review.
 - **A batch is done when Claude's review passes and all checks are green**
   (developer, 27 Nov); the developer tests later from the checklist.
 - Ari has not answered the 19 questions; we start with B1–B7 (B5's font
@@ -776,6 +833,28 @@ Paste this as the first message of a new session.
 Newest first. One entry per working session: what was decided and why, in
 the owner's words where it matters. Code and git history say *what* changed;
 this says *what the owner decided*, which nothing else records.
+
+### 28 Nov 2026 — Feedback B4 built and pushed in batches; migration/Postman remain deferred (Codex, Windows)
+
+- The developer requested B4 exactly from its brief, with migration written but
+  not applied, builders updated but not executed, and no commits/pushes during
+  implementation. All five items were built; report in
+  `docs/codex-reports/feedback-b04-trip-data.txt` (files, SQL, decisions and checks).
+- The developer then explicitly requested: (1) commit/push all changes by
+  concern, (2) write a handoff containing the commit information, (3) commit/push
+  that final documentation. Four batches were pushed to `origin/roy`:
+  `dc5ee53` backend, `d96c990` frontend, `ce1a63d` Postman definitions,
+  `2c68ef9` docs. The final documentation follow-up records this entry and the
+  detailed commit table at the top of this file.
+- Validation: backend lint/tsc and 112 files / 1,245 tests passed; frontend
+  lint/build passed; 36 viewport checks + 12 final mobile/payload checks passed
+  with intercepted fixtures. No database or `.env` changes, migration apply,
+  builder execution or Newman. The report's original "uncommitted" status is
+  the implementation snapshot, superseded by its follow-up addendum.
+- **Resume with Claude's B4 review.** The unapplied six-column migration and
+  deferred Postman/live API checks are required remaining work; green unit/UI
+  fixture checks are not a migrated API walk. Full resumption order and exact
+  commit hashes are in Part 1. B4 is not yet marked done.
 
 ### 25 Nov 2026 — Feedback phase: three rounds agreed, build planned (Claude Code, Windows machine)
 

@@ -223,3 +223,26 @@ Final git status --short:
 ?? Frontend/src/lib/tripRequest.js
 ?? docs/codex-prompts/feedback-b04-trip-data.md
 ?? docs/codex-reports/feedback-b04-trip-data.txt
+
+
+6. Follow-up — commits and push authorized, 28 November 2026
+
+The developer subsequently explicitly requested batched commits/pushes, then a
+written handoff and a final documentation commit/push. The original section 5
+is the implementation-time snapshot; its uncommitted status is superseded here.
+
+Pushed to origin/roy:
+  dc5ee5328408728a9a412e2edb121c8533474e2e — backend, migration and regression tests.
+  d96c990695d5a2326169f707d8fc42aad0bb71ea — frontend B4 workflows and responsive UI.
+  ce1a63d82d33b0c3221c2b19008324a8555dcc70 — Postman definitions only, not executed.
+  2c68ef9e6e02567388c2c650da380aa59411de31 — B4 brief/report, rules and module status.
+
+HANDOFF.md now records all four full hashes, implementation details, validation
+and exact next steps. This addendum and that handoff are the final documentation
+follow-up immediately after 2c68ef9; its own hash is available through
+  git log -1 --format="%H %s" -- HANDOFF.md
+
+No product code changed during the commit follow-up, so the passing checks above
+remain applicable and were not rerun. Migration still NOT APPLIED. Builders and
+Newman still NOT RUN. No database or .env changes. Next is Claude's review and
+the subsequent approved migration / isolated Postman / live API verification.
