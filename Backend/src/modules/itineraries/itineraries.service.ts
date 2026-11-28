@@ -93,6 +93,7 @@ const ITINERARY_TRIP_SELECT = {
     aircraft: {
       select: { id: true, tailNumber: true, model: true, exteriorImageUrl: true, interiorImageUrl: true },
     },
+    quote: { select: { exteriorImageUrl: true, interiorImageUrl: true } },
     aircraftDescription: true,
     passengerCount: true,
     legs: ITINERARY_LEG_SELECT,
@@ -213,10 +214,11 @@ export class ItinerariesService {
        * form needs to tell "using the airport/aircraft default" apart from
        * "deliberately blank", which a single merged field cannot express.
        */
+      quotePhotos: trip.quote,
       exteriorImageOverride: exteriorImageUrl,
       interiorImageOverride: interiorImageUrl,
-      exteriorImageUrl: exteriorImageUrl ?? trip.aircraft?.exteriorImageUrl ?? null,
-      interiorImageUrl: interiorImageUrl ?? trip.aircraft?.interiorImageUrl ?? null,
+      exteriorImageUrl: exteriorImageUrl ?? trip.quote?.exteriorImageUrl ?? trip.aircraft?.exteriorImageUrl ?? null,
+      interiorImageUrl: interiorImageUrl ?? trip.quote?.interiorImageUrl ?? trip.aircraft?.interiorImageUrl ?? null,
 
       departureFboOverride: departureFbo,
       arrivalFboOverride: arrivalFbo,

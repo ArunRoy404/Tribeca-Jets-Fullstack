@@ -68,6 +68,10 @@ model Trip {
   /// usually arrive days after the booking.
   passengerCount Int?
 
+  /// Operator data only; never exposed on client documents or the portal.
+  luggageCount Int?
+  luggageWeightLb Int?
+
   /// The first leg's departure day, kept by the service on every write.
   ///
   /// A sort and filter key, not a figure: the board orders by departure and a
@@ -215,6 +219,7 @@ model TripPassenger {
   fullName       String    @db.VarChar(200)
   dateOfBirth    DateTime? @db.Date
   passportNumber String?   @db.VarChar(40)
+  weightLb       Int?
 
   createdAt   DateTime @default(now())
   createdById String?  @db.Uuid

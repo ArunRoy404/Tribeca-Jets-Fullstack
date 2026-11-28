@@ -1,3 +1,5 @@
+import { uniquePastPassengers } from './trips.passengers.js';
+import type { QueryClientPassengersInput } from '../clients/dto/client-passengers.dto.js';
 import { assertBroker, BROKER_ROLES } from '../../common/authorization/roles.js';
 import {
   BadRequestException,
@@ -147,6 +149,7 @@ const PASSENGER_SELECT = {
     fullName: true,
     dateOfBirth: true,
     passportNumber: true,
+    weightLb: true,
   },
 } satisfies Prisma.Trip$passengersArgs;
 
@@ -214,6 +217,8 @@ const TRIP_LIST_SELECT = {
   approvedBy: ACTOR_SELECT,
   rejectionReason: true,
   passengerCount: true,
+  luggageCount: true,
+  luggageWeightLb: true,
   departureDate: true,
   basePrice: true,
   fetEnabled: true,
@@ -233,7 +238,7 @@ const TRIP_LIST_SELECT = {
 
 const TRIP_DETAIL_SELECT = {
   ...TRIP_LIST_SELECT,
-  quote: { select: { id: true, reference: true, status: true } },
+  quote: { select: { id: true, reference: true, status: true, exteriorImageUrl: true, interiorImageUrl: true } },
   tripRequest: { select: { id: true, reference: true, status: true } },
   passengers: PASSENGER_SELECT,
   internalNotes: true,
@@ -376,7 +381,8 @@ export class TripsService {
     private readonly audit: AuditService,
     @Inject(forwardRef(() => QuotesService))
     private readonly quotes: Pick<QuotesService, 'bookingSource'>,
-    private readonly requests: TripRequestsService,
+    @Inject(forwardRef(() => TripRequestsService))
+    private readonly requests: Pick<TripRequestsService, 'assertTripTarget' | 'markConverted'>,
     private readonly airports: AirportsService,
     private readonly settings: SettingsService,
     private readonly mail: MailService,
@@ -575,16 +581,8 @@ export class TripsService {
     if (row.deletedAt) throw new BadRequestException('That aircraft has been archived. Restore it, or choose another.');
   }
 
-  private async assertTripRequest(id: string | null | undefined, clientId: string): Promise<void> {
-    if (!id) return;
-    const row = await this.prisma.tripRequest.findFirst({
-      where: { id, deletedAt: null },
-      select: { clientId: true },
-    });
-    if (!row) throw new BadRequestException('That trip request does not exist');
-    if (row.clientId !== clientId) {
-      throw new BadRequestException('That trip request belongs to a different client');
-    }
+  private async assertTripRequest(user: AuthenticatedUser, id: string | null | undefined, clientId: string): Promise<void> {
+    if (id) await this.requests.assertTripTarget(user, id, clientId);
   }
 
   /** Every airport the legs name must be a live row — verified via shared AirportsService.usable. */
@@ -1015,7 +1013,7 @@ export class TripsService {
       assertBroker(this.prisma, dto.assignedBrokerId),
       this.assertOperator(dto.operatorId),
       this.assertAircraft(dto.aircraftId),
-      this.assertTripRequest(dto.tripRequestId, dto.clientId),
+      this.assertTripRequest(user, dto.tripRequestId, dto.clientId),
       this.assertAirports(dto.legs),
     ]);
 
@@ -1051,6 +1049,8 @@ export class TripsService {
           approvedAt: approval === TripApprovalStatus.APPROVED ? new Date() : null,
           approvedById: approval === TripApprovalStatus.APPROVED ? user.id : null,
           passengerCount: dto.passengerCount ?? null,
+          luggageCount: dto.luggageCount ?? null,
+          luggageWeightLb: dto.luggageWeightLb ?? null,
           departureDate: dto.legs[0]?.departureDate ?? null,
           basePrice: dto.basePrice ?? null,
           ...fetDefaults(dto, settings),
@@ -1257,7 +1257,7 @@ export class TripsService {
       (dto.tripRequestId !== undefined && dto.tripRequestId !== current.tripRequestId) ||
       (dto.clientId !== undefined && dto.clientId !== current.clientId && current.tripRequestId)
     ) {
-      await this.assertTripRequest(dto.tripRequestId === undefined ? current.tripRequestId : dto.tripRequestId, clientId);
+      await this.assertTripRequest(user, dto.tripRequestId === undefined ? current.tripRequestId : dto.tripRequestId, clientId);
     }
 
     const type = dto.type ?? current.type;
@@ -1447,6 +1447,7 @@ export class TripsService {
         fullName: passenger.fullName,
         dateOfBirth: passenger.dateOfBirth ?? null,
         passportNumber: passenger.passportNumber ?? null,
+        weightLb: passenger.weightLb ?? null,
         updatedById: user.id,
       };
       if (passenger.id) {
@@ -1805,6 +1806,41 @@ export class TripsService {
     if (trip.clientId !== clientId) {
       throw new BadRequestException('Credit can only be applied to one of the same client\'s trips');
     }
+  }
+
+  /** Used by Clients only after it has resolved its own client scope. */
+  async pastPassengersForClient(user: AuthenticatedUser, clientId: string, query: QueryClientPassengersInput) {
+    const rows = await this.prisma.tripPassenger.findMany({
+      where: { deletedAt: null, trip: { is: { clientId, deletedAt: null, ...this.visibilityScope(user) } } },
+      orderBy: [
+        { trip: { departureDate: { sort: 'desc', nulls: 'last' } } },
+        { trip: { createdAt: 'desc' } }, { tripId: 'desc' }, { sequence: 'asc' }, { id: 'asc' },
+      ],
+      select: { id: true, fullName: true, dateOfBirth: true, weightLb: true, trip: { select: { reference: true } } },
+    });
+    const unique = uniquePastPassengers(rows.map((row) => ({
+      id: row.id, fullName: row.fullName, dateOfBirth: row.dateOfBirth,
+      weightLb: row.weightLb, lastTripReference: `TJ-${row.trip.reference}`,
+    })));
+    const words = query.search?.toLowerCase().split(/\s+/) ?? [];
+    const matches = unique.filter((row) => words.every((word) => row.fullName.toLowerCase().includes(word)));
+    const { skip, take } = toPrismaPagination(query);
+    return paginate(matches.slice(skip, skip + take), matches.length, query.page, query.limit);
+  }
+
+  /** A request reads its bookings through their owner, in the trip's reach. */
+  async convertedForRequests(user: AuthenticatedUser, requestIds: string[]) {
+    const result = new Map<string, { id: string; reference: number }>();
+    if (!requestIds.length) return result;
+    const rows = await this.prisma.trip.findMany({
+      where: { tripRequestId: { in: requestIds }, deletedAt: null, ...this.visibilityScope(user) },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, reference: true, tripRequestId: true },
+    });
+    for (const row of rows) {
+      if (row.tripRequestId && !result.has(row.tripRequestId)) result.set(row.tripRequestId, { id: row.id, reference: row.reference });
+    }
+    return result;
   }
 
   /**

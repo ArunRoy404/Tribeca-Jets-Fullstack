@@ -31,7 +31,7 @@ describe('different airports', () => {
       const findFirst = vi.fn().mockResolvedValue({ id: 'row', status: 'DRAFT', originAirportId: 'A', destinationAirportId: 'B' });
       const prisma = { tripRequest: { findFirst, create: vi.fn(), update: vi.fn() }, quote: { findFirst, create: vi.fn(), update: vi.fn() } };
       const service = module === 'requests'
-        ? new TripRequestsService(prisma as never, {} as never, {} as never, {} as never)
+        ? new TripRequestsService(prisma as never, {} as never, {} as never, {} as never, {} as never)
         : new QuotesService(prisma as never, {} as never, {} as never, {} as never, {} as never);
       return { service, prisma };
     };

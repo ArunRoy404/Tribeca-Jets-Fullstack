@@ -89,6 +89,7 @@ const AIRCRAFT_SELECT = {
     maxPassengers: true,
     rangeNm: true,
     exteriorImageUrl: true,
+    interiorImageUrl: true,
   },
 } satisfies Prisma.AircraftDefaultArgs;
 
@@ -139,6 +140,7 @@ const QUOTE_LIST_SELECT = {
   aircraft: AIRCRAFT_SELECT,
   quotedAircraft: true,
   exteriorImageUrl: true,
+  interiorImageUrl: true,
   originAirportId: true,
   originAirport: AIRPORT_SELECT,
   destinationAirportId: true,
@@ -495,9 +497,10 @@ export class QuotesService {
   async renderPdf(user: AuthenticatedUser, id: string) {
     const quote = await this.findOne(user, id);
     const photoUrl = quote.exteriorImageUrl ?? quote.aircraft?.exteriorImageUrl ?? null;
-    const [brand, exteriorPhoto] = await Promise.all([
+    const [brand, exteriorPhoto, interiorPhoto] = await Promise.all([
       this.settings.documentBranding(),
       this.settings.readUploadRaster(photoUrl),
+      this.settings.readUploadRaster(quote.interiorImageUrl ?? quote.aircraft?.interiorImageUrl ?? null),
     ]);
     const body = await renderQuotePdf(
       {
@@ -508,6 +511,7 @@ export class QuotesService {
       },
       brand,
       exteriorPhoto,
+      interiorPhoto,
     );
     return {
       body,
@@ -1362,6 +1366,8 @@ export class QuotesService {
           operatorId: source.operatorId,
           aircraftId: source.aircraftId,
           quotedAircraft: source.quotedAircraft,
+          exteriorImageUrl: source.exteriorImageUrl,
+          interiorImageUrl: source.interiorImageUrl,
           originAirportId: source.originAirportId,
           destinationAirportId: source.destinationAirportId,
           departureDate: source.departureDate,

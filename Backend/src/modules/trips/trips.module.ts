@@ -12,7 +12,7 @@ import { TripsService } from './trips.service.js';
  * commissions completion stays a transaction function, without a DI edge.
  */
 @Module({
-  imports: [AirportsModule, forwardRef(() => QuotesModule), TripRequestsModule, MailModule],
+  imports: [AirportsModule, forwardRef(() => QuotesModule), forwardRef(() => TripRequestsModule), MailModule],
   controllers: [TripsController],
   providers: [TripsService],
   exports: [TripsService],

@@ -18,7 +18,7 @@ function serviceCapturingWhere() {
   };
   const prisma = { tripRequest, $transaction: vi.fn(async () => [[], 0]) };
   const sourcing = { summaryFor: vi.fn(async () => new Map()) };
-  const service = new TripRequestsService(prisma as never, {} as never, sourcing as never, {} as never);
+  const service = new TripRequestsService(prisma as never, {} as never, sourcing as never, {} as never, { convertedForRequests: vi.fn(async () => new Map()) } as never);
   return { service, where };
 }
 

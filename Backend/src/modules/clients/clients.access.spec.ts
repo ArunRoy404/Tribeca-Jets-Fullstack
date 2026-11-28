@@ -38,6 +38,7 @@ describe('clients routes (Clients review, 9 Oct 2026)', () => {
       'stats',
       'brokerPerformance',
       'findOne',
+      'passengers',
     ] as const) {
       expect(Reflect.getMetadata(ACCESS_KEY, handler(name)), name).toBeUndefined();
     }

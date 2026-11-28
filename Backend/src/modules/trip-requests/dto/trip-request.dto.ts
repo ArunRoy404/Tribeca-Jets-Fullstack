@@ -100,6 +100,8 @@ export const createTripRequestSchema = z
     quoteDeadline: calendarDate.optional(),
 
     passengers: optionalNumber('Passengers must be a whole number', PASSENGERS),
+    luggageCount: optionalNumber('Bag count must be a whole number', { min: 0, max: 100, int: true }),
+    luggageWeightLb: optionalNumber('Luggage weight must be a whole number in lb', { min: 1, max: 10_000, int: true }),
     aircraftPreference: z.enum(AircraftCategory).optional(),
     estimatedValue: optionalNumber(
       'Estimated value must be a number',
@@ -144,6 +146,8 @@ export const updateTripRequestSchema = z
     quoteDeadline: calendarDate.nullable().optional(),
 
     passengers: nullableNumber('Passengers must be a whole number', PASSENGERS),
+    luggageCount: nullableNumber('Bag count must be a whole number', { min: 0, max: 100, int: true }),
+    luggageWeightLb: nullableNumber('Luggage weight must be a whole number in lb', { min: 1, max: 10_000, int: true }),
     aircraftPreference: z.enum(AircraftCategory).nullable().optional(),
     estimatedValue: nullableNumber('Estimated value must be a number', ESTIMATE),
 

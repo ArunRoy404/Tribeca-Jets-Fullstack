@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Inject,
+  forwardRef,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service.js';
@@ -34,6 +36,7 @@ import {
 import { TripRequestStatus } from '../../generated/prisma/enums.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { OperatorQuotesService } from '../operator-quotes/operator-quotes.service.js';
+import { TripsService } from '../trips/trips.service.js';
 import { AirportsService } from '../airports/airports.service.js';
 import type {
   CreateTripRequestInput,
@@ -91,6 +94,8 @@ const REQUEST_SELECT = {
   returnDate: true,
   quoteDeadline: true,
   passengers: true,
+  luggageCount: true,
+  luggageWeightLb: true,
   aircraftPreference: true,
   estimatedValue: true,
   summary: true,
@@ -155,6 +160,8 @@ export class TripRequestsService {
     private readonly audit: AuditService,
     private readonly sourcing: OperatorQuotesService,
     private readonly airports: AirportsService,
+    @Inject(forwardRef(() => TripsService))
+    private readonly trips: Pick<TripsService, 'convertedForRequests'>,
   ) {}
 
   /**
@@ -170,11 +177,15 @@ export class TripRequestsService {
    * would make the board say "0 contacted" about an enquiry four operators are
    * working on, which is a wrong answer rather than a missing one.
    */
-  private async withSourcing<T extends { id: string }>(rows: T[]) {
-    const summaries = await this.sourcing.summaryFor(rows.map((row) => row.id));
+  private async withSourcing<T extends { id: string }>(user: AuthenticatedUser, rows: T[]) {
+    const ids = rows.map((row) => row.id);
+    const [summaries, converted] = await Promise.all([
+      this.sourcing.summaryFor(ids), this.trips.convertedForRequests(user, ids),
+    ]);
     return rows.map((row) => ({
       ...row,
       sourcing: summaries.get(row.id) ?? null,
+      convertedTrip: converted.get(row.id) ?? null,
     }));
   }
 
@@ -227,6 +238,16 @@ export class TripRequestsService {
         { destinationAirport: { icao: { contains: search, mode: 'insensitive' } } },
       ],
     };
+  }
+
+  /** Picked requests are checked here, with the same reach as the picker. */
+  async assertTripTarget(user: AuthenticatedUser, id: string, clientId: string): Promise<void> {
+    const row = await this.prisma.tripRequest.findFirst({
+      where: { id, deletedAt: null, ...this.visibilityScope(user) },
+      select: { clientId: true },
+    });
+    if (!row) throw new BadRequestException('That trip request does not exist or is outside your reach');
+    if (row.clientId !== clientId) throw new BadRequestException('That trip request belongs to a different client');
   }
 
   /** Rejects a client, broker or airport the caller cannot actually link to. */
@@ -295,7 +316,7 @@ export class TripRequestsService {
     ]);
 
     return paginate(
-      await this.withSourcing(rows.map((row) => this.serialise(row))),
+      await this.withSourcing(user, rows.map((row) => this.serialise(row))),
       total,
       query.page,
       query.limit,
@@ -313,7 +334,7 @@ export class TripRequestsService {
       select: REQUEST_DETAIL_SELECT,
     });
     if (!row) throw new NotFoundException('Trip request not found');
-    const [withSourcing] = await this.withSourcing([this.serialise(row)]);
+    const [withSourcing] = await this.withSourcing(user, [this.serialise(row)]);
     return withSourcing;
   }
 

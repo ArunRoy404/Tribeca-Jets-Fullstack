@@ -79,8 +79,12 @@ const passengerSchema = z.object({
   fullName: z.string().trim().min(1, 'Every named passenger needs a name').max(200),
   dateOfBirth: calendarDate.nullable().optional(),
   passportNumber: z.string().trim().max(40).nullable().optional(),
+  weightLb: optionalNumber('Weight must be a whole number in lb', { min: 1, max: 1_000, int: true }),
 });
-export type PassengerInput = z.infer<typeof passengerSchema>;
+const updatePassengerSchema = passengerSchema.extend({
+  weightLb: nullableNumber('Weight must be a whole number in lb', { min: 1, max: 1_000, int: true }),
+});
+export type PassengerInput = z.infer<typeof updatePassengerSchema>;
 
 const PASSENGERS = { min: 1, max: 200, int: true };
 
@@ -108,6 +112,8 @@ export const createTripSchema = z.object({
   operatorPaymentReceived: z.boolean().default(false),
 
   passengerCount: optionalNumber('Passengers must be a whole number', PASSENGERS),
+  luggageCount: optionalNumber('Bag count must be a whole number', { min: 0, max: 100, int: true }),
+  luggageWeightLb: optionalNumber('Luggage weight must be a whole number in lb', { min: 1, max: 10_000, int: true }),
 
   legs: z.array(legSchema).min(1, 'A trip needs at least one leg').max(20),
   passengers: z.array(passengerSchema).max(200).default([]),
@@ -151,9 +157,11 @@ export const updateTripSchema = z
     operatorPaymentReceived: z.boolean().optional(),
 
     passengerCount: nullableNumber('Passengers must be a whole number', PASSENGERS),
+    luggageCount: nullableNumber('Bag count must be a whole number', { min: 0, max: 100, int: true }),
+    luggageWeightLb: nullableNumber('Luggage weight must be a whole number in lb', { min: 1, max: 10_000, int: true }),
 
     legs: z.array(legSchema).min(1).max(20).optional(),
-    passengers: z.array(passengerSchema).max(200).optional(),
+    passengers: z.array(updatePassengerSchema).max(200).optional(),
 
     basePrice: nullableNumber('The price must be a number', MONEY),
     fetEnabled: z.boolean().optional(),

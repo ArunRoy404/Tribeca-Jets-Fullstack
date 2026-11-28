@@ -9,6 +9,7 @@ import { AirportsService } from '../airports/airports.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { MailService } from '../../core/mail/mail.service.js';
 import { TripRequestsService } from '../trip-requests/trip-requests.service.js';
+import { OperatorQuotesService } from '../operator-quotes/operator-quotes.service.js';
 
 describe('quote send delegates the client consequence', () => {
   it('calls ClientsService within the quote update transaction', async () => {
@@ -31,6 +32,16 @@ describe('quote send delegates the client consequence', () => {
     expect(compiled.get(ClientsService)).toBeInstanceOf(ClientsService);
     expect(compiled.get(TripsService)).toBeInstanceOf(TripsService);
     expect(compiled.get(QuotesService)).toBeInstanceOf(QuotesService);
+    await compiled.close();
+  });
+
+  it('Nest resolves the request → trips conversion reader alongside the client and quote readers', async () => {
+    const compiled = await Test.createTestingModule({ providers: [ClientsService, TripsService, QuotesService, TripRequestsService,
+      ...[PrismaService, AuditService, AirportsService, SettingsService, MailService, OperatorQuotesService]
+        .map((provide) => ({ provide, useValue: {} })),
+    ] }).compile();
+    expect(compiled.get(TripRequestsService)).toBeInstanceOf(TripRequestsService);
+    expect(compiled.get(TripsService)).toBeInstanceOf(TripsService);
     await compiled.close();
   });
 });

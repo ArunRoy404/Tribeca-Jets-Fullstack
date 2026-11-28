@@ -45,6 +45,7 @@ import {
   UserRole,
   UserStatus,
 } from '../../generated/prisma/enums.js';
+import type { QueryClientPassengersInput } from './dto/client-passengers.dto.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type {
   CreateClientInput,
@@ -171,7 +172,7 @@ export class ClientsService {
     private readonly audit: AuditService,
     // Quotes now advances clients through this owner; defer the existing trip-reader edge.
     @Inject(forwardRef(() => TripsService))
-    private readonly trips: Pick<TripsService, 'activeCountByBroker' | 'latestForClient'>,
+    private readonly trips: Pick<TripsService, 'activeCountByBroker' | 'latestForClient' | 'pastPassengersForClient'>,
     private readonly airports: AirportsService,
     private readonly settings: SettingsService,
   ) {}
@@ -282,6 +283,12 @@ export class ClientsService {
       throw new NotFoundException('Client not found');
     }
     return client;
+  }
+
+  /** Client reach is checked before the trip owner reads any manifests. */
+  async passengers(user: AuthenticatedUser, id: string, query: QueryClientPassengersInput) {
+    await this.subjectRef(user, id);
+    return this.trips.pastPassengersForClient(user, id, query);
   }
 
   /**

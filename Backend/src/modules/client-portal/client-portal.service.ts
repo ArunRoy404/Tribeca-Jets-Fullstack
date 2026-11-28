@@ -130,10 +130,12 @@ export class ClientPortalService {
               category: true,
               maxPassengers: true,
               exteriorImageUrl: true,
+              interiorImageUrl: true,
             },
           },
           quotedAircraft: true,
           exteriorImageUrl: true,
+          interiorImageUrl: true,
           basePrice: true,
           fetEnabled: true,
           fetRate: true,
@@ -280,6 +282,7 @@ export class ClientPortalService {
         aircraft: q.aircraft,
         quotedAircraft: q.quotedAircraft,
         exteriorImageUrl: q.exteriorImageUrl ?? q.aircraft?.exteriorImageUrl ?? null,
+        interiorImageUrl: q.interiorImageUrl ?? q.aircraft?.interiorImageUrl ?? null,
         basePrice: priced.basePrice,
         fetEnabled: q.fetEnabled,
         fetRate: priced.fetRate,
@@ -498,6 +501,7 @@ export class ClientPortalService {
         validUntil: true,
         quotedAircraft: true,
         exteriorImageUrl: true,
+        interiorImageUrl: true,
         basePrice: true,
         fetEnabled: true,
         fetRate: true,
@@ -513,6 +517,7 @@ export class ClientPortalService {
             category: true,
             maxPassengers: true,
             exteriorImageUrl: true,
+            interiorImageUrl: true,
           },
         },
         assignedBroker: BROKER_SELECT,
@@ -528,9 +533,10 @@ export class ClientPortalService {
       lineItems: row.lineItems,
     });
     const photoUrl = row.exteriorImageUrl ?? row.aircraft?.exteriorImageUrl ?? null;
-    const [brand, exteriorPhoto] = await Promise.all([
+    const [brand, exteriorPhoto, interiorPhoto] = await Promise.all([
       this.settings.documentBranding(),
       this.settings.readUploadRaster(photoUrl),
+      this.settings.readUploadRaster(row.interiorImageUrl ?? row.aircraft?.interiorImageUrl ?? null),
     ]);
 
     const body = await renderQuotePdf(
@@ -560,6 +566,7 @@ export class ClientPortalService {
       },
       brand,
       exteriorPhoto,
+      interiorPhoto,
     );
 
     return {
@@ -598,6 +605,7 @@ export class ClientPortalService {
             reference: true,
             status: true,
             departureDate: true,
+            quote: { select: { exteriorImageUrl: true, interiorImageUrl: true } },
             aircraftDescription: true,
             aircraft: {
               select: {
@@ -633,8 +641,8 @@ export class ClientPortalService {
 
     const firstLeg = row.trip.legs[0] ?? null;
     const lastLeg = row.trip.legs[row.trip.legs.length - 1] ?? null;
-    const extUrl = row.exteriorImageUrl ?? row.trip.aircraft?.exteriorImageUrl ?? null;
-    const intUrl = row.interiorImageUrl ?? row.trip.aircraft?.interiorImageUrl ?? null;
+    const extUrl = row.exteriorImageUrl ?? row.trip.quote?.exteriorImageUrl ?? row.trip.aircraft?.exteriorImageUrl ?? null;
+    const intUrl = row.interiorImageUrl ?? row.trip.quote?.interiorImageUrl ?? row.trip.aircraft?.interiorImageUrl ?? null;
     const [brand, exteriorPhoto, interiorPhoto] = await Promise.all([
       this.settings.documentBranding(),
       this.settings.readUploadRaster(extUrl),

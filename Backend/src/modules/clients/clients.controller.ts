@@ -20,6 +20,7 @@ import {
 import { Action, Module } from '../../common/authorization/access.js';
 import { BulkIdsDto } from '../../common/dto/bulk.dto.js';
 import type { AuthenticatedUser } from '../../common/types/api.types.js';
+import { QueryClientPassengersDto } from './dto/client-passengers.dto.js';
 import { ClientsService } from './clients.service.js';
 import {
   CreateClientDto,
@@ -80,6 +81,12 @@ export class ClientsController {
   })
   brokerPerformance(@CurrentUser() user: AuthenticatedUser) {
     return this.clients.brokerPerformance(user);
+  }
+
+  @Get(':id/passengers')
+  @ApiOperation({ summary: 'Saved passengers from visible live trips', description: 'Client scope and trip scope both apply. De-duplicated by trimmed case-insensitive name and date of birth, newest trip first. No passport numbers.' })
+  passengers(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string, @Query() query: QueryClientPassengersDto) {
+    return this.clients.passengers(user, id, query);
   }
 
   @Get(':id')

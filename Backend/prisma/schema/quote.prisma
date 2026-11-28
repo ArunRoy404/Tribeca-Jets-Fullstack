@@ -73,6 +73,7 @@ model Quote {
   /// quotes are priced before anyone has a picture, and there is no stock
   /// fallback for a specific aircraft the way a generic hero image would be.
   exteriorImageUrl String?
+  interiorImageUrl String?
 
   /// Route. Real airport relations, never codes typed into a box.
   originAirportId      String?  @db.Uuid

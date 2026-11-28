@@ -126,6 +126,7 @@ export const createQuoteSchema = z.object({
    *  nothing else — see `uploadUrl`. An external link would be an image this
    *  API never checked, served from a host nobody chose. */
   exteriorImageUrl: uploadUrl.optional(),
+  interiorImageUrl: uploadUrl.optional(),
 
   originAirportId: z.uuid().nullable().optional(),
   destinationAirportId: z.uuid().nullable().optional(),
@@ -226,6 +227,7 @@ export const updateQuoteSchema = z.object({
   aircraftId: z.uuid().nullable().optional(),
   quotedAircraft: z.string().trim().max(200).nullable().optional(),
   exteriorImageUrl: uploadUrl.nullable().optional(),
+  interiorImageUrl: uploadUrl.nullable().optional(),
 
   originAirportId: z.uuid().nullable().optional(),
   destinationAirportId: z.uuid().nullable().optional(),

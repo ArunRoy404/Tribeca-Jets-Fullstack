@@ -69,6 +69,7 @@ export async function renderQuotePdf(
   quote: QuotePdfData,
   brand: PdfCompanyBrand,
   exteriorPhotoBuffer?: Buffer | null,
+  interiorPhotoBuffer?: Buffer | null,
 ): Promise<Buffer> {
   const refLabel = String(quote.reference).startsWith('Q-') ? String(quote.reference) : `Q-${quote.reference}`;
   const doc = createPdfDocument({ title: `Charter Quotation ${refLabel}` });
@@ -114,16 +115,18 @@ export async function renderQuotePdf(
     3,
   );
 
-  if (exteriorPhotoBuffer) {
-    try {
-      ensureSpace(doc, 145);
-      const left = 48;
-      const topY = doc.y + 2;
-      doc.image(exteriorPhotoBuffer, left, topY, { fit: [240, 125] });
-      doc.y = topY + 134;
-    } catch {
-      // Ignore unrenderable raster buffer
+  if (exteriorPhotoBuffer || interiorPhotoBuffer) {
+    ensureSpace(doc, 145);
+    const topY = doc.y + 2;
+    for (const [index, photo] of [exteriorPhotoBuffer, interiorPhotoBuffer].entries()) {
+      if (!photo) continue;
+      try {
+        doc.image(photo, 48 + (index === 1 && exteriorPhotoBuffer ? 260 : 0), topY, { fit: [240, 125] });
+      } catch {
+        // Ignore an unrenderable raster without suppressing the other photo.
+      }
     }
+    doc.y = topY + 134;
   }
 
   drawSectionHeading(doc, 'Charter Investment Breakdown');
